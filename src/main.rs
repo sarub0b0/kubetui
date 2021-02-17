@@ -13,12 +13,12 @@ use crossterm::{
 
 #[allow(unused_imports)]
 use tui::{
-    backend::CrosstermBackend,
+    backend::{Backend, CrosstermBackend},
     layout::{Constraint, Corner, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Span, Spans},
     widgets::{Block, Borders, List, ListItem, ListState},
-    Terminal,
+    Frame, Terminal,
 };
 
 struct Events {
@@ -74,11 +74,36 @@ impl Events {
     }
 }
 
-// use k8s_openapi::api::core::v1::Pod;
-// use kube::{
-//     api::{Api, DeleteParams, ListParams, Meta, Patch, PostParams, WatchEvent},
-//     Client,
-// };
+fn draw<B: Backend>(f: &mut Frame<B>, events: &mut Vec<&mut Events>) {
+    let mut index = 0;
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+        .split(f.size());
+
+    for e in events {
+        let block = Block::default()
+            .title(vec![
+                Span::styled("─", Style::default()),
+                Span::styled(
+                    format!("Block {}", index),
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
+            ])
+            .borders(Borders::ALL)
+            .border_style(Style::default().add_modifier(Modifier::BOLD));
+
+        let items: Vec<ListItem> = e.items.iter().map(|i| ListItem::new(i.as_ref())).collect();
+
+        let list = List::new(items)
+            .block(block)
+            .style(Style::default())
+            .highlight_symbol(">");
+
+        f.render_stateful_widget(list, chunks[index], &mut e.state);
+        index += 1;
+    }
+}
 
 // #[tokio::main]
 fn main() -> Result<(), io::Error> {
@@ -96,51 +121,37 @@ fn main() -> Result<(), io::Error> {
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::new(backend).unwrap();
 
-    let mut events = Events::new(vec![
+    let mut e0 = Events::new(vec![
         String::from("Item 1"),
         String::from("Item 2"),
         String::from("Item 3"),
     ]);
+    let mut e1 = Events::new(vec![
+        String::from("Item 1"),
+        String::from("Item 2"),
+        String::from("Item 3"),
+    ]);
+
+    let mut events: Vec<&mut Events> = vec![&mut e0, &mut e1];
+
+    let mut focus_index = 0;
+
     loop {
-        terminal
-            .draw(|f| {
-                let chunks = Layout::default()
-                    .direction(Direction::Horizontal)
-                    .constraints(
-                        [
-                            Constraint::Percentage(50),
-                            Constraint::Percentage(30),
-                            Constraint::Percentage(20),
-                        ]
-                        .as_ref(),
-                    )
-                    .split(f.size());
+        terminal.draw(|f| draw(f, &mut events)).unwrap();
 
-                let block = Block::default()
-                    .title(vec![
-                        Span::styled("─", Style::default()),
-                        Span::styled("Pods", Style::default().add_modifier(Modifier::BOLD)),
-                    ])
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().add_modifier(Modifier::BOLD));
-                let items: Vec<ListItem> = events
-                    .items
-                    .iter()
-                    .map(|i| ListItem::new(i.as_ref()))
-                    .collect();
-                let list = List::new(items)
-                    .block(block)
-                    .style(Style::default())
-                    .highlight_symbol(">");
-                f.render_stateful_widget(list, chunks[0], &mut events.state);
-            })
-            .unwrap();
-
+        let e = &mut events;
         match read().unwrap() {
             CEvent::Key(ev) => match ev.code {
                 KeyCode::Char('q') => break,
-                KeyCode::Char('j') => events.next(),
-                KeyCode::Char('k') => events.prev(),
+                KeyCode::Char('j') => e[focus_index].next(),
+                KeyCode::Char('k') => e[focus_index].prev(),
+                KeyCode::Tab => {
+                    focus_index = if events.len() - 1 <= focus_index {
+                        0
+                    } else {
+                        focus_index + 1
+                    };
+                }
                 KeyCode::Char(_) => {}
                 _ => {}
             },
