@@ -14,10 +14,10 @@ use crossterm::{
 #[allow(unused_imports)]
 use tui::{
     backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Corner, Direction, Layout},
+    layout::{Constraint, Corner, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Span, Spans},
-    widgets::{Block, Borders, List, ListItem, ListState},
+    widgets::{Block, Borders, List, ListItem, ListState, Tabs},
     Frame, Terminal,
 };
 
@@ -74,12 +74,40 @@ impl Events {
     }
 }
 
-fn draw<B: Backend>(f: &mut Frame<B>, events: &mut Vec<&mut Events>) {
+fn draw_tab<B: Backend>(f: &mut Frame<B>, chunk: Rect, index: usize) {
+    let titles = ["Tab1", "Tab2", "Tab3", "Tab4"]
+        .iter()
+        .cloned()
+        .map(Spans::from)
+        .collect();
+
+    let block = Block::default().style(Style::default());
+
+    let tabs = Tabs::new(titles)
+        .block(block)
+        .select(index)
+        .highlight_style(Style::default().fg(Color::White).bg(Color::LightBlue));
+
+    f.render_widget(tabs, chunk);
+}
+
+fn window_chunks(window_size: Rect) -> Vec<Rect> {
+    Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(2), Constraint::Min(0)].as_ref())
+        .split(window_size)
+}
+
+fn draw<B: Backend>(f: &mut Frame<B>, events: &mut Vec<&mut Events>, tab_index: usize) {
     let mut index = 0;
+    let areas = window_chunks(f.size());
+
+    draw_tab(f, areas[0], tab_index);
+
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
-        .split(f.size());
+        .split(areas[1]);
 
     for e in events {
         let block = Block::default()
@@ -136,8 +164,10 @@ fn main() -> Result<(), io::Error> {
 
     let mut focus_index = 0;
 
+    let mut tab_index = 0;
+
     loop {
-        terminal.draw(|f| draw(f, &mut events)).unwrap();
+        terminal.draw(|f| draw(f, &mut events, tab_index)).unwrap();
 
         let e = &mut events;
         match read().unwrap() {
@@ -152,6 +182,10 @@ fn main() -> Result<(), io::Error> {
                         focus_index + 1
                     };
                 }
+                KeyCode::Char('1') => tab_index = 0,
+                KeyCode::Char('2') => tab_index = 1,
+                KeyCode::Char('3') => tab_index = 2,
+                KeyCode::Char('4') => tab_index = 3,
                 KeyCode::Char(_) => {}
                 _ => {}
             },
