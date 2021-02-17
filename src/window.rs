@@ -34,9 +34,10 @@ pub struct List {
 
 impl Window {
     pub fn new(tabs: Vec<Tab>) -> Self {
-        let mut w = Window::default();
-        w.tabs = tabs;
-        w
+        Self {
+            tabs,
+            ..Window::default()
+        }
     }
 
     pub fn chunks(&self, window_size: Rect) -> Vec<Rect> {
@@ -78,6 +79,13 @@ impl Window {
             .selected_pane()
             .prev_item();
     }
+
+    pub fn select_tab(&mut self, index: usize) {
+        let index = index - 1;
+        if index < self.tabs.len() {
+            self.selected_tab_index = index;
+        }
+    }
 }
 
 impl Default for Window {
@@ -109,8 +117,8 @@ impl Tab {
             title,
             panes,
             layout,
-            selected_pane_index: 0,
             selectable_widgets,
+            selected_pane_index: 0,
         }
     }
     pub fn title(&self) -> &str {

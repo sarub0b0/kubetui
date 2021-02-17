@@ -147,7 +147,6 @@ fn main() -> Result<(), io::Error> {
     loop {
         terminal.draw(|f| draw(f, &mut window)).unwrap();
 
-        // let e = &mut events;
         match read().unwrap() {
             CEvent::Key(ev) => match ev.code {
                 KeyCode::Char('q') => break,
@@ -156,7 +155,7 @@ fn main() -> Result<(), io::Error> {
                 KeyCode::Tab => {
                     window.select_next_pane();
                 }
-                // KeyCode::Char('1') => tab_index = 0,
+                KeyCode::Char(n @ '1'..='9') => window.select_tab(n as usize - b'0' as usize),
                 KeyCode::Char(_) => {}
                 _ => {}
             },
