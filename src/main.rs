@@ -14,7 +14,7 @@ use crossterm::{
 #[allow(unused_imports)]
 use tui::{
     backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Corner, Direction, Layout},
+    layout::{Constraint, Corner, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Span, Spans},
     widgets::{Block, Borders, List, ListItem, ListState},
@@ -74,12 +74,35 @@ impl Events {
     }
 }
 
+fn draw_tab<B: Backend>(f: &mut Frame<B>, chunk: Rect) {
+    let block = Block::default()
+        .title(vec![
+            Span::styled("─", Style::default()),
+            Span::styled("Tab", Style::default().add_modifier(Modifier::BOLD)),
+        ])
+        .borders(Borders::ALL)
+        .border_style(Style::default().add_modifier(Modifier::BOLD));
+
+    f.render_widget(block, chunk);
+}
+
+fn window_chunks(window_size: Rect) -> Vec<Rect> {
+    Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
+        .split(window_size)
+}
+
 fn draw<B: Backend>(f: &mut Frame<B>, events: &mut Vec<&mut Events>) {
     let mut index = 0;
+    let areas = window_chunks(f.size());
+
+    draw_tab(f, areas[0]);
+
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
-        .split(f.size());
+        .split(areas[1]);
 
     for e in events {
         let block = Block::default()
