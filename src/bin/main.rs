@@ -41,9 +41,9 @@ fn draw_tab<B: Backend>(f: &mut Frame<B>, chunk: Rect, tabs: &Vec<Tab>, index: u
 
 fn generate_title(title: &str, selected: bool) -> Spans {
     let title = if selected {
-        format!("{}", title)
+        format!("✔︎ {}", title)
     } else {
-        title.to_string()
+        format!("──{}", title)
     };
     Spans::from(vec![
         Span::styled("─", Style::default()),
@@ -56,7 +56,10 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, area: Rect, tab: &Tab) {
 
     for pane in tab.panes() {
         let block = widgets::Block::default()
-            .title(generate_title(pane.title(), true))
+            .title(generate_title(
+                pane.title(),
+                pane.selected(tab.selected_pane()),
+            ))
             .borders(widgets::Borders::ALL)
             .border_style(Style::default().add_modifier(Modifier::BOLD));
 
