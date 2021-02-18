@@ -176,9 +176,15 @@ async fn get_pod_info() -> Vec<String> {
 
     let mut ret: Vec<String> = Vec::new();
     for p in pods_list {
-        let status = pods.get_status(&p.name()).await.unwrap();
         let meta = Meta::meta(&p);
-        let creation_timestamp: DateTime<Utc> = match meta.creation_timestamp {
+        let status = &p.status;
+        let name = meta.name.clone().unwrap();
+
+        let phase = match status {
+            Some(s) => s.phase.clone().unwrap(),
+            None => "Unknown".to_string(),
+        };
+        let creation_timestamp: DateTime<Utc> = match &meta.creation_timestamp {
             Some(ref time) => time.0,
             None => current_datetime,
         };
@@ -186,8 +192,8 @@ async fn get_pod_info() -> Vec<String> {
 
         ret.push(format!(
             "{:width$} {}    {}",
-            p.name(),
-            status.status.unwrap().phase.unwrap(),
+            name,
+            phase,
             age(&duration),
             width = max_name_len + 4
         ));
