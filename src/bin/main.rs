@@ -80,8 +80,7 @@ fn draw_list<B: Backend>(
     let li = widgets::List::new(items)
         .block(block)
         .style(Style::default())
-        .highlight_style(Style::default().bg(Color::White))
-        .highlight_symbol(">");
+        .highlight_style(Style::default().bg(Color::DarkGray).fg(Color::White));
 
     f.render_stateful_widget(li, area, state);
 }
