@@ -111,12 +111,26 @@ fn draw_list<B: Backend>(
     f.render_stateful_widget(li, area, state);
 }
 
+fn draw_datetime<B: Backend>(f: &mut Frame<B>, area: Rect) {
+    let block = widgets::Block::default().style(Style::default());
+
+    let text = Spans::from(vec![Span::raw(format!(
+        " {}",
+        Utc::now().format("%Y年%m月%d日 %H時%M分%S秒")
+    ))]);
+
+    let paragraph = widgets::Paragraph::new(text).block(block);
+
+    f.render_widget(paragraph, area);
+}
 fn draw<B: Backend>(f: &mut Frame<B>, window: &mut Window) {
     let areas = window.chunks(f.size());
 
     draw_tab(f, areas[0], &window.tabs(), window.selected_tab_index());
 
     draw_panes(f, areas[1], window.selected_tab());
+
+    draw_datetime(f, areas[2]);
 }
 
 // ❯  k get pod
@@ -217,20 +231,22 @@ async fn main() -> Result<(), io::Error> {
     loop {
         terminal.draw(|f| draw(f, &mut window)).unwrap();
 
-        match read().unwrap() {
-            CEvent::Key(ev) => match ev.code {
-                KeyCode::Char('q') => break,
-                KeyCode::Char('j') => window.select_next_item(),
-                KeyCode::Char('k') => window.select_prev_item(),
-                KeyCode::Tab => {
-                    window.select_next_pane();
-                }
-                KeyCode::Char(n @ '1'..='9') => window.select_tab(n as usize - b'0' as usize),
-                KeyCode::Char(_) => {}
-                _ => {}
-            },
-            CEvent::Mouse(_) => {}
-            CEvent::Resize(_, _) => {}
+        if event::poll(std::time::Duration::from_millis(500)).unwrap() {
+            match read().unwrap() {
+                CEvent::Key(ev) => match ev.code {
+                    KeyCode::Char('q') => break,
+                    KeyCode::Char('j') => window.select_next_item(),
+                    KeyCode::Char('k') => window.select_prev_item(),
+                    KeyCode::Tab => {
+                        window.select_next_pane();
+                    }
+                    KeyCode::Char(n @ '1'..='9') => window.select_tab(n as usize - b'0' as usize),
+                    KeyCode::Char(_) => {}
+                    _ => {}
+                },
+                CEvent::Mouse(_) => {}
+                CEvent::Resize(_, _) => {}
+            }
         }
     }
 

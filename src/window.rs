@@ -92,7 +92,14 @@ impl Default for Window {
     fn default() -> Self {
         let layout = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(2), Constraint::Min(0)].as_ref());
+            .constraints(
+                [
+                    Constraint::Length(2),
+                    Constraint::Min(0),
+                    Constraint::Length(1),
+                ]
+                .as_ref(),
+            );
 
         Self {
             tabs: Vec::new(),
