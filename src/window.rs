@@ -70,13 +70,13 @@ impl Window {
 
     pub fn select_next_item(&mut self) {
         self.tabs[self.selected_tab_index]
-            .selected_pane()
+            .selected_mut_pane()
             .next_item();
     }
 
     pub fn select_prev_item(&mut self) {
         self.tabs[self.selected_tab_index]
-            .selected_pane()
+            .selected_mut_pane()
             .prev_item();
     }
 
@@ -141,8 +141,11 @@ impl Tab {
         }
     }
 
-    pub fn selected_pane(&mut self) -> &mut Pane {
+    pub fn selected_mut_pane(&mut self) -> &mut Pane {
         &mut self.panes[self.selected_pane_index]
+    }
+    pub fn selected_pane(&self) -> &Pane {
+        &self.panes[self.selected_pane_index]
     }
 }
 
@@ -177,6 +180,10 @@ impl Pane {
         match &self.widget {
             Widget::List(l) => l.prev(),
         };
+    }
+
+    pub fn selected(&self, rhs: &Pane) -> bool {
+        return std::ptr::eq(self, rhs);
     }
 }
 
