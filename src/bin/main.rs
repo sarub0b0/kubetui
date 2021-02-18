@@ -39,15 +39,24 @@ fn draw_tab<B: Backend>(f: &mut Frame<B>, chunk: Rect, tabs: &Vec<Tab>, index: u
     f.render_widget(tabs, chunk);
 }
 
+fn generate_title(title: &str, selected: bool) -> Spans {
+    let title = if selected {
+        format!("{}", title)
+    } else {
+        title.to_string()
+    };
+    Spans::from(vec![
+        Span::styled("─", Style::default()),
+        Span::styled(title, Style::default().add_modifier(Modifier::BOLD)),
+    ])
+}
+
 fn draw_panes<B: Backend>(f: &mut Frame<B>, area: Rect, tab: &Tab) {
     let chunks = tab.chunks(area);
 
     for pane in tab.panes() {
         let block = widgets::Block::default()
-            .title(vec![
-                Span::styled("─", Style::default()),
-                Span::styled(pane.title(), Style::default().add_modifier(Modifier::BOLD)),
-            ])
+            .title(generate_title(pane.title(), true))
             .borders(widgets::Borders::ALL)
             .border_style(Style::default().add_modifier(Modifier::BOLD));
 
@@ -80,7 +89,7 @@ fn draw_list<B: Backend>(
     let li = widgets::List::new(items)
         .block(block)
         .style(Style::default())
-        .highlight_style(Style::default().bg(Color::DarkGray).fg(Color::White));
+        .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
     f.render_stateful_widget(li, area, state);
 }
