@@ -53,26 +53,36 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, area: Rect, tab: &Tab) {
 
         match pane.widget() {
             Widget::List(list) => {
-                let items: Vec<widgets::ListItem> = list
-                    .items()
-                    .into_iter()
-                    .map(|i| widgets::ListItem::new(i.as_ref()))
-                    .collect();
-
-                let li = widgets::List::new(items)
-                    .block(block)
-                    .style(Style::default())
-                    .highlight_style(Style::default().bg(Color::White))
-                    .highlight_symbol(">");
-
-                f.render_stateful_widget(
-                    li,
+                draw_list(
+                    f,
+                    block,
                     chunks[pane.chunk_index()],
+                    &list.items(),
                     &mut list.state().borrow_mut(),
                 );
             }
         }
     }
+}
+
+fn draw_list<B: Backend>(
+    f: &mut Frame<B>,
+    block: widgets::Block,
+    area: Rect,
+    items: &Vec<String>,
+    state: &mut widgets::ListState,
+) {
+    let items: Vec<widgets::ListItem> = items
+        .iter()
+        .map(|i| widgets::ListItem::new(i.as_ref()))
+        .collect();
+
+    let li = widgets::List::new(items)
+        .block(block)
+        .style(Style::default())
+        .highlight_style(Style::default().bg(Color::DarkGray).fg(Color::White));
+
+    f.render_stateful_widget(li, area, state);
 }
 
 fn draw<B: Backend>(f: &mut Frame<B>, window: &mut Window) {
@@ -143,6 +153,8 @@ fn main() -> Result<(), io::Error> {
         ),
     ];
     let mut window = Window::new(tabs);
+
+    terminal.clear();
 
     loop {
         terminal.draw(|f| draw(f, &mut window)).unwrap();
