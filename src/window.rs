@@ -255,14 +255,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn one_prev_is_selected_first_index() {
+    fn initial_index() {
         let list = List::new(vec![
             String::from("Item 0"),
             String::from("Item 1"),
             String::from("Item 2"),
         ]);
 
-        list.prev();
         assert_eq!(Some(0), list.selected())
     }
 
@@ -276,10 +275,10 @@ mod tests {
 
         list.prev();
         list.prev();
-        assert_eq!(Some(2), list.selected())
+        assert_eq!(Some(1), list.selected())
     }
     #[test]
-    fn one_next_is_selected_first_index() {
+    fn one_next_is_selected_second_index() {
         let list = List::new(vec![
             String::from("Item 0"),
             String::from("Item 1"),
@@ -287,7 +286,7 @@ mod tests {
         ]);
 
         list.next();
-        assert_eq!(Some(0), list.selected())
+        assert_eq!(Some(1), list.selected())
     }
 
     #[test]
@@ -298,7 +297,6 @@ mod tests {
             String::from("Item 2"),
         ]);
 
-        list.next();
         list.next();
         list.next();
         list.next();
