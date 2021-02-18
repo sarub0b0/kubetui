@@ -218,14 +218,6 @@ impl Pane {
     }
 }
 
-impl Widget {
-    fn set_items(&mut self, items: Vec<String>) {
-        match self {
-            Widget::List(l) => l.set_items(items),
-        }
-    }
-}
-
 impl List {
     pub fn new(items: Vec<String>) -> Self {
         let mut state = ListState::default();
