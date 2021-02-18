@@ -21,6 +21,7 @@ pub struct Pane {
     widget: Widget,
     chunk_index: usize,
     title: String,
+    ty: Type,
 }
 
 pub enum Widget {
@@ -30,6 +31,12 @@ pub enum Widget {
 pub struct List {
     items: Vec<String>,
     state: RefCell<ListState>,
+}
+
+pub enum Type {
+    NONE,
+    LOG,
+    POD,
 }
 
 impl Window {
@@ -84,6 +91,22 @@ impl Window {
         let index = index - 1;
         if index < self.tabs.len() {
             self.selected_tab_index = index;
+        }
+    }
+
+    pub fn update_pod_status(&mut self, info: &Vec<String>) {
+        for t in &mut self.tabs {
+            for p in &mut t.panes {
+                let w = match &mut p.ty {
+                    Type::POD => Some(&mut p.widget),
+                    Type::LOG => None,
+                    Type::NONE => None,
+                };
+
+                if let Some(Widget::List(l)) = w {
+                    l.set_items(info.to_vec());
+                }
+            }
         }
     }
 }
@@ -157,11 +180,12 @@ impl Tab {
 }
 
 impl Pane {
-    pub fn new(title: String, widget: Widget, chunk_index: usize) -> Self {
+    pub fn new(title: String, widget: Widget, chunk_index: usize, ty: Type) -> Self {
         Self {
             title,
             widget,
             chunk_index,
+            ty,
         }
     }
 
@@ -194,6 +218,14 @@ impl Pane {
     }
 }
 
+impl Widget {
+    fn set_items(&mut self, items: Vec<String>) {
+        match self {
+            Widget::List(l) => l.set_items(items),
+        }
+    }
+}
+
 impl List {
     pub fn new(items: Vec<String>) -> Self {
         let mut state = ListState::default();
@@ -208,6 +240,9 @@ impl List {
     }
     pub fn set_items(&mut self, items: Vec<String>) {
         self.items = items;
+        if 0 < self.items.len() {
+            self.state.borrow_mut().select(Some(0));
+        }
     }
 
     pub fn next(&self) {

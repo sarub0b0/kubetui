@@ -2,6 +2,14 @@
 use chrono::{DateTime, Duration, Utc};
 
 #[allow(unused_imports)]
+use std::sync::mpsc::{self, Receiver, Sender};
+use std::thread;
+use std::time;
+
+#[allow(unused_imports)]
+use tokio::runtime::Runtime;
+
+#[allow(unused_imports)]
 use std::{
     error::Error,
     io::{self, stdout, Write},
@@ -123,6 +131,7 @@ fn draw_datetime<B: Backend>(f: &mut Frame<B>, area: Rect) {
 
     f.render_widget(paragraph, area);
 }
+
 fn draw<B: Backend>(f: &mut Frame<B>, window: &mut Window) {
     let areas = window.chunks(f.size());
 
@@ -131,6 +140,14 @@ fn draw<B: Backend>(f: &mut Frame<B>, window: &mut Window) {
     draw_panes(f, areas[1], window.selected_tab());
 
     draw_datetime(f, areas[2]);
+}
+
+enum Event {
+    Input(KeyCode),
+    Kube(Kube),
+    Tick,
+    Resize,
+    Mouse,
 }
 
 // ❯  k get pod
@@ -178,9 +195,41 @@ async fn get_pod_info() -> Vec<String> {
     ret
 }
 
-#[tokio::main]
-async fn main() -> Result<(), io::Error> {
-    let pod_info = get_pod_info().await;
+fn read_key(tx: Sender<Event>) {
+    let timeout = time::Duration::from_millis(500);
+    loop {
+        if event::poll(timeout).unwrap() {
+            match read().unwrap() {
+                CEvent::Key(ev) => tx.send(Event::Input(ev.code)).unwrap(),
+                CEvent::Mouse(_) => tx.send(Event::Mouse).unwrap(),
+                CEvent::Resize(_, _) => tx.send(Event::Resize).unwrap(),
+            }
+        }
+        tx.send(Event::Tick).unwrap();
+    }
+}
+
+enum Kube {
+    Pod(Vec<String>),
+}
+fn kube_process(tx: Sender<Event>) {
+    let rt = Runtime::new().unwrap();
+    rt.block_on(async move {
+        let mut interval = tokio::time::interval(time::Duration::from_secs(2));
+        loop {
+            interval.tick().await;
+            let pod_info = get_pod_info().await;
+            tx.send(Event::Kube(Kube::Pod(pod_info))).unwrap();
+        }
+    });
+}
+
+fn main() -> Result<(), io::Error> {
+    let (tx, rx): (Sender<Event>, Receiver<Event>) = mpsc::channel();
+    let tx_kube = tx.clone();
+
+    thread::spawn(move || read_key(tx));
+    thread::spawn(move || kube_process(tx_kube));
 
     enable_raw_mode().unwrap();
 
@@ -193,7 +242,12 @@ async fn main() -> Result<(), io::Error> {
         Tab::new(
             "1:Pods".to_string(),
             vec![
-                Pane::new(String::from("Pods"), Widget::List(List::new(pod_info)), 0),
+                Pane::new(
+                    String::from("Pods"),
+                    Widget::List(List::new(vec![String::new()])),
+                    0,
+                    Type::POD,
+                ),
                 Pane::new(
                     String::from("List 1"),
                     Widget::List(List::new(vec![
@@ -202,6 +256,7 @@ async fn main() -> Result<(), io::Error> {
                         String::from("Item 3"),
                     ])),
                     1,
+                    Type::LOG,
                 ),
             ],
             Layout::default()
@@ -218,6 +273,7 @@ async fn main() -> Result<(), io::Error> {
                     String::from("Item 3"),
                 ])),
                 0,
+                Type::NONE,
             )],
             Layout::default()
                 .direction(Direction::Vertical)
@@ -231,22 +287,26 @@ async fn main() -> Result<(), io::Error> {
     loop {
         terminal.draw(|f| draw(f, &mut window)).unwrap();
 
-        if event::poll(std::time::Duration::from_millis(500)).unwrap() {
-            match read().unwrap() {
-                CEvent::Key(ev) => match ev.code {
-                    KeyCode::Char('q') => break,
-                    KeyCode::Char('j') => window.select_next_item(),
-                    KeyCode::Char('k') => window.select_prev_item(),
-                    KeyCode::Tab => {
-                        window.select_next_pane();
-                    }
-                    KeyCode::Char(n @ '1'..='9') => window.select_tab(n as usize - b'0' as usize),
-                    KeyCode::Char(_) => {}
-                    _ => {}
-                },
-                CEvent::Mouse(_) => {}
-                CEvent::Resize(_, _) => {}
-            }
+        match rx.recv().unwrap() {
+            Event::Input(key) => match key {
+                KeyCode::Char('q') => break,
+                KeyCode::Char('j') => window.select_next_item(),
+                KeyCode::Char('k') => window.select_prev_item(),
+                KeyCode::Tab => {
+                    window.select_next_pane();
+                }
+                KeyCode::Char(n @ '1'..='9') => window.select_tab(n as usize - b'0' as usize),
+                KeyCode::Char(_) => {}
+                _ => {}
+            },
+            Event::Mouse => {}
+            Event::Resize => {}
+            Event::Tick => {}
+            Event::Kube(k) => match k {
+                Kube::Pod(info) => {
+                    window.update_pod_status(&info);
+                }
+            },
         }
     }
 
