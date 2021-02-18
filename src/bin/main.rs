@@ -150,14 +150,6 @@ enum Event {
     Mouse,
 }
 
-// ❯  k get pod
-// NAME                        READY   STATUS    RESTARTS   AGE
-// bff-7d5ddf8f9f-49jfp        1/1     Running   0          12h
-// database-8c7c97bbb-tl7wb    1/1     Running   0          12h
-// front-95998dd5c-rhvqj       1/1     Running   0          12h
-// mroonga-6c787bccc9-6dc8t    1/1     Running   0          12h
-// mysql-7b4fd69f94-9mgs7      1/1     Running   0          12h
-// netshoot-6dfdc678b8-4lhrp   1/1     Running   0          12h
 async fn get_pod_info() -> Vec<String> {
     let client = Client::try_default().await.unwrap();
     let pods: Api<Pod> = Api::namespaced(client, "kosay");
