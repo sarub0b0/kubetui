@@ -1,4 +1,7 @@
 #[allow(unused_imports)]
+use chrono::{DateTime, Duration, Utc};
+
+#[allow(unused_imports)]
 use std::{
     error::Error,
     io::{self, stdout, Write},
@@ -20,8 +23,19 @@ use tui::{
     widgets, Frame, Terminal,
 };
 
+#[allow(unused_imports)]
+use k8s_openapi::{
+    api::core::v1::{Pod, PodStatus},
+    apimachinery::pkg::apis::meta::v1::Time,
+};
+use kube::{
+    api::{ListParams, Meta},
+    Api, Client,
+};
+
 extern crate kubetui;
-use kubetui::window::*;
+#[allow(unused_imports)]
+use kubetui::{util::age, window::*};
 
 fn draw_tab<B: Backend>(f: &mut Frame<B>, chunk: Rect, tabs: &Vec<Tab>, index: usize) {
     let titles: Vec<Spans> = tabs
@@ -105,14 +119,54 @@ fn draw<B: Backend>(f: &mut Frame<B>, window: &mut Window) {
     draw_panes(f, areas[1], window.selected_tab());
 }
 
-// #[tokio::main]
-fn main() -> Result<(), io::Error> {
-    // let client = Client::try_default().await.unwrap();
-    // let pods: Api<Pod> = Api::namespaced(client, "taskbox");
-    // let lp = ListParams::default();
-    // for p in pods.list(&lp).await.unwrap() {
-    //     println!("Found Pod: {}", Meta::name(&p));
-    // }
+// ❯  k get pod
+// NAME                        READY   STATUS    RESTARTS   AGE
+// bff-7d5ddf8f9f-49jfp        1/1     Running   0          12h
+// database-8c7c97bbb-tl7wb    1/1     Running   0          12h
+// front-95998dd5c-rhvqj       1/1     Running   0          12h
+// mroonga-6c787bccc9-6dc8t    1/1     Running   0          12h
+// mysql-7b4fd69f94-9mgs7      1/1     Running   0          12h
+// netshoot-6dfdc678b8-4lhrp   1/1     Running   0          12h
+async fn get_pod_info() -> Vec<String> {
+    let client = Client::try_default().await.unwrap();
+    let pods: Api<Pod> = Api::namespaced(client, "kosay");
+    let lp = ListParams::default();
+
+    let pods_list = pods.list(&lp).await.unwrap();
+
+    let max_name_len = pods_list
+        .iter()
+        .max_by(|r, l| r.name().len().cmp(&l.name().len()))
+        .unwrap()
+        .name()
+        .len();
+
+    let current_datetime: DateTime<Utc> = Utc::now();
+
+    let mut ret: Vec<String> = Vec::new();
+    for p in pods_list {
+        let status = pods.get_status(&p.name()).await.unwrap();
+        let meta = Meta::meta(&p);
+        let creation_timestamp: DateTime<Utc> = match meta.creation_timestamp {
+            Some(ref time) => time.0,
+            None => current_datetime,
+        };
+        let duration: Duration = current_datetime - creation_timestamp;
+
+        ret.push(format!(
+            "{:width$} {}    {}",
+            p.name(),
+            status.status.unwrap().phase.unwrap(),
+            age(&duration),
+            width = max_name_len + 4
+        ));
+    }
+    ret
+}
+
+#[tokio::main]
+async fn main() -> Result<(), io::Error> {
+    let pod_info = get_pod_info().await;
 
     enable_raw_mode().unwrap();
 
@@ -123,17 +177,9 @@ fn main() -> Result<(), io::Error> {
 
     let tabs = vec![
         Tab::new(
-            "Tab 0".to_string(),
+            "1:Pods".to_string(),
             vec![
-                Pane::new(
-                    String::from("List 0"),
-                    Widget::List(List::new(vec![
-                        String::from("Item 1"),
-                        String::from("Item 2"),
-                        String::from("Item 3"),
-                    ])),
-                    0,
-                ),
+                Pane::new(String::from("Pods"), Widget::List(List::new(pod_info)), 0),
                 Pane::new(
                     String::from("List 1"),
                     Widget::List(List::new(vec![
@@ -166,7 +212,7 @@ fn main() -> Result<(), io::Error> {
     ];
     let mut window = Window::new(tabs);
 
-    terminal.clear();
+    terminal.clear().unwrap();
 
     loop {
         terminal.draw(|f| draw(f, &mut window)).unwrap();
