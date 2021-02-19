@@ -212,16 +212,12 @@ async fn get_pod_info(client: Client, namespace: &str) -> Vec<String> {
 }
 
 fn read_key(tx: Sender<Event>) {
-    let timeout = time::Duration::from_millis(500);
     loop {
-        if event::poll(timeout).unwrap() {
-            match read().unwrap() {
-                CEvent::Key(ev) => tx.send(Event::Input(ev)).unwrap(),
-                CEvent::Mouse(_) => tx.send(Event::Mouse).unwrap(),
-                CEvent::Resize(_, _) => tx.send(Event::Resize).unwrap(),
-            }
+        match read().unwrap() {
+            CEvent::Key(ev) => tx.send(Event::Input(ev)).unwrap(),
+            CEvent::Mouse(_) => tx.send(Event::Mouse).unwrap(),
+            CEvent::Resize(_, _) => tx.send(Event::Resize).unwrap(),
         }
-        tx.send(Event::Tick).unwrap();
     }
 }
 
@@ -312,38 +308,42 @@ fn main() -> Result<(), io::Error> {
 
     terminal.clear().unwrap();
 
+    let timeout = time::Duration::from_millis(500);
     loop {
         terminal.draw(|f| draw(f, &mut window)).unwrap();
 
-        match rx.recv().unwrap() {
-            Event::Input(ev) => match ev.code {
-                KeyCode::Char('q') => break,
-                KeyCode::Char('j') => window.select_next_item(),
-                KeyCode::Char('k') => window.select_prev_item(),
-                KeyCode::Char('n') if ev.modifiers == KeyModifiers::CONTROL => {
-                    window.select_next_item()
-                }
-                KeyCode::Char('p') if ev.modifiers == KeyModifiers::CONTROL => {
-                    window.select_prev_item()
-                }
-                KeyCode::Tab if ev.modifiers == KeyModifiers::NONE => {
-                    window.select_next_pane();
-                }
-                KeyCode::BackTab | KeyCode::Tab if ev.modifiers == KeyModifiers::SHIFT => {
-                    window.select_prev_pane();
-                }
-                KeyCode::Char(n @ '1'..='9') => window.select_tab(n as usize - b'0' as usize),
-                KeyCode::Char(_) => {}
-                _ => {}
+        match rx.recv_timeout(timeout) {
+            Ok(ev) => match ev {
+                Event::Input(ev) => match ev.code {
+                    KeyCode::Char('q') => break,
+                    KeyCode::Char('j') => window.select_next_item(),
+                    KeyCode::Char('k') => window.select_prev_item(),
+                    KeyCode::Char('n') if ev.modifiers == KeyModifiers::CONTROL => {
+                        window.select_next_item()
+                    }
+                    KeyCode::Char('p') if ev.modifiers == KeyModifiers::CONTROL => {
+                        window.select_prev_item()
+                    }
+                    KeyCode::Tab if ev.modifiers == KeyModifiers::NONE => {
+                        window.select_next_pane();
+                    }
+                    KeyCode::BackTab | KeyCode::Tab if ev.modifiers == KeyModifiers::SHIFT => {
+                        window.select_prev_pane();
+                    }
+                    KeyCode::Char(n @ '1'..='9') => window.select_tab(n as usize - b'0' as usize),
+                    KeyCode::Char(_) => {}
+                    _ => {}
+                },
+                Event::Mouse => {}
+                Event::Resize => {}
+                Event::Tick => {}
+                Event::Kube(k) => match k {
+                    Kube::Pod(info) => {
+                        window.update_pod_status(&info);
+                    }
+                },
             },
-            Event::Mouse => {}
-            Event::Resize => {}
-            Event::Tick => {}
-            Event::Kube(k) => match k {
-                Kube::Pod(info) => {
-                    window.update_pod_status(&info);
-                }
-            },
+            Err(_) => {}
         }
     }
 
