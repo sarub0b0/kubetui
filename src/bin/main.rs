@@ -153,8 +153,7 @@ fn draw<B: Backend>(f: &mut Frame<B>, window: &mut Window) {
     draw_datetime(f, areas[2]);
 }
 
-async fn get_pod_info() -> Vec<String> {
-    let client = Client::try_default().await.unwrap();
+async fn get_pod_info(client: Client) -> Vec<String> {
     let pods: Api<Pod> = Api::namespaced(client, "kosay");
     let lp = ListParams::default();
 
@@ -217,9 +216,10 @@ fn kube_process(tx: Sender<Event>) {
     let rt = Runtime::new().unwrap();
     rt.block_on(async move {
         let mut interval = tokio::time::interval(time::Duration::from_secs(2));
+        let client = Client::try_default().await.unwrap();
         loop {
             interval.tick().await;
-            let pod_info = get_pod_info().await;
+            let pod_info = get_pod_info(client.clone()).await;
             tx.send(Event::Kube(Kube::Pod(pod_info))).unwrap();
         }
     });
