@@ -223,12 +223,21 @@ fn read_key(tx: Sender<Event>) {
 
 enum Kube {
     Pod(Vec<String>),
+    Namespace(Option<Vec<String>>),
 }
-fn kube_process(tx: Sender<Event>) {
+
+fn get_namespace_list() -> Option<Vec<String>> {
+    Some(vec![
+        "ns0".to_string(),
+        "ns1".to_string(),
+        "ns2".to_string(),
+        "ns3".to_string(),
+    ])
+}
+
+fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
     let rt = Runtime::new().unwrap();
     rt.block_on(async move {
-        let mut interval = tokio::time::interval(time::Duration::from_secs(2));
-
         let kubeconfig = Kubeconfig::read().unwrap();
         let current_context = kubeconfig.current_context.unwrap();
 
@@ -238,22 +247,36 @@ fn kube_process(tx: Sender<Event>) {
             .find(|n| n.name == current_context);
 
         let namespace = current_context.unwrap().clone().context.namespace.unwrap();
+
         let client = Client::try_default().await.unwrap();
 
+        let timeout = time::Duration::from_secs(2);
         loop {
-            interval.tick().await;
-            let pod_info = get_pod_info(client.clone(), &namespace).await;
-            tx.send(Event::Kube(Kube::Pod(pod_info))).unwrap();
+            match rx.recv_timeout(timeout) {
+                Ok(ev) => match ev {
+                    Event::Kube(_) => tx
+                        .send(Event::Kube(Kube::Namespace(get_namespace_list())))
+                        .unwrap(),
+                    _ => {
+                        unreachable!()
+                    }
+                },
+                Err(_) => {
+                    let pod_info = get_pod_info(client.clone(), &namespace).await;
+                    tx.send(Event::Kube(Kube::Pod(pod_info))).unwrap();
+                }
+            }
         }
     });
 }
 
 fn main() -> Result<(), io::Error> {
-    let (tx, rx): (Sender<Event>, Receiver<Event>) = mpsc::channel();
-    let tx_kube = tx.clone();
+    let (tx_input, rx_main): (Sender<Event>, Receiver<Event>) = mpsc::channel();
+    let (tx_main, rx_kube): (Sender<Event>, Receiver<Event>) = mpsc::channel();
+    let tx_kube = tx_input.clone();
 
-    thread::spawn(move || read_key(tx));
-    thread::spawn(move || kube_process(tx_kube));
+    thread::spawn(move || read_key(tx_input));
+    thread::spawn(move || kube_process(tx_kube, rx_kube));
 
     enable_raw_mode().unwrap();
 
@@ -310,9 +333,9 @@ fn main() -> Result<(), io::Error> {
 
     let timeout = time::Duration::from_millis(500);
     loop {
-        terminal.draw(|f| draw(f, &mut window)).unwrap();
+        // terminal.draw(|f| draw(f, &mut window)).unwrap();
 
-        match rx.recv_timeout(timeout) {
+        match rx_main.recv_timeout(timeout) {
             Ok(ev) => match ev {
                 Event::Input(ev) => match ev.code {
                     KeyCode::Char('q') => break,
@@ -331,6 +354,9 @@ fn main() -> Result<(), io::Error> {
                         window.select_prev_pane();
                     }
                     KeyCode::Char(n @ '1'..='9') => window.select_tab(n as usize - b'0' as usize),
+                    KeyCode::Char('n') if ev.modifiers == KeyModifiers::NONE => {
+                        tx_main.send(Event::Kube(Kube::Namespace(None))).unwrap()
+                    }
                     KeyCode::Char(_) => {}
                     _ => {}
                 },
@@ -341,6 +367,7 @@ fn main() -> Result<(), io::Error> {
                     Kube::Pod(info) => {
                         window.update_pod_status(&info);
                     }
+                    Kube::Namespace(_) => {}
                 },
             },
             Err(_) => {}
