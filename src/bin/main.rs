@@ -17,7 +17,10 @@ use std::{
 
 #[allow(unused_imports)]
 use crossterm::{
-    event::{self, poll, read, DisableMouseCapture, EnableMouseCapture, Event as CEvent, KeyCode},
+    event::{
+        self, poll, read, DisableMouseCapture, EnableMouseCapture, Event as CEvent, KeyCode,
+        KeyEvent, KeyModifiers,
+    },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -44,6 +47,14 @@ use kube::{
 extern crate kubetui;
 #[allow(unused_imports)]
 use kubetui::{util::age, window::*};
+
+enum Event {
+    Input(KeyEvent),
+    Kube(Kube),
+    Tick,
+    Resize,
+    Mouse,
+}
 
 fn draw_tab<B: Backend>(f: &mut Frame<B>, chunk: Rect, tabs: &Vec<Tab>, index: usize) {
     let titles: Vec<Spans> = tabs
@@ -142,14 +153,6 @@ fn draw<B: Backend>(f: &mut Frame<B>, window: &mut Window) {
     draw_datetime(f, areas[2]);
 }
 
-enum Event {
-    Input(KeyCode),
-    Kube(Kube),
-    Tick,
-    Resize,
-    Mouse,
-}
-
 async fn get_pod_info() -> Vec<String> {
     let client = Client::try_default().await.unwrap();
     let pods: Api<Pod> = Api::namespaced(client, "kosay");
@@ -198,7 +201,7 @@ fn read_key(tx: Sender<Event>) {
     loop {
         if event::poll(timeout).unwrap() {
             match read().unwrap() {
-                CEvent::Key(ev) => tx.send(Event::Input(ev.code)).unwrap(),
+                CEvent::Key(ev) => tx.send(Event::Input(ev)).unwrap(),
                 CEvent::Mouse(_) => tx.send(Event::Mouse).unwrap(),
                 CEvent::Resize(_, _) => tx.send(Event::Resize).unwrap(),
             }
@@ -286,10 +289,16 @@ fn main() -> Result<(), io::Error> {
         terminal.draw(|f| draw(f, &mut window)).unwrap();
 
         match rx.recv().unwrap() {
-            Event::Input(key) => match key {
+            Event::Input(ev) => match ev.code {
                 KeyCode::Char('q') => break,
                 KeyCode::Char('j') => window.select_next_item(),
                 KeyCode::Char('k') => window.select_prev_item(),
+                KeyCode::Char('n') if ev.modifiers == KeyModifiers::CONTROL => {
+                    window.select_next_item()
+                }
+                KeyCode::Char('p') if ev.modifiers == KeyModifiers::CONTROL => {
+                    window.select_prev_item()
+                }
                 KeyCode::Tab => {
                     window.select_next_pane();
                 }
