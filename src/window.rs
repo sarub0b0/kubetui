@@ -231,10 +231,12 @@ impl List {
         }
     }
     pub fn set_items(&mut self, items: Vec<String>) {
-        self.items = items;
-        if 0 < self.items.len() {
-            self.state.borrow_mut().select(Some(0));
+        match items.len() {
+            0 => self.state.borrow_mut().select(None),
+            len if len < self.items.len() => self.state.borrow_mut().select(Some(len - 1)),
+            _ => {}
         }
+        self.items = items;
     }
 
     pub fn next(&self) {
