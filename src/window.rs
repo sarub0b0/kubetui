@@ -75,6 +75,10 @@ impl Window {
         self.tabs[self.selected_tab_index].next_pane();
     }
 
+    pub fn select_prev_pane(&mut self) {
+        self.tabs[self.selected_tab_index].prev_pane();
+    }
+
     pub fn select_next_item(&mut self) {
         self.tabs[self.selected_tab_index]
             .selected_mut_pane()
@@ -168,6 +172,14 @@ impl Tab {
             self.selected_pane_index = 0;
         } else {
             self.selected_pane_index += 1;
+        }
+    }
+
+    pub fn prev_pane(&mut self) {
+        if self.selected_pane_index == 0 {
+            self.selected_pane_index = self.selectable_widgets.len() - 1;
+        } else {
+            self.selected_pane_index -= 1;
         }
     }
 

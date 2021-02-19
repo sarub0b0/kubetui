@@ -314,8 +314,11 @@ fn main() -> Result<(), io::Error> {
                 KeyCode::Char('p') if ev.modifiers == KeyModifiers::CONTROL => {
                     window.select_prev_item()
                 }
-                KeyCode::Tab => {
+                KeyCode::Tab if ev.modifiers == KeyModifiers::NONE => {
                     window.select_next_pane();
+                }
+                KeyCode::BackTab | KeyCode::Tab if ev.modifiers == KeyModifiers::SHIFT => {
+                    window.select_prev_pane();
                 }
                 KeyCode::Char(n @ '1'..='9') => window.select_tab(n as usize - b'0' as usize),
                 KeyCode::Char(_) => {}
