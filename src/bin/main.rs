@@ -41,7 +41,8 @@ use k8s_openapi::{
 };
 use kube::{
     api::{ListParams, Meta},
-    Api, Client,
+    config::Kubeconfig,
+    Api, Client, Config,
 };
 
 extern crate kubetui;
@@ -168,8 +169,8 @@ fn draw<B: Backend>(f: &mut Frame<B>, window: &mut Window) {
     draw_datetime(f, areas[2]);
 }
 
-async fn get_pod_info(client: Client) -> Vec<String> {
-    let pods: Api<Pod> = Api::namespaced(client, "kosay");
+async fn get_pod_info(client: Client, namespace: &str) -> Vec<String> {
+    let pods: Api<Pod> = Api::namespaced(client, namespace);
     let lp = ListParams::default();
 
     let pods_list = pods.list(&lp).await.unwrap();
@@ -231,10 +232,21 @@ fn kube_process(tx: Sender<Event>) {
     let rt = Runtime::new().unwrap();
     rt.block_on(async move {
         let mut interval = tokio::time::interval(time::Duration::from_secs(2));
+
+        let kubeconfig = Kubeconfig::read().unwrap();
+        let current_context = kubeconfig.current_context.unwrap();
+
+        let current_context = kubeconfig
+            .contexts
+            .iter()
+            .find(|n| n.name == current_context);
+
+        let namespace = current_context.unwrap().clone().context.namespace.unwrap();
         let client = Client::try_default().await.unwrap();
+
         loop {
             interval.tick().await;
-            let pod_info = get_pod_info(client.clone()).await;
+            let pod_info = get_pod_info(client.clone(), &namespace).await;
             tx.send(Event::Kube(Kube::Pod(pod_info))).unwrap();
         }
     });
