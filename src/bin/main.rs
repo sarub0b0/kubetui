@@ -72,15 +72,17 @@ fn draw_tab<B: Backend>(f: &mut Frame<B>, chunk: Rect, tabs: &Vec<Tab>, index: u
     f.render_widget(tabs, chunk);
 }
 
-fn generate_title(title: &str, selected: bool) -> Spans {
-    let title = if selected {
-        format!("✔︎ {}", title)
-    } else {
-        format!("──{}", title)
-    };
+fn generate_title(title: &str, border_color: Color, selected: bool) -> Spans {
+    let prefix = if selected { "✔︎ " } else { "──" };
     Spans::from(vec![
         Span::styled("─", Style::default()),
-        Span::styled(title, Style::default().add_modifier(Modifier::BOLD)),
+        Span::styled(prefix, Style::default().fg(border_color)),
+        Span::styled(
+            title,
+            Style::default()
+                .fg(Color::White)
+                .add_modifier(Modifier::BOLD),
+        ),
     ])
 }
 
@@ -88,13 +90,18 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, area: Rect, tab: &Tab) {
     let chunks = tab.chunks(area);
 
     for pane in tab.panes() {
+        let selected = pane.selected(tab.selected_pane());
+
+        let border_color = if selected {
+            Color::White
+        } else {
+            Color::DarkGray
+        };
+
         let block = widgets::Block::default()
-            .title(generate_title(
-                pane.title(),
-                pane.selected(tab.selected_pane()),
-            ))
+            .title(generate_title(pane.title(), border_color, selected))
             .borders(widgets::Borders::ALL)
-            .border_style(Style::default().add_modifier(Modifier::BOLD));
+            .border_style(Style::default().fg(border_color));
 
         match pane.widget() {
             Widget::List(list) => {
@@ -104,6 +111,7 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, area: Rect, tab: &Tab) {
                     chunks[pane.chunk_index()],
                     &list.items(),
                     &mut list.state().borrow_mut(),
+                    selected,
                 );
             }
         }
@@ -116,16 +124,23 @@ fn draw_list<B: Backend>(
     area: Rect,
     items: &Vec<String>,
     state: &mut widgets::ListState,
+    selected: bool,
 ) {
     let items: Vec<widgets::ListItem> = items
         .iter()
         .map(|i| widgets::ListItem::new(i.as_ref()))
         .collect();
 
+    let style = if selected {
+        Style::default().add_modifier(Modifier::REVERSED)
+    } else {
+        Style::default()
+    };
+
     let li = widgets::List::new(items)
         .block(block)
         .style(Style::default())
-        .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+        .highlight_style(style);
 
     f.render_stateful_widget(li, area, state);
 }
