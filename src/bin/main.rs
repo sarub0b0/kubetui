@@ -333,7 +333,7 @@ fn main() -> Result<(), io::Error> {
 
     let timeout = time::Duration::from_millis(500);
     loop {
-        // terminal.draw(|f| draw(f, &mut window)).unwrap();
+        terminal.draw(|f| draw(f, &mut window)).unwrap();
 
         match rx_main.recv_timeout(timeout) {
             Ok(ev) => match ev {
