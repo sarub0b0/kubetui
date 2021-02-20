@@ -33,6 +33,7 @@ pub struct List {
     state: RefCell<ListState>,
 }
 
+#[derive(Copy, Clone, PartialEq)]
 pub enum Type {
     NONE,
     LOG,
@@ -98,6 +99,9 @@ impl Window {
         }
     }
 
+    pub fn focus_pane_type(&self) -> Type {
+        self.selected_tab().selected_pane().ty
+    }
     pub fn update_pod_status(&mut self, info: &Vec<String>) {
         for t in &mut self.tabs {
             for p in &mut t.panes {
@@ -109,6 +113,24 @@ impl Window {
 
                 if let Some(Widget::List(l)) = w {
                     l.set_items(info.to_vec());
+                }
+            }
+        }
+    }
+
+    pub fn update_pod_logs(&mut self, logs: &Option<Vec<String>>) {
+        if let Some(logs) = logs {
+            for t in &mut self.tabs {
+                for p in &mut t.panes {
+                    let w = match &mut p.ty {
+                        Type::POD => None,
+                        Type::LOG => Some(&mut p.widget),
+                        Type::NONE => None,
+                    };
+
+                    if let Some(Widget::List(l)) = w {
+                        l.set_items(logs.to_vec());
+                    }
                 }
             }
         }

@@ -224,7 +224,7 @@ fn read_key(tx: Sender<Event>) {
 enum Kube {
     Pod(Vec<String>),
     Namespace(Option<Vec<String>>),
-    Log(Vec<String>),
+    Log(Option<Vec<String>>),
 }
 
 // TODO: spawnを削除する <20-02-21, yourname> //
@@ -246,8 +246,8 @@ fn get_namespace_list() -> Option<Vec<String>> {
     Some(th.join().unwrap())
 }
 
-fn get_logs() -> Vec<String> {
-    vec![String::from("hoge"), String::from("fuga")]
+fn get_logs() -> Option<Vec<String>> {
+    Some(vec![String::from("hoge"), String::from("fuga")])
 }
 
 fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
@@ -397,6 +397,9 @@ fn main() -> Result<(), io::Error> {
                 KeyCode::Char('n') if ev.modifiers == KeyModifiers::NONE => {
                     tx_main.send(Event::Kube(Kube::Namespace(None))).unwrap()
                 }
+                KeyCode::Enter if window.focus_pane_type() == Type::POD => {
+                    tx_main.send(Event::Kube(Kube::Log(None))).unwrap();
+                }
                 KeyCode::Char(_) => {}
                 _ => {}
             },
@@ -408,7 +411,9 @@ fn main() -> Result<(), io::Error> {
                     window.update_pod_status(&info);
                 }
                 Kube::Namespace(ns) => {}
-                Kube::Log(log) => {}
+                Kube::Log(log) => {
+                    window.update_pod_logs(&log);
+                }
             },
         }
     }
