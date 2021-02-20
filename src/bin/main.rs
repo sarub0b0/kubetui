@@ -280,13 +280,28 @@ fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
     });
 }
 
+fn tick(tx: Sender<Event>, rate: time::Duration) {
+    let rt = Runtime::new().unwrap();
+
+    rt.block_on(async move {
+        let mut interval = tokio::time::interval(rate);
+        loop {
+            interval.tick().await;
+
+            tx.send(Event::Tick).unwrap();
+        }
+    });
+}
+
 fn main() -> Result<(), io::Error> {
     let (tx_input, rx_main): (Sender<Event>, Receiver<Event>) = mpsc::channel();
     let (tx_main, rx_kube): (Sender<Event>, Receiver<Event>) = mpsc::channel();
     let tx_kube = tx_input.clone();
+    let tx_tick = tx_input.clone();
 
     thread::spawn(move || read_key(tx_input));
     thread::spawn(move || kube_process(tx_kube, rx_kube));
+    thread::spawn(move || tick(tx_tick, time::Duration::from_millis(200)));
 
     enable_raw_mode().unwrap();
 
@@ -341,48 +356,43 @@ fn main() -> Result<(), io::Error> {
 
     terminal.clear().unwrap();
 
-    let timeout = time::Duration::from_millis(500);
     loop {
         terminal.draw(|f| draw(f, &mut window)).unwrap();
-
-        match rx_main.recv_timeout(timeout) {
-            Ok(ev) => match ev {
-                Event::Input(ev) => match ev.code {
-                    KeyCode::Char('q') => break,
-                    KeyCode::Char('j') => window.select_next_item(),
-                    KeyCode::Char('k') => window.select_prev_item(),
-                    KeyCode::Char('n') if ev.modifiers == KeyModifiers::CONTROL => {
-                        window.select_next_item()
-                    }
-                    KeyCode::Char('p') if ev.modifiers == KeyModifiers::CONTROL => {
-                        window.select_prev_item()
-                    }
-                    KeyCode::Tab if ev.modifiers == KeyModifiers::NONE => {
-                        window.select_next_pane();
-                    }
-                    KeyCode::BackTab | KeyCode::Tab if ev.modifiers == KeyModifiers::SHIFT => {
-                        window.select_prev_pane();
-                    }
-                    KeyCode::Char(n @ '1'..='9') => window.select_tab(n as usize - b'0' as usize),
-                    KeyCode::Char('n') if ev.modifiers == KeyModifiers::NONE => {
-                        tx_main.send(Event::Kube(Kube::Namespace(None))).unwrap()
-                    }
-                    KeyCode::Char(_) => {}
-                    _ => {}
-                },
-                Event::Mouse => {}
-                Event::Resize => {}
-                Event::Tick => {}
-                Event::Kube(k) => match k {
-                    Kube::Pod(info) => {
-                        window.update_pod_status(&info);
-                    }
-                    Kube::Namespace(ns) => {
-                        // println!("{:?}", ns);
-                    }
-                },
+        match rx_main.recv().unwrap() {
+            Event::Input(ev) => match ev.code {
+                KeyCode::Char('q') => break,
+                KeyCode::Char('j') => window.select_next_item(),
+                KeyCode::Char('k') => window.select_prev_item(),
+                KeyCode::Char('n') if ev.modifiers == KeyModifiers::CONTROL => {
+                    window.select_next_item()
+                }
+                KeyCode::Char('p') if ev.modifiers == KeyModifiers::CONTROL => {
+                    window.select_prev_item()
+                }
+                KeyCode::Tab if ev.modifiers == KeyModifiers::NONE => {
+                    window.select_next_pane();
+                }
+                KeyCode::BackTab | KeyCode::Tab if ev.modifiers == KeyModifiers::SHIFT => {
+                    window.select_prev_pane();
+                }
+                KeyCode::Char(n @ '1'..='9') => window.select_tab(n as usize - b'0' as usize),
+                KeyCode::Char('n') if ev.modifiers == KeyModifiers::NONE => {
+                    tx_main.send(Event::Kube(Kube::Namespace(None))).unwrap()
+                }
+                KeyCode::Char(_) => {}
+                _ => {}
             },
-            Err(_) => {}
+            Event::Mouse => {}
+            Event::Resize => {}
+            Event::Tick => {}
+            Event::Kube(k) => match k {
+                Kube::Pod(info) => {
+                    window.update_pod_status(&info);
+                }
+                Kube::Namespace(ns) => {
+                    // println!("{:?}", ns);
+                }
+            },
         }
     }
 
