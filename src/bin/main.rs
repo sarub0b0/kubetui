@@ -357,11 +357,11 @@ fn main() -> Result<(), io::Error> {
             "Tab 1".to_string(),
             vec![Pane::new(
                 String::from("List 0"),
-                Widget::List(List::new(vec![
+                List::new(vec![
                     String::from("Item 1"),
                     String::from("Item 2"),
                     String::from("Item 3"),
-                ])),
+                ]),
                 0,
                 Type::NONE,
             )],

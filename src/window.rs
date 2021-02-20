@@ -3,29 +3,25 @@ use tui::widgets::ListState;
 
 use std::cell::RefCell;
 
-pub struct Window {
-    tabs: Vec<Tab>,
+pub struct Window<W: Widget> {
+    tabs: Vec<Tab<W>>,
     selected_tab_index: usize,
     layout: Layout,
 }
 
-pub struct Tab {
+pub struct Tab<W: Widget> {
     title: String,
-    panes: Vec<Pane>,
+    panes: Vec<Pane<W>>,
     layout: Layout,
     selected_pane_index: usize,
     selectable_widgets: Vec<usize>,
 }
 
-pub struct Pane {
-    widget: Widget,
+pub struct Pane<W: Widget> {
+    widget: W,
     chunk_index: usize,
     title: String,
     ty: Type,
-}
-
-pub enum Widget {
-    List(List),
 }
 
 pub struct List {
@@ -40,8 +36,18 @@ pub enum Type {
     POD,
 }
 
-impl Window {
-    pub fn new(tabs: Vec<Tab>) -> Self {
+pub trait Widget {
+    fn next(&self);
+    fn prev(&self);
+    fn selectable(&self) -> bool;
+    fn set_items(&mut self, items: Vec<String>);
+    fn items(&self) -> &Vec<String>;
+
+    fn list_state(&self) -> &RefCell<ListState>;
+}
+
+impl<W: Widget> Window<W> {
+    pub fn new(tabs: Vec<Tab<W>>) -> Self {
         Self {
             tabs,
             ..Window::default()
@@ -52,7 +58,7 @@ impl Window {
         self.layout.split(window_size)
     }
 
-    pub fn tabs(&self) -> &Vec<Tab> {
+    pub fn tabs(&self) -> &Vec<Tab<W>> {
         &self.tabs
     }
 
@@ -68,7 +74,7 @@ impl Window {
         }
     }
 
-    pub fn selected_tab(&self) -> &Tab {
+    pub fn selected_tab(&self) -> &Tab<W> {
         &self.tabs[self.selected_tab_index]
     }
 
@@ -104,16 +110,10 @@ impl Window {
     }
     pub fn update_pod_status(&mut self, info: &Vec<String>) {
         for t in &mut self.tabs {
-            for p in &mut t.panes {
-                let w = match &mut p.ty {
-                    Type::POD => Some(&mut p.widget),
-                    Type::LOG => None,
-                    Type::NONE => None,
-                };
+            let pane = t.panes.iter_mut().find(|p| p.ty == Type::POD);
 
-                if let Some(Widget::List(l)) = w {
-                    l.set_items(info.to_vec());
-                }
+            if let Some(p) = pane {
+                p.widget.set_items(info.to_vec());
             }
         }
     }
@@ -121,23 +121,17 @@ impl Window {
     pub fn update_pod_logs(&mut self, logs: &Option<Vec<String>>) {
         if let Some(logs) = logs {
             for t in &mut self.tabs {
-                for p in &mut t.panes {
-                    let w = match &mut p.ty {
-                        Type::POD => None,
-                        Type::LOG => Some(&mut p.widget),
-                        Type::NONE => None,
-                    };
+                let pane = t.panes.iter_mut().find(|p| p.ty == Type::LOG);
 
-                    if let Some(Widget::List(l)) = w {
-                        l.set_items(logs.to_vec());
-                    }
+                if let Some(p) = pane {
+                    p.widget.set_items(logs.to_vec());
                 }
             }
         }
     }
 }
 
-impl Default for Window {
+impl<W: Widget> Default for Window<W> {
     fn default() -> Self {
         let layout = Layout::default()
             .direction(Direction::Vertical)
@@ -158,14 +152,12 @@ impl Default for Window {
     }
 }
 
-impl Tab {
-    pub fn new(title: String, panes: Vec<Pane>, layout: Layout) -> Self {
+impl<W: Widget> Tab<W> {
+    pub fn new(title: String, panes: Vec<Pane<W>>, layout: Layout) -> Self {
         let selectable_widgets = panes
             .iter()
             .enumerate()
-            .filter(|&(_, p)| match p.widget {
-                Widget::List(_) => true,
-            })
+            .filter(|&(_, p)| p.widget.selectable())
             .map(|(i, _)| i)
             .collect();
 
@@ -185,7 +177,7 @@ impl Tab {
         self.layout.split(tab_size)
     }
 
-    pub fn panes(&self) -> &Vec<Pane> {
+    pub fn panes(&self) -> &Vec<Pane<W>> {
         &self.panes
     }
 
@@ -205,16 +197,16 @@ impl Tab {
         }
     }
 
-    pub fn selected_mut_pane(&mut self) -> &mut Pane {
+    pub fn selected_mut_pane(&mut self) -> &mut Pane<W> {
         &mut self.panes[self.selected_pane_index]
     }
-    pub fn selected_pane(&self) -> &Pane {
+    pub fn selected_pane(&self) -> &Pane<W> {
         &self.panes[self.selected_pane_index]
     }
 }
 
-impl Pane {
-    pub fn new(title: String, widget: Widget, chunk_index: usize, ty: Type) -> Self {
+impl<W: Widget> Pane<W> {
+    pub fn new(title: String, widget: W, chunk_index: usize, ty: Type) -> Self {
         Self {
             title,
             widget,
@@ -223,7 +215,7 @@ impl Pane {
         }
     }
 
-    pub fn widget(&self) -> &Widget {
+    pub fn widget(&self) -> &W {
         &self.widget
     }
 
@@ -236,19 +228,19 @@ impl Pane {
     }
 
     pub fn next_item(&mut self) {
-        match &self.widget {
-            Widget::List(l) => l.next(),
-        };
+        self.widget.next()
     }
 
     pub fn prev_item(&mut self) {
-        match &self.widget {
-            Widget::List(l) => l.prev(),
-        };
+        self.widget.prev()
     }
 
-    pub fn selected(&self, rhs: &Pane) -> bool {
+    pub fn selected(&self, rhs: &Pane<W>) -> bool {
         return std::ptr::eq(self, rhs);
+    }
+
+    pub fn ty(&self) -> Type {
+        self.ty
     }
 }
 
@@ -264,16 +256,20 @@ impl List {
             state: RefCell::new(state),
         }
     }
-    pub fn set_items(&mut self, items: Vec<String>) {
-        match items.len() {
-            0 => self.state.borrow_mut().select(None),
-            len if len < self.items.len() => self.state.borrow_mut().select(Some(len - 1)),
-            _ => {}
-        }
-        self.items = items;
+    pub fn unselect(&self) {
+        self.state.borrow_mut().select(None);
     }
 
-    pub fn next(&self) {
+    pub fn selected(&self) -> Option<usize> {
+        self.state.borrow().selected()
+    }
+    pub fn state(&self) -> &RefCell<ListState> {
+        &self.state
+    }
+}
+
+impl Widget for List {
+    fn next(&self) {
         let i = match self.state.borrow().selected() {
             Some(i) => {
                 if self.items.len() - 1 <= i {
@@ -288,7 +284,7 @@ impl List {
         self.state.borrow_mut().select(Some(i));
     }
 
-    pub fn prev(&self) {
+    fn prev(&self) {
         let i = match self.state.borrow().selected() {
             Some(i) => {
                 if i == 0 {
@@ -303,20 +299,24 @@ impl List {
         self.state.borrow_mut().select(Some(i));
     }
 
-    pub fn unselect(&self) {
-        self.state.borrow_mut().select(None);
+    fn selectable(&self) -> bool {
+        true
+    }
+    fn set_items(&mut self, items: Vec<String>) {
+        match items.len() {
+            0 => self.state.borrow_mut().select(None),
+            len if len < self.items.len() => self.state.borrow_mut().select(Some(len - 1)),
+            _ => {}
+        }
+        self.items = items;
     }
 
-    pub fn state(&self) -> &RefCell<ListState> {
-        &self.state
-    }
-
-    pub fn items(&self) -> &Vec<String> {
+    fn items(&self) -> &Vec<String> {
         &self.items
     }
 
-    pub fn selected(&self) -> Option<usize> {
-        self.state.borrow().selected()
+    fn list_state(&self) -> &RefCell<ListState> {
+        &self.state
     }
 }
 
