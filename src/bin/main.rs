@@ -42,7 +42,7 @@ use k8s_openapi::{
 use kube::{
     api::{ListParams, Meta},
     config::Kubeconfig,
-    Api, Client, Config,
+    Api, Client,
 };
 
 extern crate kubetui;
@@ -224,8 +224,10 @@ fn read_key(tx: Sender<Event>) {
 enum Kube {
     Pod(Vec<String>),
     Namespace(Option<Vec<String>>),
+    Log(Vec<String>),
 }
 
+// TODO: spawnを削除する <20-02-21, yourname> //
 fn get_namespace_list() -> Option<Vec<String>> {
     let th = thread::spawn(move || {
         let rt = Runtime::new().unwrap();
@@ -244,8 +246,13 @@ fn get_namespace_list() -> Option<Vec<String>> {
     Some(th.join().unwrap())
 }
 
+fn get_logs() -> Vec<String> {
+    vec![String::from("hoge"), String::from("fuga")]
+}
+
 fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
     let rt = Runtime::new().unwrap();
+
     rt.block_on(async move {
         let kubeconfig = Kubeconfig::read().unwrap();
         let current_context = kubeconfig.current_context.unwrap();
@@ -257,26 +264,41 @@ fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
 
         let namespace = current_context.unwrap().clone().context.namespace.unwrap();
 
-        let client = Client::try_default().await.unwrap();
+        let tx_pod = tx.clone();
+        let tx_log = tx.clone();
+        let tx_ns = tx.clone();
 
-        let timeout = time::Duration::from_secs(2);
-
-        loop {
-            match rx.recv_timeout(timeout) {
-                Ok(ev) => match ev {
-                    Event::Kube(_) => tx
-                        .send(Event::Kube(Kube::Namespace(get_namespace_list())))
-                        .unwrap(),
+        let event_loop = tokio::spawn(async move {
+            loop {
+                match rx.recv().unwrap() {
+                    Event::Kube(ev) => match ev {
+                        Kube::Namespace(_) => tx_ns
+                            .send(Event::Kube(Kube::Namespace(get_namespace_list())))
+                            .unwrap(),
+                        Kube::Log(_) => tx_log.send(Event::Kube(Kube::Log(get_logs()))).unwrap(),
+                        _ => {
+                            unreachable!()
+                        }
+                    },
                     _ => {
                         unreachable!()
                     }
-                },
-                Err(_) => {
-                    let pod_info = get_pod_info(client.clone(), &namespace).await;
-                    tx.send(Event::Kube(Kube::Pod(pod_info))).unwrap();
                 }
             }
-        }
+        });
+
+        let pod_loop = tokio::spawn(async move {
+            let mut interval = tokio::time::interval(time::Duration::from_secs(1));
+            let client = Client::try_default().await.unwrap();
+            loop {
+                interval.tick().await;
+                let pod_info = get_pod_info(client.clone(), &namespace).await;
+                tx_pod.send(Event::Kube(Kube::Pod(pod_info))).unwrap();
+            }
+        });
+
+        event_loop.await.unwrap();
+        pod_loop.await.unwrap();
     });
 }
 
@@ -321,12 +343,8 @@ fn main() -> Result<(), io::Error> {
                     Type::POD,
                 ),
                 Pane::new(
-                    String::from("List 1"),
-                    Widget::List(List::new(vec![
-                        String::from("Item 1"),
-                        String::from("Item 2"),
-                        String::from("Item 3"),
-                    ])),
+                    String::from("Logs"),
+                    Widget::List(List::new(vec![])),
                     1,
                     Type::LOG,
                 ),
@@ -389,9 +407,8 @@ fn main() -> Result<(), io::Error> {
                 Kube::Pod(info) => {
                     window.update_pod_status(&info);
                 }
-                Kube::Namespace(ns) => {
-                    // println!("{:?}", ns);
-                }
+                Kube::Namespace(ns) => {}
+                Kube::Log(log) => {}
             },
         }
     }
