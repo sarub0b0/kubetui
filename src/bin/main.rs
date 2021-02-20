@@ -3,7 +3,10 @@ use chrono::{DateTime, Duration, Utc};
 use tui::text::Text;
 
 #[allow(unused_imports)]
-use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::{
+    mpsc::{self, Receiver, Sender},
+    Arc, RwLock,
+};
 use std::thread;
 use std::time;
 
@@ -254,7 +257,8 @@ fn read_key(tx: Sender<Event>) {
 enum Kube {
     Pod(Vec<String>),
     Namespace(Option<Vec<String>>),
-    Log(Option<Vec<String>>),
+    LogRequest(String),
+    LogResponse(Option<Vec<String>>),
 }
 
 // TODO: spawnを削除する <20-02-21, yourname> //
@@ -276,8 +280,8 @@ fn get_namespace_list() -> Option<Vec<String>> {
     Some(th.join().unwrap())
 }
 
-fn get_logs() -> Option<Vec<String>> {
-    Some(vec![String::from("hoge"), String::from("fuga")])
+fn get_logs(client: Client, namespace: &str, pod_name: &str) -> Option<Vec<String>> {
+    Some(vec!["hoge".to_string()])
 }
 
 fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
@@ -292,20 +296,32 @@ fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
             .iter()
             .find(|n| n.name == current_context);
 
-        let namespace = current_context.unwrap().clone().context.namespace.unwrap();
+        let namespace = Arc::new(RwLock::new(
+            current_context.unwrap().clone().context.namespace.unwrap(),
+        ));
 
         let tx_pod = tx.clone();
         let tx_log = tx.clone();
         let tx_ns = tx.clone();
 
+        let namespace_event_loop = Arc::clone(&namespace);
+        let namespace_pod_loop = Arc::clone(&namespace);
+
         let event_loop = tokio::spawn(async move {
             loop {
+                let client = Client::try_default().await.unwrap();
                 match rx.recv().unwrap() {
                     Event::Kube(ev) => match ev {
                         Kube::Namespace(_) => tx_ns
                             .send(Event::Kube(Kube::Namespace(get_namespace_list())))
                             .unwrap(),
-                        Kube::Log(_) => tx_log.send(Event::Kube(Kube::Log(get_logs()))).unwrap(),
+                        Kube::LogRequest(pod_name) => tx_log
+                            .send(Event::Kube(Kube::LogResponse(get_logs(
+                                client.clone(),
+                                &namespace_event_loop.read().unwrap(),
+                                &pod_name,
+                            ))))
+                            .unwrap(),
                         _ => {
                             unreachable!()
                         }
@@ -322,6 +338,7 @@ fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
             let client = Client::try_default().await.unwrap();
             loop {
                 interval.tick().await;
+                let namespace = namespace_pod_loop.read().unwrap().clone();
                 let pod_info = get_pod_info(client.clone(), &namespace).await;
                 tx_pod.send(Event::Kube(Kube::Pod(pod_info))).unwrap();
             }
@@ -423,7 +440,9 @@ fn main() -> Result<(), io::Error> {
                     tx_main.send(Event::Kube(Kube::Namespace(None))).unwrap()
                 }
                 KeyCode::Enter if window.focus_pane_type() == Type::POD => {
-                    tx_main.send(Event::Kube(Kube::Log(None))).unwrap();
+                    tx_main
+                        .send(Event::Kube(Kube::LogRequest("".to_string())))
+                        .unwrap();
                 }
                 KeyCode::Char(_) => {}
                 _ => {}
@@ -436,9 +455,10 @@ fn main() -> Result<(), io::Error> {
                     window.update_pod_status(&info);
                 }
                 Kube::Namespace(ns) => {}
-                Kube::Log(log) => {
+                Kube::LogResponse(log) => {
                     window.update_pod_logs(&log);
                 }
+                _ => {}
             },
         }
     }
