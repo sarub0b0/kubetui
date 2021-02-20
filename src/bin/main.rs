@@ -36,7 +36,7 @@ use tui::{
 
 #[allow(unused_imports)]
 use k8s_openapi::{
-    api::core::v1::{Pod, PodStatus},
+    api::core::v1::{Namespace, Pod, PodStatus},
     apimachinery::pkg::apis::meta::v1::Time,
 };
 use kube::{
@@ -227,12 +227,21 @@ enum Kube {
 }
 
 fn get_namespace_list() -> Option<Vec<String>> {
-    Some(vec![
-        "ns0".to_string(),
-        "ns1".to_string(),
-        "ns2".to_string(),
-        "ns3".to_string(),
-    ])
+    let th = thread::spawn(move || {
+        let rt = Runtime::new().unwrap();
+        rt.block_on(async move {
+            let client = Client::try_default().await.unwrap();
+            let namespaces: Api<Namespace> = Api::all(client);
+
+            let lp = ListParams::default();
+
+            let ns_list = namespaces.list(&lp).await.unwrap();
+
+            ns_list.iter().map(|ns| ns.name()).collect::<Vec<String>>()
+        })
+    });
+
+    Some(th.join().unwrap())
 }
 
 fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
@@ -251,6 +260,7 @@ fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
         let client = Client::try_default().await.unwrap();
 
         let timeout = time::Duration::from_secs(2);
+
         loop {
             match rx.recv_timeout(timeout) {
                 Ok(ev) => match ev {
@@ -367,7 +377,9 @@ fn main() -> Result<(), io::Error> {
                     Kube::Pod(info) => {
                         window.update_pod_status(&info);
                     }
-                    Kube::Namespace(_) => {}
+                    Kube::Namespace(ns) => {
+                        // println!("{:?}", ns);
+                    }
                 },
             },
             Err(_) => {}
