@@ -1,5 +1,6 @@
 #[allow(unused_imports)]
 use chrono::{DateTime, Duration, Utc};
+use tui::text::Text;
 
 #[allow(unused_imports)]
 use std::sync::mpsc::{self, Receiver, Sender};
@@ -57,7 +58,12 @@ enum Event {
     Mouse,
 }
 
-fn draw_tab<B: Backend>(f: &mut Frame<B>, chunk: Rect, tabs: &Vec<Tab>, index: usize) {
+fn draw_tab<B: Backend, W: Widget>(
+    f: &mut Frame<B>,
+    chunk: Rect,
+    tabs: &Vec<Tab<W>>,
+    index: usize,
+) {
     let titles: Vec<Spans> = tabs
         .iter()
         .map(|t| Spans::from(format!(" {} ", t.title())))
@@ -87,7 +93,7 @@ fn generate_title(title: &str, border_color: Color, selected: bool) -> Spans {
     ])
 }
 
-fn draw_panes<B: Backend>(f: &mut Frame<B>, area: Rect, tab: &Tab) {
+fn draw_panes<B: Backend, W: Widget>(f: &mut Frame<B>, area: Rect, tab: &Tab<W>) {
     let chunks = tab.chunks(area);
 
     for pane in tab.panes() {
@@ -104,17 +110,21 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, area: Rect, tab: &Tab) {
             .borders(widgets::Borders::ALL)
             .border_style(Style::default().fg(border_color));
 
-        match pane.widget() {
-            Widget::List(list) => {
+        match pane.ty() {
+            Type::POD => {
                 draw_list(
                     f,
                     block,
                     chunks[pane.chunk_index()],
-                    &list.items(),
-                    &mut list.state().borrow_mut(),
+                    &pane.widget().items(),
+                    &mut pane.widget().list_state().borrow_mut(),
                     selected,
                 );
             }
+            Type::LOG => {
+                draw_paragraph(f, block, chunks[pane.chunk_index()], &pane.widget().items());
+            }
+            Type::NONE => {}
         }
     }
 }
@@ -146,6 +156,26 @@ fn draw_list<B: Backend>(
     f.render_stateful_widget(li, area, state);
 }
 
+fn draw_paragraph<B: Backend>(
+    f: &mut Frame<B>,
+    block: widgets::Block,
+    area: Rect,
+    items: &Vec<String>,
+) {
+    let text: Vec<Spans> = items
+        .iter()
+        .map(|item| Spans::from(Span::raw(item)))
+        .collect();
+
+    let paragraph = widgets::Paragraph::new(text)
+        .block(block)
+        .style(Style::default().fg(Color::White).bg(Color::Black))
+        .scroll((0, 0))
+        .wrap(widgets::Wrap { trim: true });
+
+    f.render_widget(paragraph, area);
+}
+
 fn draw_datetime<B: Backend>(f: &mut Frame<B>, area: Rect) {
     let block = widgets::Block::default().style(Style::default());
 
@@ -159,7 +189,7 @@ fn draw_datetime<B: Backend>(f: &mut Frame<B>, area: Rect) {
     f.render_widget(paragraph, area);
 }
 
-fn draw<B: Backend>(f: &mut Frame<B>, window: &mut Window) {
+fn draw<B: Backend, W: Widget>(f: &mut Frame<B>, window: &mut Window<W>) {
     let areas = window.chunks(f.size());
 
     draw_tab(f, areas[0], &window.tabs(), window.selected_tab_index());
@@ -338,16 +368,11 @@ fn main() -> Result<(), io::Error> {
             vec![
                 Pane::new(
                     String::from("Pods"),
-                    Widget::List(List::new(vec![String::new()])),
+                    List::new(vec![String::new()]),
                     0,
                     Type::POD,
                 ),
-                Pane::new(
-                    String::from("Logs"),
-                    Widget::List(List::new(vec![])),
-                    1,
-                    Type::LOG,
-                ),
+                Pane::new(String::from("Logs"), List::new(vec![]), 1, Type::LOG),
             ],
             Layout::default()
                 .direction(Direction::Vertical)
