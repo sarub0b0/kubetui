@@ -84,11 +84,12 @@ fn main() -> Result<(), io::Error> {
 
     loop {
         terminal.draw(|f| draw(f, &mut window)).unwrap();
+
         match rx_main.recv().unwrap() {
             Event::Input(ev) => match ev.code {
                 KeyCode::Char('q') => break,
-                KeyCode::Char('j') => window.select_next_item(),
-                KeyCode::Char('k') => window.select_prev_item(),
+                KeyCode::Char('j') | KeyCode::Down => window.select_next_item(),
+                KeyCode::Char('k') | KeyCode::Up => window.select_prev_item(),
                 KeyCode::Char('n') if ev.modifiers == KeyModifiers::CONTROL => {
                     window.select_next_item()
                 }
