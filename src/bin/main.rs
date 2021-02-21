@@ -450,9 +450,7 @@ fn main() -> Result<(), io::Error> {
                 }
                 KeyCode::Enter if window.focus_pane_type() == Type::POD => {
                     tx_main
-                        .send(Event::Kube(Kube::LogRequest(
-                            "taskbox-cb6445955-vtw2f".to_string(),
-                        )))
+                        .send(Event::Kube(Kube::LogRequest(window.selected_pod())))
                         .unwrap();
                 }
                 KeyCode::Char(_) => {}

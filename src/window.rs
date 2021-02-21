@@ -129,6 +129,13 @@ impl<W: Widget> Window<W> {
             }
         }
     }
+
+    pub fn selected_pod(&self) -> String {
+        // let pane = self.selected_tab().selected_pane();
+        // let selected_index = pane.widget().list_state().borrow().selected().unwrap();
+        // pane.widget().items()[selected_index].clone();
+        "nginx".to_string()
+    }
 }
 
 impl<W: Widget> Default for Window<W> {
