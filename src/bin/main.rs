@@ -1,52 +1,27 @@
-#[allow(unused_imports)]
-use chrono::{DateTime, Duration, Utc};
-use tui::text::Text;
-
-#[allow(unused_imports)]
-use std::sync::{
-    mpsc::{self, Receiver, Sender},
-    Arc, RwLock,
-};
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::time;
 
-#[allow(unused_imports)]
-use tokio::runtime::Runtime;
+use std::io::{self, Write};
 
-#[allow(unused_imports)]
-use std::{
-    error::Error,
-    io::{self, stdout, Write},
-};
-
-#[allow(unused_imports)]
 use crossterm::{
-    event::{
-        self, poll, read, DisableMouseCapture, EnableMouseCapture, Event as CEvent, KeyCode,
-        KeyEvent, KeyModifiers,
-    },
+    event::{DisableMouseCapture, EnableMouseCapture, KeyCode, KeyModifiers},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
-#[allow(unused_imports)]
 use tui::{
-    backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Corner, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
-    text::{Span, Spans},
-    widgets, Frame, Terminal,
-};
-
-#[allow(unused_imports)]
-use k8s_openapi::{
-    api::core::v1::{Namespace, Pod, PodStatus},
-    apimachinery::pkg::apis::meta::v1::Time,
+    backend::CrosstermBackend,
+    layout::{Constraint, Direction, Layout},
+    Terminal,
 };
 
 extern crate kubetui;
-#[allow(unused_imports)]
-use kubetui::{draw::*, event::*, window::*};
+use kubetui::{
+    draw::*,
+    event::{input::*, kubernetes::*, tick::*, Event, Kube},
+    window::*,
+};
 
 fn main() -> Result<(), io::Error> {
     let (tx_input, rx_main): (Sender<Event>, Receiver<Event>) = mpsc::channel();
