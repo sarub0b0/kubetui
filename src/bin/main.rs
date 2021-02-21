@@ -43,15 +43,10 @@ use k8s_openapi::{
     api::core::v1::{Namespace, Pod, PodStatus},
     apimachinery::pkg::apis::meta::v1::Time,
 };
-use kube::{
-    api::{ListParams, LogParams, Meta},
-    config::Kubeconfig,
-    Api, Client,
-};
 
 extern crate kubetui;
 #[allow(unused_imports)]
-use kubetui::{event::*, util::age, window::*};
+use kubetui::{draw::*, event::*, window::*};
 
 fn main() -> Result<(), io::Error> {
     let (tx_input, rx_main): (Sender<Event>, Receiver<Event>) = mpsc::channel();
