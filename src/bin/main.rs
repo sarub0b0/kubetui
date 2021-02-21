@@ -46,11 +46,16 @@ fn main() -> Result<(), io::Error> {
             vec![
                 Pane::new(
                     String::from("Pods"),
-                    List::new(vec![String::new()]),
+                    Box::new(Pods::new(vec![])),
                     0,
                     Type::POD,
                 ),
-                Pane::new(String::from("Logs"), List::new(vec![]), 1, Type::LOG),
+                Pane::new(
+                    String::from("Logs"),
+                    Box::new(Logs::new(vec![])),
+                    1,
+                    Type::LOG,
+                ),
             ],
             Layout::default()
                 .direction(Direction::Vertical)
@@ -60,11 +65,11 @@ fn main() -> Result<(), io::Error> {
             "Tab 1".to_string(),
             vec![Pane::new(
                 String::from("List 0"),
-                List::new(vec![
+                Box::new(Pods::new(vec![
                     String::from("Item 1"),
                     String::from("Item 2"),
                     String::from("Item 3"),
-                ]),
+                ])),
                 0,
                 Type::NONE,
             )],
@@ -104,6 +109,7 @@ fn main() -> Result<(), io::Error> {
                     tx_main
                         .send(Event::Kube(Kube::LogRequest(window.selected_pod())))
                         .unwrap();
+                    window.reset_pod_logs();
                 }
                 KeyCode::Char(_) => {}
                 _ => {}

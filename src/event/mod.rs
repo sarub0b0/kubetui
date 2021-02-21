@@ -16,5 +16,5 @@ pub enum Kube {
     Pod(Vec<String>),
     Namespace(Option<Vec<String>>),
     LogRequest(String),
-    LogResponse(Option<Vec<String>>),
+    LogResponse(String),
 }

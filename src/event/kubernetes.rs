@@ -4,6 +4,8 @@ use crate::util::*;
 
 use chrono::{DateTime, Duration, Utc};
 
+use futures::{StreamExt, TryStreamExt};
+
 use std::sync::{
     mpsc::{Receiver, Sender},
     Arc, RwLock,
@@ -91,9 +93,21 @@ async fn event_loop(
                 Kube::LogRequest(pod_name) => {
                     let client_clone = client.clone();
                     let namespace = namespace.read().unwrap().clone();
-                    let logs = get_logs(client_clone, &namespace, &pod_name).await;
+                    // let logs = get_logs(client_clone, &namespace, &pod_name, &tx_log).await;
 
-                    tx_log.send(Event::Kube(Kube::LogResponse(logs))).unwrap();
+                    let pod: Api<Pod> = Api::namespaced(client_clone, &namespace);
+                    let mut lp = LogParams::default();
+                    lp.follow = true;
+                    let mut logs = pod.log_stream(&pod_name, &lp).await.unwrap();
+                    while let Some(line) = logs.try_next().await.unwrap() {
+                        tx_log
+                            .send(Event::Kube(Kube::LogResponse(
+                                String::from_utf8_lossy(&line).to_string(),
+                            )))
+                            .unwrap();
+                    }
+
+                    // tx_log.send(Event::Kube(Kube::LogResponse(logs))).unwrap();
                 }
                 _ => {
                     unreachable!()
@@ -175,13 +189,18 @@ fn get_namespace_list() -> Option<Vec<String>> {
     Some(th.join().unwrap())
 }
 
-async fn get_logs(client: Client, namespace: &str, pod_name: &str) -> Option<Vec<String>> {
-    let pod: Api<Pod> = Api::namespaced(client, namespace);
-    let lp = LogParams::default();
-    let logs = pod.logs(pod_name, &lp).await;
+// async fn get_logs(client: Client, namespace: &str, pod_name: &str, tx: &Sender<Event>) {
+//     let pod: Api<Pod> = Api::namespaced(client, namespace);
+//     let mut lp = LogParams::default();
+//     lp.follow = true;
+//     let mut logs = pod.log_stream(pod_name, &lp).await.unwrap();
+//     while let Some(line) = logs.try_next().await.unwrap() {
+//         print!("{}\r", String::from_utf8_lossy(&line));
+//         tx.send(Event::Kube(Kube::LogResponse(Some(vec![
+//             String::from_utf8_lossy(&line).to_string(),
+//         ]))))
+//         .unwrap();
+//     }
 
-    match logs {
-        Ok(logs) => Some(logs.lines().map(String::from).collect()),
-        Err(_) => None,
-    }
-}
+//     // pod.log_stream(pod_name, &lp).await.unwrap()
+// }

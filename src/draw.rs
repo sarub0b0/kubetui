@@ -1,15 +1,14 @@
-use super::{util::*, window::*};
+use super::window::*;
 
 #[allow(unused_imports)]
 use chrono::{DateTime, Duration, Utc};
 
+use std::borrow::BorrowMut;
 #[allow(unused_imports)]
 use std::sync::{
     mpsc::{self, Receiver, Sender},
     Arc, RwLock,
 };
-use std::thread;
-use std::time;
 
 #[allow(unused_imports)]
 use tokio::runtime::Runtime;
@@ -44,18 +43,8 @@ use k8s_openapi::{
     api::core::v1::{Namespace, Pod, PodStatus},
     apimachinery::pkg::apis::meta::v1::Time,
 };
-use kube::{
-    api::{ListParams, LogParams, Meta},
-    config::Kubeconfig,
-    Api, Client,
-};
 
-fn draw_tab<B: Backend, W: Widget>(
-    f: &mut Frame<B>,
-    chunk: Rect,
-    tabs: &Vec<Tab<W>>,
-    index: usize,
-) {
+fn draw_tab<B: Backend>(f: &mut Frame<B>, chunk: Rect, tabs: &Vec<Tab>, index: usize) {
     let titles: Vec<Spans> = tabs
         .iter()
         .map(|t| Spans::from(format!(" {} ", t.title())))
@@ -85,7 +74,7 @@ fn generate_title(title: &str, border_color: Color, selected: bool) -> Spans {
     ])
 }
 
-fn draw_panes<B: Backend, W: Widget>(f: &mut Frame<B>, area: Rect, tab: &Tab<W>) {
+fn draw_panes<B: Backend>(f: &mut Frame<B>, area: Rect, tab: &Tab) {
     let chunks = tab.chunks(area);
 
     for pane in tab.panes() {
@@ -114,7 +103,13 @@ fn draw_panes<B: Backend, W: Widget>(f: &mut Frame<B>, area: Rect, tab: &Tab<W>)
                 );
             }
             Type::LOG => {
-                draw_paragraph(f, block, chunks[pane.chunk_index()], &pane.widget().items());
+                draw_paragraph(
+                    f,
+                    block,
+                    chunks[pane.chunk_index()],
+                    &pane.widget().items(),
+                    pane.widget().list_state().borrow().selected().unwrap_or(0) as u16,
+                );
             }
             Type::NONE => {}
         }
@@ -153,6 +148,7 @@ fn draw_paragraph<B: Backend>(
     block: widgets::Block,
     area: Rect,
     items: &Vec<String>,
+    state: u16,
 ) {
     let text: Vec<Spans> = items
         .iter()
@@ -162,7 +158,7 @@ fn draw_paragraph<B: Backend>(
     let paragraph = widgets::Paragraph::new(text)
         .block(block)
         .style(Style::default().fg(Color::White).bg(Color::Black))
-        .scroll((0, 0))
+        .scroll((state, 0))
         .wrap(widgets::Wrap { trim: true });
 
     f.render_widget(paragraph, area);
@@ -181,7 +177,7 @@ fn draw_datetime<B: Backend>(f: &mut Frame<B>, area: Rect) {
     f.render_widget(paragraph, area);
 }
 
-pub fn draw<B: Backend, W: Widget>(f: &mut Frame<B>, window: &mut Window<W>) {
+pub fn draw<B: Backend>(f: &mut Frame<B>, window: &mut Window) {
     let areas = window.chunks(f.size());
 
     draw_tab(f, areas[0], &window.tabs(), window.selected_tab_index());

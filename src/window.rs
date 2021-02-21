@@ -5,28 +5,33 @@ use tui::widgets::ListState;
 
 use std::cell::RefCell;
 
-pub struct Window<W: Widget> {
-    tabs: Vec<Tab<W>>,
+pub struct Window {
+    tabs: Vec<Tab>,
     selected_tab_index: usize,
     layout: Layout,
 }
 
-pub struct Tab<W: Widget> {
+pub struct Tab {
     title: String,
-    panes: Vec<Pane<W>>,
+    panes: Vec<Pane>,
     layout: Layout,
     selected_pane_index: usize,
     selectable_widgets: Vec<usize>,
 }
 
-pub struct Pane<W: Widget> {
-    widget: W,
+pub struct Pane {
+    widget: Box<dyn Widget>,
     chunk_index: usize,
     title: String,
     ty: Type,
 }
 
-pub struct List {
+pub struct Pods {
+    items: Vec<String>,
+    state: RefCell<ListState>,
+}
+
+pub struct Logs {
     items: Vec<String>,
     state: RefCell<ListState>,
 }
@@ -44,12 +49,13 @@ pub trait Widget {
     fn selectable(&self) -> bool;
     fn set_items(&mut self, items: Vec<String>);
     fn items(&self) -> &Vec<String>;
-
+    fn add_item(&mut self, item: &String);
     fn list_state(&self) -> &RefCell<ListState>;
+    fn unselect(&self);
 }
 
-impl<W: Widget> Window<W> {
-    pub fn new(tabs: Vec<Tab<W>>) -> Self {
+impl Window {
+    pub fn new(tabs: Vec<Tab>) -> Self {
         Self {
             tabs,
             ..Window::default()
@@ -60,7 +66,7 @@ impl<W: Widget> Window<W> {
         self.layout.split(window_size)
     }
 
-    pub fn tabs(&self) -> &Vec<Tab<W>> {
+    pub fn tabs(&self) -> &Vec<Tab> {
         &self.tabs
     }
 
@@ -76,7 +82,7 @@ impl<W: Widget> Window<W> {
         }
     }
 
-    pub fn selected_tab(&self) -> &Tab<W> {
+    pub fn selected_tab(&self) -> &Tab {
         &self.tabs[self.selected_tab_index]
     }
 
@@ -120,14 +126,25 @@ impl<W: Widget> Window<W> {
         }
     }
 
-    pub fn update_pod_logs(&mut self, logs: &Option<Vec<String>>) {
-        if let Some(logs) = logs {
-            for t in &mut self.tabs {
-                let pane = t.panes.iter_mut().find(|p| p.ty == Type::LOG);
+    pub fn update_pod_logs(&mut self, logs: &String) {
+        // if let Some(logs) = logs {
+        for t in &mut self.tabs {
+            let pane = t.panes.iter_mut().find(|p| p.ty == Type::LOG);
 
-                if let Some(p) = pane {
-                    p.widget.set_items(logs.to_vec());
-                }
+            if let Some(p) = pane {
+                p.widget.add_item(logs);
+            }
+        }
+        // }
+    }
+
+    pub fn reset_pod_logs(&mut self) {
+        for t in &mut self.tabs {
+            let pane = t.panes.iter_mut().find(|p| p.ty == Type::LOG);
+
+            if let Some(p) = pane {
+                p.widget.unselect();
+                p.widget.set_items(vec![]);
             }
         }
     }
@@ -140,7 +157,7 @@ impl<W: Widget> Window<W> {
     }
 }
 
-impl<W: Widget> Default for Window<W> {
+impl Default for Window {
     fn default() -> Self {
         let layout = Layout::default()
             .direction(Direction::Vertical)
@@ -161,8 +178,8 @@ impl<W: Widget> Default for Window<W> {
     }
 }
 
-impl<W: Widget> Tab<W> {
-    pub fn new(title: String, panes: Vec<Pane<W>>, layout: Layout) -> Self {
+impl Tab {
+    pub fn new(title: String, panes: Vec<Pane>, layout: Layout) -> Self {
         let selectable_widgets = panes
             .iter()
             .enumerate()
@@ -186,7 +203,7 @@ impl<W: Widget> Tab<W> {
         self.layout.split(tab_size)
     }
 
-    pub fn panes(&self) -> &Vec<Pane<W>> {
+    pub fn panes(&self) -> &Vec<Pane> {
         &self.panes
     }
 
@@ -206,16 +223,16 @@ impl<W: Widget> Tab<W> {
         }
     }
 
-    pub fn selected_mut_pane(&mut self) -> &mut Pane<W> {
+    pub fn selected_mut_pane(&mut self) -> &mut Pane {
         &mut self.panes[self.selected_pane_index]
     }
-    pub fn selected_pane(&self) -> &Pane<W> {
+    pub fn selected_pane(&self) -> &Pane {
         &self.panes[self.selected_pane_index]
     }
 }
 
-impl<W: Widget> Pane<W> {
-    pub fn new(title: String, widget: W, chunk_index: usize, ty: Type) -> Self {
+impl Pane {
+    pub fn new(title: String, widget: Box<dyn Widget>, chunk_index: usize, ty: Type) -> Self {
         Self {
             title,
             widget,
@@ -224,7 +241,7 @@ impl<W: Widget> Pane<W> {
         }
     }
 
-    pub fn widget(&self) -> &W {
+    pub fn widget(&self) -> &Box<dyn Widget> {
         &self.widget
     }
 
@@ -244,7 +261,7 @@ impl<W: Widget> Pane<W> {
         self.widget.prev()
     }
 
-    pub fn selected(&self, rhs: &Pane<W>) -> bool {
+    pub fn selected(&self, rhs: &Pane) -> bool {
         return std::ptr::eq(self, rhs);
     }
 
@@ -253,7 +270,7 @@ impl<W: Widget> Pane<W> {
     }
 }
 
-impl List {
+impl Pods {
     pub fn new(items: Vec<String>) -> Self {
         let mut state = ListState::default();
         if 0 < items.len() {
@@ -277,7 +294,86 @@ impl List {
     }
 }
 
-impl Widget for List {
+impl Widget for Pods {
+    fn next(&self) {
+        let i = match self.state.borrow().selected() {
+            Some(i) => {
+                if self.items.len() - 1 <= i {
+                    0
+                } else {
+                    i + 1
+                }
+            }
+            None => 0,
+        };
+
+        self.state.borrow_mut().select(Some(i));
+    }
+
+    fn prev(&self) {
+        let i = match self.state.borrow().selected() {
+            Some(i) => {
+                if i == 0 {
+                    self.items.len() - 1
+                } else {
+                    i - 1
+                }
+            }
+            None => 0,
+        };
+
+        self.state.borrow_mut().select(Some(i));
+    }
+
+    fn selectable(&self) -> bool {
+        true
+    }
+    fn set_items(&mut self, items: Vec<String>) {
+        match items.len() {
+            0 => self.state.borrow_mut().select(None),
+            len if len < self.items.len() => self.state.borrow_mut().select(Some(len - 1)),
+            _ => {}
+        }
+        self.items = items;
+    }
+
+    fn add_item(&mut self, item: &String) {
+        self.items.push(item.clone());
+    }
+
+    fn items(&self) -> &Vec<String> {
+        &self.items
+    }
+
+    fn list_state(&self) -> &RefCell<ListState> {
+        &self.state
+    }
+    fn unselect(&self) {
+        self.state.borrow_mut().select(None);
+    }
+}
+
+impl Logs {
+    pub fn new(items: Vec<String>) -> Self {
+        let mut state = ListState::default();
+        if 0 < items.len() {
+            state.select(Some(0));
+        }
+
+        Self {
+            items,
+            state: RefCell::new(state),
+        }
+    }
+    pub fn selected(&self) -> Option<usize> {
+        self.state.borrow().selected()
+    }
+    pub fn state(&self) -> &RefCell<ListState> {
+        &self.state
+    }
+}
+
+impl Widget for Logs {
     fn next(&self) {
         let i = match self.state.borrow().selected() {
             Some(i) => {
@@ -324,8 +420,16 @@ impl Widget for List {
         &self.items
     }
 
+    fn add_item(&mut self, item: &String) {
+        self.items.push(item.clone());
+        self.state.borrow_mut().select(Some(self.items.len() - 1));
+    }
+
     fn list_state(&self) -> &RefCell<ListState> {
         &self.state
+    }
+    fn unselect(&self) {
+        self.state.borrow_mut().select(None);
     }
 }
 
@@ -335,7 +439,7 @@ mod tests {
 
     #[test]
     fn initial_index() {
-        let list = List::new(vec![
+        let list = Pods::new(vec![
             String::from("Item 0"),
             String::from("Item 1"),
             String::from("Item 2"),
@@ -346,7 +450,7 @@ mod tests {
 
     #[test]
     fn two_prev_is_selected_last_index() {
-        let list = List::new(vec![
+        let list = Pods::new(vec![
             String::from("Item 0"),
             String::from("Item 1"),
             String::from("Item 2"),
@@ -358,7 +462,7 @@ mod tests {
     }
     #[test]
     fn one_next_is_selected_second_index() {
-        let list = List::new(vec![
+        let list = Pods::new(vec![
             String::from("Item 0"),
             String::from("Item 1"),
             String::from("Item 2"),
@@ -370,7 +474,7 @@ mod tests {
 
     #[test]
     fn last_next_is_selected_first_index() {
-        let list = List::new(vec![
+        let list = Pods::new(vec![
             String::from("Item 0"),
             String::from("Item 1"),
             String::from("Item 2"),
