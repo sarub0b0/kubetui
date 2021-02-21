@@ -300,7 +300,7 @@ impl Widget for Pods {
         let i = match self.state.borrow().selected() {
             Some(i) => {
                 if self.items.len() - 1 <= i {
-                    0
+                    self.items.len() - 1
                 } else {
                     i + 1
                 }
@@ -315,7 +315,7 @@ impl Widget for Pods {
         let i = match self.state.borrow().selected() {
             Some(i) => {
                 if i == 0 {
-                    self.items.len() - 1
+                    0
                 } else {
                     i - 1
                 }
@@ -379,7 +379,7 @@ impl Widget for Logs {
         let i = match self.state.borrow().selected() {
             Some(i) => {
                 if self.items.len() - 1 <= i {
-                    0
+                    self.items.len() - 1
                 } else {
                     i + 1
                 }
@@ -394,7 +394,7 @@ impl Widget for Logs {
         let i = match self.state.borrow().selected() {
             Some(i) => {
                 if i == 0 {
-                    self.items.len() - 1
+                    0
                 } else {
                     i - 1
                 }
