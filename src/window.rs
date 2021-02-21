@@ -4,6 +4,7 @@ use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::widgets::ListState;
 
 use std::cell::RefCell;
+use std::rc::Rc;
 
 pub struct Window {
     tabs: Vec<Tab>,
@@ -28,12 +29,12 @@ pub struct Pane {
 
 pub struct Pods {
     items: Vec<String>,
-    state: RefCell<ListState>,
+    state: Rc<RefCell<ListState>>,
 }
 
 pub struct Logs {
     items: Vec<String>,
-    state: RefCell<ListState>,
+    state: Rc<RefCell<ListState>>,
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -279,7 +280,7 @@ impl Pods {
 
         Self {
             items,
-            state: RefCell::new(state),
+            state: Rc::new(RefCell::new(state)),
         }
     }
     pub fn unselect(&self) {
@@ -289,8 +290,8 @@ impl Pods {
     pub fn selected(&self) -> Option<usize> {
         self.state.borrow().selected()
     }
-    pub fn state(&self) -> &RefCell<ListState> {
-        &self.state
+    pub fn state(&self) -> Rc<RefCell<ListState>> {
+        Rc::clone(&self.state)
     }
 }
 
@@ -362,14 +363,14 @@ impl Logs {
 
         Self {
             items,
-            state: RefCell::new(state),
+            state: Rc::new(RefCell::new(state)),
         }
     }
     pub fn selected(&self) -> Option<usize> {
         self.state.borrow().selected()
     }
-    pub fn state(&self) -> &RefCell<ListState> {
-        &self.state
+    pub fn state(&self) -> Rc<RefCell<ListState>> {
+        Rc::clone(&self.state)
     }
 }
 
