@@ -20,6 +20,7 @@ extern crate kubetui;
 use kubetui::{
     draw::*,
     event::{input::*, kubernetes::*, tick::*, Event, Kube},
+    widget::{log::Logs, pod::Pods, Widgets},
     window::*,
 };
 
