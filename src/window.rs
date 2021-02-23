@@ -3,22 +3,22 @@ use super::widget::*;
 
 use tui::layout::{Constraint, Direction, Layout, Rect};
 
-pub struct Window {
-    tabs: Vec<Tab>,
+pub struct Window<'a> {
+    tabs: Vec<Tab<'a>>,
     selected_tab_index: usize,
     layout: Layout,
 }
 
-pub struct Tab {
+pub struct Tab<'a> {
     title: String,
-    panes: Vec<Pane>,
+    panes: Vec<Pane<'a>>,
     layout: Layout,
     selected_pane_index: usize,
     selectable_widgets: Vec<usize>,
 }
 
-pub struct Pane {
-    widget: Widgets,
+pub struct Pane<'a> {
+    widget: Widgets<'a>,
     chunk_index: usize,
     title: String,
     ty: Type,
@@ -31,8 +31,8 @@ pub enum Type {
     POD,
 }
 
-impl Window {
-    pub fn new(tabs: Vec<Tab>) -> Self {
+impl<'a> Window<'a> {
+    pub fn new(tabs: Vec<Tab<'a>>) -> Self {
         Self {
             tabs,
             ..Window::default()
@@ -152,7 +152,7 @@ impl Window {
     }
 }
 
-impl Default for Window {
+impl Default for Window<'_> {
     fn default() -> Self {
         let layout = Layout::default()
             .direction(Direction::Vertical)
@@ -173,8 +173,8 @@ impl Default for Window {
     }
 }
 
-impl Tab {
-    pub fn new(title: String, panes: Vec<Pane>, layout: Layout) -> Self {
+impl<'a> Tab<'a> {
+    pub fn new(title: String, panes: Vec<Pane<'a>>, layout: Layout) -> Self {
         let selectable_widgets = panes
             .iter()
             .enumerate()
@@ -218,7 +218,7 @@ impl Tab {
         }
     }
 
-    pub fn selected_mut_pane(&mut self) -> &mut Pane {
+    pub fn selected_mut_pane(&mut self) -> &mut Pane<'a> {
         &mut self.panes[self.selected_pane_index]
     }
     pub fn selected_pane(&self) -> &Pane {
@@ -226,8 +226,8 @@ impl Tab {
     }
 }
 
-impl Pane {
-    pub fn new(title: String, widget: Widgets, chunk_index: usize, ty: Type) -> Self {
+impl<'a> Pane<'a> {
+    pub fn new(title: String, widget: Widgets<'a>, chunk_index: usize, ty: Type) -> Self {
         Self {
             title,
             widget,

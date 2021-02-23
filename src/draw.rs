@@ -107,13 +107,25 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, area: Rect, tab: &Tab) {
                 );
             }
             Type::LOG => {
-                draw_paragraph(
-                    f,
-                    block,
-                    chunks[pane.chunk_index()],
-                    &pane.widget().log().unwrap().items(),
-                    pane.widget().log().unwrap().selected().unwrap_or(0) as u16,
-                );
+                let chunk = chunks[pane.chunk_index()];
+                let chunk_height = chunk.y;
+                let log = pane.widget().log();
+                let current_selected = log.unwrap().selected().unwrap_or(0) as u16;
+
+                let items_len = log.unwrap().items().len() as u16;
+                let selected = if chunk_height < items_len {
+                    current_selected
+                } else {
+                    current_selected
+                };
+                // let limit_index = if chunk_height < log.unwrap().items().len() as u16 - 1 {
+                //     chunk_height - log.unwrap().items().len() as u16 - 1
+                // } else {
+                //     chunk_height
+                // };
+
+                // draw_paragraph(f, block, chunk, &log.unwrap().spans(), selected);
+                f.render_widget(log.unwrap().paragraph(block), chunk);
             }
             Type::NONE => {}
         }
@@ -151,19 +163,14 @@ fn draw_paragraph<B: Backend>(
     f: &mut Frame<B>,
     block: widgets::Block,
     area: Rect,
-    items: &Vec<String>,
+    items: &Vec<Spans>,
     state: u16,
 ) {
-    let text: Vec<Spans> = items
-        .iter()
-        .map(|item| Spans::from(Span::raw(item)))
-        .collect();
-
-    let paragraph = widgets::Paragraph::new(text)
+    let paragraph = widgets::Paragraph::new(items.clone())
         .block(block)
         .style(Style::default().fg(Color::White).bg(Color::Black))
         .scroll((state, 0))
-        .wrap(widgets::Wrap { trim: true });
+        .wrap(widgets::Wrap { trim: false });
 
     f.render_widget(paragraph, area);
 }

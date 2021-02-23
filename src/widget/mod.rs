@@ -8,12 +8,12 @@ pub trait WidgetTrait {
     fn selectable(&self) -> bool;
 }
 
-pub enum Widgets {
+pub enum Widgets<'a> {
     Pod(Pods),
-    Log(Logs),
+    Log(Logs<'a>),
 }
 
-impl Widgets {
+impl<'a> Widgets<'a> {
     pub fn pod(&self) -> Option<&Pods> {
         match self {
             Widgets::Pod(pod) => Some(pod),
@@ -35,7 +35,7 @@ impl Widgets {
         }
     }
 
-    pub fn mut_log(&mut self) -> Option<&mut Logs> {
+    pub fn mut_log(&mut self) -> Option<&mut Logs<'a>> {
         match self {
             Widgets::Log(log) => Some(log),
             _ => None,
@@ -49,14 +49,14 @@ impl Widgets {
         }
     }
 
-    pub fn next(&self) {
+    pub fn next(&mut self) {
         match self {
             Widgets::Pod(pod) => pod.next(),
             Widgets::Log(log) => log.next(),
         }
     }
 
-    pub fn prev(&self) {
+    pub fn prev(&mut self) {
         match self {
             Widgets::Pod(pod) => pod.prev(),
             Widgets::Log(log) => log.prev(),
@@ -78,7 +78,7 @@ impl Widgets {
     }
 }
 
-impl WidgetTrait for Widgets {
+impl WidgetTrait for Widgets<'_> {
     fn selectable(&self) -> bool {
         match self {
             Widgets::Pod(pod) => pod.selectable(),
