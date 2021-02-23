@@ -46,6 +46,15 @@ impl Logs {
         Rc::clone(&self.state)
     }
 
+    pub fn scroll_top(&self) {
+        self.state.borrow_mut().select(Some(0));
+    }
+
+    pub fn scroll_bottom(&self) {
+        let last_index: u16 = self.items.len() as u16 - 1;
+        self.state.borrow_mut().select(Some(last_index));
+    }
+
     pub fn next(&self) {
         let i = match self.state.borrow().selected() {
             Some(i) => {

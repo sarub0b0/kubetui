@@ -54,6 +54,15 @@ impl Pods {
         self.state.borrow().selected()
     }
 
+    pub fn select_first(&self) {
+        self.state.borrow_mut().select(Some(0));
+    }
+
+    pub fn select_last(&self) {
+        let last_index = self.items.len() - 1;
+        self.state.borrow_mut().select(Some(last_index));
+    }
+
     pub fn state(&self) -> Rc<RefCell<PodState>> {
         Rc::clone(&self.state)
     }

@@ -112,6 +112,8 @@ fn main() -> Result<(), io::Error> {
                         .unwrap();
                     window.reset_pod_logs();
                 }
+                KeyCode::Char('G') => window.select_last_item(),
+                KeyCode::Char('g') => window.select_first_item(),
                 KeyCode::Char(_) => {}
                 _ => {}
             },

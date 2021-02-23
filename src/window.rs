@@ -90,9 +90,18 @@ impl Window {
         }
     }
 
+    pub fn select_first_item(&self) {
+        self.selected_tab().selected_pane().widget().first();
+    }
+
+    pub fn select_last_item(&self) {
+        self.selected_tab().selected_pane().widget().last();
+    }
+
     pub fn focus_pane_type(&self) -> Type {
         self.selected_tab().selected_pane().ty
     }
+
     pub fn update_pod_status(&mut self, info: &Vec<String>) {
         for t in &mut self.tabs {
             let pane = t.panes.iter_mut().find(|p| p.ty == Type::POD);

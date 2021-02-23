@@ -62,6 +62,20 @@ impl Widgets {
             Widgets::Log(log) => log.prev(),
         }
     }
+
+    pub fn first(&self) {
+        match self {
+            Widgets::Pod(pod) => pod.select_first(),
+            Widgets::Log(log) => log.scroll_top(),
+        }
+    }
+
+    pub fn last(&self) {
+        match self {
+            Widgets::Pod(pod) => pod.select_last(),
+            Widgets::Log(log) => log.scroll_bottom(),
+        }
+    }
 }
 
 impl WidgetTrait for Widgets {
