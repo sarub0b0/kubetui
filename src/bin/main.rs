@@ -118,10 +118,6 @@ fn main() -> Result<(), io::Error> {
             Event::Mouse => {}
             Event::Resize => {}
             Event::Tick => {}
-            Event::Render(render) => match render {
-                // Render::Tab => tx_draw.send(Event::Render(Render::Tab)).unwrap(),
-                _ => {}
-            },
             Event::Kube(k) => match k {
                 Kube::Pod(info) => {
                     window.update_pod_status(&info);
