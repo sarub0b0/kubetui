@@ -101,7 +101,7 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, area: Rect, tab: &Tab) {
                     f,
                     block,
                     chunks[pane.chunk_index()],
-                    &pane.widget().items(),
+                    &pane.widget().pod().unwrap().items(),
                     &mut pane.widget().pod().unwrap().state().borrow_mut().state(),
                     selected,
                 );
@@ -111,7 +111,7 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, area: Rect, tab: &Tab) {
                     f,
                     block,
                     chunks[pane.chunk_index()],
-                    &pane.widget().items(),
+                    &pane.widget().log().unwrap().items(),
                     pane.widget().log().unwrap().selected().unwrap_or(0) as u16,
                 );
             }

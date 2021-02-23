@@ -91,10 +91,13 @@ impl Widgets {
             Widgets::Log(log) => log.prev(),
         }
     }
-    pub fn items(&self) -> &Vec<String> {
+}
+
+impl WidgetTrait for Widgets {
+    fn selectable(&self) -> bool {
         match self {
-            Widgets::Pod(pod) => pod.items(),
-            Widgets::Log(log) => log.items(),
+            Widgets::Pod(pod) => pod.selectable(),
+            Widgets::Log(log) => log.selectable(),
         }
     }
 }
@@ -147,15 +150,8 @@ pub enum Type {
     POD,
 }
 
-pub trait Widget {
-    fn next(&self);
-    fn prev(&self);
+trait WidgetTrait {
     fn selectable(&self) -> bool;
-    fn set_items(&mut self, items: Vec<String>);
-    fn items(&self) -> &Vec<String>;
-    fn add_item(&mut self, item: &String);
-    // fn list_state(&self) -> &RefCell<ListState>;
-    fn unselect(&self);
 }
 
 impl Window {
@@ -232,7 +228,6 @@ impl Window {
     }
 
     pub fn update_pod_logs(&mut self, logs: &String) {
-        // if let Some(logs) = logs {
         for t in &mut self.tabs {
             let pane = t.panes.iter_mut().find(|p| p.ty == Type::LOG);
 
@@ -241,7 +236,6 @@ impl Window {
                 log.add_item(logs);
             }
         }
-        // }
     }
 
     pub fn reset_pod_logs(&mut self) {
@@ -407,9 +401,6 @@ impl Pods {
     pub fn state(&self) -> Rc<RefCell<PodState>> {
         Rc::clone(&self.state)
     }
-}
-
-impl Widget for Pods {
     fn next(&self) {
         let i = match self.state.borrow().selected() {
             Some(i) => {
@@ -440,9 +431,6 @@ impl Widget for Pods {
         self.state.borrow_mut().select(Some(i));
     }
 
-    fn selectable(&self) -> bool {
-        true
-    }
     fn set_items(&mut self, items: Vec<String>) {
         match items.len() {
             0 => self.state.borrow_mut().select(None),
@@ -456,15 +444,14 @@ impl Widget for Pods {
         self.items.push(item.clone());
     }
 
-    fn items(&self) -> &Vec<String> {
+    pub fn items(&self) -> &Vec<String> {
         &self.items
     }
+}
 
-    // fn list_state(&self) -> &RefCell<ListState> {
-    //     &self.state
-    // }
-    fn unselect(&self) {
-        self.state.borrow_mut().select(None);
+impl WidgetTrait for Pods {
+    fn selectable(&self) -> bool {
+        true
     }
 }
 
@@ -486,9 +473,6 @@ impl Logs {
     pub fn state(&self) -> Rc<RefCell<LogState>> {
         Rc::clone(&self.state)
     }
-}
-
-impl Widget for Logs {
     fn next(&self) {
         let i = match self.state.borrow().selected() {
             Some(i) => {
@@ -519,9 +503,6 @@ impl Widget for Logs {
         self.state.borrow_mut().select(Some(i));
     }
 
-    fn selectable(&self) -> bool {
-        true
-    }
     fn set_items(&mut self, items: Vec<String>) {
         match items.len() {
             0 => self.state.borrow_mut().select(None),
@@ -531,7 +512,7 @@ impl Widget for Logs {
         self.items = items;
     }
 
-    fn items(&self) -> &Vec<String> {
+    pub fn items(&self) -> &Vec<String> {
         &self.items
     }
 
@@ -540,11 +521,14 @@ impl Widget for Logs {
         // self.state.borrow_mut().select(Some(self.items.len() - 1));
     }
 
-    // fn list_state(&self) -> &RefCell<ListState> {
-    //     &self.state
-    // }
     fn unselect(&self) {
         self.state.borrow_mut().select(None);
+    }
+}
+
+impl WidgetTrait for Logs {
+    fn selectable(&self) -> bool {
+        true
     }
 }
 
