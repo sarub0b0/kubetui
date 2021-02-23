@@ -11,7 +11,7 @@ use crossterm::{
 };
 
 use tui::{
-    backend::CrosstermBackend,
+    backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
     Terminal,
 };
@@ -46,13 +46,13 @@ fn main() -> Result<(), io::Error> {
             vec![
                 Pane::new(
                     String::from("Pods"),
-                    Box::new(Pods::new(vec![])),
+                    Widgets::Pod(Pods::new(vec![])),
                     0,
                     Type::POD,
                 ),
                 Pane::new(
                     String::from("Logs"),
-                    Box::new(Logs::new(vec![])),
+                    Widgets::Log(Logs::new(vec![])),
                     1,
                     Type::LOG,
                 ),
@@ -65,7 +65,7 @@ fn main() -> Result<(), io::Error> {
             "Tab 1".to_string(),
             vec![Pane::new(
                 String::from("List 0"),
-                Box::new(Pods::new(vec![
+                Widgets::Pod(Pods::new(vec![
                     String::from("Item 1"),
                     String::from("Item 2"),
                     String::from("Item 3"),
@@ -78,13 +78,12 @@ fn main() -> Result<(), io::Error> {
                 .constraints([Constraint::Percentage(50)].as_ref()),
         ),
     ];
+
     let mut window = Window::new(tabs);
 
     terminal.clear().unwrap();
-
     loop {
         terminal.draw(|f| draw(f, &mut window)).unwrap();
-
         match rx_main.recv().unwrap() {
             Event::Input(ev) => match ev.code {
                 KeyCode::Char('q') => break,
@@ -118,11 +117,15 @@ fn main() -> Result<(), io::Error> {
             Event::Mouse => {}
             Event::Resize => {}
             Event::Tick => {}
+            Event::Render(render) => match render {
+                // Render::Tab => tx_draw.send(Event::Render(Render::Tab)).unwrap(),
+                _ => {}
+            },
             Event::Kube(k) => match k {
                 Kube::Pod(info) => {
                     window.update_pod_status(&info);
                 }
-                Kube::Namespace(ns) => {}
+                Kube::Namespace(_ns) => {}
                 Kube::LogResponse(log) => {
                     window.update_pod_logs(&log);
                 }

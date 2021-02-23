@@ -1,9 +1,13 @@
-use super::window::*;
+use super::{event::*, window::*};
+
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::thread;
 
 #[allow(unused_imports)]
 use chrono::{DateTime, Duration, Utc};
+use widgets::ListState;
 
-use std::borrow::BorrowMut;
 #[allow(unused_imports)]
 use std::sync::{
     mpsc::{self, Receiver, Sender},
@@ -98,7 +102,7 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, area: Rect, tab: &Tab) {
                     block,
                     chunks[pane.chunk_index()],
                     &pane.widget().items(),
-                    &mut pane.widget().list_state().borrow_mut(),
+                    &mut pane.widget().pod().unwrap().state().borrow_mut().state(),
                     selected,
                 );
             }
@@ -108,7 +112,7 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, area: Rect, tab: &Tab) {
                     block,
                     chunks[pane.chunk_index()],
                     &pane.widget().items(),
-                    pane.widget().list_state().borrow().selected().unwrap_or(0) as u16,
+                    pane.widget().log().unwrap().selected().unwrap_or(0) as u16,
                 );
             }
             Type::NONE => {}

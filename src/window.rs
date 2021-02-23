@@ -5,6 +5,7 @@ use tui::widgets::ListState;
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::{Arc, RwLock};
 
 pub struct Window {
     tabs: Vec<Tab>,
@@ -21,7 +22,7 @@ pub struct Tab {
 }
 
 pub struct Pane {
-    widget: Box<dyn Widget>,
+    widget: Widgets,
     chunk_index: usize,
     title: String,
     ty: Type,
@@ -29,12 +30,114 @@ pub struct Pane {
 
 pub struct Pods {
     items: Vec<String>,
-    state: Rc<RefCell<ListState>>,
+    state: Rc<RefCell<PodState>>,
 }
 
 pub struct Logs {
     items: Vec<String>,
-    state: Rc<RefCell<ListState>>,
+    state: Rc<RefCell<LogState>>,
+}
+
+pub enum Widgets {
+    Pod(Pods),
+    Log(Logs),
+}
+
+impl Widgets {
+    pub fn pod(&self) -> Option<&Pods> {
+        match self {
+            Widgets::Pod(pod) => Some(pod),
+            _ => None,
+        }
+    }
+
+    pub fn log(&self) -> Option<&Logs> {
+        match self {
+            Widgets::Log(log) => Some(log),
+            _ => None,
+        }
+    }
+
+    pub fn mut_pod(&mut self) -> Option<&mut Pods> {
+        match self {
+            Widgets::Pod(pod) => Some(pod),
+            _ => None,
+        }
+    }
+
+    pub fn mut_log(&mut self) -> Option<&mut Logs> {
+        match self {
+            Widgets::Log(log) => Some(log),
+            _ => None,
+        }
+    }
+
+    fn selectable(&self) -> bool {
+        match self {
+            Widgets::Pod(pod) => pod.selectable(),
+            Widgets::Log(log) => log.selectable(),
+        }
+    }
+
+    fn next(&self) {
+        match self {
+            Widgets::Pod(pod) => pod.next(),
+            Widgets::Log(log) => log.next(),
+        }
+    }
+    fn prev(&self) {
+        match self {
+            Widgets::Pod(pod) => pod.prev(),
+            Widgets::Log(log) => log.prev(),
+        }
+    }
+    pub fn items(&self) -> &Vec<String> {
+        match self {
+            Widgets::Pod(pod) => pod.items(),
+            Widgets::Log(log) => log.items(),
+        }
+    }
+}
+
+pub struct PodState {
+    inner: ListState,
+}
+
+impl PodState {
+    fn select(&mut self, index: Option<usize>) {
+        self.inner.select(index);
+    }
+    fn selected(&self) -> Option<usize> {
+        self.inner.selected()
+    }
+
+    pub fn state(&mut self) -> &mut ListState {
+        &mut self.inner
+    }
+}
+impl Default for PodState {
+    fn default() -> Self {
+        Self {
+            inner: ListState::default(),
+        }
+    }
+}
+
+pub struct LogState {
+    scroll: Option<u16>,
+}
+impl LogState {
+    fn select(&mut self, index: Option<u16>) {
+        self.scroll = index;
+    }
+    fn selected(&self) -> Option<u16> {
+        self.scroll
+    }
+}
+impl Default for LogState {
+    fn default() -> Self {
+        Self { scroll: None }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -51,7 +154,7 @@ pub trait Widget {
     fn set_items(&mut self, items: Vec<String>);
     fn items(&self) -> &Vec<String>;
     fn add_item(&mut self, item: &String);
-    fn list_state(&self) -> &RefCell<ListState>;
+    // fn list_state(&self) -> &RefCell<ListState>;
     fn unselect(&self);
 }
 
@@ -122,7 +225,8 @@ impl Window {
             let pane = t.panes.iter_mut().find(|p| p.ty == Type::POD);
 
             if let Some(p) = pane {
-                p.widget.set_items(info.to_vec());
+                let pod = p.widget.mut_pod().unwrap();
+                pod.set_items(info.to_vec());
             }
         }
     }
@@ -133,7 +237,8 @@ impl Window {
             let pane = t.panes.iter_mut().find(|p| p.ty == Type::LOG);
 
             if let Some(p) = pane {
-                p.widget.add_item(logs);
+                let log = p.widget.mut_log().unwrap();
+                log.add_item(logs);
             }
         }
         // }
@@ -144,16 +249,25 @@ impl Window {
             let pane = t.panes.iter_mut().find(|p| p.ty == Type::LOG);
 
             if let Some(p) = pane {
-                p.widget.unselect();
-                p.widget.set_items(vec![]);
+                // p.widget.unselect();
+                // p.widget.set_items(vec![]);
             }
         }
     }
 
     pub fn selected_pod(&self) -> String {
         let pane = self.selected_tab().selected_pane();
-        let selected_index = pane.widget().list_state().borrow().selected().unwrap();
-        let split: Vec<&str> = pane.widget().items()[selected_index].split(' ').collect();
+        let selected_index = pane
+            .widget()
+            .pod()
+            .unwrap()
+            .state()
+            .borrow()
+            .selected()
+            .unwrap();
+        let split: Vec<&str> = pane.widget().pod().unwrap().items()[selected_index]
+            .split(' ')
+            .collect();
         split[0].to_string()
     }
 }
@@ -233,7 +347,7 @@ impl Tab {
 }
 
 impl Pane {
-    pub fn new(title: String, widget: Box<dyn Widget>, chunk_index: usize, ty: Type) -> Self {
+    pub fn new(title: String, widget: Widgets, chunk_index: usize, ty: Type) -> Self {
         Self {
             title,
             widget,
@@ -242,7 +356,7 @@ impl Pane {
         }
     }
 
-    pub fn widget(&self) -> &Box<dyn Widget> {
+    pub fn widget(&self) -> &Widgets {
         &self.widget
     }
 
@@ -273,7 +387,7 @@ impl Pane {
 
 impl Pods {
     pub fn new(items: Vec<String>) -> Self {
-        let mut state = ListState::default();
+        let mut state = PodState::default();
         if 0 < items.len() {
             state.select(Some(0));
         }
@@ -290,7 +404,7 @@ impl Pods {
     pub fn selected(&self) -> Option<usize> {
         self.state.borrow().selected()
     }
-    pub fn state(&self) -> Rc<RefCell<ListState>> {
+    pub fn state(&self) -> Rc<RefCell<PodState>> {
         Rc::clone(&self.state)
     }
 }
@@ -346,9 +460,9 @@ impl Widget for Pods {
         &self.items
     }
 
-    fn list_state(&self) -> &RefCell<ListState> {
-        &self.state
-    }
+    // fn list_state(&self) -> &RefCell<ListState> {
+    //     &self.state
+    // }
     fn unselect(&self) {
         self.state.borrow_mut().select(None);
     }
@@ -356,7 +470,7 @@ impl Widget for Pods {
 
 impl Logs {
     pub fn new(items: Vec<String>) -> Self {
-        let mut state = ListState::default();
+        let mut state = LogState::default();
         if 0 < items.len() {
             state.select(Some(0));
         }
@@ -366,10 +480,10 @@ impl Logs {
             state: Rc::new(RefCell::new(state)),
         }
     }
-    pub fn selected(&self) -> Option<usize> {
+    pub fn selected(&self) -> Option<u16> {
         self.state.borrow().selected()
     }
-    pub fn state(&self) -> Rc<RefCell<ListState>> {
+    pub fn state(&self) -> Rc<RefCell<LogState>> {
         Rc::clone(&self.state)
     }
 }
@@ -378,8 +492,8 @@ impl Widget for Logs {
     fn next(&self) {
         let i = match self.state.borrow().selected() {
             Some(i) => {
-                if self.items.len() - 1 <= i {
-                    self.items.len() - 1
+                if self.items.len() - 1 <= i as usize {
+                    (self.items.len() - 1) as u16
                 } else {
                     i + 1
                 }
@@ -411,7 +525,7 @@ impl Widget for Logs {
     fn set_items(&mut self, items: Vec<String>) {
         match items.len() {
             0 => self.state.borrow_mut().select(None),
-            len if len < self.items.len() => self.state.borrow_mut().select(Some(len - 1)),
+            len if len < self.items.len() => self.state.borrow_mut().select(Some(len as u16 - 1)),
             _ => {}
         }
         self.items = items;
@@ -423,12 +537,12 @@ impl Widget for Logs {
 
     fn add_item(&mut self, item: &String) {
         self.items.push(item.clone());
-        self.state.borrow_mut().select(Some(self.items.len() - 1));
+        // self.state.borrow_mut().select(Some(self.items.len() - 1));
     }
 
-    fn list_state(&self) -> &RefCell<ListState> {
-        &self.state
-    }
+    // fn list_state(&self) -> &RefCell<ListState> {
+    //     &self.state
+    // }
     fn unselect(&self) {
         self.state.borrow_mut().select(None);
     }
