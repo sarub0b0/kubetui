@@ -7,12 +7,15 @@ use chrono::{DateTime, Duration, Utc};
 use bytes::Bytes;
 use futures::{StreamExt, TryStreamExt};
 
-use std::sync::{
-    mpsc::{Receiver, Sender},
-    Arc, RwLock,
-};
 use std::thread;
 use std::time;
+use std::{
+    io::BufRead,
+    sync::{
+        mpsc::{Receiver, Sender},
+        Arc, RwLock,
+    },
+};
 
 use tokio::{runtime::Runtime, task::JoinHandle};
 
@@ -94,19 +97,18 @@ async fn event_loop(
                 Kube::LogRequest(pod_name) => {
                     let client_clone = client.clone();
                     let namespace = namespace.read().unwrap().clone();
-                    // let logs = get_logs(client_clone, &namespace, &pod_name, &tx_log).await;
                     let pod: Api<Pod> = Api::namespaced(client_clone, &namespace);
-                    let mut lp = LogParams::default();
-                    lp.follow = true;
+                    let lp = LogParams::default();
                     let mut logs = pod.log_stream(&pod_name, &lp).await.unwrap();
 
+                    let mut buf: Vec<String> = Vec::with_capacity(1024);
                     while let Some(line) = logs.try_next().await.unwrap() {
-                        tx_log
-                            .send(Event::Kube(Kube::LogResponse(
-                                String::from_utf8_lossy(&line).to_string(),
-                            )))
-                            .unwrap();
+                        for l in line.lines() {
+                            buf.push(l.unwrap());
+                        }
                     }
+
+                    tx_log.send(Event::Kube(Kube::LogResponse(buf))).unwrap();
                 }
                 _ => {
                     unreachable!()

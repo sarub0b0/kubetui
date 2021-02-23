@@ -76,7 +76,7 @@ impl Logs {
         self.state.borrow_mut().select(Some(i));
     }
 
-    fn set_items(&mut self, items: Vec<String>) {
+    pub fn set_items(&mut self, items: Vec<String>) {
         match items.len() {
             0 => self.state.borrow_mut().select(None),
             len if len < self.items.len() => self.state.borrow_mut().select(Some(len as u16 - 1)),

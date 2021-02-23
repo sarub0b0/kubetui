@@ -104,13 +104,13 @@ impl Window {
         }
     }
 
-    pub fn update_pod_logs(&mut self, logs: &String) {
+    pub fn update_pod_logs(&mut self, logs: &Vec<String>) {
         for t in &mut self.tabs {
             let pane = t.panes.iter_mut().find(|p| p.ty == Type::LOG);
 
             if let Some(p) = pane {
                 let log = p.widget.mut_log().unwrap();
-                log.add_item(logs);
+                log.set_items(logs.to_vec());
             }
         }
     }

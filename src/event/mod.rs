@@ -22,7 +22,7 @@ pub enum Kube {
     Pod(Vec<String>),
     Namespace(Option<Vec<String>>),
     LogRequest(String),
-    LogResponse(String),
+    LogResponse(Vec<String>),
 }
 
 pub enum Render {
