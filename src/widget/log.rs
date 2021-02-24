@@ -1,6 +1,5 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::{Arc, RwLock};
 
 use tui::style::Style;
 use tui::text::Spans;
@@ -16,44 +15,39 @@ pub struct Logs<'a> {
 }
 
 pub struct LogState {
-    scroll: Option<u16>,
+    scroll: u16,
 }
 impl LogState {
-    fn select(&mut self, index: Option<u16>) {
+    fn select(&mut self, index: u16) {
         self.scroll = index;
     }
-    fn selected(&self) -> Option<u16> {
+    fn selected(&self) -> u16 {
         self.scroll
     }
 }
 impl Default for LogState {
     fn default() -> Self {
-        Self { scroll: None }
+        Self { scroll: 0 }
     }
 }
 impl<'a> Logs<'a> {
     pub fn new(items: Vec<String>) -> Self {
-        let mut state = LogState::default();
-        if 0 < items.len() {
-            state.select(Some(0));
-        }
-
         let paragraph = Paragraph::new(vec![Spans::default()]);
 
         Self {
             items,
-            state: Rc::new(RefCell::new(state)),
+            state: Rc::new(RefCell::new(LogState::default())),
             spans: vec![Spans::default()],
             paragraph,
         }
     }
 
-    pub fn selected(&self) -> Option<u16> {
+    pub fn selected(&self) -> u16 {
         self.state.borrow().selected()
     }
 
-    pub fn select(&self, scroll: Option<u16>) {
-        self.state.borrow_mut().select(scroll)
+    pub fn select(&self, scroll: u16) {
+        self.state.borrow_mut().select(scroll);
     }
 
     pub fn state(&self) -> Rc<RefCell<LogState>> {
@@ -61,52 +55,40 @@ impl<'a> Logs<'a> {
     }
 
     pub fn scroll_top(&self) {
-        self.state.borrow_mut().select(Some(0));
+        self.state.borrow_mut().select(0);
     }
 
     pub fn scroll_bottom(&self) {
         let last_index: u16 = self.items.len() as u16 - 1;
-        self.state.borrow_mut().select(Some(last_index));
+        self.state.borrow_mut().select(last_index);
     }
 
     pub fn next(&mut self) {
-        let i = match self.state.borrow().selected() {
-            Some(i) => {
-                if self.items.len() - 1 <= i as usize {
-                    (self.items.len() - 1) as u16
-                } else {
-                    i + 1
-                }
-            }
-            None => 0,
-        };
+        let mut i = self.state.borrow().selected();
 
-        self.state.borrow_mut().select(Some(i));
+        if self.items.len() - 1 <= i as usize {
+            i = (self.items.len() - 1) as u16;
+        } else {
+            i = i + 1;
+        }
+
+        self.state.borrow_mut().select(i);
         self.paragraph = self.paragraph.clone().scroll((i, 0));
     }
 
     pub fn prev(&mut self) {
-        let i = match self.state.borrow().selected() {
-            Some(i) => {
-                if i == 0 {
-                    0
-                } else {
-                    i - 1
-                }
-            }
-            None => 0,
-        };
-
-        self.state.borrow_mut().select(Some(i));
+        let mut i = self.state.borrow().selected();
+        if i == 0 {
+            i = 0;
+        } else {
+            i = i - 1;
+        }
+        self.state.borrow_mut().select(i);
         self.paragraph = self.paragraph.clone().scroll((i, 0));
     }
 
     pub fn set_items(&mut self, items: Vec<String>) {
-        match items.len() {
-            0 => self.state.borrow_mut().select(None),
-            len if len < self.items.len() => self.state.borrow_mut().select(Some(len as u16 - 1)),
-            _ => {}
-        }
+        self.state.borrow_mut().select(0);
         self.items = items.clone();
 
         self.spans = items.iter().cloned().map(Spans::from).collect();
@@ -121,7 +103,7 @@ impl<'a> Logs<'a> {
 
     pub fn add_item(&mut self, item: &String) {
         self.items.push(item.clone());
-        // self.state.borrow_mut().select(Some(self.items.len() - 1));
+        self.state.borrow_mut().select(self.items.len() as u16 - 1);
     }
 
     pub fn spans(&self) -> &Vec<Spans> {
@@ -129,16 +111,13 @@ impl<'a> Logs<'a> {
     }
 
     pub fn paragraph(&self, block: Block<'a>) -> Paragraph<'a> {
-        let scroll = match self.state().borrow().selected() {
-            Some(scroll) => scroll,
-            None => 0,
-        };
+        let scroll = self.state().borrow().selected();
 
         self.paragraph.clone().block(block)
     }
 
     fn unselect(&self) {
-        self.state.borrow_mut().select(None);
+        self.state().borrow_mut().select(0);
     }
 }
 

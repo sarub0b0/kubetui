@@ -110,7 +110,7 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, area: Rect, tab: &Tab) {
                 let chunk = chunks[pane.chunk_index()];
                 let chunk_height = chunk.y;
                 let log = pane.widget().log();
-                let current_selected = log.unwrap().selected().unwrap_or(0) as u16;
+                let current_selected = log.unwrap().selected();
 
                 let items_len = log.unwrap().items().len() as u16;
                 let selected = if chunk_height < items_len {
