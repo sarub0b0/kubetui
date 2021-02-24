@@ -113,7 +113,7 @@ impl<'a> Logs<'a> {
     pub fn paragraph(&self, block: Block<'a>) -> Paragraph<'a> {
         let scroll = self.state().borrow().selected();
 
-        self.paragraph.clone().block(block)
+        self.paragraph.clone().block(block).scroll((scroll, 0))
     }
 
     fn unselect(&self) {
