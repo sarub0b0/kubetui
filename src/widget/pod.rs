@@ -106,8 +106,8 @@ impl Pods {
         self.items = items;
     }
 
-    fn add_item(&mut self, item: &String) {
-        self.items.push(item.clone());
+    fn add_item(&mut self, item: String) {
+        self.items.push(item);
     }
 
     pub fn items(&self) -> &Vec<String> {

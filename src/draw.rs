@@ -163,10 +163,10 @@ fn draw_paragraph<B: Backend>(
     f: &mut Frame<B>,
     block: widgets::Block,
     area: Rect,
-    items: &Vec<Spans>,
+    items: Vec<Spans>,
     state: u16,
 ) {
-    let paragraph = widgets::Paragraph::new(items.clone())
+    let paragraph = widgets::Paragraph::new(items)
         .block(block)
         .style(Style::default().fg(Color::White).bg(Color::Black))
         .scroll((state, 0))
