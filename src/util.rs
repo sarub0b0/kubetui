@@ -1,7 +1,7 @@
 #[allow(unused_imports)]
 use chrono::{DateTime, Duration, Utc};
 
-pub fn age(duration: &Duration) -> String {
+pub fn age(duration: Duration) -> String {
     let duration_seconds = duration.num_seconds();
 
     let seconds = duration_seconds % 60;
@@ -28,29 +28,29 @@ mod tests {
     #[test]
     fn seconds() {
         let duration = Duration::seconds(6);
-        assert_eq!(age(&duration), "6s");
+        assert_eq!(age(duration), "6s");
     }
     #[test]
     fn minutes() {
         let duration = Duration::minutes(6);
-        assert_eq!(age(&duration), "6m");
+        assert_eq!(age(duration), "6m");
         let duration = Duration::seconds(61);
-        assert_eq!(age(&duration), "1m");
+        assert_eq!(age(duration), "1m");
     }
     #[test]
     fn hours() {
         let duration = Duration::hours(10);
-        assert_eq!(age(&duration), "10h");
+        assert_eq!(age(duration), "10h");
         let duration = Duration::minutes(61);
-        assert_eq!(age(&duration), "1h");
+        assert_eq!(age(duration), "1h");
         let duration = Duration::hours(28);
-        assert_eq!(age(&duration), "28h");
+        assert_eq!(age(duration), "28h");
     }
     #[test]
     fn days() {
         let duration = Duration::days(10);
-        assert_eq!(age(&duration), "10d");
+        assert_eq!(age(duration), "10d");
         let duration = Duration::hours(29);
-        assert_eq!(age(&duration), "1d");
+        assert_eq!(age(duration), "1d");
     }
 }

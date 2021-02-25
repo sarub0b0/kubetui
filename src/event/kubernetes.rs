@@ -166,7 +166,7 @@ async fn get_pod_info(client: Client, namespace: &str) -> Vec<String> {
         };
         let duration: Duration = current_datetime - creation_timestamp;
 
-        ret.push(PodInfo::new(name, phase, age(&duration)).to_string(max_name_len));
+        ret.push(PodInfo::new(name, phase, age(duration)).to_string(max_name_len));
     }
     ret
 }
