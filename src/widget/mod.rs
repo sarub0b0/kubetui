@@ -63,14 +63,14 @@ impl<'a> Widgets<'a> {
         }
     }
 
-    pub fn first(&self) {
+    pub fn first(&mut self) {
         match self {
             Widgets::Pod(pod) => pod.select_first(),
             Widgets::Log(log) => log.scroll_top(),
         }
     }
 
-    pub fn last(&self) {
+    pub fn last(&mut self) {
         match self {
             Widgets::Pod(pod) => pod.select_last(),
             Widgets::Log(log) => log.scroll_bottom(),

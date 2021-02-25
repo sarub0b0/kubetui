@@ -63,6 +63,10 @@ impl<'a> Window<'a> {
         &self.tabs[self.selected_tab_index]
     }
 
+    pub fn selected_tab_mut(&mut self) -> &mut Tab<'a> {
+        &mut self.tabs[self.selected_tab_index]
+    }
+
     pub fn select_next_pane(&mut self) {
         self.tabs[self.selected_tab_index].next_pane();
     }
@@ -73,13 +77,13 @@ impl<'a> Window<'a> {
 
     pub fn select_next_item(&mut self) {
         self.tabs[self.selected_tab_index]
-            .selected_mut_pane()
+            .selected_pane_mut()
             .next_item();
     }
 
     pub fn select_prev_item(&mut self) {
         self.tabs[self.selected_tab_index]
-            .selected_mut_pane()
+            .selected_pane_mut()
             .prev_item();
     }
 
@@ -90,12 +94,18 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn select_first_item(&self) {
-        self.selected_tab().selected_pane().widget().first();
+    pub fn select_first_item(&mut self) {
+        self.selected_tab_mut()
+            .selected_pane_mut()
+            .widget_mut()
+            .first();
     }
 
-    pub fn select_last_item(&self) {
-        self.selected_tab().selected_pane().widget().last();
+    pub fn select_last_item(&mut self) {
+        self.selected_tab_mut()
+            .selected_pane_mut()
+            .widget_mut()
+            .last();
     }
 
     pub fn focus_pane_type(&self) -> Type {
@@ -218,7 +228,7 @@ impl<'a> Tab<'a> {
         }
     }
 
-    pub fn selected_mut_pane(&mut self) -> &mut Pane<'a> {
+    pub fn selected_pane_mut(&mut self) -> &mut Pane<'a> {
         &mut self.panes[self.selected_pane_index]
     }
     pub fn selected_pane(&self) -> &Pane {
@@ -243,6 +253,10 @@ impl<'a> Pane<'a> {
 
     pub fn widget(&self) -> &Widgets {
         &self.widget
+    }
+
+    pub fn widget_mut(&mut self) -> &mut Widgets<'a> {
+        &mut self.widget
     }
 
     pub fn title(&self) -> &str {
