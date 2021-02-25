@@ -7,8 +7,8 @@ use chrono::{DateTime, Duration, Utc};
 use bytes::Bytes;
 use futures::{StreamExt, TryStreamExt};
 
-use std::thread;
 use std::time;
+use std::{error::Error, thread};
 use std::{
     io::BufRead,
     sync::{
@@ -103,8 +103,11 @@ async fn event_loop(
 
                     let mut buf: Vec<String> = Vec::with_capacity(1024);
                     while let Some(line) = logs.try_next().await.unwrap() {
-                        for l in line.lines() {
-                            buf.push(l.unwrap());
+                        for line in line.lines() {
+                            match line {
+                                Ok(line) => buf.push(line),
+                                Err(e) => buf.push(e.to_string()),
+                            }
                         }
                     }
 
