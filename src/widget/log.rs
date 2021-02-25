@@ -85,44 +85,42 @@ impl<'a> Logs<'a> {
         self.state.select(0);
         self.items = items.clone();
 
-        self.spans = items.iter().cloned().map(Spans::from).collect();
+        self.spans = items
+            .iter()
+            .cloned()
+            .map(|t| {
+                let mut start = 0;
+                let mut end = 0;
+                let mut finded = false;
 
-        // self.spans = items
-        //     .iter()
-        //     .cloned()
-        //     .map(|t| {
-        //         let mut start = 0;
-        //         let mut end = 0;
-        //         let mut finded = false;
+                let mut spans: Vec<Span> = vec![];
 
-        //         let mut spans: Vec<Span> = vec![];
+                while let Some(i) = t[start..].find("\x1b[") {
+                    finded = true;
+                    start = i + 5 + end;
 
-        //         while let Some(i) = t[start..].find("\x1b[") {
-        //             finded = true;
-        //             start = i + 5 + end;
+                    let (c0, c1) = (i + 2 + end, i + 4 + end);
 
-        //             let (c0, c1) = (i + 2 + end, i + 4 + end);
+                    if let Some(next) = t[start..].find("\x1b[") {
+                        end = next + start;
+                    } else {
+                        end = t.len();
+                    }
+                    spans.push(Span::styled(
+                        String::from(&t[start..end]),
+                        style(&t[c0..c1]),
+                    ));
 
-        //             if let Some(next) = t[start..].find("\x1b[") {
-        //                 end = next + start;
-        //             } else {
-        //                 end = t.len();
-        //             }
-        //             spans.push(Span::styled(
-        //                 String::from(&t[start..end]),
-        //                 style(&t[c0..c1]),
-        //             ));
+                    start = end;
+                }
 
-        //             start = end;
-        //         }
-
-        //         if finded == false {
-        //             Spans::from(t.clone())
-        //         } else {
-        //             Spans::from(spans)
-        //         }
-        //     })
-        //     .collect();
+                if finded == false {
+                    Spans::from(t.clone())
+                } else {
+                    Spans::from(spans)
+                }
+            })
+            .collect();
     }
 
     pub fn items(&self) -> &Vec<String> {
