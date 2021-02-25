@@ -43,29 +43,19 @@ fn main() -> Result<(), io::Error> {
 
     let tabs = vec![
         Tab::new(
-            "1:Pods".to_string(),
+            "1:Pods",
             vec![
-                Pane::new(
-                    String::from("Pods"),
-                    Widgets::Pod(Pods::new(vec![])),
-                    0,
-                    Type::POD,
-                ),
-                Pane::new(
-                    String::from("Logs"),
-                    Widgets::Log(Logs::new(vec![])),
-                    1,
-                    Type::LOG,
-                ),
+                Pane::new("Pods", Widgets::Pod(Pods::new(vec![])), 0, Type::POD),
+                Pane::new("Logs", Widgets::Log(Logs::new(vec![])), 1, Type::LOG),
             ],
             Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()),
         ),
         Tab::new(
-            "Tab 1".to_string(),
+            "Tab 1",
             vec![Pane::new(
-                String::from("List 0"),
+                "List 0",
                 Widgets::Pod(Pods::new(vec![
                     String::from("Item 1"),
                     String::from("Item 2"),
@@ -122,11 +112,11 @@ fn main() -> Result<(), io::Error> {
             Event::Tick => {}
             Event::Kube(k) => match k {
                 Kube::Pod(info) => {
-                    window.update_pod_status(&info);
+                    window.update_pod_status(info);
                 }
                 Kube::Namespace(_ns) => {}
                 Kube::LogResponse(log) => {
-                    window.update_pod_logs(&log);
+                    window.update_pod_logs(log);
                 }
                 _ => {}
             },

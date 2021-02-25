@@ -102,7 +102,7 @@ impl<'a> Window<'a> {
         self.selected_tab().selected_pane().ty
     }
 
-    pub fn update_pod_status(&mut self, info: &Vec<String>) {
+    pub fn update_pod_status(&mut self, info: Vec<String>) {
         for t in &mut self.tabs {
             let pane = t.panes.iter_mut().find(|p| p.ty == Type::POD);
 
@@ -113,7 +113,7 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn update_pod_logs(&mut self, logs: &Vec<String>) {
+    pub fn update_pod_logs(&mut self, logs: Vec<String>) {
         for t in &mut self.tabs {
             let pane = t.panes.iter_mut().find(|p| p.ty == Type::LOG);
 
@@ -174,7 +174,7 @@ impl Default for Window<'_> {
 }
 
 impl<'a> Tab<'a> {
-    pub fn new(title: String, panes: Vec<Pane<'a>>, layout: Layout) -> Self {
+    pub fn new(title: impl Into<String>, panes: Vec<Pane<'a>>, layout: Layout) -> Self {
         let selectable_widgets = panes
             .iter()
             .enumerate()
@@ -183,7 +183,7 @@ impl<'a> Tab<'a> {
             .collect();
 
         Self {
-            title,
+            title: title.into(),
             panes,
             layout,
             selectable_widgets,
@@ -227,9 +227,14 @@ impl<'a> Tab<'a> {
 }
 
 impl<'a> Pane<'a> {
-    pub fn new(title: String, widget: Widgets<'a>, chunk_index: usize, ty: Type) -> Self {
+    pub fn new(
+        title: impl Into<String>,
+        widget: Widgets<'a>,
+        chunk_index: usize,
+        ty: Type,
+    ) -> Self {
         Self {
-            title,
+            title: title.into(),
             widget,
             chunk_index,
             ty,

@@ -102,8 +102,8 @@ impl<'a> Logs<'a> {
         &self.items
     }
 
-    pub fn add_item(&mut self, item: &String) {
-        self.items.push(item.clone());
+    pub fn add_item(&mut self, item: impl Into<String>) {
+        self.items.push(item.into().clone());
         self.state.borrow_mut().select(self.items.len() as u16 - 1);
     }
 
