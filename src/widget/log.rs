@@ -156,7 +156,7 @@ impl<'a> Logs<'a> {
         &self.spans
     }
 
-    pub fn paragraph(&self, block: Block<'a>) -> Paragraph<'a> {
+    pub fn widget(&self, block: Block<'a>) -> Paragraph<'a> {
         Paragraph::new(self.spans.clone())
             .block(block)
             .style(Style::default())

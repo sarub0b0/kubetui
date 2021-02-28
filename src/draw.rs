@@ -86,14 +86,14 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, tab: &Tab) {
                 let pod = pane.widget().pod().unwrap();
 
                 f.render_stateful_widget(
-                    pod.list(block),
+                    pod.widget(block),
                     pane.chunk(),
                     &mut pod.state().borrow_mut().state(),
                 );
             }
             Type::LOG => {
                 let log = pane.widget().log().unwrap();
-                f.render_widget(log.paragraph(block), pane.chunk());
+                f.render_widget(log.widget(block), pane.chunk());
             }
             Type::NONE => {}
         }

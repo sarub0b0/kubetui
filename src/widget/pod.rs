@@ -122,7 +122,7 @@ impl<'a> Pods<'a> {
         &self.items
     }
 
-    pub fn list(&self, block: Block<'a>) -> List<'a> {
+    pub fn widget(&self, block: Block<'a>) -> List<'a> {
         List::new(self.list_item.clone())
             .block(block)
             .style(Style::default())
