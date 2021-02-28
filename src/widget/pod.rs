@@ -101,7 +101,11 @@ impl<'a> Pods<'a> {
         match items.len() {
             0 => self.state.borrow_mut().select(None),
             len if len < self.items.len() => self.state.borrow_mut().select(Some(len - 1)),
-            _ => {}
+            _ => {
+                if self.state.borrow().selected() == None {
+                    self.state().borrow_mut().select(Some(0))
+                }
+            }
         }
         self.items = items;
 
