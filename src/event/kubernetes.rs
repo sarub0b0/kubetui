@@ -97,17 +97,20 @@ async fn event_loop(
                     let namespace = namespace.read().unwrap().clone();
                     let pod: Api<Pod> = Api::namespaced(client_clone, &namespace);
                     let lp = LogParams::default();
-                    let mut logs = pod.log_stream(&pod_name, &lp).await.unwrap();
+                    // let mut logs = pod.log_stream(&pod_name, &lp).await.unwrap();
+                    let logs = pod.logs(&pod_name, &lp).await.unwrap();
 
-                    let mut buf: Vec<String> = Vec::with_capacity(1024);
-                    while let Some(line) = logs.try_next().await.unwrap() {
-                        for line in line.lines() {
-                            match line {
-                                Ok(line) => buf.push(line),
-                                Err(e) => buf.push(e.to_string()),
-                            }
-                        }
-                    }
+                    // let mut buf: Vec<String> = Vec::with_capacity(1024);
+
+                    let buf = logs.split("\n").map(String::from).collect();
+                    // while let Some(line) = logs.try_next().await.unwrap() {
+                    //     for line in line.lines() {
+                    //         match line {
+                    //             Ok(line) => buf.push(line),
+                    //             Err(e) => buf.push(e.to_string()),
+                    //         }
+                    //     }
+                    // }
 
                     tx_log.send(Event::Kube(Kube::LogResponse(buf))).unwrap();
                 }
