@@ -16,7 +16,6 @@ pub struct Tab<'a> {
     layout: Layout,
     selected_pane_index: usize,
     selectable_widgets: Vec<usize>,
-    chunks: Vec<Rect>,
 }
 
 pub struct Pane<'a> {
@@ -49,11 +48,11 @@ impl<'a> Window<'a> {
 
         self.tabs
             .iter_mut()
-            .for_each(|tab| tab.update_chunk(chunks.iter().cloned().take(2).collect()));
+            .for_each(|tab| tab.update_chunk(chunks[1]));
     }
 
-    pub fn chunks(&self, window_size: Rect) -> Vec<Rect> {
-        self.layout.split(window_size)
+    pub fn chunks(&self) -> Vec<Rect> {
+        self.layout.split(self.chunk)
     }
 
     pub fn tabs(&self) -> &Vec<Tab> {
@@ -213,7 +212,6 @@ impl<'a> Tab<'a> {
             layout,
             selectable_widgets,
             selected_pane_index: 0,
-            chunks: Vec::new(),
         }
     }
     pub fn title(&self) -> &str {
@@ -251,11 +249,8 @@ impl<'a> Tab<'a> {
         &self.panes[self.selected_pane_index]
     }
 
-    pub fn update_chunk(&mut self, chunks: Vec<Rect>) {
-        self.chunks = chunks.clone();
-
-        let chunks = self.layout.split(chunks[1]);
-
+    pub fn update_chunk(&mut self, chunk: Rect) {
+        let chunks = self.layout.split(chunk);
         self.panes
             .iter_mut()
             .for_each(|pane| pane.update_chunk(chunks[pane.chunk_index]));

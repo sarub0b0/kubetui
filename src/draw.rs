@@ -78,9 +78,7 @@ fn generate_title(title: &str, border_color: Color, selected: bool) -> Spans {
     ])
 }
 
-fn draw_panes<B: Backend>(f: &mut Frame<B>, area: Rect, tab: &Tab) {
-    let chunks = tab.chunks(area);
-
+fn draw_panes<B: Backend>(f: &mut Frame<B>, tab: &Tab) {
     for pane in tab.panes() {
         let selected = pane.selected(tab.selected_pane());
 
@@ -97,13 +95,12 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, area: Rect, tab: &Tab) {
 
         match pane.ty() {
             Type::POD => {
-                draw_list(
-                    f,
-                    block,
-                    chunks[pane.chunk_index()],
-                    &pane.widget().pod().unwrap().items(),
-                    &mut pane.widget().pod().unwrap().state().borrow_mut().state(),
-                    selected,
+                let pod = pane.widget().pod().unwrap();
+
+                f.render_stateful_widget(
+                    pod.list(block),
+                    pane.chunk(),
+                    &mut pod.state().borrow_mut().state(),
                 );
             }
             Type::LOG => {
@@ -115,50 +112,7 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, area: Rect, tab: &Tab) {
     }
 }
 
-fn draw_list<B: Backend>(
-    f: &mut Frame<B>,
-    block: widgets::Block,
-    area: Rect,
-    items: &Vec<String>,
-    state: &mut widgets::ListState,
-    selected: bool,
-) {
-    let items: Vec<widgets::ListItem> = items
-        .iter()
-        .map(|i| widgets::ListItem::new(i.as_ref()))
-        .collect();
-
-    let style = if selected {
-        Style::default().add_modifier(Modifier::REVERSED)
-    } else {
-        Style::default()
-    };
-
-    let li = widgets::List::new(items)
-        .block(block)
-        .style(Style::default())
-        .highlight_style(style);
-
-    f.render_stateful_widget(li, area, state);
-}
-
-fn draw_paragraph<B: Backend>(
-    f: &mut Frame<B>,
-    block: widgets::Block,
-    area: Rect,
-    items: Vec<Spans>,
-    state: u16,
-) {
-    let paragraph = widgets::Paragraph::new(items)
-        .block(block)
-        .style(Style::default().fg(Color::White).bg(Color::Black))
-        .scroll((state, 0))
-        .wrap(widgets::Wrap { trim: false });
-
-    f.render_widget(paragraph, area);
-}
-
-fn draw_datetime<B: Backend>(f: &mut Frame<B>, area: Rect) {
+fn draw_datetime<B: Backend>(f: &mut Frame<B>, chunk: Rect) {
     let block = widgets::Block::default().style(Style::default());
 
     let text = Spans::from(vec![Span::raw(format!(
@@ -168,15 +122,19 @@ fn draw_datetime<B: Backend>(f: &mut Frame<B>, area: Rect) {
 
     let paragraph = widgets::Paragraph::new(text).block(block);
 
-    f.render_widget(paragraph, area);
+    f.render_widget(paragraph, chunk);
+}
+
+fn draw_status<B: Backend>(f: &mut Frame<B>, chunk: Rect) {
+    draw_datetime(f, chunk);
 }
 
 pub fn draw<B: Backend>(f: &mut Frame<B>, window: &mut Window) {
-    let areas = window.chunks(f.size());
+    let chunks = window.chunks();
 
-    draw_tab(f, areas[0], &window.tabs(), window.selected_tab_index());
+    draw_tab(f, chunks[0], &window.tabs(), window.selected_tab_index());
 
-    draw_panes(f, areas[1], window.selected_tab());
+    draw_panes(f, window.selected_tab());
 
-    draw_datetime(f, areas[2]);
+    draw_status(f, chunks[2]);
 }
