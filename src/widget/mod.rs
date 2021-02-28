@@ -42,13 +42,6 @@ impl<'a> Widgets<'a> {
         }
     }
 
-    fn selectable(&self) -> bool {
-        match self {
-            Widgets::Pod(pod) => pod.selectable(),
-            Widgets::Log(log) => log.selectable(),
-        }
-    }
-
     pub fn next(&mut self) {
         match self {
             Widgets::Pod(pod) => pod.next(),

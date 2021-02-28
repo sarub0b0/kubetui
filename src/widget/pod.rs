@@ -50,10 +50,6 @@ impl<'a> Pods<'a> {
             list_item: Vec::new(),
         }
     }
-    pub fn unselect(&self) {
-        self.state.borrow_mut().select(None);
-    }
-
     pub fn selected(&self) -> Option<usize> {
         self.state.borrow().selected()
     }
@@ -112,12 +108,6 @@ impl<'a> Pods<'a> {
         self.set_listitem();
     }
 
-    fn add_item(&mut self, item: impl Into<String>) {
-        let item: String = item.into();
-        self.items.push(item.clone());
-        self.add_listitem(item);
-    }
-
     pub fn items(&self) -> &Vec<String> {
         &self.items
     }
@@ -136,9 +126,6 @@ impl<'a> Pods<'a> {
             .cloned()
             .map(|i| ListItem::new(i))
             .collect();
-    }
-    fn add_listitem(&mut self, item: String) {
-        self.list_item.push(ListItem::new(item));
     }
 }
 
