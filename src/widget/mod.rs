@@ -1,8 +1,8 @@
 pub mod log;
 pub mod pod;
 
-use self::log::Logs;
-use self::pod::Pods;
+pub use self::log::*;
+pub use self::pod::*;
 
 pub trait WidgetTrait {
     fn selectable(&self) -> bool;

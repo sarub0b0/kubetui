@@ -1,5 +1,4 @@
-use super::event::*;
-use super::widget::*;
+use super::{tab::*, Type};
 
 use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::style::{Color, Style};
@@ -11,29 +10,6 @@ pub struct Window<'a> {
     selected_tab_index: usize,
     layout: Layout,
     chunk: Rect,
-}
-
-pub struct Tab<'a> {
-    title: String,
-    panes: Vec<Pane<'a>>,
-    layout: Layout,
-    selected_pane_index: usize,
-    selectable_widgets: Vec<usize>,
-}
-
-pub struct Pane<'a> {
-    widget: Widgets<'a>,
-    chunk_index: usize,
-    title: String,
-    ty: Type,
-    chunk: Rect,
-}
-
-#[derive(Copy, Clone, PartialEq)]
-pub enum Type {
-    NONE,
-    LOG,
-    POD,
 }
 
 impl<'a> Window<'a> {
@@ -120,15 +96,15 @@ impl<'a> Window<'a> {
     }
 
     pub fn focus_pane_type(&self) -> Type {
-        self.selected_tab().selected_pane().ty
+        self.selected_tab().selected_pane().ty()
     }
 
     pub fn update_pod_status(&mut self, info: Vec<String>) {
         for t in &mut self.tabs {
-            let pane = t.panes.iter_mut().find(|p| p.ty == Type::POD);
+            let pane = t.panes_mut().iter_mut().find(|p| p.ty() == Type::POD);
 
             if let Some(p) = pane {
-                let pod = p.widget.mut_pod().unwrap();
+                let pod = p.widget_mut().mut_pod().unwrap();
                 pod.set_items(info.to_vec());
             }
         }
@@ -136,23 +112,13 @@ impl<'a> Window<'a> {
 
     pub fn update_pod_logs(&mut self, logs: Vec<String>) {
         for t in &mut self.tabs {
-            let pane = t.panes.iter_mut().find(|p| p.ty == Type::LOG);
+            let pane = t.panes_mut().iter_mut().find(|p| p.ty() == Type::LOG);
 
             if let Some(p) = pane {
-                let log = p.widget.mut_log().unwrap();
+                let rect = p.chunk();
+                let log = p.widget_mut().mut_log().unwrap();
                 log.set_items(logs.to_vec());
-                log.update_rows_size(p.chunk.width, p.chunk.height);
-            }
-        }
-    }
-
-    pub fn reset_pod_logs(&mut self) {
-        for t in &mut self.tabs {
-            let pane = t.panes.iter_mut().find(|p| p.ty == Type::LOG);
-
-            if let Some(p) = pane {
-                // p.widget.unselect();
-                // p.widget.set_items(vec![]);
+                log.update_rows_size(rect.width, rect.height);
             }
         }
     }
@@ -212,122 +178,5 @@ impl Default for Window<'_> {
             layout,
             chunk: Rect::default(),
         }
-    }
-}
-
-impl<'a> Tab<'a> {
-    pub fn new(title: impl Into<String>, panes: Vec<Pane<'a>>, layout: Layout) -> Self {
-        let selectable_widgets = panes
-            .iter()
-            .enumerate()
-            .filter(|&(_, p)| p.widget.selectable())
-            .map(|(i, _)| i)
-            .collect();
-
-        Self {
-            title: title.into(),
-            panes,
-            layout,
-            selectable_widgets,
-            selected_pane_index: 0,
-        }
-    }
-    pub fn title(&self) -> &str {
-        &self.title
-    }
-
-    pub fn chunks(&self, tab_size: Rect) -> Vec<Rect> {
-        self.layout.split(tab_size)
-    }
-
-    pub fn panes(&self) -> &Vec<Pane> {
-        &self.panes
-    }
-
-    pub fn next_pane(&mut self) {
-        if self.selectable_widgets.len() - 1 <= self.selected_pane_index {
-            self.selected_pane_index = 0;
-        } else {
-            self.selected_pane_index += 1;
-        }
-    }
-
-    pub fn prev_pane(&mut self) {
-        if self.selected_pane_index == 0 {
-            self.selected_pane_index = self.selectable_widgets.len() - 1;
-        } else {
-            self.selected_pane_index -= 1;
-        }
-    }
-
-    pub fn selected_pane_mut(&mut self) -> &mut Pane<'a> {
-        &mut self.panes[self.selected_pane_index]
-    }
-    pub fn selected_pane(&self) -> &Pane {
-        &self.panes[self.selected_pane_index]
-    }
-
-    pub fn update_chunk(&mut self, chunk: Rect) {
-        let chunks = self.layout.split(chunk);
-        self.panes
-            .iter_mut()
-            .for_each(|pane| pane.update_chunk(chunks[pane.chunk_index]));
-    }
-}
-
-impl<'a> Pane<'a> {
-    pub fn new(
-        title: impl Into<String>,
-        widget: Widgets<'a>,
-        chunk_index: usize,
-        ty: Type,
-    ) -> Self {
-        Self {
-            title: title.into(),
-            widget,
-            chunk_index,
-            ty,
-            chunk: Rect::default(),
-        }
-    }
-
-    pub fn widget(&self) -> &Widgets {
-        &self.widget
-    }
-
-    pub fn widget_mut(&mut self) -> &mut Widgets<'a> {
-        &mut self.widget
-    }
-
-    pub fn title(&self) -> &str {
-        &self.title
-    }
-
-    pub fn chunk_index(&self) -> usize {
-        self.chunk_index
-    }
-
-    pub fn next_item(&mut self) {
-        self.widget.next()
-    }
-
-    pub fn prev_item(&mut self) {
-        self.widget.prev()
-    }
-
-    pub fn selected(&self, rhs: &Pane) -> bool {
-        return std::ptr::eq(self, rhs);
-    }
-
-    pub fn ty(&self) -> Type {
-        self.ty
-    }
-
-    pub fn update_chunk(&mut self, chunk: Rect) {
-        self.chunk = chunk;
-    }
-
-    pub fn chunk(&self) -> Rect {
-        self.chunk
     }
 }

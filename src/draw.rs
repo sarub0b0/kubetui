@@ -1,4 +1,4 @@
-use super::{event::*, window::*};
+use super::{event::*, view::*};
 
 use std::cell::RefCell;
 use std::rc::Rc;

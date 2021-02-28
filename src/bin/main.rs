@@ -20,8 +20,8 @@ extern crate kubetui;
 use kubetui::{
     draw::*,
     event::{input::*, kubernetes::*, tick::*, Event, Kube},
-    widget::{log::Logs, pod::Pods, Widgets},
-    window::*,
+    view::*,
+    widget::*,
 };
 
 fn main() -> Result<(), io::Error> {
@@ -102,7 +102,6 @@ fn main() -> Result<(), io::Error> {
                     tx_main
                         .send(Event::Kube(Kube::LogRequest(window.selected_pod())))
                         .unwrap();
-                    window.reset_pod_logs();
                 }
                 KeyCode::Char('G') => window.select_last_item(),
                 KeyCode::Char('g') => window.select_first_item(),
