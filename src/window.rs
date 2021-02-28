@@ -7,6 +7,7 @@ pub struct Window<'a> {
     tabs: Vec<Tab<'a>>,
     selected_tab_index: usize,
     layout: Layout,
+    chunk: Rect,
 }
 
 pub struct Tab<'a> {
@@ -15,6 +16,7 @@ pub struct Tab<'a> {
     layout: Layout,
     selected_pane_index: usize,
     selectable_widgets: Vec<usize>,
+    chunk: Rect,
 }
 
 pub struct Pane<'a> {
@@ -22,6 +24,7 @@ pub struct Pane<'a> {
     chunk_index: usize,
     title: String,
     ty: Type,
+    chunk: Rect,
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -37,6 +40,15 @@ impl<'a> Window<'a> {
             tabs,
             ..Window::default()
         }
+    }
+
+    pub fn update_chunks(&mut self, size: Rect) {
+        let chunks = self.layout.split(size);
+        self.chunk = chunks[1];
+
+        self.tabs
+            .iter_mut()
+            .for_each(|tab| tab.update_chunk(chunks[0]));
     }
 
     pub fn chunks(&self, window_size: Rect) -> Vec<Rect> {
@@ -179,6 +191,7 @@ impl Default for Window<'_> {
             tabs: Vec::new(),
             selected_tab_index: 0,
             layout,
+            chunk: Rect::default(),
         }
     }
 }
@@ -198,6 +211,7 @@ impl<'a> Tab<'a> {
             layout,
             selectable_widgets,
             selected_pane_index: 0,
+            chunk: Rect::default(),
         }
     }
     pub fn title(&self) -> &str {
@@ -234,6 +248,16 @@ impl<'a> Tab<'a> {
     pub fn selected_pane(&self) -> &Pane {
         &self.panes[self.selected_pane_index]
     }
+
+    pub fn update_chunk(&mut self, chunk: Rect) {
+        self.chunk = chunk;
+
+        let chunks = self.layout.split(chunk);
+
+        self.panes
+            .iter_mut()
+            .for_each(|pane| pane.update_chunk(chunks[pane.chunk_index]));
+    }
 }
 
 impl<'a> Pane<'a> {
@@ -248,6 +272,7 @@ impl<'a> Pane<'a> {
             widget,
             chunk_index,
             ty,
+            chunk: Rect::default(),
         }
     }
 
@@ -281,5 +306,9 @@ impl<'a> Pane<'a> {
 
     pub fn ty(&self) -> Type {
         self.ty
+    }
+
+    pub fn update_chunk(&mut self, chunk: Rect) {
+        self.chunk = chunk;
     }
 }

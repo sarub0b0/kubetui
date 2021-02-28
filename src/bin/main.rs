@@ -12,7 +12,7 @@ use crossterm::{
 
 use tui::{
     backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Rect},
     Terminal,
 };
 
@@ -35,7 +35,6 @@ fn main() -> Result<(), io::Error> {
     thread::spawn(move || tick(tx_tick, time::Duration::from_millis(200)));
 
     enable_raw_mode().unwrap();
-
     execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture).unwrap();
 
     let backend = CrosstermBackend::new(io::stdout());
@@ -73,6 +72,9 @@ fn main() -> Result<(), io::Error> {
     let mut window = Window::new(tabs);
 
     terminal.clear().unwrap();
+
+    window.update_chunks(terminal.size().unwrap());
+
     loop {
         terminal.draw(|f| draw(f, &mut window)).unwrap();
         match rx_main.recv().unwrap() {
@@ -108,7 +110,9 @@ fn main() -> Result<(), io::Error> {
                 _ => {}
             },
             Event::Mouse => {}
-            Event::Resize => {}
+            Event::Resize(w, h) => {
+                window.update_chunks(Rect::new(0, 0, w, h));
+            }
             Event::Tick => {}
             Event::Kube(k) => match k {
                 Kube::Pod(info) => {
