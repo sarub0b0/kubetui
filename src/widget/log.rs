@@ -92,12 +92,12 @@ impl<'a> Logs<'a> {
     }
 
     pub fn update_rows_size(&mut self, width: u16, height: u16) {
-        let mut count = 0;
+        let mut count = self.spans.len() as u16;
         let div = width - 4;
 
         self.spans
             .iter()
-            .for_each(|s| count += (s.width() as u16 / div) + 1);
+            .for_each(|s| count += s.width() as u16 / div);
 
         if height < count {
             count -= height - 2;
@@ -167,11 +167,11 @@ fn generate_spans<'a>(text: &Vec<std::string::String>) -> Vec<Spans<'a>> {
         .map(|t| {
             let mut start = 0;
             let mut end = 0;
-            let mut finded = false;
+            let mut found = false;
 
             let mut spans: Vec<Span> = vec![];
             while let Some(i) = t[start..].find("\x1b[") {
-                finded = true;
+                found = true;
                 start = i + 5 + end;
 
                 let (c0, c1) = (i + 2 + end, i + 4 + end);
@@ -189,7 +189,7 @@ fn generate_spans<'a>(text: &Vec<std::string::String>) -> Vec<Spans<'a>> {
                 start = end;
             }
 
-            if finded == false {
+            if found == false {
                 Spans::from(t.clone())
             } else {
                 Spans::from(spans)
