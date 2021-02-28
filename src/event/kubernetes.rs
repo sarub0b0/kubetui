@@ -11,12 +11,10 @@ use std::time;
 use std::{error::Error, thread};
 use std::{
     io::BufRead,
-    sync::{
-        mpsc::{Receiver, Sender},
-        Arc, RwLock,
-    },
+    sync::{Arc, RwLock},
 };
 
+use crossbeam::channel::{Receiver, Sender};
 use tokio::{runtime::Runtime, task::JoinHandle};
 
 use k8s_openapi::api::core::v1::{Namespace, Pod};

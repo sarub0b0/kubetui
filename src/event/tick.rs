@@ -1,5 +1,5 @@
 use super::*;
-use std::sync::mpsc::Sender;
+use crossbeam::channel::Sender;
 
 use tokio::runtime::Runtime;
 use tokio::time;

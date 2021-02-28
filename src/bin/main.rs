@@ -1,4 +1,5 @@
-use std::sync::mpsc::{self, Receiver, Sender};
+// use std::sync::mpsc::{self, Receiver, Sender};
+use crossbeam::channel::{unbounded, Receiver, Sender};
 use std::thread;
 use std::time;
 
@@ -25,8 +26,8 @@ use kubetui::{
 };
 
 fn main() -> Result<(), io::Error> {
-    let (tx_input, rx_main): (Sender<Event>, Receiver<Event>) = mpsc::channel();
-    let (tx_main, rx_kube): (Sender<Event>, Receiver<Event>) = mpsc::channel();
+    let (tx_input, rx_main): (Sender<Event>, Receiver<Event>) = unbounded();
+    let (tx_main, rx_kube): (Sender<Event>, Receiver<Event>) = unbounded();
     let tx_kube = tx_input.clone();
     let tx_tick = tx_input.clone();
 

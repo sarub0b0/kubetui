@@ -1,6 +1,6 @@
 use super::Event;
 
-use std::sync::mpsc::Sender;
+use crossbeam::channel::Sender;
 
 use crossterm::event::{read, Event as CEvent};
 
