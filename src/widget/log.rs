@@ -88,42 +88,7 @@ impl<'a> Logs<'a> {
         self.state.select(0);
         self.items = items.clone();
 
-        self.spans = items
-            .iter()
-            .cloned()
-            .map(|t| {
-                let mut start = 0;
-                let mut end = 0;
-                let mut finded = false;
-
-                let mut spans: Vec<Span> = vec![];
-
-                while let Some(i) = t[start..].find("\x1b[") {
-                    finded = true;
-                    start = i + 5 + end;
-
-                    let (c0, c1) = (i + 2 + end, i + 4 + end);
-
-                    if let Some(next) = t[start..].find("\x1b[") {
-                        end = next + start;
-                    } else {
-                        end = t.len();
-                    }
-                    spans.push(Span::styled(
-                        String::from(&t[start..end]),
-                        style(&t[c0..c1]),
-                    ));
-
-                    start = end;
-                }
-
-                if finded == false {
-                    Spans::from(t.clone())
-                } else {
-                    Spans::from(spans)
-                }
-            })
-            .collect();
+        self.spans = generate_spans(&self.items);
     }
 
     pub fn update_rows_size(&mut self, width: u16, height: u16) {
@@ -196,45 +161,41 @@ fn style(num: &str) -> Style {
     Style::default().fg(color)
 }
 
-fn generate_spans(text: &Vec<std::string::String>) -> Vec<Spans> {
-    let mut ret: Vec<Spans> = Vec::with_capacity(1024);
+fn generate_spans<'a>(text: &Vec<std::string::String>) -> Vec<Spans<'a>> {
+    text.iter()
+        .cloned()
+        .map(|t| {
+            let mut start = 0;
+            let mut end = 0;
+            let mut finded = false;
 
-    for t in text {
-        // println!("{} {:#?}\n", t.len(), t);
+            let mut spans: Vec<Span> = vec![];
+            while let Some(i) = t[start..].find("\x1b[") {
+                finded = true;
+                start = i + 5 + end;
 
-        let buf = &t[0..];
-        let mut start = 0;
-        let mut end = 0;
-        let mut finded = false;
+                let (c0, c1) = (i + 2 + end, i + 4 + end);
 
-        let mut spans: Vec<Span> = vec![];
-        while let Some(i) = buf[start..].find("\x1b[") {
-            finded = true;
-            start = i + 5 + end;
+                if let Some(next) = t[start..].find("\x1b[") {
+                    end = next + start;
+                } else {
+                    end = t.len();
+                }
+                spans.push(Span::styled(
+                    String::from(&t[start..end]),
+                    style(&t[c0..c1]),
+                ));
 
-            let (c0, c1) = (i + 2 + end, i + 4 + end);
-
-            if let Some(next) = buf[start..].find("\x1b[") {
-                end = next + start;
-            } else {
-                end = t.len();
+                start = end;
             }
-            // println!("i:{} range:{}-{} {}", i, start, end, &buf[start..]);
-            spans.push(Span::styled(&buf[start..end], style(&buf[c0..c1])));
 
-            start = end;
-        }
-
-        if finded == false {
-            ret.push(Spans::from(t.clone()));
-        } else {
-            ret.push(Spans::from(spans));
-        }
-    }
-
-    // println!("{:#?}", ret);
-
-    ret
+            if finded == false {
+                Spans::from(t.clone())
+            } else {
+                Spans::from(spans)
+            }
+        })
+        .collect()
 }
 
 #[test]
