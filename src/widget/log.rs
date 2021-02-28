@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use tui::layout::Rect;
 use tui::style::{Color, Style};
 use tui::text::{Span, Spans, Text};
 use tui::widgets::{Block, Paragraph, Wrap};
@@ -11,8 +12,10 @@ pub struct Logs<'a> {
     items: Vec<String>,
     state: LogState,
     spans: Vec<Spans<'a>>,
+    row_size: u16,
 }
 
+#[derive(Clone, Copy)]
 pub struct LogState {
     scroll: u16,
 }
@@ -35,6 +38,7 @@ impl<'a> Logs<'a> {
             items,
             state: LogState::default(),
             spans: vec![Spans::default()],
+            row_size: 0,
         }
     }
 
@@ -46,8 +50,8 @@ impl<'a> Logs<'a> {
         self.state.select(scroll);
     }
 
-    pub fn state(&self) -> &LogState {
-        &self.state
+    pub fn state(&self) -> LogState {
+        self.state
     }
 
     pub fn scroll_top(&mut self) {
@@ -55,15 +59,14 @@ impl<'a> Logs<'a> {
     }
 
     pub fn scroll_bottom(&mut self) {
-        let last_index: u16 = self.items.len() as u16 - 1;
-        self.state.select(last_index);
+        self.state.select(self.row_size);
     }
 
     pub fn next(&mut self) {
         let mut i = self.state.selected();
 
-        if self.items.len() - 1 <= i as usize {
-            i = (self.items.len() - 1) as u16;
+        if self.row_size <= i {
+            i = self.row_size;
         } else {
             i = i + 1;
         }
@@ -123,6 +126,23 @@ impl<'a> Logs<'a> {
             .collect();
     }
 
+    pub fn update_rows_size(&mut self, width: u16, height: u16) {
+        let mut count = 0;
+        let div = width - 4;
+
+        self.spans
+            .iter()
+            .for_each(|s| count += (s.width() as u16 / div) + 1);
+
+        if height < count {
+            count -= height - 2;
+        } else {
+            count = 0
+        }
+
+        self.row_size = count;
+    }
+
     pub fn items(&self) -> &Vec<String> {
         &self.items
     }
@@ -137,17 +157,11 @@ impl<'a> Logs<'a> {
     }
 
     pub fn paragraph(&self, block: Block<'a>) -> Paragraph<'a> {
-        let scroll = self.state().selected();
-
         Paragraph::new(self.spans.clone())
             .block(block)
-            .scroll((scroll, 0))
             .style(Style::default())
-            .wrap(Wrap { trim: true })
-    }
-
-    fn unselect(&mut self) {
-        self.state.select(0);
+            .wrap(Wrap { trim: false })
+            .scroll((self.selected(), 0))
     }
 }
 

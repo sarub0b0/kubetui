@@ -107,25 +107,8 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, area: Rect, tab: &Tab) {
                 );
             }
             Type::LOG => {
-                let chunk = chunks[pane.chunk_index()];
-                let chunk_height = chunk.y;
-                let log = pane.widget().log();
-                let current_selected = log.unwrap().selected();
-
-                let items_len = log.unwrap().items().len() as u16;
-                let selected = if chunk_height < items_len {
-                    current_selected
-                } else {
-                    current_selected
-                };
-                // let limit_index = if chunk_height < log.unwrap().items().len() as u16 - 1 {
-                //     chunk_height - log.unwrap().items().len() as u16 - 1
-                // } else {
-                //     chunk_height
-                // };
-
-                // draw_paragraph(f, block, chunk, &log.unwrap().spans(), selected);
-                f.render_widget(log.unwrap().paragraph(block), chunk);
+                let log = pane.widget().log().unwrap();
+                f.render_widget(log.paragraph(block), pane.chunk());
             }
             Type::NONE => {}
         }

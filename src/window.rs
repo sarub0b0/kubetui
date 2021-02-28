@@ -16,7 +16,7 @@ pub struct Tab<'a> {
     layout: Layout,
     selected_pane_index: usize,
     selectable_widgets: Vec<usize>,
-    chunk: Rect,
+    chunks: Vec<Rect>,
 }
 
 pub struct Pane<'a> {
@@ -42,13 +42,14 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn update_chunks(&mut self, size: Rect) {
-        let chunks = self.layout.split(size);
-        self.chunk = chunks[1];
+    pub fn update_chunks(&mut self, chunk: Rect) {
+        self.chunk = chunk;
+
+        let chunks = self.layout.split(chunk);
 
         self.tabs
             .iter_mut()
-            .for_each(|tab| tab.update_chunk(chunks[0]));
+            .for_each(|tab| tab.update_chunk(chunks.iter().cloned().take(2).collect()));
     }
 
     pub fn chunks(&self, window_size: Rect) -> Vec<Rect> {
@@ -142,6 +143,7 @@ impl<'a> Window<'a> {
             if let Some(p) = pane {
                 let log = p.widget.mut_log().unwrap();
                 log.set_items(logs.to_vec());
+                log.update_rows_size(p.chunk.width, p.chunk.height);
             }
         }
     }
@@ -211,7 +213,7 @@ impl<'a> Tab<'a> {
             layout,
             selectable_widgets,
             selected_pane_index: 0,
-            chunk: Rect::default(),
+            chunks: Vec::new(),
         }
     }
     pub fn title(&self) -> &str {
@@ -249,10 +251,10 @@ impl<'a> Tab<'a> {
         &self.panes[self.selected_pane_index]
     }
 
-    pub fn update_chunk(&mut self, chunk: Rect) {
-        self.chunk = chunk;
+    pub fn update_chunk(&mut self, chunks: Vec<Rect>) {
+        self.chunks = chunks.clone();
 
-        let chunks = self.layout.split(chunk);
+        let chunks = self.layout.split(chunks[1]);
 
         self.panes
             .iter_mut()
@@ -310,5 +312,9 @@ impl<'a> Pane<'a> {
 
     pub fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
+    }
+
+    pub fn chunk(&self) -> Rect {
+        self.chunk
     }
 }
