@@ -48,20 +48,8 @@ use k8s_openapi::{
     apimachinery::pkg::apis::meta::v1::Time,
 };
 
-fn draw_tab<B: Backend>(f: &mut Frame<B>, chunk: Rect, tabs: &Vec<Tab>, index: usize) {
-    let titles: Vec<Spans> = tabs
-        .iter()
-        .map(|t| Spans::from(format!(" {} ", t.title())))
-        .collect();
-
-    let block = widgets::Block::default().style(Style::default());
-
-    let tabs = widgets::Tabs::new(titles)
-        .block(block)
-        .select(index)
-        .highlight_style(Style::default().fg(Color::White).bg(Color::LightBlue));
-
-    f.render_widget(tabs, chunk);
+fn draw_tab<B: Backend>(f: &mut Frame<B>, window: &Window) {
+    f.render_widget(window.tabs(), window.tab_chunk());
 }
 
 fn generate_title(title: &str, border_color: Color, selected: bool) -> Spans {
@@ -132,7 +120,7 @@ fn draw_status<B: Backend>(f: &mut Frame<B>, chunk: Rect) {
 pub fn draw<B: Backend>(f: &mut Frame<B>, window: &mut Window) {
     let chunks = window.chunks();
 
-    draw_tab(f, chunks[0], &window.tabs(), window.selected_tab_index());
+    draw_tab(f, &window);
 
     draw_panes(f, window.selected_tab());
 

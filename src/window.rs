@@ -2,6 +2,9 @@ use super::event::*;
 use super::widget::*;
 
 use tui::layout::{Constraint, Direction, Layout, Rect};
+use tui::style::{Color, Style};
+use tui::text::{Span, Spans, Text};
+use tui::widgets::{Block, Tabs};
 
 pub struct Window<'a> {
     tabs: Vec<Tab<'a>>,
@@ -53,10 +56,6 @@ impl<'a> Window<'a> {
 
     pub fn chunks(&self) -> Vec<Rect> {
         self.layout.split(self.chunk)
-    }
-
-    pub fn tabs(&self) -> &Vec<Tab> {
-        &self.tabs
     }
 
     pub fn selected_tab_index(&self) -> usize {
@@ -172,6 +171,25 @@ impl<'a> Window<'a> {
             .split(' ')
             .collect();
         split[0].to_string()
+    }
+
+    pub fn tabs(&self) -> Tabs {
+        let titles: Vec<Spans> = self
+            .tabs
+            .iter()
+            .map(|t| Spans::from(format!(" {} ", t.title())))
+            .collect();
+
+        let block = Block::default().style(Style::default());
+
+        Tabs::new(titles)
+            .block(block)
+            .select(self.selected_tab_index())
+            .highlight_style(Style::default().fg(Color::White).bg(Color::LightBlue))
+    }
+
+    pub fn tab_chunk(&self) -> Rect {
+        self.chunks()[0]
     }
 }
 
