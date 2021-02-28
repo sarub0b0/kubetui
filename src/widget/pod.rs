@@ -1,13 +1,16 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
-use tui::widgets::ListState;
+use tui::style::{Color, Modifier, Style};
+use tui::text::{Span, Spans, Text};
+use tui::widgets::{Block, List, ListItem, ListState};
 
 use super::WidgetTrait;
 
-pub struct Pods {
+pub struct Pods<'a> {
     items: Vec<String>,
     state: Rc<RefCell<PodState>>,
+    list_item: Vec<ListItem<'a>>,
 }
 pub struct PodState {
     inner: ListState,
@@ -34,7 +37,7 @@ impl Default for PodState {
     }
 }
 
-impl Pods {
+impl<'a> Pods<'a> {
     pub fn new(items: Vec<String>) -> Self {
         let mut state = PodState::default();
         if 0 < items.len() {
@@ -44,6 +47,7 @@ impl Pods {
         Self {
             items,
             state: Rc::new(RefCell::new(state)),
+            list_item: Vec::new(),
         }
     }
     pub fn unselect(&self) {
@@ -104,18 +108,41 @@ impl Pods {
             _ => {}
         }
         self.items = items;
+
+        self.set_listitem();
     }
 
     fn add_item(&mut self, item: impl Into<String>) {
-        self.items.push(item.into());
+        let item: String = item.into();
+        self.items.push(item.clone());
+        self.add_listitem(item);
     }
 
     pub fn items(&self) -> &Vec<String> {
         &self.items
     }
+
+    pub fn list(&self, block: Block<'a>) -> List<'a> {
+        List::new(self.list_item.clone())
+            .block(block)
+            .style(Style::default())
+            .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+    }
+
+    fn set_listitem(&mut self) {
+        self.list_item = self
+            .items
+            .iter()
+            .cloned()
+            .map(|i| ListItem::new(i))
+            .collect();
+    }
+    fn add_listitem(&mut self, item: String) {
+        self.list_item.push(ListItem::new(item));
+    }
 }
 
-impl WidgetTrait for Pods {
+impl WidgetTrait for Pods<'_> {
     fn selectable(&self) -> bool {
         true
     }

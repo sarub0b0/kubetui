@@ -9,7 +9,7 @@ pub trait WidgetTrait {
 }
 
 pub enum Widgets<'a> {
-    Pod(Pods),
+    Pod(Pods<'a>),
     Log(Logs<'a>),
 }
 
@@ -28,7 +28,7 @@ impl<'a> Widgets<'a> {
         }
     }
 
-    pub fn mut_pod(&mut self) -> Option<&mut Pods> {
+    pub fn mut_pod(&mut self) -> Option<&mut Pods<'a>> {
         match self {
             Widgets::Pod(pod) => Some(pod),
             _ => None,
