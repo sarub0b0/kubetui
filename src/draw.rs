@@ -6,7 +6,6 @@ use std::thread;
 
 #[allow(unused_imports)]
 use chrono::{DateTime, Duration, Utc};
-use widgets::ListState;
 
 #[allow(unused_imports)]
 use std::sync::{
@@ -36,10 +35,11 @@ use crossterm::{
 #[allow(unused_imports)]
 use tui::{
     backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Corner, Direction, Layout, Rect},
+    layout::{Alignment, Constraint, Corner, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Span, Spans},
-    widgets, Frame, Terminal,
+    widgets::{Block, Borders, Paragraph},
+    Frame, Terminal,
 };
 
 #[allow(unused_imports)]
@@ -76,9 +76,9 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, tab: &Tab) {
             Color::DarkGray
         };
 
-        let block = widgets::Block::default()
+        let block = Block::default()
             .title(generate_title(pane.title(), border_color, selected))
-            .borders(widgets::Borders::ALL)
+            .borders(Borders::ALL)
             .border_style(Style::default().fg(border_color));
 
         match pane.ty() {
@@ -100,21 +100,46 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, tab: &Tab) {
     }
 }
 
-fn draw_datetime<B: Backend>(f: &mut Frame<B>, chunk: Rect) {
-    let block = widgets::Block::default().style(Style::default());
-
-    let text = Spans::from(vec![Span::raw(format!(
+fn datetime() -> Span<'static> {
+    Span::raw(format!(
         " {}",
         Utc::now().format("%Y年%m月%d日 %H時%M分%S秒")
-    ))]);
-
-    let paragraph = widgets::Paragraph::new(text).block(block);
-
-    f.render_widget(paragraph, chunk);
+    ))
 }
 
-fn draw_status<B: Backend>(f: &mut Frame<B>, chunk: Rect) {
-    draw_datetime(f, chunk);
+fn log_status((current, rows): (u16, u16)) -> Span<'static> {
+    let percent = if rows == 0 {
+        100
+    } else {
+        (current * 100) / rows
+    };
+
+    // Span::raw(format!("{}%", percent))
+    Span::raw(format!("{}/{}", current, rows))
+}
+
+fn draw_status<B: Backend>(f: &mut Frame<B>, chunk: Rect, window: &Window) {
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(chunk);
+
+    let datetime = datetime();
+
+    let text = Spans::from(datetime);
+    let block = Block::default().style(Style::default());
+    let paragraph = Paragraph::new(text).block(block);
+
+    f.render_widget(paragraph, chunks[0]);
+
+    let log_status = log_status(window.log_status());
+    let text = Spans::from(log_status);
+    let block = Block::default().style(Style::default());
+    let paragraph = Paragraph::new(text)
+        .block(block)
+        .alignment(Alignment::Right);
+
+    f.render_widget(paragraph, chunks[1]);
 }
 
 pub fn draw<B: Backend>(f: &mut Frame<B>, window: &mut Window) {
@@ -124,5 +149,5 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, window: &mut Window) {
 
     draw_panes(f, window.selected_tab());
 
-    draw_status(f, chunks[2]);
+    draw_status(f, chunks[2], &window);
 }

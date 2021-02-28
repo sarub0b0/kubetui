@@ -93,17 +93,17 @@ impl<'a> Logs<'a> {
 
     pub fn update_rows_size(&mut self, width: u16, height: u16) {
         let mut count = self.spans.len() as u16;
-        let div = width - 4;
+        let div = width - 2;
 
         self.spans
             .iter()
-            .for_each(|s| count += s.width() as u16 / div);
+            .for_each(|s| count += (s.width() as u16 + 1) / div);
 
-        if height < count {
-            count -= height - 2;
-        } else {
-            count = 0
-        }
+        // // if height < count {
+        //     count -= height - 2;
+        // } else {
+        //     count = 0
+        // }
 
         self.row_size = count;
     }
@@ -127,6 +127,10 @@ impl<'a> Logs<'a> {
             .style(Style::default())
             .wrap(Wrap { trim: false })
             .scroll((self.selected(), 0))
+    }
+
+    pub fn row_size(&self) -> u16 {
+        self.row_size
     }
 }
 
