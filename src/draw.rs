@@ -38,7 +38,7 @@ use tui::{
     layout::{Alignment, Constraint, Corner, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Span, Spans},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, Clear, Paragraph},
     Frame, Terminal,
 };
 
@@ -150,4 +150,11 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, window: &mut Window) {
     draw_panes(f, window.selected_tab());
 
     draw_status(f, chunks[2], &window);
+
+    if window.drawable_popup() {
+        let (list, state, chunk) = window.popup();
+
+        f.render_widget(Clear, chunk);
+        f.render_stateful_widget(list, chunk, &mut state.borrow_mut());
+    }
 }

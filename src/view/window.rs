@@ -1,9 +1,11 @@
 use super::{tab::*, Pane, Status, Type};
 
+use std::cell::RefCell;
+use std::rc::Rc;
 use tui::layout::{Constraint, Direction, Layout, Rect};
-use tui::style::{Color, Style};
+use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans, Text};
-use tui::widgets::{Block, Tabs};
+use tui::widgets::{Block, BorderType, Borders, List, ListItem, ListState, Tabs};
 
 pub struct Window<'a> {
     tabs: Vec<Tab<'a>>,
@@ -11,6 +13,23 @@ pub struct Window<'a> {
     layout: Layout,
     chunk: Rect,
     status: Status,
+    popup: Popup<'a>,
+}
+
+struct Popup<'a> {
+    items: Vec<String>,
+    list_item: Vec<ListItem<'a>>,
+    state: Rc<RefCell<ListState>>,
+}
+
+impl Default for Popup<'_> {
+    fn default() -> Self {
+        Self {
+            items: Vec::new(),
+            list_item: Vec::new(),
+            state: Rc::new(RefCell::new(ListState::default())),
+        }
+    }
 }
 
 impl<'a> Window<'a> {
@@ -203,7 +222,55 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn popup(&mut self, items: Option<Vec<String>>) {}
+    pub fn setup_popup(&mut self, items: Option<Vec<String>>) {
+        if let Some(items) = items {
+            self.popup.items = items;
+            self.popup.list_item = ["Item 0", "Item 1", "Item 2"]
+                .iter()
+                .cloned()
+                .map(|i| ListItem::new(i))
+                .collect();
+        }
+    }
+
+    pub fn popup(&self) -> (List, Rc<RefCell<ListState>>, Rect) {
+        let h = 20;
+        let w = 20;
+        let chunk = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Percentage((100 - h) / 2),
+                Constraint::Percentage(h),
+                Constraint::Percentage((100 - h) / 2),
+            ])
+            .split(self.chunk);
+
+        let chunk = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage((100 - w) / 2),
+                Constraint::Percentage(w),
+                Constraint::Percentage((100 - w) / 2),
+            ])
+            .split(chunk[1])[1];
+
+        (
+            List::new(self.popup.list_item.clone())
+                .block(
+                    Block::default()
+                        .title("Namespace")
+                        .borders(Borders::ALL)
+                        .border_type(BorderType::Double),
+                )
+                .highlight_style(Style::default().add_modifier(Modifier::REVERSED)),
+            self.popup.state.clone(),
+            chunk,
+        )
+    }
+
+    pub fn drawable_popup(&self) -> bool {
+        0 < self.popup.items.len()
+    }
 }
 
 impl Default for Window<'_> {
@@ -225,6 +292,7 @@ impl Default for Window<'_> {
             layout,
             chunk: Rect::default(),
             status: Status::new(),
+            popup: Popup::default(),
         }
     }
 }

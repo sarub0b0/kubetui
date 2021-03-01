@@ -122,7 +122,7 @@ fn main() -> Result<(), io::Error> {
                     window.update_pod_status(info);
                 }
                 Kube::Namespace(ns) => {
-                    window.popup(ns);
+                    window.setup_popup(ns);
                 }
                 Kube::LogResponse(log) => {
                     window.update_pod_logs(log);
