@@ -112,6 +112,7 @@ fn main() -> Result<(), io::Error> {
             Event::Mouse => {}
             Event::Resize(w, h) => {
                 window.update_chunks(Rect::new(0, 0, w, h));
+                window.update_wrap();
             }
             Event::Tick => {}
             Event::Kube(k) => match k {

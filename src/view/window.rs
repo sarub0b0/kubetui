@@ -1,4 +1,4 @@
-use super::{tab::*, Status, Type};
+use super::{tab::*, Pane, Status, Type};
 
 use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::style::{Color, Style};
@@ -101,28 +101,30 @@ impl<'a> Window<'a> {
     }
 
     pub fn update_pod_status(&mut self, info: Vec<String>) {
-        for t in &mut self.tabs {
-            let pane = t.panes_mut().iter_mut().find(|p| p.ty() == Type::POD);
+        let pane = self.pane_mut(Type::POD);
 
-            if let Some(p) = pane {
-                let pod = p.widget_mut().mut_pod().unwrap();
-                pod.set_items(info.to_vec());
-            }
+        if let Some(p) = pane {
+            let pod = p.widget_mut().mut_pod().unwrap();
+            pod.set_items(info.to_vec());
         }
     }
 
     pub fn update_pod_logs(&mut self, logs: Vec<String>) {
-        for t in &mut self.tabs {
-            let pane = t.panes_mut().iter_mut().find(|p| p.ty() == Type::LOG);
-
-            if let Some(p) = pane {
-                let rect = p.chunk();
-                let log = p.widget_mut().mut_log().unwrap();
-                log.set_items(logs.to_vec());
-                log.update_spans(rect.width);
-                log.update_rows_size(rect.height);
-            }
+        let pane = self.pane_mut(Type::LOG);
+        if let Some(p) = pane {
+            let rect = p.chunk();
+            let log = p.widget_mut().mut_log().unwrap();
+            log.set_items(logs.to_vec());
+            log.update_spans(rect.width);
+            log.update_rows_size(rect.height);
         }
+    }
+
+    fn pane_mut(&mut self, ty: Type) -> Option<&mut Pane<'a>> {
+        for t in &mut self.tabs {
+            return t.panes_mut().iter_mut().find(|p| p.ty() == ty);
+        }
+        None
     }
 
     pub fn selected_pod(&self) -> String {
@@ -164,6 +166,16 @@ impl<'a> Window<'a> {
         match self.selected_tab().selected_pane().widget().log() {
             Some(log) => (log.selected(), log.row_size()),
             None => (0, 0),
+        }
+    }
+
+    pub fn update_wrap(&mut self) {
+        let pane = self.pane_mut(Type::LOG);
+        if let Some(p) = pane {
+            let rect = p.chunk();
+            let log = p.widget_mut().mut_log().unwrap();
+            log.update_spans(rect.width);
+            log.update_rows_size(rect.height);
         }
     }
 }
