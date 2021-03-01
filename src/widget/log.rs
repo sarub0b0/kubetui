@@ -87,23 +87,20 @@ impl<'a> Logs<'a> {
     pub fn set_items(&mut self, items: Vec<String>) {
         self.state.select(0);
         self.items = items.clone();
-
-        self.spans = generate_spans(&self.items);
     }
 
-    pub fn update_rows_size(&mut self, width: u16, height: u16) {
+    pub fn update_spans(&mut self, width: u16) {
+        self.spans = generate_spans(&self.items, width);
+    }
+
+    pub fn update_rows_size(&mut self, height: u16) {
         let mut count = self.spans.len() as u16;
-        let div = width - 2;
 
-        self.spans
-            .iter()
-            .for_each(|s| count += (s.width() as u16 + 1) / div);
-
-        // // if height < count {
-        //     count -= height - 2;
-        // } else {
-        //     count = 0
-        // }
+        if height < count {
+            count -= height - 1;
+        } else {
+            count = 0
+        }
 
         self.row_size = count;
     }
@@ -125,7 +122,6 @@ impl<'a> Logs<'a> {
         Paragraph::new(self.spans.clone())
             .block(block)
             .style(Style::default())
-            .wrap(Wrap { trim: false })
             .scroll((self.selected(), 0))
     }
 
@@ -165,8 +161,39 @@ fn style(num: &str) -> Style {
     Style::default().fg(color)
 }
 
-fn generate_spans<'a>(text: &Vec<std::string::String>) -> Vec<Spans<'a>> {
-    text.iter()
+fn wrap(origin: &Vec<String>, width: u16) -> Vec<String> {
+    let w = width as usize - 2;
+
+    let mut ret = Vec::new();
+    for t in origin.iter() {
+        let len = t.chars().count();
+
+        if w < len {
+            let crs = len / w;
+            for i in 0..=crs {
+                let tmp = t.clone();
+                let start = w * i;
+                let mut end = w * (i + 1);
+
+                if len <= end {
+                    end = len
+                }
+
+                ret.push(String::from(&tmp[start..end]) + "\n");
+            }
+        } else {
+            ret.push(t.clone());
+        }
+    }
+
+    ret
+}
+
+fn generate_spans<'a>(text: &Vec<String>, width: u16) -> Vec<Spans<'a>> {
+    let texts = wrap(text, width);
+
+    texts
+        .iter()
         .cloned()
         .map(|t| {
             let mut start = 0;
@@ -174,6 +201,7 @@ fn generate_spans<'a>(text: &Vec<std::string::String>) -> Vec<Spans<'a>> {
             let mut found = false;
 
             let mut spans: Vec<Span> = vec![];
+
             while let Some(i) = t[start..].find("\x1b[") {
                 found = true;
                 start = i + 5 + end;

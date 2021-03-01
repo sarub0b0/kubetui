@@ -119,7 +119,8 @@ impl<'a> Window<'a> {
                 let rect = p.chunk();
                 let log = p.widget_mut().mut_log().unwrap();
                 log.set_items(logs.to_vec());
-                log.update_rows_size(rect.width, rect.height);
+                log.update_spans(rect.width);
+                log.update_rows_size(rect.height);
             }
         }
     }
