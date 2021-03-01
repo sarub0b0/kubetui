@@ -3,23 +3,24 @@ use std::rc::Rc;
 
 use tui::layout::Rect;
 use tui::style::{Color, Style};
-use tui::text::{Span, Spans, Text};
-use tui::widgets::{Block, Paragraph, Wrap};
+use tui::text::{Span, Spans};
+use tui::widgets::{Block, Paragraph};
 
 use super::WidgetTrait;
 
-pub struct Logs<'a> {
+pub struct Text<'a> {
     items: Vec<String>,
-    state: LogState,
+    state: TextState,
     spans: Vec<Spans<'a>>,
     row_size: u16,
 }
 
 #[derive(Clone, Copy)]
-pub struct LogState {
+pub struct TextState {
     scroll: u16,
 }
-impl LogState {
+
+impl TextState {
     fn select(&mut self, index: u16) {
         self.scroll = index;
     }
@@ -27,33 +28,34 @@ impl LogState {
         self.scroll
     }
 }
-impl Default for LogState {
+
+impl Default for TextState {
     fn default() -> Self {
         Self { scroll: 0 }
     }
 }
-impl<'a> Logs<'a> {
+
+impl<'a> Text<'a> {
     pub fn new(items: Vec<String>) -> Self {
         Self {
             items,
-            state: LogState::default(),
+            state: TextState::default(),
             spans: vec![Spans::default()],
             row_size: 0,
         }
-    }
-
-    pub fn selected(&self) -> u16 {
-        self.state.selected()
     }
 
     pub fn select(&mut self, scroll: u16) {
         self.state.select(scroll);
     }
 
-    pub fn state(&self) -> LogState {
+    pub fn state(&self) -> TextState {
         self.state
     }
 
+    pub fn selected(&self) -> u16 {
+        self.state.selected()
+    }
     pub fn scroll_top(&mut self) {
         self.state.select(0);
     }
@@ -82,11 +84,6 @@ impl<'a> Logs<'a> {
             i = i - 1;
         }
         self.state.select(i);
-    }
-
-    pub fn set_items(&mut self, items: Vec<String>) {
-        self.state.select(0);
-        self.items = items.clone();
     }
 
     pub fn update_spans(&mut self, width: u16) {
@@ -130,9 +127,43 @@ impl<'a> Logs<'a> {
     }
 }
 
-impl WidgetTrait for Logs<'_> {
+impl WidgetTrait for Text<'_> {
     fn selectable(&self) -> bool {
         true
+    }
+
+    fn select_next(&mut self, index: usize) {
+        let mut i = self.state.selected();
+
+        if self.row_size <= i {
+            i = self.row_size;
+        } else {
+            i = i + index as u16;
+        }
+
+        self.state.select(i);
+    }
+
+    fn select_prev(&mut self, index: usize) {
+        let mut i = self.state.selected();
+        if i == 0 {
+            i = 0;
+        } else {
+            i = i - index as u16;
+        }
+        self.state.select(i);
+    }
+
+    fn select_first(&mut self) {
+        self.state.select(0);
+    }
+    fn select_last(&mut self) {
+        self.state.select(self.row_size);
+    }
+
+    fn set_items(&mut self, items: Vec<String>) {
+        self.state.select(0);
+        self.items = items.clone();
     }
 }
 

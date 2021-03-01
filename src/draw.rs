@@ -92,7 +92,7 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, tab: &Tab) {
                 f.render_stateful_widget(
                     pod.widget(block),
                     pane.chunk(),
-                    &mut pod.state().borrow_mut().state(),
+                    &mut pod.state().borrow_mut(),
                 );
             }
             Type::LOG => {
@@ -156,9 +156,19 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, window: &mut Window) {
     draw_status(f, chunks[2], &window);
 
     if window.selected_popup() {
-        let (list, state, chunk) = window.popup();
+        match window.popup() {
+            Some(p) => {
+                let ns = p.widget().namespace().unwrap();
+                f.render_widget(Clear, p.chunk());
 
-        f.render_widget(Clear, chunk);
-        f.render_stateful_widget(list, chunk, &mut state.borrow_mut());
+                let block = Block::default()
+                    .title(generate_title(p.title(), Color::White, true))
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::White));
+
+                f.render_stateful_widget(ns.widget(block), p.chunk(), &mut ns.state().borrow_mut());
+            }
+            None => {}
+        }
     }
 }

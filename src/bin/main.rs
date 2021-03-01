@@ -45,18 +45,23 @@ fn main() -> Result<(), io::Error> {
         Tab::new(
             "1:Pods",
             vec![
-                Pane::new("Pods", Widgets::Pod(Pods::new(vec![])), 0, Type::POD),
-                Pane::new("Logs", Widgets::Log(Logs::new(vec![])), 1, Type::LOG),
+                Pane::new("Pods", Widget::Pod(List::new(vec![])), 0, Type::POD),
+                Pane::new("Logs", Widget::Log(Text::new(vec![])), 1, Type::LOG),
             ],
             Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()),
+            Some(Popup::new(
+                "Namespace",
+                Widget::Namespace(List::new(vec![])),
+                Type::NS,
+            )),
         ),
         Tab::new(
             "Tab 1",
             vec![Pane::new(
                 "List 0",
-                Widgets::Pod(Pods::new(vec![
+                Widget::Pod(List::new(vec![
                     String::from("Item 1"),
                     String::from("Item 2"),
                     String::from("Item 3"),
@@ -67,6 +72,7 @@ fn main() -> Result<(), io::Error> {
             Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([Constraint::Percentage(50)].as_ref()),
+            None,
         ),
     ];
 

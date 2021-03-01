@@ -1,4 +1,5 @@
-use super::{tab::*, Pane, Status, Type};
+use super::{tab::*, Pane, Popup, Status, Type};
+use crate::widget::WidgetTrait;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -13,23 +14,6 @@ pub struct Window<'a> {
     layout: Layout,
     chunk: Rect,
     status: Status,
-    popup: Popup<'a>,
-}
-
-struct Popup<'a> {
-    items: Vec<String>,
-    list_item: Vec<ListItem<'a>>,
-    state: Rc<RefCell<ListState>>,
-}
-
-impl Default for Popup<'_> {
-    fn default() -> Self {
-        Self {
-            items: Vec::new(),
-            list_item: Vec::new(),
-            state: Rc::new(RefCell::new(ListState::default())),
-        }
-    }
 }
 
 impl<'a> Window<'a> {
@@ -45,9 +29,10 @@ impl<'a> Window<'a> {
 
         let chunks = self.layout.split(chunk);
 
-        self.tabs
-            .iter_mut()
-            .for_each(|tab| tab.update_chunk(chunks[1]));
+        self.tabs.iter_mut().for_each(|tab| {
+            tab.update_chunk(chunks[1]);
+            tab.update_popup_chunk(chunk);
+        });
     }
 
     pub fn chunks(&self) -> Vec<Rect> {
@@ -75,23 +60,19 @@ impl<'a> Window<'a> {
     }
 
     pub fn select_next_pane(&mut self) {
-        self.tabs[self.selected_tab_index].next_pane();
+        self.selected_tab_mut().next_pane();
     }
 
     pub fn select_prev_pane(&mut self) {
-        self.tabs[self.selected_tab_index].prev_pane();
+        self.selected_tab_mut().prev_pane();
     }
 
     pub fn select_next_item(&mut self) {
-        self.tabs[self.selected_tab_index]
-            .selected_pane_mut()
-            .next_item();
+        self.selected_tab_mut().select_pane_next_item();
     }
 
     pub fn select_prev_item(&mut self) {
-        self.tabs[self.selected_tab_index]
-            .selected_pane_mut()
-            .prev_item();
+        self.selected_tab_mut().select_pane_prev_item();
     }
 
     pub fn select_tab(&mut self, index: usize) {
@@ -102,28 +83,22 @@ impl<'a> Window<'a> {
     }
 
     pub fn select_first_item(&mut self) {
-        self.selected_tab_mut()
-            .selected_pane_mut()
-            .widget_mut()
-            .first();
+        self.selected_tab_mut().select_pane_first_item();
     }
 
     pub fn select_last_item(&mut self) {
-        self.selected_tab_mut()
-            .selected_pane_mut()
-            .widget_mut()
-            .last();
+        self.selected_tab_mut().select_pane_last_item();
     }
 
     pub fn focus_pane_type(&self) -> Type {
-        self.selected_tab().selected_pane().ty()
+        self.selected_tab().selected_pane_type()
     }
 
     pub fn update_pod_status(&mut self, info: Vec<String>) {
         let pane = self.pane_mut(Type::POD);
 
         if let Some(p) = pane {
-            let pod = p.widget_mut().mut_pod().unwrap();
+            let pod = p.widget_mut();
             pod.set_items(info.to_vec());
         }
     }
@@ -132,7 +107,7 @@ impl<'a> Window<'a> {
         let pane = self.pane_mut(Type::LOG);
         if let Some(p) = pane {
             let rect = p.chunk();
-            let log = p.widget_mut().mut_log().unwrap();
+            let log = p.widget_mut().log_mut().unwrap();
             log.set_items(logs.to_vec());
             log.update_spans(rect.width);
             log.update_rows_size(rect.height);
@@ -192,7 +167,7 @@ impl<'a> Window<'a> {
         let pane = self.pane_mut(Type::LOG);
         if let Some(p) = pane {
             let rect = p.chunk();
-            let log = p.widget_mut().mut_log().unwrap();
+            let log = p.widget_mut().log_mut().unwrap();
             log.update_spans(rect.width);
             log.update_rows_size(rect.height);
         }
@@ -205,7 +180,7 @@ impl<'a> Window<'a> {
         }
 
         let ch = pane.chunk();
-        if let Some(log) = pane.widget_mut().mut_log() {
+        if let Some(log) = pane.widget_mut().log_mut() {
             (0..ch.height).for_each(|_| log.prev());
         }
     }
@@ -217,55 +192,25 @@ impl<'a> Window<'a> {
         }
 
         let ch = pane.chunk();
-        if let Some(log) = pane.widget_mut().mut_log() {
+        if let Some(log) = pane.widget_mut().log_mut() {
             (0..ch.height).for_each(|_| log.next());
         }
     }
 
     pub fn setup_namespaces_popup(&mut self, items: Option<Vec<String>>) {
         if let Some(items) = items {
-            self.popup.items = items;
-            self.popup.list_item = ["Item 0", "Item 1", "Item 2"]
-                .iter()
-                .cloned()
-                .map(|i| ListItem::new(i))
-                .collect();
+            let popup = self.selected_tab_mut().popup_mut();
+            if let Some(popup) = popup {
+                let ns = popup.widget_mut().namespace_mut();
+                if let Some(ns) = ns {
+                    ns.set_items(items);
+                }
+            }
         }
     }
 
-    pub fn popup(&self) -> (List, Rc<RefCell<ListState>>, Rect) {
-        let h = 20;
-        let w = 20;
-        let chunk = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Percentage((100 - h) / 2),
-                Constraint::Percentage(h),
-                Constraint::Percentage((100 - h) / 2),
-            ])
-            .split(self.chunk);
-
-        let chunk = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage((100 - w) / 2),
-                Constraint::Percentage(w),
-                Constraint::Percentage((100 - w) / 2),
-            ])
-            .split(chunk[1])[1];
-
-        (
-            List::new(self.popup.list_item.clone())
-                .block(
-                    Block::default()
-                        .title("Namespace")
-                        .borders(Borders::ALL)
-                        .border_type(BorderType::Double),
-                )
-                .highlight_style(Style::default().add_modifier(Modifier::REVERSED)),
-            self.popup.state.clone(),
-            chunk,
-        )
+    pub fn popup(&self) -> &Option<Popup> {
+        self.selected_tab().popup()
     }
 
     pub fn selected_popup(&self) -> bool {
@@ -299,7 +244,6 @@ impl Default for Window<'_> {
             layout,
             chunk: Rect::default(),
             status: Status::new(),
-            popup: Popup::default(),
         }
     }
 }

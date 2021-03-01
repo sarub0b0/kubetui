@@ -4,7 +4,7 @@ use crate::widget::*;
 use tui::layout::{Constraint, Direction, Layout, Rect};
 
 pub struct Pane<'a> {
-    widget: Widgets<'a>,
+    widget: Widget<'a>,
     chunk_index: usize,
     title: String,
     ty: Type,
@@ -12,12 +12,7 @@ pub struct Pane<'a> {
 }
 
 impl<'a> Pane<'a> {
-    pub fn new(
-        title: impl Into<String>,
-        widget: Widgets<'a>,
-        chunk_index: usize,
-        ty: Type,
-    ) -> Self {
+    pub fn new(title: impl Into<String>, widget: Widget<'a>, chunk_index: usize, ty: Type) -> Self {
         Self {
             title: title.into(),
             widget,
@@ -27,11 +22,11 @@ impl<'a> Pane<'a> {
         }
     }
 
-    pub fn widget(&self) -> &Widgets {
+    pub fn widget(&self) -> &Widget {
         &self.widget
     }
 
-    pub fn widget_mut(&mut self) -> &mut Widgets<'a> {
+    pub fn widget_mut(&mut self) -> &mut Widget<'a> {
         &mut self.widget
     }
 
@@ -43,12 +38,16 @@ impl<'a> Pane<'a> {
         self.chunk_index
     }
 
-    pub fn next_item(&mut self) {
-        self.widget.next()
+    pub fn next_item(&mut self, index: usize) {
+        self.widget.select_next(index)
     }
 
-    pub fn prev_item(&mut self) {
-        self.widget.prev()
+    pub fn prev_item(&mut self, index: usize) {
+        self.widget.select_prev(index)
+    }
+
+    pub fn set_items(&mut self, items: Vec<String>) {
+        self.widget.set_items(items);
     }
 
     pub fn is_selected(&self, rhs: &Pane) -> bool {

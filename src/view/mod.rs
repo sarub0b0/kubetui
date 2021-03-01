@@ -10,10 +10,4 @@ pub use status::Status;
 pub use tab::Tab;
 pub use window::Window;
 
-#[derive(Copy, Clone, PartialEq)]
-pub enum Type {
-    NONE,
-    LOG,
-    POD,
-    NS,
-}
+pub use crate::widget::Type;

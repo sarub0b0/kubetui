@@ -1,81 +1,126 @@
-pub mod log;
-pub mod pod;
+pub mod list;
+pub mod namespace;
+pub mod text;
 
-pub use self::log::*;
-pub use self::pod::*;
+pub use self::list::*;
+pub use self::namespace::*;
+pub use self::text::*;
+
+use std::cell::RefCell;
+use std::rc::Rc;
+
+#[derive(Copy, Clone, PartialEq)]
+pub enum Type {
+    NONE,
+    LOG,
+    POD,
+    NS,
+}
 
 pub trait WidgetTrait {
     fn selectable(&self) -> bool;
+    fn select_next(&mut self, index: usize);
+    fn select_prev(&mut self, index: usize);
+    fn select_first(&mut self);
+    fn select_last(&mut self);
+    fn set_items(&mut self, items: Vec<String>);
 }
 
-pub enum Widgets<'a> {
-    Pod(Pods<'a>),
-    Log(Logs<'a>),
+pub enum Widget<'a> {
+    Pod(List<'a>),
+    Log(Text<'a>),
+    Namespace(List<'a>),
 }
 
-impl<'a> Widgets<'a> {
-    pub fn pod(&self) -> Option<&Pods> {
+impl<'a> Widget<'a> {
+    pub fn pod(&self) -> Option<&List> {
         match self {
-            Widgets::Pod(pod) => Some(pod),
+            Widget::Pod(pod) => Some(pod),
             _ => None,
         }
     }
 
-    pub fn log(&self) -> Option<&Logs> {
+    pub fn log(&self) -> Option<&Text> {
         match self {
-            Widgets::Log(log) => Some(log),
+            Widget::Log(log) => Some(log),
             _ => None,
         }
     }
 
-    pub fn mut_pod(&mut self) -> Option<&mut Pods<'a>> {
+    pub fn pod_mut(&mut self) -> Option<&mut List<'a>> {
         match self {
-            Widgets::Pod(pod) => Some(pod),
+            Widget::Pod(pod) => Some(pod),
             _ => None,
         }
     }
 
-    pub fn mut_log(&mut self) -> Option<&mut Logs<'a>> {
+    pub fn log_mut(&mut self) -> Option<&mut Text<'a>> {
         match self {
-            Widgets::Log(log) => Some(log),
+            Widget::Log(log) => Some(log),
             _ => None,
         }
     }
 
-    pub fn next(&mut self) {
+    pub fn namespace(&self) -> Option<&List> {
         match self {
-            Widgets::Pod(pod) => pod.next(),
-            Widgets::Log(log) => log.next(),
+            Widget::Namespace(ns) => Some(ns),
+            _ => None,
         }
     }
-
-    pub fn prev(&mut self) {
+    pub fn namespace_mut(&mut self) -> Option<&mut List<'a>> {
         match self {
-            Widgets::Pod(pod) => pod.prev(),
-            Widgets::Log(log) => log.prev(),
-        }
-    }
-
-    pub fn first(&mut self) {
-        match self {
-            Widgets::Pod(pod) => pod.select_first(),
-            Widgets::Log(log) => log.scroll_top(),
-        }
-    }
-
-    pub fn last(&mut self) {
-        match self {
-            Widgets::Pod(pod) => pod.select_last(),
-            Widgets::Log(log) => log.scroll_bottom(),
+            Widget::Namespace(ns) => Some(ns),
+            _ => None,
         }
     }
 }
 
-impl WidgetTrait for Widgets<'_> {
+impl WidgetTrait for Widget<'_> {
     fn selectable(&self) -> bool {
         match self {
-            Widgets::Pod(pod) => pod.selectable(),
-            Widgets::Log(log) => log.selectable(),
+            Widget::Pod(pod) => pod.selectable(),
+            Widget::Log(log) => log.selectable(),
+            Widget::Namespace(ns) => ns.selectable(),
+        }
+    }
+
+    fn select_next(&mut self, index: usize) {
+        match self {
+            Widget::Pod(pod) => pod.select_next(index),
+            Widget::Log(log) => log.select_next(index),
+            Widget::Namespace(ns) => ns.select_next(index),
+        }
+    }
+
+    fn select_prev(&mut self, index: usize) {
+        match self {
+            Widget::Pod(pod) => pod.select_prev(index),
+            Widget::Log(log) => log.select_prev(index),
+            Widget::Namespace(ns) => ns.select_prev(index),
+        }
+    }
+
+    fn select_first(&mut self) {
+        match self {
+            Widget::Pod(pod) => pod.select_first(),
+            Widget::Log(log) => log.select_first(),
+            Widget::Namespace(ns) => ns.select_first(),
+        }
+    }
+
+    fn select_last(&mut self) {
+        match self {
+            Widget::Pod(pod) => pod.select_last(),
+            Widget::Log(log) => log.select_last(),
+            Widget::Namespace(ns) => ns.select_last(),
+        }
+    }
+
+    fn set_items(&mut self, items: Vec<String>) {
+        match self {
+            Widget::Pod(pod) => pod.set_items(items),
+            Widget::Log(log) => log.set_items(items),
+            Widget::Namespace(ns) => ns.set_items(items),
         }
     }
 }

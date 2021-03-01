@@ -1,0 +1,85 @@
+use super::Type;
+use crate::widget::*;
+
+use std::cell::RefCell;
+use std::default::Default;
+use std::rc::Rc;
+
+use tui::layout::{Constraint, Direction, Layout, Rect};
+use tui::widgets::{Block, BorderType, Borders, List, ListItem, ListState, Tabs};
+
+pub struct Popup<'a> {
+    title: String,
+    widget: Widget<'a>,
+    chunk: Rect,
+    ty: Type,
+}
+
+impl<'a> Popup<'a> {
+    pub fn new(title: impl Into<String>, widget: Widget<'a>, ty: Type) -> Self {
+        Self {
+            title: title.into(),
+            widget,
+            chunk: Rect::default(),
+            ty,
+        }
+    }
+
+    pub fn next_item(&mut self) {
+        self.widget.select_next(1);
+    }
+
+    pub fn prev_item(&mut self) {
+        self.widget.select_prev(1);
+    }
+
+    pub fn last_item(&mut self) {
+        self.widget.select_last();
+    }
+
+    pub fn first_item(&mut self) {
+        self.widget.select_first();
+    }
+
+    pub fn widget(&self) -> &Widget {
+        &self.widget
+    }
+
+    pub fn widget_mut(&mut self) -> &mut Widget<'a> {
+        &mut self.widget
+    }
+
+    pub fn title(&self) -> &str {
+        &self.title
+    }
+
+    pub fn chunk(&self) -> Rect {
+        self.chunk
+    }
+
+    pub fn ty(&self) -> Type {
+        self.ty
+    }
+
+    pub fn update_chunk(&mut self, chunk: Rect) {
+        let h = 40;
+        let w = 60;
+        let chunk = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Percentage((100 - h) / 2),
+                Constraint::Percentage(h),
+                Constraint::Percentage((100 - h) / 2),
+            ])
+            .split(chunk);
+
+        self.chunk = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage((100 - w) / 2),
+                Constraint::Percentage(w),
+                Constraint::Percentage((100 - w) / 2),
+            ])
+            .split(chunk[1])[1];
+    }
+}
