@@ -202,6 +202,8 @@ impl<'a> Window<'a> {
             (0..ch.height).for_each(|_| log.next());
         }
     }
+
+    pub fn popup(&mut self, items: Option<Vec<String>>) {}
 }
 
 impl Default for Window<'_> {
