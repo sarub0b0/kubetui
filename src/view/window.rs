@@ -178,6 +178,30 @@ impl<'a> Window<'a> {
             log.update_rows_size(rect.height);
         }
     }
+
+    pub fn scroll_up(&mut self) {
+        let pane = self.selected_tab_mut().selected_pane_mut();
+        if pane.ty() != Type::LOG {
+            return;
+        }
+
+        let ch = pane.chunk();
+        if let Some(log) = pane.widget_mut().mut_log() {
+            (0..ch.height).for_each(|_| log.prev());
+        }
+    }
+
+    pub fn scroll_down(&mut self) {
+        let pane = self.selected_tab_mut().selected_pane_mut();
+        if pane.ty() != Type::LOG {
+            return;
+        }
+
+        let ch = pane.chunk();
+        if let Some(log) = pane.widget_mut().mut_log() {
+            (0..ch.height).for_each(|_| log.next());
+        }
+    }
 }
 
 impl Default for Window<'_> {
