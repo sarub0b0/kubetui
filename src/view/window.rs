@@ -161,18 +161,10 @@ impl<'a> Window<'a> {
     }
 
     pub fn log_status(&self) -> (u16, u16) {
-        let mut curr = 0;
-        let mut rows = 0;
-        for t in &self.tabs {
-            let pane = t.panes().iter().find(|p| p.ty() == Type::LOG);
-
-            if let Some(p) = pane {
-                let log = p.widget().log().unwrap();
-                curr = log.selected();
-                rows = log.row_size();
-            }
+        match self.selected_tab().selected_pane().widget().log() {
+            Some(log) => (log.selected(), log.row_size()),
+            None => (0, 0),
         }
-        (curr, rows)
     }
 }
 
