@@ -1,4 +1,4 @@
-use super::{pane::Pane, Type};
+use super::{pane::Pane, Popup, Type};
 
 use crate::widget::*;
 use tui::layout::{Constraint, Direction, Layout, Rect};
@@ -9,6 +9,7 @@ pub struct Tab<'a> {
     layout: Layout,
     selected_pane_index: usize,
     selectable_widgets: Vec<usize>,
+    select_popup: bool,
 }
 
 impl<'a> Tab<'a> {
@@ -26,6 +27,7 @@ impl<'a> Tab<'a> {
             layout,
             selectable_widgets,
             selected_pane_index: 0,
+            select_popup: false,
         }
     }
     pub fn title(&self) -> &str {
@@ -72,5 +74,17 @@ impl<'a> Tab<'a> {
         self.panes
             .iter_mut()
             .for_each(|pane| pane.update_chunk(chunks[pane.chunk_index()]));
+    }
+
+    pub fn select_popup(&mut self) {
+        self.select_popup = true;
+    }
+
+    pub fn unselect_popup(&mut self) {
+        self.select_popup = false;
+    }
+
+    pub fn selected_popup(&self) -> bool {
+        self.select_popup
     }
 }

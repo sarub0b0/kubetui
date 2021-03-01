@@ -51,7 +51,7 @@ impl<'a> Pane<'a> {
         self.widget.prev()
     }
 
-    pub fn selected(&self, rhs: &Pane) -> bool {
+    pub fn is_selected(&self, rhs: &Pane) -> bool {
         return std::ptr::eq(self, rhs);
     }
 

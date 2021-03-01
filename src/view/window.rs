@@ -222,7 +222,7 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn setup_popup(&mut self, items: Option<Vec<String>>) {
+    pub fn setup_namespaces_popup(&mut self, items: Option<Vec<String>>) {
         if let Some(items) = items {
             self.popup.items = items;
             self.popup.list_item = ["Item 0", "Item 1", "Item 2"]
@@ -268,8 +268,15 @@ impl<'a> Window<'a> {
         )
     }
 
-    pub fn drawable_popup(&self) -> bool {
-        0 < self.popup.items.len()
+    pub fn selected_popup(&self) -> bool {
+        self.selected_tab().selected_popup()
+    }
+
+    pub fn select_popup(&mut self) {
+        self.selected_tab_mut().select_popup();
+    }
+    pub fn unselect_popup(&mut self) {
+        self.selected_tab_mut().unselect_popup();
     }
 }
 

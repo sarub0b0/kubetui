@@ -80,7 +80,7 @@ fn main() -> Result<(), io::Error> {
         terminal.draw(|f| draw(f, &mut window)).unwrap();
         match rx_main.recv().unwrap() {
             Event::Input(ev) => match ev.code {
-                KeyCode::Char('q') => break,
+                KeyCode::Char('q') if window.selected_popup() == false => break,
                 KeyCode::Char('j') | KeyCode::Down => window.select_next_item(),
                 KeyCode::Char('k') | KeyCode::Up => window.select_prev_item(),
                 KeyCode::Char('n') if ev.modifiers == KeyModifiers::CONTROL => {
@@ -106,6 +106,13 @@ fn main() -> Result<(), io::Error> {
                         .send(Event::Kube(Kube::LogRequest(window.selected_pod())))
                         .unwrap();
                 }
+
+                KeyCode::Enter if window.selected_popup() => {
+                    window.unselect_popup();
+                }
+                KeyCode::Char('q') if window.selected_popup() => {
+                    window.unselect_popup();
+                }
                 KeyCode::Char('G') => window.select_last_item(),
                 KeyCode::Char('g') => window.select_first_item(),
                 KeyCode::Char(_) => {}
@@ -122,7 +129,8 @@ fn main() -> Result<(), io::Error> {
                     window.update_pod_status(info);
                 }
                 Kube::Namespace(ns) => {
-                    window.setup_popup(ns);
+                    window.setup_namespaces_popup(ns);
+                    window.select_popup();
                 }
                 Kube::LogResponse(log) => {
                     window.update_pod_logs(log);

@@ -68,7 +68,11 @@ fn generate_title(title: &str, border_color: Color, selected: bool) -> Spans {
 
 fn draw_panes<B: Backend>(f: &mut Frame<B>, tab: &Tab) {
     for pane in tab.panes() {
-        let selected = pane.selected(tab.selected_pane());
+        let selected = if tab.selected_popup() {
+            false
+        } else {
+            pane.is_selected(tab.selected_pane())
+        };
 
         let border_color = if selected {
             Color::White
@@ -95,7 +99,7 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, tab: &Tab) {
                 let log = pane.widget().log().unwrap();
                 f.render_widget(log.widget(block), pane.chunk());
             }
-            Type::NONE => {}
+            _ => {}
         }
     }
 }
@@ -151,7 +155,7 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, window: &mut Window) {
 
     draw_status(f, chunks[2], &window);
 
-    if window.drawable_popup() {
+    if window.selected_popup() {
         let (list, state, chunk) = window.popup();
 
         f.render_widget(Clear, chunk);
