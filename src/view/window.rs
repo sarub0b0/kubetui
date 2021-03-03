@@ -15,6 +15,66 @@ pub struct Window<'a> {
     chunk: Rect,
 }
 
+// Window
+impl<'a> Window<'a> {
+    pub fn new(tabs: Vec<Tab<'a>>) -> Self {
+        Self {
+            tabs,
+            ..Window::default()
+        }
+    }
+
+    pub fn update_chunks(&mut self, chunk: Rect) {
+        self.chunk = chunk;
+
+        let chunks = self.layout.split(chunk);
+
+        self.tabs.iter_mut().for_each(|tab| {
+            tab.update_chunk(chunks[1]);
+            tab.update_popup_chunk(chunk);
+        });
+    }
+
+    pub fn chunks(&self) -> Vec<Rect> {
+        self.layout.split(self.chunk)
+    }
+
+    pub fn selected_pod(&self) -> String {
+        let pane = self.selected_tab().selected_pane();
+        let selected_index = pane
+            .widget()
+            .list()
+            .unwrap()
+            .state()
+            .borrow()
+            .selected()
+            .unwrap();
+        let split: Vec<&str> = pane.widget().list().unwrap().items()[selected_index]
+            .split(' ')
+            .collect();
+        split[0].to_string()
+    }
+
+    pub fn widget(&self) -> Tabs {
+        let titles: Vec<Spans> = self
+            .tabs
+            .iter()
+            .map(|t| Spans::from(format!(" {} ", t.title())))
+            .collect();
+
+        let block = Block::default().style(Style::default());
+
+        Tabs::new(titles)
+            .block(block)
+            .select(self.selected_tab_index)
+            .highlight_style(Style::default().fg(Color::White).bg(Color::LightBlue))
+    }
+
+    pub fn tab_chunk(&self) -> Rect {
+        self.chunks()[0]
+    }
+}
+
 // Tab
 impl<'a> Window<'a> {
     pub fn selected_tab(&self) -> &Tab {
@@ -123,66 +183,6 @@ impl Window<'_> {
                 (0..ch.height).for_each(|_| text.next());
             }
         }
-    }
-}
-
-// Window
-impl<'a> Window<'a> {
-    pub fn new(tabs: Vec<Tab<'a>>) -> Self {
-        Self {
-            tabs,
-            ..Window::default()
-        }
-    }
-
-    pub fn update_chunks(&mut self, chunk: Rect) {
-        self.chunk = chunk;
-
-        let chunks = self.layout.split(chunk);
-
-        self.tabs.iter_mut().for_each(|tab| {
-            tab.update_chunk(chunks[1]);
-            tab.update_popup_chunk(chunk);
-        });
-    }
-
-    pub fn chunks(&self) -> Vec<Rect> {
-        self.layout.split(self.chunk)
-    }
-
-    pub fn selected_pod(&self) -> String {
-        let pane = self.selected_tab().selected_pane();
-        let selected_index = pane
-            .widget()
-            .list()
-            .unwrap()
-            .state()
-            .borrow()
-            .selected()
-            .unwrap();
-        let split: Vec<&str> = pane.widget().list().unwrap().items()[selected_index]
-            .split(' ')
-            .collect();
-        split[0].to_string()
-    }
-
-    pub fn widget(&self) -> Tabs {
-        let titles: Vec<Spans> = self
-            .tabs
-            .iter()
-            .map(|t| Spans::from(format!(" {} ", t.title())))
-            .collect();
-
-        let block = Block::default().style(Style::default());
-
-        Tabs::new(titles)
-            .block(block)
-            .select(self.selected_tab_index)
-            .highlight_style(Style::default().fg(Color::White).bg(Color::LightBlue))
-    }
-
-    pub fn tab_chunk(&self) -> Rect {
-        self.chunks()[0]
     }
 }
 
