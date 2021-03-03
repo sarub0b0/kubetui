@@ -153,12 +153,13 @@ async fn get_pod_info(client: Client, namespace: &str) -> Vec<String> {
 
     let pods_list = pods.list(&lp).await.unwrap();
 
-    let max_name_len = pods_list
+    let max_name_len = match pods_list
         .iter()
         .max_by(|r, l| r.name().len().cmp(&l.name().len()))
-        .unwrap()
-        .name()
-        .len();
+    {
+        Some(pod) => pod.name().len(),
+        None => 0,
+    };
 
     let current_datetime: DateTime<Utc> = Utc::now();
 
