@@ -85,9 +85,9 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, tab: &Tab) {
             .borders(Borders::ALL)
             .border_style(Style::default().fg(border_color));
 
-        match pane.ty() {
-            Type::POD => {
-                let pod = pane.widget().pod().unwrap();
+        match pane.id() {
+            "pods" => {
+                let pod = pane.widget().list().unwrap();
 
                 f.render_stateful_widget(
                     pod.widget(block),
@@ -95,8 +95,8 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, tab: &Tab) {
                     &mut pod.state().borrow_mut(),
                 );
             }
-            Type::LOG => {
-                let log = pane.widget().log().unwrap();
+            "logs" => {
+                let log = pane.widget().text().unwrap();
                 f.render_widget(log.widget(block), pane.chunk());
             }
             _ => {}
@@ -158,7 +158,7 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, window: &mut Window) {
     if window.selected_popup() {
         match window.popup() {
             Some(p) => {
-                let ns = p.widget().namespace().unwrap();
+                let ns = p.widget().list().unwrap();
                 f.render_widget(Clear, p.chunk());
 
                 let block = Block::default()

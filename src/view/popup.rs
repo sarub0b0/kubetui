@@ -1,4 +1,3 @@
-use super::Type;
 use crate::widget::*;
 
 use std::cell::RefCell;
@@ -12,16 +11,16 @@ pub struct Popup<'a> {
     title: String,
     widget: Widget<'a>,
     chunk: Rect,
-    ty: Type,
+    id: String,
 }
 
 impl<'a> Popup<'a> {
-    pub fn new(title: impl Into<String>, widget: Widget<'a>, ty: Type) -> Self {
+    pub fn new(title: impl Into<String>, widget: Widget<'a>, id: impl Into<String>) -> Self {
         Self {
             title: title.into(),
             widget,
             chunk: Rect::default(),
-            ty,
+            id: id.into(),
         }
     }
 
@@ -57,8 +56,8 @@ impl<'a> Popup<'a> {
         self.chunk
     }
 
-    pub fn ty(&self) -> Type {
-        self.ty
+    pub fn id(&self) -> &str {
+        &self.id
     }
 
     pub fn update_chunk(&mut self, chunk: Rect) {

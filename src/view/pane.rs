@@ -1,4 +1,3 @@
-use super::Type;
 use crate::widget::*;
 
 use tui::layout::{Constraint, Direction, Layout, Rect};
@@ -7,17 +6,22 @@ pub struct Pane<'a> {
     widget: Widget<'a>,
     chunk_index: usize,
     title: String,
-    ty: Type,
+    id: String,
     chunk: Rect,
 }
 
 impl<'a> Pane<'a> {
-    pub fn new(title: impl Into<String>, widget: Widget<'a>, chunk_index: usize, ty: Type) -> Self {
+    pub fn new(
+        title: impl Into<String>,
+        widget: Widget<'a>,
+        chunk_index: usize,
+        id: impl Into<String>,
+    ) -> Self {
         Self {
             title: title.into(),
             widget,
             chunk_index,
-            ty,
+            id: id.into(),
             chunk: Rect::default(),
         }
     }
@@ -54,8 +58,8 @@ impl<'a> Pane<'a> {
         return std::ptr::eq(self, rhs);
     }
 
-    pub fn ty(&self) -> Type {
-        self.ty
+    pub fn id(&self) -> &str {
+        &self.id
     }
 
     pub fn update_chunk(&mut self, chunk: Rect) {

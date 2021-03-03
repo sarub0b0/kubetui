@@ -25,6 +25,17 @@ use kubetui::{
     widget::*,
 };
 
+fn update_pod_logs(window: &mut Window, logs: Vec<String>) {
+    let pane = window.pane_mut("logs");
+    if let Some(p) = pane {
+        let rect = p.chunk();
+        let log = p.widget_mut().text_mut().unwrap();
+        log.set_items(logs.to_vec());
+        log.update_spans(rect.width);
+        log.update_rows_size(rect.height);
+    }
+}
+
 fn main() -> Result<(), io::Error> {
     let (tx_input, rx_main): (Sender<Event>, Receiver<Event>) = unbounded();
     let (tx_main, rx_kube): (Sender<Event>, Receiver<Event>) = unbounded();
@@ -45,29 +56,29 @@ fn main() -> Result<(), io::Error> {
         Tab::new(
             "1:Pods",
             vec![
-                Pane::new("Pods", Widget::Pod(List::new(vec![])), 0, Type::POD),
-                Pane::new("Logs", Widget::Log(Text::new(vec![])), 1, Type::LOG),
+                Pane::new("Pods", Widget::List(List::new(vec![])), 0, "pods"),
+                Pane::new("Logs", Widget::Text(Text::new(vec![])), 1, "logs"),
             ],
             Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()),
             Some(Popup::new(
                 "Namespace",
-                Widget::Namespace(List::new(vec![])),
-                Type::NS,
+                Widget::List(List::new(vec![])),
+                "namespace",
             )),
         ),
         Tab::new(
             "Tab 1",
             vec![Pane::new(
                 "List 0",
-                Widget::Pod(List::new(vec![
+                Widget::List(List::new(vec![
                     String::from("Item 1"),
                     String::from("Item 2"),
                     String::from("Item 3"),
                 ])),
                 0,
-                Type::NONE,
+                "none",
             )],
             Layout::default()
                 .direction(Direction::Vertical)
@@ -108,7 +119,7 @@ fn main() -> Result<(), io::Error> {
                     .send(Event::Kube(Kube::GetNamespaceRequest))
                     .unwrap(),
                 KeyCode::Enter
-                    if window.focus_pane_type() == Type::POD && !window.selected_popup() =>
+                    if window.selected_pane_id() == "pods" && !window.selected_popup() =>
                 {
                     tx_main
                         .send(Event::Kube(Kube::LogRequest(window.selected_pod())))
@@ -117,7 +128,7 @@ fn main() -> Result<(), io::Error> {
 
                 KeyCode::Enter if window.selected_popup() => {
                     let popup = window.popup().unwrap();
-                    let ns = popup.widget().namespace().unwrap();
+                    let ns = popup.widget().list().unwrap();
                     let index = ns.state().borrow().selected();
                     let select = ns.items()[index.unwrap()].clone();
                     tx_main
@@ -148,7 +159,7 @@ fn main() -> Result<(), io::Error> {
                     window.select_popup();
                 }
                 Kube::LogResponse(log) => {
-                    window.update_pod_logs(log);
+                    update_pod_logs(&mut window, log);
                 }
                 _ => {}
             },

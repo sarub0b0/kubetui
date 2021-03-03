@@ -1,4 +1,4 @@
-use super::{tab::*, Pane, Popup, Status, Type};
+use super::{tab::*, Pane, Popup};
 use crate::widget::WidgetTrait;
 
 use std::cell::RefCell;
@@ -13,9 +13,12 @@ pub struct Window<'a> {
     selected_tab_index: usize,
     layout: Layout,
     chunk: Rect,
-    status: Status,
 }
 
+// Private
+impl<'a> Window<'a> {}
+
+// Public
 impl<'a> Window<'a> {
     pub fn new(tabs: Vec<Tab<'a>>) -> Self {
         Self {
@@ -39,8 +42,19 @@ impl<'a> Window<'a> {
         self.layout.split(self.chunk)
     }
 
-    pub fn selected_tab_index(&self) -> usize {
-        self.selected_tab_index
+    pub fn selected_tab(&self) -> &Tab {
+        &self.tabs[self.selected_tab_index]
+    }
+
+    pub fn selected_tab_mut(&mut self) -> &mut Tab<'a> {
+        &mut self.tabs[self.selected_tab_index]
+    }
+
+    pub fn select_tab(&mut self, index: usize) {
+        let index = index - 1;
+        if index < self.tabs.len() {
+            self.selected_tab_index = index;
+        }
     }
 
     pub fn select_next_tab(&mut self) {
@@ -51,12 +65,12 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn selected_tab(&self) -> &Tab {
-        &self.tabs[self.selected_tab_index]
-    }
-
-    pub fn selected_tab_mut(&mut self) -> &mut Tab<'a> {
-        &mut self.tabs[self.selected_tab_index]
+    pub fn select_prev_tab(&mut self) {
+        if 0 == self.selected_tab_index {
+            self.selected_tab_index = self.tabs.len() - 1;
+        } else {
+            self.selected_tab_index -= 1;
+        }
     }
 
     pub fn select_next_pane(&mut self) {
@@ -75,13 +89,6 @@ impl<'a> Window<'a> {
         self.selected_tab_mut().select_pane_prev_item();
     }
 
-    pub fn select_tab(&mut self, index: usize) {
-        let index = index - 1;
-        if index < self.tabs.len() {
-            self.selected_tab_index = index;
-        }
-    }
-
     pub fn select_first_item(&mut self) {
         self.selected_tab_mut().select_pane_first_item();
     }
@@ -90,12 +97,12 @@ impl<'a> Window<'a> {
         self.selected_tab_mut().select_pane_last_item();
     }
 
-    pub fn focus_pane_type(&self) -> Type {
-        self.selected_tab().selected_pane_type()
+    pub fn selected_pane_id(&self) -> &str {
+        self.selected_tab().selected_pane_id()
     }
 
     pub fn update_pod_status(&mut self, info: Vec<String>) {
-        let pane = self.pane_mut(Type::POD);
+        let pane = self.pane_mut("pods");
 
         if let Some(p) = pane {
             let pod = p.widget_mut();
@@ -103,20 +110,10 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn update_pod_logs(&mut self, logs: Vec<String>) {
-        let pane = self.pane_mut(Type::LOG);
-        if let Some(p) = pane {
-            let rect = p.chunk();
-            let log = p.widget_mut().log_mut().unwrap();
-            log.set_items(logs.to_vec());
-            log.update_spans(rect.width);
-            log.update_rows_size(rect.height);
-        }
-    }
-
-    fn pane_mut(&mut self, ty: Type) -> Option<&mut Pane<'a>> {
+    pub fn pane_mut(&mut self, id: impl Into<String>) -> Option<&mut Pane<'a>> {
+        let id = id.into();
         for t in &mut self.tabs {
-            return t.panes_mut().iter_mut().find(|p| p.ty() == ty);
+            return t.panes_mut().iter_mut().find(|p| p.id() == id);
         }
         None
     }
@@ -125,13 +122,13 @@ impl<'a> Window<'a> {
         let pane = self.selected_tab().selected_pane();
         let selected_index = pane
             .widget()
-            .pod()
+            .list()
             .unwrap()
             .state()
             .borrow()
             .selected()
             .unwrap();
-        let split: Vec<&str> = pane.widget().pod().unwrap().items()[selected_index]
+        let split: Vec<&str> = pane.widget().list().unwrap().items()[selected_index]
             .split(' ')
             .collect();
         split[0].to_string()
@@ -148,7 +145,7 @@ impl<'a> Window<'a> {
 
         Tabs::new(titles)
             .block(block)
-            .select(self.selected_tab_index())
+            .select(self.selected_tab_index)
             .highlight_style(Style::default().fg(Color::White).bg(Color::LightBlue))
     }
 
@@ -157,17 +154,17 @@ impl<'a> Window<'a> {
     }
 
     pub fn log_status(&self) -> (u16, u16) {
-        match self.selected_tab().selected_pane().widget().log() {
+        match self.selected_tab().selected_pane().widget().text() {
             Some(log) => (log.selected(), log.row_size()),
             None => (0, 0),
         }
     }
 
     pub fn update_wrap(&mut self) {
-        let pane = self.pane_mut(Type::LOG);
+        let pane = self.pane_mut("logs");
         if let Some(p) = pane {
             let rect = p.chunk();
-            let log = p.widget_mut().log_mut().unwrap();
+            let log = p.widget_mut().text_mut().unwrap();
             log.update_spans(rect.width);
             log.update_rows_size(rect.height);
         }
@@ -175,24 +172,24 @@ impl<'a> Window<'a> {
 
     pub fn scroll_up(&mut self) {
         let pane = self.selected_tab_mut().selected_pane_mut();
-        if pane.ty() != Type::LOG {
+        if pane.id() != "logs" {
             return;
         }
 
         let ch = pane.chunk();
-        if let Some(log) = pane.widget_mut().log_mut() {
+        if let Some(log) = pane.widget_mut().text_mut() {
             (0..ch.height).for_each(|_| log.prev());
         }
     }
 
     pub fn scroll_down(&mut self) {
         let pane = self.selected_tab_mut().selected_pane_mut();
-        if pane.ty() != Type::LOG {
+        if pane.id() != "logs" {
             return;
         }
 
         let ch = pane.chunk();
-        if let Some(log) = pane.widget_mut().log_mut() {
+        if let Some(log) = pane.widget_mut().text_mut() {
             (0..ch.height).for_each(|_| log.next());
         }
     }
@@ -201,7 +198,7 @@ impl<'a> Window<'a> {
         if let Some(items) = items {
             let popup = self.selected_tab_mut().popup_mut();
             if let Some(popup) = popup {
-                let ns = popup.widget_mut().namespace_mut();
+                let ns = popup.widget_mut().list_mut();
                 if let Some(ns) = ns {
                     ns.set_items(items);
                 }
@@ -243,7 +240,6 @@ impl Default for Window<'_> {
             selected_tab_index: 0,
             layout,
             chunk: Rect::default(),
-            status: Status::new(),
         }
     }
 }

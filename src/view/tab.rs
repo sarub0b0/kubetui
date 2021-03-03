@@ -1,4 +1,4 @@
-use super::{pane::Pane, Popup, Type};
+use super::{pane::Pane, Popup};
 
 use crate::widget::*;
 use tui::layout::{Constraint, Direction, Layout, Rect};
@@ -115,8 +115,8 @@ impl<'a> Tab<'a> {
         }
     }
 
-    pub fn selected_pane_type(&self) -> Type {
-        self.selected_pane().ty()
+    pub fn selected_pane_id(&self) -> &str {
+        self.selected_pane().id()
     }
 
     pub fn selected_pane_mut(&mut self) -> &mut Pane<'a> {
