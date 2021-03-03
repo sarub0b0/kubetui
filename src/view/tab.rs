@@ -45,7 +45,7 @@ impl<'a> Tab<'a> {
         self.layout.split(tab_size)
     }
 
-    pub fn panes(&self) -> &Vec<Pane> {
+    pub fn panes(&self) -> &Vec<Pane<'a>> {
         &self.panes
     }
 
