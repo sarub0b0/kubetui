@@ -209,7 +209,7 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn popup(&self) -> &Option<Popup> {
+    pub fn popup(&self) -> Option<&Popup> {
         self.selected_tab().popup()
     }
 

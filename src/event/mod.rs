@@ -14,7 +14,9 @@ pub enum Event {
 
 pub enum Kube {
     Pod(Vec<String>),
-    Namespace(Option<Vec<String>>),
+    GetNamespaceRequest,
+    GetNamespaceResponse(Option<Vec<String>>),
+    SetNamespace(String),
     LogRequest(String),
     LogResponse(Vec<String>),
 }

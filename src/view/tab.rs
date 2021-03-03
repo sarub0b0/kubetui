@@ -161,8 +161,11 @@ impl<'a> Tab<'a> {
         }
     }
 
-    pub fn popup(&self) -> &Option<Popup<'a>> {
-        &self.popup
+    pub fn popup(&self) -> Option<&Popup<'a>> {
+        match &self.popup {
+            Some(p) => Some(&p),
+            None => None,
+        }
     }
     pub fn popup_mut(&mut self) -> &mut Option<Popup<'a>> {
         &mut self.popup

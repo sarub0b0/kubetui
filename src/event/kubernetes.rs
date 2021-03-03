@@ -88,8 +88,16 @@ async fn event_loop(
         let ev = rx.recv().unwrap();
         match ev {
             Event::Kube(ev) => match ev {
-                Kube::Namespace(_) => tx_ns
-                    .send(Event::Kube(Kube::Namespace(get_namespace_list())))
+                Kube::SetNamespace(ns) => {
+                    let selectd_ns = ns.clone();
+                    let mut ns = namespace.write().unwrap();
+                    *ns = selectd_ns;
+                }
+
+                Kube::GetNamespaceRequest => tx_ns
+                    .send(Event::Kube(
+                        Kube::GetNamespaceResponse(get_namespace_list()),
+                    ))
                     .unwrap(),
 
                 Kube::LogRequest(pod_name) => {

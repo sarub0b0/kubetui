@@ -104,16 +104,25 @@ fn main() -> Result<(), io::Error> {
                     window.select_prev_pane();
                 }
                 KeyCode::Char(n @ '1'..='9') => window.select_tab(n as usize - b'0' as usize),
-                KeyCode::Char('n') if ev.modifiers == KeyModifiers::NONE => {
-                    tx_main.send(Event::Kube(Kube::Namespace(None))).unwrap()
-                }
-                KeyCode::Enter if window.focus_pane_type() == Type::POD => {
+                KeyCode::Char('n') if ev.modifiers == KeyModifiers::NONE => tx_main
+                    .send(Event::Kube(Kube::GetNamespaceRequest))
+                    .unwrap(),
+                KeyCode::Enter
+                    if window.focus_pane_type() == Type::POD && !window.selected_popup() =>
+                {
                     tx_main
                         .send(Event::Kube(Kube::LogRequest(window.selected_pod())))
                         .unwrap();
                 }
 
                 KeyCode::Enter if window.selected_popup() => {
+                    let popup = window.popup().unwrap();
+                    let ns = popup.widget().namespace().unwrap();
+                    let index = ns.state().borrow().selected();
+                    let select = ns.items()[index.unwrap()].clone();
+                    tx_main
+                        .send(Event::Kube(Kube::SetNamespace(select)))
+                        .unwrap();
                     window.unselect_popup();
                 }
                 KeyCode::Char('q') if window.selected_popup() => {
@@ -134,7 +143,7 @@ fn main() -> Result<(), io::Error> {
                 Kube::Pod(info) => {
                     window.update_pod_status(info);
                 }
-                Kube::Namespace(ns) => {
+                Kube::GetNamespaceResponse(ns) => {
                     window.setup_namespaces_popup(ns);
                     window.select_popup();
                 }
