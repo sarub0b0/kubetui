@@ -101,15 +101,6 @@ impl<'a> Window<'a> {
         self.selected_tab().selected_pane_id()
     }
 
-    pub fn update_pod_status(&mut self, info: Vec<String>) {
-        let pane = self.pane_mut("pods");
-
-        if let Some(p) = pane {
-            let pod = p.widget_mut();
-            pod.set_items(info.to_vec());
-        }
-    }
-
     pub fn pane_mut(&mut self, id: impl Into<String>) -> Option<&mut Pane<'a>> {
         let id = id.into();
         for t in &mut self.tabs {

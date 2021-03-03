@@ -36,6 +36,15 @@ fn update_pod_logs(window: &mut Window, logs: Vec<String>) {
     }
 }
 
+pub fn update_pod_status(window: &mut Window, info: Vec<String>) {
+    let pane = window.pane_mut("pods");
+
+    if let Some(p) = pane {
+        let pod = p.widget_mut();
+        pod.set_items(info.to_vec());
+    }
+}
+
 fn main() -> Result<(), io::Error> {
     let (tx_input, rx_main): (Sender<Event>, Receiver<Event>) = unbounded();
     let (tx_main, rx_kube): (Sender<Event>, Receiver<Event>) = unbounded();
@@ -152,7 +161,7 @@ fn main() -> Result<(), io::Error> {
             Event::Tick => {}
             Event::Kube(k) => match k {
                 Kube::Pod(info) => {
-                    window.update_pod_status(info);
+                    update_pod_status(&mut window, info);
                 }
                 Kube::GetNamespaceResponse(ns) => {
                     window.setup_namespaces_popup(ns);
