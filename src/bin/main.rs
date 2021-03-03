@@ -21,9 +21,8 @@ extern crate kubetui;
 use kubetui::{
     draw::*,
     event::{input::*, kubernetes::*, tick::*, Event, Kube},
-    view::*,
-    widget::*,
 };
+use tui_wrapper::*;
 
 fn update_pod_logs(window: &mut Window, logs: Vec<String>) {
     let pane = window.pane_mut("logs");

@@ -7,6 +7,9 @@ edition = "2018"
 [build]
 rustc-wrapper = "~/.cargo/bin/sccache"
 
+[workspace]
+member = ["tui-rs-wrapper"]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -25,3 +28,5 @@ futures = "0.3.12"
 bytes = "1"
 
 crossbeam = "0.8"
+
+tui-wrapper = { path = "./tui-wrapper" }

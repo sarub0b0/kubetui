@@ -1,4 +1,4 @@
-use super::{event::*, view::*};
+use tui_wrapper::*;
 
 use std::cell::RefCell;
 use std::rc::Rc;
