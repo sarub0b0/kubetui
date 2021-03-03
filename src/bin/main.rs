@@ -36,12 +36,23 @@ fn update_pod_logs(window: &mut Window, logs: Vec<String>) {
     }
 }
 
-pub fn update_pod_status(window: &mut Window, info: Vec<String>) {
+fn update_pod_status(window: &mut Window, info: Vec<String>) {
     let pane = window.pane_mut("pods");
 
     if let Some(p) = pane {
         let pod = p.widget_mut();
         pod.set_items(info.to_vec());
+    }
+}
+fn setup_namespaces_popup(window: &mut Window, items: Option<Vec<String>>) {
+    if let Some(items) = items {
+        let popup = window.selected_tab_mut().popup_mut();
+        if let Some(popup) = popup {
+            let ns = popup.widget_mut().list_mut();
+            if let Some(ns) = ns {
+                ns.set_items(items);
+            }
+        }
     }
 }
 
@@ -164,7 +175,8 @@ fn main() -> Result<(), io::Error> {
                     update_pod_status(&mut window, info);
                 }
                 Kube::GetNamespaceResponse(ns) => {
-                    window.setup_namespaces_popup(ns);
+                    setup_namespaces_popup(&mut window, ns);
+
                     window.select_popup();
                 }
                 Kube::LogResponse(log) => {

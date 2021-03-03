@@ -125,7 +125,7 @@ impl<'a> Window<'a> {
         split[0].to_string()
     }
 
-    pub fn tabs(&self) -> Tabs {
+    pub fn widget(&self) -> Tabs {
         let titles: Vec<Spans> = self
             .tabs
             .iter()

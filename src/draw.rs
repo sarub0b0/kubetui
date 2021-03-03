@@ -49,7 +49,7 @@ use k8s_openapi::{
 };
 
 fn draw_tab<B: Backend>(f: &mut Frame<B>, window: &Window) {
-    f.render_widget(window.tabs(), window.tab_chunk());
+    f.render_widget(window.widget(), window.tab_chunk());
 }
 
 fn generate_title(title: &str, border_color: Color, selected: bool) -> Spans {
