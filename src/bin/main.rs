@@ -126,8 +126,16 @@ fn main() -> Result<(), io::Error> {
                 KeyCode::Char('p') if ev.modifiers == KeyModifiers::CONTROL => {
                     window.select_prev_item()
                 }
-                KeyCode::Char('u') if ev.modifiers == KeyModifiers::CONTROL => window.scroll_up(),
-                KeyCode::Char('d') if ev.modifiers == KeyModifiers::CONTROL => window.scroll_down(),
+                KeyCode::Char('u')
+                    if ev.modifiers == KeyModifiers::CONTROL && !window.selected_popup() =>
+                {
+                    window.scroll_up()
+                }
+                KeyCode::Char('d')
+                    if ev.modifiers == KeyModifiers::CONTROL && !window.selected_popup() =>
+                {
+                    window.scroll_down()
+                }
                 KeyCode::Tab if ev.modifiers == KeyModifiers::NONE => {
                     window.select_next_pane();
                 }
