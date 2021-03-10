@@ -64,28 +64,6 @@ impl<'a> Text<'a> {
         self.state.select(self.row_size);
     }
 
-    pub fn next(&mut self) {
-        let mut i = self.state.selected();
-
-        if self.row_size <= i {
-            i = self.row_size;
-        } else {
-            i = i + 1;
-        }
-
-        self.state.select(i);
-    }
-
-    pub fn prev(&mut self) {
-        let mut i = self.state.selected();
-        if i == 0 {
-            i = 0;
-        } else {
-            i = i - 1;
-        }
-        self.state.select(i);
-    }
-
     pub fn update_spans(&mut self, width: u16) {
         self.spans = generate_spans(&self.items, width);
     }
@@ -124,6 +102,14 @@ impl<'a> Text<'a> {
 
     pub fn row_size(&self) -> u16 {
         self.row_size
+    }
+
+    pub fn scroll_down(&mut self, index: u16) {
+        (0..index).for_each(|_| self.select_next(1));
+    }
+
+    pub fn scroll_up(&mut self, index: u16) {
+        (0..index).for_each(|_| self.select_prev(1));
     }
 }
 

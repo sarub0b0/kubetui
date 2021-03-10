@@ -1,5 +1,5 @@
 use super::{tab::*, Pane, Popup};
-use crate::widget::Widget;
+use crate::widget::{Widget, WidgetTrait};
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -139,7 +139,7 @@ impl<'a> Window<'a> {
     }
 }
 
-// widgetの状態変更
+// フォーカスしているwidgetの状態変更
 impl Window<'_> {
     pub fn select_next_item(&mut self) {
         self.selected_tab_mut().select_pane_next_item();
@@ -166,7 +166,7 @@ impl Window<'_> {
                 list.prev();
             }
             Widget::Text(text) => {
-                (0..ch.height).for_each(|_| text.prev());
+                text.scroll_up(ch.height);
             }
         }
     }
@@ -180,28 +180,22 @@ impl Window<'_> {
                 list.next();
             }
             Widget::Text(text) => {
-                (0..ch.height).for_each(|_| text.next());
+                text.scroll_down(ch.height);
             }
-        }
-    }
-}
-
-// 追い出したい
-impl Window<'_> {
-    pub fn log_status(&self) -> (u16, u16) {
-        match self.selected_tab().selected_pane().widget().text() {
-            Some(log) => (log.selected(), log.row_size()),
-            None => (0, 0),
         }
     }
 
     pub fn update_wrap(&mut self) {
-        let pane = self.pane_mut("logs");
-        if let Some(p) = pane {
-            let rect = p.chunk();
-            let log = p.widget_mut().text_mut().unwrap();
-            log.update_spans(rect.width);
-            log.update_rows_size(rect.height);
+        let panes = self.selected_tab_mut().panes_mut();
+        for pane in panes {
+            let chunk = pane.chunk();
+            match pane.widget_mut().text_mut() {
+                Some(t) => {
+                    t.update_spans(chunk.width);
+                    t.update_rows_size(chunk.height);
+                }
+                None => {}
+            }
         }
     }
 }

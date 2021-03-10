@@ -136,7 +136,12 @@ fn draw_status<B: Backend>(f: &mut Frame<B>, chunk: Rect, window: &Window) {
 
     f.render_widget(paragraph, chunks[0]);
 
-    let log_status = log_status(window.log_status());
+    let log_widget = window.selected_tab().selected_pane().widget().text();
+    let log_status = match log_widget {
+        Some(t) => log_status((t.selected(), t.row_size())),
+        None => log_status((0, 0)),
+    };
+
     let text = Spans::from(log_status);
     let block = Block::default().style(Style::default());
     let paragraph = Paragraph::new(text)
