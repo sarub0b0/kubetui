@@ -17,7 +17,9 @@ use std::{
 use crossbeam::channel::{Receiver, Sender};
 use tokio::{runtime::Runtime, task::JoinHandle};
 
-use k8s_openapi::api::core::v1::{Namespace, Pod};
+use k8s_openapi::api::core::v1::{
+    ContainerState, ContainerStateTerminated, ContainerStateWaiting, Namespace, Pod, PodStatus,
+};
 use kube::{
     api::{ListParams, LogParams, Meta},
     config::Kubeconfig,
@@ -166,13 +168,10 @@ async fn get_pod_info(client: Client, namespace: &str) -> Vec<String> {
     let mut ret: Vec<String> = Vec::new();
     for p in pods_list {
         let meta = Meta::meta(&p);
-        let status = &p.status;
         let name = meta.name.clone().unwrap();
 
-        let phase = match status {
-            Some(s) => s.phase.clone().unwrap(),
-            None => "Unknown".to_string(),
-        };
+        let phase = get_status(p.clone());
+
         let creation_timestamp: DateTime<Utc> = match &meta.creation_timestamp {
             Some(ref time) => time.0,
             None => current_datetime,
@@ -182,6 +181,136 @@ async fn get_pod_info(client: Client, namespace: &str) -> Vec<String> {
         ret.push(PodInfo::new(name, phase, age(duration)).to_string(max_name_len));
     }
     ret
+}
+
+// 参考：https://github.com/astefanutti/kubebox/blob/4ae0a2929a17c132a1ea61144e17b51f93eb602f/lib/kubernetes.js#L7
+fn get_status(pod: Pod) -> String {
+    if pod.status.is_none() {
+        return "".to_string();
+    }
+
+    let status = &pod.status.clone().unwrap();
+    let meta = Meta::meta(&pod);
+
+    if meta.deletion_timestamp.is_some() {
+        return "Terminating".to_string();
+    }
+
+    if let Some(reason) = &status.reason {
+        if reason == "Evicted" {
+            return "Evicted".to_string();
+        }
+    }
+
+    let phase = status.phase.clone().or(status.reason.clone()).unwrap();
+
+    let (initializing, mut phase) = phase_init_container(&status, phase);
+    if !initializing {
+        phase = phase_container(&status, phase);
+    }
+    return phase;
+}
+
+fn is_terminated_container(terminated: &Option<ContainerStateTerminated>) -> bool {
+    if let Some(terminated) = terminated {
+        if terminated.exit_code == 0 {
+            return true;
+        }
+    }
+    false
+}
+fn phase_init_container(status: &PodStatus, phase: impl Into<String>) -> (bool, String) {
+    let mut initializing = false;
+    let mut phase = phase.into();
+
+    if let Some(cs) = &status.init_container_statuses {
+        cs.iter().enumerate().all(|(i, c)| {
+            let state = c.state.clone().unwrap();
+
+            let (terminated, waiting) = (state.terminated, state.waiting);
+
+            if is_terminated_container(&terminated) {
+                return true;
+            }
+
+            initializing = true;
+
+            match terminated {
+                Some(terminated) => match &terminated.reason {
+                    Some(reason) => phase = format!("Init:{}", reason),
+                    None => {
+                        phase = if let Some(s) = &terminated.signal {
+                            format!("Init:Signal:{}", s)
+                        } else {
+                            format!("Init:ExitCode:{}", terminated.exit_code)
+                        };
+                    }
+                },
+                None => {
+                    if let Some(waiting) = waiting {
+                        if let Some(reason) = &waiting.reason {
+                            if reason != "PodInitializing" {
+                                phase = format!("Init:{}", reason);
+                            }
+                        }
+                    }
+                }
+            }
+            phase = format!("Init:{}/{}", i, cs.len());
+
+            false
+        });
+    }
+
+    (initializing, phase)
+}
+
+fn phase_container(status: &PodStatus, phase: impl Into<String>) -> String {
+    let mut has_running = false;
+    let mut phase = phase.into();
+
+    if let Some(cs) = &status.container_statuses {
+        cs.iter().for_each(|c| {
+            let state = c.state.clone().unwrap();
+
+            let (running, terminated, waiting) = (state.running, state.terminated, state.waiting);
+
+            let mut signal = None;
+            let mut exit_code = 0;
+
+            if let Some(terminated) = &terminated {
+                signal = terminated.signal;
+                exit_code = terminated.exit_code;
+            }
+
+            if let Some(terminated) = &terminated {
+                if let Some(reason) = &terminated.reason {
+                    phase = reason.clone();
+                };
+            } else {
+                if let Some(waiting) = &waiting {
+                    phase = match &waiting.reason {
+                        Some(reason) => reason.clone(),
+                        None => {
+                            if let Some(signal) = signal {
+                                format!("Signal:{}", signal)
+                            } else {
+                                format!("ExitCode:{}", exit_code)
+                            }
+                        }
+                    };
+                } else if running.is_some() && c.ready {
+                    has_running = true;
+                }
+            }
+        })
+    }
+
+    if phase == "Completed" && has_running {
+        phase = "Running".to_string();
+    }
+
+    return phase;
 }
 
 // TODO: spawnを削除する <20-02-21, yourname> //

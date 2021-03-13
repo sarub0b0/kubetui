@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubetui-example
+spec:
+  selector:
+    matchLabels: # or matchExpressions:
+      app: kubetui-example
+  template:
+    metadata:
+      labels:
+        app: kubetui-example
+    spec:
+      initContainers:
+        - name: init-0
+          image: busybox
+          command:
+            - sleep
+            - "10"
+        - name: init-1
+          image: busybox
+          command:
+            - sleep
+            - "10"
+      containers:
+        - name: app
+          image: nginx
