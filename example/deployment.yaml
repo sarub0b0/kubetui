@@ -16,12 +16,12 @@ spec:
           image: busybox
           command:
             - sleep
-            - "10"
+            - "5"
         - name: init-1
           image: busybox
           command:
             - sleep
-            - "10"
+            - "5"
       containers:
         - name: app
           image: nginx
