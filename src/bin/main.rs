@@ -88,20 +88,19 @@ fn main() -> Result<(), io::Error> {
             )),
         ),
         Tab::new(
-            "Tab 1",
-            vec![Pane::new(
-                "List 0",
-                Widget::List(List::new(vec![
-                    String::from("Item 1"),
-                    String::from("Item 2"),
-                    String::from("Item 3"),
-                ])),
-                0,
-                "none",
-            )],
+            "2:ConfigMap/Secret",
+            vec![
+                Pane::new("Configs", Widget::List(List::new(vec![])), 0, "configs"),
+                Pane::new(
+                    "Raw Data",
+                    Widget::Text(Text::new(vec![])),
+                    1,
+                    "configs-raw-data",
+                ),
+            ],
             Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([Constraint::Percentage(50)].as_ref()),
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Length(30), Constraint::Min(10)].as_ref()),
             None,
         ),
     ];

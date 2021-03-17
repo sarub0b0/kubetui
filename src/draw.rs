@@ -99,6 +99,20 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, tab: &Tab) {
                 let log = pane.widget().text().unwrap();
                 f.render_widget(log.widget(block), pane.chunk());
             }
+            "configs" => {
+                let configs = pane.widget().list().unwrap();
+
+                f.render_stateful_widget(
+                    configs.widget(block),
+                    pane.chunk(),
+                    &mut configs.state().borrow_mut(),
+                );
+            }
+            "configs-raw-data" => {
+                let raw = pane.widget().text().unwrap();
+                f.render_widget(raw.widget(block), pane.chunk());
+            }
+
             _ => {}
         }
     }
