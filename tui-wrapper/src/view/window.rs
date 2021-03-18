@@ -114,14 +114,20 @@ impl<'a> Window<'a> {
     pub fn pane(&self, id: impl Into<String>) -> Option<&Pane<'a>> {
         let id = id.into();
         for t in &self.tabs {
-            return t.panes().iter().find(|p| p.id() == id);
+            let p = t.panes().iter().find(|p| p.id() == id);
+            if p.is_some() {
+                return p;
+            }
         }
         None
     }
     pub fn pane_mut(&mut self, id: impl Into<String>) -> Option<&mut Pane<'a>> {
         let id = id.into();
         for t in &mut self.tabs {
-            return t.panes_mut().iter_mut().find(|p| p.id() == id);
+            let p = t.panes_mut().iter_mut().find(|p| p.id() == id);
+            if p.is_some() {
+                return p;
+            }
         }
         None
     }
