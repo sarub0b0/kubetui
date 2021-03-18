@@ -40,13 +40,14 @@ impl PodInfo {
         Self { name, phase, age }
     }
 
-    fn to_string(&self, width: usize) -> String {
+    fn to_string(&self, width_name: usize, width_phase: usize) -> String {
         format!(
-            "{:width$} {}    {}",
+            "{:width_name$}{:width_phase$}{}",
             self.name,
             self.phase,
             self.age,
-            width = width + 4
+            width_name = width_name + 2,
+            width_phase = width_phase + 2,
         )
     }
 }
@@ -158,19 +159,14 @@ async fn get_pod_info(client: Client, namespace: &str) -> Vec<String> {
 
     let pods_list = pods.list(&lp).await.unwrap();
 
-    let max_name_len = match pods_list
-        .iter()
-        .max_by(|r, l| r.name().len().cmp(&l.name().len()))
-    {
-        Some(pod) => pod.name().len(),
-        None => 0,
-    };
-
     let current_datetime: DateTime<Utc> = Utc::now();
 
-    let mut ret: Vec<String> = Vec::new();
-    for p in pods_list {
-        let meta = Meta::meta(&p);
+    let mut max_name_len = 0;
+    let mut max_phase_len = 0;
+
+    let mut pod_infos = Vec::new();
+    for p in &pods_list {
+        let meta = Meta::meta(p);
         let name = meta.name.clone().unwrap();
 
         let phase = get_status(p.clone());
@@ -181,9 +177,20 @@ async fn get_pod_info(client: Client, namespace: &str) -> Vec<String> {
         };
         let duration: Duration = current_datetime - creation_timestamp;
 
-        ret.push(PodInfo::new(name, phase, age(duration)).to_string(max_name_len));
+        if max_name_len < name.len() {
+            max_name_len = name.len();
+        }
+
+        if max_phase_len < phase.len() {
+            max_phase_len = phase.len();
+        }
+        pod_infos.push(PodInfo::new(name, phase, age(duration)));
     }
-    ret
+
+    pod_infos
+        .iter()
+        .map(|p| p.to_string(max_name_len, max_phase_len))
+        .collect()
 }
 
 // 参考：https://github.com/astefanutti/kubebox/blob/4ae0a2929a17c132a1ea61144e17b51f93eb602f/lib/kubernetes.js#L7
