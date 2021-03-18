@@ -17,6 +17,12 @@ pub enum Kube {
     GetNamespaceRequest,
     GetNamespaceResponse(Option<Vec<String>>),
     SetNamespace(String),
+    // Pod Logs
     LogRequest(String),
     LogResponse(Vec<String>),
+    // ConfigMap & Secret
+    StartConfigsGet,
+    StopConfigsGet,
+    ConfigRequest(String),
+    ConfigResponse(Vec<String>),
 }
