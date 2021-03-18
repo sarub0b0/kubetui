@@ -101,7 +101,11 @@ fn main() -> Result<(), io::Error> {
             Layout::default()
                 .direction(Direction::Horizontal)
                 .constraints([Constraint::Length(30), Constraint::Min(10)].as_ref()),
-            None,
+            Some(Popup::new(
+                "Namespace",
+                Widget::List(List::new(vec![])),
+                "namespace",
+            )),
         ),
     ];
 
@@ -122,8 +126,12 @@ fn main() -> Result<(), io::Error> {
                         break;
                     }
                 }
-                KeyCode::Char('j') | KeyCode::Down => window.select_next_item(),
-                KeyCode::Char('k') | KeyCode::Up => window.select_prev_item(),
+                KeyCode::Char('j') | KeyCode::Down => {
+                    window.select_next_item();
+                }
+                KeyCode::Char('k') | KeyCode::Up => {
+                    window.select_prev_item();
+                }
                 KeyCode::Char('n') if ev.modifiers == KeyModifiers::CONTROL => {
                     window.select_next_item()
                 }
@@ -146,16 +154,15 @@ fn main() -> Result<(), io::Error> {
                 KeyCode::BackTab | KeyCode::Tab if ev.modifiers == KeyModifiers::SHIFT => {
                     window.select_prev_pane();
                 }
-                KeyCode::Char(n @ '1'..='9') => window.select_tab(n as usize - b'0' as usize),
-                KeyCode::Char('n') => tx_main
-                    .send(Event::Kube(Kube::GetNamespaceRequest))
-                    .unwrap(),
+                KeyCode::Char(n @ '1'..='9') => {
+                    window.select_tab(n as usize - b'0' as usize);
+                }
+                KeyCode::Char('n') => {
+                    tx_main
+                        .send(Event::Kube(Kube::GetNamespaceRequest))
+                        .unwrap();
+                }
                 KeyCode::Enter => {
-                    if window.selected_pane_id() == "pods" && !window.selected_popup() {
-                        tx_main
-                            .send(Event::Kube(Kube::LogRequest(window.selected_pod())))
-                            .unwrap();
-                    }
                     if window.selected_popup() {
                         let popup = window.popup().unwrap();
                         let ns = popup.widget().list().unwrap();
@@ -165,11 +172,25 @@ fn main() -> Result<(), io::Error> {
                             .send(Event::Kube(Kube::SetNamespace(select)))
                             .unwrap();
                         window.unselect_popup();
+                    } else {
+                        match window.selected_pane_id() {
+                            "pods" => {
+                                tx_main
+                                    .send(Event::Kube(Kube::LogRequest(window.selected_pod())))
+                                    .unwrap();
+                            }
+                            "configs" => {}
+                            _ => {}
+                        }
                     }
                 }
 
-                KeyCode::Char('G') => window.select_last_item(),
-                KeyCode::Char('g') => window.select_first_item(),
+                KeyCode::Char('G') => {
+                    window.select_last_item();
+                }
+                KeyCode::Char('g') => {
+                    window.select_first_item();
+                }
                 KeyCode::Char(_) => {}
                 _ => {}
             },
