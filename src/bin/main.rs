@@ -12,7 +12,7 @@ use crossterm::{
 };
 
 use tui::{
-    backend::{Backend, CrosstermBackend},
+    backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Rect},
     Terminal,
 };
@@ -150,9 +150,24 @@ fn main() -> Result<(), io::Error> {
                 }
                 KeyCode::Tab if ev.modifiers == KeyModifiers::NONE => {
                     window.select_next_pane();
+
+                    if window.selected_pane_id() == "configs"
+                        || window.selected_pane_id() == "configs-raw-data"
+                    {
+                        tx_main.send(Event::Kube(Kube::StartConfigsGet)).unwrap();
+                    } else {
+                        tx_main.send(Event::Kube(Kube::StopConfigsGet)).unwrap();
+                    }
                 }
                 KeyCode::BackTab | KeyCode::Tab if ev.modifiers == KeyModifiers::SHIFT => {
                     window.select_prev_pane();
+                    if window.selected_pane_id() == "configs"
+                        || window.selected_pane_id() == "configs-raw-data"
+                    {
+                        tx_main.send(Event::Kube(Kube::StartConfigsGet)).unwrap();
+                    } else {
+                        tx_main.send(Event::Kube(Kube::StopConfigsGet)).unwrap();
+                    }
                 }
                 KeyCode::Char(n @ '1'..='9') => {
                     window.select_tab(n as usize - b'0' as usize);
