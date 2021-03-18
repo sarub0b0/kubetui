@@ -23,6 +23,5 @@ pub enum Kube {
     // ConfigMap & Secret
     StartConfigsGet,
     StopConfigsGet,
-    ConfigRequest(String),
-    ConfigResponse(Vec<String>),
+    Configs(Vec<String>),
 }

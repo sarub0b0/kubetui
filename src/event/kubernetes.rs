@@ -77,8 +77,10 @@ pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
 
         let pod_loop = tokio::spawn(pod_loop(tx.clone(), Arc::clone(&namespace)));
 
+        let configs_loop = tokio::spawn(configs_loop(tx.clone(), Arc::clone(&namespace)));
         event_loop.await.unwrap();
         pod_loop.await.unwrap();
+        configs_loop.await.unwrap();
     });
 }
 
@@ -128,15 +130,28 @@ async fn event_loop(
 
                     tx_log.send(Event::Kube(Kube::LogResponse(buf))).unwrap();
                 }
-                _ => {
-                    unreachable!()
-                }
+                _ => {}
             },
-            _ => {
-                unreachable!()
-            }
+            _ => {}
         }
     }
+}
+
+async fn configs_loop(tx: Sender<Event>, namespace: Arc<RwLock<String>>) {
+    let client = Client::try_default().await.unwrap();
+
+    let mut interval = tokio::time::interval(time::Duration::from_secs(1));
+
+    loop {
+        interval.tick().await;
+        let namespace = namespace.read().unwrap().clone();
+        let configs = get_configs(client.clone(), &namespace).await;
+        tx.send(Event::Kube(Kube::Configs(configs))).unwrap();
+    }
+}
+
+async fn get_configs(_client: Client, _namespace: &str) -> Vec<String> {
+    vec!["hoge".to_string(), "hoge".to_string()]
 }
 
 async fn pod_loop(tx: Sender<Event>, namespace: Arc<RwLock<String>>) {

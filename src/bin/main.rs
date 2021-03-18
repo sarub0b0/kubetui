@@ -43,6 +43,14 @@ fn update_pod_status(window: &mut Window, info: Vec<String>) {
         pod.set_items(info.to_vec());
     }
 }
+fn update_configs(window: &mut Window, configs: Vec<String>) {
+    let pane = window.pane_mut("configs");
+
+    if let Some(p) = pane {
+        let widget = p.widget_mut();
+        widget.set_items(configs.to_vec());
+    }
+}
 fn setup_namespaces_popup(window: &mut Window, items: Option<Vec<String>>) {
     if let Some(items) = items {
         let popup = window.selected_tab_mut().popup_mut();
@@ -95,7 +103,7 @@ fn main() -> Result<(), io::Error> {
                     "Raw Data",
                     Widget::Text(Text::new(vec![])),
                     1,
-                    "configs-raw-data",
+                    "configs-raw",
                 ),
             ],
             Layout::default()
@@ -150,24 +158,9 @@ fn main() -> Result<(), io::Error> {
                 }
                 KeyCode::Tab if ev.modifiers == KeyModifiers::NONE => {
                     window.select_next_pane();
-
-                    if window.selected_pane_id() == "configs"
-                        || window.selected_pane_id() == "configs-raw-data"
-                    {
-                        tx_main.send(Event::Kube(Kube::StartConfigsGet)).unwrap();
-                    } else {
-                        tx_main.send(Event::Kube(Kube::StopConfigsGet)).unwrap();
-                    }
                 }
                 KeyCode::BackTab | KeyCode::Tab if ev.modifiers == KeyModifiers::SHIFT => {
                     window.select_prev_pane();
-                    if window.selected_pane_id() == "configs"
-                        || window.selected_pane_id() == "configs-raw-data"
-                    {
-                        tx_main.send(Event::Kube(Kube::StartConfigsGet)).unwrap();
-                    } else {
-                        tx_main.send(Event::Kube(Kube::StopConfigsGet)).unwrap();
-                    }
                 }
                 KeyCode::Char(n @ '1'..='9') => {
                     window.select_tab(n as usize - b'0' as usize);
@@ -218,6 +211,10 @@ fn main() -> Result<(), io::Error> {
             Event::Kube(k) => match k {
                 Kube::Pod(info) => {
                     update_pod_status(&mut window, info);
+                }
+
+                Kube::Configs(configs) => {
+                    update_configs(&mut window, configs);
                 }
                 Kube::GetNamespaceResponse(ns) => {
                     setup_namespaces_popup(&mut window, ns);

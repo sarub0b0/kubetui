@@ -108,7 +108,7 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, tab: &Tab) {
                     &mut configs.state().borrow_mut(),
                 );
             }
-            "configs-raw-data" => {
+            "configs-raw" => {
                 let raw = pane.widget().text().unwrap();
                 f.render_widget(raw.widget(block), pane.chunk());
             }
