@@ -18,7 +18,8 @@ use crossbeam::channel::{Receiver, Sender};
 use tokio::{runtime::Runtime, task::JoinHandle};
 
 use k8s_openapi::api::core::v1::{
-    ContainerState, ContainerStateTerminated, ContainerStateWaiting, Namespace, Pod, PodStatus,
+    ConfigMap, ContainerState, ContainerStateTerminated, ContainerStateWaiting, Namespace, Pod,
+    PodStatus, Secret,
 };
 
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
@@ -150,8 +151,36 @@ async fn configs_loop(tx: Sender<Event>, namespace: Arc<RwLock<String>>) {
     }
 }
 
-async fn get_configs(_client: Client, _namespace: &str) -> Vec<String> {
-    vec!["hoge".to_string(), "hoge".to_string()]
+async fn get_configs(client: Client, namespace: &str) -> Vec<String> {
+    let configmaps: Api<ConfigMap> = Api::namespaced(client.clone(), namespace);
+
+    let lp = ListParams::default();
+
+    let configmap_list = configmaps.list(&lp).await.unwrap();
+
+    let mut ret = Vec::new();
+
+    for cm in configmap_list {
+        let meta = Meta::meta(&cm);
+        let name = meta.name.clone().unwrap();
+
+        ret.push(format!("ConfigMap│ {}", name));
+    }
+
+    let secrets: Api<Secret> = Api::namespaced(client, namespace);
+
+    let lp = ListParams::default();
+
+    let secret_list = secrets.list(&lp).await.unwrap();
+
+    for secret in secret_list {
+        let meta = Meta::meta(&secret);
+        let name = meta.name.clone().unwrap();
+
+        ret.push(format!("Secret   │ {}", name));
+    }
+
+    ret
 }
 
 async fn pod_loop(tx: Sender<Event>, namespace: Arc<RwLock<String>>) {

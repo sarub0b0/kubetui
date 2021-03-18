@@ -107,8 +107,8 @@ fn main() -> Result<(), io::Error> {
                 ),
             ],
             Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints([Constraint::Length(30), Constraint::Min(10)].as_ref()),
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()),
             Some(Popup::new(
                 "Namespace",
                 Widget::List(List::new(vec![])),
