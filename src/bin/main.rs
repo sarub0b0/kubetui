@@ -88,7 +88,7 @@ fn main() -> Result<(), io::Error> {
             )),
         ),
         Tab::new(
-            "2:ConfigMap/Secret",
+            "2:Configs",
             vec![
                 Pane::new("Configs", Widget::List(List::new(vec![])), 0, "configs"),
                 Pane::new(
