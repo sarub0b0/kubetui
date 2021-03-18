@@ -1,15 +1,15 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kubetui-example
+  name: kubetui-running
 spec:
   selector:
     matchLabels: # or matchExpressions:
-      app: kubetui-example
+      app: kubetui-running
   template:
     metadata:
       labels:
-        app: kubetui-example
+        app: kubetui-running
     spec:
       initContainers:
         - name: init-0
