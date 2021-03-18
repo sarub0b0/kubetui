@@ -5,7 +5,7 @@ use std::rc::Rc;
 use std::thread;
 
 #[allow(unused_imports)]
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Duration, FixedOffset, Local, Utc};
 
 #[allow(unused_imports)]
 use std::sync::{
@@ -121,7 +121,7 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, tab: &Tab) {
 fn datetime() -> Span<'static> {
     Span::raw(format!(
         " {}",
-        Utc::now().format("%Y年%m月%d日 %H時%M分%S秒")
+        Local::now().format("%Y年%m月%d日 %H時%M分%S秒")
     ))
 }
 
