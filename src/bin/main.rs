@@ -43,6 +43,7 @@ fn update_pod_status(window: &mut Window, info: Vec<String>) {
         pod.set_items(info.to_vec());
     }
 }
+
 fn update_configs(window: &mut Window, configs: Vec<String>) {
     let pane = window.pane_mut("configs");
 
@@ -51,6 +52,19 @@ fn update_configs(window: &mut Window, configs: Vec<String>) {
         widget.set_items(configs.to_vec());
     }
 }
+
+fn update_configs_raw(window: &mut Window, configs: Vec<String>) {
+    let pane = window.pane_mut("configs-raw");
+
+    if let Some(p) = pane {
+        let ch = p.chunk();
+        let widget = p.widget_mut().text_mut().unwrap();
+        widget.set_items(configs.to_vec());
+        widget.update_spans(ch.width);
+        widget.update_rows_size(ch.width);
+    }
+}
+
 fn setup_namespaces_popup(window: &mut Window, items: Option<Vec<String>>) {
     if let Some(items) = items {
         let popup = window.selected_tab_mut().popup_mut();
