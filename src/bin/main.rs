@@ -80,6 +80,23 @@ fn selected_pod(window: &Window) -> String {
         .collect();
     split[0].to_string()
 }
+
+fn selected_config(window: &Window) -> String {
+    let pane = window.pane("configs").unwrap();
+    let selected_index = pane
+        .widget()
+        .list()
+        .unwrap()
+        .state()
+        .borrow()
+        .selected()
+        .unwrap();
+    let split: Vec<&str> = pane.widget().list().unwrap().items()[selected_index]
+        .split(' ')
+        .collect();
+    split[2].to_string()
+}
+
 fn setup_namespaces_popup(window: &mut Window, items: Option<Vec<String>>) {
     if let Some(items) = items {
         let popup = window.selected_tab_mut().popup_mut();
