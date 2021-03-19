@@ -39,22 +39,6 @@ impl<'a> Window<'a> {
         self.layout.split(self.chunk)
     }
 
-    pub fn selected_pod(&self) -> String {
-        let pane = self.selected_tab().selected_pane();
-        let selected_index = pane
-            .widget()
-            .list()
-            .unwrap()
-            .state()
-            .borrow()
-            .selected()
-            .unwrap();
-        let split: Vec<&str> = pane.widget().list().unwrap().items()[selected_index]
-            .split(' ')
-            .collect();
-        split[0].to_string()
-    }
-
     pub fn widget(&self) -> Tabs {
         let titles: Vec<Spans> = self
             .tabs

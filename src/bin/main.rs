@@ -65,6 +65,21 @@ fn update_configs_raw(window: &mut Window, configs: Vec<String>) {
     }
 }
 
+fn selected_pod(window: &Window) -> String {
+    let pane = window.pane("pods").unwrap();
+    let selected_index = pane
+        .widget()
+        .list()
+        .unwrap()
+        .state()
+        .borrow()
+        .selected()
+        .unwrap();
+    let split: Vec<&str> = pane.widget().list().unwrap().items()[selected_index]
+        .split(' ')
+        .collect();
+    split[0].to_string()
+}
 fn setup_namespaces_popup(window: &mut Window, items: Option<Vec<String>>) {
     if let Some(items) = items {
         let popup = window.selected_tab_mut().popup_mut();
@@ -198,7 +213,7 @@ fn main() -> Result<(), io::Error> {
                         match window.selected_pane_id() {
                             "pods" => {
                                 tx_main
-                                    .send(Event::Kube(Kube::LogRequest(window.selected_pod())))
+                                    .send(Event::Kube(Kube::LogRequest(selected_pod(&window))))
                                     .unwrap();
                             }
                             "configs" => {}
