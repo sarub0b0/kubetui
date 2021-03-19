@@ -7,12 +7,12 @@ use chrono::{DateTime, Duration, Utc};
 use bytes::Bytes;
 use futures::{StreamExt, TryStreamExt};
 
-use std::time;
-use std::{error::Error, thread};
+use std::{error::Error, str::FromStr, thread};
 use std::{
     io::BufRead,
     sync::{Arc, RwLock},
 };
+use std::{time, vec};
 
 use crossbeam::channel::{Receiver, Sender};
 use tokio::{runtime::Runtime, task::JoinHandle};
@@ -69,12 +69,7 @@ pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
             current_context.unwrap().clone().context.namespace.unwrap(),
         ));
 
-        let event_loop = tokio::spawn(event_loop(
-            rx,
-            tx.clone(),
-            tx.clone(),
-            Arc::clone(&namespace),
-        ));
+        let event_loop = tokio::spawn(event_loop(rx, tx.clone(), Arc::clone(&namespace)));
 
         let pod_loop = tokio::spawn(pod_loop(tx.clone(), Arc::clone(&namespace)));
 
@@ -85,13 +80,11 @@ pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
     });
 }
 
-async fn event_loop(
-    rx: Receiver<Event>,
-    tx_ns: Sender<Event>,
-    tx_log: Sender<Event>,
-    namespace: Arc<RwLock<String>>,
-) {
+async fn event_loop(rx: Receiver<Event>, tx: Sender<Event>, namespace: Arc<RwLock<String>>) {
     let client = Client::try_default().await.unwrap();
+    let tx_ns = tx.clone();
+    let tx_log = tx.clone();
+    let tx_config = tx.clone();
 
     loop {
         let ev = rx.recv().unwrap();
@@ -131,6 +124,54 @@ async fn event_loop(
 
                     tx_log.send(Event::Kube(Kube::LogResponse(buf))).unwrap();
                 }
+                Kube::ConfigRequest(config) => {
+                    let client_clone = client.clone();
+                    let namespace = namespace.read().unwrap().clone();
+
+                    let split: Vec<&str> = config.split(' ').collect();
+
+                    let ty = split[0];
+                    let name = split[2];
+
+                    let ret: Vec<String> = match ty {
+                        "C" => {
+                            let cms: Api<ConfigMap> = Api::namespaced(client_clone, &namespace);
+                            let cm = cms.get(name).await.unwrap();
+                            match cm.data {
+                                Some(data) => {
+                                    data.iter().map(|(k, v)| format!("{}: {}", k, v)).collect()
+                                }
+                                None => vec!["".to_string()],
+                            }
+                        }
+                        "S" => {
+                            let secs: Api<Secret> = Api::namespaced(client_clone, &namespace);
+                            let sec = secs.get(name).await.unwrap();
+                            match sec.data {
+                                Some(data) => data
+                                    .iter()
+                                    .map(|(k, v)| {
+                                        let decode = if let Ok(b) = std::str::from_utf8(&v.0) {
+                                            b
+                                        } else {
+                                            unsafe { std::str::from_utf8_unchecked(&v.0) }
+                                        };
+
+                                        format!("{}: {}", k, decode)
+                                    })
+                                    .collect(),
+                                None => vec!["".to_string()],
+                            }
+                        }
+                        _ => {
+                            unreachable!()
+                        }
+                    };
+
+                    tx_config
+                        .send(Event::Kube(Kube::ConfigResponse(ret)))
+                        .unwrap();
+                }
                 _ => {}
             },
             _ => {}
@@ -164,7 +205,7 @@ async fn get_configs(client: Client, namespace: &str) -> Vec<String> {
         let meta = Meta::meta(&cm);
         let name = meta.name.clone().unwrap();
 
-        ret.push(format!("ConfigMap│ {}", name));
+        ret.push(format!("C │ {}", name));
     }
 
     let secrets: Api<Secret> = Api::namespaced(client, namespace);
@@ -177,7 +218,7 @@ async fn get_configs(client: Client, namespace: &str) -> Vec<String> {
         let meta = Meta::meta(&secret);
         let name = meta.name.clone().unwrap();
 
-        ret.push(format!("Secret   │ {}", name));
+        ret.push(format!("S │ {}", name));
     }
 
     ret

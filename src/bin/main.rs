@@ -91,10 +91,11 @@ fn selected_config(window: &Window) -> String {
         .borrow()
         .selected()
         .unwrap();
-    let split: Vec<&str> = pane.widget().list().unwrap().items()[selected_index]
-        .split(' ')
-        .collect();
-    split[2].to_string()
+    pane.widget().list().unwrap().items()[selected_index].clone()
+    // let split: Vec<&str> = pane.widget().list().unwrap().items()[selected_index]
+    //     .split(' ')
+    //     .collect();
+    // split[2].to_string()
 }
 
 fn setup_namespaces_popup(window: &mut Window, items: Option<Vec<String>>) {
@@ -233,7 +234,13 @@ fn main() -> Result<(), io::Error> {
                                     .send(Event::Kube(Kube::LogRequest(selected_pod(&window))))
                                     .unwrap();
                             }
-                            "configs" => {}
+                            "configs" => {
+                                tx_main
+                                    .send(Event::Kube(Kube::ConfigRequest(selected_config(
+                                        &window,
+                                    ))))
+                                    .unwrap();
+                            }
                             _ => {}
                         }
                     }
@@ -269,6 +276,9 @@ fn main() -> Result<(), io::Error> {
                 }
                 Kube::LogResponse(log) => {
                     update_pod_logs(&mut window, log);
+                }
+                Kube::ConfigResponse(raw) => {
+                    update_configs_raw(&mut window, raw);
                 }
                 _ => {}
             },

@@ -13,15 +13,15 @@ pub enum Event {
 }
 
 pub enum Kube {
-    Pod(Vec<String>),
     GetNamespaceRequest,
     GetNamespaceResponse(Option<Vec<String>>),
     SetNamespace(String),
     // Pod Logs
+    Pod(Vec<String>),
     LogRequest(String),
     LogResponse(Vec<String>),
     // ConfigMap & Secret
-    StartConfigsGet,
-    StopConfigsGet,
     Configs(Vec<String>),
+    ConfigRequest(String),
+    ConfigResponse(Vec<String>),
 }
