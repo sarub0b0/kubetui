@@ -174,7 +174,7 @@ mod tests {
 
         list.prev();
         list.prev();
-        assert_eq!(Some(1), list.selected())
+        assert_eq!(Some(0), list.selected())
     }
     #[test]
     fn one_next_is_selected_second_index() {
@@ -199,6 +199,6 @@ mod tests {
         list.next();
         list.next();
         list.next();
-        assert_eq!(Some(0), list.selected())
+        assert_eq!(Some(2), list.selected())
     }
 }
