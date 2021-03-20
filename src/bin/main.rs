@@ -61,7 +61,7 @@ fn update_configs_raw(window: &mut Window, configs: Vec<String>) {
         let widget = p.widget_mut().text_mut().unwrap();
         widget.set_items(configs.to_vec());
         widget.update_spans(ch.width);
-        widget.update_rows_size(ch.width);
+        widget.update_rows_size(ch.height);
     }
 }
 

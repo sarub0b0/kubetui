@@ -71,8 +71,10 @@ impl<'a> Text<'a> {
     pub fn update_rows_size(&mut self, height: u16) {
         let mut count = self.spans.len() as u16;
 
+        let height = height - 2; // 2: border-line
+
         if height < count {
-            count -= height - 1;
+            count -= height;
         } else {
             count = 0
         }
@@ -182,24 +184,33 @@ fn wrap(origin: &Vec<String>, width: u16) -> Vec<String> {
     let w = width as usize - 2;
 
     let mut ret = Vec::new();
+
     for t in origin.iter() {
-        let len = t.chars().count();
+        if t.len() == 0 {
+            ret.push("".to_string());
+            continue;
+        }
 
-        if w < len {
-            let crs = len / w;
-            for i in 0..=crs {
-                let tmp = t.clone();
-                let start = w * i;
-                let mut end = w * (i + 1);
+        let lines = t.lines();
 
-                if len <= end {
-                    end = len
+        for l in lines {
+            let len = l.chars().count();
+            let tmp = l;
+            if w < len {
+                let crs = len / w;
+                for i in 0..=crs {
+                    let start = w * i;
+                    let mut end = w * (i + 1);
+
+                    if len <= end {
+                        end = len
+                    }
+
+                    ret.push(String::from(&tmp[start..end]));
                 }
-
-                ret.push(String::from(&tmp[start..end]) + "\n");
+            } else {
+                ret.push(l.to_string());
             }
-        } else {
-            ret.push(t.clone());
         }
     }
 
@@ -247,13 +258,81 @@ fn generate_spans<'a>(text: &Vec<String>, width: u16) -> Vec<Spans<'a>> {
         .collect()
 }
 
-#[test]
-fn parse_ansi_escape_colors() {
-    let text = vec![
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wrap_only_newline() {
+        let text = vec!["hoge".to_string(), "".to_string(), "hoge".to_string()];
+
+        assert_eq!(
+            wrap(&text, 100),
+            vec!["hoge".to_string(), "".to_string(), "hoge".to_string()]
+        );
+    }
+
+    #[test]
+    fn wrap_short() {
+        let text = vec!["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string()];
+
+        assert_eq!(
+            wrap(&text, 100),
+            vec!["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string()]
+        );
+    }
+
+    #[test]
+    fn wrap_long() {
+        let text = vec!["aaaaaaaaaaaaaaa".to_string()];
+
+        assert_eq!(
+            wrap(&text, 10),
+            vec!["aaaaaaaa".to_string(), "aaaaaaa".to_string()]
+        );
+    }
+    #[test]
+    fn wrap_too_long_0() {
+        let text = vec!["aaaaaaaaaaaaaa".to_string()];
+
+        assert_eq!(
+            wrap(&text, 5),
+            vec![
+                "aaa".to_string(),
+                "aaa".to_string(),
+                "aaa".to_string(),
+                "aaa".to_string(),
+                "aa".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn wrap_too_long_1() {
+        let text = vec!["123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n".to_string()];
+
+        assert_eq!(
+            wrap(&text, 12),
+            vec![
+                "123456789".to_string(),
+                "123456789".to_string(),
+                "123456789".to_string(),
+                "123456789".to_string(),
+                "123456789".to_string(),
+                "123456789".to_string(),
+                "123456789".to_string(),
+                "123456789".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn spans() {
+        let text = vec![
             "> taskbox@0.1.0 start /app",
             "> react-scripts start",
             "",
-            "\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: Project is running at http://10.1.157.32/",
+            "\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: Project is running at http://10.1.157.9/",
             "\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: webpack output is served from",
             "\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: Content not from webpack is served from /app/public",
             "\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: 404s will fallback to /",
@@ -264,11 +343,70 @@ fn parse_ansi_escape_colors() {
             "You can now view taskbox in the browser.",
             "",
             "  Local:            http://localhost:3000",
-            "  On Your Network:  http://10.1.157.32:3000",
+            "  On Your Network:  http://10.1.157.9:3000",
             "",
             "Note that the development build is not optimized.",
             "To create a production build, use npm run build.",
         ];
 
-    println!("{:?}", text);
+        let wrapped = wrap(&text.iter().cloned().map(String::from).collect(), 100);
+
+        let expected = vec![
+            Spans::from("> taskbox@0.1.0 start /app"),
+            Spans::from("> react-scripts start"),
+            Spans::from(""),
+            Spans::from(vec![
+                Span::styled("ℹ", Style::default().fg(Color::Blue)),
+                Span::styled(" ", Style::default().fg(Color::Reset)),
+                Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    ": Project is running at http://10.1.157.9/",
+                    Style::default().fg(Color::Reset),
+                ),
+            ]),
+            Spans::from(vec![
+                Span::styled("ℹ", Style::default().fg(Color::Blue)),
+                Span::styled(" ", Style::default().fg(Color::Reset)),
+                Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    ": webpack output is served from",
+                    Style::default().fg(Color::Reset),
+                ),
+            ]),
+            Spans::from(vec![
+                Span::styled("ℹ", Style::default().fg(Color::Blue)),
+                Span::styled(" ", Style::default().fg(Color::Reset)),
+                Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    ": Content not from webpack is served from /app/public",
+                    Style::default().fg(Color::Reset),
+                ),
+            ]),
+            Spans::from(vec![
+                Span::styled("ℹ", Style::default().fg(Color::Blue)),
+                Span::styled(" ", Style::default().fg(Color::Reset)),
+                Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    ": 404s will fallback to /",
+                    Style::default().fg(Color::Reset),
+                ),
+            ]),
+            Spans::from("Starting the development server..."),
+            Spans::from(""),
+            Spans::from("Compiled successfully!"),
+            Spans::from(""),
+            Spans::from("You can now view taskbox in the browser."),
+            Spans::from(""),
+            Spans::from("  Local:            http://localhost:3000"),
+            Spans::from("  On Your Network:  http://10.1.157.9:3000"),
+            Spans::from(""),
+            Spans::from("Note that the development build is not optimized."),
+            Spans::from("To create a production build, use npm run build."),
+        ];
+
+        let result = generate_spans(&wrapped, 100);
+        for (i, l) in result.iter().enumerate() {
+            assert_eq!(*l, expected[i]);
+        }
+    }
 }
