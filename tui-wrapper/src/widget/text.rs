@@ -93,10 +93,6 @@ impl<'a> Text<'a> {
         &self.items
     }
 
-    pub fn add_item(&mut self, item: impl Into<String>) {
-        self.items.push(item.into());
-    }
-
     pub fn clear(&mut self) {
         *self = Self::default();
     }
@@ -116,11 +112,36 @@ impl<'a> Text<'a> {
         self.row_size
     }
 
+    ///////////////////////////
+    // TODO いつか綺麗にする
+    ///////////////////////////
+    pub fn add_item(&mut self, item: impl Into<String>) {
+        self.items.push(item.into());
+    }
+
+    pub fn append_items(&mut self, items: &Vec<String>, width: u16, height: u16) {
+        self.items.append(&mut items.clone());
+
+        let w = width as usize - BORDER_WIDTH;
+        let wrapped = wrap(items, w);
+
+        self.spans.append(&mut generate_spans(&wrapped));
+    }
+
+    // pub fn update_span(&mut self, width: u16) {
+    //     let w = width as usize - BORDER_WIDTH;
+    //     let lines = wrap_line(&self.items[self.items.len() - 1], w);
+
+    //     self.spans.append(&mut generate_spans(&lines));
+    // }
+
     pub fn update_spans(&mut self, width: u16) {
         let w = width as usize - BORDER_WIDTH;
         let lines = wrap(&self.items, w);
+
         self.spans = generate_spans(&lines);
     }
+    ///////////////////////////
 
     pub fn update_rows_size(&mut self, height: u16) {
         let mut count = self.spans.len() as u16;
@@ -134,13 +155,6 @@ impl<'a> Text<'a> {
         }
 
         self.row_size = count;
-    }
-
-    pub fn update_span(&mut self, width: u16) {
-        let w = width as usize - BORDER_WIDTH;
-        let lines = wrap_line(&self.items[self.items.len() - 1], w);
-
-        self.spans.append(&mut generate_spans(&lines));
     }
 }
 

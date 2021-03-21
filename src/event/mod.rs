@@ -18,10 +18,8 @@ pub enum Kube {
     SetNamespace(String),
     // Pod Logs
     Pod(Vec<String>),
-    LogRequest(String),
-    LogResponse(Vec<String>),
     LogStreamRequest(String),
-    LogStreamResponse(String),
+    LogStreamResponse(Vec<String>),
     // ConfigMap & Secret
     Configs(Vec<String>),
     ConfigRequest(String),

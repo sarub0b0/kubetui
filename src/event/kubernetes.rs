@@ -4,14 +4,10 @@ use crate::util::*;
 
 use chrono::{DateTime, Duration, Utc};
 
-use bytes::Bytes;
-use futures::{FutureExt, StreamExt, TryStreamExt};
+use futures::{StreamExt, TryStreamExt};
 
-use std::{error::Error, str::FromStr, thread};
-use std::{
-    io::BufRead,
-    sync::{Arc, RwLock},
-};
+use std::sync::{Arc, RwLock};
+use std::thread;
 use std::{time, vec};
 
 use crossbeam::channel::{Receiver, Sender};
@@ -21,8 +17,7 @@ use tokio::{
 };
 
 use k8s_openapi::api::core::v1::{
-    ConfigMap, ContainerState, ContainerStateTerminated, ContainerStateWaiting, Namespace, Pod,
-    PodStatus, Secret,
+    ConfigMap, ContainerStateTerminated, Namespace, Pod, PodStatus, Secret,
 };
 
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
@@ -30,7 +25,7 @@ use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use kube::{
     api::{ListParams, LogParams, Meta},
     config::Kubeconfig,
-    Api, Client, Result,
+    Api, Client,
 };
 
 pub struct PodInfo {
@@ -55,6 +50,8 @@ impl PodInfo {
         )
     }
 }
+
+struct LogStreamHandler(JoinHandle<()>, JoinHandle<()>);
 
 pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
     let rt = Runtime::new().unwrap();
@@ -88,7 +85,7 @@ async fn event_loop(rx: Receiver<Event>, tx: Sender<Event>, namespace: Arc<RwLoc
     let tx_ns = tx.clone();
     let tx_config = tx.clone();
 
-    let mut log_stream_handle: Option<JoinHandle<()>> = None;
+    let mut log_stream_handler: Option<JoinHandle<LogStreamHandler>> = None;
     loop {
         let ev = rx.recv().unwrap();
         match ev {
@@ -105,44 +102,19 @@ async fn event_loop(rx: Receiver<Event>, tx: Sender<Event>, namespace: Arc<RwLoc
                     ))
                     .unwrap(),
 
-                Kube::LogRequest(pod_name) => {
-                    let tx_log = tx.clone();
-                    let client_clone = client.clone();
-                    let namespace = namespace.read().unwrap().clone();
-                    let pod: Api<Pod> = Api::namespaced(client_clone, &namespace);
-                    let lp = LogParams::default();
-
-                    let logs = pod.logs(&pod_name, &lp).await.unwrap();
-
-                    let buf = logs.split("\n").map(String::from).collect();
-
-                    tx_log.send(Event::Kube(Kube::LogResponse(buf))).unwrap();
-                }
-
                 Kube::LogStreamRequest(pod_name) => {
-                    if let Some(handle) = &log_stream_handle {
-                        handle.abort();
+                    if let Some(handler) = log_stream_handler {
+                        if let Ok(h) = handler.await {
+                            h.0.abort();
+                            h.1.abort();
+                        }
                     }
 
                     let ns = namespace.read().unwrap().clone();
                     let tx = tx.clone();
                     let client = client.clone();
 
-                    log_stream_handle = Some(tokio::spawn(async move {
-                        let pod: Api<Pod> = Api::namespaced(client.clone(), &ns);
-                        let mut lp = LogParams::default();
-
-                        lp.follow = true;
-
-                        let mut logs = pod.log_stream(&pod_name, &lp).await.unwrap().boxed();
-
-                        while let Some(lines) = logs.try_next().await.unwrap() {
-                            tx.send(Event::Kube(Kube::LogStreamResponse(
-                                String::from_utf8_lossy(&lines).to_string(),
-                            )))
-                            .unwrap();
-                        }
-                    }));
+                    log_stream_handler = Some(tokio::spawn(log_stream(tx, client, ns, pod_name)));
 
                     task::yield_now().await;
                 }
@@ -198,7 +170,8 @@ async fn event_loop(rx: Receiver<Event>, tx: Sender<Event>, namespace: Arc<RwLoc
 
                 Kube::GetNamespaceResponse(_) => {}
                 Kube::Pod(_) => {}
-                Kube::LogResponse(_) => {}
+                // Kube::LogResponse(_) => {}
+                // Kube::LogStreamResponse(_) => {}
                 Kube::LogStreamResponse(_) => {}
                 Kube::Configs(_) => {}
                 Kube::ConfigResponse(_) => {}
@@ -206,6 +179,47 @@ async fn event_loop(rx: Receiver<Event>, tx: Sender<Event>, namespace: Arc<RwLoc
             _ => {}
         }
     }
+}
+
+async fn log_stream(
+    tx: Sender<Event>,
+    client: Client,
+    ns: String,
+    pod_name: String,
+) -> LogStreamHandler {
+    let pod: Api<Pod> = Api::namespaced(client.clone(), &ns);
+    let mut lp = LogParams::default();
+
+    lp.follow = true;
+
+    let mut logs = pod.log_stream(&pod_name, &lp).await.unwrap().boxed();
+    // バッチでログストリームを渡す
+    let buf = Arc::new(RwLock::new(Vec::new()));
+
+    let buf_clone = Arc::clone(&buf);
+    let stream_handler = tokio::spawn(async move {
+        while let Some(line) = logs.try_next().await.unwrap() {
+            let mut buf = buf_clone.write().unwrap();
+            buf.push(String::from_utf8_lossy(&line).to_string());
+        }
+    });
+
+    let buf_clone = Arc::clone(&buf);
+    let event_handler = tokio::spawn(async move {
+        let mut interval = tokio::time::interval(time::Duration::from_millis(200));
+        loop {
+            interval.tick().await;
+            let mut buf = buf_clone.write().unwrap();
+            if !buf.is_empty() {
+                tx.send(Event::Kube(Kube::LogStreamResponse(buf.clone())))
+                    .unwrap();
+
+                buf.clear();
+            }
+        }
+    });
+
+    LogStreamHandler(stream_handler, event_handler)
 }
 
 async fn configs_loop(tx: Sender<Event>, namespace: Arc<RwLock<String>>) {

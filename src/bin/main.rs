@@ -181,6 +181,7 @@ fn main() -> Result<(), io::Error> {
 
     loop {
         terminal.draw(|f| draw(f, &mut window)).unwrap();
+
         match rx_main.recv().unwrap() {
             Event::Input(ev) => match ev.code {
                 KeyCode::Char('q') => {
@@ -239,15 +240,6 @@ fn main() -> Result<(), io::Error> {
                     } else {
                         match window.selected_pane_id() {
                             "pods" => {
-                                // tx_main
-                                //     .send(Event::Kube(Kube::LogRequest(selected_pod(&window))))
-                                //     .unwrap();
-                                // tx_main
-                                //     .send(Event::Kube(Kube::LogStreamRequest(
-                                //         "kubetui-running-759794c4b8-hhzbd".to_string(),
-                                //     )))
-                                //     .unwrap();
-
                                 let pane = window.pane_mut("logs");
                                 if let Some(p) = pane {
                                     let widget = p.widget_mut().text_mut().unwrap();
@@ -299,19 +291,14 @@ fn main() -> Result<(), io::Error> {
 
                     window.select_popup();
                 }
-                Kube::LogResponse(log) => {
-                    update_pod_logs(&mut window, log);
-                }
-
-                Kube::LogStreamResponse(log) => {
+                Kube::LogStreamResponse(logs) => {
                     let pane = window.pane_mut("logs");
                     if let Some(p) = pane {
                         let rect = p.chunk();
                         let widget = p.widget_mut().text_mut().unwrap();
                         let is_bottom = widget.is_bottom();
 
-                        widget.add_item(log);
-                        widget.update_span(rect.width);
+                        widget.append_items(&logs, rect.width, rect.height);
                         widget.update_rows_size(rect.height);
 
                         if is_bottom {
@@ -319,13 +306,13 @@ fn main() -> Result<(), io::Error> {
                         }
                     }
                 }
+
                 Kube::ConfigResponse(raw) => {
                     update_configs_raw(&mut window, raw);
                 }
 
                 Kube::GetNamespaceRequest => {}
                 Kube::SetNamespace(_) => {}
-                Kube::LogRequest(_) => {}
                 Kube::LogStreamRequest(_) => {}
                 Kube::ConfigRequest(_) => {}
             },
