@@ -92,10 +92,6 @@ fn selected_config(window: &Window) -> String {
         .selected()
         .unwrap();
     pane.widget().list().unwrap().items()[selected_index].clone()
-    // let split: Vec<&str> = pane.widget().list().unwrap().items()[selected_index]
-    //     .split(' ')
-    //     .collect();
-    // split[2].to_string()
 }
 
 fn setup_namespaces_popup(window: &mut Window, items: Option<Vec<String>>) {
