@@ -1,12 +1,10 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
-use tui::layout::Rect;
 use tui::style::{Color, Style};
 use tui::text::{Span, Spans};
 use tui::widgets::{Block, Paragraph};
 
 use super::WidgetTrait;
+
+const BORDER_WIDTH: usize = 2;
 
 pub struct Text<'a> {
     items: Vec<String>,
@@ -35,7 +33,8 @@ impl Default for TextState {
     }
 }
 
-impl<'a> Text<'a> {
+// ステート
+impl Text<'_> {
     pub fn new(items: Vec<String>) -> Self {
         Self {
             items,
@@ -68,24 +67,28 @@ impl<'a> Text<'a> {
         self.selected() == self.row_size
     }
 
-    pub fn update_spans(&mut self, width: u16) {
-        self.spans = generate_spans(&self.items, width);
+    pub fn scroll_down(&mut self, index: u16) {
+        (0..index).for_each(|_| self.select_next(1));
     }
 
-    pub fn update_rows_size(&mut self, height: u16) {
-        let mut count = self.spans.len() as u16;
+    pub fn scroll_up(&mut self, index: u16) {
+        (0..index).for_each(|_| self.select_prev(1));
+    }
+}
 
-        let height = height - 2; // 2: border-line
-
-        if height < count {
-            count -= height;
-        } else {
-            count = 0
+impl Default for Text<'_> {
+    fn default() -> Self {
+        Self {
+            items: Vec::new(),
+            state: TextState::default(),
+            spans: Vec::new(),
+            row_size: 0,
         }
-
-        self.row_size = count;
     }
+}
 
+// コンテンツ操作
+impl<'a> Text<'a> {
     pub fn items(&self) -> &Vec<String> {
         &self.items
     }
@@ -113,23 +116,31 @@ impl<'a> Text<'a> {
         self.row_size
     }
 
-    pub fn scroll_down(&mut self, index: u16) {
-        (0..index).for_each(|_| self.select_next(1));
+    pub fn update_spans(&mut self, width: u16) {
+        let w = width as usize - BORDER_WIDTH;
+        let lines = wrap(&self.items, w);
+        self.spans = generate_spans(&lines);
     }
 
-    pub fn scroll_up(&mut self, index: u16) {
-        (0..index).for_each(|_| self.select_prev(1));
-    }
-}
+    pub fn update_rows_size(&mut self, height: u16) {
+        let mut count = self.spans.len() as u16;
 
-impl Default for Text<'_> {
-    fn default() -> Self {
-        Self {
-            items: Vec::new(),
-            state: TextState::default(),
-            spans: Vec::new(),
-            row_size: 0,
+        let height = height - BORDER_WIDTH as u16; // 2: border-line
+
+        if height < count {
+            count -= height;
+        } else {
+            count = 0
         }
+
+        self.row_size = count;
+    }
+
+    pub fn update_span(&mut self, width: u16) {
+        let w = width as usize - BORDER_WIDTH;
+        let lines = wrap_line(&self.items[self.items.len() - 1], w);
+
+        self.spans.append(&mut generate_spans(&lines));
     }
 }
 
@@ -198,47 +209,49 @@ fn style(num: &str) -> Style {
     Style::default().fg(color)
 }
 
-fn wrap(origin: &Vec<String>, width: u16) -> Vec<String> {
-    let w = width as usize - 2;
-
+fn wrap(lines: &Vec<String>, width: usize) -> Vec<String> {
     let mut ret = Vec::new();
 
-    for t in origin.iter() {
-        if t.len() == 0 {
-            ret.push("".to_string());
-            continue;
-        }
-
-        let lines = t.lines();
-
-        for l in lines {
-            let len = l.chars().count();
-            let tmp = l;
-            if w < len {
-                let crs = len / w;
-                for i in 0..=crs {
-                    let start = w * i;
-                    let mut end = w * (i + 1);
-
-                    if len <= end {
-                        end = len
-                    }
-
-                    ret.push(String::from(&tmp[start..end]));
-                }
-            } else {
-                ret.push(l.to_string());
-            }
-        }
+    for line in lines.iter() {
+        ret.append(&mut wrap_line(line, width));
     }
 
     ret
 }
 
-fn generate_spans<'a>(text: &Vec<String>, width: u16) -> Vec<Spans<'a>> {
-    let texts = wrap(text, width);
+fn wrap_line(text: &String, width: usize) -> Vec<String> {
+    let mut ret = Vec::new();
+    if text.len() == 0 {
+        ret.push("".to_string());
+        return ret;
+    }
 
-    texts
+    let lines = text.lines();
+
+    for l in lines {
+        let len = l.chars().count();
+        let tmp = l;
+        if width < len {
+            let crs = len / width;
+            for i in 0..=crs {
+                let start = width * i;
+                let mut end = width * (i + 1);
+
+                if len <= end {
+                    end = len
+                }
+
+                ret.push(String::from(&tmp[start..end]));
+            }
+        } else {
+            ret.push(l.to_string());
+        }
+    }
+    ret
+}
+
+fn generate_spans<'a>(lines: &Vec<String>) -> Vec<Spans<'a>> {
+    lines
         .iter()
         .cloned()
         .map(|t| {
@@ -306,7 +319,7 @@ mod tests {
 
         assert_eq!(
             wrap(&text, 10),
-            vec!["aaaaaaaa".to_string(), "aaaaaaa".to_string()]
+            vec!["aaaaaaaaaa".to_string(), "aaaaa".to_string()]
         );
     }
     #[test]
@@ -315,13 +328,7 @@ mod tests {
 
         assert_eq!(
             wrap(&text, 5),
-            vec![
-                "aaa".to_string(),
-                "aaa".to_string(),
-                "aaa".to_string(),
-                "aaa".to_string(),
-                "aa".to_string(),
-            ]
+            vec!["aaaaa".to_string(), "aaaaa".to_string(), "aaaa".to_string(),]
         );
     }
 
@@ -422,7 +429,7 @@ mod tests {
             Spans::from("To create a production build, use npm run build."),
         ];
 
-        let result = generate_spans(&wrapped, 100);
+        let result = generate_spans(&wrapped);
         for (i, l) in result.iter().enumerate() {
             assert_eq!(*l, expected[i]);
         }

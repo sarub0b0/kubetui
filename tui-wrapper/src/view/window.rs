@@ -1,12 +1,10 @@
 use super::{tab::*, Pane, Popup};
-use crate::widget::{Widget, WidgetTrait};
+use crate::widget::Widget;
 
-use std::cell::RefCell;
-use std::rc::Rc;
 use tui::layout::{Constraint, Direction, Layout, Rect};
-use tui::style::{Color, Modifier, Style};
-use tui::text::{Span, Spans, Text};
-use tui::widgets::{Block, BorderType, Borders, List, ListItem, ListState, Tabs};
+use tui::style::{Color, Style};
+use tui::text::Spans;
+use tui::widgets::{Block, Tabs};
 
 pub struct Window<'a> {
     tabs: Vec<Tab<'a>>,

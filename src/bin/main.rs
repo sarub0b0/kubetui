@@ -309,9 +309,11 @@ fn main() -> Result<(), io::Error> {
                         let rect = p.chunk();
                         let widget = p.widget_mut().text_mut().unwrap();
                         let is_bottom = widget.is_bottom();
+
                         widget.add_item(log);
-                        widget.update_spans(rect.width);
+                        widget.update_span(rect.width);
                         widget.update_rows_size(rect.height);
+
                         if is_bottom {
                             widget.select_last();
                         }
