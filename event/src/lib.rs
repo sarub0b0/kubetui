@@ -15,8 +15,12 @@ pub enum Event {
 }
 
 pub enum Kube {
-    GetNamespaceRequest,
-    GetNamespaceResponse(Option<Vec<String>>),
+    // Context
+    CurrentContextRequest,
+    CurrentContextResponse(String, String), // current_context, namespace
+    // Namespace
+    GetNamespacesRequest,
+    GetNamespacesResponse(Option<Vec<String>>),
     SetNamespace(String),
     // Pod Logs
     Pod(Vec<String>),

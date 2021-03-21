@@ -60,16 +60,21 @@ pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
         let kubeconfig = Kubeconfig::read().unwrap();
         let current_context = kubeconfig.current_context.unwrap();
 
-        let current_context = kubeconfig
+        let named_context = kubeconfig
             .contexts
             .iter()
             .find(|n| n.name == current_context);
 
         let namespace = Arc::new(RwLock::new(
-            current_context.unwrap().clone().context.namespace.unwrap(),
+            named_context.unwrap().clone().context.namespace.unwrap(),
         ));
 
-        let event_loop = tokio::spawn(event_loop(rx, tx.clone(), Arc::clone(&namespace)));
+        let event_loop = tokio::spawn(event_loop(
+            rx,
+            tx.clone(),
+            Arc::clone(&namespace),
+            current_context,
+        ));
 
         let pod_loop = tokio::spawn(pod_loop(tx.clone(), Arc::clone(&namespace)));
 
@@ -80,10 +85,16 @@ pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
     });
 }
 
-async fn event_loop(rx: Receiver<Event>, tx: Sender<Event>, namespace: Arc<RwLock<String>>) {
+async fn event_loop(
+    rx: Receiver<Event>,
+    tx: Sender<Event>,
+    namespace: Arc<RwLock<String>>,
+    current_context: String,
+) {
     let client = Client::try_default().await.unwrap();
     let tx_ns = tx.clone();
     let tx_config = tx.clone();
+    let tx_ctx = tx.clone();
 
     let mut log_stream_handler: Option<JoinHandle<LogStreamHandler>> = None;
     loop {
@@ -94,12 +105,19 @@ async fn event_loop(rx: Receiver<Event>, tx: Sender<Event>, namespace: Arc<RwLoc
                     let selectd_ns = ns.clone();
                     let mut ns = namespace.write().unwrap();
                     *ns = selectd_ns;
+
+                    tx_ctx
+                        .send(Event::Kube(Kube::CurrentContextResponse(
+                            current_context.to_string(),
+                            ns.clone(),
+                        )))
+                        .unwrap();
                 }
 
-                Kube::GetNamespaceRequest => tx_ns
-                    .send(Event::Kube(
-                        Kube::GetNamespaceResponse(get_namespace_list()),
-                    ))
+                Kube::GetNamespacesRequest => tx_ns
+                    .send(Event::Kube(Kube::GetNamespacesResponse(
+                        get_namespace_list(),
+                    )))
                     .unwrap(),
 
                 Kube::LogStreamRequest(pod_name) => {
@@ -168,13 +186,21 @@ async fn event_loop(rx: Receiver<Event>, tx: Sender<Event>, namespace: Arc<RwLoc
                         .unwrap();
                 }
 
-                Kube::GetNamespaceResponse(_) => {}
+                Kube::CurrentContextRequest => {
+                    let ns = namespace.read().unwrap().clone();
+                    tx_ctx
+                        .send(Event::Kube(Kube::CurrentContextResponse(
+                            current_context.to_string(),
+                            ns,
+                        )))
+                        .unwrap();
+                }
+                Kube::GetNamespacesResponse(_) => {}
                 Kube::Pod(_) => {}
-                // Kube::LogResponse(_) => {}
-                // Kube::LogStreamResponse(_) => {}
                 Kube::LogStreamResponse(_) => {}
                 Kube::Configs(_) => {}
                 Kube::ConfigResponse(_) => {}
+                Kube::CurrentContextResponse(_, _) => {}
             },
             _ => {}
         }

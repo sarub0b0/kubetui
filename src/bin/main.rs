@@ -181,8 +181,17 @@ fn main() -> Result<(), io::Error> {
 
     window.update_chunks(terminal.size().unwrap());
 
+    let mut current_namespace = "None".to_string();
+    let mut current_context = "None".to_string();
+
+    tx_main
+        .send(Event::Kube(Kube::CurrentContextRequest))
+        .unwrap();
+
     loop {
-        terminal.draw(|f| draw(f, &mut window)).unwrap();
+        terminal
+            .draw(|f| draw(f, &mut window, &current_context, &current_namespace))
+            .unwrap();
 
         match rx_main.recv().unwrap() {
             Event::Input(ev) => match ev.code {
@@ -226,7 +235,7 @@ fn main() -> Result<(), io::Error> {
                 }
                 KeyCode::Char('n') => {
                     tx_main
-                        .send(Event::Kube(Kube::GetNamespaceRequest))
+                        .send(Event::Kube(Kube::GetNamespacesRequest))
                         .unwrap();
                 }
                 KeyCode::Enter => {
@@ -288,7 +297,7 @@ fn main() -> Result<(), io::Error> {
                 Kube::Configs(configs) => {
                     update_configs(&mut window, configs);
                 }
-                Kube::GetNamespaceResponse(ns) => {
+                Kube::GetNamespacesResponse(ns) => {
                     setup_namespaces_popup(&mut window, ns);
 
                     window.select_popup();
@@ -301,10 +310,15 @@ fn main() -> Result<(), io::Error> {
                     update_configs_raw(&mut window, raw);
                 }
 
-                Kube::GetNamespaceRequest => {}
+                Kube::GetNamespacesRequest => {}
                 Kube::SetNamespace(_) => {}
                 Kube::LogStreamRequest(_) => {}
                 Kube::ConfigRequest(_) => {}
+                Kube::CurrentContextRequest => {}
+                Kube::CurrentContextResponse(ctx, ns) => {
+                    current_context = ctx;
+                    current_namespace = ns;
+                }
             },
         }
     }

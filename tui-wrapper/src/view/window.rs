@@ -13,6 +13,12 @@ pub struct Window<'a> {
     chunk: Rect,
 }
 
+pub mod window_layout_index {
+    pub const TAB: usize = 0;
+    pub const CONTEXT: usize = 1;
+    pub const CONTENTS: usize = 2;
+    pub const STATUSBAR: usize = 3;
+}
 // Window
 impl<'a> Window<'a> {
     pub fn new(tabs: Vec<Tab<'a>>) -> Self {
@@ -28,7 +34,7 @@ impl<'a> Window<'a> {
         let chunks = self.layout.split(chunk);
 
         self.tabs.iter_mut().for_each(|tab| {
-            tab.update_chunk(chunks[1]);
+            tab.update_chunk(chunks[window_layout_index::CONTENTS]);
             tab.update_popup_chunk(chunk);
         });
     }
@@ -53,7 +59,7 @@ impl<'a> Window<'a> {
     }
 
     pub fn tab_chunk(&self) -> Rect {
-        self.chunks()[0]
+        self.chunks()[window_layout_index::TAB]
     }
 }
 
@@ -213,6 +219,7 @@ impl Default for Window<'_> {
             .constraints(
                 [
                     Constraint::Length(2),
+                    Constraint::Length(1),
                     Constraint::Min(0),
                     Constraint::Length(1),
                 ]

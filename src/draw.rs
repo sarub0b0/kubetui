@@ -1,4 +1,5 @@
 use tui_wrapper::*;
+use window::window_layout_index;
 
 use chrono::Local;
 
@@ -134,14 +135,26 @@ fn draw_status<B: Backend>(f: &mut Frame<B>, chunk: Rect, window: &Window) {
     f.render_widget(paragraph, chunks[1]);
 }
 
-pub fn draw<B: Backend>(f: &mut Frame<B>, window: &mut Window) {
+fn draw_context<B: Backend>(f: &mut Frame<B>, chunk: Rect, ctx: &str, ns: &str) {
+    let block = Block::default().style(Style::default());
+
+    let text = format!("{}: {}", ns, ctx);
+    let spans = Spans::from(text);
+    let paragraph = Paragraph::new(spans).block(block);
+
+    f.render_widget(paragraph, chunk);
+}
+
+pub fn draw<B: Backend>(f: &mut Frame<B>, window: &mut Window, ctx: &str, ns: &str) {
     let chunks = window.chunks();
 
     draw_tab(f, &window);
 
+    draw_context(f, chunks[window_layout_index::CONTEXT], ctx, ns);
+
     draw_panes(f, window.selected_tab());
 
-    draw_status(f, chunks[2], &window);
+    draw_status(f, chunks[window_layout_index::STATUSBAR], &window);
 
     if window.selected_popup() {
         match window.popup() {
