@@ -243,11 +243,13 @@ fn main() -> Result<(), io::Error> {
                         let popup = window.popup().unwrap();
                         let ns = popup.widget().list().unwrap();
                         let index = ns.state().borrow().selected();
-                        let select = ns.items()[index.unwrap()].clone();
+                        let selected_ns = ns.items()[index.unwrap()].clone();
                         tx_main
-                            .send(Event::Kube(Kube::SetNamespace(select)))
+                            .send(Event::Kube(Kube::SetNamespace(selected_ns.clone())))
                             .unwrap();
                         window.unselect_popup();
+
+                        current_namespace = selected_ns;
                     } else {
                         match window.selected_pane_id() {
                             "pods" => {

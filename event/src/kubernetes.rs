@@ -105,13 +105,6 @@ async fn event_loop(
                     let selectd_ns = ns.clone();
                     let mut ns = namespace.write().unwrap();
                     *ns = selectd_ns;
-
-                    tx_ctx
-                        .send(Event::Kube(Kube::CurrentContextResponse(
-                            current_context.to_string(),
-                            ns.clone(),
-                        )))
-                        .unwrap();
                 }
 
                 Kube::GetNamespacesRequest => tx_ns
@@ -495,26 +488,3 @@ fn get_namespace_list() -> Option<Vec<String>> {
 
     Some(th.join().unwrap())
 }
-
-// fn get_logs(
-//     client: Client,
-//     namespace: &str,
-//     pod_name: &str,
-//     tx: &Sender<Event>,
-// ) -> Box<dyn futures::Stream<Item = Result<Bytes>>> {
-//     let pod: Api<Pod> = Api::namespaced(client, namespace);
-//     let mut lp = LogParams::default();
-//     lp.follow = true;
-//     let mut logs = pod.log_stream(pod_name, &lp).await.unwrap();
-//     // while let Some(line) = logs.try_next().await.unwrap() {
-//     //     print!("{}\r", String::from_utf8_lossy(&line));
-//     //     tx.send(Event::Kube(Kube::LogResponse(Some(vec![
-//     //         String::from_utf8_lossy(&line).to_string(),
-//     //     ]))))
-//     //     .unwrap();
-//     // }
-
-//     Box::new(logs)
-
-//     // pod.log_stream(pod_name, &lp).await.unwrap()
-// }
