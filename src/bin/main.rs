@@ -158,6 +158,19 @@ fn main() -> Result<(), io::Error> {
                 "namespace",
             )),
         ),
+        Tab::new(
+            "3:Event",
+            vec![Pane::new(
+                "Event",
+                Widget::Text(Text::new(vec![])),
+                0,
+                "event",
+            )],
+            Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Percentage(100)].as_ref()),
+            None,
+        ),
     ];
 
     let mut window = Window::new(tabs);

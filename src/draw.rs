@@ -113,6 +113,11 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, tab: &Tab) {
                 f.render_widget(raw.widget(block), pane.chunk());
             }
 
+            "event" => {
+                let ev = pane.widget().text().unwrap();
+                f.render_widget(ev.widget(block), pane.chunk());
+            }
+
             _ => {}
         }
     }
