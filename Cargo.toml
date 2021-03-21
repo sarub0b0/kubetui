@@ -4,11 +4,8 @@ version = "0.1.0"
 authors = ["kohashimoto <kohashimoto@bbtower.co.jp>"]
 edition = "2018"
 
-[build]
-rustc-wrapper = "~/.cargo/bin/sccache"
-
 [workspace]
-member = ["tui-rs-wrapper"]
+members = [ "tui-wrapper", "event" ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -16,17 +13,11 @@ member = ["tui-rs-wrapper"]
 crossterm = "0.18"
 tui = { version = "0.14", default-features = false, features = ['crossterm'] }
 
-kube = "0.50.0"
-kube-runtime = "0.50.0"
-k8s-openapi = { version = "0.11.0", default-features = false, features = ["v1_20"] }
-
 tokio = { version = "1", features = ["full"] }
 
 chrono = "0.4"
 
-futures = "0.3.12"
-bytes = "1"
-
 crossbeam = "0.8"
 
 tui-wrapper = { path = "./tui-wrapper" }
+event = { path = "./event" }

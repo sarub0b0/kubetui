@@ -18,10 +18,8 @@ use tui::{
 };
 
 extern crate kubetui;
-use kubetui::{
-    draw::*,
-    event::{input::*, kubernetes::*, tick::*, Event, Kube},
-};
+use event::{input::*, kubernetes::*, tick::*, Event, Kube};
+use kubetui::draw::*;
 use tui_wrapper::*;
 
 fn update_pod_logs(window: &mut Window, logs: Vec<String>) {
