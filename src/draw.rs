@@ -1,51 +1,14 @@
 use tui_wrapper::*;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::thread;
+use chrono::Local;
 
-#[allow(unused_imports)]
-use chrono::{DateTime, Duration, FixedOffset, Local, Utc};
-
-#[allow(unused_imports)]
-use std::sync::{
-    mpsc::{self, Receiver, Sender},
-    Arc, RwLock,
-};
-
-#[allow(unused_imports)]
-use tokio::runtime::Runtime;
-
-#[allow(unused_imports)]
-use std::{
-    error::Error,
-    io::{self, stdout, Write},
-};
-
-#[allow(unused_imports)]
-use crossterm::{
-    event::{
-        self, poll, read, DisableMouseCapture, EnableMouseCapture, Event as CEvent, KeyCode,
-        KeyEvent, KeyModifiers,
-    },
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
-
-#[allow(unused_imports)]
 use tui::{
-    backend::{Backend, CrosstermBackend},
-    layout::{Alignment, Constraint, Corner, Direction, Layout, Rect},
+    backend::Backend,
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Span, Spans},
     widgets::{Block, Borders, Clear, Paragraph},
-    Frame, Terminal,
-};
-
-#[allow(unused_imports)]
-use k8s_openapi::{
-    api::core::v1::{Namespace, Pod, PodStatus},
-    apimachinery::pkg::apis::meta::v1::Time,
+    Frame,
 };
 
 fn draw_tab<B: Backend>(f: &mut Frame<B>, window: &Window) {
@@ -131,7 +94,7 @@ fn datetime() -> Span<'static> {
 }
 
 fn log_status((current, rows): (u16, u16)) -> Span<'static> {
-    let percent = if rows == 0 {
+    let _percent = if rows == 0 {
         100
     } else {
         (current * 100) / rows
@@ -149,21 +112,22 @@ fn draw_status<B: Backend>(f: &mut Frame<B>, chunk: Rect, window: &Window) {
 
     let datetime = datetime();
 
-    let text = Spans::from(datetime);
+    let datetime = Spans::from(datetime);
     let block = Block::default().style(Style::default());
-    let paragraph = Paragraph::new(text).block(block);
+    let paragraph = Paragraph::new(datetime).block(block);
 
     f.render_widget(paragraph, chunks[0]);
 
-    let log_widget = window.selected_tab().selected_pane().widget().text();
+    let pane = window.pane("logs").unwrap();
+    let log_widget = pane.widget().text();
     let log_status = match log_widget {
         Some(t) => log_status((t.selected(), t.row_size())),
         None => log_status((0, 0)),
     };
 
-    let text = Spans::from(log_status);
+    let logs = Spans::from(log_status);
     let block = Block::default().style(Style::default());
-    let paragraph = Paragraph::new(text)
+    let paragraph = Paragraph::new(logs)
         .block(block)
         .alignment(Alignment::Right);
 
