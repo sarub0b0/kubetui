@@ -239,8 +239,24 @@ fn main() -> Result<(), io::Error> {
                     } else {
                         match window.selected_pane_id() {
                             "pods" => {
+                                // tx_main
+                                //     .send(Event::Kube(Kube::LogRequest(selected_pod(&window))))
+                                //     .unwrap();
+                                // tx_main
+                                //     .send(Event::Kube(Kube::LogStreamRequest(
+                                //         "kubetui-running-759794c4b8-hhzbd".to_string(),
+                                //     )))
+                                //     .unwrap();
+
+                                let pane = window.pane_mut("logs");
+                                if let Some(p) = pane {
+                                    let widget = p.widget_mut().text_mut().unwrap();
+                                    widget.clear();
+                                }
                                 tx_main
-                                    .send(Event::Kube(Kube::LogRequest(selected_pod(&window))))
+                                    .send(Event::Kube(Kube::LogStreamRequest(selected_pod(
+                                        &window,
+                                    ))))
                                     .unwrap();
                             }
                             "configs" => {
@@ -286,10 +302,30 @@ fn main() -> Result<(), io::Error> {
                 Kube::LogResponse(log) => {
                     update_pod_logs(&mut window, log);
                 }
+
+                Kube::LogStreamResponse(log) => {
+                    let pane = window.pane_mut("logs");
+                    if let Some(p) = pane {
+                        let rect = p.chunk();
+                        let widget = p.widget_mut().text_mut().unwrap();
+                        let is_bottom = widget.is_bottom();
+                        widget.add_item(log);
+                        widget.update_spans(rect.width);
+                        widget.update_rows_size(rect.height);
+                        if is_bottom {
+                            widget.select_last();
+                        }
+                    }
+                }
                 Kube::ConfigResponse(raw) => {
                     update_configs_raw(&mut window, raw);
                 }
-                _ => {}
+
+                Kube::GetNamespaceRequest => {}
+                Kube::SetNamespace(_) => {}
+                Kube::LogRequest(_) => {}
+                Kube::LogStreamRequest(_) => {}
+                Kube::ConfigRequest(_) => {}
             },
         }
     }

@@ -20,6 +20,8 @@ pub enum Kube {
     Pod(Vec<String>),
     LogRequest(String),
     LogResponse(Vec<String>),
+    LogStreamRequest(String),
+    LogStreamResponse(String),
     // ConfigMap & Secret
     Configs(Vec<String>),
     ConfigRequest(String),

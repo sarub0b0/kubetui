@@ -5,7 +5,7 @@ use crate::util::*;
 use chrono::{DateTime, Duration, Utc};
 
 use bytes::Bytes;
-use futures::{StreamExt, TryStreamExt};
+use futures::{FutureExt, StreamExt, TryStreamExt};
 
 use std::{error::Error, str::FromStr, thread};
 use std::{
@@ -15,7 +15,10 @@ use std::{
 use std::{time, vec};
 
 use crossbeam::channel::{Receiver, Sender};
-use tokio::{runtime::Runtime, task::JoinHandle};
+use tokio::{
+    runtime::Runtime,
+    task::{self, JoinHandle},
+};
 
 use k8s_openapi::api::core::v1::{
     ConfigMap, ContainerState, ContainerStateTerminated, ContainerStateWaiting, Namespace, Pod,
@@ -83,9 +86,9 @@ pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
 async fn event_loop(rx: Receiver<Event>, tx: Sender<Event>, namespace: Arc<RwLock<String>>) {
     let client = Client::try_default().await.unwrap();
     let tx_ns = tx.clone();
-    let tx_log = tx.clone();
     let tx_config = tx.clone();
 
+    let mut log_stream_handle: Option<JoinHandle<()>> = None;
     loop {
         let ev = rx.recv().unwrap();
         match ev {
@@ -103,27 +106,47 @@ async fn event_loop(rx: Receiver<Event>, tx: Sender<Event>, namespace: Arc<RwLoc
                     .unwrap(),
 
                 Kube::LogRequest(pod_name) => {
+                    let tx_log = tx.clone();
                     let client_clone = client.clone();
                     let namespace = namespace.read().unwrap().clone();
                     let pod: Api<Pod> = Api::namespaced(client_clone, &namespace);
                     let lp = LogParams::default();
-                    // let mut logs = pod.log_stream(&pod_name, &lp).await.unwrap();
+
                     let logs = pod.logs(&pod_name, &lp).await.unwrap();
 
-                    // let mut buf: Vec<String> = Vec::with_capacity(1024);
-
                     let buf = logs.split("\n").map(String::from).collect();
-                    // while let Some(line) = logs.try_next().await.unwrap() {
-                    //     for line in line.lines() {
-                    //         match line {
-                    //             Ok(line) => buf.push(line),
-                    //             Err(e) => buf.push(e.to_string()),
-                    //         }
-                    //     }
-                    // }
 
                     tx_log.send(Event::Kube(Kube::LogResponse(buf))).unwrap();
                 }
+
+                Kube::LogStreamRequest(pod_name) => {
+                    if let Some(handle) = &log_stream_handle {
+                        handle.abort();
+                    }
+
+                    let ns = namespace.read().unwrap().clone();
+                    let tx = tx.clone();
+                    let client = client.clone();
+
+                    log_stream_handle = Some(tokio::spawn(async move {
+                        let pod: Api<Pod> = Api::namespaced(client.clone(), &ns);
+                        let mut lp = LogParams::default();
+
+                        lp.follow = true;
+
+                        let mut logs = pod.log_stream(&pod_name, &lp).await.unwrap().boxed();
+
+                        while let Some(lines) = logs.try_next().await.unwrap() {
+                            tx.send(Event::Kube(Kube::LogStreamResponse(
+                                String::from_utf8_lossy(&lines).to_string(),
+                            )))
+                            .unwrap();
+                        }
+                    }));
+
+                    task::yield_now().await;
+                }
+
                 Kube::ConfigRequest(config) => {
                     let client_clone = client.clone();
                     let namespace = namespace.read().unwrap().clone();
@@ -172,7 +195,13 @@ async fn event_loop(rx: Receiver<Event>, tx: Sender<Event>, namespace: Arc<RwLoc
                         .send(Event::Kube(Kube::ConfigResponse(ret)))
                         .unwrap();
                 }
-                _ => {}
+
+                Kube::GetNamespaceResponse(_) => {}
+                Kube::Pod(_) => {}
+                Kube::LogResponse(_) => {}
+                Kube::LogStreamResponse(_) => {}
+                Kube::Configs(_) => {}
+                Kube::ConfigResponse(_) => {}
             },
             _ => {}
         }

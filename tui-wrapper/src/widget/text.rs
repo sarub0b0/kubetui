@@ -64,6 +64,10 @@ impl<'a> Text<'a> {
         self.state.select(self.row_size);
     }
 
+    pub fn is_bottom(&self) -> bool {
+        self.selected() == self.row_size
+    }
+
     pub fn update_spans(&mut self, width: u16) {
         self.spans = generate_spans(&self.items, width);
     }
@@ -87,8 +91,11 @@ impl<'a> Text<'a> {
     }
 
     pub fn add_item(&mut self, item: impl Into<String>) {
-        self.items.push(item.into().clone());
-        self.state.select(self.items.len() as u16 - 1);
+        self.items.push(item.into());
+    }
+
+    pub fn clear(&mut self) {
+        *self = Self::default();
     }
 
     pub fn spans(&self) -> &Vec<Spans> {
@@ -112,6 +119,17 @@ impl<'a> Text<'a> {
 
     pub fn scroll_up(&mut self, index: u16) {
         (0..index).for_each(|_| self.select_prev(1));
+    }
+}
+
+impl Default for Text<'_> {
+    fn default() -> Self {
+        Self {
+            items: Vec::new(),
+            state: TextState::default(),
+            spans: Vec::new(),
+            row_size: 0,
+        }
     }
 }
 
