@@ -112,9 +112,6 @@ impl<'a> Text<'a> {
         self.row_size
     }
 
-    ///////////////////////////
-    // TODO いつか綺麗にする
-    ///////////////////////////
     pub fn add_item(&mut self, item: impl Into<String>) {
         self.items.push(item.into());
     }
@@ -126,14 +123,9 @@ impl<'a> Text<'a> {
         let wrapped = wrap(items, w);
 
         self.spans.append(&mut generate_spans(&wrapped));
+
+        self.update_rows_size(height);
     }
-
-    // pub fn update_span(&mut self, width: u16) {
-    //     let w = width as usize - BORDER_WIDTH;
-    //     let lines = wrap_line(&self.items[self.items.len() - 1], w);
-
-    //     self.spans.append(&mut generate_spans(&lines));
-    // }
 
     pub fn update_spans(&mut self, width: u16) {
         let w = width as usize - BORDER_WIDTH;
@@ -141,7 +133,6 @@ impl<'a> Text<'a> {
 
         self.spans = generate_spans(&lines);
     }
-    ///////////////////////////
 
     pub fn update_rows_size(&mut self, height: u16) {
         let mut count = self.spans.len() as u16;

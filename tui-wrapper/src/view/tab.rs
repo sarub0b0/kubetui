@@ -1,7 +1,7 @@
 use super::{pane::Pane, Popup};
 
 use crate::widget::*;
-use tui::layout::{Constraint, Direction, Layout, Rect};
+use tui::layout::{Layout, Rect};
 
 pub struct Tab<'a> {
     title: String,

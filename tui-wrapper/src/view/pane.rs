@@ -1,6 +1,6 @@
 use crate::widget::*;
 
-use tui::layout::{Constraint, Direction, Layout, Rect};
+use tui::layout::Rect;
 
 pub struct Pane<'a> {
     widget: Widget<'a>,

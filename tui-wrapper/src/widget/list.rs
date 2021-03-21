@@ -1,8 +1,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::{Arc, RwLock};
-use tui::style::{Color, Modifier, Style};
-use tui::text::{Span, Spans, Text};
+
+use tui::style::{Modifier, Style};
+
 use tui::widgets::{self, Block, ListItem, ListState};
 
 use super::WidgetTrait;
@@ -72,9 +72,10 @@ impl<'a> List<'a> {
         &self.items
     }
 
-    fn selected(&self) -> Option<usize> {
+    pub fn selected(&self) -> Option<usize> {
         self.state.borrow().selected()
     }
+
     pub fn widget(&self, block: Block<'a>) -> widgets::List<'a> {
         widgets::List::new(self.list_item.clone())
             .block(block)

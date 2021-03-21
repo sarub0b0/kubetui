@@ -1,11 +1,8 @@
 use crate::widget::*;
 
-use std::cell::RefCell;
 use std::default::Default;
-use std::rc::Rc;
 
 use tui::layout::{Constraint, Direction, Layout, Rect};
-use tui::widgets::{Block, BorderType, Borders, List, ListItem, ListState, Tabs};
 
 pub struct Popup<'a> {
     title: String,

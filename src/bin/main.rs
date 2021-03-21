@@ -28,10 +28,14 @@ fn update_pod_logs(window: &mut Window, logs: Vec<String>) {
     let pane = window.pane_mut("logs");
     if let Some(p) = pane {
         let rect = p.chunk();
-        let log = p.widget_mut().text_mut().unwrap();
-        log.set_items(logs.to_vec());
-        log.update_spans(rect.width);
-        log.update_rows_size(rect.height);
+        let widget = p.widget_mut().text_mut().unwrap();
+        let is_bottom = widget.is_bottom();
+
+        widget.append_items(&logs, rect.width, rect.height);
+
+        if is_bottom {
+            widget.select_last();
+        }
     }
 }
 
@@ -292,19 +296,7 @@ fn main() -> Result<(), io::Error> {
                     window.select_popup();
                 }
                 Kube::LogStreamResponse(logs) => {
-                    let pane = window.pane_mut("logs");
-                    if let Some(p) = pane {
-                        let rect = p.chunk();
-                        let widget = p.widget_mut().text_mut().unwrap();
-                        let is_bottom = widget.is_bottom();
-
-                        widget.append_items(&logs, rect.width, rect.height);
-                        widget.update_rows_size(rect.height);
-
-                        if is_bottom {
-                            widget.select_last();
-                        }
-                    }
+                    update_pod_logs(&mut window, logs);
                 }
 
                 Kube::ConfigResponse(raw) => {
