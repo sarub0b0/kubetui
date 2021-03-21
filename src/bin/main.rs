@@ -96,14 +96,12 @@ fn selected_config(window: &Window) -> String {
     pane.widget().list().unwrap().items()[selected_index].clone()
 }
 
-fn setup_namespaces_popup(window: &mut Window, items: Option<Vec<String>>) {
-    if let Some(items) = items {
-        let popup = window.selected_tab_mut().popup_mut();
-        if let Some(popup) = popup {
-            let ns = popup.widget_mut().list_mut();
-            if let Some(ns) = ns {
-                ns.set_items(items);
-            }
+fn setup_namespaces_popup(window: &mut Window, items: Vec<String>) {
+    let popup = window.selected_tab_mut().popup_mut();
+    if let Some(popup) = popup {
+        let ns = popup.widget_mut().list_mut();
+        if let Some(ns) = ns {
+            ns.set_items(items);
         }
     }
 }

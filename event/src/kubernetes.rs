@@ -7,7 +7,6 @@ use chrono::{DateTime, Duration, Utc};
 use futures::{StreamExt, TryStreamExt};
 
 use std::sync::{Arc, RwLock};
-use std::thread;
 use std::{time, vec};
 
 use crossbeam::channel::{Receiver, Sender};
@@ -107,11 +106,18 @@ async fn event_loop(
                     *ns = selectd_ns;
                 }
 
-                Kube::GetNamespacesRequest => tx_ns
-                    .send(Event::Kube(Kube::GetNamespacesResponse(
-                        get_namespace_list(),
-                    )))
-                    .unwrap(),
+                Kube::GetNamespacesRequest => {
+                    let client = client.clone();
+                    let namespaces: Api<Namespace> = Api::all(client);
+                    let lp = ListParams::default();
+                    let ns_list = namespaces.list(&lp).await.unwrap();
+
+                    let res = ns_list.iter().map(|ns| ns.name()).collect::<Vec<String>>();
+
+                    tx_ns
+                        .send(Event::Kube(Kube::GetNamespacesResponse(res)))
+                        .unwrap();
+                }
 
                 Kube::LogStreamRequest(pod_name) => {
                     if let Some(handler) = log_stream_handler {
@@ -468,23 +474,4 @@ fn is_terminated_container(terminated: &Option<ContainerStateTerminated>) -> boo
         }
     }
     false
-}
-
-// TODO: spawnを削除する <20-02-21, yourname> //
-fn get_namespace_list() -> Option<Vec<String>> {
-    let th = thread::spawn(move || {
-        let rt = Runtime::new().unwrap();
-        rt.block_on(async move {
-            let client = Client::try_default().await.unwrap();
-            let namespaces: Api<Namespace> = Api::all(client);
-
-            let lp = ListParams::default();
-
-            let ns_list = namespaces.list(&lp).await.unwrap();
-
-            ns_list.iter().map(|ns| ns.name()).collect::<Vec<String>>()
-        })
-    });
-
-    Some(th.join().unwrap())
 }

@@ -20,7 +20,7 @@ pub enum Kube {
     CurrentContextResponse(String, String), // current_context, namespace
     // Namespace
     GetNamespacesRequest,
-    GetNamespacesResponse(Option<Vec<String>>),
+    GetNamespacesResponse(Vec<String>),
     SetNamespace(String),
     // Pod Logs
     Pod(Vec<String>),
