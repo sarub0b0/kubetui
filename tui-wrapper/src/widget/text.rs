@@ -5,6 +5,7 @@ use tui::widgets::{Block, Paragraph};
 use super::WidgetTrait;
 
 const BORDER_WIDTH: usize = 2;
+const ESC_LEN: usize = 2; // "\x1b["
 
 pub struct Text<'a> {
     items: Vec<String>,
@@ -189,33 +190,6 @@ impl WidgetTrait for Text<'_> {
     }
 }
 
-fn style(num: &str) -> Style {
-    let color = match num {
-        // foreground
-        "30" => Color::Black,
-        "31" => Color::Red,
-        "32" => Color::Green,
-        "33" => Color::Yellow,
-        "34" => Color::Blue,
-        "35" => Color::Magenta,
-        "36" => Color::Cyan,
-        "37" => Color::White,
-        "39" => Color::Reset,
-        // background
-        "90" => Color::DarkGray,
-        "91" => Color::LightRed,
-        "92" => Color::LightGreen,
-        "93" => Color::LightYellow,
-        "94" => Color::LightBlue,
-        "95" => Color::LightMagenta,
-        "96" => Color::LightCyan,
-        "97" => Color::Gray,
-        _ => Color::Reset,
-    };
-
-    Style::default().fg(color)
-}
-
 fn normal_color(n: u8) -> Color {
     match n {
         30 => Color::Black,
@@ -259,45 +233,35 @@ fn modifiers(n: u8) -> Modifier {
     }
 }
 
-fn color_3_4bit(code: u8) -> Style {
+fn color_3_4bit(style: Style, code: u8) -> Style {
     match code {
         //////////////////////////
         // modifiers
         //////////////////////////
-        0 => Style::default(),
-        n @ 1..=9 => Style::default().add_modifier(modifiers(n)),
+        n @ 1..=9 => style.add_modifier(modifiers(n)),
         //////////////////////////
         // foreground
         //////////////////////////
-        n @ 30..=37 => Style::default().fg(normal_color(n)),
-
-        n @ 90..=97 => Style::default().fg(bright_color(n)),
-
-        39 => Style::default().fg(Color::Reset),
+        n @ 30..=37 => style.fg(normal_color(n)),
+        n @ 90..=97 => style.fg(bright_color(n)),
+        39 => style.fg(Color::Reset),
         //////////////////////////
         // background
         //////////////////////////
-        n @ 40..=47 => Style::default().bg(normal_color(n - 10)),
-        n @ 100..=107 => Style::default().bg(normal_color(n - 10)),
-        49 => Style::default().bg(Color::Reset),
+        n @ 40..=47 => style.bg(normal_color(n - 10)),
+        n @ 100..=107 => style.bg(bright_color(n - 10)),
+        49 => style.bg(Color::Reset),
 
         // error
         _ => unreachable!(),
     }
 }
-fn color_8bit(n: u8) -> Style {
-    Style::default()
-}
-fn color_24bit() -> Style {
-    Style::default()
-}
-
-fn ansi_color(codes: &str) -> Style {
+fn generate_style_from_ansi_color(codes: &str) -> Style {
     let mut style = Style::default();
     // ex. <x>m, <x>;<y>m, <x>;<y>;<z>m
     // ";"で連結できる
     let mut iter = codes.split(";");
-    for code in iter.next() {
+    while let Some(code) = iter.next() {
         //////////////////////////////
         // 8bit, 24bit
         //////////////////////////////
@@ -316,7 +280,7 @@ fn ansi_color(codes: &str) -> Style {
         // 24bit
         // ESC[ 38;2;⟨r⟩;⟨g⟩;⟨b⟩ m Select RGB foreground color
         // ESC[ 48;2;⟨r⟩;⟨g⟩;⟨b⟩ m Select RGB background color
-        match code {
+        style = match code {
             // foreground
             "38" => match iter.next().unwrap() {
                 "2" => {
@@ -329,13 +293,15 @@ fn ansi_color(codes: &str) -> Style {
                         r.parse().unwrap(),
                         g.parse().unwrap(),
                         b.parse().unwrap(),
-                    ));
+                    ))
                 }
                 "5" => {
                     let n = iter.next().unwrap();
-                    style.fg(Color::Indexed(n.parse().unwrap()));
+                    style.fg(Color::Indexed(n.parse().unwrap()))
                 }
-                _ => {}
+                _ => {
+                    unreachable!()
+                }
             },
             // background
             "48" => match iter.next().unwrap() {
@@ -349,23 +315,26 @@ fn ansi_color(codes: &str) -> Style {
                         r.parse().unwrap(),
                         g.parse().unwrap(),
                         b.parse().unwrap(),
-                    ));
+                    ))
                 }
                 "5" => {
                     let n = iter.next().unwrap();
-                    style.bg(Color::Indexed(n.parse().unwrap()));
+                    style.bg(Color::Indexed(n.parse().unwrap()))
                 }
-                _ => {}
+                _ => {
+                    unreachable!()
+                }
             },
 
             //////////////////////////////
             // 3bit, 4bit
             //////////////////////////////
+            "0" => Style::reset(),
             _ => {
                 let n = code.parse().unwrap();
-                style.patch(color_3_4bit(n));
+                color_3_4bit(style, n)
             }
-        }
+        };
     }
     style
 }
@@ -415,36 +384,51 @@ fn generate_spans<'a>(lines: &Vec<String>) -> Vec<Spans<'a>> {
     lines
         .iter()
         .cloned()
-        .map(|t| {
-            let mut start = 0;
-            let mut end = 0;
-            let mut found = false;
+        .map(|line| {
+            let mut span_vec: Vec<Span> = vec![];
 
-            let mut spans: Vec<Span> = vec![];
+            let mut l = &line[..];
 
-            while let Some(i) = t[start..].find("\x1b[") {
-                found = true;
-                start = i + 5 + end;
-
-                let (c0, c1) = (i + 2 + end, i + 4 + end);
-
-                if let Some(next) = t[start..].find("\x1b[") {
-                    end = next + start;
-                } else {
-                    end = t.len();
+            if let Some(escape_start) = l.find("\x1b[") {
+                if 0 < escape_start {
+                    span_vec.push(Span::raw(String::from(&l[..escape_start])));
+                    l = &l[escape_start..];
                 }
-                spans.push(Span::styled(
-                    String::from(&t[start..end]),
-                    style(&t[c0..c1]),
+            }
+
+            let mut found = false;
+            while let Some(escape_start) = l.find("\x1b[") {
+                found = true;
+
+                let escape_end = l[escape_start..].find("m").unwrap();
+
+                // \x1b[<xxx>m xxxで示したセミコロン区切りの数字を抜き出す
+                let escape = &l[(escape_start + ESC_LEN)..escape_end];
+
+                // skip m  \x1b[<xx>m
+                l = &l[(escape_end + 1)..];
+
+                // 次のescape sequenceを探す
+                // なければ末尾まで
+                let content_end;
+                if let Some(next_esc_index) = l.find("\x1b[") {
+                    content_end = next_esc_index;
+                } else {
+                    content_end = l.len();
+                }
+
+                span_vec.push(Span::styled(
+                    String::from(&l[..content_end]),
+                    generate_style_from_ansi_color(&escape),
                 ));
 
-                start = end;
+                l = &l[content_end..];
             }
 
             if found == false {
-                Spans::from(t.clone())
+                Spans::from(l.to_string())
             } else {
-                Spans::from(spans)
+                Spans::from(span_vec)
             }
         })
         .collect()
@@ -597,85 +581,329 @@ mod tests {
     }
 
     #[test]
-    fn color_3_4bit_reset() {
-        assert_eq!(color_3_4bit(0), Style::default());
+    fn generate_style_color_3_4bit_fg() {
+        let text = vec!["hoge\x1b[33mhoge\x1b[39m".to_string()];
+
+        assert_eq!(
+            generate_spans(&text),
+            vec![Spans::from(vec![
+                Span::raw("hoge"),
+                Span::styled("hoge", Style::default().fg(Color::Yellow)),
+                Span::styled("", Style::default().fg(Color::Reset)),
+            ])]
+        )
     }
+
+    #[test]
+    fn generate_style_color_3_4bit_fg_bold() {
+        let text = vec!["\x1b[1;33mhoge\x1b[39m".to_string()];
+
+        assert_eq!(
+            generate_spans(&text),
+            vec![Spans::from(vec![
+                Span::styled(
+                    "hoge",
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD)
+                ),
+                Span::styled("", Style::default().fg(Color::Reset)),
+            ])]
+        )
+    }
+
+    // #[test]
+    // fn generate_spans_color_8bit_fg() {
+    //     let text = vec!["\x1b[38;5;33mhoge\x1b[39m".to_string()];
+
+    //     assert_eq!(
+    //         generate_spans(&text),
+    //         vec![Spans::from(vec![
+    //             Span::styled("hoge", Style::default().fg(Color::Indexed(33))),
+    //             Span::styled("", Style::default().fg(Color::Reset)),
+    //         ])]
+    //     )
+    // }
+
+    // #[test]
+    // fn generate_spans_color_8bit_fg_bold() {
+    //     let text = vec!["\x1b[1;38;5;33mhoge\x1b[39m".to_string()];
+
+    //     assert_eq!(
+    //         generate_spans(&text),
+    //         vec![Spans::from(vec![
+    //             Span::styled(
+    //                 "hoge",
+    //                 Style::default()
+    //                     .fg(Color::Indexed(33))
+    //                     .add_modifier(Modifier::BOLD)
+    //             ),
+    //             Span::styled("", Style::default().fg(Color::Reset)),
+    //         ])]
+    //     )
+    // }
+
+    // #[test]
+    // fn generate_spans_color_24bit_fg() {
+    //     let text = vec!["\x1b[38;2;33;10;10mhoge\x1b[39m".to_string()];
+
+    //     assert_eq!(
+    //         generate_spans(&text),
+    //         vec![Spans::from(vec![
+    //             Span::styled("hoge", Style::default().fg(Color::Rgb(33, 10, 10))),
+    //             Span::styled("", Style::default().fg(Color::Reset)),
+    //         ])]
+    //     )
+    // }
+
+    // #[test]
+    // fn generate_spans_color_24bit_fg_bold() {
+    //     let text = vec!["\x1b[1;38;2;33;10;10mhoge\x1b[39m".to_string()];
+
+    //     assert_eq!(
+    //         generate_spans(&text),
+    //         vec![Spans::from(vec![
+    //             Span::styled(
+    //                 "hoge",
+    //                 Style::default()
+    //                     .fg(Color::Rgb(33, 10, 10))
+    //                     .add_modifier(Modifier::BOLD)
+    //             ),
+    //             Span::styled("", Style::default().fg(Color::Reset)),
+    //         ])]
+    //     )
+    // }
+
+    // #[test]
+    // fn generate_spans_color_3_4bit_bg() {
+    //     let text = vec!["\x1b[43mhoge\x1b[49m".to_string()];
+
+    //     assert_eq!(
+    //         generate_spans(&text),
+    //         vec![Spans::from(vec![
+    //             Span::styled("hoge", Style::default().bg(Color::Yellow)),
+    //             Span::styled("", Style::default().bg(Color::Reset)),
+    //         ])]
+    //     )
+    // }
+
+    // #[test]
+    // fn generate_spans_color_3_4bit_bg_bold() {
+    //     let text = vec!["\x1b[1;43mhoge\x1b[49m".to_string()];
+
+    //     assert_eq!(
+    //         generate_spans(&text),
+    //         vec![Spans::from(vec![
+    //             Span::styled("hoge", Style::default().bg(Color::Yellow)),
+    //             Span::styled("", Style::default().bg(Color::Reset)),
+    //         ])]
+    //     );
+
+    //     let text = vec!["\x1b[43;1mhoge\x1b[49m".to_string()];
+
+    //     assert_eq!(
+    //         generate_spans(&text),
+    //         vec![Spans::from(vec![
+    //             Span::styled("hoge", Style::default().bg(Color::Yellow)),
+    //             Span::styled("", Style::default().bg(Color::Reset)),
+    //         ])]
+    //     );
+    // }
+
+    // #[test]
+    // fn generate_spans_color_8bit_bg() {
+    //     let text = vec!["\x1b[48;5;33mhoge\x1b[49m".to_string()];
+
+    //     assert_eq!(
+    //         generate_spans(&text),
+    //         vec![Spans::from(vec![
+    //             Span::styled("hoge", Style::default().bg(Color::Indexed(33))),
+    //             Span::styled("", Style::default().bg(Color::Reset)),
+    //         ])]
+    //     );
+    // }
+
+    // #[test]
+    // fn generate_spans_color_8bit_bg_bold() {
+    //     let text = vec!["\x1b[1;48;5;33mhoge\x1b[49m".to_string()];
+
+    //     assert_eq!(
+    //         generate_spans(&text),
+    //         vec![Spans::from(vec![
+    //             Span::styled(
+    //                 "hoge",
+    //                 Style::default()
+    //                     .bg(Color::Indexed(33))
+    //                     .add_modifier(Modifier::BOLD)
+    //             ),
+    //             Span::styled("", Style::default().bg(Color::Reset)),
+    //         ])]
+    //     );
+
+    //     let text = vec!["\x1b[48;5;33;1mhoge\x1b[49m".to_string()];
+
+    //     assert_eq!(
+    //         generate_spans(&text),
+    //         vec![Spans::from(vec![
+    //             Span::styled(
+    //                 "hoge",
+    //                 Style::default()
+    //                     .bg(Color::Indexed(33))
+    //                     .add_modifier(Modifier::BOLD)
+    //             ),
+    //             Span::styled("", Style::default().bg(Color::Reset)),
+    //         ])]
+    //     );
+    // }
+
+    // #[test]
+    // fn generate_spans_color_24bit_bg() {
+    //     let text = vec!["\x1b[48;2;33;10;10mhoge\x1b[49m".to_string()];
+
+    //     assert_eq!(
+    //         generate_spans(&text),
+    //         vec![Spans::from(vec![
+    //             Span::styled("hoge", Style::default().bg(Color::Rgb(33, 10, 10))),
+    //             Span::styled("", Style::default().bg(Color::Reset)),
+    //         ])]
+    //     );
+    // }
+
+    // #[test]
+    // fn generate_spans_color_24bit_bg_bold() {
+    //     let text = vec!["\x1b[1;48;2;33;10;10mhoge\x1b[49m".to_string()];
+
+    //     assert_eq!(
+    //         generate_spans(&text),
+    //         vec![Spans::from(vec![
+    //             Span::styled(
+    //                 "hoge",
+    //                 Style::default()
+    //                     .bg(Color::Rgb(33, 10, 10))
+    //                     .add_modifier(Modifier::BOLD)
+    //             ),
+    //             Span::styled("", Style::default().bg(Color::Reset)),
+    //         ])]
+    //     );
+
+    //     let text = vec!["\x1b[48;2;33;10;10;1mhoge\x1b[49m".to_string()];
+
+    //     assert_eq!(
+    //         generate_spans(&text),
+    //         vec![Spans::from(vec![
+    //             Span::styled(
+    //                 "hoge",
+    //                 Style::default()
+    //                     .bg(Color::Rgb(33, 10, 10))
+    //                     .add_modifier(Modifier::BOLD)
+    //             ),
+    //             Span::styled("", Style::default().bg(Color::Reset)),
+    //         ])]
+    //     );
+    // }
+
     #[test]
     fn color_3_4bit_fg() {
-        assert_eq!(color_3_4bit(35), Style::default().fg(Color::Magenta));
+        assert_eq!(
+            color_3_4bit(Style::default(), 35),
+            Style::default().fg(Color::Magenta)
+        );
+    }
+    #[test]
+    fn color_3_4bit_fg_bright() {
+        assert_eq!(
+            color_3_4bit(Style::default(), 95),
+            Style::default().fg(Color::LightMagenta)
+        );
     }
     #[test]
     fn color_3_4bit_bg() {
-        assert_eq!(color_3_4bit(45), Style::default().bg(Color::Magenta));
+        assert_eq!(
+            color_3_4bit(Style::default(), 45),
+            Style::default().bg(Color::Magenta)
+        );
     }
+    #[test]
+    fn color_3_4bit_bg_bright() {
+        assert_eq!(
+            color_3_4bit(Style::default(), 105),
+            Style::default().bg(Color::LightMagenta)
+        );
+    }
+
     #[test]
     fn color_3_4bit_bold() {
         assert_eq!(
-            color_3_4bit(1),
+            color_3_4bit(Style::default(), 1),
             Style::default().add_modifier(Modifier::BOLD)
         );
     }
 
     #[test]
-    fn color_8bit_fg() {
-        assert_ne!(
-            ansi_color("38;5;100"),
+    fn generate_style_color_3_4bit_reset() {
+        assert_eq!(generate_style_from_ansi_color("0"), Style::reset());
+    }
+
+    #[test]
+    fn generate_style_color_8bit_fg() {
+        assert_eq!(
+            generate_style_from_ansi_color("38;5;100"),
             Style::default().fg(Color::Indexed(100))
         );
     }
 
     #[test]
-    fn color_8bit_bg() {
-        assert_ne!(
-            ansi_color("48;5;100"),
+    fn generate_style_color_8bit_bg() {
+        assert_eq!(
+            generate_style_from_ansi_color("48;5;100"),
             Style::default().bg(Color::Indexed(100))
         );
     }
 
     #[test]
-    fn color_8bit_bold() {
-        assert_ne!(
-            ansi_color("1;38;5;100"),
+    fn generate_style_color_8bit_fg_bold() {
+        assert_eq!(
+            generate_style_from_ansi_color("1;38;5;100"),
             Style::default()
-                .bg(Color::Indexed(100))
+                .fg(Color::Indexed(100))
                 .add_modifier(Modifier::BOLD)
         );
-        assert_ne!(
-            ansi_color("38;5;100;1"),
+        assert_eq!(
+            generate_style_from_ansi_color("38;5;100;1"),
             Style::default()
-                .bg(Color::Indexed(100))
+                .fg(Color::Indexed(100))
                 .add_modifier(Modifier::BOLD)
         );
     }
 
     #[test]
-    fn color_24bit_fg() {
-        assert_ne!(
-            ansi_color("38;2;10;10;10"),
+    fn generate_style_color_24bit_fg() {
+        assert_eq!(
+            generate_style_from_ansi_color("38;2;10;10;10"),
             Style::default().fg(Color::Rgb(10, 10, 10))
         );
     }
 
     #[test]
-    fn color_24bit_bg() {
-        assert_ne!(
-            ansi_color("48;2;10;10;10"),
+    fn generate_style_color_24bit_bg() {
+        assert_eq!(
+            generate_style_from_ansi_color("48;2;10;10;10"),
             Style::default().bg(Color::Rgb(10, 10, 10))
         );
     }
 
     #[test]
-    fn color_24bit_bold() {
-        assert_ne!(
-            ansi_color("1;38;2;10;10;10"),
+    fn generate_style_color_24bit_bold() {
+        assert_eq!(
+            generate_style_from_ansi_color("1;38;2;10;10;10"),
             Style::default()
-                .bg(Color::Rgb(10, 10, 10))
+                .fg(Color::Rgb(10, 10, 10))
                 .add_modifier(Modifier::BOLD)
         );
-        assert_ne!(
-            ansi_color("38;2;10;10;10;1"),
+        assert_eq!(
+            generate_style_from_ansi_color("38;2;10;10;10;1"),
             Style::default()
-                .bg(Color::Rgb(10, 10, 10))
+                .fg(Color::Rgb(10, 10, 10))
                 .add_modifier(Modifier::BOLD)
         );
     }
@@ -683,6 +911,6 @@ mod tests {
     #[test]
     #[should_panic]
     fn color_3_4bit_panic() {
-        color_3_4bit(108);
+        color_3_4bit(Style::default(), 108);
     }
 }
