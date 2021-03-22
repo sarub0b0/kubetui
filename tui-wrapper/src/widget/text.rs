@@ -285,30 +285,89 @@ fn color_3_4bit(code: u8) -> Style {
         _ => unreachable!(),
     }
 }
-fn color_8bit() {}
-fn color_24bit() {}
+fn color_8bit(n: u8) -> Style {
+    Style::default()
+}
+fn color_24bit() -> Style {
+    Style::default()
+}
 
-fn ansi_escape_code(codes: &str) -> Style {
+fn ansi_color(codes: &str) -> Style {
     let mut style = Style::default();
     // ex. <x>m, <x>;<y>m, <x>;<y>;<z>m
     // ";"で連結できる
-    let iter = codes.split(";");
-    for code in iter {
-        // 3bit, 4bit
-
+    let mut iter = codes.split(";");
+    for code in iter.next() {
+        //////////////////////////////
         // 8bit, 24bit
-        // foreground
-        // match code {
-        //     "38" => {}
-        //     // background
-        //     "48" => {}
+        //////////////////////////////
+        //
+        //=============================
+        // 8bit
+        //
+        // ESC[ 38;5;⟨n⟩ m Select foreground color
+        // ESC[ 48;5;⟨n⟩ m Select background color
+        //   0-  7:  standard colors (as in ESC [ 30–37 m)
+        //   8- 15:  high intensity colors (as in ESC [ 90–97 m)
+        //  16-231:  6 × 6 × 6 cube (216 colors): 16 + 36 × r + 6 × g + b (0 ≤ r, g, b ≤ 5)
+        // 232-255:  grayscale from black to white in 24 steps
+        //
+        //==============================
+        // 24bit
+        // ESC[ 38;2;⟨r⟩;⟨g⟩;⟨b⟩ m Select RGB foreground color
+        // ESC[ 48;2;⟨r⟩;⟨g⟩;⟨b⟩ m Select RGB background color
+        match code {
+            // foreground
+            "38" => match iter.next().unwrap() {
+                "2" => {
+                    let (r, g, b) = (
+                        iter.next().unwrap(),
+                        iter.next().unwrap(),
+                        iter.next().unwrap(),
+                    );
+                    style.fg(Color::Rgb(
+                        r.parse().unwrap(),
+                        g.parse().unwrap(),
+                        b.parse().unwrap(),
+                    ));
+                }
+                "5" => {
+                    let n = iter.next().unwrap();
+                    style.fg(Color::Indexed(n.parse().unwrap()));
+                }
+                _ => {}
+            },
+            // background
+            "48" => match iter.next().unwrap() {
+                "2" => {
+                    let (r, g, b) = (
+                        iter.next().unwrap(),
+                        iter.next().unwrap(),
+                        iter.next().unwrap(),
+                    );
+                    style.bg(Color::Rgb(
+                        r.parse().unwrap(),
+                        g.parse().unwrap(),
+                        b.parse().unwrap(),
+                    ));
+                }
+                "5" => {
+                    let n = iter.next().unwrap();
+                    style.bg(Color::Indexed(n.parse().unwrap()));
+                }
+                _ => {}
+            },
 
-        //     _ => {
-        //         unreachable!()
-        //     }
-        // }
+            //////////////////////////////
+            // 3bit, 4bit
+            //////////////////////////////
+            _ => {
+                let n = code.parse().unwrap();
+                style.patch(color_3_4bit(n));
+            }
+        }
     }
-    Style::default()
+    style
 }
 
 fn wrap(lines: &Vec<String>, width: usize) -> Vec<String> {
@@ -554,6 +613,70 @@ mod tests {
         assert_eq!(
             color_3_4bit(1),
             Style::default().add_modifier(Modifier::BOLD)
+        );
+    }
+
+    #[test]
+    fn color_8bit_fg() {
+        assert_ne!(
+            ansi_color("38;5;100"),
+            Style::default().fg(Color::Indexed(100))
+        );
+    }
+
+    #[test]
+    fn color_8bit_bg() {
+        assert_ne!(
+            ansi_color("48;5;100"),
+            Style::default().bg(Color::Indexed(100))
+        );
+    }
+
+    #[test]
+    fn color_8bit_bold() {
+        assert_ne!(
+            ansi_color("1;38;5;100"),
+            Style::default()
+                .bg(Color::Indexed(100))
+                .add_modifier(Modifier::BOLD)
+        );
+        assert_ne!(
+            ansi_color("38;5;100;1"),
+            Style::default()
+                .bg(Color::Indexed(100))
+                .add_modifier(Modifier::BOLD)
+        );
+    }
+
+    #[test]
+    fn color_24bit_fg() {
+        assert_ne!(
+            ansi_color("38;2;10;10;10"),
+            Style::default().fg(Color::Rgb(10, 10, 10))
+        );
+    }
+
+    #[test]
+    fn color_24bit_bg() {
+        assert_ne!(
+            ansi_color("48;2;10;10;10"),
+            Style::default().bg(Color::Rgb(10, 10, 10))
+        );
+    }
+
+    #[test]
+    fn color_24bit_bold() {
+        assert_ne!(
+            ansi_color("1;38;2;10;10;10"),
+            Style::default()
+                .bg(Color::Rgb(10, 10, 10))
+                .add_modifier(Modifier::BOLD)
+        );
+        assert_ne!(
+            ansi_color("38;2;10;10;10;1"),
+            Style::default()
+                .bg(Color::Rgb(10, 10, 10))
+                .add_modifier(Modifier::BOLD)
         );
     }
 
