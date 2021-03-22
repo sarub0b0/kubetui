@@ -75,6 +75,7 @@ pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
             current_context,
         ));
 
+        // - TODO: *_loopをフォーカス時のみ実行する処理に変更する <22-03-21, yourname> -
         let pod_loop = tokio::spawn(pod_loop(tx.clone(), Arc::clone(&namespace)));
 
         let configs_loop = tokio::spawn(configs_loop(tx.clone(), Arc::clone(&namespace)));
