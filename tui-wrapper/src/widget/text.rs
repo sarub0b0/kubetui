@@ -1,4 +1,4 @@
-use tui::style::{Color, Style};
+use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
 use tui::widgets::{Block, Paragraph};
 
@@ -191,6 +191,7 @@ impl WidgetTrait for Text<'_> {
 
 fn style(num: &str) -> Style {
     let color = match num {
+        // foreground
         "30" => Color::Black,
         "31" => Color::Red,
         "32" => Color::Green,
@@ -200,6 +201,7 @@ fn style(num: &str) -> Style {
         "36" => Color::Cyan,
         "37" => Color::White,
         "39" => Color::Reset,
+        // background
         "90" => Color::DarkGray,
         "91" => Color::LightRed,
         "92" => Color::LightGreen,
@@ -212,6 +214,101 @@ fn style(num: &str) -> Style {
     };
 
     Style::default().fg(color)
+}
+
+fn normal_color(n: u8) -> Color {
+    match n {
+        30 => Color::Black,
+        31 => Color::Red,
+        32 => Color::Green,
+        33 => Color::Yellow,
+        34 => Color::Blue,
+        35 => Color::Magenta,
+        36 => Color::Cyan,
+        37 => Color::White,
+        _ => unreachable!(),
+    }
+}
+
+fn bright_color(n: u8) -> Color {
+    match n {
+        90 => Color::DarkGray,
+        91 => Color::LightRed,
+        92 => Color::LightGreen,
+        93 => Color::LightYellow,
+        94 => Color::LightBlue,
+        95 => Color::LightMagenta,
+        96 => Color::LightCyan,
+        97 => Color::Gray,
+        _ => unreachable!(),
+    }
+}
+
+fn modifiers(n: u8) -> Modifier {
+    match n {
+        1 => Modifier::BOLD,
+        2 => Modifier::DIM,
+        3 => Modifier::ITALIC,
+        4 => Modifier::UNDERLINED,
+        5 => Modifier::SLOW_BLINK,
+        6 => Modifier::RAPID_BLINK,
+        7 => Modifier::REVERSED,
+        8 => Modifier::HIDDEN,
+        9 => Modifier::CROSSED_OUT,
+        _ => unreachable!(),
+    }
+}
+
+fn color_3_4bit(code: u8) -> Style {
+    match code {
+        //////////////////////////
+        // modifiers
+        //////////////////////////
+        0 => Style::default(),
+        n @ 1..=9 => Style::default().add_modifier(modifiers(n)),
+        //////////////////////////
+        // foreground
+        //////////////////////////
+        n @ 30..=37 => Style::default().fg(normal_color(n)),
+
+        n @ 90..=97 => Style::default().fg(bright_color(n)),
+
+        39 => Style::default().fg(Color::Reset),
+        //////////////////////////
+        // background
+        //////////////////////////
+        n @ 40..=47 => Style::default().bg(normal_color(n - 10)),
+        n @ 100..=107 => Style::default().bg(normal_color(n - 10)),
+        49 => Style::default().bg(Color::Reset),
+
+        // error
+        _ => unreachable!(),
+    }
+}
+fn color_8bit() {}
+fn color_24bit() {}
+
+fn ansi_escape_code(codes: &str) -> Style {
+    let mut style = Style::default();
+    // ex. <x>m, <x>;<y>m, <x>;<y>;<z>m
+    // ";"で連結できる
+    let iter = codes.split(";");
+    for code in iter {
+        // 3bit, 4bit
+
+        // 8bit, 24bit
+        // foreground
+        // match code {
+        //     "38" => {}
+        //     // background
+        //     "48" => {}
+
+        //     _ => {
+        //         unreachable!()
+        //     }
+        // }
+    }
+    Style::default()
 }
 
 fn wrap(lines: &Vec<String>, width: usize) -> Vec<String> {
@@ -438,5 +535,31 @@ mod tests {
         for (i, l) in result.iter().enumerate() {
             assert_eq!(*l, expected[i]);
         }
+    }
+
+    #[test]
+    fn color_3_4bit_reset() {
+        assert_eq!(color_3_4bit(0), Style::default());
+    }
+    #[test]
+    fn color_3_4bit_fg() {
+        assert_eq!(color_3_4bit(35), Style::default().fg(Color::Magenta));
+    }
+    #[test]
+    fn color_3_4bit_bg() {
+        assert_eq!(color_3_4bit(45), Style::default().bg(Color::Magenta));
+    }
+    #[test]
+    fn color_3_4bit_bold() {
+        assert_eq!(
+            color_3_4bit(1),
+            Style::default().add_modifier(Modifier::BOLD)
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn color_3_4bit_panic() {
+        color_3_4bit(108);
     }
 }
