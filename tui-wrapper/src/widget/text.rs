@@ -358,23 +358,45 @@ fn wrap_line(text: &String, width: usize) -> Vec<String> {
 
     let lines = text.lines();
 
-    for l in lines {
-        let len = l.chars().count();
-        let tmp = l;
+    for line in lines {
+        let len = line.chars().count();
         if width < len {
-            let crs = len / width;
-            for i in 0..=crs {
-                let start = width * i;
-                let mut end = width * (i + 1);
-
-                if len <= end {
-                    end = len
+            let mut word_count = 0;
+            let mut start = 0;
+            let mut into_escape = false;
+            // 線形探索
+            let chars = line.chars();
+            for (i, c) in chars.enumerate() {
+                // skip \x1b[...m
+                if c == '\x1b' {
+                    into_escape = true;
+                    continue;
                 }
 
-                ret.push(String::from(&tmp[start..end]));
+                if c == 'm' && into_escape {
+                    into_escape = false;
+                    continue;
+                }
+
+                if into_escape {
+                    continue;
+                }
+
+                word_count += 1;
+                if word_count == width {
+                    ret.push(String::from(&line[start..=i]));
+
+                    start = i + 1;
+
+                    word_count = 0;
+                }
+            }
+
+            if 0 < word_count {
+                ret.push(String::from(&line[start..]));
             }
         } else {
-            ret.push(l.to_string());
+            ret.push(line.to_string());
         }
     }
     ret
@@ -437,6 +459,7 @@ fn generate_spans<'a>(lines: &Vec<String>) -> Vec<Spans<'a>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn wrap_only_newline() {
@@ -449,7 +472,7 @@ mod tests {
     }
 
     #[test]
-    fn wrap_short() {
+    fn wrap_unwrap() {
         let text = vec!["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string()];
 
         assert_eq!(
@@ -459,7 +482,7 @@ mod tests {
     }
 
     #[test]
-    fn wrap_long() {
+    fn wrap_short() {
         let text = vec!["aaaaaaaaaaaaaaa".to_string()];
 
         assert_eq!(
@@ -915,6 +938,41 @@ mod tests {
             Style::default()
                 .fg(Color::Rgb(10, 10, 10))
                 .add_modifier(Modifier::BOLD)
+        );
+    }
+
+    #[test]
+    fn generate_style_color_24bit_rainbow() {
+        let rainbow = vec!["[48;2;0;0;0m [48;2;1;0;0m [48;2;2;0;0m [48;2;3;0;0m [48;2;4;0;0m [48;2;5;0;0m [48;2;6;0;0m [48;2;7;0;0m [48;2;8;0;0m [48;2;9;0;0m [48;2;10;0;0m [0m".to_string()];
+
+        let wrapped = wrap(&rainbow, 3);
+
+        println!("{:?}", wrapped);
+
+        assert_eq!(
+            generate_spans(&wrapped),
+            vec![
+                Spans::from(vec![
+                    Span::styled(" ", Style::default().bg(Color::Rgb(0, 0, 0))),
+                    Span::styled(" ", Style::default().bg(Color::Rgb(1, 0, 0))),
+                    Span::styled(" ", Style::default().bg(Color::Rgb(2, 0, 0)))
+                ]),
+                Spans::from(vec![
+                    Span::styled(" ", Style::default().bg(Color::Rgb(3, 0, 0))),
+                    Span::styled(" ", Style::default().bg(Color::Rgb(4, 0, 0))),
+                    Span::styled(" ", Style::default().bg(Color::Rgb(5, 0, 0)))
+                ]),
+                Spans::from(vec![
+                    Span::styled(" ", Style::default().bg(Color::Rgb(6, 0, 0))),
+                    Span::styled(" ", Style::default().bg(Color::Rgb(7, 0, 0))),
+                    Span::styled(" ", Style::default().bg(Color::Rgb(8, 0, 0)))
+                ]),
+                Spans::from(vec![
+                    Span::styled(" ", Style::default().bg(Color::Rgb(9, 0, 0))),
+                    Span::styled(" ", Style::default().bg(Color::Rgb(10, 0, 0))),
+                    Span::styled("", Style::reset())
+                ]),
+            ]
         );
     }
 

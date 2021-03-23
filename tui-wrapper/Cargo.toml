@@ -8,3 +8,6 @@ edition = "2018"
 
 [dependencies]
 tui = { version = "0.14", default-features = false, features = ['crossterm'] }
+
+[dev-dependencies]
+pretty_assertions = "0.7.1"
