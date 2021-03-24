@@ -16,7 +16,7 @@ use tokio::{
 };
 
 use k8s_openapi::api::core::v1::{
-    ConfigMap, ContainerStateTerminated, Namespace, Pod, PodStatus, Secret,
+    ConfigMap, ContainerStateTerminated, Event as KEvent, Namespace, Pod, PodStatus, Secret,
 };
 
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
@@ -26,6 +26,7 @@ use kube::{
     config::Kubeconfig,
     Api, Client,
 };
+use kube_runtime::{utils::try_flatten_applied, watcher};
 
 pub struct PodInfo {
     name: String,
@@ -50,7 +51,7 @@ impl PodInfo {
     }
 }
 
-struct LogStreamHandler(JoinHandle<()>, JoinHandle<()>);
+struct Handlers(JoinHandle<()>, JoinHandle<()>);
 
 pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
     let rt = Runtime::new().unwrap();
@@ -96,7 +97,7 @@ async fn event_loop(
     let tx_config = tx.clone();
     let tx_ctx = tx.clone();
 
-    let mut log_stream_handler: Option<JoinHandle<LogStreamHandler>> = None;
+    let mut log_stream_handler: Option<JoinHandle<Handlers>> = None;
     loop {
         let ev = rx.recv().unwrap();
         match ev {
@@ -132,7 +133,17 @@ async fn event_loop(
                     let tx = tx.clone();
                     let client = client.clone();
 
-                    log_stream_handler = Some(tokio::spawn(log_stream(tx, client, ns, pod_name)));
+                    log_stream_handler = Some(tokio::spawn(async {
+                        let pods: Api<Pod> = Api::namespaced(client.clone(), &ns);
+                        let pod = pods.get(&pod_name).await.unwrap();
+                        let phase = get_status(pod);
+
+                        if phase == "Running" || phase == "Completed" {
+                            log_stream(tx, client, ns, pod_name).await
+                        } else {
+                            event_watch(tx, client, ns, pod_name, "Pod").await
+                        }
+                    }));
 
                     task::yield_now().await;
                 }
@@ -207,12 +218,55 @@ async fn event_loop(
     }
 }
 
-async fn log_stream(
+async fn event_watch(
     tx: Sender<Event>,
     client: Client,
     ns: String,
-    pod_name: String,
-) -> LogStreamHandler {
+    object_name: impl Into<String>,
+    kind: impl Into<String>,
+) -> Handlers {
+    let events: Api<KEvent> = Api::namespaced(client, &ns);
+    let lp = ListParams::default().fields(&format!(
+        "involvedObject.kind={},involvedObject.name={}",
+        kind.into(),
+        object_name.into()
+    ));
+
+    let buf = Arc::new(RwLock::new(Vec::new()));
+
+    let buf_clone = Arc::clone(&buf);
+    let watch_handle = tokio::spawn(async move {
+        let mut ew = try_flatten_applied(watcher(events, lp)).boxed();
+        while let Some(event) = ew.try_next().await.unwrap() {
+            let mut buf = buf_clone.write().unwrap();
+            buf.push(format!(
+                "{} {} {}",
+                event.type_.unwrap(),
+                event.reason.unwrap(),
+                event.message.unwrap()
+            ));
+        }
+    });
+
+    let buf_clone = Arc::clone(&buf);
+    let event_handle = tokio::spawn(async move {
+        let mut interval = tokio::time::interval(time::Duration::from_millis(500));
+        loop {
+            interval.tick().await;
+            let mut buf = buf_clone.write().unwrap();
+            if !buf.is_empty() {
+                tx.send(Event::Kube(Kube::LogStreamResponse(buf.clone())))
+                    .unwrap();
+
+                buf.clear();
+            }
+        }
+    });
+
+    Handlers(watch_handle, event_handle)
+}
+
+async fn log_stream(tx: Sender<Event>, client: Client, ns: String, pod_name: String) -> Handlers {
     let pod: Api<Pod> = Api::namespaced(client.clone(), &ns);
     let mut lp = LogParams::default();
 
@@ -245,7 +299,7 @@ async fn log_stream(
         }
     });
 
-    LogStreamHandler(stream_handler, event_handler)
+    Handlers(stream_handler, event_handler)
 }
 
 async fn configs_loop(tx: Sender<Event>, namespace: Arc<RwLock<String>>) {
