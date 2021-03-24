@@ -99,9 +99,9 @@ async fn event_loop(
 
     let mut log_stream_handler: Option<JoinHandle<Handlers>> = None;
     loop {
-        let ev = rx.recv().unwrap();
-        match ev {
-            Event::Kube(ev) => match ev {
+        match rx.recv() {
+            // - TODO: k8s関連専用のenumを作る -
+            Ok(Event::Kube(ev)) => match ev {
                 Kube::SetNamespace(ns) => {
                     let selectd_ns = ns.clone();
                     let mut ns = namespace.write().unwrap();
@@ -213,7 +213,8 @@ async fn event_loop(
                 Kube::ConfigResponse(_) => {}
                 Kube::CurrentContextResponse(_, _) => {}
             },
-            _ => {}
+            Ok(_) => {}
+            Err(_) => {}
         }
     }
 }
