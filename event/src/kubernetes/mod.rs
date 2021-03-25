@@ -86,7 +86,7 @@ async fn main_loop(
     let tx_config = tx.clone();
     let tx_ctx = tx.clone();
 
-    let mut log_stream_handler: Option<JoinHandle<Handlers>> = None;
+    let mut log_stream_handler: Option<Handlers> = None;
     loop {
         match rx.recv() {
             // - TODO: k8s関連専用のenumを作る -
@@ -106,14 +106,12 @@ async fn main_loop(
 
                 Kube::LogStreamRequest(pod_name) => {
                     if let Some(handler) = log_stream_handler {
-                        if let Ok(h) = handler.await {
-                            h.abort();
-                        }
+                        handler.abort();
                     }
 
                     let ns = namespace.read().unwrap().clone();
                     log_stream_handler =
-                        log_stream_spawn(tx.clone(), client.clone(), ns, pod_name).await;
+                        Some(log_stream(tx.clone(), client.clone(), ns, pod_name).await);
                     task::yield_now().await;
                 }
 
@@ -142,13 +140,13 @@ async fn main_loop(
     }
 }
 
-async fn log_stream_spawn(
+async fn _log_stream_spawn(
     tx: Sender<Event>,
     client: Client,
     ns: String,
     pod_name: String,
-) -> Option<JoinHandle<Handlers>> {
-    Some(tokio::spawn(async {
+) -> Option<Handlers> {
+    Some({
         let pods: Api<Pod> = Api::namespaced(client.clone(), &ns);
         let pod = pods.get(&pod_name).await.unwrap();
         let phase = get_status(pod);
@@ -158,7 +156,7 @@ async fn log_stream_spawn(
         } else {
             event_watch(tx, client, ns, pod_name, "Pod").await
         }
-    }))
+    })
 }
 
 async fn namespace_list(client: Client) -> Vec<String> {
