@@ -1,6 +1,7 @@
 pub mod input;
-pub mod kubernetes;
 pub mod tick;
+
+pub mod kubernetes;
 
 mod util;
 
@@ -30,12 +31,4 @@ pub enum Kube {
     Configs(Vec<String>),
     ConfigRequest(String),
     ConfigResponse(Vec<String>),
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
 }
