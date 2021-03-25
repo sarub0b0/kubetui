@@ -1,11 +1,14 @@
 mod config;
+mod event;
 mod log;
 mod pod;
+
+use self::event::event_loop;
 
 use super::{Event, Kube};
 use crate::kubernetes::config::{configs_loop, get_config};
 use crate::kubernetes::log::log_stream;
-use crate::kubernetes::pod::{get_status, pod_loop};
+use crate::kubernetes::pod::pod_loop;
 
 use std::sync::{Arc, RwLock};
 
@@ -15,15 +18,13 @@ use tokio::{
     task::{self, JoinHandle},
 };
 
-use k8s_openapi::api::core::v1::{Namespace, Pod};
+use k8s_openapi::api::core::v1::Namespace;
 
 use kube::{
     api::{ListParams, Meta},
     config::Kubeconfig,
     Api, Client,
 };
-
-use crate::kubernetes::log::*;
 
 pub struct Handlers(JoinHandle<()>, JoinHandle<()>);
 
@@ -60,7 +61,6 @@ pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
             current_context,
         ));
 
-        // - TODO: *_loopをフォーカス時のみ実行する処理に変更する <22-03-21, yourname> -
         let pod_loop = tokio::spawn(pod_loop(tx.clone(), client.clone(), Arc::clone(&namespace)));
 
         let config_loop = tokio::spawn(configs_loop(
@@ -69,9 +69,16 @@ pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
             Arc::clone(&namespace),
         ));
 
+        let event_loop = tokio::spawn(event_loop(
+            tx.clone(),
+            client.clone(),
+            Arc::clone(&namespace),
+        ));
+
         main_loop.await.unwrap();
         pod_loop.await.unwrap();
         config_loop.await.unwrap();
+        event_loop.await.unwrap();
     });
 }
 
@@ -89,7 +96,6 @@ async fn main_loop(
     let mut log_stream_handler: Option<Handlers> = None;
     loop {
         match rx.recv() {
-            // - TODO: k8s関連専用のenumを作る -
             Ok(Event::Kube(ev)) => match ev {
                 Kube::SetNamespace(ns) => {
                     let selectd_ns = ns.clone();
@@ -140,24 +146,24 @@ async fn main_loop(
     }
 }
 
-async fn _log_stream_spawn(
-    tx: Sender<Event>,
-    client: Client,
-    ns: String,
-    pod_name: String,
-) -> Option<Handlers> {
-    Some({
-        let pods: Api<Pod> = Api::namespaced(client.clone(), &ns);
-        let pod = pods.get(&pod_name).await.unwrap();
-        let phase = get_status(pod);
+// async fn _log_stream_spawn(
+//     tx: Sender<Event>,
+//     client: Client,
+//     ns: String,
+//     pod_name: String,
+// ) -> Option<Handlers> {
+//     Some({
+//         let pods: Api<Pod> = Api::namespaced(client.clone(), &ns);
+//         let pod = pods.get(&pod_name).await.unwrap();
+//         let phase = get_status(pod);
 
-        if phase == "Running" || phase == "Completed" {
-            log_stream(tx, client, ns, pod_name).await
-        } else {
-            event_watch(tx, client, ns, pod_name, "Pod").await
-        }
-    })
-}
+//         if phase == "Running" || phase == "Completed" {
+//             log_stream(tx, client, ns, pod_name).await
+//         } else {
+//             event_watch(tx, client, ns, pod_name, "Pod").await
+//         }
+//     })
+// }
 
 async fn namespace_list(client: Client) -> Vec<String> {
     let namespaces: Api<Namespace> = Api::all(client);

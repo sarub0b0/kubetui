@@ -19,6 +19,8 @@ pub enum Kube {
     // Context
     CurrentContextRequest,
     CurrentContextResponse(String, String), // current_context, namespace
+    // Event
+    Event(Vec<String>),
     // Namespace
     GetNamespacesRequest,
     GetNamespacesResponse(Vec<String>),

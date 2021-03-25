@@ -22,6 +22,21 @@ use event::{input::*, kubernetes::*, tick::*, Event, Kube};
 use kubetui::draw::*;
 use tui_wrapper::*;
 
+fn update_event(window: &mut Window, ev: Vec<String>) {
+    let pane = window.pane_mut("event");
+    if let Some(p) = pane {
+        let rect = p.chunk();
+        let widget = p.widget_mut().text_mut().unwrap();
+        let is_bottom = widget.is_bottom();
+
+        widget.append_items(&ev, rect.width, rect.height);
+
+        if is_bottom {
+            widget.select_last();
+        }
+    }
+}
+
 fn update_pod_logs(window: &mut Window, logs: Vec<String>) {
     let pane = window.pane_mut("logs");
     if let Some(p) = pane {
@@ -166,10 +181,12 @@ fn main() -> Result<(), io::Error> {
                 0,
                 "event",
             )],
-            Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([Constraint::Percentage(100)].as_ref()),
-            None,
+            Layout::default().constraints([Constraint::Percentage(100)].as_ref()),
+            Some(Popup::new(
+                "Namespace",
+                Widget::List(List::new(vec![])),
+                "namespace",
+            )),
         ),
     ];
 
@@ -247,6 +264,11 @@ fn main() -> Result<(), io::Error> {
                             .unwrap();
                         window.unselect_popup();
 
+                        if let Some(p) = window.pane_mut("event") {
+                            let w = p.widget_mut().text_mut().unwrap();
+                            w.clear();
+                        }
+
                         current_namespace = selected_ns;
                     } else {
                         match window.selected_pane_id() {
@@ -318,6 +340,9 @@ fn main() -> Result<(), io::Error> {
                 Kube::CurrentContextResponse(ctx, ns) => {
                     current_context = ctx;
                     current_namespace = ns;
+                }
+                Kube::Event(ev) => {
+                    update_event(&mut window, ev);
                 }
             },
         }
