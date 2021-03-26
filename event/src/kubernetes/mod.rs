@@ -5,7 +5,7 @@ mod pod;
 
 use self::event::event_loop;
 
-use super::{Event, Kube};
+use super::Event;
 use crate::kubernetes::config::{configs_loop, get_config};
 use crate::kubernetes::log::log_stream;
 use crate::kubernetes::pod::pod_loop;
@@ -25,6 +25,26 @@ use kube::{
     config::Kubeconfig,
     Api, Client,
 };
+
+pub enum Kube {
+    // Context
+    CurrentContextRequest,
+    CurrentContextResponse(String, String), // current_context, namespace
+    // Event
+    Event(Vec<String>),
+    // Namespace
+    GetNamespacesRequest,
+    GetNamespacesResponse(Vec<String>),
+    SetNamespace(String),
+    // Pod Logs
+    Pod(Vec<String>),
+    LogStreamRequest(String),
+    LogStreamResponse(Vec<String>),
+    // ConfigMap & Secret
+    Configs(Vec<String>),
+    ConfigRequest(String),
+    ConfigResponse(Vec<String>),
+}
 
 pub struct Handlers(JoinHandle<()>, JoinHandle<()>);
 
