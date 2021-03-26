@@ -200,7 +200,7 @@ fn main() -> Result<(), io::Error> {
     let mut current_context = "None".to_string();
 
     tx_main
-        .send(Event::Kube(Kube::CurrentContextRequest))
+        .send(Event::Kube(Kube::GetCurrentContextRequest))
         .unwrap();
 
     loop {
@@ -341,8 +341,8 @@ fn main() -> Result<(), io::Error> {
                 Kube::SetNamespace(_) => {}
                 Kube::LogStreamRequest(_) => {}
                 Kube::ConfigRequest(_) => {}
-                Kube::CurrentContextRequest => {}
-                Kube::CurrentContextResponse(ctx, ns) => {
+                Kube::GetCurrentContextRequest => {}
+                Kube::GetCurrentContextResponse(ctx, ns) => {
                     current_context = ctx;
                     current_namespace = ns;
                 }

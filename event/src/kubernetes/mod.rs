@@ -1,4 +1,5 @@
 mod config;
+mod context;
 mod event;
 mod log;
 mod pod;
@@ -28,8 +29,8 @@ use kube::{
 
 pub enum Kube {
     // Context
-    CurrentContextRequest,
-    CurrentContextResponse(String, String), // current_context, namespace
+    GetCurrentContextRequest,
+    GetCurrentContextResponse(String, String), // current_context, namespace
     // Event
     Event(Vec<String>),
     // Namespace
@@ -149,10 +150,10 @@ async fn main_loop(
                         .unwrap();
                 }
 
-                Kube::CurrentContextRequest => {
+                Kube::GetCurrentContextRequest => {
                     let ns = namespace.read().unwrap().clone();
                     tx_ctx
-                        .send(Event::Kube(Kube::CurrentContextResponse(
+                        .send(Event::Kube(Kube::GetCurrentContextResponse(
                             current_context.to_string(),
                             ns,
                         )))
