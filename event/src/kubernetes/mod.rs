@@ -29,6 +29,9 @@ use kube::{
 
 pub enum Kube {
     // Context
+    GetContextsRequest,
+    GetContextsResponse(Vec<String>),
+    SetContext(String),
     GetCurrentContextRequest,
     GetCurrentContextResponse(String, String), // current_context, namespace
     // Event
