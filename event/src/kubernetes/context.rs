@@ -11,7 +11,7 @@ use kube::{
     Api, Client,
 };
 
-fn context_list(tx: Sender<Event>) {
+fn _context_list(tx: Sender<Event>) {
     let kubeconfig = Kubeconfig::read().unwrap();
 
     let ret = kubeconfig
@@ -24,7 +24,7 @@ fn context_list(tx: Sender<Event>) {
     tx.send(Event::Kube(Kube::GetContextsResponse(ret)))
         .unwrap();
 }
-fn change_context() {}
+fn _change_context() {}
 
 pub async fn namespace_list(client: Client) -> Vec<String> {
     let namespaces: Api<Namespace> = Api::all(client);
@@ -34,7 +34,7 @@ pub async fn namespace_list(client: Client) -> Vec<String> {
     ns_list.iter().map(|ns| ns.name()).collect()
 }
 
-fn get_kubeconfig_option(context: String) -> Option<KubeConfigOptions> {
+fn _get_kubeconfig_option(context: String) -> Option<KubeConfigOptions> {
     let kubeconfig = Kubeconfig::read().unwrap();
 
     let ret = kubeconfig
