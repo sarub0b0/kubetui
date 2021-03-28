@@ -50,5 +50,5 @@ pub async fn log_stream(
         }
     });
 
-    Handlers(stream_handler, event_handler)
+    Handlers(vec![stream_handler, event_handler])
 }

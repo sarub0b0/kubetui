@@ -5,6 +5,7 @@ mod log;
 mod pod;
 
 use self::event::event_loop;
+use crate::kubernetes::context::namespace_list;
 
 use super::Event;
 use crate::kubernetes::config::{configs_loop, get_config};
@@ -19,13 +20,7 @@ use tokio::{
     task::{self, JoinHandle},
 };
 
-use k8s_openapi::api::core::v1::Namespace;
-
-use kube::{
-    api::{ListParams, Meta},
-    config::Kubeconfig,
-    Api, Client,
-};
+use kube::{config::Kubeconfig, Client};
 
 pub enum Kube {
     // Context
@@ -50,12 +45,11 @@ pub enum Kube {
     ConfigResponse(Vec<String>),
 }
 
-pub struct Handlers(JoinHandle<()>, JoinHandle<()>);
+pub struct Handlers(Vec<JoinHandle<()>>);
 
 impl Handlers {
     fn abort(&self) {
-        self.0.abort();
-        self.1.abort();
+        self.0.iter().for_each(|j| j.abort());
     }
 }
 
@@ -168,31 +162,4 @@ async fn main_loop(
             Err(_) => {}
         }
     }
-}
-
-// async fn _log_stream_spawn(
-//     tx: Sender<Event>,
-//     client: Client,
-//     ns: String,
-//     pod_name: String,
-// ) -> Option<Handlers> {
-//     Some({
-//         let pods: Api<Pod> = Api::namespaced(client.clone(), &ns);
-//         let pod = pods.get(&pod_name).await.unwrap();
-//         let phase = get_status(pod);
-
-//         if phase == "Running" || phase == "Completed" {
-//             log_stream(tx, client, ns, pod_name).await
-//         } else {
-//             event_watch(tx, client, ns, pod_name, "Pod").await
-//         }
-//     })
-// }
-
-async fn namespace_list(client: Client) -> Vec<String> {
-    let namespaces: Api<Namespace> = Api::all(client);
-    let lp = ListParams::default();
-    let ns_list = namespaces.list(&lp).await.unwrap();
-
-    ns_list.iter().map(|ns| ns.name()).collect()
 }
