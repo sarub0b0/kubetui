@@ -77,7 +77,7 @@ async fn watch(tx: Sender<Event>, client: Client, ns: String) -> Handlers {
         }
     });
 
-    Handlers(watch_handle, event_handle)
+    Handlers(vec![watch_handle, event_handle])
 }
 
 pub async fn _event_watch(
@@ -125,5 +125,5 @@ pub async fn _event_watch(
         }
     });
 
-    Handlers(watch_handle, event_handle)
+    Handlers(vec![watch_handle, event_handle])
 }
