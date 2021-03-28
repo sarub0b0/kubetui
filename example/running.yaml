@@ -11,17 +11,6 @@ spec:
       labels:
         app: kubetui-running
     spec:
-      initContainers:
-        - name: init-0
-          image: busybox
-          command:
-            - sleep
-            - "5"
-        - name: init-1
-          image: busybox
-          command:
-            - sleep
-            - "5"
       containers:
         - name: app
           image: nginx
