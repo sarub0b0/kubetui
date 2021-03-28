@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubetui-multi-container
+spec:
+  selector:
+    matchLabels: # or matchExpressions:
+      app: kubetui-multi-container
+  template:
+    metadata:
+      labels:
+        app: kubetui-multi-container
+    spec:
+      initContainers:
+        - name: init-0
+          image: alpine
+          command:
+            - sh
+            - -c
+          args:
+            - "echo init-0; exit 0"
+        - name: init-1
+          image: alpine
+          command:
+            - sh
+            - -c
+          args:
+            - "echo init-1; exit 0"
+      containers:
+        - name: app-0
+          image: nginx
+          command:
+            - sh
+            - -c
+          args:
+            - "while true; do app-0; sleep 1; done"
+        - name: app-1
+          image: alpine
+          command:
+            - sh
+            - -c
+          args:
+            - "while true; do app-1; sleep 1; done"
