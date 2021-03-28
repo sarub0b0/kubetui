@@ -337,11 +337,6 @@ fn main() -> Result<(), io::Error> {
                     update_configs_raw(&mut window, raw);
                 }
 
-                Kube::GetNamespacesRequest => {}
-                Kube::SetNamespace(_) => {}
-                Kube::LogStreamRequest(_) => {}
-                Kube::ConfigRequest(_) => {}
-                Kube::GetCurrentContextRequest => {}
                 Kube::GetCurrentContextResponse(ctx, ns) => {
                     current_context = ctx;
                     current_namespace = ns;
@@ -349,6 +344,7 @@ fn main() -> Result<(), io::Error> {
                 Kube::Event(ev) => {
                     update_event(&mut window, ev);
                 }
+                _ => unreachable!(),
             },
         }
     }
