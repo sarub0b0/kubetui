@@ -33,11 +33,11 @@ spec:
             - sh
             - -c
           args:
-            - "while true; do app-0; sleep 1; done"
+            - "while true; do echo app-0; sleep 1; done"
         - name: app-1
           image: alpine
           command:
             - sh
             - -c
           args:
-            - "while true; do app-1; sleep 1; done"
+            - "while true; do echo app-1; sleep 1; done"
