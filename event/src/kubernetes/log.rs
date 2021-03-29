@@ -6,17 +6,16 @@ use crate::kubernetes::Handlers;
 use futures::{StreamExt, TryStreamExt};
 use tokio::task::JoinHandle;
 
-use std::time;
 use std::{
     sync::{Arc, RwLock},
-    vec,
+    time, vec,
 };
 
 use crossbeam::channel::Sender;
 
 use k8s_openapi::api::core::v1::Pod;
 
-use kube::{api::LogParams, Api, Client};
+use kube::{api::LogParams, Api, Client, Result};
 
 use color::Color;
 
@@ -123,17 +122,21 @@ fn container_logs(
     log_prefix: Option<String>,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
+        let prefix = if let Some(ref p) = log_prefix {
+            p.to_owned() + " "
+        } else {
+            "".to_string()
+        };
+
         let logs = pod.logs(&pod_name, &lp).await.unwrap();
+
         for line in logs.lines() {
             let mut buf = buf.write().unwrap();
-            let prefix = if let Some(ref p) = log_prefix {
-                p.to_owned() + " "
-            } else {
-                "".to_string()
-            };
             buf.push(format!("{}{}", prefix, line));
         }
+
         let mut buf = buf.write().unwrap();
+
         tx.send(Event::Kube(Kube::LogStreamResponse(buf.clone())))
             .unwrap();
 
@@ -145,31 +148,63 @@ fn container_log_stream(
     tx: Sender<Event>,
     pod: Api<Pod>,
     pod_name: String,
-    lp: LogParams,
+    mut lp: LogParams,
     buf: Arc<RwLock<Vec<String>>>,
     log_prefix: Option<String>,
 ) -> Vec<JoinHandle<()>> {
-    let buf_clone = Arc::clone(&buf);
+    let buf_ = buf.clone();
     let buf_handle = tokio::spawn(async move {
-        let mut logs = pod.log_stream(&pod_name, &lp).await.unwrap().boxed();
-        while let Some(line) = logs.try_next().await.unwrap() {
-            let mut buf = buf_clone.write().unwrap();
-            let prefix = if let Some(ref p) = log_prefix {
-                p.to_owned() + " "
-            } else {
-                "".to_string()
+        let prefix = if let Some(ref p) = log_prefix.clone() {
+            p.to_owned() + " "
+        } else {
+            "".to_string()
+        };
+
+        loop {
+            let pod_ = pod.clone();
+            let pod_name_ = pod_name.clone();
+            let prefix_ = prefix.clone();
+            let lp_ = lp.clone();
+            let buf__ = buf_.clone();
+
+            let stream: Result<(), kube::Error> = async move {
+                let mut logs = pod_.log_stream(&pod_name_, &lp_).await?.boxed();
+
+                while let Some(line) = logs.try_next().await? {
+                    let mut buf = buf__.write().unwrap();
+                    buf.push(format!("{}{}", prefix_, String::from_utf8_lossy(&line)));
+                }
+
+                Ok(())
             }
-            .to_string();
-            buf.push(format!("{}{}", prefix, String::from_utf8_lossy(&line)));
+            .await;
+
+            let buf__ = buf_.clone();
+            match stream {
+                Ok(()) => break,
+                Err(err) => match err {
+                    kube::Error::HyperError(e) => {
+                        let mut buf = buf__.write().unwrap();
+                        buf.push(msg::info(format!("log_stream INFO: {}", e)));
+                        buf.push(msg::info(format!("log_stream INFO: Try Reconnect")));
+                        lp.tail_lines = Some(0);
+                    }
+                    _ => {
+                        let mut buf = buf__.write().unwrap();
+                        buf.push(msg::error(format!("log_stream ERR: {}", err)));
+                        break;
+                    }
+                },
+            }
         }
     });
 
-    let buf_clone = Arc::clone(&buf);
+    let buf_ = buf.clone();
     let send_handle = tokio::spawn(async move {
         let mut interval = tokio::time::interval(time::Duration::from_millis(200));
         loop {
             interval.tick().await;
-            let mut buf = buf_clone.write().unwrap();
+            let mut buf = buf_.write().unwrap();
             if !buf.is_empty() {
                 tx.send(Event::Kube(Kube::LogStreamResponse(buf.clone())))
                     .unwrap();
@@ -187,6 +222,36 @@ fn is_terminated_container(terminated: &Option<ContainerStateTerminated>) -> boo
         true
     } else {
         false
+    }
+}
+
+#[allow(dead_code)]
+mod msg {
+    const DEBUG: &str = "\x1b[90m";
+    const INFO: &str = "\x1b[90m";
+    const WARN: &str = "\x1b[33m";
+    const ERR: &str = "\x1b[31m";
+
+    const DEFAULT_COLOR: &str = "\x1b[37m";
+
+    #[inline]
+    pub fn debug(fmt: impl Into<String>) -> String {
+        format!("{}{}{}", DEBUG, fmt.into(), DEFAULT_COLOR)
+    }
+
+    #[inline]
+    pub fn info(fmt: impl Into<String>) -> String {
+        format!("{}{}{}", INFO, fmt.into(), DEFAULT_COLOR)
+    }
+
+    #[inline]
+    pub fn warn(fmt: impl Into<String>) -> String {
+        format!("{}{}{}", WARN, fmt.into(), DEFAULT_COLOR)
+    }
+
+    #[inline]
+    pub fn error(fmt: impl Into<String>) -> String {
+        format!("{}{}{}", ERR, fmt.into(), DEFAULT_COLOR)
     }
 }
 
