@@ -183,10 +183,7 @@ fn container_log_stream(
             match stream {
                 Ok(()) => break,
                 Err(err) => match err {
-                    kube::Error::HyperError(e) => {
-                        let mut buf = buf__.write().unwrap();
-                        buf.push(msg::info(format!("log_stream INFO: {}", e)));
-                        buf.push(msg::info(format!("log_stream INFO: Try Reconnect")));
+                    kube::Error::HyperError(_) => {
                         lp.tail_lines = Some(0);
                     }
                     _ => {
