@@ -61,7 +61,7 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, tab: &Tab, selected_popup: bool) {
             }
             "logs" => {
                 let log = pane.widget().text().unwrap();
-                f.render_widget(log.widget(block), pane.chunk());
+                f.render_widget(log.widget(block, pane.chunk()), pane.chunk());
             }
             "configs" => {
                 let configs = pane.widget().list().unwrap();
@@ -74,12 +74,12 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, tab: &Tab, selected_popup: bool) {
             }
             "configs-raw" => {
                 let raw = pane.widget().text().unwrap();
-                f.render_widget(raw.widget(block), pane.chunk());
+                f.render_widget(raw.widget(block, pane.chunk()), pane.chunk());
             }
 
             "event" => {
                 let ev = pane.widget().text().unwrap();
-                f.render_widget(ev.widget(block), pane.chunk());
+                f.render_widget(ev.widget(block, pane.chunk()), pane.chunk());
             }
 
             _ => {}

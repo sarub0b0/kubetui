@@ -21,7 +21,6 @@ pub struct Paragraph2<'a> {
     block: Option<Block<'a>>,
     style: Style,
     text: Text<'a>,
-    scroll: (u64, u64),
 }
 
 impl<'a> Paragraph2<'a> {
@@ -30,7 +29,6 @@ impl<'a> Paragraph2<'a> {
             block: None,
             style: Default::default(),
             text: text.into(),
-            scroll: (0, 0),
         }
     }
 
@@ -41,10 +39,6 @@ impl<'a> Paragraph2<'a> {
 
     pub fn style(mut self, style: Style) -> Self {
         self.style = style;
-        self
-    }
-    pub fn scroll(mut self, offset: (u64, u64)) -> Self {
-        self.scroll = offset;
         self
     }
 }
@@ -66,15 +60,9 @@ impl<'a> Widget for Paragraph2<'a> {
             return;
         }
 
-        let text_range = text_range(
-            self.scroll.0,
-            self.text.lines.len() as u64,
-            text_area.height as u64,
-        );
-
         let style = self.style;
 
-        let mut styled = self.text.lines[text_range].iter().flat_map(|spans| {
+        let mut styled = self.text.lines.iter().flat_map(|spans| {
             spans
                 .0
                 .iter()
@@ -103,32 +91,5 @@ impl<'a> Widget for Paragraph2<'a> {
                 break;
             }
         }
-    }
-}
-
-fn text_range(scroll_y: u64, text_len: u64, area_height: u64) -> std::ops::Range<usize> {
-    scroll_y as usize..if text_len < area_height {
-        text_len as usize
-    } else {
-        scroll_y as usize + area_height as usize
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn text_range_short() {
-        assert_eq!(text_range(0, 10, 20), 0..10);
-    }
-
-    #[test]
-    fn text_range_long() {
-        assert_eq!(text_range(0, 40, 20), 0..20);
-    }
-    #[test]
-    fn text_range_long_scroll() {
-        assert_eq!(text_range(10, 40, 20), 10..30);
     }
 }

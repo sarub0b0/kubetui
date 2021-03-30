@@ -1,3 +1,4 @@
+use tui::layout::Rect;
 use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
 use tui::widgets::Block;
@@ -104,11 +105,20 @@ impl<'a> Text<'a> {
         &self.spans
     }
 
-    pub fn widget(&self, block: Block<'a>) -> Paragraph2<'a> {
-        Paragraph2::new(self.spans.clone())
+    pub fn widget(&self, block: Block<'a>, area: Rect) -> Paragraph2<'a> {
+        let area = block.inner(area);
+
+        let start = self.state.selected() as usize;
+
+        let end = if self.spans.len() < area.height as usize {
+            self.spans.len()
+        } else {
+            start + area.height as usize
+        };
+
+        Paragraph2::new(self.spans[start..end].to_vec())
             .block(block)
             .style(Style::default())
-            .scroll((self.selected(), 0))
     }
 
     pub fn row_size(&self) -> u64 {
