@@ -1,6 +1,6 @@
 use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
-use tui::widgets::{Block, Paragraph};
+use tui::widgets::Block;
 
 use tui_paragraph2::Paragraph2;
 
