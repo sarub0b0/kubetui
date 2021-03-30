@@ -1,8 +1,9 @@
+// version 0.14をそのまま使用
+// https://github.com/fdehau/tui-rs/blob/master/src/widgets/reflow.rs
+//
 use tui::text::StyledGrapheme;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
-
-const NBSP: &str = "\u{00a0}";
 
 /// A state machine to pack styled symbols into lines.
 /// Cannot implement it as Iterator since it yields slices of the internal buffer (need streaming
@@ -31,10 +32,6 @@ impl<'a, 'b> LineTruncator<'a, 'b> {
             horizontal_offset: 0,
             current_line: vec![],
         }
-    }
-
-    pub fn set_horizontal_offset(&mut self, horizontal_offset: u16) {
-        self.horizontal_offset = horizontal_offset;
     }
 }
 
