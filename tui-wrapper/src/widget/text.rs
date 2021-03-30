@@ -188,7 +188,7 @@ impl WidgetTrait for Text<'_> {
 
     fn set_items(&mut self, items: Vec<String>) {
         self.state.select(0);
-        self.items = items.clone();
+        self.items = items;
     }
 }
 
@@ -407,7 +407,6 @@ fn wrap_line(text: &String, width: usize) -> Vec<String> {
 fn generate_spans<'a>(lines: &Vec<String>) -> Vec<Spans<'a>> {
     lines
         .iter()
-        .cloned()
         .map(|line| {
             let mut span_vec: Vec<Span> = vec![];
 
