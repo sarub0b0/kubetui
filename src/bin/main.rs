@@ -120,7 +120,7 @@ fn setup_namespaces_popup(window: &mut Window, items: Vec<String>) {
     }
 }
 
-fn main_function() {
+fn run() {
     let (tx_input, rx_main): (Sender<Event>, Receiver<Event>) = unbounded();
     let (tx_main, rx_kube): (Sender<Event>, Receiver<Event>) = unbounded();
     let tx_kube = tx_input.clone();
@@ -357,7 +357,7 @@ fn main() {
 
     enable_raw_mode!();
 
-    main_function();
+    run();
 
     disable_raw_mode!();
 }
