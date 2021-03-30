@@ -94,14 +94,7 @@ fn datetime() -> Span<'static> {
     ))
 }
 
-fn log_status((current, rows): (u64, u64)) -> Span<'static> {
-    let _percent = if rows == 0 {
-        100
-    } else {
-        (current * 100) / rows
-    };
-
-    // Span::raw(format!("{}%", percent))
+fn text_status((current, rows): (u64, u64)) -> Span<'static> {
     Span::raw(format!("{}/{}", current, rows))
 }
 
@@ -119,20 +112,52 @@ fn draw_status<B: Backend>(f: &mut Frame<B>, chunk: Rect, window: &Window) {
 
     f.render_widget(paragraph, chunks[0]);
 
-    let pane = window.pane("logs").unwrap();
-    let log_widget = pane.widget().text();
-    let log_status = match log_widget {
-        Some(t) => log_status((t.selected(), t.row_size())),
-        None => log_status((0, 0)),
-    };
+    // podsフォーカスならlogsのステータス
+    // configならraw dataのステータス
 
-    let logs = Spans::from(log_status);
-    let block = Block::default().style(Style::default());
-    let paragraph = Paragraph::new(logs)
-        .block(block)
-        .alignment(Alignment::Right);
+    if let Some(pane) = window
+        .selected_tab()
+        .panes()
+        .iter()
+        .find(|p| p.id() == "logs")
+    {
+        let widget = pane.widget().text();
+        let span = match widget {
+            Some(t) => text_status((t.selected(), t.row_size())),
+            None => text_status((0, 0)),
+        };
 
-    f.render_widget(paragraph, chunks[1]);
+        let spans = Spans::from(span);
+        let block = Block::default().style(Style::default());
+        let paragraph = Paragraph::new(spans)
+            .block(block)
+            .alignment(Alignment::Right);
+
+        f.render_widget(paragraph, chunks[1]);
+        return;
+    }
+
+    if let Some(pane) = window
+        .selected_tab()
+        .panes()
+        .iter()
+        .find(|p| p.id() == "configs-raw")
+    {
+        let widget = pane.widget().text();
+        let span = match widget {
+            Some(t) => text_status((t.selected(), t.row_size())),
+            None => text_status((0, 0)),
+        };
+
+        let spans = Spans::from(span);
+        let block = Block::default().style(Style::default());
+        let paragraph = Paragraph::new(spans)
+            .block(block)
+            .alignment(Alignment::Right);
+
+        f.render_widget(paragraph, chunks[1]);
+        return;
+    }
 }
 
 fn draw_context<B: Backend>(f: &mut Frame<B>, chunk: Rect, ctx: &str, ns: &str) {
