@@ -2,6 +2,8 @@ use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
 use tui::widgets::{Block, Paragraph};
 
+use tui_paragraph2::Paragraph2;
+
 use super::WidgetTrait;
 
 const BORDER_WIDTH: usize = 2;
@@ -11,19 +13,19 @@ pub struct Text<'a> {
     items: Vec<String>,
     state: TextState,
     spans: Vec<Spans<'a>>,
-    row_size: u16,
+    row_size: u64,
 }
 
 #[derive(Clone, Copy)]
 pub struct TextState {
-    scroll: u16,
+    scroll: u64,
 }
 
 impl TextState {
-    fn select(&mut self, index: u16) {
+    fn select(&mut self, index: u64) {
         self.scroll = index;
     }
-    fn selected(&self) -> u16 {
+    fn selected(&self) -> u64 {
         self.scroll
     }
 }
@@ -45,7 +47,7 @@ impl Text<'_> {
         }
     }
 
-    pub fn select(&mut self, scroll: u16) {
+    pub fn select(&mut self, scroll: u64) {
         self.state.select(scroll);
     }
 
@@ -53,7 +55,7 @@ impl Text<'_> {
         self.state
     }
 
-    pub fn selected(&self) -> u16 {
+    pub fn selected(&self) -> u64 {
         self.state.selected()
     }
     pub fn scroll_top(&mut self) {
@@ -68,11 +70,11 @@ impl Text<'_> {
         self.selected() == self.row_size
     }
 
-    pub fn scroll_down(&mut self, index: u16) {
+    pub fn scroll_down(&mut self, index: u64) {
         (0..index).for_each(|_| self.select_next(1));
     }
 
-    pub fn scroll_up(&mut self, index: u16) {
+    pub fn scroll_up(&mut self, index: u64) {
         (0..index).for_each(|_| self.select_prev(1));
     }
 }
@@ -102,14 +104,14 @@ impl<'a> Text<'a> {
         &self.spans
     }
 
-    pub fn widget(&self, block: Block<'a>) -> Paragraph<'a> {
-        Paragraph::new(self.spans.clone())
+    pub fn widget(&self, block: Block<'a>) -> Paragraph2<'a> {
+        Paragraph2::new(self.spans.clone())
             .block(block)
             .style(Style::default())
             .scroll((self.selected(), 0))
     }
 
-    pub fn row_size(&self) -> u16 {
+    pub fn row_size(&self) -> u64 {
         self.row_size
     }
 
@@ -117,7 +119,7 @@ impl<'a> Text<'a> {
         self.items.push(item.into());
     }
 
-    pub fn append_items(&mut self, items: &Vec<String>, width: u16, height: u16) {
+    pub fn append_items(&mut self, items: &Vec<String>, width: u64, height: u64) {
         self.items.append(&mut items.clone());
 
         let w = width as usize - BORDER_WIDTH;
@@ -128,17 +130,17 @@ impl<'a> Text<'a> {
         self.update_rows_size(height);
     }
 
-    pub fn update_spans(&mut self, width: u16) {
+    pub fn update_spans(&mut self, width: u64) {
         let w = width as usize - BORDER_WIDTH;
         let lines = wrap(&self.items, w);
 
         self.spans = generate_spans(&lines);
     }
 
-    pub fn update_rows_size(&mut self, height: u16) {
-        let mut count = self.spans.len() as u16;
+    pub fn update_rows_size(&mut self, height: u64) {
+        let mut count = self.spans.len() as u64;
 
-        let height = height - BORDER_WIDTH as u16; // 2: border-line
+        let height = height - BORDER_WIDTH as u64; // 2: border-line
 
         if height < count {
             count -= height;
@@ -161,7 +163,7 @@ impl WidgetTrait for Text<'_> {
         if self.row_size <= i {
             i = self.row_size;
         } else {
-            i = i + index as u16;
+            i = i + index as u64;
         }
 
         self.state.select(i);
@@ -172,7 +174,7 @@ impl WidgetTrait for Text<'_> {
         if i == 0 {
             i = 0;
         } else {
-            i = i - index as u16;
+            i = i - index as u64;
         }
         self.state.select(i);
     }

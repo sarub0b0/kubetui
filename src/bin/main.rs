@@ -29,7 +29,7 @@ fn update_event(window: &mut Window, ev: Vec<String>) {
         let widget = p.widget_mut().text_mut().unwrap();
         let is_bottom = widget.is_bottom();
 
-        widget.append_items(&ev, rect.width, rect.height);
+        widget.append_items(&ev, rect.width as u64, rect.height as u64);
 
         if is_bottom {
             widget.select_last();
@@ -44,7 +44,7 @@ fn update_pod_logs(window: &mut Window, logs: Vec<String>) {
         let widget = p.widget_mut().text_mut().unwrap();
         let is_bottom = widget.is_bottom();
 
-        widget.append_items(&logs, rect.width, rect.height);
+        widget.append_items(&logs, rect.width as u64, rect.height as u64);
 
         if is_bottom {
             widget.select_last();
@@ -77,8 +77,8 @@ fn update_configs_raw(window: &mut Window, configs: Vec<String>) {
         let ch = p.chunk();
         let widget = p.widget_mut().text_mut().unwrap();
         widget.set_items(configs.to_vec());
-        widget.update_spans(ch.width);
-        widget.update_rows_size(ch.height);
+        widget.update_spans(ch.width as u64);
+        widget.update_rows_size(ch.height as u64);
     }
 }
 

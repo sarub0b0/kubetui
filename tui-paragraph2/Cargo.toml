@@ -1,5 +1,5 @@
 [package]
-name = "tui-wrapper"
+name = "tui-paragraph2"
 version = "0.1.0"
 authors = ["sarub0b0 <ekr59uv25@gmail.com>"]
 edition = "2018"
@@ -7,9 +7,6 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tui = { version = "0.14", default-features = false, features = ['crossterm'] }
-
-tui-paragraph2 = { path = "../tui-paragraph2" }
-
-[dev-dependencies]
-pretty_assertions = "0.7.1"
+tui = { version = "0.14", default-features = false }
+unicode-width = "0.1"
+unicode-segmentation = "1.7"

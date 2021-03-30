@@ -160,7 +160,7 @@ impl Window<'_> {
                 list.prev();
             }
             Widget::Text(text) => {
-                text.scroll_up(ch.height);
+                text.scroll_up(ch.height as u64);
             }
         }
     }
@@ -174,7 +174,7 @@ impl Window<'_> {
                 list.next();
             }
             Widget::Text(text) => {
-                text.scroll_down(ch.height);
+                text.scroll_down(ch.height as u64);
             }
         }
     }
@@ -185,8 +185,8 @@ impl Window<'_> {
             let chunk = pane.chunk();
             match pane.widget_mut().text_mut() {
                 Some(t) => {
-                    t.update_spans(chunk.width);
-                    t.update_rows_size(chunk.height);
+                    t.update_spans(chunk.width as u64);
+                    t.update_rows_size(chunk.height as u64);
                 }
                 None => {}
             }

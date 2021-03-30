@@ -94,7 +94,7 @@ fn datetime() -> Span<'static> {
     ))
 }
 
-fn log_status((current, rows): (u16, u16)) -> Span<'static> {
+fn log_status((current, rows): (u64, u64)) -> Span<'static> {
     let _percent = if rows == 0 {
         100
     } else {
