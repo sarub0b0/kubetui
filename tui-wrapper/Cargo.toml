@@ -9,7 +9,5 @@ edition = "2018"
 [dependencies]
 tui = { version = "0.14", default-features = false, features = ['crossterm'] }
 
-tui-paragraph2 = { path = "../tui-paragraph2" }
-
 [dev-dependencies]
 pretty_assertions = "0.7.1"

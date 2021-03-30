@@ -5,7 +5,7 @@ authors = ["kohashimoto <kohashimoto@bbtower.co.jp>"]
 edition = "2018"
 
 [workspace]
-members = [ "tui-wrapper", "event", "tui-paragraph2" ]
+members = [ "tui-wrapper", "event" ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -21,4 +21,3 @@ crossbeam = "0.8"
 
 tui-wrapper = { path = "./tui-wrapper" }
 event = { path = "./event" }
-tui-paragraph2 = { path = "./tui-paragraph2" }

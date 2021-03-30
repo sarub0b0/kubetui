@@ -1,9 +1,7 @@
 use tui::layout::Rect;
 use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
-use tui::widgets::Block;
-
-use tui_paragraph2::Paragraph2;
+use tui::widgets::{Block, Paragraph};
 
 use super::WidgetTrait;
 
@@ -105,7 +103,7 @@ impl<'a> Text<'a> {
         &self.spans
     }
 
-    pub fn widget(&self, block: Block<'a>, area: Rect) -> Paragraph2<'a> {
+    pub fn widget(&self, block: Block<'a>, area: Rect) -> Paragraph<'a> {
         let area = block.inner(area);
 
         let start = self.state.selected() as usize;
@@ -116,7 +114,7 @@ impl<'a> Text<'a> {
             start + area.height as usize
         };
 
-        Paragraph2::new(self.spans[start..end].to_vec())
+        Paragraph::new(self.spans[start..end].to_vec())
             .block(block)
             .style(Style::default())
     }
