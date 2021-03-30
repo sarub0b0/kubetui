@@ -112,12 +112,10 @@ fn selected_config(window: &Window) -> String {
 }
 
 fn setup_namespaces_popup(window: &mut Window, items: Vec<String>) {
-    let popup = window.selected_tab_mut().popup_mut();
-    if let Some(popup) = popup {
-        let ns = popup.widget_mut().list_mut();
-        if let Some(ns) = ns {
-            ns.set_items(items);
-        }
+    let popup = window.popup_mut();
+    let ns = popup.widget_mut().list_mut();
+    if let Some(ns) = ns {
+        ns.set_items(items);
     }
 }
 
@@ -147,11 +145,6 @@ fn main() -> Result<(), io::Error> {
             Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()),
-            Some(Popup::new(
-                "Namespace",
-                Widget::List(List::new(vec![])),
-                "namespace",
-            )),
         ),
         Tab::new(
             "2:Configs",
@@ -167,11 +160,6 @@ fn main() -> Result<(), io::Error> {
             Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()),
-            Some(Popup::new(
-                "Namespace",
-                Widget::List(List::new(vec![])),
-                "namespace",
-            )),
         ),
         Tab::new(
             "3:Event",
@@ -182,15 +170,13 @@ fn main() -> Result<(), io::Error> {
                 "event",
             )],
             Layout::default().constraints([Constraint::Percentage(100)].as_ref()),
-            Some(Popup::new(
-                "Namespace",
-                Widget::List(List::new(vec![])),
-                "namespace",
-            )),
         ),
     ];
 
-    let mut window = Window::new(tabs);
+    let mut window = Window::new(
+        tabs,
+        Popup::new("Namespace", Widget::List(List::new(vec![])), "namespace"),
+    );
 
     terminal.clear().unwrap();
 
@@ -224,20 +210,16 @@ fn main() -> Result<(), io::Error> {
                     window.select_prev_item();
                 }
                 KeyCode::Char('n') if ev.modifiers == KeyModifiers::CONTROL => {
-                    window.select_next_item()
+                    window.select_next_item();
                 }
                 KeyCode::Char('p') if ev.modifiers == KeyModifiers::CONTROL => {
-                    window.select_prev_item()
+                    window.select_prev_item();
                 }
-                KeyCode::Char('u')
-                    if ev.modifiers == KeyModifiers::CONTROL && !window.selected_popup() =>
-                {
-                    window.scroll_up()
+                KeyCode::Char('u') if ev.modifiers == KeyModifiers::CONTROL => {
+                    window.scroll_up();
                 }
-                KeyCode::Char('d')
-                    if ev.modifiers == KeyModifiers::CONTROL && !window.selected_popup() =>
-                {
-                    window.scroll_down()
+                KeyCode::Char('d') if ev.modifiers == KeyModifiers::CONTROL => {
+                    window.scroll_down();
                 }
                 KeyCode::Tab if ev.modifiers == KeyModifiers::NONE => {
                     window.select_next_pane();
@@ -255,7 +237,7 @@ fn main() -> Result<(), io::Error> {
                 }
                 KeyCode::Enter => {
                     if window.selected_popup() {
-                        let popup = window.popup().unwrap();
+                        let popup = window.popup();
                         let ns = popup.widget().list().unwrap();
                         let index = ns.state().borrow().selected();
                         let selected_ns = ns.items()[index.unwrap()].clone();

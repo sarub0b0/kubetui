@@ -30,9 +30,9 @@ fn generate_title(title: &str, border_color: Color, selected: bool) -> Spans {
     ])
 }
 
-fn draw_panes<B: Backend>(f: &mut Frame<B>, tab: &Tab) {
+fn draw_panes<B: Backend>(f: &mut Frame<B>, tab: &Tab, selected_popup: bool) {
     for pane in tab.panes() {
-        let selected = if tab.selected_popup() {
+        let selected = if selected_popup {
             false
         } else {
             pane.is_selected(tab.selected_pane())
@@ -177,24 +177,34 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, window: &mut Window, ctx: &str, ns: &s
 
     draw_context(f, chunks[window_layout_index::CONTEXT], ctx, ns);
 
-    draw_panes(f, window.selected_tab());
+    draw_panes(f, window.selected_tab(), window.selected_popup());
 
     draw_status(f, chunks[window_layout_index::STATUSBAR], &window);
 
     if window.selected_popup() {
-        match window.popup() {
-            Some(p) => {
-                let ns = p.widget().list().unwrap();
-                f.render_widget(Clear, p.chunk());
+        let p = window.popup();
+        let ns = p.widget().list().unwrap();
+        f.render_widget(Clear, p.chunk());
 
-                let block = Block::default()
-                    .title(generate_title(p.title(), Color::White, true))
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(Color::White));
+        let block = Block::default()
+            .title(generate_title(p.title(), Color::White, true))
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::White));
 
-                f.render_stateful_widget(ns.widget(block), p.chunk(), &mut ns.state().borrow_mut());
-            }
-            None => {}
-        }
+        f.render_stateful_widget(ns.widget(block), p.chunk(), &mut ns.state().borrow_mut());
+        // match window.popup() {
+        //     Some(p) => {
+        //         let ns = p.widget().list().unwrap();
+        //         f.render_widget(Clear, p.chunk());
+
+        //         let block = Block::default()
+        //             .title(generate_title(p.title(), Color::White, true))
+        //             .borders(Borders::ALL)
+        //             .border_style(Style::default().fg(Color::White));
+
+        //         f.render_stateful_widget(ns.widget(block), p.chunk(), &mut ns.state().borrow_mut());
+        //     }
+        //     None => {}
+        // }
     }
 }
