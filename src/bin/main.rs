@@ -1,5 +1,6 @@
 // use std::sync::mpsc::{self, Receiver, Sender};
 use crossbeam::channel::{unbounded, Receiver, Sender};
+use std::panic;
 use std::thread;
 use std::time;
 
@@ -119,7 +120,7 @@ fn setup_namespaces_popup(window: &mut Window, items: Vec<String>) {
     }
 }
 
-fn main() -> Result<(), io::Error> {
+fn main_function() {
     let (tx_input, rx_main): (Sender<Event>, Receiver<Event>) = unbounded();
     let (tx_main, rx_kube): (Sender<Event>, Receiver<Event>) = unbounded();
     let tx_kube = tx_input.clone();
@@ -128,9 +129,6 @@ fn main() -> Result<(), io::Error> {
     thread::spawn(move || read_key(tx_input));
     thread::spawn(move || kube_process(tx_kube, rx_kube));
     thread::spawn(move || tick(tx_tick, time::Duration::from_millis(200)));
-
-    enable_raw_mode().unwrap();
-    execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture).unwrap();
 
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::new(backend).unwrap();
@@ -330,8 +328,36 @@ fn main() -> Result<(), io::Error> {
             },
         }
     }
+}
 
-    execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture).unwrap();
-    disable_raw_mode().unwrap();
-    Ok(())
+macro_rules! enable_raw_mode {
+    () => {
+        enable_raw_mode().unwrap();
+        execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture).unwrap();
+    };
+}
+
+macro_rules! disable_raw_mode {
+    () => {
+        execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture).unwrap();
+        disable_raw_mode().unwrap();
+    };
+}
+
+fn main() {
+    let default_hook = panic::take_hook();
+
+    panic::set_hook(Box::new(move |info| {
+        disable_raw_mode!();
+
+        eprintln!("\x1b[31mPanic! disable raw mode\x1b[39m");
+
+        default_hook(info);
+    }));
+
+    enable_raw_mode!();
+
+    main_function();
+
+    disable_raw_mode!();
 }
