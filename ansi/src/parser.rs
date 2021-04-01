@@ -168,8 +168,10 @@ mod tests {
             assert_eq!(parse("\x1b[H"), Ok(("", CursorPos(1, 1))));
             assert_eq!(parse("\x1b[2H"), Ok(("", CursorPos(2, 1))));
             assert_eq!(parse("\x1b[5;H"), Ok(("", CursorPos(5, 1))));
-            assert_eq!(parse("\x1b[;5H"), Ok(("", CursorPos(1, 5))));
             assert_eq!(parse("\x1b[2;5H"), Ok(("", CursorPos(2, 5))));
+            assert_eq!(parse("\x1b[;5H"), Ok(("", CursorPos(1, 5))));
+            assert_eq!(parse("\x1b[;H"), Ok(("", CursorPos(1, 1))));
+            assert_eq!(parse("\x1b[;;H"), Ok(("", CursorPos(1, 1))));
         }
     }
 }
