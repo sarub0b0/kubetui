@@ -13,7 +13,7 @@ pub enum AnsiEscapeSequence {
     CursorHorizontalAbs(u16),
     CursorPos(u16, u16),
     EraseDisplay(u16),
-    EraseLIne(u16),
+    EraseLine(u16),
     ScrollUp(u16),
     ScrollDown(u16),
     HorizontalVerticalPos(u16, u16),
@@ -22,7 +22,7 @@ pub enum AnsiEscapeSequence {
     AuxPortOff,
     DeviceStatusReport,
     SaveCurrentCursorPos,
-    RestoreCurrentCursorPos,
+    RestoreSavedCursorPos,
     CursorShow,
     CursorHide,
     SetMode(u8),
@@ -92,6 +92,78 @@ impl<'a> Iterator for TextIterator<'a> {
 #[cfg(test)]
 mod parse_test {
     use super::AnsiEscapeSequence::*;
+    use super::Text::*;
     use super::*;
     use pretty_assertions::assert_eq;
+
+    #[test]
+    fn empty() {
+        assert_eq!("".ansi_parse().next(), None);
+    }
+
+    #[test]
+    fn text_only() {
+        assert_eq!("text".ansi_parse().next(), Some(Chars("text")));
+    }
+
+    #[test]
+    fn escape_only() {
+        assert_eq!(
+            "\x1b".ansi_parse().next(),
+            Some(Text::Escape(AnsiEscapeSequence::Escape))
+        );
+    }
+
+    #[test]
+    fn escape_cursor_up() {
+        assert_eq!(
+            "\x1b[1A".ansi_parse().next(),
+            Some(Text::Escape(CursorUp(1)))
+        );
+    }
+
+    #[test]
+    fn escape_cursor_up_and_cursor_down() {
+        let mut iter = "\x1b[1A\x1b[1B".ansi_parse();
+        assert_eq!(iter.next(), Some(Text::Escape(CursorUp(1))));
+        assert_eq!(iter.next(), Some(Text::Escape(CursorDown(1))));
+    }
+
+    #[test]
+    fn escape_color() {
+        assert_eq!(
+            "\x1b[1;2;3;4m".ansi_parse().next(),
+            Some(Text::Escape(SelectGraphicRendition(vec![1, 2, 3, 4])))
+        );
+    }
+
+    #[test]
+    fn text_and_cursor_up() {
+        let mut iter = "text\x1b[1A".ansi_parse();
+        assert_eq!(iter.next(), Some(Chars("text")));
+        assert_eq!(iter.next(), Some(Text::Escape(CursorUp(1))));
+    }
+
+    #[test]
+    fn cursor_up_and_text() {
+        let mut iter = "\x1b[1Atext".ansi_parse();
+        assert_eq!(iter.next(), Some(Text::Escape(CursorUp(1))));
+        assert_eq!(iter.next(), Some(Chars("text")));
+    }
+
+    #[test]
+    fn text_and_cursor_up_and_text() {
+        let mut iter = "text\x1b[1Atext".ansi_parse();
+        assert_eq!(iter.next(), Some(Chars("text")));
+        assert_eq!(iter.next(), Some(Text::Escape(CursorUp(1))));
+        assert_eq!(iter.next(), Some(Chars("text")));
+    }
+
+    #[test]
+    fn cursor_up_text_and_cursor_down() {
+        let mut iter = "\x1b[1Atext\x1b[1B".ansi_parse();
+        assert_eq!(iter.next(), Some(Text::Escape(CursorUp(1))));
+        assert_eq!(iter.next(), Some(Chars("text")));
+        assert_eq!(iter.next(), Some(Text::Escape(CursorDown(1))));
+    }
 }
