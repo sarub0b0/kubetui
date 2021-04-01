@@ -12,7 +12,7 @@ use super::AnsiEscapeSequence::{self, *};
 #[allow(unused_macros)]
 macro_rules! func {
     ($name:ident, ($arg:ident) $token:block) => {
-        fn $name($arg: &str) -> IResult<&str, AnsiEscapeSequence> {
+        fn $name($arg: &str) -> IResult<&str, AnsiEscapeSequence, &str> {
             $token
         }
     };
