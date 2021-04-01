@@ -71,33 +71,32 @@ impl<'a> Iterator for TextIterator<'a> {
     type Item = Text<'a>;
     fn next(&mut self) -> Option<Self::Item> {
         use AnsiEscapeSequence::*;
-        let s = self.0;
+        let text = self.0;
 
-        if s.is_empty() {
+        if text.is_empty() {
             return None;
         }
 
-        let find = s.find("\x1b");
+        let find = text.find("\x1b");
         match find {
             Some(pos) => {
                 if pos == 0 {
-                    let current = &s[pos..];
-                    match parse(current) {
+                    match parse(text) {
                         Ok(ret) => {
                             self.0 = ret.0;
-                            let len = current.len() - ret.0.len();
-                            Some(Text::new(&s[pos..len], ret.1))
+                            let end = text.len() - ret.0.len();
+                            Some(Text::new(&text[..end], ret.1))
                         }
                         Err(_) => Some(Text::new("\x1b", Escape)),
                     }
                 } else {
-                    let ret = &s[..pos];
-                    self.0 = &s[pos..];
+                    let ret = &text[..pos];
+                    self.0 = &text[pos..];
                     Some(Text::new(ret, Chars))
                 }
             }
             None => {
-                let temp = s;
+                let temp = text;
                 self.0 = "";
                 Some(Text::new(temp, Chars))
             }
