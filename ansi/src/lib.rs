@@ -33,8 +33,14 @@ pub enum AnsiEscapeSequence {
 
 #[derive(Debug, PartialEq)]
 pub struct Text<'a> {
-    chars: &'a str,
-    ty: AnsiEscapeSequence,
+    pub chars: &'a str,
+    pub ty: AnsiEscapeSequence,
+}
+
+impl Text<'_> {
+    pub fn len(&self) -> usize {
+        self.chars.len()
+    }
 }
 
 impl<'a> Text<'a> {
