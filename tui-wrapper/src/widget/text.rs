@@ -242,14 +242,12 @@ fn wrap_one_line(line: &str, wrap_width: usize) -> Vec<String> {
     let mut buf = String::with_capacity(line.len());
     let mut buf_len = 0;
     while let Some(parsed) = iter.next() {
-        // 目に見える文字の数がwrap_widthに収まるように分割したい
-        // 1文字ずつ取り出してwidth_cjkにかけるしか方法はなさそう？
         let graphemes: Vec<&str> = parsed.chars.graphemes(true).collect();
 
         if parsed.ty == AnsiEscapeSequence::Chars {
             let parsed_word_count = parsed.chars.width_cjk();
 
-            if wrap_width < buf_len + parsed_word_count {
+            if wrap_width <= buf_len + parsed_word_count {
                 for c in graphemes.iter() {
                     if wrap_width <= buf_len {
                         ret.push(buf.clone());
@@ -264,6 +262,12 @@ fn wrap_one_line(line: &str, wrap_width: usize) -> Vec<String> {
                     buf += c;
                     buf_len += c.width_cjk();
                 }
+
+                if wrap_width <= buf_len {
+                    ret.push(buf.clone());
+                    buf.clear();
+                    buf_len = 0;
+                }
             } else {
                 buf += parsed.chars;
                 buf_len += parsed.chars.width_cjk();
@@ -274,7 +278,15 @@ fn wrap_one_line(line: &str, wrap_width: usize) -> Vec<String> {
     }
 
     if !buf.is_empty() {
-        ret.push(buf);
+        if 0 < buf_len {
+            ret.push(buf);
+        } else {
+            if let Some(last) = ret.last_mut() {
+                *last += &buf;
+            } else {
+                ret.push(buf);
+            }
+        }
     }
 
     ret
@@ -786,6 +798,16 @@ mod tests {
             let wrapped = wrap(&rainbow, 3);
 
             assert_eq!(
+                wrapped,
+                vec![
+                    "[48;2;0;0;0m [48;2;1;0;0m [48;2;2;0;0m ".to_string(),
+                    "[48;2;3;0;0m [48;2;4;0;0m [48;2;5;0;0m ".to_string(),
+                    "[48;2;6;0;0m [48;2;7;0;0m [48;2;8;0;0m ".to_string(),
+                    "[48;2;9;0;0m [48;2;10;0;0m [0m".to_string(),
+                ]
+            );
+
+            assert_eq!(
                 generate_spans(&wrapped),
                 vec![
                     Spans::from(vec![
@@ -796,12 +818,12 @@ mod tests {
                     Spans::from(vec![
                         Span::styled(" ", Style::default().bg(Color::Rgb(3, 0, 0))),
                         Span::styled(" ", Style::default().bg(Color::Rgb(4, 0, 0))),
-                        Span::styled(" ", Style::default().bg(Color::Rgb(5, 0, 0)))
+                        Span::styled(" ", Style::default().bg(Color::Rgb(5, 0, 0))),
                     ]),
                     Spans::from(vec![
                         Span::styled(" ", Style::default().bg(Color::Rgb(6, 0, 0))),
                         Span::styled(" ", Style::default().bg(Color::Rgb(7, 0, 0))),
-                        Span::styled(" ", Style::default().bg(Color::Rgb(8, 0, 0)))
+                        Span::styled(" ", Style::default().bg(Color::Rgb(8, 0, 0))),
                     ]),
                     Spans::from(vec![
                         Span::styled(" ", Style::default().bg(Color::Rgb(9, 0, 0))),
