@@ -225,7 +225,7 @@ fn wrap_line(text: &String, wrap_width: usize) -> Vec<String> {
 
     for line in text.lines() {
         // 表示される文字数をチェック
-        if wrap_width < line.width_cjk() {
+        if wrap_width < line.width() {
             ret.append(&mut wrap_one_line(line, wrap_width));
         } else {
             ret.push(line.to_string());
@@ -245,7 +245,7 @@ fn wrap_one_line(line: &str, wrap_width: usize) -> Vec<String> {
         let graphemes: Vec<&str> = parsed.chars.graphemes(true).collect();
 
         if parsed.ty == AnsiEscapeSequence::Chars {
-            let parsed_word_count = parsed.chars.width_cjk();
+            let parsed_word_count = parsed.chars.width();
 
             if wrap_width <= buf_len + parsed_word_count {
                 for c in graphemes.iter() {
@@ -255,12 +255,12 @@ fn wrap_one_line(line: &str, wrap_width: usize) -> Vec<String> {
                         buf_len = 0;
 
                         buf += c;
-                        buf_len += c.width_cjk();
+                        buf_len += c.width();
                         continue;
                     }
 
                     buf += c;
-                    buf_len += c.width_cjk();
+                    buf_len += c.width();
                 }
 
                 if wrap_width <= buf_len {
@@ -270,7 +270,7 @@ fn wrap_one_line(line: &str, wrap_width: usize) -> Vec<String> {
                 }
             } else {
                 buf += parsed.chars;
-                buf_len += parsed.chars.width_cjk();
+                buf_len += parsed.chars.width();
             }
         } else {
             buf += parsed.chars;
