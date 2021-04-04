@@ -8,6 +8,9 @@ edition = "2018"
 
 [dependencies]
 tui = { version = "0.14", default-features = false, features = ['crossterm'] }
+ansi = { path = "../ansi" }
+unicode-segmentation = "1.7"
+unicode-width = "0.1"
 
 [dev-dependencies]
 pretty_assertions = "0.7.1"

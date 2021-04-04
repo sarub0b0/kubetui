@@ -1589,8 +1589,11 @@ dependencies = [
 name = "tui-wrapper"
 version = "0.1.0"
 dependencies = [
+ "ansi",
  "pretty_assertions",
  "tui",
+ "unicode-segmentation",
+ "unicode-width",
 ]
 
 [[package]]
