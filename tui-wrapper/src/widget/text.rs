@@ -296,6 +296,37 @@ pub fn generate_spans<'a>(lines: &Vec<String>) -> Vec<Spans<'a>> {
     lines
         .iter()
         .map(|line| {
+            if line.is_empty() {
+                return Spans::from(Span::styled("", Style::default()));
+            }
+            let mut span_vec: Vec<Span> = vec![];
+            let mut style = Style::default();
+
+            let mut iter = line.ansi_parse().peekable();
+
+            while let Some(parsed) = iter.next() {
+                match parsed.ty {
+                    AnsiEscapeSequence::Chars => {
+                        span_vec.push(Span::styled(parsed.chars.to_string(), style));
+                    }
+                    AnsiEscapeSequence::SelectGraphicRendition(color) => {
+                        style = generate_style_from_ansi_color_for_vec(color);
+                        if let None = iter.peek() {
+                            span_vec.push(Span::styled("", style));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            Spans::from(span_vec)
+        })
+        .collect()
+}
+pub fn generate_spans2<'a>(lines: &Vec<String>) -> Vec<Spans<'a>> {
+    lines
+        .iter()
+        .map(|line| {
             let mut span_vec: Vec<Span> = vec![];
 
             let mut l = &line[..];
