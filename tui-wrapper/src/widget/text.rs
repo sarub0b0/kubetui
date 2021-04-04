@@ -235,8 +235,13 @@ fn wrap_line(text: &String, wrap_width: usize) -> Vec<String> {
 }
 
 fn wrap_one_line(line: &str, wrap_width: usize) -> Vec<String> {
-    let mut ret = Vec::new();
+    let wrap_width = if wrap_width % 2 == 0 {
+        wrap_width
+    } else {
+        wrap_width - 1
+    };
 
+    let mut ret = Vec::new();
     let mut iter = line.ansi_parse();
 
     let mut buf = String::with_capacity(line.len());
@@ -420,6 +425,30 @@ mod tests {
                 vec![
                     "ℹ ｢wds｣: Project is running at http://10".to_string(),
                     ".1.157.45/".to_string(),
+                ]
+            );
+        }
+
+        #[test]
+        fn wrap_japanese() {
+            let text = "あいうえおかきくけこさしすせそ";
+
+            assert_eq!(
+                wrap_one_line(text, 10),
+                vec![
+                    "あいうえお".to_string(),
+                    "かきくけこ".to_string(),
+                    "さしすせそ".to_string(),
+                ]
+            );
+
+            assert_eq!(
+                wrap_one_line(text, 9),
+                vec![
+                    "あいうえ".to_string(),
+                    "おかきく".to_string(),
+                    "けこさし".to_string(),
+                    "すせそ".to_string(),
                 ]
             );
         }
