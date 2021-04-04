@@ -119,6 +119,11 @@ async fn main_loop(
                     let selectd_ns = ns.clone();
                     let mut ns = namespace.write().unwrap();
                     *ns = selectd_ns;
+
+                    if let Some(handler) = log_stream_handler {
+                        handler.abort();
+                        log_stream_handler = None;
+                    }
                 }
 
                 Kube::GetNamespacesRequest => {

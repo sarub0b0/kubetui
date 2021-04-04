@@ -254,6 +254,11 @@ fn run() {
                             w.clear();
                         }
 
+                        if let Some(p) = window.pane_mut("configs-raw") {
+                            let w = p.widget_mut().text_mut().unwrap();
+                            w.clear();
+                        }
+
                         current_namespace = selected_ns;
                     } else {
                         match window.selected_pane_id() {
