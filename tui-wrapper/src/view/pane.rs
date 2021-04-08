@@ -7,6 +7,7 @@ use tui::{
 use super::generate_title;
 use crate::widget::*;
 
+#[derive(Debug)]
 pub struct Pane<'a> {
     widget: Widget<'a>,
     chunk_index: usize,
@@ -69,6 +70,8 @@ impl<'a> Pane<'a> {
 
     pub fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
+
+        self.widget.update_area(self.generate_block().inner(chunk));
     }
 
     pub fn chunk(&self) -> Rect {
@@ -82,9 +85,14 @@ impl<'a> Pane<'a> {
             Color::DarkGray
         };
 
-        Block::default()
+        self.generate_block()
             .title(generate_title(&self.title, border_color, selected))
-            .borders(Borders::ALL)
             .border_style(Style::default().fg(border_color))
+    }
+
+    fn generate_block(&self) -> Block {
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default())
     }
 }

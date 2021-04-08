@@ -233,19 +233,19 @@ impl Window<'_> {
         }
     }
 
-    pub fn update_wrap(&mut self) {
-        let panes = self.selected_tab_mut().panes_mut();
-        for pane in panes {
-            let chunk = pane.chunk();
-            match pane.widget_mut().text_mut() {
-                Some(t) => {
-                    t.update_spans(chunk.width as u64);
-                    t.update_rows_size(chunk.height as u64);
-                }
-                None => {}
-            }
-        }
-    }
+    // pub fn update_wrap(&mut self) {
+    //     let panes = self.selected_tab_mut().panes_mut();
+    //     for pane in panes {
+    //         let chunk = pane.chunk();
+    //         match pane.widget_mut().text_mut() {
+    //             Some(t) => {
+    //                 t.update_spans(chunk.width as u64);
+    //                 t.update_rows_size(chunk.height as u64);
+    //             }
+    //             None => {}
+    //         }
+    //     }
+    // }
 }
 
 // Popup

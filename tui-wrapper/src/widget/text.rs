@@ -1,7 +1,7 @@
 use tui::layout::Rect;
 use tui::style::Style;
 use tui::text::{Span, Spans};
-use tui::widgets::{Block, Paragraph};
+use tui::widgets::Paragraph;
 
 use super::ansi::*;
 use super::WidgetTrait;
@@ -13,16 +13,40 @@ use unicode_width::UnicodeWidthStr;
 
 use rayon::prelude::*;
 
-const BORDER_WIDTH: usize = 2;
+#[derive(Debug, Clone, Copy)]
+struct TRect {
+    width: usize,
+    height: usize,
+}
 
+impl TRect {
+    fn new(rect: Rect) -> Self {
+        Self {
+            width: rect.width as usize,
+            height: rect.height as usize,
+        }
+    }
+}
+
+impl Default for TRect {
+    fn default() -> Self {
+        Self {
+            width: 0,
+            height: 0,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct Text<'a> {
     items: Vec<String>,
     state: TextState,
     spans: Vec<Spans<'a>>,
     row_size: u64,
+    area: TRect,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct TextState {
     scroll: u64,
 }
@@ -50,6 +74,7 @@ impl Text<'_> {
             state: TextState::default(),
             spans: vec![Spans::default()],
             row_size: 0,
+            area: TRect::default(),
         }
     }
 
@@ -92,6 +117,7 @@ impl Default for Text<'_> {
             state: TextState::default(),
             spans: Vec::new(),
             row_size: 0,
+            area: TRect::default(),
         }
     }
 }
@@ -103,59 +129,51 @@ impl<'a> Text<'a> {
     }
 
     pub fn clear(&mut self) {
+        let area = self.area;
         *self = Self::default();
+        self.area = area;
     }
 
     pub fn spans(&self) -> &Vec<Spans> {
         &self.spans
     }
 
-    pub fn widget(&self, block: Block<'a>, area: Rect) -> Paragraph<'a> {
-        let area = block.inner(area);
-
+    pub fn widget(&self) -> Paragraph<'a> {
         let start = self.state.selected() as usize;
 
-        let end = if self.spans.len() < area.height as usize {
+        let end = if self.spans.len() < self.area.height {
             self.spans.len()
         } else {
-            start + area.height as usize
+            start + self.area.height
         };
 
-        Paragraph::new(self.spans[start..end].to_vec())
-            .block(block)
-            .style(Style::default())
+        Paragraph::new(self.spans[start..end].to_vec()).style(Style::default())
     }
 
     pub fn row_size(&self) -> u64 {
         self.row_size
     }
 
-    pub fn add_item(&mut self, item: impl Into<String>) {
-        self.items.push(item.into());
-    }
-
-    pub fn append_items(&mut self, items: &Vec<String>, width: u64, height: u64) {
+    pub fn append_items(&mut self, items: &Vec<String>) {
         self.items.append(&mut items.clone());
 
-        let w = width as usize - BORDER_WIDTH;
-        let wrapped = wrap(items, w);
+        let wrapped = wrap(items, self.area.width);
 
         self.spans.append(&mut generate_spans(&wrapped));
 
-        self.update_rows_size(height);
+        self.update_rows_size();
     }
 
-    pub fn update_spans(&mut self, width: u64) {
-        let w = width as usize - BORDER_WIDTH;
-        let lines = wrap(&self.items, w);
+    fn update_spans(&mut self) {
+        let lines = wrap(&self.items, self.area.width);
 
         self.spans = generate_spans(&lines);
     }
 
-    pub fn update_rows_size(&mut self, height: u64) {
+    fn update_rows_size(&mut self) {
         let mut count = self.spans.len() as u64;
 
-        let height = height - BORDER_WIDTH as u64; // 2: border-line
+        let height = self.area.height as u64; // 2: border-line
 
         if height < count {
             count -= height;
@@ -203,7 +221,20 @@ impl WidgetTrait for Text<'_> {
 
     fn set_items(&mut self, items: Vec<String>) {
         self.state.select(0);
-        self.items = items;
+        self.items = items.clone();
+
+        let wrapped = wrap(&items, self.area.width);
+
+        self.spans.append(&mut generate_spans(&wrapped));
+
+        self.update_rows_size();
+    }
+
+    fn update_area(&mut self, area: Rect) {
+        self.area = TRect::new(area);
+
+        self.update_spans();
+        self.update_rows_size();
     }
 }
 

@@ -5,6 +5,8 @@ pub mod text;
 pub use self::list::*;
 pub use self::text::*;
 
+use tui::layout::Rect;
+
 pub trait WidgetTrait {
     fn selectable(&self) -> bool;
     fn select_next(&mut self, index: usize);
@@ -12,8 +14,10 @@ pub trait WidgetTrait {
     fn select_first(&mut self);
     fn select_last(&mut self);
     fn set_items(&mut self, items: Vec<String>);
+    fn update_area(&mut self, area: Rect);
 }
 
+#[derive(Debug)]
 pub enum Widget<'a> {
     List(List<'a>),
     Text(Text<'a>),
@@ -89,6 +93,13 @@ impl WidgetTrait for Widget<'_> {
         match self {
             Widget::List(pod) => pod.set_items(items),
             Widget::Text(log) => log.set_items(items),
+        }
+    }
+
+    fn update_area(&mut self, area: Rect) {
+        match self {
+            Widget::List(pod) => pod.update_area(area),
+            Widget::Text(log) => log.update_area(area),
         }
     }
 }

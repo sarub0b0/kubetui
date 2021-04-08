@@ -26,11 +26,10 @@ use tui_wrapper::*;
 fn update_event(window: &mut Window, ev: Vec<String>) {
     let pane = window.pane_mut("event");
     if let Some(p) = pane {
-        let rect = p.chunk();
         let widget = p.widget_mut().text_mut().unwrap();
         let is_bottom = widget.is_bottom();
 
-        widget.append_items(&ev, rect.width as u64, rect.height as u64);
+        widget.append_items(&ev);
 
         if is_bottom {
             widget.select_last();
@@ -41,11 +40,11 @@ fn update_event(window: &mut Window, ev: Vec<String>) {
 fn update_pod_logs(window: &mut Window, logs: Vec<String>) {
     let pane = window.pane_mut("logs");
     if let Some(p) = pane {
-        let rect = p.chunk();
         let widget = p.widget_mut().text_mut().unwrap();
+
         let is_bottom = widget.is_bottom();
 
-        widget.append_items(&logs, rect.width as u64, rect.height as u64);
+        widget.append_items(&logs);
 
         if is_bottom {
             widget.select_last();
@@ -75,11 +74,9 @@ fn update_configs_raw(window: &mut Window, configs: Vec<String>) {
     let pane = window.pane_mut("configs-raw");
 
     if let Some(p) = pane {
-        let ch = p.chunk();
+        p.widget_mut().set_items(configs.to_vec());
         let widget = p.widget_mut().text_mut().unwrap();
         widget.set_items(configs.to_vec());
-        widget.update_spans(ch.width as u64);
-        widget.update_rows_size(ch.height as u64);
     }
 }
 
@@ -298,7 +295,6 @@ fn run() {
             Event::Mouse => {}
             Event::Resize(w, h) => {
                 window.update_chunks(Rect::new(0, 0, w, h));
-                window.update_wrap();
             }
             Event::Tick => {}
             Event::Kube(k) => match k {

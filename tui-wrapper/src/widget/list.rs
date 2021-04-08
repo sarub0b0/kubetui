@@ -1,12 +1,14 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use tui::layout::Rect;
 use tui::style::{Modifier, Style};
 
 use tui::widgets::{self, Block, ListItem, ListState};
 
 use super::WidgetTrait;
 
+#[derive(Debug)]
 pub struct List<'a> {
     items: Vec<String>,
     state: Rc<RefCell<ListState>>,
@@ -148,6 +150,8 @@ impl WidgetTrait for List<'_> {
 
         self.set_listitem();
     }
+
+    fn update_area(&mut self, _area: Rect) {}
 }
 
 #[cfg(test)]
