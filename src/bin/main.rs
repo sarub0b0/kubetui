@@ -65,8 +65,7 @@ fn update_configs(window: &mut Window, configs: Vec<String>) {
     let pane = window.pane_mut("configs");
 
     if let Some(p) = pane {
-        let widget = p.widget_mut();
-        widget.set_items(configs.to_vec());
+        p.widget_mut().set_items(configs.to_vec());
     }
 }
 
@@ -75,8 +74,6 @@ fn update_configs_raw(window: &mut Window, configs: Vec<String>) {
 
     if let Some(p) = pane {
         p.widget_mut().set_items(configs.to_vec());
-        let widget = p.widget_mut().text_mut().unwrap();
-        widget.set_items(configs.to_vec());
     }
 }
 
