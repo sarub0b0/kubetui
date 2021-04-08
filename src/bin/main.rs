@@ -322,7 +322,7 @@ fn run() {
                 };
 
                 let ty = match ty {
-                    EventType::NoMatch => global_key(ev, &mut window, &&tx_main),
+                    EventType::NoMatch => global_key(ev, &mut window, &tx_main),
                     _ => EventType::NoMatch,
                 };
 
