@@ -340,7 +340,7 @@ pub fn generate_spans<'a>(lines: &Vec<String>) -> Vec<Spans<'a>> {
                         span_vec.push(Span::styled(parsed.chars.to_string(), style));
                     }
                     AnsiEscapeSequence::SelectGraphicRendition(color) => {
-                        style = generate_style_from_ansi_color_for_vec(color);
+                        style = generate_style_from_ansi_color(color);
                         if let None = iter.peek() {
                             span_vec.push(Span::styled("", style));
                         }
