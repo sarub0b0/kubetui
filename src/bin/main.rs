@@ -8,7 +8,7 @@ use std::io::{self, Write};
 
 use crossterm::{
     cursor::Show,
-    event::{DisableMouseCapture, EnableMouseCapture, KeyCode, KeyModifiers},
+    event::{DisableMouseCapture, EnableMouseCapture, KeyCode, KeyEvent, KeyModifiers},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -115,6 +115,132 @@ fn setup_namespaces_popup(window: &mut Window, items: Vec<String>) {
     }
 }
 
+enum EventType {
+    Quit,
+    NoMatch,
+    Match,
+}
+
+fn global_key(ev: KeyEvent, window: &mut Window, tx: &Sender<Event>) -> EventType {
+    match ev.code {
+        KeyCode::Char('q') => {
+            return EventType::Quit;
+        }
+        KeyCode::Char('j') | KeyCode::Down => {
+            window.select_next_item();
+        }
+        KeyCode::Char('k') | KeyCode::Up => {
+            window.select_prev_item();
+        }
+        KeyCode::Char('n') if ev.modifiers == KeyModifiers::CONTROL => {
+            window.select_next_item();
+        }
+        KeyCode::Char('p') if ev.modifiers == KeyModifiers::CONTROL => {
+            window.select_prev_item();
+        }
+        KeyCode::Char('u') if ev.modifiers == KeyModifiers::CONTROL => {
+            window.scroll_up();
+        }
+        KeyCode::Char('d') if ev.modifiers == KeyModifiers::CONTROL => {
+            window.scroll_down();
+        }
+        KeyCode::Tab if ev.modifiers == KeyModifiers::NONE => {
+            window.select_next_pane();
+        }
+        KeyCode::BackTab | KeyCode::Tab if ev.modifiers == KeyModifiers::SHIFT => {
+            window.select_prev_pane();
+        }
+        KeyCode::Char(n @ '1'..='9') => {
+            window.select_tab(n as usize - b'0' as usize);
+        }
+        KeyCode::Char('n') => {
+            tx.send(Event::Kube(Kube::GetNamespacesRequest)).unwrap();
+        }
+        KeyCode::Char('G') => {
+            window.select_last_item();
+        }
+        KeyCode::Char('g') => {
+            window.select_first_item();
+        }
+        _ => {
+            return EventType::NoMatch;
+        }
+    }
+
+    return EventType::Match;
+}
+
+fn normal_mode_key(ev: KeyEvent, window: &mut Window, tx: &Sender<Event>) -> EventType {
+    match ev.code {
+        KeyCode::Enter => match window.selected_pane_id() {
+            "pods" => {
+                let pane = window.pane_mut("logs");
+                if let Some(p) = pane {
+                    p.widget_mut().clear();
+                }
+                tx.send(Event::Kube(Kube::LogStreamRequest(selected_pod(&window))))
+                    .unwrap();
+            }
+            "configs" => {
+                let pane = window.pane_mut("configs-raw");
+                if let Some(p) = pane {
+                    p.widget_mut().clear();
+                }
+                tx.send(Event::Kube(Kube::ConfigRequest(selected_config(&window))))
+                    .unwrap();
+            }
+            _ => {}
+        },
+        _ => {
+            return EventType::NoMatch;
+        }
+    }
+
+    return EventType::Match;
+}
+fn popup_mode_key(
+    ev: KeyEvent,
+    window: &mut Window,
+    tx: &Sender<Event>,
+    current_namespace: &mut String,
+) -> EventType {
+    match ev.code {
+        KeyCode::Char('q') => {
+            window.unselect_popup();
+        }
+        KeyCode::Enter => {
+            let popup = window.popup();
+            let ns = popup.widget().list().unwrap();
+            let index = ns.state().borrow().selected();
+            let selected_ns = ns.items()[index.unwrap()].clone();
+            tx.send(Event::Kube(Kube::SetNamespace(selected_ns.clone())))
+                .unwrap();
+            window.unselect_popup();
+
+            if let Some(p) = window.pane_mut("event") {
+                let w = p.widget_mut().text_mut().unwrap();
+                w.clear();
+            }
+
+            if let Some(p) = window.pane_mut("logs") {
+                let w = p.widget_mut().text_mut().unwrap();
+                w.clear();
+            }
+
+            if let Some(p) = window.pane_mut("configs-raw") {
+                let w = p.widget_mut().text_mut().unwrap();
+                w.clear();
+            }
+
+            *current_namespace = selected_ns;
+        }
+        _ => {
+            return EventType::NoMatch;
+        }
+    }
+
+    return EventType::Match;
+}
 fn run() {
     let (tx_input, rx_main): (Sender<Event>, Receiver<Event>) = unbounded();
     let (tx_main, rx_kube): (Sender<Event>, Receiver<Event>) = unbounded();
@@ -188,111 +314,24 @@ fn run() {
             .unwrap();
 
         match rx_main.recv().unwrap() {
-            Event::Input(ev) => match ev.code {
-                KeyCode::Char('q') => {
-                    if window.selected_popup() {
-                        window.unselect_popup();
-                    } else {
-                        break;
-                    }
-                }
-                KeyCode::Char('j') | KeyCode::Down => {
-                    window.select_next_item();
-                }
-                KeyCode::Char('k') | KeyCode::Up => {
-                    window.select_prev_item();
-                }
-                KeyCode::Char('n') if ev.modifiers == KeyModifiers::CONTROL => {
-                    window.select_next_item();
-                }
-                KeyCode::Char('p') if ev.modifiers == KeyModifiers::CONTROL => {
-                    window.select_prev_item();
-                }
-                KeyCode::Char('u') if ev.modifiers == KeyModifiers::CONTROL => {
-                    window.scroll_up();
-                }
-                KeyCode::Char('d') if ev.modifiers == KeyModifiers::CONTROL => {
-                    window.scroll_down();
-                }
-                KeyCode::Tab if ev.modifiers == KeyModifiers::NONE => {
-                    window.select_next_pane();
-                }
-                KeyCode::BackTab | KeyCode::Tab if ev.modifiers == KeyModifiers::SHIFT => {
-                    window.select_prev_pane();
-                }
-                KeyCode::Char(n @ '1'..='9') => {
-                    window.select_tab(n as usize - b'0' as usize);
-                }
-                KeyCode::Char('n') => {
-                    tx_main
-                        .send(Event::Kube(Kube::GetNamespacesRequest))
-                        .unwrap();
-                }
-                KeyCode::Enter => {
-                    if window.selected_popup() {
-                        let popup = window.popup();
-                        let ns = popup.widget().list().unwrap();
-                        let index = ns.state().borrow().selected();
-                        let selected_ns = ns.items()[index.unwrap()].clone();
-                        tx_main
-                            .send(Event::Kube(Kube::SetNamespace(selected_ns.clone())))
-                            .unwrap();
-                        window.unselect_popup();
+            Event::Input(ev) => {
+                let ty = if window.selected_popup() {
+                    popup_mode_key(ev, &mut window, &tx_main, &mut current_namespace)
+                } else {
+                    normal_mode_key(ev, &mut window, &tx_main)
+                };
 
-                        if let Some(p) = window.pane_mut("event") {
-                            let w = p.widget_mut().text_mut().unwrap();
-                            w.clear();
-                        }
+                let ty = match ty {
+                    EventType::NoMatch => global_key(ev, &mut window, &&tx_main),
+                    _ => EventType::NoMatch,
+                };
 
-                        if let Some(p) = window.pane_mut("logs") {
-                            let w = p.widget_mut().text_mut().unwrap();
-                            w.clear();
-                        }
-
-                        if let Some(p) = window.pane_mut("configs-raw") {
-                            let w = p.widget_mut().text_mut().unwrap();
-                            w.clear();
-                        }
-
-                        current_namespace = selected_ns;
-                    } else {
-                        match window.selected_pane_id() {
-                            "pods" => {
-                                let pane = window.pane_mut("logs");
-                                if let Some(p) = pane {
-                                    p.widget_mut().clear();
-                                }
-                                tx_main
-                                    .send(Event::Kube(Kube::LogStreamRequest(selected_pod(
-                                        &window,
-                                    ))))
-                                    .unwrap();
-                            }
-                            "configs" => {
-                                let pane = window.pane_mut("configs-raw");
-                                if let Some(p) = pane {
-                                    p.widget_mut().clear();
-                                }
-                                tx_main
-                                    .send(Event::Kube(Kube::ConfigRequest(selected_config(
-                                        &window,
-                                    ))))
-                                    .unwrap();
-                            }
-                            _ => {}
-                        }
-                    }
+                match ty {
+                    EventType::Quit => break,
+                    _ => {}
                 }
+            }
 
-                KeyCode::Char('G') => {
-                    window.select_last_item();
-                }
-                KeyCode::Char('g') => {
-                    window.select_first_item();
-                }
-                KeyCode::Char(_) => {}
-                _ => {}
-            },
             Event::Mouse => {}
             Event::Resize(w, h) => {
                 window.update_chunks(Rect::new(0, 0, w, h));
