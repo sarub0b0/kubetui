@@ -11,8 +11,9 @@ use ansi::{self, AnsiEscapeSequence, TextParser};
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
+use rayon::prelude::*;
+
 const BORDER_WIDTH: usize = 2;
-const ESC_LEN: usize = 2; // "\x1b["
 
 pub struct Text<'a> {
     items: Vec<String>,
@@ -207,75 +208,68 @@ impl WidgetTrait for Text<'_> {
 }
 
 pub fn wrap(lines: &Vec<String>, wrap_width: usize) -> Vec<String> {
-    let mut ret = Vec::new();
-
-    for line in lines.iter() {
-        ret.append(&mut wrap_line(line, wrap_width));
-    }
-
-    ret
+    lines
+        .par_iter()
+        .map(|line| wrap_line(line, wrap_width))
+        .flatten()
+        .collect()
 }
 
 fn wrap_line(text: &String, wrap_width: usize) -> Vec<String> {
-    let mut ret = Vec::new();
     if text.len() == 0 {
-        ret.push("".to_string());
-        return ret;
+        return vec!["".to_string()];
     }
 
-    for line in text.lines() {
-        // 表示される文字数をチェック
-        if wrap_width < line.width() {
-            ret.append(&mut wrap_one_line(line, wrap_width));
-        } else {
-            ret.push(line.to_string());
-        }
-    }
-    ret
+    text.lines()
+        .map(|line| {
+            if wrap_width < line.width() {
+                wrap_one_line(line, wrap_width)
+            } else {
+                vec![line.to_string()]
+            }
+        })
+        .flatten()
+        .collect()
 }
 
 fn wrap_one_line(line: &str, wrap_width: usize) -> Vec<String> {
-    let wrap_width = if wrap_width % 2 == 0 {
-        wrap_width
-    } else {
-        wrap_width - 1
-    };
-
     let mut ret = Vec::new();
     let mut iter = line.ansi_parse();
 
     let mut buf = String::with_capacity(line.len());
-    let mut buf_len = 0;
+    let mut sum_width = 0;
+
     while let Some(parsed) = iter.next() {
-        let graphemes: Vec<&str> = parsed.chars.graphemes(true).collect();
-
         if parsed.ty == AnsiEscapeSequence::Chars {
-            let parsed_word_count = parsed.chars.width();
+            let parsed_width = parsed.chars.width();
 
-            if wrap_width <= buf_len + parsed_word_count {
-                for c in graphemes.iter() {
-                    if wrap_width <= buf_len {
-                        ret.push(buf.clone());
-                        buf.clear();
-                        buf_len = 0;
+            if wrap_width <= sum_width + parsed_width {
+                let graphemes: Vec<&str> = parsed.chars.graphemes(true).collect();
 
+                graphemes.iter().for_each(|c| {
+                    sum_width += c.width();
+
+                    if wrap_width <= sum_width {
+                        if wrap_width == sum_width {
+                            buf += c;
+                            ret.push(buf.to_string());
+                            buf.clear();
+
+                            sum_width = 0;
+                        } else {
+                            ret.push(buf.to_string());
+                            buf.clear();
+
+                            buf += c;
+                            sum_width = c.width();
+                        }
+                    } else {
                         buf += c;
-                        buf_len += c.width();
-                        continue;
                     }
-
-                    buf += c;
-                    buf_len += c.width();
-                }
-
-                if wrap_width <= buf_len {
-                    ret.push(buf.clone());
-                    buf.clear();
-                    buf_len = 0;
-                }
+                });
             } else {
                 buf += parsed.chars;
-                buf_len += parsed.chars.width();
+                sum_width += parsed_width;
             }
         } else {
             buf += parsed.chars;
@@ -283,7 +277,7 @@ fn wrap_one_line(line: &str, wrap_width: usize) -> Vec<String> {
     }
 
     if !buf.is_empty() {
-        if 0 < buf_len {
+        if 0 < sum_width {
             ret.push(buf);
         } else {
             if let Some(last) = ret.last_mut() {
@@ -299,7 +293,7 @@ fn wrap_one_line(line: &str, wrap_width: usize) -> Vec<String> {
 
 pub fn generate_spans<'a>(lines: &Vec<String>) -> Vec<Spans<'a>> {
     lines
-        .iter()
+        .par_iter()
         .map(|line| {
             if line.is_empty() {
                 return Spans::from(Span::styled("", Style::default()));
@@ -325,58 +319,6 @@ pub fn generate_spans<'a>(lines: &Vec<String>) -> Vec<Spans<'a>> {
             }
 
             Spans::from(span_vec)
-        })
-        .collect()
-}
-pub fn generate_spans2<'a>(lines: &Vec<String>) -> Vec<Spans<'a>> {
-    lines
-        .iter()
-        .map(|line| {
-            let mut span_vec: Vec<Span> = vec![];
-
-            let mut l = &line[..];
-
-            if let Some(escape_start) = l.find("\x1b[") {
-                if 0 < escape_start {
-                    span_vec.push(Span::raw(String::from(&l[..escape_start])));
-                    l = &l[escape_start..];
-                }
-            }
-
-            let mut found = false;
-            while let Some(escape_start) = l.find("\x1b[") {
-                found = true;
-
-                let escape_end = l[escape_start..].find("m").unwrap();
-
-                // \x1b[<xxx>m xxxで示したセミコロン区切りの数字を抜き出す
-                let escape = &l[(escape_start + ESC_LEN)..escape_end];
-
-                // skip m  \x1b[<xx>m
-                l = &l[(escape_end + 1)..];
-
-                // 次のescape sequenceを探す
-                // なければ末尾まで
-                let content_end;
-                if let Some(next_esc_index) = l.find("\x1b[") {
-                    content_end = next_esc_index;
-                } else {
-                    content_end = l.len();
-                }
-
-                span_vec.push(Span::styled(
-                    String::from(&l[..content_end]),
-                    generate_style_from_ansi_color(&escape),
-                ));
-
-                l = &l[content_end..];
-            }
-
-            if found == false {
-                Spans::from(l.to_string())
-            } else {
-                Spans::from(span_vec)
-            }
         })
         .collect()
 }
