@@ -49,40 +49,17 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, tab: &Tab, selected_popup: bool) {
             .borders(Borders::ALL)
             .border_style(Style::default().fg(border_color));
 
-        match pane.id() {
-            "pods" => {
-                let pod = pane.widget().list().unwrap();
-
+        match pane.widget() {
+            Widget::List(widget) => {
                 f.render_stateful_widget(
-                    pod.widget(block),
+                    widget.widget(block),
                     pane.chunk(),
-                    &mut pod.state().borrow_mut(),
+                    &mut widget.state().borrow_mut(),
                 );
             }
-            "logs" => {
-                let log = pane.widget().text().unwrap();
-                f.render_widget(log.widget(block, pane.chunk()), pane.chunk());
+            Widget::Text(widget) => {
+                f.render_widget(widget.widget(block, pane.chunk()), pane.chunk());
             }
-            "configs" => {
-                let configs = pane.widget().list().unwrap();
-
-                f.render_stateful_widget(
-                    configs.widget(block),
-                    pane.chunk(),
-                    &mut configs.state().borrow_mut(),
-                );
-            }
-            "configs-raw" => {
-                let raw = pane.widget().text().unwrap();
-                f.render_widget(raw.widget(block, pane.chunk()), pane.chunk());
-            }
-
-            "event" => {
-                let ev = pane.widget().text().unwrap();
-                f.render_widget(ev.widget(block, pane.chunk()), pane.chunk());
-            }
-
-            _ => {}
         }
     }
 }
