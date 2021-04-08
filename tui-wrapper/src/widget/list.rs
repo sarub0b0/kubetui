@@ -152,6 +152,7 @@ impl WidgetTrait for List<'_> {
     }
 
     fn update_area(&mut self, _area: Rect) {}
+    fn clear(&mut self) {}
 }
 
 #[cfg(test)]

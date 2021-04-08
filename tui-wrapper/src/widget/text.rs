@@ -128,12 +128,6 @@ impl<'a> Text<'a> {
         &self.items
     }
 
-    pub fn clear(&mut self) {
-        let area = self.area;
-        *self = Self::default();
-        self.area = area;
-    }
-
     pub fn spans(&self) -> &Vec<Spans> {
         &self.spans
     }
@@ -235,6 +229,12 @@ impl WidgetTrait for Text<'_> {
 
         self.update_spans();
         self.update_rows_size();
+    }
+
+    fn clear(&mut self) {
+        let area = self.area;
+        *self = Self::default();
+        self.area = area;
     }
 }
 

@@ -15,6 +15,7 @@ pub trait WidgetTrait {
     fn select_last(&mut self);
     fn set_items(&mut self, items: Vec<String>);
     fn update_area(&mut self, area: Rect);
+    fn clear(&mut self);
 }
 
 #[derive(Debug)]
@@ -100,6 +101,13 @@ impl WidgetTrait for Widget<'_> {
         match self {
             Widget::List(pod) => pod.update_area(area),
             Widget::Text(log) => log.update_area(area),
+        }
+    }
+
+    fn clear(&mut self) {
+        match self {
+            Widget::List(pod) => pod.clear(),
+            Widget::Text(log) => log.clear(),
         }
     }
 }

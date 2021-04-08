@@ -259,8 +259,7 @@ fn run() {
                             "pods" => {
                                 let pane = window.pane_mut("logs");
                                 if let Some(p) = pane {
-                                    let widget = p.widget_mut().text_mut().unwrap();
-                                    widget.clear();
+                                    p.widget_mut().clear();
                                 }
                                 tx_main
                                     .send(Event::Kube(Kube::LogStreamRequest(selected_pod(
@@ -269,6 +268,10 @@ fn run() {
                                     .unwrap();
                             }
                             "configs" => {
+                                let pane = window.pane_mut("configs-raw");
+                                if let Some(p) = pane {
+                                    p.widget_mut().clear();
+                                }
                                 tx_main
                                     .send(Event::Kube(Kube::ConfigRequest(selected_config(
                                         &window,
