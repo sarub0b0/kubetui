@@ -6,28 +6,14 @@ use chrono::Local;
 use tui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::Style,
     text::{Span, Spans},
-    widgets::{Block, Borders, Clear, Paragraph},
+    widgets::{Block, Clear, Paragraph},
     Frame,
 };
 
 fn draw_tab<B: Backend>(f: &mut Frame<B>, window: &Window) {
     f.render_widget(window.widget(), window.tab_chunk());
-}
-
-fn generate_title(title: &str, border_color: Color, selected: bool) -> Spans {
-    let prefix = if selected { "✔︎ " } else { "──" };
-    Spans::from(vec![
-        Span::styled("─", Style::default()),
-        Span::styled(prefix, Style::default().fg(border_color)),
-        Span::styled(
-            title,
-            Style::default()
-                .fg(Color::White)
-                .add_modifier(Modifier::BOLD),
-        ),
-    ])
 }
 
 fn draw_panes<B: Backend>(f: &mut Frame<B>, tab: &Tab, selected_popup: bool) {
@@ -154,25 +140,10 @@ pub fn draw<B: Backend>(f: &mut Frame<B>, window: &mut Window, ctx: &str, ns: &s
         let ns = p.widget().list().unwrap();
         f.render_widget(Clear, p.chunk());
 
-        let block = Block::default()
-            .title(generate_title(p.title(), Color::White, true))
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::White));
-
-        f.render_stateful_widget(ns.widget(block), p.chunk(), &mut ns.state().borrow_mut());
-        // match window.popup() {
-        //     Some(p) => {
-        //         let ns = p.widget().list().unwrap();
-        //         f.render_widget(Clear, p.chunk());
-
-        //         let block = Block::default()
-        //             .title(generate_title(p.title(), Color::White, true))
-        //             .borders(Borders::ALL)
-        //             .border_style(Style::default().fg(Color::White));
-
-        //         f.render_stateful_widget(ns.widget(block), p.chunk(), &mut ns.state().borrow_mut());
-        //     }
-        //     None => {}
-        // }
+        f.render_stateful_widget(
+            ns.widget(p.block()),
+            p.chunk(),
+            &mut ns.state().borrow_mut(),
+        );
     }
 }

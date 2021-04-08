@@ -1,12 +1,10 @@
 use tui::{
-    backend::Backend,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
-    text::{Span, Spans},
-    widgets::{Block, Borders, Clear, Paragraph},
-    Frame,
+    layout::Rect,
+    style::{Color, Style},
+    widgets::{Block, Borders},
 };
 
+use super::generate_title;
 use crate::widget::*;
 
 pub struct Pane<'a> {
@@ -89,18 +87,4 @@ impl<'a> Pane<'a> {
             .borders(Borders::ALL)
             .border_style(Style::default().fg(border_color))
     }
-}
-
-fn generate_title(title: &str, border_color: Color, selected: bool) -> Spans {
-    let prefix = if selected { "✔︎ " } else { "──" };
-    Spans::from(vec![
-        Span::styled("─", Style::default()),
-        Span::styled(prefix, Style::default().fg(border_color)),
-        Span::styled(
-            title,
-            Style::default()
-                .fg(Color::White)
-                .add_modifier(Modifier::BOLD),
-        ),
-    ])
 }

@@ -1,8 +1,13 @@
+use super::generate_title;
 use crate::widget::*;
 
 use std::default::Default;
 
-use tui::layout::{Constraint, Direction, Layout, Rect};
+use tui::{
+    layout::{Constraint, Direction, Layout, Rect},
+    style::{Color, Style},
+    widgets::{Block, Borders},
+};
 
 pub struct Popup<'a> {
     title: String,
@@ -77,5 +82,12 @@ impl<'a> Popup<'a> {
                 Constraint::Percentage((100 - w) / 2),
             ])
             .split(chunk[1])[1];
+    }
+
+    pub fn block(&self) -> Block {
+        Block::default()
+            .title(generate_title(&self.title, Color::White, true))
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::White))
     }
 }
