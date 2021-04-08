@@ -1,6 +1,13 @@
-use crate::widget::*;
+use tui::{
+    backend::Backend,
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::{Color, Modifier, Style},
+    text::{Span, Spans},
+    widgets::{Block, Borders, Clear, Paragraph},
+    Frame,
+};
 
-use tui::layout::Rect;
+use crate::widget::*;
 
 pub struct Pane<'a> {
     widget: Widget<'a>,
@@ -69,4 +76,31 @@ impl<'a> Pane<'a> {
     pub fn chunk(&self) -> Rect {
         self.chunk
     }
+
+    pub fn block(&self, selected: bool) -> Block {
+        let border_color = if selected {
+            Color::White
+        } else {
+            Color::DarkGray
+        };
+
+        Block::default()
+            .title(generate_title(&self.title, border_color, selected))
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(border_color))
+    }
+}
+
+fn generate_title(title: &str, border_color: Color, selected: bool) -> Spans {
+    let prefix = if selected { "✔︎ " } else { "──" };
+    Spans::from(vec![
+        Span::styled("─", Style::default()),
+        Span::styled(prefix, Style::default().fg(border_color)),
+        Span::styled(
+            title,
+            Style::default()
+                .fg(Color::White)
+                .add_modifier(Modifier::BOLD),
+        ),
+    ])
 }

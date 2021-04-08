@@ -38,16 +38,7 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, tab: &Tab, selected_popup: bool) {
             pane.is_selected(tab.selected_pane())
         };
 
-        let border_color = if selected {
-            Color::White
-        } else {
-            Color::DarkGray
-        };
-
-        let block = Block::default()
-            .title(generate_title(pane.title(), border_color, selected))
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(border_color));
+        let block = pane.block(selected);
 
         match pane.widget() {
             Widget::List(widget) => {
