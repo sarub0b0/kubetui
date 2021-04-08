@@ -7,6 +7,7 @@ use std::time;
 use std::io::{self, Write};
 
 use crossterm::{
+    cursor::Show,
     event::{DisableMouseCapture, EnableMouseCapture, KeyCode, KeyModifiers},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -340,7 +341,13 @@ macro_rules! enable_raw_mode {
 
 macro_rules! disable_raw_mode {
     () => {
-        execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture).unwrap();
+        execute!(
+            io::stdout(),
+            LeaveAlternateScreen,
+            DisableMouseCapture,
+            Show
+        )
+        .unwrap();
         disable_raw_mode().unwrap();
     };
 }
