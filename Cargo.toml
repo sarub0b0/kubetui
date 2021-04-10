@@ -12,11 +12,8 @@ members = [ "tui-wrapper", "event", "ansi" ]
 [dependencies]
 crossterm = "0.18"
 tui = { version = "0.14", default-features = false, features = ['crossterm'] }
-
 tokio = { version = "1", features = ["full"] }
-
 chrono = "0.4"
-
 crossbeam = "0.8"
 
 tui-wrapper = { path = "./tui-wrapper" }
