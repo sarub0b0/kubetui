@@ -20,25 +20,66 @@ use kube::{
 use kube_runtime::{utils::try_flatten_applied, watcher};
 
 pub async fn event_loop(tx: Sender<Event>, client: Client, namespace: Arc<RwLock<String>>) {
+    let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
     loop {
+        interval.tick().await;
         let ns = namespace.read().unwrap().clone();
 
-        let handler = watch(tx.clone(), client.clone(), ns.clone()).await;
+        let event_list = get_event_list(client.clone(), &ns).await;
 
-        let mut interval = tokio::time::interval(time::Duration::from_millis(500));
-        let mut changed_namespace = false;
-        while !changed_namespace {
-            interval.tick().await;
-            let new_ns = namespace.read().unwrap().clone();
-            if new_ns != ns {
-                changed_namespace = true;
-            }
-        }
+        tx.send(Event::Kube(Kube::Event(event_list))).unwrap();
 
-        handler.abort();
+        // let handler = watch(tx.clone(), client.clone(), ns.clone()).await;
+
+        // let mut changed_namespace = false;
+        // while !changed_namespace {
+        //     interval.tick().await;
+        //     let new_ns = namespace.read().unwrap().clone();
+        //     if new_ns != ns {
+        //         changed_namespace = true;
+        //     }
+        // }
+
+        // handler.abort();
     }
 }
 
+async fn get_event_list(client: Client, ns: &str) -> Vec<String> {
+    let events: Api<KEvent> = Api::namespaced(client, &ns);
+    let lp = ListParams::default();
+
+    let list = events.list(&lp).await.unwrap();
+
+    let current_datetime: DateTime<Utc> = Utc::now();
+
+    list.iter()
+        .map(|ev| {
+            let meta = Meta::meta(ev);
+            let creation_timestamp: DateTime<Utc> = match &meta.creation_timestamp {
+                Some(ref time) => time.0,
+                None => current_datetime,
+            };
+            let duration: Duration = current_datetime - creation_timestamp;
+
+            let obj = &ev.involved_object;
+
+            let name = obj.name.clone().unwrap();
+            let kind = obj.kind.clone().unwrap();
+            let message = ev.message.clone().unwrap();
+            let reason = ev.reason.clone().unwrap();
+            format!(
+                "{} {}  {} {}\n\x1b[90m> {}\x1b[0m\n ",
+                kind,
+                name,
+                reason,
+                age(duration),
+                message
+            )
+        })
+        .collect()
+}
+
+#[allow(dead_code)]
 async fn watch(tx: Sender<Event>, client: Client, ns: String) -> Handlers {
     let events: Api<KEvent> = Api::namespaced(client, &ns);
     let lp = ListParams::default();
@@ -47,6 +88,7 @@ async fn watch(tx: Sender<Event>, client: Client, ns: String) -> Handlers {
 
     let buf_clone = Arc::clone(&buf);
     let watch_handle = tokio::spawn(async move {
+        // タイムアウト時に再接続を試みる
         let current_datetime: DateTime<Utc> = Utc::now();
         let mut ew = try_flatten_applied(watcher(events, lp)).boxed();
         while let Some(event) = ew.try_next().await.unwrap() {

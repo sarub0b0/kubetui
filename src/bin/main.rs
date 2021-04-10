@@ -28,12 +28,18 @@ fn update_event(window: &mut Window, ev: Vec<String>) {
     let pane = window.pane_mut("event");
     if let Some(p) = pane {
         let widget = p.widget_mut().text_mut().unwrap();
+
+        let old_select = widget.selected();
         let is_bottom = widget.is_bottom();
 
-        widget.append_items(&ev);
+        widget.set_items(ev);
 
-        if is_bottom {
+        let new_len = widget.spans().len();
+
+        if is_bottom || (new_len < old_select as usize) {
             widget.select_last();
+        } else {
+            widget.select(old_select);
         }
     }
 }
