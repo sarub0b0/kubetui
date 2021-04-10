@@ -52,6 +52,26 @@ fn text_status((current, rows): (u64, u64)) -> Span<'static> {
     Span::raw(format!("{}/{}", current, rows))
 }
 
+fn scroll_status<'a>(window: &Window, id: &str) -> Option<Paragraph<'a>> {
+    if let Some(pane) = window.selected_tab().panes().iter().find(|p| p.id() == id) {
+        let widget = pane.widget().text();
+        let span = match widget {
+            Some(t) => text_status((t.selected(), t.row_size())),
+            None => text_status((0, 0)),
+        };
+
+        let spans = Spans::from(span);
+        let block = Block::default().style(Style::default());
+
+        return Some(
+            Paragraph::new(spans)
+                .block(block)
+                .alignment(Alignment::Right),
+        );
+    }
+    None
+}
+
 fn draw_status<B: Backend>(f: &mut Frame<B>, chunk: Rect, window: &Window) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
@@ -66,51 +86,16 @@ fn draw_status<B: Backend>(f: &mut Frame<B>, chunk: Rect, window: &Window) {
 
     f.render_widget(paragraph, chunks[0]);
 
-    // podsフォーカスならlogsのステータス
-    // configならraw dataのステータス
-
-    if let Some(pane) = window
-        .selected_tab()
-        .panes()
-        .iter()
-        .find(|p| p.id() == "logs")
-    {
-        let widget = pane.widget().text();
-        let span = match widget {
-            Some(t) => text_status((t.selected(), t.row_size())),
-            None => text_status((0, 0)),
-        };
-
-        let spans = Spans::from(span);
-        let block = Block::default().style(Style::default());
-        let paragraph = Paragraph::new(spans)
-            .block(block)
-            .alignment(Alignment::Right);
-
-        f.render_widget(paragraph, chunks[1]);
-        return;
+    if let Some(p) = scroll_status(&window, "logs") {
+        f.render_widget(p, chunks[1]);
     }
 
-    if let Some(pane) = window
-        .selected_tab()
-        .panes()
-        .iter()
-        .find(|p| p.id() == "configs-raw")
-    {
-        let widget = pane.widget().text();
-        let span = match widget {
-            Some(t) => text_status((t.selected(), t.row_size())),
-            None => text_status((0, 0)),
-        };
+    if let Some(p) = scroll_status(&window, "configs-raw") {
+        f.render_widget(p, chunks[1]);
+    }
 
-        let spans = Spans::from(span);
-        let block = Block::default().style(Style::default());
-        let paragraph = Paragraph::new(spans)
-            .block(block)
-            .alignment(Alignment::Right);
-
-        f.render_widget(paragraph, chunks[1]);
-        return;
+    if let Some(p) = scroll_status(&window, "event") {
+        f.render_widget(p, chunks[1]);
     }
 }
 
