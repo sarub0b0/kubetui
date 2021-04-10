@@ -217,10 +217,7 @@ impl WidgetTrait for Text<'_> {
         self.state.select(0);
         self.items = items.clone();
 
-        let wrapped = wrap(&items, self.area.width);
-
-        self.spans.append(&mut generate_spans(&wrapped));
-
+        self.update_spans();
         self.update_rows_size();
     }
 
