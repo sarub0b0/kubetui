@@ -198,7 +198,7 @@ impl WidgetTrait for Text<'_> {
 
     fn select_prev(&mut self, index: usize) {
         let mut i = self.state.selected();
-        if i == 0 {
+        if i < index as u64 {
             i = 0;
         } else {
             i = i - index as u64;
