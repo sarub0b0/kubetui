@@ -215,7 +215,7 @@ impl WidgetTrait for Text<'_> {
 
     fn set_items(&mut self, items: Vec<String>) {
         self.state.select(0);
-        self.items = items.clone();
+        self.items = items;
 
         self.update_spans();
         self.update_rows_size();
