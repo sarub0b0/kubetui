@@ -31,10 +31,10 @@ pub async fn configs_loop(tx: Sender<Event>, client: Client, namespace: Arc<RwLo
         let mut ret = Vec::new();
 
         for cm in configmap_list {
-            let meta = Meta::meta(&cm);
-            let name = meta.name.clone().unwrap();
-
-            ret.push(format!("C │ {}", name));
+            ret.push(format!(
+                "C │ {}",
+                Meta::meta(&cm).name.as_ref().unwrap_or(&String::default())
+            ));
         }
 
         let secrets: Api<Secret> = Api::namespaced(client, &namespace);
@@ -44,10 +44,13 @@ pub async fn configs_loop(tx: Sender<Event>, client: Client, namespace: Arc<RwLo
         let secret_list = secrets.list(&lp).await.unwrap();
 
         for secret in secret_list {
-            let meta = Meta::meta(&secret);
-            let name = meta.name.clone().unwrap();
-
-            ret.push(format!("S │ {}", name));
+            ret.push(format!(
+                "S │ {}",
+                Meta::meta(&secret)
+                    .name
+                    .as_ref()
+                    .unwrap_or(&String::default())
+            ));
         }
 
         tx.send(Event::Kube(Kube::Configs(ret))).unwrap();
@@ -55,8 +58,6 @@ pub async fn configs_loop(tx: Sender<Event>, client: Client, namespace: Arc<RwLo
 }
 
 pub async fn get_config(client: Client, ns: &str, config: &str) -> Vec<String> {
-    let client_clone = client.clone();
-
     let split: Vec<&str> = config.split(' ').collect();
 
     let ty = split[0];
@@ -64,7 +65,7 @@ pub async fn get_config(client: Client, ns: &str, config: &str) -> Vec<String> {
 
     match ty {
         "C" => {
-            let cms: Api<ConfigMap> = Api::namespaced(client_clone, &ns);
+            let cms: Api<ConfigMap> = Api::namespaced(client, &ns);
             let cm = cms.get(name).await.unwrap();
             match cm.data {
                 Some(data) => data.iter().map(|(k, v)| format!("{}: {}", k, v)).collect(),
@@ -72,7 +73,7 @@ pub async fn get_config(client: Client, ns: &str, config: &str) -> Vec<String> {
             }
         }
         "S" => {
-            let secs: Api<Secret> = Api::namespaced(client_clone, &ns);
+            let secs: Api<Secret> = Api::namespaced(client, &ns);
             let sec = secs.get(name).await.unwrap();
             match sec.data {
                 Some(data) => data
