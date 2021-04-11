@@ -218,9 +218,13 @@ fn popup_mode_key(
             let popup = window.popup();
             let ns = popup.widget().list().unwrap();
             let index = ns.state().borrow().selected();
-            let selected_ns = ns.items()[index.unwrap()].clone();
-            tx.send(Event::Kube(Kube::SetNamespace(selected_ns.clone())))
+            let selected_ns = &ns.items()[index.unwrap()];
+
+            tx.send(Event::Kube(Kube::SetNamespace(selected_ns.to_string())))
                 .unwrap();
+
+            *current_namespace = selected_ns.to_string();
+
             window.unselect_popup();
 
             if let Some(p) = window.pane_mut("event") {
@@ -237,8 +241,6 @@ fn popup_mode_key(
                 let w = p.widget_mut().text_mut().unwrap();
                 w.clear();
             }
-
-            *current_namespace = selected_ns;
         }
         _ => {
             return EventType::NoMatch;
