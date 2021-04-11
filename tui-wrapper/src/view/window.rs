@@ -51,7 +51,6 @@ impl<'a> Window<'a> {
 
         self.tabs.iter_mut().for_each(|tab| {
             tab.update_chunk(chunks[window_layout_index::CONTENTS]);
-            // tab.update_popup_chunk(chunk);
         });
         self.popup.update_chunk(chunk);
     }
@@ -232,20 +231,6 @@ impl Window<'_> {
             }
         }
     }
-
-    // pub fn update_wrap(&mut self) {
-    //     let panes = self.selected_tab_mut().panes_mut();
-    //     for pane in panes {
-    //         let chunk = pane.chunk();
-    //         match pane.widget_mut().text_mut() {
-    //             Some(t) => {
-    //                 t.update_spans(chunk.width as u64);
-    //                 t.update_rows_size(chunk.height as u64);
-    //             }
-    //             None => {}
-    //         }
-    //     }
-    // }
 }
 
 // Popup
