@@ -44,18 +44,19 @@ async fn get_event_list(client: Client, ns: &str) -> Vec<String> {
     list.iter()
         .map(|ev| {
             let meta = Meta::meta(ev);
+
             let creation_timestamp: DateTime<Utc> = match &meta.creation_timestamp {
-                Some(ref time) => time.0,
+                Some(time) => time.0,
                 None => current_datetime,
             };
             let duration: Duration = current_datetime - creation_timestamp;
 
             let obj = &ev.involved_object;
 
-            let name = obj.name.clone().unwrap();
-            let kind = obj.kind.clone().unwrap();
-            let message = ev.message.clone().unwrap();
-            let reason = ev.reason.clone().unwrap();
+            let name = obj.name.as_ref().unwrap();
+            let kind = obj.kind.as_ref().unwrap();
+            let message = ev.message.as_ref().unwrap();
+            let reason = ev.reason.as_ref().unwrap();
             format!(
                 "{} {}  {} {}\n\x1b[90m> {}\x1b[0m\n ",
                 kind,
@@ -111,7 +112,8 @@ async fn watch(tx: Sender<Event>, client: Client, ns: String) -> Handlers {
     Handlers(vec![watch_handle, event_handle])
 }
 
-pub async fn _event_watch(
+#[allow(dead_code)]
+pub async fn event_watch(
     tx: Sender<Event>,
     client: Client,
     ns: String,
