@@ -108,20 +108,19 @@ async fn main_loop(
     namespace: Arc<RwLock<String>>,
     current_context: String,
 ) {
-    let tx_ns = tx.clone();
-    let tx_config = tx.clone();
-    let tx_ctx = tx.clone();
-
     let mut log_stream_handler: Option<Handlers> = None;
     loop {
         let rx = rx.clone();
+        let tx = tx.clone();
+        let client = client.clone();
+
         match tokio::task::spawn_blocking(move || rx.recv()).await {
             Ok(recv) => match recv {
                 Ok(Event::Kube(ev)) => match ev {
                     Kube::SetNamespace(ns) => {
                         {
                             let mut namespace = namespace.write().await;
-                            *namespace = ns.clone();
+                            *namespace = ns;
                         }
 
                         if let Some(handler) = log_stream_handler {
@@ -131,9 +130,8 @@ async fn main_loop(
                     }
 
                     Kube::GetNamespacesRequest => {
-                        let res = namespace_list(client.clone()).await;
-                        tx_ns
-                            .send(Event::Kube(Kube::GetNamespacesResponse(res)))
+                        let res = namespace_list(client).await;
+                        tx.send(Event::Kube(Kube::GetNamespacesResponse(res)))
                             .unwrap();
                     }
 
@@ -144,28 +142,23 @@ async fn main_loop(
 
                         let ns = namespace.read().await;
 
-                        log_stream_handler = Some(
-                            log_stream(tx.clone(), client.clone(), ns.to_string(), pod_name).await,
-                        );
+                        log_stream_handler = Some(log_stream(tx, client, &ns, &pod_name).await);
                         task::yield_now().await;
                     }
 
                     Kube::ConfigRequest(config) => {
                         let ns = namespace.read().await;
-                        let raw = get_config(client.clone(), &ns, &config).await;
-                        tx_config
-                            .send(Event::Kube(Kube::ConfigResponse(raw)))
-                            .unwrap();
+                        let raw = get_config(client, &ns, &config).await;
+                        tx.send(Event::Kube(Kube::ConfigResponse(raw))).unwrap();
                     }
 
                     Kube::GetCurrentContextRequest => {
                         let ns = namespace.read().await;
-                        tx_ctx
-                            .send(Event::Kube(Kube::GetCurrentContextResponse(
-                                current_context.to_string(),
-                                ns.to_string(),
-                            )))
-                            .unwrap();
+                        tx.send(Event::Kube(Kube::GetCurrentContextResponse(
+                            current_context.to_string(),
+                            ns.to_string(),
+                        )))
+                        .unwrap();
                     }
                     _ => unreachable!(),
                 },

@@ -17,13 +17,8 @@ use kube::{api::LogParams, Api, Client, Result};
 
 use color::Color;
 
-pub async fn log_stream(
-    tx: Sender<Event>,
-    client: Client,
-    ns: String,
-    pod_name: String,
-) -> Handlers {
-    let pod: Api<Pod> = Api::namespaced(client.clone(), &ns);
+pub async fn log_stream(tx: Sender<Event>, client: Client, ns: &str, pod_name: &str) -> Handlers {
+    let pod: Api<Pod> = Api::namespaced(client, ns);
     let mut lp = LogParams::default();
     lp.follow = true;
 
@@ -57,7 +52,7 @@ pub async fn log_stream(
                     let handler = container_logs(
                         tx.clone(),
                         pod.clone(),
-                        pod_name.clone(),
+                        pod_name,
                         lp,
                         Arc::clone(&buf),
                         prefix,
@@ -67,7 +62,7 @@ pub async fn log_stream(
                     let mut handlers = container_log_stream(
                         tx.clone(),
                         pod.clone(),
-                        pod_name.clone(),
+                        pod_name,
                         lp,
                         Arc::clone(&buf),
                         prefix,
@@ -79,9 +74,9 @@ pub async fn log_stream(
 
         if let Some(containers) = status.container_statuses {
             for c in &containers {
-                let mut lp = lp.clone();
                 let tx = tx.clone();
 
+                let mut lp = lp.clone();
                 lp.container = Some(c.name.clone());
 
                 let prefix = if 1 < containers.len() || status.init_container_statuses.is_some() {
@@ -97,7 +92,7 @@ pub async fn log_stream(
                 let mut handlers = container_log_stream(
                     tx.clone(),
                     pod.clone(),
-                    pod_name.clone(),
+                    pod_name,
                     lp,
                     Arc::clone(&buf),
                     prefix,
@@ -114,13 +109,14 @@ pub async fn log_stream(
 fn container_logs(
     tx: Sender<Event>,
     pod: Api<Pod>,
-    pod_name: String,
+    pod_name: &str,
     lp: LogParams,
     buf: Arc<RwLock<Vec<String>>>,
     log_prefix: Option<String>,
 ) -> JoinHandle<()> {
+    let pod_name = pod_name.to_owned();
     tokio::spawn(async move {
-        let prefix = if let Some(ref p) = log_prefix {
+        let prefix = if let Some(p) = log_prefix {
             p.to_owned() + " "
         } else {
             "".to_string()
@@ -145,69 +141,73 @@ fn container_logs(
 fn container_log_stream(
     tx: Sender<Event>,
     pod: Api<Pod>,
-    pod_name: String,
+    pod_name: &str,
     mut lp: LogParams,
     buf: Arc<RwLock<Vec<String>>>,
     log_prefix: Option<String>,
 ) -> Vec<JoinHandle<()>> {
-    let buf_ = buf.clone();
-    let buf_handle = tokio::spawn(async move {
-        let prefix = if let Some(ref p) = log_prefix.clone() {
-            p.to_owned() + " "
-        } else {
-            "".to_string()
-        };
+    let buf_handle = {
+        let pod_name = pod_name.to_owned();
+        let buf = buf.clone();
 
-        loop {
-            let pod_ = pod.clone();
-            let pod_name_ = pod_name.clone();
-            let prefix_ = prefix.clone();
-            let lp_ = lp.clone();
-            let buf__ = buf_.clone();
+        tokio::spawn(async move {
+            let prefix = if let Some(p) = log_prefix {
+                p.to_owned() + " "
+            } else {
+                "".to_string()
+            };
 
-            let stream: Result<(), kube::Error> = async move {
-                let mut logs = pod_.log_stream(&pod_name_, &lp_).await?.boxed();
+            loop {
+                let pod_name_ref = &pod_name;
+                let pod_ref = &pod;
+                let prefix_ref = &prefix;
+                let lp_ref = &lp;
+                let buf_ref = &buf;
 
-                while let Some(line) = logs.try_next().await? {
-                    let mut buf = buf__.write().await;
-                    buf.push(format!("{}{}", prefix_, String::from_utf8_lossy(&line)));
+                let stream: Result<(), kube::Error> = async move {
+                    let mut logs = pod_ref.log_stream(&pod_name_ref, &lp_ref).await?.boxed();
+
+                    while let Some(line) = logs.try_next().await? {
+                        let mut buf = buf_ref.write().await;
+                        buf.push(format!("{}{}", prefix_ref, String::from_utf8_lossy(&line)));
+                    }
+
+                    Ok(())
                 }
+                .await;
 
-                Ok(())
+                match stream {
+                    Ok(()) => break,
+                    Err(err) => match err {
+                        kube::Error::HyperError(_) => {
+                            lp.tail_lines = Some(0);
+                        }
+                        _ => {
+                            let mut buf = buf.write().await;
+                            buf.push(msg::error(format!("log_stream ERR: {}", err)));
+                            break;
+                        }
+                    },
+                }
             }
-            .await;
+        })
+    };
 
-            let buf__ = buf_.clone();
-            match stream {
-                Ok(()) => break,
-                Err(err) => match err {
-                    kube::Error::HyperError(_) => {
-                        lp.tail_lines = Some(0);
-                    }
-                    _ => {
-                        let mut buf = buf__.write().await;
-                        buf.push(msg::error(format!("log_stream ERR: {}", err)));
-                        break;
-                    }
-                },
+    let send_handle = {
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(time::Duration::from_millis(200));
+            loop {
+                interval.tick().await;
+                let mut buf = buf.write().await;
+                if !buf.is_empty() {
+                    tx.send(Event::Kube(Kube::LogStreamResponse(buf.clone())))
+                        .unwrap();
+
+                    buf.clear();
+                }
             }
-        }
-    });
-
-    let buf_ = buf.clone();
-    let send_handle = tokio::spawn(async move {
-        let mut interval = tokio::time::interval(time::Duration::from_millis(200));
-        loop {
-            interval.tick().await;
-            let mut buf = buf_.write().await;
-            if !buf.is_empty() {
-                tx.send(Event::Kube(Kube::LogStreamResponse(buf.clone())))
-                    .unwrap();
-
-                buf.clear();
-            }
-        }
-    });
+        })
+    };
 
     vec![buf_handle, send_handle]
 }
