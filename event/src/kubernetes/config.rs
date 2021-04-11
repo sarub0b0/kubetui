@@ -1,7 +1,9 @@
 use super::{Event, Kube};
 
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::time;
+
+use tokio::sync::RwLock;
 
 use crossbeam::channel::Sender;
 
@@ -18,7 +20,7 @@ pub async fn configs_loop(tx: Sender<Event>, client: Client, namespace: Arc<RwLo
     loop {
         interval.tick().await;
         let client = client.clone();
-        let namespace = namespace.read().unwrap().clone();
+        let namespace = namespace.read().await;
 
         let configmaps: Api<ConfigMap> = Api::namespaced(client.clone(), &namespace);
 

@@ -4,8 +4,10 @@ use crate::util::*;
 
 use chrono::{DateTime, Duration, Utc};
 
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::time;
+
+use tokio::sync::RwLock;
 
 use crossbeam::channel::Sender;
 
@@ -46,7 +48,7 @@ pub async fn pod_loop(tx: Sender<Event>, client: Client, namespace: Arc<RwLock<S
 
     loop {
         interval.tick().await;
-        let namespace = namespace.read().unwrap().clone();
+        let namespace = namespace.read().await;
         let pod_info = get_pod_info(client.clone(), &namespace).await;
         tx.send(Event::Kube(Kube::Pod(pod_info))).unwrap();
     }

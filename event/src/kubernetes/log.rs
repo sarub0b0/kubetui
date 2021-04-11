@@ -4,12 +4,10 @@ use super::{Event, Kube};
 use crate::kubernetes::Handlers;
 
 use futures::{StreamExt, TryStreamExt};
+use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 
-use std::{
-    sync::{Arc, RwLock},
-    time, vec,
-};
+use std::{sync::Arc, time, vec};
 
 use crossbeam::channel::Sender;
 
@@ -131,11 +129,11 @@ fn container_logs(
         let logs = pod.logs(&pod_name, &lp).await.unwrap();
 
         for line in logs.lines() {
-            let mut buf = buf.write().unwrap();
+            let mut buf = buf.write().await;
             buf.push(format!("{}{}", prefix, line));
         }
 
-        let mut buf = buf.write().unwrap();
+        let mut buf = buf.write().await;
 
         tx.send(Event::Kube(Kube::LogStreamResponse(buf.clone())))
             .unwrap();
@@ -171,7 +169,7 @@ fn container_log_stream(
                 let mut logs = pod_.log_stream(&pod_name_, &lp_).await?.boxed();
 
                 while let Some(line) = logs.try_next().await? {
-                    let mut buf = buf__.write().unwrap();
+                    let mut buf = buf__.write().await;
                     buf.push(format!("{}{}", prefix_, String::from_utf8_lossy(&line)));
                 }
 
@@ -187,7 +185,7 @@ fn container_log_stream(
                         lp.tail_lines = Some(0);
                     }
                     _ => {
-                        let mut buf = buf__.write().unwrap();
+                        let mut buf = buf__.write().await;
                         buf.push(msg::error(format!("log_stream ERR: {}", err)));
                         break;
                     }
@@ -201,7 +199,7 @@ fn container_log_stream(
         let mut interval = tokio::time::interval(time::Duration::from_millis(200));
         loop {
             interval.tick().await;
-            let mut buf = buf_.write().unwrap();
+            let mut buf = buf_.write().await;
             if !buf.is_empty() {
                 tx.send(Event::Kube(Kube::LogStreamResponse(buf.clone())))
                     .unwrap();

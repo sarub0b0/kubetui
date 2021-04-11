@@ -6,8 +6,10 @@ use chrono::{DateTime, Duration, Utc};
 
 use futures::{StreamExt, TryStreamExt};
 
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::time;
+
+use tokio::sync::RwLock;
 
 use crossbeam::channel::Sender;
 
@@ -23,24 +25,11 @@ pub async fn event_loop(tx: Sender<Event>, client: Client, namespace: Arc<RwLock
     let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
     loop {
         interval.tick().await;
-        let ns = namespace.read().unwrap().clone();
+        let ns = namespace.read().await;
 
         let event_list = get_event_list(client.clone(), &ns).await;
 
         tx.send(Event::Kube(Kube::Event(event_list))).unwrap();
-
-        // let handler = watch(tx.clone(), client.clone(), ns.clone()).await;
-
-        // let mut changed_namespace = false;
-        // while !changed_namespace {
-        //     interval.tick().await;
-        //     let new_ns = namespace.read().unwrap().clone();
-        //     if new_ns != ns {
-        //         changed_namespace = true;
-        //     }
-        // }
-
-        // handler.abort();
     }
 }
 
@@ -92,7 +81,7 @@ async fn watch(tx: Sender<Event>, client: Client, ns: String) -> Handlers {
         let current_datetime: DateTime<Utc> = Utc::now();
         let mut ew = try_flatten_applied(watcher(events, lp)).boxed();
         while let Some(event) = ew.try_next().await.unwrap() {
-            let mut buf = buf_clone.write().unwrap();
+            let mut buf = buf_clone.write().await;
 
             let meta = Meta::meta(&event);
             let creation_timestamp: DateTime<Utc> = match &meta.creation_timestamp {
@@ -110,7 +99,7 @@ async fn watch(tx: Sender<Event>, client: Client, ns: String) -> Handlers {
         let mut interval = tokio::time::interval(time::Duration::from_millis(500));
         loop {
             interval.tick().await;
-            let mut buf = buf_clone.write().unwrap();
+            let mut buf = buf_clone.write().await;
             if !buf.is_empty() {
                 tx.send(Event::Kube(Kube::Event(buf.clone()))).unwrap();
 
@@ -142,7 +131,7 @@ pub async fn _event_watch(
     let watch_handle = tokio::spawn(async move {
         let mut ew = try_flatten_applied(watcher(events, lp)).boxed();
         while let Some(event) = ew.try_next().await.unwrap() {
-            let mut buf = buf_clone.write().unwrap();
+            let mut buf = buf_clone.write().await;
             buf.push(format!(
                 "{} {} {}",
                 event.type_.unwrap(),
@@ -157,7 +146,7 @@ pub async fn _event_watch(
         let mut interval = tokio::time::interval(time::Duration::from_millis(500));
         loop {
             interval.tick().await;
-            let mut buf = buf_clone.write().unwrap();
+            let mut buf = buf_clone.write().await;
             if !buf.is_empty() {
                 tx.send(Event::Kube(Kube::LogStreamResponse(buf.clone())))
                     .unwrap();

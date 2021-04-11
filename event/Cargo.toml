@@ -8,15 +8,12 @@ edition = "2018"
 
 [dependencies]
 crossterm = "0.18"
-
 kube = "0.50.0"
 kube-runtime = "0.50.0"
 k8s-openapi = { version = "0.11.0", default-features = false, features = ["v1_20"] }
-
 futures = "0.3.12"
 bytes = "1"
 crossbeam = "0.8"
-
 chrono = "0.4"
-
 tokio = { version = "1", features = ["full"] }
+
