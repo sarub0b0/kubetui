@@ -235,11 +235,10 @@ impl WidgetTrait for Text<'_> {
     }
 }
 
-pub fn wrap(lines: &Vec<String>, wrap_width: usize) -> Vec<String> {
+pub fn wrap(lines: &Vec<String>, wrap_width: usize) -> Vec<Vec<String>> {
     lines
         .par_iter()
         .map(|line| wrap_line(line, wrap_width))
-        .flatten()
         .collect()
 }
 
@@ -319,35 +318,43 @@ fn wrap_one_line(line: &str, wrap_width: usize) -> Vec<String> {
     ret
 }
 
-pub fn generate_spans<'a>(lines: &Vec<String>) -> Vec<Spans<'a>> {
+pub fn generate_spans<'a>(lines: &Vec<Vec<String>>) -> Vec<Spans<'a>> {
     lines
         .par_iter()
-        .map(|line| {
-            if line.is_empty() {
-                return Spans::from(Span::styled("", Style::default()));
-            }
-            let mut span_vec: Vec<Span> = vec![];
+        .map(|lines| {
             let mut style = Style::default();
 
-            let mut iter = line.ansi_parse().peekable();
-
-            while let Some(parsed) = iter.next() {
-                match parsed.ty {
-                    AnsiEscapeSequence::Chars => {
-                        span_vec.push(Span::styled(parsed.chars.to_string(), style));
+            lines
+                .iter()
+                .map(|line| {
+                    if line.is_empty() {
+                        return Spans::from(Span::styled("", Style::default()));
                     }
-                    AnsiEscapeSequence::SelectGraphicRendition(color) => {
-                        style = generate_style_from_ansi_color(color);
-                        if let None = iter.peek() {
-                            span_vec.push(Span::styled("", style));
+                    let mut span_vec: Vec<Span> = vec![];
+
+                    let mut iter = line.ansi_parse().peekable();
+
+                    while let Some(parsed) = iter.next() {
+                        match parsed.ty {
+                            AnsiEscapeSequence::Chars => {
+                                span_vec.push(Span::styled(parsed.chars.to_string(), style));
+                            }
+                            AnsiEscapeSequence::SelectGraphicRendition(color) => {
+                                style = generate_style_from_ansi_color(color);
+
+                                if let None = iter.peek() {
+                                    span_vec.push(Span::styled("", style));
+                                }
+                            }
+                            _ => {}
                         }
                     }
-                    _ => {}
-                }
-            }
 
-            Spans::from(span_vec)
+                    Spans::from(span_vec)
+                })
+                .collect::<Vec<Spans>>()
         })
+        .flatten()
         .collect()
 }
 
@@ -392,10 +399,10 @@ mod tests {
             let text = vec!["ℹ ｢wds｣: Project is running at http://10.1.157.45/".to_string()];
             assert_eq!(
                 wrap(&text, 40),
-                vec![
+                vec![vec![
                     "ℹ ｢wds｣: Project is running at http://10".to_string(),
-                    ".1.157.45/".to_string(),
-                ]
+                    ".1.157.45/".to_string()
+                ],]
             );
         }
 
@@ -434,7 +441,7 @@ mod tests {
 
             assert_eq!(
                 wrap(&text, 100),
-                vec!["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string()]
+                vec![vec!["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string()]]
             );
         }
 
@@ -444,7 +451,9 @@ mod tests {
 
             assert_eq!(
                 wrap(&text, 30),
-                vec!["\x1b[1Aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\x1b[1A\x1b[1A".to_string()]
+                vec![vec![
+                    "\x1b[1Aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\x1b[1A\x1b[1A".to_string()
+                ]]
             );
         }
         #[test]
@@ -453,7 +462,11 @@ mod tests {
 
             assert_eq!(
                 wrap(&text, 100),
-                vec!["hoge".to_string(), "".to_string(), "hoge".to_string()]
+                vec![
+                    vec!["hoge".to_string()],
+                    vec!["".to_string()],
+                    vec!["hoge".to_string()]
+                ]
             );
         }
 
@@ -463,15 +476,15 @@ mod tests {
 
             assert_eq!(
                 wrap(&text, 10),
-                vec!["aaaaaaaaaa".to_string(), "aaaaa".to_string()]
+                vec![vec!["aaaaaaaaaa".to_string(), "aaaaa".to_string()]]
             );
             assert_eq!(
                 wrap(&text, 5),
-                vec![
+                vec![vec![
                     "aaaaa".to_string(),
                     "aaaaa".to_string(),
                     "aaaaa".to_string(),
-                ]
+                ]]
             );
         }
 
@@ -481,7 +494,7 @@ mod tests {
 
             assert_eq!(
                 wrap(&text, 12),
-                vec![
+                vec![vec![
                     "123456789".to_string(),
                     "123456789".to_string(),
                     "123456789".to_string(),
@@ -490,7 +503,7 @@ mod tests {
                     "123456789".to_string(),
                     "123456789".to_string(),
                     "123456789".to_string(),
-                ]
+                ]]
             );
         }
     }
@@ -533,7 +546,7 @@ mod tests {
                     Style::default().fg(Color::Reset),
                 ),
             ]),
-            Spans::from(".1.157.9/"),
+            Spans::from(Span::styled(".1.157.9/", Style::default().fg(Color::Reset))),
             Spans::from(vec![
                 Span::styled("ℹ", Style::default().fg(Color::Blue)),
                 Span::styled(" ", Style::default().fg(Color::Reset)),
@@ -552,7 +565,10 @@ mod tests {
                     Style::default().fg(Color::Reset),
                 ),
             ]),
-            Spans::from("ved from /app/public"),
+            Spans::from(Span::styled(
+                "ved from /app/public",
+                Style::default().fg(Color::Reset),
+            )),
             Spans::from(vec![
                 Span::styled("ℹ", Style::default().fg(Color::Blue)),
                 Span::styled(" ", Style::default().fg(Color::Reset)),
@@ -591,7 +607,7 @@ mod tests {
 
         #[test]
         fn color_3_4bit_fg() {
-            let text = vec!["hoge\x1b[33mhoge\x1b[39m".to_string()];
+            let text = vec![vec!["hoge\x1b[33mhoge\x1b[39m".to_string()]];
 
             assert_eq!(
                 generate_spans(&text),
@@ -605,7 +621,7 @@ mod tests {
 
         #[test]
         fn color_3_4bit_fg_bold() {
-            let text = vec!["\x1b[1;33mhoge\x1b[39m".to_string()];
+            let text = vec![vec!["\x1b[1;33mhoge\x1b[39m".to_string()]];
 
             assert_eq!(
                 generate_spans(&text),
@@ -623,7 +639,7 @@ mod tests {
 
         #[test]
         fn color_8bit_fg() {
-            let text = vec!["\x1b[38;5;33mhoge\x1b[39m".to_string()];
+            let text = vec![vec!["\x1b[38;5;33mhoge\x1b[39m".to_string()]];
 
             assert_eq!(
                 generate_spans(&text),
@@ -636,7 +652,7 @@ mod tests {
 
         #[test]
         fn color_8bit_fg_bold() {
-            let text = vec!["\x1b[1;38;5;33mhoge\x1b[39m".to_string()];
+            let text = vec![vec!["\x1b[1;38;5;33mhoge\x1b[39m".to_string()]];
 
             assert_eq!(
                 generate_spans(&text),
@@ -654,7 +670,7 @@ mod tests {
 
         #[test]
         fn color_24bit_fg() {
-            let text = vec!["\x1b[38;2;33;10;10mhoge\x1b[39m".to_string()];
+            let text = vec![vec!["\x1b[38;2;33;10;10mhoge\x1b[39m".to_string()]];
 
             assert_eq!(
                 generate_spans(&text),
@@ -667,7 +683,7 @@ mod tests {
 
         #[test]
         fn color_24bit_fg_bold() {
-            let text = vec!["\x1b[1;38;2;33;10;10mhoge\x1b[39m".to_string()];
+            let text = vec![vec!["\x1b[1;38;2;33;10;10mhoge\x1b[39m".to_string()]];
 
             assert_eq!(
                 generate_spans(&text),
@@ -685,7 +701,7 @@ mod tests {
 
         #[test]
         fn color_3_4bit_bg() {
-            let text = vec!["\x1b[43mhoge\x1b[49m".to_string()];
+            let text = vec![vec!["\x1b[43mhoge\x1b[49m".to_string()]];
 
             assert_eq!(
                 generate_spans(&text),
@@ -698,7 +714,7 @@ mod tests {
 
         #[test]
         fn color_3_4bit_bg_bold() {
-            let text = vec!["\x1b[1;43mhoge\x1b[49m".to_string()];
+            let text = vec![vec!["\x1b[1;43mhoge\x1b[49m".to_string()]];
 
             assert_eq!(
                 generate_spans(&text),
@@ -713,7 +729,7 @@ mod tests {
                 ])]
             );
 
-            let text = vec!["\x1b[43;1mhoge\x1b[49m".to_string()];
+            let text = vec![vec!["\x1b[43;1mhoge\x1b[49m".to_string()]];
 
             assert_eq!(
                 generate_spans(&text),
@@ -731,7 +747,7 @@ mod tests {
 
         #[test]
         fn color_8bit_bg() {
-            let text = vec!["\x1b[48;5;33mhoge\x1b[49m".to_string()];
+            let text = vec![vec!["\x1b[48;5;33mhoge\x1b[49m".to_string()]];
 
             assert_eq!(
                 generate_spans(&text),
@@ -744,7 +760,7 @@ mod tests {
 
         #[test]
         fn color_8bit_bg_bold() {
-            let text = vec!["\x1b[1;48;5;33mhoge\x1b[49m".to_string()];
+            let text = vec![vec!["\x1b[1;48;5;33mhoge\x1b[49m".to_string()]];
 
             assert_eq!(
                 generate_spans(&text),
@@ -759,7 +775,7 @@ mod tests {
                 ])]
             );
 
-            let text = vec!["\x1b[48;5;33;1mhoge\x1b[49m".to_string()];
+            let text = vec![vec!["\x1b[48;5;33;1mhoge\x1b[49m".to_string()]];
 
             assert_eq!(
                 generate_spans(&text),
@@ -777,7 +793,7 @@ mod tests {
 
         #[test]
         fn color_24bit_bg() {
-            let text = vec!["\x1b[48;2;33;10;10mhoge\x1b[49m".to_string()];
+            let text = vec![vec!["\x1b[48;2;33;10;10mhoge\x1b[49m".to_string()]];
 
             assert_eq!(
                 generate_spans(&text),
@@ -790,7 +806,7 @@ mod tests {
 
         #[test]
         fn color_24bit_bg_bold() {
-            let text = vec!["\x1b[1;48;2;33;10;10mhoge\x1b[49m".to_string()];
+            let text = vec![vec!["\x1b[1;48;2;33;10;10mhoge\x1b[49m".to_string()]];
 
             assert_eq!(
                 generate_spans(&text),
@@ -805,7 +821,7 @@ mod tests {
                 ])]
             );
 
-            let text = vec!["\x1b[48;2;33;10;10;1mhoge\x1b[49m".to_string()];
+            let text = vec![vec!["\x1b[48;2;33;10;10;1mhoge\x1b[49m".to_string()]];
 
             assert_eq!(
                 generate_spans(&text),
@@ -829,12 +845,12 @@ mod tests {
 
             assert_eq!(
                 wrapped,
-                vec![
+                vec![vec![
                     "[48;2;0;0;0m [48;2;1;0;0m [48;2;2;0;0m ".to_string(),
                     "[48;2;3;0;0m [48;2;4;0;0m [48;2;5;0;0m ".to_string(),
                     "[48;2;6;0;0m [48;2;7;0;0m [48;2;8;0;0m ".to_string(),
                     "[48;2;9;0;0m [48;2;10;0;0m [0m".to_string(),
-                ]
+                ]]
             );
 
             assert_eq!(
@@ -862,6 +878,27 @@ mod tests {
                     ]),
                 ]
             );
+        }
+
+        #[test]
+        fn color_oneline() {
+            let text = vec!["\x1b[31maaaaaaaaaaaaaaa\x1b[0m".to_string()];
+
+            let wrapped = wrap(&text, 10);
+
+            assert_eq!(
+                generate_spans(&wrapped),
+                vec![
+                    Spans::from(vec![Span::styled(
+                        "aaaaaaaaaa",
+                        Style::default().fg(Color::Red)
+                    )]),
+                    Spans::from(vec![
+                        Span::styled("aaaaa", Style::default().fg(Color::Red)),
+                        Span::styled("", Style::reset())
+                    ]),
+                ]
+            )
         }
     }
 }
