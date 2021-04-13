@@ -41,6 +41,10 @@ impl Text<'_> {
     pub fn len(&self) -> usize {
         self.chars.len()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.chars.is_empty()
+    }
 }
 
 impl<'a> Text<'a> {
@@ -77,7 +81,7 @@ impl<'a> Iterator for TextIterator<'a> {
             return None;
         }
 
-        let find = text.find("\x1b");
+        let find = text.find('\x1b');
         match find {
             Some(pos) => {
                 if pos == 0 {

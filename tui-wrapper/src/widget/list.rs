@@ -17,7 +17,7 @@ pub struct List<'a> {
 impl<'a> List<'a> {
     pub fn new(items: Vec<String>) -> Self {
         let mut state = ListState::default();
-        if 0 < items.len() {
+        if !items.is_empty() {
             state.select(Some(0));
         }
 
@@ -86,12 +86,7 @@ impl<'a> List<'a> {
     }
 
     fn set_listitem(&mut self) {
-        self.list_item = self
-            .items
-            .iter()
-            .cloned()
-            .map(|i| ListItem::new(i))
-            .collect();
+        self.list_item = self.items.iter().cloned().map(ListItem::new).collect();
     }
 }
 

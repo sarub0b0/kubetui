@@ -61,7 +61,7 @@ impl<'a> Pane<'a> {
     }
 
     pub fn is_selected(&self, rhs: &Pane) -> bool {
-        return std::ptr::eq(self, rhs);
+        std::ptr::eq(self, rhs)
     }
 
     pub fn id(&self) -> &str {

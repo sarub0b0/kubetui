@@ -1,5 +1,3 @@
-use k8s_openapi::api::core::v1::ContainerStateTerminated;
-
 use super::{Event, Kube};
 use crate::kubernetes::Handlers;
 
@@ -19,8 +17,10 @@ use color::Color;
 
 pub async fn log_stream(tx: Sender<Event>, client: Client, ns: &str, pod_name: &str) -> Handlers {
     let pod: Api<Pod> = Api::namespaced(client, ns);
-    let mut lp = LogParams::default();
-    lp.follow = true;
+    let lp = LogParams {
+        follow: true,
+        ..Default::default()
+    };
 
     // バッチでログストリームを渡す
     let buf = Arc::new(RwLock::new(Vec::new()));
@@ -48,7 +48,7 @@ pub async fn log_stream(tx: Sender<Event>, client: Client, ns: &str, pod_name: &
                     c.name
                 ));
 
-                if is_terminated_container(&state.terminated) {
+                if state.terminated.is_some() {
                     let handler = container_logs(
                         tx.clone(),
                         pod.clone(),
@@ -117,7 +117,7 @@ fn container_logs(
     let pod_name = pod_name.to_owned();
     tokio::spawn(async move {
         let prefix = if let Some(p) = log_prefix {
-            p.to_owned() + " "
+            p + " "
         } else {
             "".to_string()
         };
@@ -152,7 +152,7 @@ fn container_log_stream(
 
         tokio::spawn(async move {
             let prefix = if let Some(p) = log_prefix {
-                p.to_owned() + " "
+                p + " "
             } else {
                 "".to_string()
             };
@@ -210,14 +210,6 @@ fn container_log_stream(
     };
 
     vec![buf_handle, send_handle]
-}
-
-fn is_terminated_container(terminated: &Option<ContainerStateTerminated>) -> bool {
-    if terminated.is_some() {
-        true
-    } else {
-        false
-    }
 }
 
 #[allow(dead_code)]

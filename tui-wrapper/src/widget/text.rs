@@ -148,8 +148,8 @@ impl<'a> Text<'a> {
         self.row_size
     }
 
-    pub fn append_items(&mut self, items: &Vec<String>) {
-        self.items.append(&mut items.clone());
+    pub fn append_items(&mut self, items: &[String]) {
+        self.items.append(&mut items.to_vec());
 
         let wrapped = wrap(items, self.area.width);
 
@@ -190,7 +190,7 @@ impl WidgetTrait for Text<'_> {
         if self.row_size <= i {
             i = self.row_size;
         } else {
-            i = i + index as u64;
+            i += index as u64;
         }
 
         self.state.select(i);
@@ -201,7 +201,7 @@ impl WidgetTrait for Text<'_> {
         if i < index as u64 {
             i = 0;
         } else {
-            i = i - index as u64;
+            i -= index as u64;
         }
         self.state.select(i);
     }
@@ -235,15 +235,15 @@ impl WidgetTrait for Text<'_> {
     }
 }
 
-pub fn wrap(lines: &Vec<String>, wrap_width: usize) -> Vec<Vec<String>> {
+pub fn wrap(lines: &[String], wrap_width: usize) -> Vec<Vec<String>> {
     lines
         .par_iter()
         .map(|line| wrap_line(line, wrap_width))
         .collect()
 }
 
-fn wrap_line(text: &String, wrap_width: usize) -> Vec<String> {
-    if text.len() == 0 {
+fn wrap_line(text: &str, wrap_width: usize) -> Vec<String> {
+    if text.is_empty() {
         return vec!["".to_string()];
     }
 
@@ -261,12 +261,11 @@ fn wrap_line(text: &String, wrap_width: usize) -> Vec<String> {
 
 fn wrap_one_line(line: &str, wrap_width: usize) -> Vec<String> {
     let mut ret = Vec::new();
-    let mut iter = line.ansi_parse();
 
     let mut buf = String::with_capacity(line.len());
     let mut sum_width = 0;
 
-    while let Some(parsed) = iter.next() {
+    for parsed in line.ansi_parse() {
         if parsed.ty == AnsiEscapeSequence::Chars {
             let parsed_width = parsed.chars.width();
 
@@ -306,19 +305,17 @@ fn wrap_one_line(line: &str, wrap_width: usize) -> Vec<String> {
     if !buf.is_empty() {
         if 0 < sum_width {
             ret.push(buf);
+        } else if let Some(last) = ret.last_mut() {
+            *last += &buf;
         } else {
-            if let Some(last) = ret.last_mut() {
-                *last += &buf;
-            } else {
-                ret.push(buf);
-            }
+            ret.push(buf);
         }
     }
 
     ret
 }
 
-pub fn generate_spans<'a>(lines: &Vec<Vec<String>>) -> Vec<Spans<'a>> {
+pub fn generate_spans<'a>(lines: &[Vec<String>]) -> Vec<Spans<'a>> {
     lines
         .par_iter()
         .map(|lines| {
@@ -342,7 +339,7 @@ pub fn generate_spans<'a>(lines: &Vec<Vec<String>>) -> Vec<Spans<'a>> {
                             AnsiEscapeSequence::SelectGraphicRendition(color) => {
                                 style = generate_style_from_ansi_color(color);
 
-                                if let None = iter.peek() {
+                                if iter.peek().is_none() {
                                     span_vec.push(Span::styled("", style));
                                 }
                             }
@@ -531,7 +528,14 @@ mod tests {
             "To create a production build, use npm run build.",
         ];
 
-        let wrapped = wrap(&text.iter().cloned().map(String::from).collect(), 40);
+        let wrapped = wrap(
+            &text
+                .iter()
+                .cloned()
+                .map(String::from)
+                .collect::<Vec<String>>(),
+            40,
+        );
 
         let expected = vec![
             Spans::from("> taskbox@0.1.0 start /app"),

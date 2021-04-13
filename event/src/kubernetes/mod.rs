@@ -114,8 +114,8 @@ async fn main_loop(
         let tx = tx.clone();
         let client = client.clone();
 
-        match tokio::task::spawn_blocking(move || rx.recv()).await {
-            Ok(recv) => match recv {
+        if let Ok(recv) = tokio::task::spawn_blocking(move || rx.recv()).await {
+            match recv {
                 Ok(Event::Kube(ev)) => match ev {
                     Kube::SetNamespace(ns) => {
                         {
@@ -164,8 +164,7 @@ async fn main_loop(
                 },
                 Ok(_) => unreachable!(),
                 Err(_) => {}
-            },
-            Err(_) => {}
+            }
         }
     }
 }

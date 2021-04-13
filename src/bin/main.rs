@@ -173,7 +173,7 @@ fn global_key(ev: KeyEvent, window: &mut Window, tx: &Sender<Event>) -> EventTyp
         }
     }
 
-    return EventType::Match;
+    EventType::Match
 }
 
 fn normal_mode_key(ev: KeyEvent, window: &mut Window, tx: &Sender<Event>) -> EventType {
@@ -202,7 +202,7 @@ fn normal_mode_key(ev: KeyEvent, window: &mut Window, tx: &Sender<Event>) -> Eve
         }
     }
 
-    return EventType::Match;
+    EventType::Match
 }
 fn popup_mode_key(
     ev: KeyEvent,
@@ -247,7 +247,7 @@ fn popup_mode_key(
         }
     }
 
-    return EventType::Match;
+    EventType::Match
 }
 fn run() {
     let (tx_input, rx_main): (Sender<Event>, Receiver<Event>) = unbounded();
@@ -334,10 +334,9 @@ fn run() {
                     _ => EventType::NoMatch,
                 };
 
-                match ty {
-                    EventType::Quit => break,
-                    _ => {}
-                }
+                if let EventType::Quit = ty {
+                    break;
+                };
             }
 
             Event::Mouse => {}

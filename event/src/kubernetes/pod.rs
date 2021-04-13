@@ -118,7 +118,11 @@ pub fn get_status(pod: Pod) -> String {
         }
     }
 
-    let mut phase = status.phase.clone().or(status.reason.clone()).unwrap();
+    let mut phase = status
+        .phase
+        .clone()
+        .or_else(|| status.reason.clone())
+        .unwrap();
 
     let mut initializing = false;
 
@@ -213,7 +217,7 @@ pub fn get_status(pod: Pod) -> String {
         }
     }
 
-    return phase;
+    phase
 }
 
 fn is_terminated_container(terminated: &Option<ContainerStateTerminated>) -> bool {
