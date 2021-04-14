@@ -1,11 +1,33 @@
 mod ansi;
 pub mod list;
+pub mod table;
 pub mod text;
 
 pub use self::list::*;
 pub use self::text::*;
+pub use table::*;
 
 use tui::layout::Rect;
+
+pub enum WidgetItem {
+    Array(Vec<String>),
+    DoubleArray(Vec<Vec<String>>),
+}
+
+impl WidgetItem {
+    fn get_array(self) -> Vec<String> {
+        match self {
+            WidgetItem::Array(item) => item,
+            _ => Vec::new(),
+        }
+    }
+    fn get_double_array(self) -> Vec<Vec<String>> {
+        match self {
+            WidgetItem::DoubleArray(item) => item,
+            _ => Vec::new(),
+        }
+    }
+}
 
 pub trait WidgetTrait {
     fn selectable(&self) -> bool;
@@ -13,7 +35,7 @@ pub trait WidgetTrait {
     fn select_prev(&mut self, index: usize);
     fn select_first(&mut self);
     fn select_last(&mut self);
-    fn set_items(&mut self, items: Vec<String>);
+    fn set_items(&mut self, items: WidgetItem);
     fn update_area(&mut self, area: Rect);
     fn clear(&mut self);
 }
@@ -22,6 +44,7 @@ pub trait WidgetTrait {
 pub enum Widget<'a> {
     List(List<'a>),
     Text(Text<'a>),
+    Table(Table<'a>),
 }
 
 impl<'a> Widget<'a> {
@@ -59,6 +82,7 @@ impl WidgetTrait for Widget<'_> {
         match self {
             Widget::List(w) => w.selectable(),
             Widget::Text(w) => w.selectable(),
+            Widget::Table(w) => w.selectable(),
         }
     }
 
@@ -66,6 +90,7 @@ impl WidgetTrait for Widget<'_> {
         match self {
             Widget::List(w) => w.select_next(index),
             Widget::Text(w) => w.select_next(index),
+            Widget::Table(w) => w.select_next(index),
         }
     }
 
@@ -73,6 +98,7 @@ impl WidgetTrait for Widget<'_> {
         match self {
             Widget::List(w) => w.select_prev(index),
             Widget::Text(w) => w.select_prev(index),
+            Widget::Table(w) => w.select_prev(index),
         }
     }
 
@@ -80,20 +106,23 @@ impl WidgetTrait for Widget<'_> {
         match self {
             Widget::List(w) => w.select_first(),
             Widget::Text(w) => w.select_first(),
+            Widget::Table(w) => w.select_first(),
         }
     }
 
     fn select_last(&mut self) {
         match self {
             Widget::List(w) => w.select_last(),
-            Widget::Text(log) => log.select_last(),
+            Widget::Text(w) => w.select_last(),
+            Widget::Table(w) => w.select_last(),
         }
     }
 
-    fn set_items(&mut self, items: Vec<String>) {
+    fn set_items(&mut self, items: WidgetItem) {
         match self {
             Widget::List(w) => w.set_items(items),
             Widget::Text(w) => w.set_items(items),
+            Widget::Table(w) => w.set_items(items),
         }
     }
 
@@ -101,6 +130,7 @@ impl WidgetTrait for Widget<'_> {
         match self {
             Widget::List(w) => w.update_area(area),
             Widget::Text(w) => w.update_area(area),
+            Widget::Table(w) => w.update_area(area),
         }
     }
 
@@ -108,6 +138,7 @@ impl WidgetTrait for Widget<'_> {
         match self {
             Widget::List(w) => w.clear(),
             Widget::Text(w) => w.clear(),
+            Widget::Table(w) => w.clear(),
         }
     }
 }

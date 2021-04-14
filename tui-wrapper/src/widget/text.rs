@@ -4,7 +4,7 @@ use tui::text::{Span, Spans};
 use tui::widgets::Paragraph;
 
 use super::ansi::*;
-use super::WidgetTrait;
+use super::{WidgetItem, WidgetTrait};
 
 use ansi::{self, AnsiEscapeSequence, TextParser};
 
@@ -213,9 +213,9 @@ impl WidgetTrait for Text<'_> {
         self.state.select(self.row_size);
     }
 
-    fn set_items(&mut self, items: Vec<String>) {
+    fn set_items(&mut self, items: WidgetItem) {
         self.state.select(0);
-        self.items = items;
+        self.items = items.get_array();
 
         self.update_spans();
         self.update_rows_size();

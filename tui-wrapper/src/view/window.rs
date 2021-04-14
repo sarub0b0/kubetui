@@ -212,6 +212,9 @@ impl Window<'_> {
             Widget::Text(text) => {
                 text.scroll_up(ch.height as u64);
             }
+            Widget::Table(table) => {
+                table.prev();
+            }
         }
     }
 
@@ -228,6 +231,9 @@ impl Window<'_> {
             }
             Widget::Text(text) => {
                 text.scroll_down(ch.height as u64);
+            }
+            Widget::Table(table) => {
+                table.next();
             }
         }
     }

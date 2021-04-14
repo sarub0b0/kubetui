@@ -37,6 +37,14 @@ fn draw_panes<B: Backend>(f: &mut Frame<B>, tab: &Tab, selected_popup: bool) {
             Widget::Text(widget) => {
                 f.render_widget(widget.widget().block(pane.block(selected)), pane.chunk());
             }
+
+            Widget::Table(widget) => {
+                f.render_stateful_widget(
+                    widget.widget(block),
+                    pane.chunk(),
+                    &mut widget.state().borrow_mut(),
+                );
+            }
         }
     }
 }

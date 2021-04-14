@@ -6,7 +6,7 @@ use tui::style::{Modifier, Style};
 
 use tui::widgets::{self, Block, ListItem, ListState};
 
-use super::WidgetTrait;
+use super::{WidgetItem, WidgetTrait};
 
 #[derive(Debug)]
 pub struct List<'a> {
@@ -31,34 +31,12 @@ impl<'a> List<'a> {
         Rc::clone(&self.state)
     }
 
-    pub fn next(&self) {
-        let i = match self.state.borrow().selected() {
-            Some(i) => {
-                if self.items.len() - 1 <= i {
-                    self.items.len() - 1
-                } else {
-                    i + 1
-                }
-            }
-            None => 0,
-        };
-
-        self.state.borrow_mut().select(Some(i));
+    pub fn next(&mut self) {
+        self.select_next(1);
     }
 
-    pub fn prev(&self) {
-        let i = match self.state.borrow().selected() {
-            Some(i) => {
-                if i == 0 {
-                    0
-                } else {
-                    i - 1
-                }
-            }
-            None => 0,
-        };
-
-        self.state.borrow_mut().select(Some(i));
+    pub fn prev(&mut self) {
+        self.select_prev(1);
     }
 
     pub fn items(&self) -> &Vec<String> {
@@ -125,7 +103,8 @@ impl WidgetTrait for List<'_> {
             self.state.borrow_mut().select(Some(self.items.len() - 1))
         }
     }
-    fn set_items(&mut self, items: Vec<String>) {
+    fn set_items(&mut self, items: WidgetItem) {
+        let items = items.get_array();
         match items.len() {
             0 => self.state.borrow_mut().select(None),
             len if len < self.items.len() => self.state.borrow_mut().select(Some(len - 1)),
@@ -161,7 +140,7 @@ mod tests {
 
     #[test]
     fn two_prev_is_selected_last_index() {
-        let list = List::new(vec![
+        let mut list = List::new(vec![
             String::from("Item 0"),
             String::from("Item 1"),
             String::from("Item 2"),
@@ -173,7 +152,7 @@ mod tests {
     }
     #[test]
     fn one_next_is_selected_second_index() {
-        let list = List::new(vec![
+        let mut list = List::new(vec![
             String::from("Item 0"),
             String::from("Item 1"),
             String::from("Item 2"),
@@ -185,7 +164,7 @@ mod tests {
 
     #[test]
     fn last_next_is_selected_first_index() {
-        let list = List::new(vec![
+        let mut list = List::new(vec![
             String::from("Item 0"),
             String::from("Item 1"),
             String::from("Item 2"),

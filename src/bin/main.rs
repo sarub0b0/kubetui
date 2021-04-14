@@ -22,7 +22,7 @@ use tui::{
 extern crate kubetui;
 use event::{input::*, kubernetes::*, tick::*, Event};
 use kubetui::draw::*;
-use tui_wrapper::*;
+use tui_wrapper::{widget::WidgetItem, *};
 
 fn update_event(window: &mut Window, ev: Vec<String>) {
     let pane = window.pane_mut("event");
@@ -32,7 +32,7 @@ fn update_event(window: &mut Window, ev: Vec<String>) {
         let old_select = widget.selected();
         let is_bottom = widget.is_bottom();
 
-        widget.set_items(ev);
+        widget.set_items(WidgetItem::Array(ev));
 
         let new_len = widget.spans().len();
 
@@ -64,7 +64,7 @@ fn update_pod_status(window: &mut Window, info: Vec<String>) {
 
     if let Some(p) = pane {
         let pod = p.widget_mut();
-        pod.set_items(info.to_vec());
+        pod.set_items(WidgetItem::Array(info.to_vec()));
     }
 }
 
@@ -72,7 +72,8 @@ fn update_configs(window: &mut Window, configs: Vec<String>) {
     let pane = window.pane_mut("configs");
 
     if let Some(p) = pane {
-        p.widget_mut().set_items(configs.to_vec());
+        p.widget_mut()
+            .set_items(WidgetItem::Array(configs.to_vec()));
     }
 }
 
@@ -80,7 +81,8 @@ fn update_configs_raw(window: &mut Window, configs: Vec<String>) {
     let pane = window.pane_mut("configs-raw");
 
     if let Some(p) = pane {
-        p.widget_mut().set_items(configs.to_vec());
+        p.widget_mut()
+            .set_items(WidgetItem::Array(configs.to_vec()));
     }
 }
 
@@ -117,7 +119,7 @@ fn setup_namespaces_popup(window: &mut Window, items: Vec<String>) {
     let popup = window.popup_mut();
     let ns = popup.widget_mut().list_mut();
     if let Some(ns) = ns {
-        ns.set_items(items);
+        ns.set_items(WidgetItem::Array(items));
     }
 }
 
@@ -295,6 +297,21 @@ fn run() {
                 Widget::Text(Text::new(vec![])),
                 0,
                 "event",
+            )],
+            Layout::default().constraints([Constraint::Percentage(100)].as_ref()),
+        ),
+        Tab::new(
+            "4:Table",
+            vec![Pane::new(
+                "Test",
+                Widget::Table(Table::new(vec![vec![
+                    "hoge".to_string(),
+                    "hoge".to_string(),
+                    "hoge".to_string(),
+                    "hoge".to_string(),
+                ]])),
+                0,
+                "test",
             )],
             Layout::default().constraints([Constraint::Percentage(100)].as_ref()),
         ),

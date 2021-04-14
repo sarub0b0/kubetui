@@ -56,7 +56,7 @@ impl<'a> Pane<'a> {
         self.widget.select_prev(index)
     }
 
-    pub fn set_items(&mut self, items: Vec<String>) {
+    pub fn set_items(&mut self, items: WidgetItem) {
         self.widget.set_items(items);
     }
 
