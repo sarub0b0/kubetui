@@ -4,12 +4,11 @@ mod event;
 mod log;
 mod pod;
 
-use self::event::event_loop;
-use crate::kubernetes::context::namespace_list;
-
-use self::log::log_stream;
 use super::Event;
 use config::{configs_loop, get_config};
+use context::namespace_list;
+use event::event_loop;
+use log::log_stream;
 use pod::pod_loop;
 
 use std::sync::Arc;
@@ -21,7 +20,10 @@ use tokio::{
     task::{self, JoinHandle},
 };
 
-use kube::{config::Kubeconfig, Client};
+use kube::{
+    config::{Kubeconfig, NamedContext},
+    Client,
+};
 
 pub enum Kube {
     // Context
@@ -54,21 +56,40 @@ impl Handlers {
     }
 }
 
+fn current_namespace(kubeconfig: &Kubeconfig, named_context: &NamedContext) -> String {
+    named_context
+        .context
+        .namespace
+        .clone()
+        .unwrap_or_else(|| "".to_string())
+}
+
+fn cluster_server_url(kubeconfig: &Kubeconfig, named_context: &NamedContext) -> String {
+    let cluster_name = named_context.context.cluster.clone();
+
+    let named_cluster = kubeconfig.clusters.iter().find(|n| n.name == cluster_name);
+
+    named_cluster.as_ref().unwrap().cluster.server.clone()
+}
+
 pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
     let rt = Runtime::new().unwrap();
 
     rt.block_on(async move {
         let kubeconfig = Kubeconfig::read().unwrap();
-        let current_context = kubeconfig.current_context.unwrap();
+        let current_context = kubeconfig.current_context.clone().unwrap();
 
         let named_context = kubeconfig
             .contexts
             .iter()
             .find(|n| n.name == current_context);
 
-        let namespace = Arc::new(RwLock::new(
-            named_context.unwrap().clone().context.namespace.unwrap(),
-        ));
+        let namespace = Arc::new(RwLock::new(current_namespace(
+            &kubeconfig,
+            named_context.as_ref().unwrap(),
+        )));
+
+        let server_url = cluster_server_url(&kubeconfig, named_context.as_ref().unwrap());
 
         let client = Client::try_default().await.unwrap();
 
@@ -80,7 +101,12 @@ pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
             current_context,
         ));
 
-        let pod_loop = tokio::spawn(pod_loop(tx.clone(), client.clone(), Arc::clone(&namespace)));
+        let pod_loop = tokio::spawn(pod_loop(
+            tx.clone(),
+            client.clone(),
+            Arc::clone(&namespace),
+            server_url,
+        ));
 
         let config_loop = tokio::spawn(configs_loop(
             tx.clone(),

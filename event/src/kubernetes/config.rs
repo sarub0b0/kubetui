@@ -10,7 +10,7 @@ use crossbeam::channel::Sender;
 use k8s_openapi::api::core::v1::{ConfigMap, Secret};
 
 use kube::{
-    api::{ListParams, Meta},
+    api::{ListParams, Resource},
     Api, Client,
 };
 
@@ -33,7 +33,7 @@ pub async fn configs_loop(tx: Sender<Event>, client: Client, namespace: Arc<RwLo
         for cm in configmap_list {
             ret.push(format!(
                 "C │ {}",
-                Meta::meta(&cm).name.as_ref().unwrap_or(&String::default())
+                cm.meta().name.as_ref().unwrap_or(&String::default())
             ));
         }
 
@@ -46,10 +46,7 @@ pub async fn configs_loop(tx: Sender<Event>, client: Client, namespace: Arc<RwLo
         for secret in secret_list {
             ret.push(format!(
                 "S │ {}",
-                Meta::meta(&secret)
-                    .name
-                    .as_ref()
-                    .unwrap_or(&String::default())
+                secret.meta().name.as_ref().unwrap_or(&String::default())
             ));
         }
 

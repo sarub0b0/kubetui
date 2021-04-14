@@ -16,9 +16,15 @@ use k8s_openapi::api::core::v1::{ContainerStateTerminated, Pod, PodStatus};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 
 use kube::{
-    api::{ListParams, Meta},
-    Api, Client,
+    api::{Api, ListParams, Resource},
+    Client,
 };
+
+use http::header::{HeaderValue, ACCEPT};
+
+use serde_json::Value;
+
+const TABLE_REQUEST_HEADER: &str = "application/json;as=Table;v=v1;g=meta.k8s.io,application/json;as=Table;v=v1beta1;g=meta.k8s.io,application/json";
 
 pub struct PodInfo {
     name: String,
@@ -43,18 +49,35 @@ impl PodInfo {
     }
 }
 
-pub async fn pod_loop(tx: Sender<Event>, client: Client, namespace: Arc<RwLock<String>>) {
+pub async fn pod_loop(
+    tx: Sender<Event>,
+    client: Client,
+    namespace: Arc<RwLock<String>>,
+    server_url: String,
+) {
     let mut interval = tokio::time::interval(time::Duration::from_secs(1));
 
     loop {
         interval.tick().await;
         let namespace = namespace.read().await;
-        let pod_info = get_pod_info(client.clone(), &namespace).await;
+        let pod_info = get_pod_info(client.clone(), &namespace, &server_url).await;
         tx.send(Event::Kube(Kube::Pod(pod_info))).unwrap();
     }
 }
 
-async fn get_pod_info(client: Client, namespace: &str) -> Vec<String> {
+async fn get_pod_info(client: Client, namespace: &str, server_url: &str) -> Vec<String> {
+    // let request = Request::new(server_url);
+
+    // let mut request = request
+    //     .get(&format!("api/v1/namespaces/{}/pods", namespace))
+    //     .unwrap();
+
+    // request
+    //     .headers_mut()
+    //     .insert(ACCEPT, HeaderValue::from_static(TABLE_REQUEST_HEADER));
+
+    // let json: Result<Value, kube::Error> = client.request(request).await;
+
     let pods: Api<Pod> = Api::namespaced(client, namespace);
 
     let lp = ListParams::default();
@@ -68,13 +91,13 @@ async fn get_pod_info(client: Client, namespace: &str) -> Vec<String> {
 
     let mut pod_infos = Vec::new();
     for p in &pods_list {
-        let meta = Meta::meta(p);
-        let name = meta.name.clone().unwrap();
+        let meta = p.meta();
+        let name = p.name();
 
         let phase = get_status(p.clone());
 
         let creation_timestamp: DateTime<Utc> = match &meta.creation_timestamp {
-            Some(ref time) => time.0,
+            Some(time) => time.0,
             None => current_datetime,
         };
         let duration: Duration = current_datetime - creation_timestamp;
@@ -98,12 +121,11 @@ async fn get_pod_info(client: Client, namespace: &str) -> Vec<String> {
 // 参考：https://github.com/astefanutti/kubebox/blob/4ae0a2929a17c132a1ea61144e17b51f93eb602f/lib/kubernetes.js#L7
 pub fn get_status(pod: Pod) -> String {
     let status: PodStatus;
-    let meta: &ObjectMeta;
+    let meta: &ObjectMeta = pod.meta();
 
     match &pod.status {
         Some(s) => {
             status = s.clone();
-            meta = Meta::meta(&pod);
         }
         None => return "".to_string(),
     }

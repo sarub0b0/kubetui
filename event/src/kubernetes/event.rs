@@ -16,9 +16,10 @@ use crossbeam::channel::Sender;
 use k8s_openapi::api::core::v1::Event as KEvent;
 
 use kube::{
-    api::{ListParams, Meta},
+    api::{ListParams, Resource},
     Api, Client,
 };
+
 use kube_runtime::{utils::try_flatten_applied, watcher};
 
 pub async fn event_loop(tx: Sender<Event>, client: Client, namespace: Arc<RwLock<String>>) {
@@ -43,7 +44,7 @@ async fn get_event_list(client: Client, ns: &str) -> Vec<String> {
 
     list.iter()
         .map(|ev| {
-            let meta = Meta::meta(ev);
+            let meta = ev.meta();
 
             let creation_timestamp: DateTime<Utc> = match &meta.creation_timestamp {
                 Some(time) => time.0,
@@ -84,7 +85,8 @@ async fn watch(tx: Sender<Event>, client: Client, ns: String) -> Handlers {
         while let Some(event) = ew.try_next().await.unwrap() {
             let mut buf = buf_clone.write().await;
 
-            let meta = Meta::meta(&event);
+            let meta = event.meta();
+
             let creation_timestamp: DateTime<Utc> = match &meta.creation_timestamp {
                 Some(ref time) => time.0,
                 None => current_datetime,

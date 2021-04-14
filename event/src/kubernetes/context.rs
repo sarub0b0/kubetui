@@ -6,7 +6,7 @@ use crossbeam::channel::Sender;
 use k8s_openapi::api::core::v1::Namespace;
 
 use kube::{
-    api::{ListParams, Meta},
+    api::{ListParams, Resource},
     config::{KubeConfigOptions, Kubeconfig},
     Api, Client,
 };

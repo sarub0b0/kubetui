@@ -3,16 +3,6 @@
 version = 3
 
 [[package]]
-name = "Inflector"
-version = "0.11.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe438c63458706e03479442743baae6c88256498e6431708f6dfc520a26515d3"
-dependencies = [
- "lazy_static",
- "regex",
-]
-
-[[package]]
 name = "aho-corasick"
 version = "0.7.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -337,9 +327,11 @@ dependencies = [
  "crossbeam",
  "crossterm",
  "futures",
+ "http",
  "k8s-openapi",
  "kube",
  "kube-runtime",
+ "serde_json",
  "tokio",
 ]
 
@@ -654,11 +646,10 @@ dependencies = [
 
 [[package]]
 name = "kube"
-version = "0.50.1"
+version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33ce7a69993c5da7c4ed2d5d61fe980a995a249a8155385a01aa963653f8af7f"
+checksum = "65b2fbe85ad92f8435a0f52072f55bd7f0843e082c8e461e56d1ce29440554c8"
 dependencies = [
- "Inflector",
  "base64",
  "bytes",
  "chrono",
@@ -684,14 +675,15 @@ dependencies = [
  "tokio-native-tls",
  "tokio-util",
  "tower",
+ "tracing",
  "url",
 ]
 
 [[package]]
 name = "kube-runtime"
-version = "0.50.1"
+version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8880be3d3583d6acbdc56d47da47b974a58e8ac8fcf75bcdd10fc1560433b66b"
+checksum = "fdbf7b51e6a4984e929dab0bd13b61592b750a3385e298aaa9100c4830205a12"
 dependencies = [
  "dashmap",
  "derivative",
