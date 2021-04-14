@@ -57,57 +57,57 @@ impl<'a> Widget<'a> {
 impl WidgetTrait for Widget<'_> {
     fn selectable(&self) -> bool {
         match self {
-            Widget::List(pod) => pod.selectable(),
-            Widget::Text(log) => log.selectable(),
+            Widget::List(w) => w.selectable(),
+            Widget::Text(w) => w.selectable(),
         }
     }
 
     fn select_next(&mut self, index: usize) {
         match self {
-            Widget::List(pod) => pod.select_next(index),
-            Widget::Text(log) => log.select_next(index),
+            Widget::List(w) => w.select_next(index),
+            Widget::Text(w) => w.select_next(index),
         }
     }
 
     fn select_prev(&mut self, index: usize) {
         match self {
-            Widget::List(pod) => pod.select_prev(index),
-            Widget::Text(log) => log.select_prev(index),
+            Widget::List(w) => w.select_prev(index),
+            Widget::Text(w) => w.select_prev(index),
         }
     }
 
     fn select_first(&mut self) {
         match self {
-            Widget::List(pod) => pod.select_first(),
-            Widget::Text(log) => log.select_first(),
+            Widget::List(w) => w.select_first(),
+            Widget::Text(w) => w.select_first(),
         }
     }
 
     fn select_last(&mut self) {
         match self {
-            Widget::List(pod) => pod.select_last(),
+            Widget::List(w) => w.select_last(),
             Widget::Text(log) => log.select_last(),
         }
     }
 
     fn set_items(&mut self, items: Vec<String>) {
         match self {
-            Widget::List(pod) => pod.set_items(items),
-            Widget::Text(log) => log.set_items(items),
+            Widget::List(w) => w.set_items(items),
+            Widget::Text(w) => w.set_items(items),
         }
     }
 
     fn update_area(&mut self, area: Rect) {
         match self {
-            Widget::List(pod) => pod.update_area(area),
-            Widget::Text(log) => log.update_area(area),
+            Widget::List(w) => w.update_area(area),
+            Widget::Text(w) => w.update_area(area),
         }
     }
 
     fn clear(&mut self) {
         match self {
-            Widget::List(pod) => pod.clear(),
-            Widget::Text(log) => log.clear(),
+            Widget::List(w) => w.clear(),
+            Widget::Text(w) => w.clear(),
         }
     }
 }
