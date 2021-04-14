@@ -1,8 +1,5 @@
+use super::v1_table::*;
 use super::{Event, Kube};
-
-use crate::util::*;
-
-use chrono::{DateTime, Duration, Utc};
 
 use std::sync::Arc;
 use std::time;
@@ -16,36 +13,36 @@ use k8s_openapi::api::core::v1::{ContainerStateTerminated, Pod, PodStatus};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 
 use kube::{
-    api::{Api, ListParams, Resource},
+    api::{Request, Resource},
     Client,
 };
 
 use http::header::{HeaderValue, ACCEPT};
 
-use serde_json::Value;
-
 const TABLE_REQUEST_HEADER: &str = "application/json;as=Table;v=v1;g=meta.k8s.io,application/json;as=Table;v=v1beta1;g=meta.k8s.io,application/json";
 
+#[allow(dead_code)]
 pub struct PodInfo {
     name: String,
-    phase: String,
+    ready: String,
+    status: String,
     age: String,
 }
 
+#[allow(dead_code)]
 impl PodInfo {
-    fn new(name: String, phase: String, age: String) -> Self {
-        Self { name, phase, age }
-    }
-
-    fn to_string(&self, width_name: usize, width_phase: usize) -> String {
-        format!(
-            "{:width_name$}{:width_phase$}{}",
-            self.name,
-            self.phase,
-            self.age,
-            width_name = width_name + 2,
-            width_phase = width_phase + 2,
-        )
+    fn new(
+        name: impl Into<String>,
+        ready: impl Into<String>,
+        status: impl Into<String>,
+        age: impl Into<String>,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            ready: ready.into(),
+            status: status.into(),
+            age: age.into(),
+        }
     }
 }
 
@@ -66,59 +63,95 @@ pub async fn pod_loop(
 }
 
 async fn get_pod_info(client: Client, namespace: &str, server_url: &str) -> Vec<String> {
-    // let request = Request::new(server_url);
+    let request = Request::new(server_url);
 
-    // let mut request = request
-    //     .get(&format!("api/v1/namespaces/{}/pods", namespace))
-    //     .unwrap();
+    let mut request = request
+        .get(&format!("api/v1/namespaces/{}/pods", namespace))
+        .unwrap();
 
-    // request
-    //     .headers_mut()
-    //     .insert(ACCEPT, HeaderValue::from_static(TABLE_REQUEST_HEADER));
+    request
+        .headers_mut()
+        .insert(ACCEPT, HeaderValue::from_static(TABLE_REQUEST_HEADER));
 
-    // let json: Result<Value, kube::Error> = client.request(request).await;
+    let table: Result<Table, kube::Error> = client.request(request).await;
+    let mut info = Vec::new();
 
-    let pods: Api<Pod> = Api::namespaced(client, namespace);
+    let mut max_digit_0 = 0;
+    let mut max_digit_1 = 0;
+    let mut max_digit_2 = 0;
+    match table {
+        Ok(t) => {
+            let name_idx = t
+                .column_definitions
+                .iter()
+                .position(|cd| cd.name == "Name")
+                .unwrap_or_default();
 
-    let lp = ListParams::default();
+            let ready_idx = t
+                .column_definitions
+                .iter()
+                .position(|cd| cd.name == "Ready")
+                .unwrap_or_default();
 
-    let pods_list = pods.list(&lp).await.unwrap();
+            let status_idx = t
+                .column_definitions
+                .iter()
+                .position(|cd| cd.name == "Status")
+                .unwrap_or_default();
 
-    let current_datetime: DateTime<Utc> = Utc::now();
+            let age_idx = t
+                .column_definitions
+                .iter()
+                .position(|cd| cd.name == "Age")
+                .unwrap_or_default();
 
-    let mut max_name_len = 0;
-    let mut max_phase_len = 0;
+            for row in t.rows.iter() {
+                let (name, ready, status, age) = (
+                    row.cells[name_idx].as_str().unwrap(),
+                    row.cells[ready_idx].as_str().unwrap(),
+                    row.cells[status_idx].as_str().unwrap(),
+                    row.cells[age_idx].as_str().unwrap(),
+                );
 
-    let mut pod_infos = Vec::new();
-    for p in &pods_list {
-        let meta = p.meta();
-        let name = p.name();
+                info.push((
+                    name.to_string(),
+                    ready.to_string(),
+                    status.to_string(),
+                    age.to_string(),
+                ));
 
-        let phase = get_status(p.clone());
-
-        let creation_timestamp: DateTime<Utc> = match &meta.creation_timestamp {
-            Some(time) => time.0,
-            None => current_datetime,
-        };
-        let duration: Duration = current_datetime - creation_timestamp;
-
-        if max_name_len < name.len() {
-            max_name_len = name.len();
+                if max_digit_0 < name.len() {
+                    max_digit_0 = name.len();
+                }
+                if max_digit_1 < ready.len() {
+                    max_digit_1 = ready.len();
+                }
+                if max_digit_2 < status.len() {
+                    max_digit_2 = status.len();
+                }
+            }
         }
-
-        if max_phase_len < phase.len() {
-            max_phase_len = phase.len();
-        }
-        pod_infos.push(PodInfo::new(name, phase, age(duration)));
+        Err(e) => return vec![e.to_string()],
     }
 
-    pod_infos
-        .iter()
-        .map(|p| p.to_string(max_name_len, max_phase_len))
+    info.iter()
+        .map(|i| {
+            format!(
+                "{:digit_0$}  {:digit_1$}  {:digit_2$}  {}",
+                i.0,
+                i.1,
+                i.2,
+                i.3,
+                digit_0 = max_digit_0,
+                digit_1 = max_digit_1,
+                digit_2 = max_digit_2
+            )
+        })
         .collect()
 }
 
 // 参考：https://github.com/astefanutti/kubebox/blob/4ae0a2929a17c132a1ea61144e17b51f93eb602f/lib/kubernetes.js#L7
+#[allow(dead_code)]
 pub fn get_status(pod: Pod) -> String {
     let status: PodStatus;
     let meta: &ObjectMeta = pod.meta();

@@ -1,3 +1,4 @@
+mod v1_table;
 mod config;
 mod context;
 mod event;

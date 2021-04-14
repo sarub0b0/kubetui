@@ -331,6 +331,7 @@ dependencies = [
  "k8s-openapi",
  "kube",
  "kube-runtime",
+ "serde",
  "serde_json",
  "tokio",
 ]
