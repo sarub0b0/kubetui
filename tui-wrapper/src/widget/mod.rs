@@ -75,6 +75,20 @@ impl<'a> Widget<'a> {
             _ => None,
         }
     }
+
+    pub fn table(&self) -> Option<&Table> {
+        match self {
+            Widget::Table(table) => Some(table),
+            _ => None,
+        }
+    }
+
+    pub fn table_mut(&mut self) -> Option<&mut Table<'a>> {
+        match self {
+            Widget::Table(table) => Some(table),
+            _ => None,
+        }
+    }
 }
 
 impl WidgetTrait for Widget<'_> {

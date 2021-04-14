@@ -62,7 +62,7 @@ pub async fn pod_loop(
     }
 }
 
-async fn get_pod_info(client: Client, namespace: &str, server_url: &str) -> Vec<String> {
+async fn get_pod_info(client: Client, namespace: &str, server_url: &str) -> Vec<Vec<String>> {
     let request = Request::new(server_url);
 
     let mut request = request
@@ -74,11 +74,9 @@ async fn get_pod_info(client: Client, namespace: &str, server_url: &str) -> Vec<
         .insert(ACCEPT, HeaderValue::from_static(TABLE_REQUEST_HEADER));
 
     let table: Result<Table, kube::Error> = client.request(request).await;
-    let mut info = Vec::new();
 
-    let mut max_digit_0 = 0;
-    let mut max_digit_1 = 0;
-    let mut max_digit_2 = 0;
+    let mut ret = Vec::new();
+
     match table {
         Ok(t) => {
             let name_idx = t
@@ -113,41 +111,18 @@ async fn get_pod_info(client: Client, namespace: &str, server_url: &str) -> Vec<
                     row.cells[age_idx].as_str().unwrap(),
                 );
 
-                info.push((
+                ret.push(vec![
                     name.to_string(),
                     ready.to_string(),
                     status.to_string(),
                     age.to_string(),
-                ));
-
-                if max_digit_0 < name.len() {
-                    max_digit_0 = name.len();
-                }
-                if max_digit_1 < ready.len() {
-                    max_digit_1 = ready.len();
-                }
-                if max_digit_2 < status.len() {
-                    max_digit_2 = status.len();
-                }
+                ]);
             }
         }
-        Err(e) => return vec![e.to_string()],
+        Err(e) => return vec![vec![e.to_string()]],
     }
 
-    info.iter()
-        .map(|i| {
-            format!(
-                "{:digit_0$}  {:digit_1$}  {:digit_2$}  {}",
-                i.0,
-                i.1,
-                i.2,
-                i.3,
-                digit_0 = max_digit_0,
-                digit_1 = max_digit_1,
-                digit_2 = max_digit_2
-            )
-        })
-        .collect()
+    ret
 }
 
 // 参考：https://github.com/astefanutti/kubebox/blob/4ae0a2929a17c132a1ea61144e17b51f93eb602f/lib/kubernetes.js#L7

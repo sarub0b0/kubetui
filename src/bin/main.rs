@@ -59,12 +59,12 @@ fn update_pod_logs(window: &mut Window, logs: Vec<String>) {
     }
 }
 
-fn update_pod_status(window: &mut Window, info: Vec<String>) {
+fn update_pod_status(window: &mut Window, info: Vec<Vec<String>>) {
     let pane = window.pane_mut("pods");
 
     if let Some(p) = pane {
         let pod = p.widget_mut();
-        pod.set_items(WidgetItem::Array(info.to_vec()));
+        pod.set_items(WidgetItem::DoubleArray(info));
     }
 }
 
@@ -87,19 +87,15 @@ fn update_configs_raw(window: &mut Window, configs: Vec<String>) {
 }
 
 fn selected_pod(window: &Window) -> String {
-    let pane = window.pane("pods").unwrap();
-    let selected_index = pane
-        .widget()
-        .list()
-        .unwrap()
-        .state()
-        .borrow()
-        .selected()
-        .unwrap();
-    let split: Vec<&str> = pane.widget().list().unwrap().items()[selected_index]
-        .split(' ')
-        .collect();
-    split[0].to_string()
+    match window.pane("pods") {
+        Some(pane) => {
+            let w = pane.widget().table().unwrap();
+            let index = w.state().borrow().selected();
+
+            w.items()[index.unwrap()][0].to_string()
+        }
+        None => String::new(),
+    }
 }
 
 fn selected_config(window: &Window) -> String {
@@ -268,7 +264,20 @@ fn run() {
         Tab::new(
             "1:Pods",
             vec![
-                Pane::new("Pods", Widget::List(List::new(vec![])), 0, "pods"),
+                Pane::new(
+                    "Pods",
+                    Widget::Table(Table::new(
+                        vec![vec![]],
+                        vec![
+                            "NAME".to_string(),
+                            "READY".to_string(),
+                            "STATUS".to_string(),
+                            "AGE".to_string(),
+                        ],
+                    )),
+                    0,
+                    "pods",
+                ),
                 Pane::new("Logs", Widget::Text(Text::new(vec![])), 1, "logs"),
             ],
             Layout::default()
@@ -297,21 +306,6 @@ fn run() {
                 Widget::Text(Text::new(vec![])),
                 0,
                 "event",
-            )],
-            Layout::default().constraints([Constraint::Percentage(100)].as_ref()),
-        ),
-        Tab::new(
-            "4:Table",
-            vec![Pane::new(
-                "Test",
-                Widget::Table(Table::new(vec![vec![
-                    "hoge".to_string(),
-                    "hoge".to_string(),
-                    "hoge".to_string(),
-                    "hoge".to_string(),
-                ]])),
-                0,
-                "test",
             )],
             Layout::default().constraints([Constraint::Percentage(100)].as_ref()),
         ),

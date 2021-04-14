@@ -5,12 +5,13 @@ use std::rc::Rc;
 
 use tui::layout::Constraint;
 use tui::style::{Color, Modifier, Style};
-use tui::text::{Span, Spans};
+use tui::text::Span;
 use tui::widgets::{Block, Cell, Row, Table as TTable, TableState};
 
 #[derive(Debug)]
 pub struct Table<'a> {
     items: Vec<Vec<String>>,
+    header: Vec<String>,
     state: Rc<RefCell<TableState>>,
     rows: Vec<Row<'a>>,
     widths: Vec<Constraint>,
@@ -20,6 +21,7 @@ impl Default for Table<'_> {
     fn default() -> Self {
         Self {
             items: Default::default(),
+            header: Default::default(),
             state: Default::default(),
             rows: Default::default(),
             widths: Default::default(),
@@ -28,7 +30,7 @@ impl Default for Table<'_> {
 }
 
 impl<'a> Table<'a> {
-    pub fn new(items: Vec<Vec<String>>) -> Self {
+    pub fn new(items: Vec<Vec<String>>, header: Vec<String>) -> Self {
         let mut state = TableState::default();
         if !items.is_empty() {
             state.select(Some(0))
@@ -36,6 +38,7 @@ impl<'a> Table<'a> {
 
         let mut table = Self {
             items,
+            header,
             state: Rc::new(RefCell::new(state)),
             ..Default::default()
         };
@@ -46,6 +49,10 @@ impl<'a> Table<'a> {
         table
     }
 
+    pub fn items(&self) -> &Vec<Vec<String>> {
+        &self.items
+    }
+
     pub fn next(&mut self) {
         self.select_next(1)
     }
@@ -54,9 +61,11 @@ impl<'a> Table<'a> {
     }
 
     pub fn widget(&'a self, block: Block<'a>) -> TTable<'a> {
-        let header_cells = ["NAME", "READY", "STATUS", "AGE"]
+        let header_cells = self
+            .header
             .iter()
-            .map(|h| Cell::from(*h).style(Style::default().fg(Color::DarkGray)));
+            .cloned()
+            .map(|h| Cell::from(h).style(Style::default().fg(Color::DarkGray)));
 
         let header = Row::new(header_cells).height(1);
 
@@ -64,7 +73,7 @@ impl<'a> Table<'a> {
             .block(block)
             .header(header)
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
-            .column_spacing(2)
+            .column_spacing(3)
             .widths(&self.widths)
     }
 
@@ -73,48 +82,27 @@ impl<'a> Table<'a> {
     }
 
     fn set_widths(&mut self) {
-        let mut d0 = 4; // NAME
-        let mut d1 = 5; // READY
-        let mut d2 = 6; // STATUS
-        let mut d3 = 3; // AGE
+        let mut digit_vec = Vec::with_capacity(self.header.len());
+
+        self.header.iter().for_each(|h| digit_vec.push(h.len()));
 
         for row in &self.items {
             for (i, col) in row.iter().enumerate() {
                 let len = col.len();
-                match i {
-                    0 => {
-                        if d0 < len {
-                            d0 = len;
-                        }
-                    }
-                    1 => {
-                        if d1 < len {
-                            d1 = len;
-                        }
-                    }
-                    2 => {
-                        if d2 < len {
-                            d2 = len;
-                        }
-                    }
-                    3 => {
-                        if d3 < len {
-                            d3 = len;
-                        }
-                    }
-                    _ => {
-                        unreachable!()
-                    }
+                if digit_vec.len() < i {
+                    break;
+                }
+
+                if digit_vec[i] < len {
+                    digit_vec[i] = len
                 }
             }
         }
 
-        self.widths = vec![
-            Constraint::Length(d0 as u16),
-            Constraint::Length(d1 as u16),
-            Constraint::Length(d2 as u16),
-            Constraint::Length(d3 as u16),
-        ]
+        self.widths = digit_vec
+            .iter()
+            .map(|d| Constraint::Length(*d as u16))
+            .collect()
     }
 
     fn set_rows(&mut self) {
