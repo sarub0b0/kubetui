@@ -27,15 +27,6 @@ impl<'a> List<'a> {
             list_item: Vec::new(),
         }
     }
-    pub fn select_first(&self) {
-        self.state.borrow_mut().select(Some(0));
-    }
-
-    pub fn select_last(&self) {
-        let last_index = self.items.len() - 1;
-        self.state.borrow_mut().select(Some(last_index));
-    }
-
     pub fn state(&self) -> Rc<RefCell<ListState>> {
         Rc::clone(&self.state)
     }
@@ -111,7 +102,7 @@ impl WidgetTrait for List<'_> {
     fn select_prev(&mut self, index: usize) {
         let i = match self.state.borrow().selected() {
             Some(i) => {
-                if i == 0 {
+                if i < index {
                     0
                 } else {
                     i - index
@@ -128,8 +119,11 @@ impl WidgetTrait for List<'_> {
     }
 
     fn select_last(&mut self) {
-        let last_index = self.items.len() - 1;
-        self.state.borrow_mut().select(Some(last_index));
+        if self.items.is_empty() {
+            self.state.borrow_mut().select(Some(0));
+        } else {
+            self.state.borrow_mut().select(Some(self.items.len() - 1))
+        }
     }
     fn set_items(&mut self, items: Vec<String>) {
         match items.len() {
