@@ -1,9 +1,9 @@
-mod v1_table;
 mod config;
 mod context;
 mod event;
 mod log;
 mod pod;
+mod v1_table;
 
 use super::Event;
 use config::{configs_loop, get_config};
@@ -57,14 +57,6 @@ impl Handlers {
     }
 }
 
-fn current_namespace(kubeconfig: &Kubeconfig, named_context: &NamedContext) -> String {
-    named_context
-        .context
-        .namespace
-        .clone()
-        .unwrap_or_else(|| "".to_string())
-}
-
 fn cluster_server_url(kubeconfig: &Kubeconfig, named_context: &NamedContext) -> String {
     let cluster_name = named_context.context.cluster.clone();
 
@@ -85,10 +77,14 @@ pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
             .iter()
             .find(|n| n.name == current_context);
 
-        let namespace = Arc::new(RwLock::new(current_namespace(
-            &kubeconfig,
-            named_context.as_ref().unwrap(),
-        )));
+        let namespace = Arc::new(RwLock::new(match named_context {
+            Some(nc) => nc
+                .context
+                .namespace
+                .clone()
+                .unwrap_or_else(|| "default".to_string()),
+            None => "default".to_string(),
+        }));
 
         let server_url = cluster_server_url(&kubeconfig, named_context.as_ref().unwrap());
 

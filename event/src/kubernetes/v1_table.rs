@@ -37,7 +37,7 @@ pub type RowConditionType = String;
 pub type ConditionStatus = String;
 
 #[allow(dead_code)]
-pub const ROW_COMPLETED: &'static str = "Completed";
+pub const ROW_COMPLETED: &str = "Completed";
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -49,8 +49,8 @@ pub struct TableRowCondition {
 }
 
 #[allow(dead_code)]
-pub const CONDITION_TRUE: &'static str = "True";
+pub const CONDITION_TRUE: &str = "True";
 #[allow(dead_code)]
-pub const CONDITION_FALSE: &'static str = "False";
+pub const CONDITION_FALSE: &str = "False";
 #[allow(dead_code)]
-pub const CONDITION_UNKNOWN: &'static str = "Unknown";
+pub const CONDITION_UNKNOWN: &str = "Unknown";
