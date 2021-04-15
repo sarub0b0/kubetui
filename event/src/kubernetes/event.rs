@@ -62,17 +62,19 @@ async fn get_event_list(client: Client, ns: &str, server_url: &str) -> Vec<Strin
                 })
                 .collect();
 
-            let formatted = |mut s: String, (i, item)| -> String {
-                if i == TARGET_LEN - 1 {
-                    s += &format!("\n\x1b[90m> {}\x1b[0m\n ", item)
-                } else {
-                    s += &format!("{:<4}  ", item)
-                }
-                s
-            };
-
             vec.iter()
-                .map(|v| v.iter().enumerate().fold(String::new(), formatted))
+                .map(|v| {
+                    v.iter()
+                        .enumerate()
+                        .fold(String::new(), |mut s: String, (i, item)| -> String {
+                            if i == TARGET_LEN - 1 {
+                                s += &format!("\n\x1b[90m> {}\x1b[0m\n ", item)
+                            } else {
+                                s += &format!("{:<4}  ", item)
+                            }
+                            s
+                        })
+                })
                 .collect()
         }
 
