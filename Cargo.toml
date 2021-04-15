@@ -5,7 +5,7 @@ authors = ["kohashimoto <kohashimoto@bbtower.co.jp>"]
 edition = "2018"
 
 [workspace]
-members = [ "tui-wrapper", "event", "ansi" ]
+members = [ "tui-wrapper", "event", "ansi", "select-view" ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -19,3 +19,4 @@ crossbeam = "0.8"
 tui-wrapper = { path = "./tui-wrapper" }
 event = { path = "./event" }
 ansi = { path = "./ansi" }
+select-view = { path = "./select-view" }

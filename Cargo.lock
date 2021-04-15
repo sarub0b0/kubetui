@@ -709,6 +709,7 @@ dependencies = [
  "crossbeam",
  "crossterm",
  "event",
+ "select-view",
  "tokio",
  "tui",
  "tui-wrapper",
@@ -1245,6 +1246,14 @@ checksum = "3676258fd3cfe2c9a0ec99ce3038798d847ce3e4bb17746373eb9f0f1ac16339"
 dependencies = [
  "core-foundation-sys",
  "libc",
+]
+
+[[package]]
+name = "select-view"
+version = "0.1.0"
+dependencies = [
+ "pretty_assertions",
+ "tui",
 ]
 
 [[package]]
