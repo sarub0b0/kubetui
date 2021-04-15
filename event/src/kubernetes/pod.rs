@@ -1,3 +1,4 @@
+use super::request::get_resource_request;
 use super::v1_table::*;
 use super::{Event, Kube};
 
@@ -12,14 +13,7 @@ use k8s_openapi::api::core::v1::{ContainerStateTerminated, Pod, PodStatus};
 
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 
-use kube::{
-    api::{Request, Resource},
-    Client,
-};
-
-use http::header::{HeaderValue, ACCEPT};
-
-const TABLE_REQUEST_HEADER: &str = "application/json;as=Table;v=v1;g=meta.k8s.io,application/json;as=Table;v=v1beta1;g=meta.k8s.io,application/json";
+use kube::{api::Resource, Client};
 
 #[allow(dead_code)]
 pub struct PodInfo {
@@ -63,17 +57,9 @@ pub async fn pod_loop(
 }
 
 async fn get_pod_info(client: Client, namespace: &str, server_url: &str) -> Vec<Vec<String>> {
-    let request = Request::new(server_url);
-
-    let mut request = request
-        .get(&format!("api/v1/namespaces/{}/pods", namespace))
-        .unwrap();
-
-    request
-        .headers_mut()
-        .insert(ACCEPT, HeaderValue::from_static(TABLE_REQUEST_HEADER));
-
-    let table: Result<Table, kube::Error> = client.request(request).await;
+    let table: Result<Table, kube::Error> = client
+        .request(get_resource_request(server_url, namespace, "pods").unwrap())
+        .await;
 
     let mut ret = Vec::new();
 

@@ -3,6 +3,7 @@ mod context;
 mod event;
 mod log;
 mod pod;
+mod request;
 mod v1_table;
 
 use super::Event;
