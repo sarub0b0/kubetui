@@ -104,7 +104,7 @@ pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
             tx.clone(),
             client.clone(),
             Arc::clone(&namespace),
-            server_url,
+            server_url.clone(),
         ));
 
         let config_loop = tokio::spawn(configs_loop(
@@ -117,6 +117,7 @@ pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
             tx.clone(),
             client.clone(),
             Arc::clone(&namespace),
+            server_url,
         ));
 
         main_loop.await.unwrap();

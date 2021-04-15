@@ -1,3 +1,5 @@
+use super::request::get_resource_request;
+use super::v1_table::*;
 use super::{Event, Kube};
 use crate::kubernetes::Handlers;
 use crate::util::*;
@@ -22,52 +24,60 @@ use kube::{
 
 use kube_runtime::{utils::try_flatten_applied, watcher};
 
-pub async fn event_loop(tx: Sender<Event>, client: Client, namespace: Arc<RwLock<String>>) {
+pub async fn event_loop(
+    tx: Sender<Event>,
+    client: Client,
+    namespace: Arc<RwLock<String>>,
+    server_url: String,
+) {
     let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
     loop {
         interval.tick().await;
         let ns = namespace.read().await;
 
-        let event_list = get_event_list(client.clone(), &ns).await;
+        let event_list = get_event_list(client.clone(), &ns, &server_url).await;
 
         tx.send(Event::Kube(Kube::Event(event_list))).unwrap();
     }
 }
 
-async fn get_event_list(client: Client, ns: &str) -> Vec<String> {
-    let events: Api<KEvent> = Api::namespaced(client, &ns);
-    let lp = ListParams::default();
+const TARGET_LEN: usize = 4;
+const TARGET: [&str; TARGET_LEN] = ["Last Seen", "Object", "Reason", "Message"];
 
-    let list = events.list(&lp).await.unwrap();
+async fn get_event_list(client: Client, ns: &str, server_url: &str) -> Vec<String> {
+    let table: Result<Table, kube::Error> = client
+        .request(get_resource_request(server_url, ns, "events").unwrap())
+        .await;
 
-    let current_datetime: DateTime<Utc> = Utc::now();
+    match table {
+        Ok(t) => {
+            let vec: Vec<Vec<&str>> = t
+                .rows
+                .iter()
+                .map(|row| {
+                    t.find_indexes(&TARGET)
+                        .iter()
+                        .filter_map(|i| row.cells[*i].as_str())
+                        .collect::<Vec<&str>>()
+                })
+                .collect();
 
-    list.iter()
-        .map(|ev| {
-            let meta = ev.meta();
-
-            let creation_timestamp: DateTime<Utc> = match &meta.creation_timestamp {
-                Some(time) => time.0,
-                None => current_datetime,
+            let formatted = |mut s: String, (i, item)| -> String {
+                if i == TARGET_LEN - 1 {
+                    s += &format!("\n\x1b[90m> {}\x1b[0m\n ", item)
+                } else {
+                    s += &format!("{:<4}  ", item)
+                }
+                s
             };
-            let duration: Duration = current_datetime - creation_timestamp;
 
-            let obj = &ev.involved_object;
+            vec.iter()
+                .map(|v| v.iter().enumerate().fold(String::new(), formatted))
+                .collect()
+        }
 
-            let name = obj.name.as_ref().unwrap();
-            let kind = obj.kind.as_ref().unwrap();
-            let message = ev.message.as_ref().unwrap();
-            let reason = ev.reason.as_ref().unwrap();
-            format!(
-                "{} {}  {} {}\n\x1b[90m> {}\x1b[0m\n ",
-                kind,
-                name,
-                reason,
-                age(duration),
-                message
-            )
-        })
-        .collect()
+        Err(e) => return vec![format!("{}", e)],
+    }
 }
 
 #[allow(dead_code)]
