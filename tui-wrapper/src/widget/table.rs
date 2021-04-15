@@ -82,9 +82,7 @@ impl<'a> Table<'a> {
     }
 
     fn set_widths(&mut self) {
-        let mut digit_vec = Vec::with_capacity(self.header.len());
-
-        self.header.iter().for_each(|h| digit_vec.push(h.len()));
+        let mut digit_vec: Vec<usize> = self.header.iter().map(|h| h.len()).collect();
 
         for row in &self.items {
             for (i, col) in row.iter().enumerate() {
