@@ -65,44 +65,16 @@ async fn get_pod_info(client: Client, namespace: &str, server_url: &str) -> Vec<
 
     match table {
         Ok(t) => {
-            let name_idx = t
-                .column_definitions
-                .iter()
-                .position(|cd| cd.name == "Name")
-                .unwrap_or_default();
-
-            let ready_idx = t
-                .column_definitions
-                .iter()
-                .position(|cd| cd.name == "Ready")
-                .unwrap_or_default();
-
-            let status_idx = t
-                .column_definitions
-                .iter()
-                .position(|cd| cd.name == "Status")
-                .unwrap_or_default();
-
-            let age_idx = t
-                .column_definitions
-                .iter()
-                .position(|cd| cd.name == "Age")
-                .unwrap_or_default();
+            let indexes = t.find_indexes(&vec!["Name", "Ready", "Status", "Age"]);
 
             for row in t.rows.iter() {
-                let (name, ready, status, age) = (
-                    row.cells[name_idx].as_str().unwrap(),
-                    row.cells[ready_idx].as_str().unwrap(),
-                    row.cells[status_idx].as_str().unwrap(),
-                    row.cells[age_idx].as_str().unwrap(),
+                ret.push(
+                    indexes
+                        .iter()
+                        .filter_map(|i| row.cells[*i].as_str())
+                        .map(ToString::to_string)
+                        .collect(),
                 );
-
-                ret.push(vec![
-                    name.to_string(),
-                    ready.to_string(),
-                    status.to_string(),
-                    age.to_string(),
-                ]);
             }
         }
         Err(e) => return vec![vec![e.to_string()]],
