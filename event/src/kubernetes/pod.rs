@@ -65,7 +65,7 @@ async fn get_pod_info(client: Client, namespace: &str, server_url: &str) -> Vec<
 
     match table {
         Ok(t) => {
-            let indexes = t.find_indexes(&vec!["Name", "Ready", "Status", "Age"]);
+            let indexes = t.find_indexes(&["Name", "Ready", "Status", "Age"]);
 
             for row in t.rows.iter() {
                 ret.push(
