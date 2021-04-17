@@ -17,9 +17,9 @@ pub struct Window<'a> {
 
 pub mod window_layout_index {
     pub const TAB: usize = 0;
-    pub const CONTEXT: usize = 1;
-    pub const CONTENTS: usize = 2;
-    pub const STATUSBAR: usize = 3;
+    pub const CONTEXT: usize = 2;
+    pub const CONTENTS: usize = 3;
+    pub const STATUSBAR: usize = 4;
 }
 // Window
 impl<'a> Window<'a> {
@@ -31,9 +31,10 @@ impl<'a> Window<'a> {
                 .direction(Direction::Vertical)
                 .constraints(
                     [
-                        Constraint::Length(2),
                         Constraint::Length(1),
-                        Constraint::Min(0),
+                        Constraint::Length(1),
+                        Constraint::Length(1),
+                        Constraint::Min(1),
                         Constraint::Length(1),
                     ]
                     .as_ref(),
@@ -75,7 +76,12 @@ impl<'a> Window<'a> {
     }
 
     pub fn tab_chunk(&self) -> Rect {
-        self.chunks()[window_layout_index::TAB]
+        let chunk = self.chunks()[window_layout_index::TAB];
+        if chunk.height == 0 {
+            Rect::new(chunk.x, chunk.y, chunk.width, 1)
+        } else {
+            chunk
+        }
     }
 }
 
