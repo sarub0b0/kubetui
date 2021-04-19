@@ -5,13 +5,13 @@ authors = ["kohashimoto <kohashimoto@bbtower.co.jp>"]
 edition = "2018"
 
 [workspace]
-members = [ "tui-wrapper", "event", "ansi", "select-view" ]
+members = [ "tui-wrapper", "event", "ansi" ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 crossterm = "0.18"
-tui = { version = "0.14", default-features = false, features = ['crossterm'] }
+tui = { git = "https://github.com/sarub0b0/tui-rs.git", features = ['crossterm'] }
 tokio = { version = "1", features = ["rt"] }
 chrono = "0.4"
 crossbeam = "0.8"
@@ -19,4 +19,8 @@ crossbeam = "0.8"
 tui-wrapper = { path = "./tui-wrapper" }
 event = { path = "./event" }
 ansi = { path = "./ansi" }
-select-view = { path = "./select-view" }
+
+[[example]]
+name = "select"
+path = "example/select.rs"
+
