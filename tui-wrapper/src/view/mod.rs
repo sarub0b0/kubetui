@@ -1,5 +1,6 @@
 pub mod pane;
 pub mod popup;
+pub mod select;
 pub mod tab;
 pub mod window;
 
