@@ -47,6 +47,12 @@ pub enum Widget<'a> {
     Table(Table<'a>),
 }
 
+impl Default for Widget<'_> {
+    fn default() -> Self {
+        Widget::Text(Text::new(Vec::new()))
+    }
+}
+
 impl<'a> Widget<'a> {
     pub fn list(&self) -> Option<&List> {
         match self {

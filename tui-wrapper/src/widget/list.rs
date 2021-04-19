@@ -14,6 +14,17 @@ pub struct List<'a> {
     state: Rc<RefCell<ListState>>,
     list_item: Vec<ListItem<'a>>,
 }
+
+impl Default for List<'_> {
+    fn default() -> Self {
+        Self {
+            items: Vec::new(),
+            state: Rc::new(RefCell::new(ListState::default())),
+            list_item: Vec::new(),
+        }
+    }
+}
+
 impl<'a> List<'a> {
     pub fn new(items: Vec<String>) -> Self {
         let mut state = ListState::default();
