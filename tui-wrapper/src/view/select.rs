@@ -73,7 +73,7 @@ impl Default for Cursor {
             cursor: ' ',
             pos: 0,
             last_tick: Instant::now(),
-            tick_rate: Duration::from_millis(1000),
+            tick_rate: Duration::from_millis(500),
             mode: Mode::Show,
         }
     }
