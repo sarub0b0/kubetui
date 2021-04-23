@@ -2,7 +2,7 @@ use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
     style::*,
-    text::Span,
+    text::{Span, Spans},
     widgets::{Block, Borders, Paragraph},
     Frame,
 };
@@ -95,7 +95,8 @@ impl Default for InputForm<'_> {
 
 impl<'a> InputForm<'a> {
     fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
-        let widget = Paragraph::new(self.cursor.cursor()).block(
+        let content = vec![Span::raw(self.content.as_str()), self.cursor.cursor()];
+        let widget = Paragraph::new(Spans::from(content)).block(
             Block::default()
                 .borders(Borders::ALL)
                 .title("Filter")
@@ -107,6 +108,14 @@ impl<'a> InputForm<'a> {
 
     fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
+    }
+
+    fn push_char(&mut self, c: char) {
+        self.content.push(c);
+    }
+
+    fn pop_char(&mut self) {
+        self.content.pop();
     }
 }
 
@@ -158,6 +167,13 @@ impl<'a> SelectForm<'a> {
     pub fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
         f.render_widget(self.block.clone().title(self.title.as_str()), self.chunk);
         self.input_widget.render(f);
+    }
+
+    pub fn push_char(&mut self, c: char) {
+        self.input_widget.push_char(c);
+    }
+    pub fn pop_char(&mut self) {
+        self.input_widget.pop_char();
     }
 }
 

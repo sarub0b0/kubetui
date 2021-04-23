@@ -2,7 +2,7 @@ use std::io::{self, Write};
 
 use crossterm::{
     cursor::Show,
-    event::{poll, read, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    event::{poll, read, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyModifiers},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -88,10 +88,17 @@ fn main() {
         if poll(timeout).unwrap() {
             match read().unwrap() {
                 Event::Key(key) => match key.code {
-                    KeyCode::Char('q') => break,
+                    KeyCode::Char('q') if key.modifiers == KeyModifiers::CONTROL => break,
                     // KeyCode::Char('k') => state.select(Some(0)),
                     // KeyCode::Char('j') => state.select(Some(1)),
-                    KeyCode::Char(_) => {}
+                    KeyCode::Delete | KeyCode::Char('h')
+                        if key.modifiers == KeyModifiers::CONTROL =>
+                    {
+                        select.pop_char();
+                    }
+                    KeyCode::Char(c) => {
+                        select.push_char(c);
+                    }
                     _ => {}
                 },
                 _ => {}
