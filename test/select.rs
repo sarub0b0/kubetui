@@ -94,10 +94,17 @@ fn main() {
                     KeyCode::Delete | KeyCode::Char('h')
                         if key.modifiers == KeyModifiers::CONTROL =>
                     {
-                        select.pop_char();
+                        select.remove_char();
                     }
                     KeyCode::Char(c) => {
-                        select.push_char(c);
+                        select.insert_char(c);
+                    }
+
+                    KeyCode::Right => {
+                        select.forward_cursor();
+                    }
+                    KeyCode::Left => {
+                        select.back_cursor();
                     }
                     _ => {}
                 },

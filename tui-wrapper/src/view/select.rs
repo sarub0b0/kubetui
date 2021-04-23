@@ -37,26 +37,33 @@ struct Cursor {
 
 impl Cursor {
     fn forward(&mut self) {
-        self.pos.saturating_add(1);
+        self.pos = self.pos.saturating_add(1);
+        self.last_tick = Instant::now();
+        self.mode = Mode::Show;
     }
 
     fn back(&mut self) {
-        self.pos.saturating_sub(1);
+        self.pos = self.pos.saturating_sub(1);
+        self.last_tick = Instant::now();
+        self.mode = Mode::Show;
     }
 
-    fn cursor(&mut self) -> Span {
+    fn update_tick(&mut self) {
         if self.tick_rate <= self.last_tick.elapsed() {
             self.mode.toggle();
             self.last_tick = Instant::now();
         }
+    }
 
+    fn cursor_style(&self) -> Style {
         match self.mode {
-            Mode::Show => Span::styled(
-                self.cursor.to_string(),
-                Style::default().add_modifier(Modifier::REVERSED),
-            ),
-            Mode::Hide => Span::raw(self.cursor.to_string()),
+            Mode::Show => Style::default().add_modifier(Modifier::REVERSED),
+            Mode::Hide => Style::default(),
         }
+    }
+
+    fn pos(&self) -> usize {
+        self.pos
     }
 }
 
@@ -95,8 +102,31 @@ impl Default for InputForm<'_> {
 
 impl<'a> InputForm<'a> {
     fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
-        let content = vec![Span::raw(self.content.as_str()), self.cursor.cursor()];
-        let widget = Paragraph::new(Spans::from(content)).block(
+        self.cursor.update_tick();
+        let spans = if self.content.is_empty() {
+            Spans::from(Span::styled(" ", self.cursor.cursor_style()))
+        } else if self.cursor.pos() < self.content.len() {
+            Spans::from(
+                self.content
+                    .chars()
+                    .enumerate()
+                    .map(|(i, c)| {
+                        if i == self.cursor.pos() {
+                            Span::styled(c.to_string(), self.cursor.cursor_style())
+                        } else {
+                            Span::raw(c.to_string())
+                        }
+                    })
+                    .collect::<Vec<Span>>(),
+            )
+        } else {
+            Spans::from(vec![
+                Span::raw(self.content.as_str()),
+                Span::styled(" ", self.cursor.cursor_style()),
+            ])
+        };
+
+        let widget = Paragraph::new(spans).block(
             Block::default()
                 .borders(Borders::ALL)
                 .title("Filter")
@@ -110,12 +140,25 @@ impl<'a> InputForm<'a> {
         self.chunk = chunk;
     }
 
-    fn push_char(&mut self, c: char) {
-        self.content.push(c);
+    fn insert_char(&mut self, c: char) {
+        self.content.insert(self.cursor.pos(), c);
+        self.cursor.forward();
     }
 
-    fn pop_char(&mut self) {
-        self.content.pop();
+    fn remove_char(&mut self) {
+        if !self.content.is_empty() && 0 < self.cursor.pos() {
+            self.cursor.back();
+            self.content.remove(self.cursor.pos());
+        }
+    }
+
+    fn forward_cursor(&mut self) {
+        if self.cursor.pos() < self.content.len() {
+            self.cursor.forward()
+        }
+    }
+    fn back_cursor(&mut self) {
+        self.cursor.back();
     }
 }
 
@@ -169,11 +212,19 @@ impl<'a> SelectForm<'a> {
         self.input_widget.render(f);
     }
 
-    pub fn push_char(&mut self, c: char) {
-        self.input_widget.push_char(c);
+    pub fn insert_char(&mut self, c: char) {
+        self.input_widget.insert_char(c);
     }
-    pub fn pop_char(&mut self) {
-        self.input_widget.pop_char();
+
+    pub fn remove_char(&mut self) {
+        self.input_widget.remove_char();
+    }
+
+    pub fn forward_cursor(&mut self) {
+        self.input_widget.forward_cursor();
+    }
+    pub fn back_cursor(&mut self) {
+        self.input_widget.back_cursor();
     }
 }
 
@@ -190,6 +241,33 @@ impl Default for SelectForm<'_> {
             chunk: Rect::default(),
             layout: Layout::default(),
             block: Block::default(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod cursor {
+        use super::*;
+        use pretty_assertions::assert_eq;
+        #[test]
+        fn forward() {
+            let mut cursor = Cursor::default();
+            cursor.forward();
+
+            assert_eq!(cursor.pos(), 1);
+        }
+
+        #[test]
+        fn back() {
+            let mut cursor = Cursor::default();
+            cursor.forward();
+            cursor.forward();
+            cursor.back();
+
+            assert_eq!(cursor.pos(), 1);
         }
     }
 }
