@@ -2,7 +2,7 @@ use std::io::{self, Write};
 
 use crossterm::{
     cursor::Show,
-    event::{read, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    event::{poll, read, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -16,6 +16,7 @@ use tui::{
     Terminal,
 };
 
+use std::time::{Duration, Instant};
 use tui_wrapper::select::*;
 
 fn main() {
@@ -29,6 +30,10 @@ fn main() {
     let mut select = SelectForm::new("Select");
 
     // let mut state = SelectState::default();
+
+    let mut last_tick = Instant::now();
+    let tick_rate = Duration::from_millis(200);
+
     loop {
         terminal
             .draw(|f| {
@@ -58,15 +63,23 @@ fn main() {
             })
             .unwrap();
 
-        match read().unwrap() {
-            Event::Key(key) => match key.code {
-                KeyCode::Char('q') => break,
-                // KeyCode::Char('k') => state.select(Some(0)),
-                // KeyCode::Char('j') => state.select(Some(1)),
-                KeyCode::Char(_) => {}
+        let timeout = tick_rate
+            .checked_sub(last_tick.elapsed())
+            .unwrap_or_else(|| Duration::from_secs(0));
+        if poll(timeout).unwrap() {
+            match read().unwrap() {
+                Event::Key(key) => match key.code {
+                    KeyCode::Char('q') => break,
+                    // KeyCode::Char('k') => state.select(Some(0)),
+                    // KeyCode::Char('j') => state.select(Some(1)),
+                    KeyCode::Char(_) => {}
+                    _ => {}
+                },
                 _ => {}
-            },
-            _ => {}
+            }
+        }
+        if last_tick.elapsed() >= tick_rate {
+            last_tick = Instant::now();
         }
     }
     execute!(
