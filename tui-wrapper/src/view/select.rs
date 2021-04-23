@@ -1,10 +1,10 @@
-use tui::layout::Rect;
-use tui::text::Span;
-use tui::Frame;
 use tui::{
     backend::Backend,
+    layout::{Constraint, Direction, Layout, Rect},
     style::*,
+    text::Span,
     widgets::{Block, Borders, Paragraph},
+    Frame,
 };
 
 use std::time::{Duration, Instant};
@@ -73,35 +73,91 @@ impl Default for Cursor {
 }
 
 #[derive(Debug)]
-pub struct SelectForm<'a> {
-    title: String,
-    input_widget: Widget<'a>,
-    list_widget: Widget<'a>,
-    selected_widget: Widget<'a>,
-    chunk: Rect,
+struct InputForm<'a> {
+    content: String,
     cursor: Cursor,
+    widget: Widget<'a>,
+    width: usize,
+    chunk: Rect,
 }
 
-impl<'a> SelectForm<'a> {
-    pub fn new(title: impl Into<String>) -> Self {
+impl Default for InputForm<'_> {
+    fn default() -> Self {
         Self {
-            title: title.into(),
-            ..Self::default()
+            content: String::default(),
+            cursor: Cursor::default(),
+            widget: Widget::Text(Text::default()),
+            width: 1,
+            chunk: Rect::default(),
         }
     }
+}
 
-    pub fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
+impl<'a> InputForm<'a> {
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
         let widget = Paragraph::new(self.cursor.cursor()).block(
             Block::default()
                 .borders(Borders::ALL)
-                .title(Span::raw(&self.title)),
+                .title("Filter")
+                .title_offset(1),
         );
 
         f.render_widget(widget, self.chunk);
     }
 
+    fn update_chunk(&mut self, chunk: Rect) {
+        self.chunk = chunk;
+    }
+}
+
+#[derive(Debug)]
+pub struct SelectForm<'a> {
+    title: String,
+    input_widget: InputForm<'a>,
+    list_widget: Widget<'a>,
+    selected_widget: Widget<'a>,
+    layout: Layout,
+    block: Block<'a>,
+    chunk: Rect,
+}
+
+impl<'a> SelectForm<'a> {
+    pub fn new(title: impl Into<String>) -> Self {
+        // split [InputForm, SelectForms]
+        // ---------------------
+        // |     InputForm     |
+        // |-------------------|
+        // |         |         |
+        // | Select  | Select  |
+        // |         |         |
+        // |         |         |
+        // ---------------------
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Length(3), Constraint::Min(3)]);
+
+        Self {
+            title: title.into(),
+            layout,
+            ..Self::default()
+        }
+    }
+
+    pub fn block(mut self, block: Block<'a>) -> Self {
+        self.block = block;
+        self
+    }
+
     pub fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
+
+        let inner_chunks = self.layout.split(self.block.inner(self.chunk));
+        self.input_widget.update_chunk(inner_chunks[0]);
+    }
+
+    pub fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
+        f.render_widget(self.block.clone().title(self.title.as_str()), self.chunk);
+        self.input_widget.render(f);
     }
 }
 
@@ -112,11 +168,12 @@ impl Default for SelectForm<'_> {
     fn default() -> Self {
         Self {
             title: String::default(),
-            input_widget: Widget::Text(Text::default()),
+            input_widget: InputForm::default(),
             list_widget: Widget::List(List::default()),
             selected_widget: Widget::List(List::default()),
             chunk: Rect::default(),
-            cursor: Cursor::default(),
+            layout: Layout::default(),
+            block: Block::default(),
         }
     }
 }

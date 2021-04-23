@@ -22,5 +22,5 @@ ansi = { path = "./ansi" }
 
 [[example]]
 name = "select"
-path = "example/select.rs"
+path = "test/select.rs"
 

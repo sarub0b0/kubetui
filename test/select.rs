@@ -9,7 +9,7 @@ use crossterm::{
 
 use tui::{
     backend::CrosstermBackend,
-    layout::{Alignment, Constraint, Layout},
+    layout::{Alignment, Constraint, Direction, Layout},
     style::*,
     text::Spans,
     widgets::{Block, Borders},
@@ -27,7 +27,7 @@ fn main() {
     let mut terminal = Terminal::new(backend).unwrap();
     terminal.clear().unwrap();
 
-    let mut select = SelectForm::new("Select");
+    let mut select = SelectForm::new("Select").block(Block::default().borders(Borders::ALL));
 
     // let mut state = SelectState::default();
 
@@ -37,7 +37,26 @@ fn main() {
     loop {
         terminal
             .draw(|f| {
-                select.update_chunk(f.size());
+                let h = 40;
+                let w = 60;
+                let chunk = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([
+                        Constraint::Percentage((100 - h) / 2),
+                        Constraint::Percentage(h),
+                        Constraint::Percentage((100 - h) / 2),
+                    ])
+                    .split(f.size());
+
+                let chunk = Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints([
+                        Constraint::Percentage((100 - w) / 2),
+                        Constraint::Percentage(w),
+                        Constraint::Percentage((100 - w) / 2),
+                    ])
+                    .split(chunk[1])[1];
+                select.update_chunk(chunk);
                 select.render(f);
 
                 // let chunk = Layout::default()
