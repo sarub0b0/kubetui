@@ -103,28 +103,8 @@ impl Default for InputForm<'_> {
 impl<'a> InputForm<'a> {
     fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
         self.cursor.update_tick();
-        let spans = if self.content.is_empty() {
-            Spans::from(Span::styled(" ", self.cursor.cursor_style()))
-        } else if self.cursor.pos() < self.content.len() {
-            Spans::from(
-                self.content
-                    .chars()
-                    .enumerate()
-                    .map(|(i, c)| {
-                        if i == self.cursor.pos() {
-                            Span::styled(c.to_string(), self.cursor.cursor_style())
-                        } else {
-                            Span::raw(c.to_string())
-                        }
-                    })
-                    .collect::<Vec<Span>>(),
-            )
-        } else {
-            Spans::from(vec![
-                Span::raw(self.content.as_str()),
-                Span::styled(" ", self.cursor.cursor_style()),
-            ])
-        };
+
+        let spans = Self::render_content(self.content.as_str(), &self.cursor);
 
         let widget = Paragraph::new(spans).block(
             Block::default()
@@ -134,6 +114,29 @@ impl<'a> InputForm<'a> {
         );
 
         f.render_widget(widget, self.chunk);
+    }
+
+    fn render_content(content: &str, cursor: &Cursor) -> Spans<'a> {
+        match (content.len(), cursor.pos()) {
+            (0, _) => Spans::from(Span::styled(" ", cursor.cursor_style())),
+            (len, pos) if pos < len => Spans::from(
+                content
+                    .chars()
+                    .enumerate()
+                    .map(|(i, c)| {
+                        if i == pos {
+                            Span::styled(c.to_string(), cursor.cursor_style())
+                        } else {
+                            Span::raw(c.to_string())
+                        }
+                    })
+                    .collect::<Vec<Span>>(),
+            ),
+            _ => Spans::from(vec![
+                Span::raw(content.to_string()),
+                Span::styled(" ", cursor.cursor_style()),
+            ]),
+        }
     }
 
     fn update_chunk(&mut self, chunk: Rect) {
@@ -253,7 +256,7 @@ mod tests {
         use super::*;
         use pretty_assertions::assert_eq;
         #[test]
-        fn forward() {
+        fn move_forward() {
             let mut cursor = Cursor::default();
             cursor.forward();
 
@@ -261,13 +264,96 @@ mod tests {
         }
 
         #[test]
-        fn back() {
+        fn move_back() {
             let mut cursor = Cursor::default();
             cursor.forward();
             cursor.forward();
             cursor.back();
 
             assert_eq!(cursor.pos(), 1);
+        }
+    }
+
+    mod input_form {
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn push_char() {
+            let mut form = InputForm::default();
+
+            let input = "test";
+
+            input.chars().for_each(|c| form.insert_char(c));
+
+            assert_eq!(input, form.content);
+        }
+
+        #[test]
+        fn insert_char() {
+            let mut form = InputForm::default();
+
+            let input = "test";
+
+            input.chars().for_each(|c| form.insert_char(c));
+
+            form.back_cursor();
+
+            form.insert_char('a');
+
+            assert_eq!("tesat", form.content);
+
+            form.forward_cursor();
+            form.forward_cursor();
+
+            form.insert_char('b');
+            assert_eq!("tesatb", form.content);
+        }
+
+        #[test]
+        fn render_content_empty() {
+            let form = InputForm::default();
+
+            assert_eq!(
+                InputForm::render_content(form.content.as_str(), &form.cursor),
+                Spans::from(Span::styled(
+                    " ",
+                    Style::default().add_modifier(Modifier::REVERSED)
+                ))
+            );
+        }
+
+        #[test]
+        fn render_content_add_char() {
+            let mut form = InputForm::default();
+
+            form.insert_char('a');
+            form.insert_char('b');
+
+            assert_eq!(
+                InputForm::render_content(form.content.as_str(), &form.cursor),
+                Spans::from(vec![
+                    Span::raw("ab"),
+                    Span::styled(" ", Style::default().add_modifier(Modifier::REVERSED))
+                ])
+            );
+        }
+
+        #[test]
+        fn render_content_add_char_and_cursor_back() {
+            let mut form = InputForm::default();
+
+            form.insert_char('a');
+            form.insert_char('b');
+            form.back_cursor();
+
+            assert_eq!(
+                InputForm::render_content(form.content.as_str(), &form.cursor),
+                Spans::from(vec![
+                    Span::raw("a"),
+                    Span::styled("b", Style::default().add_modifier(Modifier::REVERSED))
+                ])
+            );
         }
     }
 }
