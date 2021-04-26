@@ -31,11 +31,12 @@ impl<'a> List<'a> {
         if !items.is_empty() {
             state.select(Some(0));
         }
+        let list_item = items.iter().cloned().map(ListItem::new).collect();
 
         Self {
             items,
             state: Rc::new(RefCell::new(state)),
-            list_item: Vec::new(),
+            list_item,
         }
     }
     pub fn state(&self) -> Rc<RefCell<ListState>> {
