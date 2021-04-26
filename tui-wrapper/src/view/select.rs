@@ -1,6 +1,6 @@
 use tui::{
     backend::Backend,
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::*,
     text::{Span, Spans},
     widgets::{Block, Borders, Paragraph},
@@ -167,29 +167,58 @@ impl<'a> InputForm<'a> {
 
 #[derive(Debug)]
 struct SelectForm<'a> {
-    item: Vec<String>,
+    items: Vec<String>,
     list_widget: Widget<'a>,
     selected_widget: Widget<'a>,
     chunk: Vec<Rect>,
     focus_id: usize,
+    layout: Layout,
 }
 
 impl Default for SelectForm<'_> {
     fn default() -> Self {
+        let layout = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)]);
         Self {
-            item: Vec::new(),
+            items: Vec::new(),
             list_widget: Widget::List(List::default()),
             selected_widget: Widget::List(List::default()),
             chunk: Vec::new(),
             focus_id: 0,
+            layout,
         }
     }
 }
 
 impl<'a> SelectForm<'a> {
-    fn render<B: Backend>(&mut self, f: &mut Frame<B>) {}
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
+        let list = List::new(vec!["Item0".to_string(), "Item1".to_string()]);
 
-    fn update_chunk(&mut self, chunk: Rect) {}
+        let w = list.widget(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Item")
+                .alignment(Alignment::Center),
+        );
+
+        f.render_stateful_widget(w, self.chunk[0], &mut list.state().borrow_mut());
+
+        let list = List::new(vec!["Item0".to_string(), "Item1".to_string()]);
+
+        let w = list.widget(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Selected")
+                .alignment(Alignment::Center),
+        );
+
+        f.render_stateful_widget(w, self.chunk[1], &mut list.state().borrow_mut());
+    }
+
+    fn update_chunk(&mut self, chunk: Rect) {
+        self.chunk = self.layout.split(chunk);
+    }
 
     fn focus_toggle(&mut self) {
         if self.focus_id == 0 {
@@ -244,13 +273,18 @@ impl<'a> Select<'a> {
         self.chunk = chunk;
 
         let inner_chunks = self.layout.split(self.block.inner(self.chunk));
+
         self.input_widget
             .update_chunk(inner_chunks[LAYOUT_INDEX_FOR_INPUT_FORM]);
+
+        self.selected_widget
+            .update_chunk(inner_chunks[LAYOUT_INDEX_FOR_SELECT_FORM]);
     }
 
     pub fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
         f.render_widget(self.block.clone().title(self.title.as_str()), self.chunk);
         self.input_widget.render(f);
+        self.selected_widget.render(f);
     }
 
     pub fn insert_char(&mut self, c: char) {
