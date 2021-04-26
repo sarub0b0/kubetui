@@ -27,7 +27,7 @@ fn main() {
     let mut terminal = Terminal::new(backend).unwrap();
     terminal.clear().unwrap();
 
-    let mut select = SelectForm::new("Select").block(Block::default().borders(Borders::ALL));
+    let mut select = Select::new("Select").block(Block::default().borders(Borders::ALL));
 
     // let mut state = SelectState::default();
 

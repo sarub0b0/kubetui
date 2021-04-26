@@ -166,17 +166,54 @@ impl<'a> InputForm<'a> {
 }
 
 #[derive(Debug)]
-pub struct SelectForm<'a> {
-    title: String,
-    input_widget: InputForm<'a>,
+struct SelectForm<'a> {
+    item: Vec<String>,
     list_widget: Widget<'a>,
     selected_widget: Widget<'a>,
+    chunk: Vec<Rect>,
+    focus_id: usize,
+}
+
+impl Default for SelectForm<'_> {
+    fn default() -> Self {
+        Self {
+            item: Vec::new(),
+            list_widget: Widget::List(List::default()),
+            selected_widget: Widget::List(List::default()),
+            chunk: Vec::new(),
+            focus_id: 0,
+        }
+    }
+}
+
+impl<'a> SelectForm<'a> {
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>) {}
+
+    fn update_chunk(&mut self, chunk: Rect) {}
+
+    fn focus_toggle(&mut self) {
+        if self.focus_id == 0 {
+            self.focus_id = 1
+        } else {
+            self.focus_id = 0
+        }
+    }
+}
+
+const LAYOUT_INDEX_FOR_INPUT_FORM: usize = 0;
+const LAYOUT_INDEX_FOR_SELECT_FORM: usize = 1;
+
+#[derive(Debug)]
+pub struct Select<'a> {
+    title: String,
+    input_widget: InputForm<'a>,
+    selected_widget: SelectForm<'a>,
     layout: Layout,
     block: Block<'a>,
     chunk: Rect,
 }
 
-impl<'a> SelectForm<'a> {
+impl<'a> Select<'a> {
     pub fn new(title: impl Into<String>) -> Self {
         // split [InputForm, SelectForms]
         // ---------------------
@@ -207,7 +244,8 @@ impl<'a> SelectForm<'a> {
         self.chunk = chunk;
 
         let inner_chunks = self.layout.split(self.block.inner(self.chunk));
-        self.input_widget.update_chunk(inner_chunks[0]);
+        self.input_widget
+            .update_chunk(inner_chunks[LAYOUT_INDEX_FOR_INPUT_FORM]);
     }
 
     pub fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
@@ -232,15 +270,14 @@ impl<'a> SelectForm<'a> {
 }
 
 // input widget
-impl SelectForm<'_> {}
+impl Select<'_> {}
 
-impl Default for SelectForm<'_> {
+impl Default for Select<'_> {
     fn default() -> Self {
         Self {
             title: String::default(),
             input_widget: InputForm::default(),
-            list_widget: Widget::List(List::default()),
-            selected_widget: Widget::List(List::default()),
+            selected_widget: SelectForm::default(),
             chunk: Rect::default(),
             layout: Layout::default(),
             block: Block::default(),
