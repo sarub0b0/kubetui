@@ -9,6 +9,7 @@ use tui::{
 
 use std::time::{Duration, Instant};
 
+use super::generate_title;
 use crate::widget::*;
 
 #[derive(Debug)]
@@ -109,7 +110,8 @@ impl<'a> InputForm<'a> {
         let widget = Paragraph::new(spans).block(
             Block::default()
                 .borders(Borders::ALL)
-                .title("Filter")
+                .border_style(Style::default().fg(Color::DarkGray))
+                .title(Span::styled("Filter", Style::reset()))
                 .title_offset(1),
         );
 
