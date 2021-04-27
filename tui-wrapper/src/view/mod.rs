@@ -10,6 +10,7 @@ pub use tab::Tab;
 pub use window::Window;
 
 use tui::{
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Span, Spans},
 };
@@ -26,4 +27,26 @@ fn generate_title(title: &str, border_color: Color, selected: bool) -> Spans {
                 .add_modifier(Modifier::BOLD),
         ),
     ])
+}
+
+fn child_window_chunk(width_rate: u16, height_rate: u16, chunk: Rect) -> Rect {
+    let w = width_rate;
+    let h = height_rate;
+    let chunk = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - h) / 2),
+            Constraint::Percentage(h),
+            Constraint::Percentage((100 - h) / 2),
+        ])
+        .split(chunk);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - w) / 2),
+            Constraint::Percentage(w),
+            Constraint::Percentage((100 - w) / 2),
+        ])
+        .split(chunk[1])[1]
 }

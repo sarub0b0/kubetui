@@ -1,4 +1,4 @@
-use super::generate_title;
+use super::{child_window_chunk, generate_title};
 use crate::widget::*;
 
 use std::default::Default;
@@ -63,25 +63,7 @@ impl<'a> Popup<'a> {
     }
 
     pub fn update_chunk(&mut self, chunk: Rect) {
-        let h = 40;
-        let w = 60;
-        let chunk = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Percentage((100 - h) / 2),
-                Constraint::Percentage(h),
-                Constraint::Percentage((100 - h) / 2),
-            ])
-            .split(chunk);
-
-        self.chunk = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage((100 - w) / 2),
-                Constraint::Percentage(w),
-                Constraint::Percentage((100 - w) / 2),
-            ])
-            .split(chunk[1])[1];
+        self.chunk = child_window_chunk(60, 40, chunk);
     }
 
     pub fn block(&self) -> Block {
