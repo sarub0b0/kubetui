@@ -170,6 +170,7 @@ impl<'a> InputForm<'a> {
 #[derive(Debug)]
 struct SelectForm<'a> {
     items: Vec<String>,
+    selected_items: Vec<usize>,
     list_widget: Widget<'a>,
     selected_widget: Widget<'a>,
     chunk: Vec<Rect>,
@@ -184,6 +185,7 @@ impl Default for SelectForm<'_> {
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)]);
         Self {
             items: Vec::new(),
+            selected_items: Vec::new(),
             list_widget: Widget::List(List::default()),
             selected_widget: Widget::List(List::default()),
             chunk: Vec::new(),
@@ -204,7 +206,37 @@ impl<'a> SelectForm<'a> {
                 .alignment(Alignment::Center),
         );
 
-        f.render_stateful_widget(w, self.chunk[0], &mut list.state().borrow_mut());
+        let mut ch_list = self.chunk[0];
+        ch_list.width = ch_list.width.saturating_sub(1);
+
+        let sum_width: u16 = self.chunk.iter().map(|c| c.width).sum();
+
+        let is_odd_width = sum_width & 1 != 0;
+
+        let sub = if ch_list.height & 1 != 0 { 0 } else { 1 };
+
+        let arrow = if is_odd_width { "←→ " } else { "↔︎ " };
+
+        let ch_arrow = Rect::new(
+            ch_list.x + ch_list.width,
+            ch_list.y + (ch_list.height / 2).saturating_sub(sub),
+            arrow.chars().count() as u16,
+            1,
+        );
+
+        let mut ch_selected = self.chunk[1];
+
+        let addend = if is_odd_width { 2 } else { 1 };
+        ch_selected.x = ch_selected.x.saturating_add(addend);
+        ch_selected.width = ch_selected.width.saturating_sub(addend);
+
+        f.render_stateful_widget(w, ch_list, &mut list.state().borrow_mut());
+
+        let w = Paragraph::new(arrow)
+            .alignment(Alignment::Center)
+            .block(Block::default());
+
+        f.render_widget(w, ch_arrow);
 
         let list = List::new(vec!["Item0".to_string(), "Item1".to_string()]);
 
@@ -215,7 +247,7 @@ impl<'a> SelectForm<'a> {
                 .alignment(Alignment::Center),
         );
 
-        f.render_stateful_widget(w, self.chunk[1], &mut list.state().borrow_mut());
+        f.render_stateful_widget(w, ch_selected, &mut list.state().borrow_mut());
     }
 
     fn update_chunk(&mut self, chunk: Rect) {
@@ -304,9 +336,6 @@ impl<'a> Select<'a> {
         self.input_widget.back_cursor();
     }
 }
-
-// input widget
-impl Select<'_> {}
 
 impl Default for Select<'_> {
     fn default() -> Self {
