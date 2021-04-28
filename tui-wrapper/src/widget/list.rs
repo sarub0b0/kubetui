@@ -76,6 +76,10 @@ impl WidgetTrait for List<'_> {
         true
     }
     fn select_next(&mut self, index: usize) {
+        if self.items.is_empty() {
+            return;
+        }
+
         let i = match self.state.borrow().selected() {
             Some(i) => {
                 if self.items.len() - 1 <= i {
@@ -90,12 +94,16 @@ impl WidgetTrait for List<'_> {
     }
 
     fn select_prev(&mut self, index: usize) {
+        if self.items.is_empty() {
+            return;
+        }
+
         let i = match self.state.borrow().selected() {
             Some(i) => {
                 if i < index {
                     0
                 } else {
-                    i - index
+                    i.saturating_sub(1)
                 }
             }
             None => 0,
