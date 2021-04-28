@@ -211,9 +211,9 @@ impl<'a> SelectForm<'a> {
 
         let sum_width: u16 = self.chunk.iter().map(|c| c.width).sum();
 
-        let is_odd_width = sum_width & 1 != 0;
+        let is_odd_width = is_odd(sum_width);
 
-        let sub = if ch_list.height & 1 != 0 { 0 } else { 1 };
+        let sub = if is_odd(ch_list.height) { 0 } else { 1 };
 
         let arrow = if is_odd_width { "←→ " } else { "↔︎ " };
 
@@ -335,6 +335,10 @@ impl<'a> Select<'a> {
     pub fn back_cursor(&mut self) {
         self.input_widget.back_cursor();
     }
+
+    pub fn focus_toggle(&mut self) {
+        self.selected_widget.focus_toggle();
+    }
 }
 
 impl Default for Select<'_> {
@@ -348,6 +352,11 @@ impl Default for Select<'_> {
             block: Block::default(),
         }
     }
+}
+
+#[inline]
+fn is_odd(num: u16) -> bool {
+    num & 1 != 0
 }
 
 #[cfg(test)]
@@ -456,6 +465,22 @@ mod tests {
                     Span::styled("b", Style::default().add_modifier(Modifier::REVERSED))
                 ])
             );
+        }
+    }
+
+    mod select {
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn focus_toggle() {
+            let mut select = Select::default();
+
+            select.focus_toggle();
+            assert_eq!(select.selected_widget.focus_id, 1);
+
+            select.focus_toggle();
+            assert_eq!(select.selected_widget.focus_id, 0);
         }
     }
 }
