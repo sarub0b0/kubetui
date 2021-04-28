@@ -4,7 +4,7 @@ use tui::{
     widgets::{Block, Borders},
 };
 
-use super::generate_title;
+use super::{focus_block, generate_title};
 use crate::widget::*;
 
 #[derive(Debug)]
@@ -71,7 +71,7 @@ impl<'a> Pane<'a> {
     pub fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
 
-        self.widget.update_area(self.generate_block().inner(chunk));
+        self.widget.update_area(self.block(false).inner(chunk));
     }
 
     pub fn chunk(&self) -> Rect {
@@ -79,20 +79,6 @@ impl<'a> Pane<'a> {
     }
 
     pub fn block(&self, selected: bool) -> Block {
-        let border_color = if selected {
-            Color::White
-        } else {
-            Color::DarkGray
-        };
-
-        self.generate_block()
-            .title(generate_title(&self.title, border_color, selected))
-            .border_style(Style::default().fg(border_color))
-    }
-
-    fn generate_block(&self) -> Block {
-        Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default())
+        focus_block(&self.title, selected)
     }
 }

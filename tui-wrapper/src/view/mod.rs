@@ -13,6 +13,7 @@ use tui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Span, Spans},
+    widgets::{Block, Borders},
 };
 
 fn generate_title(title: &str, border_color: Color, selected: bool) -> Spans {
@@ -27,6 +28,20 @@ fn generate_title(title: &str, border_color: Color, selected: bool) -> Spans {
                 .add_modifier(Modifier::BOLD),
         ),
     ])
+}
+
+fn focus_block(title: &str, selected: bool) -> Block {
+    let border_color = if selected {
+        Color::White
+    } else {
+        Color::DarkGray
+    };
+
+    Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default())
+        .title(generate_title(title, border_color, selected))
+        .border_style(Style::default().fg(border_color))
 }
 
 fn child_window_chunk(width_rate: u16, height_rate: u16, chunk: Rect) -> Rect {
