@@ -115,11 +115,19 @@ impl WidgetTrait for List<'_> {
             self.state.borrow_mut().select(Some(self.items.len() - 1))
         }
     }
+
     fn set_items(&mut self, items: WidgetItem) {
         let items = items.get_array();
+        let old_len = self.items.len();
+
         match items.len() {
             0 => self.state.borrow_mut().select(None),
-            len if len < self.items.len() => self.state.borrow_mut().select(Some(len - 1)),
+            new_len if new_len < old_len => {
+                let i = self.state.borrow().selected();
+                if i == Some(old_len - 1) {
+                    self.state.borrow_mut().select(Some(new_len - 1));
+                }
+            }
             _ => {
                 if self.state.borrow().selected() == None {
                     self.state().borrow_mut().select(Some(0))
