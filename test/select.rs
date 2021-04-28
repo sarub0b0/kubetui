@@ -28,6 +28,12 @@ fn main() {
     terminal.clear().unwrap();
 
     let mut select = Select::new("Select").block(Block::default().borders(Borders::ALL));
+    select.set_items(
+        vec!["Item0", "Item1", "Item2", "Item3", "Item4"]
+            .iter()
+            .map(ToString::to_string)
+            .collect(),
+    );
 
     // let mut state = SelectState::default();
 
@@ -111,7 +117,10 @@ fn main() {
                         select.back_cursor();
                     }
                     KeyCode::Tab => {
-                        select.focus_toggle();
+                        select.toggle_focus();
+                    }
+                    KeyCode::Enter => {
+                        select.toggle_select_unselect();
                     }
                     _ => {}
                 },

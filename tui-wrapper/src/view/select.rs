@@ -169,8 +169,6 @@ impl<'a> InputForm<'a> {
 
 #[derive(Debug)]
 struct SelectForm<'a> {
-    items: Vec<String>,
-    selected_items: Vec<usize>,
     list_widget: Widget<'a>,
     selected_widget: Widget<'a>,
     chunk: Vec<Rect>,
@@ -184,8 +182,8 @@ impl Default for SelectForm<'_> {
             .direction(Direction::Horizontal)
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)]);
         Self {
-            items: Vec::new(),
-            selected_items: Vec::new(),
+            // items: Vec::new(),
+            // selected_items: Vec::new(),
             list_widget: Widget::List(List::default()),
             selected_widget: Widget::List(List::default()),
             chunk: Vec::new(),
@@ -221,11 +219,6 @@ impl<'a> SelectForm<'a> {
         ch_selected.x = ch_selected.x.saturating_add(addend);
         ch_selected.width = ch_selected.width.saturating_sub(addend);
 
-        self.list_widget.set_items(WidgetItem::Array(vec![
-            "Item0".to_string(),
-            "Item1".to_string(),
-        ]));
-
         let list = self.list_widget.list().unwrap();
 
         let w = list.widget(focus_block("Items", self.focus_id == 0));
@@ -237,11 +230,6 @@ impl<'a> SelectForm<'a> {
             .block(Block::default());
 
         f.render_widget(w, ch_arrow);
-
-        self.selected_widget.set_items(WidgetItem::Array(vec![
-            "Item0".to_string(),
-            "Item1".to_string(),
-        ]));
 
         let list = self.selected_widget.list().unwrap();
         let w = list.widget(focus_block("Selected", self.focus_id == 1));
@@ -269,12 +257,49 @@ impl<'a> SelectForm<'a> {
         }
     }
 
-    fn focus_toggle(&mut self) {
+    fn unfocused_form(&mut self) -> &mut Widget<'a> {
+        if self.focus_id == 1 {
+            &mut self.list_widget
+        } else {
+            &mut self.selected_widget
+        }
+    }
+
+    fn toggle_focus(&mut self) {
         if self.focus_id == 0 {
             self.focus_id = 1
         } else {
             self.focus_id = 0
         }
+    }
+
+    fn toggle_select_unselect(&mut self) {
+        let selected = if let Some(list) = self.focused_form().list_mut() {
+            if let Some(index) = list.selected() {
+                let mut new_vec = list.items().to_vec();
+                let select_item = new_vec.remove(index);
+
+                list.set_items(WidgetItem::Array(new_vec));
+                Some(select_item)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        if let Some(item) = selected {
+            if let Some(list) = self.unfocused_form().list_mut() {
+                let mut new_vec = list.items().to_vec();
+                new_vec.push(item);
+                new_vec.sort();
+                list.set_items(WidgetItem::Array(new_vec));
+            }
+        }
+    }
+
+    fn set_items(&mut self, items: Vec<String>) {
+        self.list_widget.set_items(WidgetItem::Array(items));
     }
 }
 
@@ -352,8 +377,8 @@ impl<'a> Select<'a> {
         self.input_widget.back_cursor();
     }
 
-    pub fn focus_toggle(&mut self) {
-        self.selected_widget.focus_toggle();
+    pub fn toggle_focus(&mut self) {
+        self.selected_widget.toggle_focus();
     }
 
     pub fn select_next(&mut self) {
@@ -362,6 +387,14 @@ impl<'a> Select<'a> {
 
     pub fn select_prev(&mut self) {
         self.selected_widget.select_prev();
+    }
+
+    pub fn toggle_select_unselect(&mut self) {
+        self.selected_widget.toggle_select_unselect();
+    }
+
+    pub fn set_items(&mut self, items: Vec<String>) {
+        self.selected_widget.set_items(items);
     }
 }
 
@@ -500,10 +533,10 @@ mod tests {
         fn focus_toggle() {
             let mut select = Select::default();
 
-            select.focus_toggle();
+            select.toggle_focus();
             assert_eq!(select.selected_widget.focus_id, 1);
 
-            select.focus_toggle();
+            select.toggle_focus();
             assert_eq!(select.selected_widget.focus_id, 0);
         }
     }
