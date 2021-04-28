@@ -7,6 +7,9 @@ use tui::{
     Frame,
 };
 
+use fuzzy_matcher::skim::SkimMatcherV2;
+use fuzzy_matcher::FuzzyMatcher;
+
 use std::time::{Duration, Instant};
 
 use super::focus_block;
@@ -171,7 +174,6 @@ impl<'a> InputForm<'a> {
     }
 }
 
-#[derive(Debug)]
 struct SelectForm<'a> {
     list_items: Vec<String>,
     selected_items: Vec<String>,
@@ -181,6 +183,7 @@ struct SelectForm<'a> {
     chunk: Vec<Rect>,
     focus_id: usize,
     layout: Layout,
+    matcher: SkimMatcherV2,
 }
 
 impl Default for SelectForm<'_> {
@@ -197,6 +200,7 @@ impl Default for SelectForm<'_> {
             chunk: Vec::new(),
             focus_id: 0,
             layout,
+            matcher: SkimMatcherV2::default(),
         }
     }
 }
@@ -248,12 +252,9 @@ impl<'a> SelectForm<'a> {
     fn filter_items(&self, items: &[String]) -> Vec<String> {
         items
             .iter()
-            .filter_map(|item| {
-                if item.starts_with(&self.filter) {
-                    Some(item.to_string())
-                } else {
-                    None
-                }
+            .filter_map(|item| match self.matcher.fuzzy_match(&item, &self.filter) {
+                Some(_) => Some(item.to_string()),
+                None => None,
             })
             .collect()
     }
@@ -388,7 +389,6 @@ impl<'a> SelectForm<'a> {
 const LAYOUT_INDEX_FOR_INPUT_FORM: usize = 0;
 const LAYOUT_INDEX_FOR_SELECT_FORM: usize = 1;
 
-#[derive(Debug)]
 pub struct Select<'a> {
     title: String,
     input_widget: InputForm<'a>,

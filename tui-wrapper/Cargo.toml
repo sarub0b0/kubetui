@@ -13,6 +13,7 @@ ansi = { path = "../ansi" }
 unicode-segmentation = "1.7"
 unicode-width = "0.1"
 rayon = "1.5"
+fuzzy-matcher = "0.3"
 
 [dev-dependencies]
 pretty_assertions = "0.7.1"
