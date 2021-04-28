@@ -9,7 +9,7 @@ use tui::{
 
 use std::time::{Duration, Instant};
 
-use super::generate_title;
+use super::focus_block;
 use crate::widget::*;
 
 #[derive(Debug)]
@@ -197,15 +197,6 @@ impl Default for SelectForm<'_> {
 
 impl<'a> SelectForm<'a> {
     fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
-        let list = List::new(vec!["Item0".to_string(), "Item1".to_string()]);
-
-        let w = list.widget(
-            Block::default()
-                .borders(Borders::ALL)
-                .title("Item")
-                .alignment(Alignment::Center),
-        );
-
         let mut ch_list = self.chunk[0];
         ch_list.width = ch_list.width.saturating_sub(1);
 
@@ -230,6 +221,15 @@ impl<'a> SelectForm<'a> {
         ch_selected.x = ch_selected.x.saturating_add(addend);
         ch_selected.width = ch_selected.width.saturating_sub(addend);
 
+        self.list_widget.set_items(WidgetItem::Array(vec![
+            "Item0".to_string(),
+            "Item1".to_string(),
+        ]));
+
+        let list = self.list_widget.list().unwrap();
+
+        let w = list.widget(focus_block("Items", self.focus_id == 0));
+
         f.render_stateful_widget(w, ch_list, &mut list.state().borrow_mut());
 
         let w = Paragraph::new(arrow)
@@ -238,20 +238,35 @@ impl<'a> SelectForm<'a> {
 
         f.render_widget(w, ch_arrow);
 
-        let list = List::new(vec!["Item0".to_string(), "Item1".to_string()]);
+        self.selected_widget.set_items(WidgetItem::Array(vec![
+            "Item0".to_string(),
+            "Item1".to_string(),
+        ]));
 
-        let w = list.widget(
-            Block::default()
-                .borders(Borders::ALL)
-                .title("Selected")
-                .alignment(Alignment::Center),
-        );
+        let list = self.selected_widget.list().unwrap();
+        let w = list.widget(focus_block("Selected", self.focus_id == 1));
 
         f.render_stateful_widget(w, ch_selected, &mut list.state().borrow_mut());
     }
 
     fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = self.layout.split(chunk);
+    }
+
+    fn select_next(&mut self) {
+        self.focused_form().select_next(1);
+    }
+
+    fn select_prev(&mut self) {
+        self.focused_form().select_prev(1);
+    }
+
+    fn focused_form(&mut self) -> &mut Widget<'a> {
+        if self.focus_id == 0 {
+            &mut self.list_widget
+        } else {
+            &mut self.selected_widget
+        }
     }
 
     fn focus_toggle(&mut self) {
@@ -332,12 +347,21 @@ impl<'a> Select<'a> {
     pub fn forward_cursor(&mut self) {
         self.input_widget.forward_cursor();
     }
+
     pub fn back_cursor(&mut self) {
         self.input_widget.back_cursor();
     }
 
     pub fn focus_toggle(&mut self) {
         self.selected_widget.focus_toggle();
+    }
+
+    pub fn select_next(&mut self) {
+        self.selected_widget.select_next();
+    }
+
+    pub fn select_prev(&mut self) {
+        self.selected_widget.select_prev();
     }
 }
 

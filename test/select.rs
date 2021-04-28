@@ -89,8 +89,12 @@ fn main() {
             match read().unwrap() {
                 Event::Key(key) => match key.code {
                     KeyCode::Char('q') if key.modifiers == KeyModifiers::CONTROL => break,
-                    // KeyCode::Char('k') => state.select(Some(0)),
-                    // KeyCode::Char('j') => state.select(Some(1)),
+                    KeyCode::Char('n') if key.modifiers == KeyModifiers::CONTROL => {
+                        select.select_next();
+                    }
+                    KeyCode::Char('p') if key.modifiers == KeyModifiers::CONTROL => {
+                        select.select_prev();
+                    }
                     KeyCode::Delete | KeyCode::Char('h')
                         if key.modifiers == KeyModifiers::CONTROL =>
                     {
@@ -105,6 +109,9 @@ fn main() {
                     }
                     KeyCode::Left => {
                         select.back_cursor();
+                    }
+                    KeyCode::Tab => {
+                        select.focus_toggle();
                     }
                     _ => {}
                 },
