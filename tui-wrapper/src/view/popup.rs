@@ -1,13 +1,9 @@
-use super::{child_window_chunk, generate_title};
+use super::{child_window_chunk, focus_block};
 use crate::widget::*;
 
 use std::default::Default;
 
-use tui::{
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Style},
-    widgets::{Block, Borders},
-};
+use tui::{layout::Rect, widgets::Block};
 
 pub struct Popup<'a> {
     title: String,
@@ -67,9 +63,6 @@ impl<'a> Popup<'a> {
     }
 
     pub fn block(&self) -> Block {
-        Block::default()
-            .title(generate_title(&self.title, Color::White, true))
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::White))
+        focus_block(&self.title, true)
     }
 }
