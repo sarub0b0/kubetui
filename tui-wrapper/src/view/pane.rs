@@ -1,10 +1,6 @@
-use tui::{
-    layout::Rect,
-    style::{Color, Style},
-    widgets::{Block, Borders},
-};
+use tui::{layout::Rect, widgets::Block};
 
-use super::{focus_block, generate_title};
+use super::focus_block;
 use crate::widget::*;
 
 #[derive(Debug)]
