@@ -1,7 +1,13 @@
-use tui::layout::Rect;
-use tui::style::Style;
-use tui::text::{Span, Spans};
-use tui::widgets::Paragraph;
+use tui::{
+    backend::Backend,
+    layout::Rect,
+    style::Style,
+    text::{Span, Spans},
+    widgets::{Block, Paragraph},
+    Frame,
+};
+
+use super::RenderTrait;
 
 use super::ansi::*;
 use super::{WidgetItem, WidgetTrait};
@@ -232,6 +238,27 @@ impl WidgetTrait for Text<'_> {
         let area = self.area;
         *self = Self::default();
         self.area = area;
+    }
+}
+
+impl RenderTrait for Text<'_> {
+    fn render<B>(&mut self, f: &mut Frame<'_, B>, block: Block, chunk: Rect)
+    where
+        B: Backend,
+    {
+        let start = self.state.selected() as usize;
+
+        let end = if self.spans.len() < self.area.height {
+            self.spans.len()
+        } else {
+            start + self.area.height
+        };
+
+        let widget = Paragraph::new(self.spans[start..end].to_vec())
+            .style(Style::default())
+            .block(block);
+
+        f.render_widget(widget, chunk);
     }
 }
 

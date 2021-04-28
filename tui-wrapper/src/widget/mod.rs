@@ -7,7 +7,7 @@ pub use self::list::*;
 pub use self::text::*;
 pub use table::*;
 
-use tui::layout::Rect;
+use tui::{backend::Backend, layout::Rect, widgets::Block, Frame};
 
 pub enum WidgetItem {
     Array(Vec<String>),
@@ -159,6 +159,23 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.clear(),
             Widget::Text(w) => w.clear(),
             Widget::Table(w) => w.clear(),
+        }
+    }
+}
+
+pub trait RenderTrait {
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>, block: Block, chunk: Rect);
+}
+
+impl RenderTrait for Widget<'_> {
+    fn render<B>(&mut self, f: &mut Frame<B>, block: Block, chunk: Rect)
+    where
+        B: Backend,
+    {
+        match self {
+            Widget::List(w) => w.render(f, block, chunk),
+            Widget::Text(w) => w.render(f, block, chunk),
+            Widget::Table(w) => w.render(f, block, chunk),
         }
     }
 }

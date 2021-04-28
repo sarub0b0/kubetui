@@ -1,12 +1,16 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use tui::layout::Rect;
-use tui::style::{Modifier, Style};
+use tui::{
+    backend::Backend,
+    layout::Rect,
+    style::{Modifier, Style},
+    Frame,
+};
 
 use tui::widgets::{self, Block, ListItem, ListState};
 
-use super::{WidgetItem, WidgetTrait};
+use super::{RenderTrait, WidgetItem, WidgetTrait};
 
 #[derive(Debug)]
 pub struct List<'a> {
@@ -149,6 +153,12 @@ impl WidgetTrait for List<'_> {
 
     fn update_area(&mut self, _area: Rect) {}
     fn clear(&mut self) {}
+}
+
+impl RenderTrait for List<'_> {
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>, block: Block, chunk: Rect) {
+        f.render_stateful_widget(self.widget(block), chunk, &mut self.state.borrow_mut());
+    }
 }
 
 #[cfg(test)]

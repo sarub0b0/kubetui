@@ -1,4 +1,4 @@
-use tui::{layout::Rect, widgets::Block};
+use tui::{backend::Backend, layout::Rect, widgets::Block, Frame};
 
 use super::focus_block;
 use crate::widget::*;
@@ -76,5 +76,15 @@ impl<'a> Pane<'a> {
 
     pub fn block(&self, selected: bool) -> Block {
         focus_block(&self.title, selected)
+    }
+}
+
+impl Pane<'_> {
+    pub fn render<B>(&mut self, f: &mut Frame<B>, selected: bool)
+    where
+        B: Backend,
+    {
+        self.widget
+            .render(f, focus_block(&self.title, selected), self.chunk);
     }
 }

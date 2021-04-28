@@ -19,9 +19,7 @@ use tui::{
     Terminal,
 };
 
-extern crate kubetui;
 use event::{input::*, kubernetes::*, tick::*, Event};
-use kubetui::draw::*;
 use tui_wrapper::{widget::WidgetItem, *};
 
 fn update_event(window: &mut Window, ev: Vec<String>) {
@@ -329,7 +327,7 @@ fn run() {
 
     loop {
         terminal
-            .draw(|f| draw(f, &mut window, &current_context, &current_namespace))
+            .draw(|f| window.render(f, &current_context, &current_namespace))
             .unwrap();
 
         match rx_main.recv().unwrap() {

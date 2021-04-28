@@ -13,7 +13,6 @@ members = [ "tui-wrapper", "event", "ansi" ]
 crossterm = "0.18"
 tui = { git = "https://github.com/sarub0b0/tui-rs.git", features = ['crossterm'] }
 tokio = { version = "1", features = ["rt"] }
-chrono = "0.4"
 crossbeam = "0.8"
 
 tui-wrapper = { path = "./tui-wrapper" }

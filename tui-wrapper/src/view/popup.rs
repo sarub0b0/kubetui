@@ -3,7 +3,12 @@ use crate::widget::*;
 
 use std::default::Default;
 
-use tui::{layout::Rect, widgets::Block};
+use tui::{
+    backend::Backend,
+    layout::Rect,
+    widgets::{Block, Clear},
+    Frame,
+};
 
 pub struct Popup<'a> {
     title: String,
@@ -64,5 +69,18 @@ impl<'a> Popup<'a> {
 
     pub fn block(&self) -> Block {
         focus_block(&self.title, true)
+    }
+}
+
+impl Popup<'_> {
+    pub fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
+        let list = self.widget().list().unwrap();
+        f.render_widget(Clear, self.chunk);
+
+        f.render_stateful_widget(
+            list.widget(self.block()),
+            self.chunk,
+            &mut list.state().borrow_mut(),
+        );
     }
 }

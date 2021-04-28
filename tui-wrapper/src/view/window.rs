@@ -1,10 +1,14 @@
 use super::{tab::*, Pane, Popup};
 use crate::widget::Widget;
 
-use tui::layout::{Constraint, Direction, Layout, Rect};
-use tui::style::{Color, Style};
-use tui::text::Spans;
-use tui::widgets::{Block, Tabs};
+use tui::{
+    backend::Backend,
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::{Color, Style},
+    text::{Span, Spans},
+    widgets::{Block, Paragraph, Tabs},
+    Frame,
+};
 
 pub struct Window<'a> {
     tabs: Vec<Tab<'a>>,
@@ -21,6 +25,7 @@ pub mod window_layout_index {
     pub const CONTENTS: usize = 3;
     pub const STATUSBAR: usize = 4;
 }
+
 // Window
 impl<'a> Window<'a> {
     pub fn new(tabs: Vec<Tab<'a>>, popup: Popup<'a>) -> Self {
@@ -265,4 +270,99 @@ impl<'a> Window<'a> {
     pub fn popup_mut(&mut self) -> &mut Popup<'a> {
         &mut self.popup
     }
+}
+
+// Render
+use window_layout_index::*;
+impl<'a> Window<'a> {
+    pub fn render<B: Backend>(
+        &mut self,
+        f: &mut Frame<B>,
+        current_context: &str,
+        current_namespace: &str,
+    ) {
+        self.render_tab(f);
+
+        self.render_context(f, current_context, current_namespace);
+
+        self.selected_tab_mut().render(f);
+
+        self.render_status(f);
+
+        if self.selected_popup() {
+            self.popup_mut().render(f);
+        }
+    }
+
+    fn render_tab<B: Backend>(&mut self, f: &mut Frame<B>) {
+        f.render_widget(self.widget(), self.tab_chunk());
+    }
+
+    fn render_context<B: Backend>(&mut self, f: &mut Frame<B>, ctx: &str, ns: &str) {
+        let block = Block::default().style(Style::default());
+
+        let text = format!("{}: {}", ns, ctx);
+        let spans = Spans::from(text);
+        let paragraph = Paragraph::new(spans).block(block);
+
+        f.render_widget(paragraph, self.chunks()[CONTEXT]);
+    }
+    fn render_status<B: Backend>(&mut self, f: &mut Frame<B>) {
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+            .split(self.chunks()[STATUSBAR]);
+
+        let datetime = datetime();
+
+        let datetime = Spans::from(datetime);
+        let block = Block::default().style(Style::default());
+        let paragraph = Paragraph::new(datetime).block(block);
+
+        f.render_widget(paragraph, chunks[0]);
+
+        if let Some(p) = self.scroll_status("logs") {
+            f.render_widget(p, chunks[1]);
+        }
+
+        if let Some(p) = self.scroll_status("configs-raw") {
+            f.render_widget(p, chunks[1]);
+        }
+
+        if let Some(p) = self.scroll_status("event") {
+            f.render_widget(p, chunks[1]);
+        }
+    }
+
+    fn scroll_status(&self, id: &str) -> Option<Paragraph<'a>> {
+        if let Some(pane) = self.selected_tab().panes().iter().find(|p| p.id() == id) {
+            let widget = pane.widget().text();
+            let span = match widget {
+                Some(t) => text_status((t.selected(), t.row_size())),
+                None => text_status((0, 0)),
+            };
+
+            let spans = Spans::from(span);
+            let block = Block::default().style(Style::default());
+
+            return Some(
+                Paragraph::new(spans)
+                    .block(block)
+                    .alignment(Alignment::Right),
+            );
+        }
+        None
+    }
+}
+
+use chrono::Local;
+fn datetime() -> Span<'static> {
+    Span::raw(format!(
+        " {}",
+        Local::now().format("%Y年%m月%d日 %H時%M分%S秒")
+    ))
+}
+
+fn text_status((current, rows): (u64, u64)) -> Span<'static> {
+    Span::raw(format!("{}/{}", current, rows))
 }

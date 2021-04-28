@@ -1,12 +1,16 @@
-use super::{WidgetItem, WidgetTrait};
+use super::{RenderTrait, WidgetItem, WidgetTrait};
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use tui::layout::Constraint;
-use tui::style::{Color, Modifier, Style};
-use tui::text::Span;
-use tui::widgets::{Block, Cell, Row, Table as TTable, TableState};
+use tui::{
+    backend::Backend,
+    layout::{Constraint, Rect},
+    style::{Color, Modifier, Style},
+    text::Span,
+    widgets::{Block, Cell, Row, Table as TTable, TableState},
+    Frame,
+};
 
 #[derive(Debug)]
 pub struct Table<'a> {
@@ -181,5 +185,29 @@ impl WidgetTrait for Table<'_> {
 
     fn clear(&mut self) {
         *self = Self::default();
+    }
+}
+
+impl RenderTrait for Table<'_> {
+    fn render<B>(&mut self, f: &mut Frame<'_, B>, block: Block, chunk: Rect)
+    where
+        B: Backend,
+    {
+        let header_cells = self
+            .header
+            .iter()
+            .cloned()
+            .map(|h| Cell::from(h).style(Style::default().fg(Color::DarkGray)));
+
+        let header = Row::new(header_cells).height(1);
+
+        let widget = TTable::new(self.rows.clone())
+            .block(block)
+            .header(header)
+            .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+            .column_spacing(3)
+            .widths(&self.widths);
+
+        f.render_stateful_widget(widget, chunk, &mut self.state.borrow_mut());
     }
 }

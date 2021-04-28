@@ -1,7 +1,11 @@
 use super::pane::Pane;
 
 use crate::widget::*;
-use tui::layout::{Layout, Rect};
+use tui::{
+    backend::Backend,
+    layout::{Layout, Rect},
+    Frame,
+};
 
 pub struct Tab<'a> {
     title: String,
@@ -93,5 +97,19 @@ impl<'a> Tab<'a> {
         self.panes
             .iter_mut()
             .for_each(|pane| pane.update_chunk(chunks[pane.chunk_index()]));
+    }
+}
+
+impl Tab<'_> {
+    pub fn render<B>(&mut self, f: &mut Frame<B>)
+    where
+        B: Backend,
+    {
+        let selected_pane_index = self.selected_pane_index;
+
+        self.panes
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, p)| p.render(f, i == selected_pane_index));
     }
 }
