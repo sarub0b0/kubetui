@@ -12,7 +12,7 @@ pub struct Tab<'a> {
     panes: Vec<Pane<'a>>,
     layout: Layout,
     selected_pane_index: usize,
-    selectable_widgets: Vec<usize>,
+    selectable_panes: Vec<usize>,
 }
 
 impl<'a> Tab<'a> {
@@ -28,7 +28,7 @@ impl<'a> Tab<'a> {
             title: title.into(),
             panes,
             layout,
-            selectable_widgets,
+            selectable_panes: selectable_widgets,
             selected_pane_index: 0,
         }
     }
@@ -49,7 +49,7 @@ impl<'a> Tab<'a> {
     }
 
     pub fn next_pane(&mut self) {
-        if self.selectable_widgets.len() - 1 <= self.selected_pane_index {
+        if self.selectable_panes.len() - 1 <= self.selected_pane_index {
             self.selected_pane_index = 0;
         } else {
             self.selected_pane_index += 1;
@@ -58,7 +58,7 @@ impl<'a> Tab<'a> {
 
     pub fn prev_pane(&mut self) {
         if self.selected_pane_index == 0 {
-            self.selected_pane_index = self.selectable_widgets.len() - 1;
+            self.selected_pane_index = self.selectable_panes.len() - 1;
         } else {
             self.selected_pane_index -= 1;
         }
