@@ -328,13 +328,13 @@ impl<'a> SelectForm<'a> {
             let focused_item = if self.focus_id == 0 {
                 self.filter_items(&self.list_items)
             } else {
-                self.focused_items().clone()
+                self.selected_items.clone()
             };
 
             let unfocused_item = if self.focus_id == 1 {
                 self.filter_items(&self.list_items)
             } else {
-                self.unfocused_items().clone()
+                self.selected_items.clone()
             };
 
             if let Some(list) = self.focused_form_mut().list_mut() {
@@ -348,14 +348,6 @@ impl<'a> SelectForm<'a> {
 
     fn focused_items(&self) -> &Vec<String> {
         if self.focus_id == 0 {
-            &self.list_items
-        } else {
-            &self.selected_items
-        }
-    }
-
-    fn unfocused_items(&self) -> &Vec<String> {
-        if self.focus_id == 1 {
             &self.list_items
         } else {
             &self.selected_items
@@ -386,6 +378,7 @@ impl<'a> SelectForm<'a> {
 
     fn update_filter(&mut self, filter: &str) {
         self.filter = filter.to_string();
+        self.focus_id = 0;
 
         self.list_widget
             .set_items(WidgetItem::Array(self.filter_items(&self.list_items)));
