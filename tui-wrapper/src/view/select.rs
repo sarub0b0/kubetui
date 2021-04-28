@@ -165,10 +165,17 @@ impl<'a> InputForm<'a> {
     fn back_cursor(&mut self) {
         self.cursor.back();
     }
+
+    fn content(&self) -> &str {
+        self.content.as_str()
+    }
 }
 
 #[derive(Debug)]
 struct SelectForm<'a> {
+    list_items: Vec<String>,
+    selected_items: Vec<String>,
+    filter: String,
     list_widget: Widget<'a>,
     selected_widget: Widget<'a>,
     chunk: Vec<Rect>,
@@ -182,8 +189,9 @@ impl Default for SelectForm<'_> {
             .direction(Direction::Horizontal)
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)]);
         Self {
-            // items: Vec::new(),
-            // selected_items: Vec::new(),
+            list_items: Vec::new(),
+            selected_items: Vec::new(),
+            filter: String::default(),
             list_widget: Widget::List(List::default()),
             selected_widget: Widget::List(List::default()),
             chunk: Vec::new(),
@@ -237,19 +245,32 @@ impl<'a> SelectForm<'a> {
         f.render_stateful_widget(w, ch_selected, &mut list.state().borrow_mut());
     }
 
+    fn filter_items(&self, items: &[String]) -> Vec<String> {
+        items
+            .iter()
+            .filter_map(|item| {
+                if item.starts_with(&self.filter) {
+                    Some(item.to_string())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
     fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = self.layout.split(chunk);
     }
 
     fn select_next(&mut self) {
-        self.focused_form().select_next(1);
+        self.focused_form_mut().select_next(1);
     }
 
     fn select_prev(&mut self) {
-        self.focused_form().select_prev(1);
+        self.focused_form_mut().select_prev(1);
     }
 
-    fn focused_form(&mut self) -> &mut Widget<'a> {
+    fn focused_form_mut(&mut self) -> &mut Widget<'a> {
         if self.focus_id == 0 {
             &mut self.list_widget
         } else {
@@ -257,7 +278,7 @@ impl<'a> SelectForm<'a> {
         }
     }
 
-    fn unfocused_form(&mut self) -> &mut Widget<'a> {
+    fn unfocused_form_mut(&mut self) -> &mut Widget<'a> {
         if self.focus_id == 1 {
             &mut self.list_widget
         } else {
@@ -274,13 +295,12 @@ impl<'a> SelectForm<'a> {
     }
 
     fn toggle_select_unselect(&mut self) {
-        let selected = if let Some(list) = self.focused_form().list_mut() {
+        // 1. フィルタされているアイテムをフォーカスしているリストからアイテムを取り出す
+        // 2. 取得したアイテムをフォーカスしているリストから削除
+        // 3  フォーカスしていないリストに追加
+        let selected_item = if let Some(list) = self.focused_form_mut().list_mut() {
             if let Some(index) = list.selected() {
-                let mut new_vec = list.items().to_vec();
-                let select_item = new_vec.remove(index);
-
-                list.set_items(WidgetItem::Array(new_vec));
-                Some(select_item)
+                Some(list.items()[index].to_string())
             } else {
                 None
             }
@@ -288,18 +308,87 @@ impl<'a> SelectForm<'a> {
             None
         };
 
-        if let Some(item) = selected {
-            if let Some(list) = self.unfocused_form().list_mut() {
-                let mut new_vec = list.items().to_vec();
-                new_vec.push(item);
-                new_vec.sort();
-                list.set_items(WidgetItem::Array(new_vec));
+        if let Some(selected_item) = selected_item {
+            // 1. 選択されたアイテムを探して
+            // 2. 一覧から削除
+            // 3. 選択中リストに追加
+            let find = self
+                .focused_items()
+                .iter()
+                .enumerate()
+                .find(|(_i, s)| s == &&selected_item)
+                .map(|(i, _)| i);
+
+            if let Some(index) = find {
+                let item = self.focused_item_mut().remove(index);
+                self.unfocused_item_mut().push(item);
+                self.unfocused_item_mut().sort();
+            }
+
+            let focused_item = if self.focus_id == 0 {
+                self.filter_items(&self.list_items)
+            } else {
+                self.focused_items().clone()
+            };
+
+            let unfocused_item = if self.focus_id == 1 {
+                self.filter_items(&self.list_items)
+            } else {
+                self.unfocused_items().clone()
+            };
+
+            if let Some(list) = self.focused_form_mut().list_mut() {
+                list.set_items(WidgetItem::Array(focused_item));
+            }
+            if let Some(list) = self.unfocused_form_mut().list_mut() {
+                list.set_items(WidgetItem::Array(unfocused_item));
             }
         }
     }
 
+    fn focused_items(&self) -> &Vec<String> {
+        if self.focus_id == 0 {
+            &self.list_items
+        } else {
+            &self.selected_items
+        }
+    }
+
+    fn unfocused_items(&self) -> &Vec<String> {
+        if self.focus_id == 1 {
+            &self.list_items
+        } else {
+            &self.selected_items
+        }
+    }
+
+    fn focused_item_mut(&mut self) -> &mut Vec<String> {
+        if self.focus_id == 0 {
+            &mut self.list_items
+        } else {
+            &mut self.selected_items
+        }
+    }
+
+    fn unfocused_item_mut(&mut self) -> &mut Vec<String> {
+        if self.focus_id == 1 {
+            &mut self.list_items
+        } else {
+            &mut self.selected_items
+        }
+    }
+
     fn set_items(&mut self, items: Vec<String>) {
-        self.list_widget.set_items(WidgetItem::Array(items));
+        self.list_items = items;
+        self.list_widget
+            .set_items(WidgetItem::Array(self.list_items.clone()));
+    }
+
+    fn update_filter(&mut self, filter: &str) {
+        self.filter = filter.to_string();
+
+        self.list_widget
+            .set_items(WidgetItem::Array(self.filter_items(&self.list_items)));
     }
 }
 
@@ -363,10 +452,14 @@ impl<'a> Select<'a> {
 
     pub fn insert_char(&mut self, c: char) {
         self.input_widget.insert_char(c);
+        self.selected_widget
+            .update_filter(self.input_widget.content());
     }
 
     pub fn remove_char(&mut self) {
         self.input_widget.remove_char();
+        self.selected_widget
+            .update_filter(self.input_widget.content());
     }
 
     pub fn forward_cursor(&mut self) {

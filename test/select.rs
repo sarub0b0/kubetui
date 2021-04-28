@@ -29,7 +29,7 @@ fn main() {
 
     let mut select = Select::new("Select").block(Block::default().borders(Borders::ALL));
     select.set_items(
-        vec!["Item0", "Item1", "Item2", "Item3", "Item4"]
+        vec!["abc", "abd", "acd", "hoge", "fuga"]
             .iter()
             .map(ToString::to_string)
             .collect(),
