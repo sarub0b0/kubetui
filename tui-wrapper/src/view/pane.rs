@@ -3,7 +3,7 @@ use tui::{backend::Backend, layout::Rect, widgets::Block, Frame};
 use super::focus_block;
 use crate::widget::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Pane<'a> {
     widget: Widget<'a>,
     chunk_index: usize,

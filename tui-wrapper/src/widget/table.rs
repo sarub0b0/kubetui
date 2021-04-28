@@ -12,7 +12,7 @@ use tui::{
     Frame,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Table<'a> {
     items: Vec<Vec<String>>,
     header: Vec<String>,

@@ -12,7 +12,7 @@ use tui::widgets::{self, Block, ListItem, ListState};
 
 use super::{RenderTrait, WidgetItem, WidgetTrait};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct List<'a> {
     items: Vec<String>,
     state: Rc<RefCell<ListState>>,

@@ -40,7 +40,7 @@ pub trait WidgetTrait {
     fn clear(&mut self);
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Widget<'a> {
     List(List<'a>),
     Text(Text<'a>),

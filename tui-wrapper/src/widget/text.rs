@@ -43,7 +43,7 @@ impl Default for TRect {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Text<'a> {
     items: Vec<String>,
     state: TextState,
