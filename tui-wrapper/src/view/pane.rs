@@ -44,12 +44,20 @@ impl<'a> Pane<'a> {
         self.chunk_index
     }
 
-    pub fn next_item(&mut self, index: usize) {
+    pub fn select_next_item(&mut self, index: usize) {
         self.widget.select_next(index)
     }
 
-    pub fn prev_item(&mut self, index: usize) {
+    pub fn select_prev_item(&mut self, index: usize) {
         self.widget.select_prev(index)
+    }
+
+    pub fn select_first_item(&mut self) {
+        self.widget.select_first()
+    }
+
+    pub fn select_last_item(&mut self) {
+        self.widget.select_last()
     }
 
     pub fn set_items(&mut self, items: WidgetItem) {
