@@ -8,6 +8,7 @@ use tui::{
 };
 
 pub struct Tab<'a> {
+    id: String,
     title: String,
     panes: Vec<Pane<'a>>,
     layout: Layout,
@@ -16,7 +17,12 @@ pub struct Tab<'a> {
 }
 
 impl<'a> Tab<'a> {
-    pub fn new(title: impl Into<String>, panes: Vec<Pane<'a>>, layout: Layout) -> Self {
+    pub fn new(
+        id: impl Into<String>,
+        title: impl Into<String>,
+        panes: Vec<Pane<'a>>,
+        layout: Layout,
+    ) -> Self {
         let selectable_widgets = panes
             .iter()
             .enumerate()
@@ -25,6 +31,7 @@ impl<'a> Tab<'a> {
             .collect();
 
         Self {
+            id: id.into(),
             title: title.into(),
             panes,
             layout,
@@ -32,6 +39,11 @@ impl<'a> Tab<'a> {
             selected_pane_index: 0,
         }
     }
+
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
     pub fn title(&self) -> &str {
         &self.title
     }
