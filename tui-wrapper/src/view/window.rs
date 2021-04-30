@@ -1,4 +1,4 @@
-use super::{tab::*, Pane, Popup};
+use super::{tab::*, Pane};
 use crate::widget::Widget;
 
 use tui::{
@@ -15,8 +15,6 @@ pub struct Window<'a> {
     selected_tab_index: usize,
     layout: Layout,
     chunk: Rect,
-    popup: Popup<'a>,
-    selected_popup: bool,
 }
 
 pub mod window_layout_index {
@@ -28,7 +26,7 @@ pub mod window_layout_index {
 
 // Window
 impl<'a> Window<'a> {
-    pub fn new(tabs: Vec<Tab<'a>>, popup: Popup<'a>) -> Self {
+    pub fn new(tabs: Vec<Tab<'a>>) -> Self {
         Self {
             tabs,
             selected_tab_index: 0,
@@ -45,8 +43,6 @@ impl<'a> Window<'a> {
                     .as_ref(),
                 ),
             chunk: Default::default(),
-            popup,
-            selected_popup: false,
         }
     }
 
@@ -58,7 +54,6 @@ impl<'a> Window<'a> {
         self.tabs.iter_mut().for_each(|tab| {
             tab.update_chunk(chunks[window_layout_index::CONTENTS]);
         });
-        self.popup.update_chunk(chunk);
     }
 
     pub fn chunks(&self) -> Vec<Rect> {
@@ -92,6 +87,10 @@ impl<'a> Window<'a> {
 
 // Tab
 impl<'a> Window<'a> {
+    pub fn selected_tab_id(&self) -> &str {
+        &self.tabs[self.selected_tab_index].id()
+    }
+
     pub fn selected_tab(&self) -> &Tab {
         &self.tabs[self.selected_tab_index]
     }
@@ -101,9 +100,6 @@ impl<'a> Window<'a> {
     }
 
     pub fn select_tab(&mut self, index: usize) {
-        if self.selected_popup {
-            return;
-        }
         let index = index - 1;
         if index < self.tabs.len() {
             self.selected_tab_index = index;
@@ -111,9 +107,6 @@ impl<'a> Window<'a> {
     }
 
     pub fn select_next_tab(&mut self) {
-        if self.selected_popup {
-            return;
-        }
         if self.tabs.len() - 1 <= self.selected_tab_index {
             self.selected_tab_index = 0;
         } else {
@@ -122,9 +115,6 @@ impl<'a> Window<'a> {
     }
 
     pub fn select_prev_tab(&mut self) {
-        if self.selected_popup {
-            return;
-        }
         if 0 == self.selected_tab_index {
             self.selected_tab_index = self.tabs.len() - 1;
         } else {
@@ -135,8 +125,7 @@ impl<'a> Window<'a> {
 
 // Pane
 impl<'a> Window<'a> {
-    pub fn pane(&self, id: impl Into<String>) -> Option<&Pane<'a>> {
-        let id = id.into();
+    pub fn pane(&self, id: &str) -> Option<&Pane<'a>> {
         for t in &self.tabs {
             let p = t.panes().iter().find(|p| p.id() == id);
             if p.is_some() {
@@ -145,8 +134,7 @@ impl<'a> Window<'a> {
         }
         None
     }
-    pub fn pane_mut(&mut self, id: impl Into<String>) -> Option<&mut Pane<'a>> {
-        let id = id.into();
+    pub fn pane_mut(&mut self, id: &str) -> Option<&mut Pane<'a>> {
         for t in &mut self.tabs {
             let p = t.panes_mut().iter_mut().find(|p| p.id() == id);
             if p.is_some() {
@@ -161,16 +149,10 @@ impl<'a> Window<'a> {
     }
 
     pub fn select_next_pane(&mut self) {
-        if self.selected_popup {
-            return;
-        }
         self.selected_tab_mut().next_pane();
     }
 
     pub fn select_prev_pane(&mut self) {
-        if self.selected_popup {
-            return;
-        }
         self.selected_tab_mut().prev_pane();
     }
 }
@@ -178,41 +160,22 @@ impl<'a> Window<'a> {
 // フォーカスしているwidgetの状態変更
 impl Window<'_> {
     pub fn select_next_item(&mut self) {
-        if self.selected_popup {
-            self.popup.next_item();
-            return;
-        }
         self.selected_tab_mut().select_pane_next_item();
     }
 
     pub fn select_prev_item(&mut self) {
-        if self.selected_popup {
-            self.popup.prev_item();
-            return;
-        }
         self.selected_tab_mut().select_pane_prev_item();
     }
 
     pub fn select_first_item(&mut self) {
-        if self.selected_popup {
-            self.popup.first_item();
-            return;
-        }
         self.selected_tab_mut().select_pane_first_item();
     }
 
     pub fn select_last_item(&mut self) {
-        if self.selected_popup {
-            self.popup.last_item();
-            return;
-        }
         self.selected_tab_mut().select_pane_last_item();
     }
 
     pub fn scroll_up(&mut self) {
-        if self.selected_popup {
-            return;
-        }
         let pane = self.selected_tab_mut().selected_pane_mut();
         let ch = pane.chunk();
 
@@ -230,9 +193,6 @@ impl Window<'_> {
     }
 
     pub fn scroll_down(&mut self) {
-        if self.selected_popup {
-            return;
-        }
         let pane = self.selected_tab_mut().selected_pane_mut();
         let ch = pane.chunk();
 
@@ -247,28 +207,6 @@ impl Window<'_> {
                 table.next();
             }
         }
-    }
-}
-
-// Popup
-impl<'a> Window<'a> {
-    pub fn popup(&self) -> &Popup {
-        &self.popup
-    }
-
-    pub fn selected_popup(&self) -> bool {
-        self.selected_popup
-    }
-
-    pub fn select_popup(&mut self) {
-        self.selected_popup = true;
-    }
-    pub fn unselect_popup(&mut self) {
-        self.selected_popup = false;
-    }
-
-    pub fn popup_mut(&mut self) -> &mut Popup<'a> {
-        &mut self.popup
     }
 }
 
@@ -288,10 +226,6 @@ impl<'a> Window<'a> {
         self.selected_tab_mut().render(f);
 
         self.render_status(f);
-
-        if self.selected_popup() {
-            self.popup_mut().render(f);
-        }
     }
 
     fn render_tab<B: Backend>(&mut self, f: &mut Frame<B>) {
