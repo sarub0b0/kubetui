@@ -65,19 +65,19 @@ impl<'a> Tab<'a> {
     }
 
     pub fn select_pane_next_item(&mut self) {
-        self.selected_pane_mut().next_item(1);
+        self.selected_pane_mut().select_next_item(1);
     }
 
     pub fn select_pane_prev_item(&mut self) {
-        self.selected_pane_mut().prev_item(1);
+        self.selected_pane_mut().select_prev_item(1);
     }
 
     pub fn select_pane_first_item(&mut self) {
-        self.selected_pane_mut().widget_mut().select_first();
+        self.selected_pane_mut().select_first_item();
     }
 
     pub fn select_pane_last_item(&mut self) {
-        self.selected_pane_mut().widget_mut().select_last();
+        self.selected_pane_mut().select_last_item();
     }
 
     pub fn selected_pane_id(&self) -> &str {
