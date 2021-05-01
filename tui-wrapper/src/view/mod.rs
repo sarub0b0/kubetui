@@ -1,11 +1,11 @@
 pub mod pane;
-pub mod popup;
 pub mod select;
+pub mod sub_window;
 pub mod tab;
 pub mod window;
 
 pub use pane::Pane;
-pub use popup::Popup;
+pub use sub_window::SubWindow;
 pub use tab::Tab;
 pub use window::Window;
 

@@ -14,6 +14,7 @@ crossterm = "0.18"
 tui = { git = "https://github.com/sarub0b0/tui-rs.git", features = ['crossterm'] }
 tokio = { version = "1", features = ["rt"] }
 crossbeam = "0.8"
+frunk = "0.3"
 
 tui-wrapper = { path = "./tui-wrapper" }
 event = { path = "./event" }
@@ -22,4 +23,3 @@ ansi = { path = "./ansi" }
 [[example]]
 name = "select"
 path = "test/select.rs"
-
