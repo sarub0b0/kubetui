@@ -1,5 +1,5 @@
 use super::{tab::*, Pane};
-use crate::widget::Widget;
+use crate::{widget::Widget, WidgetTrait};
 
 use tui::{
     backend::Backend,
@@ -154,6 +154,12 @@ impl<'a> Window<'a> {
 
     pub fn select_prev_pane(&mut self) {
         self.selected_tab_mut().prev_pane();
+    }
+
+    pub fn pane_clear(&mut self, id: &str) {
+        if let Some(pane) = self.pane_mut(id) {
+            pane.widget_mut().clear();
+        }
     }
 }
 
