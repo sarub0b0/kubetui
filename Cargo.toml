@@ -23,6 +23,4 @@ ansi = { path = "./ansi" }
 component = { path = "component" }
 sub-window = { path = "sub-window" }
 
-[[example]]
-name = "select"
-path = "test/select.rs"
+
