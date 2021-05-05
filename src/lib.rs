@@ -6,7 +6,7 @@ use crossterm::event::{KeyCode, KeyModifiers};
 use tui::layout::Rect;
 
 use event::{kubernetes::*, Event};
-use tui_wrapper::{widget::WidgetItem, *};
+use tui_wrapper::{sub_window::PaneTrait, widget::WidgetItem, *};
 
 pub mod view_id {
 
@@ -31,7 +31,10 @@ pub mod view_id {
     generate_id!(subwin_ns);
     generate_id!(subwin_ns_pane_ns);
     generate_id!(subwin_apis);
-    generate_id!(subwin_apis_pane_apis);
+    generate_id!(subwin_apis_pane);
+    generate_id!(subwin_apis_pane_filter);
+    generate_id!(subwin_apis_pane_items);
+    generate_id!(subwin_apis_pane_selected);
 }
 
 pub enum WindowEvent {
@@ -109,37 +112,71 @@ fn update_window_pane_items(window: &mut Window, id: &str, items: WidgetItem) {
     }
 }
 
-pub fn apis_subwin_action(
+pub fn apis_subwin_action<'a, P>(
     window: &mut Window,
-    subwin: &mut SubWindow,
+    subwin: &mut SubWindow<P>,
     _tx: &Sender<Event>,
     rx: &Receiver<Event>,
-) -> WindowEvent {
+) -> WindowEvent
+where
+    P: PaneTrait<Item = Select<'a>>,
+{
+    let pane = subwin.pane_mut();
+
     match rx.recv().unwrap() {
-        Event::Input(ev) => match ev.code {
-            KeyCode::Char('q') if ev.modifiers == KeyModifiers::CONTROL => {
+        Event::Input(key) => match key.code {
+            KeyCode::Char('q') if key.modifiers == KeyModifiers::CONTROL => {
                 return WindowEvent::CloseSubWindow
             }
-            KeyCode::Char('n') if ev.modifiers == KeyModifiers::CONTROL => {
-                subwin.select_next_item();
-            }
-            KeyCode::Char('p') if ev.modifiers == KeyModifiers::CONTROL => {
-                subwin.select_prev_item();
-            }
-            KeyCode::Char('u') if ev.modifiers == KeyModifiers::CONTROL => {
-                subwin.select_next_item();
-            }
-            KeyCode::Char('d') if ev.modifiers == KeyModifiers::CONTROL => {
-                subwin.select_prev_item();
+
+            KeyCode::Char('n') if key.modifiers == KeyModifiers::CONTROL => {
+                pane.select_next_item();
             }
 
-            KeyCode::Enter | KeyCode::Char(' ') => {}
+            KeyCode::Char('p') if key.modifiers == KeyModifiers::CONTROL => {
+                pane.select_prev_item();
+            }
+
+            KeyCode::Char('u') if key.modifiers == KeyModifiers::CONTROL => {
+                pane.select_next_item();
+            }
+
+            KeyCode::Char('d') if key.modifiers == KeyModifiers::CONTROL => {
+                pane.select_prev_item();
+            }
+
+            KeyCode::Char('h') if key.modifiers == KeyModifiers::CONTROL => {
+                pane.remove_char();
+            }
+
+            KeyCode::Tab => {
+                pane.select_next_pane();
+            }
+
+            KeyCode::Enter | KeyCode::Char(' ') => {
+                pane.toggle_select_unselect();
+            }
+
+            KeyCode::Delete | KeyCode::Backspace => {
+                pane.remove_char();
+            }
+
+            KeyCode::Right => {
+                pane.forward_cursor();
+            }
+
+            KeyCode::Left => {
+                pane.back_cursor();
+            }
+
+            KeyCode::Char(c) => {
+                pane.insert_char(c);
+            }
+
             _ => {}
         },
         Event::Kube(k) => match k {
-            Kube::GetNamespacesResponse(ns) => {
-                subwin.set_items(view_id::subwin_ns_pane_ns, WidgetItem::Array(ns))
-            }
+            Kube::GetAPIsResponse(apis) => pane.set_items(apis),
             _ => {}
         },
         Event::Resize(w, h) => {
@@ -152,75 +189,76 @@ pub fn apis_subwin_action(
     WindowEvent::Continue
 }
 
-pub fn namespace_subwin_action(
+pub fn namespace_subwin_action<'a, P>(
     window: &mut Window,
-    subwin: &mut SubWindow,
+    subwin: &mut SubWindow<P>,
     tx: &Sender<Event>,
     rx: &Receiver<Event>,
     current_namespace: &mut String,
-) -> WindowEvent {
+) -> WindowEvent
+where
+    P: PaneTrait<Item = Pane<'a>>,
+{
+    let pane = subwin.pane_mut();
     match rx.recv().unwrap() {
         Event::Input(ev) => match ev.code {
             KeyCode::Char('q') => return WindowEvent::CloseSubWindow,
             KeyCode::Char('j') | KeyCode::Down => {
-                subwin.select_next_item();
+                pane.select_next_item(1);
             }
             KeyCode::Char('k') | KeyCode::Up => {
-                subwin.select_prev_item();
+                pane.select_prev_item(1);
             }
             KeyCode::Char('n') if ev.modifiers == KeyModifiers::CONTROL => {
-                subwin.select_next_item();
+                pane.select_next_item(1);
             }
             KeyCode::Char('p') if ev.modifiers == KeyModifiers::CONTROL => {
-                subwin.select_prev_item();
+                pane.select_prev_item(1);
             }
             KeyCode::Char('u') if ev.modifiers == KeyModifiers::CONTROL => {
-                subwin.select_next_item();
+                pane.select_next_item(1);
             }
             KeyCode::Char('d') if ev.modifiers == KeyModifiers::CONTROL => {
-                subwin.select_prev_item();
+                pane.select_prev_item(1);
             }
 
             KeyCode::Char('G') => {
-                subwin.select_last_item();
+                pane.select_last_item();
             }
             KeyCode::Char('g') => {
-                subwin.select_first_item();
+                pane.select_first_item();
             }
 
             KeyCode::Enter => {
-                let list = subwin.selected_pane().widget().list().unwrap();
-                let index = list.state().borrow().selected();
+                if let Some(item) = pane.get_item(view_id::subwin_ns_pane_ns) {
+                    let item = item.get_simple();
 
-                let selected_item = &list.items()[index.unwrap()];
+                    tx.send(Event::Kube(Kube::SetNamespace(item.to_string())))
+                        .unwrap();
 
-                tx.send(Event::Kube(Kube::SetNamespace(selected_item.to_string())))
-                    .unwrap();
+                    *current_namespace = item.to_string();
 
-                *current_namespace = selected_item.to_string();
+                    if let Some(p) = window.pane_mut(view_id::tab_event_pane_event) {
+                        let w = p.widget_mut().text_mut().unwrap();
+                        w.clear();
+                    }
 
-                if let Some(p) = window.pane_mut(view_id::tab_event_pane_event) {
-                    let w = p.widget_mut().text_mut().unwrap();
-                    w.clear();
-                }
+                    if let Some(p) = window.pane_mut(view_id::tab_pods_pane_logs) {
+                        let w = p.widget_mut().text_mut().unwrap();
+                        w.clear();
+                    }
 
-                if let Some(p) = window.pane_mut(view_id::tab_pods_pane_logs) {
-                    let w = p.widget_mut().text_mut().unwrap();
-                    w.clear();
-                }
-
-                if let Some(p) = window.pane_mut(view_id::tab_configs_pane_raw_data) {
-                    let w = p.widget_mut().text_mut().unwrap();
-                    w.clear();
+                    if let Some(p) = window.pane_mut(view_id::tab_configs_pane_raw_data) {
+                        let w = p.widget_mut().text_mut().unwrap();
+                        w.clear();
+                    }
                 }
                 return WindowEvent::CloseSubWindow;
             }
             _ => {}
         },
         Event::Kube(k) => match k {
-            Kube::GetNamespacesResponse(ns) => {
-                subwin.set_items(view_id::subwin_ns_pane_ns, WidgetItem::Array(ns))
-            }
+            Kube::GetNamespacesResponse(ns) => pane.set_items(WidgetItem::Array(ns)),
             _ => {}
         },
         Event::Resize(w, h) => {
@@ -233,9 +271,9 @@ pub fn namespace_subwin_action(
     WindowEvent::Continue
 }
 
-pub fn window_action(
+pub fn window_action<P: PaneTrait>(
     window: &mut Window,
-    subwin: &mut SubWindow,
+    subwin: &mut SubWindow<P>,
     tx: &Sender<Event>,
     rx: &Receiver<Event>,
     current_namespace: &mut String,
@@ -286,6 +324,7 @@ pub fn window_action(
 
             KeyCode::Char('/') | KeyCode::Char('f') => {
                 if window.selected_tab_id() == view_id::tab_apis {
+                    tx.send(Event::Kube(Kube::GetAPIsRequest)).unwrap();
                     return WindowEvent::OpenSubWindow(view_id::subwin_apis);
                 }
             }

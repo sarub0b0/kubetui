@@ -27,7 +27,7 @@ fn main() {
     let mut terminal = Terminal::new(backend).unwrap();
     terminal.clear().unwrap();
 
-    let mut select = Select::new("Select").block(Block::default().borders(Borders::ALL));
+    let mut select = Select::new("select", "Select").block(Block::default().borders(Borders::ALL));
     select.set_items(
         vec!["abc", "abd", "acd", "hoge", "fuga"]
             .iter()
@@ -96,10 +96,10 @@ fn main() {
                 Event::Key(key) => match key.code {
                     KeyCode::Char('q') if key.modifiers == KeyModifiers::CONTROL => break,
                     KeyCode::Char('n') if key.modifiers == KeyModifiers::CONTROL => {
-                        select.select_next();
+                        select.select_next_item();
                     }
                     KeyCode::Char('p') if key.modifiers == KeyModifiers::CONTROL => {
-                        select.select_prev();
+                        select.select_prev_item();
                     }
                     KeyCode::Delete | KeyCode::Char('h')
                         if key.modifiers == KeyModifiers::CONTROL =>

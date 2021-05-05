@@ -16,6 +16,7 @@ use crossterm::{
 use tui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
+    widgets::{Block, Borders},
     Terminal,
 };
 
@@ -136,25 +137,20 @@ fn run() {
     let mut subwin_namespace = SubWindow::new(
         view_id::subwin_ns,
         "Namespace",
-        vec![Pane::new(
+        Pane::new(
             "Namespace",
             Widget::List(List::new(vec![])),
             0,
             view_id::subwin_ns_pane_ns,
-        )],
-        Layout::default().constraints([Constraint::Percentage(100)]),
+        ),
+        None,
     );
 
     let mut subwin_apis = SubWindow::new(
         view_id::subwin_apis,
         "APIs",
-        vec![Pane::new(
-            "APIs",
-            Widget::List(List::new(vec![])),
-            0,
-            view_id::subwin_apis_pane_apis,
-        )],
-        Layout::default().constraints([Constraint::Percentage(100)]),
+        Select::new(view_id::subwin_apis_pane, "Select APIs"),
+        Some(Block::default().borders(Borders::ALL)),
     );
 
     let mut window = Window::new(tabs);
