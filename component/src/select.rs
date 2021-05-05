@@ -408,10 +408,15 @@ impl<'a> SelectForm<'a> {
             self.filter_items(self.list_items.clone()),
         ));
     }
+
+    fn status(&self) -> (usize, usize) {
+        (self.selected_items.len(), self.list_items.len())
+    }
 }
 
 const LAYOUT_INDEX_FOR_INPUT_FORM: usize = 0;
-const LAYOUT_INDEX_FOR_SELECT_FORM: usize = 1;
+const LAYOUT_INDEX_FOR_STATUS: usize = 1;
+const LAYOUT_INDEX_FOR_SELECT_FORM: usize = 2;
 
 pub struct Select<'a> {
     id: String,
@@ -436,7 +441,11 @@ impl<'a> Select<'a> {
         // ---------------------
         let layout = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(3), Constraint::Min(3)]);
+            .constraints([
+                Constraint::Length(3),
+                Constraint::Length(1),
+                Constraint::Min(3),
+            ]);
 
         Self {
             id: id.into(),
@@ -470,6 +479,12 @@ impl<'a> Select<'a> {
     pub fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
         f.render_widget(self.block.clone().title(self.title.as_str()), self.chunk);
         self.input_widget.render(f);
+
+        let status = self.selected_widget.status();
+        f.render_widget(
+            Paragraph::new(format!("[{}/{}]", status.0, status.1)),
+            self.layout.split(self.block.inner(self.chunk))[LAYOUT_INDEX_FOR_STATUS],
+        );
         self.selected_widget.render(f);
     }
 
