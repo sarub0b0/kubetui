@@ -134,6 +134,7 @@ fn run() {
         ),
     ];
 
+    // - TODO: select.rsを応用してnamespacenにもフィルター機能を実装
     let mut subwin_namespace = SubWindow::new(
         view_id::subwin_ns,
         "Namespace",
