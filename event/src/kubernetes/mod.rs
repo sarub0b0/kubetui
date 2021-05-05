@@ -8,6 +8,7 @@ mod request;
 mod v1_table;
 
 use super::Event;
+use api_resources::apis_list;
 use config::{configs_loop, get_config};
 use context::namespace_list;
 use event::event_loop;
@@ -104,6 +105,7 @@ pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
             client.clone(),
             Arc::clone(&namespace),
             current_context,
+            server_url.clone(),
         ));
 
         let pod_loop = tokio::spawn(pod_loop(
@@ -139,6 +141,7 @@ async fn main_loop(
     client: Client,
     namespace: Arc<RwLock<String>>,
     current_context: String,
+    server_url: String,
 ) {
     let mut log_stream_handler: Option<Handlers> = None;
     loop {
@@ -193,7 +196,7 @@ async fn main_loop(
                         .unwrap();
                     }
                     Kube::GetAPIsRequest => {
-                        let apis = vec!["v1".to_string(), "test".to_string()];
+                        let apis = apis_list(client, &server_url).await;
 
                         tx.send(Event::Kube(Kube::GetAPIsResponse(apis))).unwrap();
                     }
