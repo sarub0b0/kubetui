@@ -1,3 +1,4 @@
+mod api_resources;
 mod config;
 mod context;
 mod event;
@@ -28,6 +29,11 @@ use kube::{
 };
 
 pub enum Kube {
+    // apis
+    GetAPIsRequest,
+    GetAPIsResponse(Vec<String>),
+    SetAPIsRequest(Vec<String>),
+    APIsResults(Vec<Vec<String>>),
     // Context
     GetContextsRequest,
     GetContextsResponse(Vec<String>),
@@ -185,6 +191,11 @@ async fn main_loop(
                             ns.to_string(),
                         )))
                         .unwrap();
+                    }
+                    Kube::GetAPIsRequest => {
+                        let apis = vec!["v1".to_string(), "test".to_string()];
+
+                        tx.send(Event::Kube(Kube::GetAPIsResponse(apis))).unwrap();
                     }
                     _ => unreachable!(),
                 },
