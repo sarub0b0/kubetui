@@ -153,6 +153,14 @@ impl WidgetTrait for List<'_> {
 
     fn update_area(&mut self, _area: Rect) {}
     fn clear(&mut self) {}
+
+    fn get_item(&self) -> Option<WidgetItem> {
+        let index = self.state.borrow().selected();
+        match index {
+            Some(i) => Some(WidgetItem::Simple(self.items[i].clone())),
+            None => None,
+        }
+    }
 }
 
 impl RenderTrait for List<'_> {

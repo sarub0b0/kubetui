@@ -58,10 +58,10 @@ pub struct TextState {
 }
 
 impl TextState {
-    fn select(&mut self, index: u64) {
+    pub fn select(&mut self, index: u64) {
         self.scroll = index;
     }
-    fn selected(&self) -> u64 {
+    pub fn selected(&self) -> u64 {
         self.scroll
     }
 }
@@ -238,6 +238,12 @@ impl WidgetTrait for Text<'_> {
         let area = self.area;
         *self = Self::default();
         self.area = area;
+    }
+    fn get_item(&self) -> Option<WidgetItem> {
+        let index = self.state.selected();
+        Some(WidgetItem::Simple(
+            self.spans[index as usize].clone().into(),
+        ))
     }
 }
 

@@ -186,6 +186,14 @@ impl WidgetTrait for Table<'_> {
     fn clear(&mut self) {
         *self = Self::default();
     }
+
+    fn get_item(&self) -> Option<WidgetItem> {
+        let index = self.state.borrow().selected();
+        match index {
+            Some(i) => Some(WidgetItem::Array(self.items[i].clone())),
+            None => None,
+        }
+    }
 }
 
 impl RenderTrait for Table<'_> {

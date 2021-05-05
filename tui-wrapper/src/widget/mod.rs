@@ -10,18 +10,25 @@ pub use table::*;
 use tui::{backend::Backend, layout::Rect, widgets::Block, Frame};
 
 pub enum WidgetItem {
+    Simple(String),
     Array(Vec<String>),
     DoubleArray(Vec<Vec<String>>),
 }
 
 impl WidgetItem {
-    fn get_array(self) -> Vec<String> {
+    pub fn get_simple(self) -> String {
+        match self {
+            WidgetItem::Simple(item) => item,
+            _ => String::default(),
+        }
+    }
+    pub fn get_array(self) -> Vec<String> {
         match self {
             WidgetItem::Array(item) => item,
             _ => Vec::new(),
         }
     }
-    fn get_double_array(self) -> Vec<Vec<String>> {
+    pub fn get_double_array(self) -> Vec<Vec<String>> {
         match self {
             WidgetItem::DoubleArray(item) => item,
             _ => Vec::new(),
@@ -36,6 +43,7 @@ pub trait WidgetTrait {
     fn select_first(&mut self);
     fn select_last(&mut self);
     fn set_items(&mut self, items: WidgetItem);
+    fn get_item(&self) -> Option<WidgetItem>;
     fn update_area(&mut self, area: Rect);
     fn clear(&mut self);
 }
@@ -159,6 +167,14 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.clear(),
             Widget::Text(w) => w.clear(),
             Widget::Table(w) => w.clear(),
+        }
+    }
+
+    fn get_item(&self) -> Option<WidgetItem> {
+        match self {
+            Widget::List(w) => w.get_item(),
+            Widget::Text(w) => w.get_item(),
+            Widget::Table(w) => w.get_item(),
         }
     }
 }
