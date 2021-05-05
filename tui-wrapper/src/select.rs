@@ -12,6 +12,8 @@ use fuzzy_matcher::FuzzyMatcher;
 
 use std::time::{Duration, Instant};
 
+use std::collections::HashSet;
+
 use super::focus_block;
 use super::widget::*;
 
@@ -175,8 +177,8 @@ impl<'a> InputForm<'a> {
 }
 
 struct SelectForm<'a> {
-    list_items: Vec<String>,
-    selected_items: Vec<String>,
+    list_items: HashSet<String>,
+    selected_items: HashSet<String>,
     filter: String,
     list_widget: Widget<'a>,
     selected_widget: Widget<'a>,
@@ -192,8 +194,8 @@ impl Default for SelectForm<'_> {
             .direction(Direction::Horizontal)
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)]);
         Self {
-            list_items: Vec::new(),
-            selected_items: Vec::new(),
+            list_items: HashSet::new(),
+            selected_items: HashSet::new(),
             filter: String::default(),
             list_widget: Widget::List(List::default()),
             selected_widget: Widget::List(List::default()),
@@ -249,7 +251,7 @@ impl<'a> SelectForm<'a> {
         f.render_stateful_widget(w, ch_selected, &mut list.state().borrow_mut());
     }
 
-    fn filter_items(&self, items: &[String]) -> Vec<String> {
+    fn filter_items(&self, items: HashSet<String>) -> Vec<String> {
         items
             .iter()
             .filter_map(|item| match self.matcher.fuzzy_match(&item, &self.filter) {
@@ -310,52 +312,41 @@ impl<'a> SelectForm<'a> {
         };
 
         if let Some(selected_item) = selected_item {
-            // 1. 選択されたアイテムを探して
-            // 2. 一覧から削除
-            // 3. 選択中リストに追加
-            let find = self
-                .focused_items()
-                .iter()
-                .enumerate()
-                .find(|(_i, s)| s == &&selected_item)
-                .map(|(i, _)| i);
-
-            if let Some(index) = find {
-                let item = self.focused_item_mut().remove(index);
-                self.unfocused_item_mut().push(item);
-                self.unfocused_item_mut().sort();
-            }
-
-            let focused_item = if self.focus_id == 0 {
-                self.filter_items(&self.list_items)
-            } else {
-                self.selected_items.clone()
-            };
-
-            let unfocused_item = if self.focus_id == 1 {
-                self.filter_items(&self.list_items)
-            } else {
-                self.selected_items.clone()
-            };
-
-            if let Some(list) = self.focused_form_mut().list_mut() {
-                list.set_items(WidgetItem::Array(focused_item));
-            }
-            if let Some(list) = self.unfocused_form_mut().list_mut() {
-                list.set_items(WidgetItem::Array(unfocused_item));
-            }
+            self.swap_item(&selected_item)
         }
     }
 
-    fn focused_items(&self) -> &Vec<String> {
-        if self.focus_id == 0 {
-            &self.list_items
+    fn swap_item(&mut self, item: &str) {
+        // 1. 選択されたアイテムを探して
+        // 2. 一覧から削除
+        // 3. 選択中リストに追加
+        self.focused_item_mut().remove(item);
+        self.unfocused_item_mut().insert(item.to_string());
+
+        let mut focused_item = if self.focus_id == 0 {
+            self.filter_items(self.list_items.clone())
         } else {
-            &self.selected_items
+            self.selected_items.clone().into_iter().collect()
+        };
+
+        let mut unfocused_item = if self.focus_id == 1 {
+            self.filter_items(self.list_items.clone())
+        } else {
+            self.selected_items.clone().into_iter().collect()
+        };
+
+        focused_item.sort();
+        unfocused_item.sort();
+
+        if let Some(list) = self.focused_form_mut().list_mut() {
+            list.set_items(WidgetItem::Array(focused_item));
+        }
+        if let Some(list) = self.unfocused_form_mut().list_mut() {
+            list.set_items(WidgetItem::Array(unfocused_item));
         }
     }
 
-    fn focused_item_mut(&mut self) -> &mut Vec<String> {
+    fn focused_item_mut(&mut self) -> &mut HashSet<String> {
         if self.focus_id == 0 {
             &mut self.list_items
         } else {
@@ -363,7 +354,7 @@ impl<'a> SelectForm<'a> {
         }
     }
 
-    fn unfocused_item_mut(&mut self) -> &mut Vec<String> {
+    fn unfocused_item_mut(&mut self) -> &mut HashSet<String> {
         if self.focus_id == 1 {
             &mut self.list_items
         } else {
@@ -372,17 +363,45 @@ impl<'a> SelectForm<'a> {
     }
 
     fn set_items(&mut self, items: Vec<String>) {
-        self.list_items = items;
-        self.list_widget
-            .set_items(WidgetItem::Array(self.list_items.clone()));
+        // マージ処理
+        let new_items: HashSet<String> = items.clone().into_iter().collect();
+        let mut old_items = self.list_items.clone();
+
+        self.selected_items.iter().for_each(|item| {
+            old_items.insert(item.to_string());
+        });
+
+        // 新しく増えたアイテム
+        // アイテムリストに追加
+        let add_items = new_items.difference(&old_items);
+        add_items.for_each(|item| {
+            self.list_items.insert(item.to_string());
+        });
+
+        // 消えたアイテム
+        // 両方のリストから削除
+        let del_items = old_items.difference(&new_items);
+        del_items.for_each(|item| {
+            self.list_items.remove(item);
+            self.selected_items.remove(item);
+        });
+
+        self.list_widget.set_items(WidgetItem::Array(
+            self.list_items.clone().into_iter().collect(),
+        ));
+
+        self.selected_widget.set_items(WidgetItem::Array(
+            self.selected_items.clone().into_iter().collect(),
+        ));
     }
 
     fn update_filter(&mut self, filter: &str) {
         self.filter = filter.to_string();
         self.focus_id = 0;
 
-        self.list_widget
-            .set_items(WidgetItem::Array(self.filter_items(&self.list_items)));
+        self.list_widget.set_items(WidgetItem::Array(
+            self.filter_items(self.list_items.clone()),
+        ));
     }
 }
 
