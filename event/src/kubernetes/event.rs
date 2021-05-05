@@ -1,4 +1,4 @@
-use super::request::get_resource_request;
+use super::request::get_table_request;
 use super::v1_table::*;
 use super::{Event, Kube};
 use crate::kubernetes::Handlers;
@@ -46,7 +46,7 @@ const TARGET: [&str; TARGET_LEN] = ["Last Seen", "Object", "Reason", "Message"];
 
 async fn get_event_list(client: Client, ns: &str, server_url: &str) -> Vec<String> {
     let table: Result<Table, kube::Error> = client
-        .request(get_resource_request(server_url, ns, "events").unwrap())
+        .request(get_table_request(server_url, ns, "events").unwrap())
         .await;
 
     match table {

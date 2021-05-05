@@ -1,4 +1,4 @@
-use super::request::get_resource_request;
+use super::request::get_table_request;
 use super::v1_table::*;
 use super::{Event, Kube};
 
@@ -58,7 +58,7 @@ pub async fn pod_loop(
 
 async fn get_pod_info(client: Client, namespace: &str, server_url: &str) -> Vec<Vec<String>> {
     let table: Result<Table, kube::Error> = client
-        .request(get_resource_request(server_url, namespace, "pods").unwrap())
+        .request(get_table_request(server_url, namespace, "pods").unwrap())
         .await;
 
     let mut ret = Vec::new();
