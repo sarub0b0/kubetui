@@ -5,6 +5,7 @@ pub mod tab;
 pub mod window;
 
 pub use pane::Pane;
+pub use select::Select;
 pub use sub_window::SubWindow;
 pub use tab::Tab;
 pub use window::Window;
@@ -39,7 +40,6 @@ fn focus_block(title: &str, selected: bool) -> Block {
 
     Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::default())
         .title(generate_title(title, border_color, selected))
         .border_style(Style::default().fg(border_color))
 }
