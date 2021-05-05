@@ -390,6 +390,7 @@ const LAYOUT_INDEX_FOR_INPUT_FORM: usize = 0;
 const LAYOUT_INDEX_FOR_SELECT_FORM: usize = 1;
 
 pub struct Select<'a> {
+    id: String,
     title: String,
     input_widget: InputForm<'a>,
     selected_widget: SelectForm<'a>,
@@ -399,7 +400,7 @@ pub struct Select<'a> {
 }
 
 impl<'a> Select<'a> {
-    pub fn new(title: impl Into<String>) -> Self {
+    pub fn new(id: impl Into<String>, title: impl Into<String>) -> Self {
         // split [InputForm, SelectForms]
         // ---------------------
         // |     InputForm     |
@@ -414,6 +415,7 @@ impl<'a> Select<'a> {
             .constraints([Constraint::Length(3), Constraint::Min(3)]);
 
         Self {
+            id: id.into(),
             title: title.into(),
             layout,
             ..Self::default()
@@ -423,6 +425,10 @@ impl<'a> Select<'a> {
     pub fn block(mut self, block: Block<'a>) -> Self {
         self.block = block;
         self
+    }
+
+    pub fn id(&self) -> &str {
+        &self.id
     }
 
     pub fn update_chunk(&mut self, chunk: Rect) {
@@ -467,11 +473,11 @@ impl<'a> Select<'a> {
         self.selected_widget.toggle_focus();
     }
 
-    pub fn select_next(&mut self) {
+    pub fn select_next_item(&mut self) {
         self.selected_widget.select_next();
     }
 
-    pub fn select_prev(&mut self) {
+    pub fn select_prev_item(&mut self) {
         self.selected_widget.select_prev();
     }
 
@@ -487,6 +493,7 @@ impl<'a> Select<'a> {
 impl Default for Select<'_> {
     fn default() -> Self {
         Self {
+            id: String::default(),
             title: String::default(),
             input_widget: InputForm::default(),
             selected_widget: SelectForm::default(),
