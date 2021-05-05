@@ -208,8 +208,18 @@ fn run() {
                 _ => WindowEvent::Continue,
             };
 
-            if let WindowEvent::CloseSubWindow = event {
-                subwin_id = None;
+            match event {
+                WindowEvent::CloseSubWindow => {
+                    subwin_id = None;
+                }
+                WindowEvent::CloseWindow => {}
+                WindowEvent::Continue => {}
+                WindowEvent::OpenSubWindow(_) => {}
+                WindowEvent::ResizeWindow => {
+                    window.update_chunks(terminal.size().unwrap());
+                    subwin_namespace.update_chunks(terminal.size().unwrap());
+                    subwin_apis.update_chunks(terminal.size().unwrap());
+                }
             }
         } else {
             match window_action(
@@ -225,6 +235,11 @@ fn run() {
                 WindowEvent::OpenSubWindow(id) => subwin_id = Some(id),
                 WindowEvent::CloseSubWindow => {
                     unreachable!()
+                }
+                WindowEvent::ResizeWindow => {
+                    window.update_chunks(terminal.size().unwrap());
+                    subwin_namespace.update_chunks(terminal.size().unwrap());
+                    subwin_apis.update_chunks(terminal.size().unwrap());
                 }
             }
         }

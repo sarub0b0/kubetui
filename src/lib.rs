@@ -343,11 +343,13 @@ fn datetime() -> Span<'static> {
 fn text_status((current, rows): (u64, u64)) -> Span<'static> {
     Span::raw(format!("{}/{}", current, rows))
 }
+
 pub enum WindowEvent {
     CloseWindow,
     Continue,
     OpenSubWindow(&'static str),
     CloseSubWindow,
+    ResizeWindow,
 }
 
 fn update_event(window: &mut Window, ev: Vec<String>) {
@@ -418,7 +420,7 @@ fn update_window_pane_items(window: &mut Window, id: &str, items: WidgetItem) {
 }
 
 pub fn apis_subwin_action<'a, P>(
-    window: &mut Window,
+    _window: &mut Window,
     subwin: &mut SubWindow<P>,
     _tx: &Sender<Event>,
     rx: &Receiver<Event>,
@@ -484,9 +486,8 @@ where
             Kube::GetAPIsResponse(apis) => pane.set_items(apis),
             _ => {}
         },
-        Event::Resize(w, h) => {
-            window.update_chunks(Rect::new(0, 0, w, h));
-            subwin.update_chunks(Rect::new(0, 0, w, h));
+        Event::Resize(_w, _h) => {
+            return WindowEvent::ResizeWindow;
         }
         _ => {}
     }
@@ -563,9 +564,8 @@ where
             Kube::GetNamespacesResponse(ns) => pane.set_items(WidgetItem::Array(ns)),
             _ => {}
         },
-        Event::Resize(w, h) => {
-            window.update_chunks(Rect::new(0, 0, w, h));
-            subwin.update_chunks(Rect::new(0, 0, w, h));
+        Event::Resize(_w, _h) => {
+            return WindowEvent::ResizeWindow;
         }
         _ => {}
     }
@@ -575,7 +575,7 @@ where
 
 pub fn window_action<P: PaneTrait>(
     window: &mut Window,
-    subwin: &mut SubWindow<P>,
+    _subwin: &mut SubWindow<P>,
     tx: &Sender<Event>,
     rx: &Receiver<Event>,
     current_namespace: &mut String,
@@ -646,9 +646,8 @@ pub fn window_action<P: PaneTrait>(
             _ => {}
         },
 
-        Event::Resize(w, h) => {
-            window.update_chunks(Rect::new(0, 0, w, h));
-            subwin.update_chunks(Rect::new(0, 0, w, h));
+        Event::Resize(_w, _h) => {
+            return WindowEvent::ResizeWindow;
         }
         Event::Tick => {}
         Event::Mouse => {}
