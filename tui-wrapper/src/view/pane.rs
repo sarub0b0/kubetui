@@ -85,6 +85,10 @@ impl<'a> Pane<'a> {
     pub fn block(&self, selected: bool) -> Block {
         focus_block(&self.title, selected)
     }
+
+    pub fn clear(&mut self) {
+        self.widget.clear()
+    }
 }
 
 impl Pane<'_> {
