@@ -109,6 +109,17 @@ impl<'a> Tab<'a> {
             .iter_mut()
             .for_each(|pane| pane.update_chunk(chunks[pane.chunk_index()]));
     }
+
+    pub fn select_pane(&mut self, id: &str) {
+        if let Some((index, _)) = self
+            .panes
+            .iter()
+            .enumerate()
+            .find(|(_i, pane)| pane.id() == id)
+        {
+            self.selected_pane_index = index;
+        }
+    }
 }
 
 impl Tab<'_> {

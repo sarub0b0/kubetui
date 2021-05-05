@@ -199,6 +199,10 @@ impl<'a> Window<'a> {
             pane.clear();
         }
     }
+
+    pub fn select_pane(&mut self, id: &str) {
+        self.selected_tab_mut().select_pane(id)
+    }
 }
 
 // フォーカスしているwidgetの状態変更
@@ -550,10 +554,12 @@ where
 
                     if let Some(p) = window.pane_mut(view_id::tab_pods_pane_logs) {
                         p.clear();
+                        window.select_pane(view_id::tab_pods_pane_pods);
                     }
 
                     if let Some(p) = window.pane_mut(view_id::tab_configs_pane_raw_data) {
                         p.clear();
+                        window.select_pane(view_id::tab_configs_pane_configs);
                     }
                 }
                 return WindowEvent::CloseSubWindow;
