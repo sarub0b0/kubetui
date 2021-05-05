@@ -803,6 +803,7 @@ name = "kubetui"
 version = "0.1.0"
 dependencies = [
  "ansi",
+ "chrono",
  "crossbeam",
  "crossterm 0.18.2",
  "event",
@@ -1757,7 +1758,6 @@ name = "tui-wrapper"
 version = "0.1.0"
 dependencies = [
  "ansi",
- "chrono",
  "fuzzy-matcher",
  "pretty_assertions",
  "rayon",

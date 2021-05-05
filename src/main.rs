@@ -21,7 +21,7 @@ use tui::{
 };
 
 use event::{input::*, kubernetes::*, tick::*, Event};
-use tui_wrapper::*;
+use tui_wrapper::{widget::*, *};
 
 extern crate kubetui;
 use kubetui::*;

@@ -1,6 +1,5 @@
-use super::pane::Pane;
+use super::{widget::*, Pane};
 
-use crate::widget::*;
 use tui::{
     backend::Backend,
     layout::{Layout, Rect},
@@ -26,7 +25,7 @@ impl<'a> Tab<'a> {
         let selectable_widgets = panes
             .iter()
             .enumerate()
-            .filter(|&(_, p)| p.widget().selectable())
+            .filter(|&(_, pane)| pane.widget().selectable())
             .map(|(i, _)| i)
             .collect();
 
@@ -52,11 +51,11 @@ impl<'a> Tab<'a> {
         self.layout.split(tab_size)
     }
 
-    pub fn panes(&self) -> &Vec<Pane<'a>> {
+    pub fn widgets(&self) -> &Vec<Pane<'a>> {
         &self.panes
     }
 
-    pub fn panes_mut(&mut self) -> &mut Vec<Pane<'a>> {
+    pub fn widgets_mut(&mut self) -> &mut Vec<Pane<'a>> {
         &mut self.panes
     }
 

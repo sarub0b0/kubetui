@@ -1,7 +1,7 @@
 use tui::{backend::Backend, layout::Rect, widgets::Block, Frame};
 
 use super::focus_block;
-use crate::widget::*;
+use super::widget::*;
 
 #[derive(Debug, Clone)]
 pub struct Pane<'a> {

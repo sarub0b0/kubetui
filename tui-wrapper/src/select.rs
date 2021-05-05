@@ -13,7 +13,7 @@ use fuzzy_matcher::FuzzyMatcher;
 use std::time::{Duration, Instant};
 
 use super::focus_block;
-use crate::widget::*;
+use super::widget::*;
 
 #[derive(Debug)]
 enum Mode {

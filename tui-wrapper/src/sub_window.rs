@@ -5,7 +5,7 @@ use tui::{
     Frame,
 };
 
-use super::{child_window_chunk, Pane, Select};
+use super::{child_window_chunk, pane::Pane, Select};
 use crate::widget::{WidgetItem, WidgetTrait};
 
 pub trait PaneTrait {

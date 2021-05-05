@@ -3,9 +3,9 @@ pub mod list;
 pub mod table;
 pub mod text;
 
-pub use self::list::*;
-pub use self::text::*;
+pub use list::*;
 pub use table::*;
+pub use text::*;
 
 use tui::{backend::Backend, layout::Rect, widgets::Block, Frame};
 
