@@ -386,13 +386,15 @@ impl<'a> SelectForm<'a> {
             self.selected_items.remove(item);
         });
 
-        self.list_widget.set_items(WidgetItem::Array(
-            self.list_items.clone().into_iter().collect(),
-        ));
+        let mut items: Vec<String> = self.list_items.clone().into_iter().collect();
+        items.sort();
 
-        self.selected_widget.set_items(WidgetItem::Array(
-            self.selected_items.clone().into_iter().collect(),
-        ));
+        self.list_widget.set_items(WidgetItem::Array(items));
+
+        let mut items: Vec<String> = self.selected_items.clone().into_iter().collect();
+        items.sort();
+
+        self.selected_widget.set_items(WidgetItem::Array(items));
     }
 
     fn update_filter(&mut self, filter: &str) {
