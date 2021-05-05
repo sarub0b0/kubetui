@@ -1,46 +1,158 @@
 use tui::{
     backend::Backend,
-    layout::{Constraint, Direction, Layout, Rect},
-    widgets::Clear,
+    layout::Rect,
+    widgets::{Block, Clear},
     Frame,
 };
 
-use super::{child_window_chunk, Pane};
+use super::{child_window_chunk, Pane, Select};
 use crate::widget::{WidgetItem, WidgetTrait};
 
-#[derive(Clone)]
-pub struct SubWindow<'a> {
-    id: String,
-    title: String,
-    layout: Layout,
-    chunk: Rect,
-    panes: Vec<Pane<'a>>,
-    selected_pane_index: usize,
-    selectable_panes: Vec<usize>,
+pub trait PaneTrait {
+    type Item;
+    fn id(&self) -> &str;
+    fn update_chunks(&mut self, chunk: Rect);
+    fn select_next_pane(&mut self);
+    fn select_prev_pane(&mut self);
+    fn select_next_item(&mut self);
+    fn select_prev_item(&mut self);
+    fn select_first_item(&mut self);
+    fn select_last_item(&mut self);
+    fn set_items(&mut self, id: &str, items: WidgetItem);
+    fn get_item(&self, id: &str) -> Option<WidgetItem>;
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>);
+    fn get(&self) -> &Self::Item;
+    fn get_mut(&mut self) -> &mut Self::Item;
 }
 
-impl<'a> SubWindow<'a> {
+impl<'a> PaneTrait for Pane<'a> {
+    type Item = Pane<'a>;
+
+    fn id(&self) -> &str {
+        self.id()
+    }
+
+    fn update_chunks(&mut self, chunk: Rect) {
+        self.update_chunk(chunk);
+    }
+
+    fn select_next_pane(&mut self) {}
+
+    fn select_prev_pane(&mut self) {}
+
+    fn select_first_item(&mut self) {
+        self.select_first_item();
+    }
+
+    fn select_last_item(&mut self) {
+        self.select_last_item();
+    }
+
+    fn set_items(&mut self, _id: &str, items: WidgetItem) {
+        self.widget_mut().set_items(items);
+    }
+
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
+        self.render(f, true);
+    }
+
+    fn get_item(&self, _id: &str) -> Option<WidgetItem> {
+        self.widget().get_item()
+    }
+
+    fn select_next_item(&mut self) {
+        self.select_next_item(1)
+    }
+
+    fn select_prev_item(&mut self) {
+        self.select_prev_item(1)
+    }
+
+    fn get(&self) -> &Self::Item {
+        self
+    }
+
+    fn get_mut(&mut self) -> &mut Self::Item {
+        self
+    }
+}
+
+impl<'a> PaneTrait for Select<'a> {
+    type Item = Select<'a>;
+
+    fn id(&self) -> &str {
+        self.id()
+    }
+
+    fn update_chunks(&mut self, chunk: Rect) {
+        self.update_chunk(chunk)
+    }
+
+    fn select_next_pane(&mut self) {
+        self.toggle_focus()
+    }
+
+    fn select_prev_pane(&mut self) {
+        self.toggle_focus()
+    }
+
+    fn select_next_item(&mut self) {
+        self.select_next_item()
+    }
+
+    fn select_prev_item(&mut self) {
+        self.select_prev_item()
+    }
+
+    fn select_first_item(&mut self) {}
+
+    fn select_last_item(&mut self) {}
+
+    fn set_items(&mut self, _id: &str, items: WidgetItem) {
+        self.set_items(items.get_array())
+    }
+
+    fn get_item(&self, _id: &str) -> Option<WidgetItem> {
+        None
+    }
+
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
+        self.render(f);
+    }
+
+    fn get(&self) -> &Self::Item {
+        self
+    }
+
+    fn get_mut(&mut self) -> &mut Self::Item {
+        self
+    }
+}
+
+pub struct SubWindow<'a, P> {
+    id: String,
+    title: String,
+    chunk: Rect,
+    pane: P,
+    block: Option<Block<'a>>,
+}
+
+impl<'a, P> SubWindow<'a, P>
+where
+    P: PaneTrait,
+{
     pub fn new(
         id: impl Into<String>,
         title: impl Into<String>,
-        panes: Vec<Pane<'a>>,
-        layout: Layout,
+        pane: P,
+        block: Option<Block<'a>>,
     ) -> Self {
-        let selectable_panes = panes
-            .iter()
-            .enumerate()
-            .filter(|(_i, p)| p.widget().selectable())
-            .map(|(i, _)| i)
-            .collect();
-
         Self {
             id: id.into(),
             title: title.into(),
-            layout,
             chunk: Rect::default(),
-            panes,
-            selected_pane_index: 0,
-            selectable_panes,
+            pane,
+            block,
         }
     }
 
@@ -51,64 +163,32 @@ impl<'a> SubWindow<'a> {
     pub fn update_chunks(&mut self, chunk: Rect) {
         self.chunk = child_window_chunk(80, 80, chunk);
 
-        let chunks = self.layout.split(self.chunk);
-        self.panes
-            .iter_mut()
-            .for_each(|p| p.update_chunk(chunks[p.chunk_index()]));
-    }
+        let chunk = match self.block {
+            Some(ref b) => b.inner(self.chunk),
+            None => self.chunk,
+        };
 
-    pub fn select_next_pane(&mut self) {
-        if self.selectable_panes.len() - 1 <= self.selected_pane_index {
-            self.selected_pane_index = 0;
-        } else {
-            self.selected_pane_index += 1;
-        }
-    }
-
-    pub fn select_prev_pane(&mut self) {
-        self.selected_pane_index = self.selected_pane_index.saturating_sub(1);
-    }
-
-    pub fn select_next_item(&mut self) {
-        self.selected_pane_mut().select_next_item(1);
-    }
-
-    pub fn select_prev_item(&mut self) {
-        self.selected_pane_mut().select_prev_item(1);
-    }
-
-    pub fn select_first_item(&mut self) {
-        self.selected_pane_mut().select_first_item();
-    }
-
-    pub fn select_last_item(&mut self) {
-        self.selected_pane_mut().select_last_item();
-    }
-
-    pub fn set_items(&mut self, id: &str, items: WidgetItem) {
-        if let Some(pane) = self.panes.iter_mut().find(|p| p.id() == id) {
-            pane.widget_mut().set_items(items)
-        }
+        self.pane.update_chunks(chunk);
     }
 
     pub fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
-        let selected_pane_index = self.selected_pane_index;
-
         f.render_widget(Clear, self.chunk);
 
-        self.panes
-            .iter_mut()
-            .enumerate()
-            .for_each(|(i, p)| p.render(f, i == selected_pane_index));
-    }
-}
+        if let Some(ref b) = self.block {
+            f.render_widget(
+                b.clone().title(self.title.as_str()).title_offset(1),
+                self.chunk,
+            );
+        }
 
-impl<'a> SubWindow<'a> {
-    fn selected_pane_mut(&mut self) -> &mut Pane<'a> {
-        &mut self.panes[self.selected_pane_index]
+        self.pane.render(f);
     }
 
-    pub fn selected_pane(&self) -> &Pane<'a> {
-        &self.panes[self.selected_pane_index]
+    pub fn pane(&self) -> &P::Item {
+        self.pane.get()
+    }
+
+    pub fn pane_mut(&mut self) -> &mut P::Item {
+        self.pane.get_mut()
     }
 }
