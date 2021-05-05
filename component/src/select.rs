@@ -239,9 +239,12 @@ impl<'a> SelectForm<'a> {
 
         f.render_stateful_widget(w, ch_list, &mut list.state().borrow_mut());
 
-        let w = Paragraph::new(arrow)
-            .alignment(Alignment::Center)
-            .block(Block::default());
+        let w = Paragraph::new(Span::styled(
+            arrow,
+            Style::default().add_modifier(Modifier::BOLD),
+        ))
+        .alignment(Alignment::Center)
+        .block(Block::default());
 
         f.render_widget(w, ch_arrow);
 
