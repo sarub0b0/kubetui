@@ -1,5 +1,5 @@
 [package]
-name = "tui-wrapper"
+name = "component"
 version = "0.1.0"
 authors = ["sarub0b0 <ekr59uv25@gmail.com>"]
 edition = "2018"
@@ -8,11 +8,8 @@ edition = "2018"
 
 [dependencies]
 tui = { git = "https://github.com/sarub0b0/tui-rs.git" }
-# tui = { version = "0.14", default-features = false, features = ['crossterm'] }
-ansi = { path = "../ansi" }
-unicode-segmentation = "1.7"
-unicode-width = "0.1"
-rayon = "1.5"
+tui-wrapper = { path = "../tui-wrapper" }
+fuzzy-matcher = "0.3"
 
 [dev-dependencies]
 pretty_assertions = "0.7.1"

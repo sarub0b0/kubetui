@@ -1,12 +1,8 @@
 pub mod pane;
-pub mod select;
-pub mod sub_window;
 pub mod tab;
 pub mod widget;
 
 pub use pane::Pane;
-pub use select::Select;
-pub use sub_window::SubWindow;
 pub use tab::Tab;
 
 use tui::{
@@ -16,7 +12,7 @@ use tui::{
     widgets::{Block, Borders},
 };
 
-fn generate_title(title: &str, border_color: Color, selected: bool) -> Spans {
+pub fn generate_title(title: &str, border_color: Color, selected: bool) -> Spans {
     let prefix = if selected { "✔︎ " } else { "──" };
     Spans::from(vec![
         Span::styled("─", Style::default()),
@@ -30,7 +26,7 @@ fn generate_title(title: &str, border_color: Color, selected: bool) -> Spans {
     ])
 }
 
-fn focus_block(title: &str, selected: bool) -> Block {
+pub fn focus_block(title: &str, selected: bool) -> Block {
     let border_color = if selected {
         Color::White
     } else {
@@ -43,7 +39,7 @@ fn focus_block(title: &str, selected: bool) -> Block {
         .border_style(Style::default().fg(border_color))
 }
 
-fn child_window_chunk(width_rate: u16, height_rate: u16, chunk: Rect) -> Rect {
+pub fn child_window_chunk(width_rate: u16, height_rate: u16, chunk: Rect) -> Rect {
     let w = width_rate;
     let h = height_rate;
     let chunk = Layout::default()

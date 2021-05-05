@@ -14,7 +14,10 @@ use tui::{
 };
 
 use event::{kubernetes::*, Event};
-use tui_wrapper::{sub_window::PaneTrait, widget::*, *};
+use tui_wrapper::{widget::*, *};
+
+use component::select::*;
+use sub_window::*;
 
 pub mod view_id {
 

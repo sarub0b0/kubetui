@@ -120,6 +120,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "component"
+version = "0.1.0"
+dependencies = [
+ "fuzzy-matcher",
+ "pretty_assertions",
+ "tui",
+ "tui-wrapper",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -804,10 +814,12 @@ version = "0.1.0"
 dependencies = [
  "ansi",
  "chrono",
+ "component",
  "crossbeam",
  "crossterm 0.18.2",
  "event",
  "frunk",
+ "sub-window",
  "tokio",
  "tui",
  "tui-wrapper",
@@ -1505,6 +1517,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
+name = "sub-window"
+version = "0.1.0"
+dependencies = [
+ "component",
+ "tui",
+ "tui-wrapper",
+]
+
+[[package]]
 name = "syn"
 version = "0.15.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1758,7 +1779,6 @@ name = "tui-wrapper"
 version = "0.1.0"
 dependencies = [
  "ansi",
- "fuzzy-matcher",
  "pretty_assertions",
  "rayon",
  "tui",

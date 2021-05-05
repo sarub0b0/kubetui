@@ -5,7 +5,7 @@ authors = ["kohashimoto <kohashimoto@bbtower.co.jp>"]
 edition = "2018"
 
 [workspace]
-members = [ "tui-wrapper", "event", "ansi" ]
+members = [ "tui-wrapper", "event", "ansi", "component", "sub-window" ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -20,6 +20,8 @@ chrono = "0.4"
 tui-wrapper = { path = "./tui-wrapper" }
 event = { path = "./event" }
 ansi = { path = "./ansi" }
+component = { path = "component" }
+sub-window = { path = "sub-window" }
 
 [[example]]
 name = "select"

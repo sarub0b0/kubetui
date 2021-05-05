@@ -24,7 +24,9 @@ use event::{input::*, kubernetes::*, tick::*, Event};
 use tui_wrapper::{widget::*, *};
 
 extern crate kubetui;
+use component::select::*;
 use kubetui::*;
+use sub_window::*;
 
 macro_rules! enable_raw_mode {
     () => {

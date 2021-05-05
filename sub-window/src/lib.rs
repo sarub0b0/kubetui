@@ -5,8 +5,10 @@ use tui::{
     Frame,
 };
 
-use super::{child_window_chunk, pane::Pane, Select};
-use crate::widget::{WidgetItem, WidgetTrait};
+use tui_wrapper::widget::{WidgetItem, WidgetTrait};
+use tui_wrapper::{child_window_chunk, pane::Pane};
+
+use component::select::*;
 
 pub trait PaneTrait {
     type Item;

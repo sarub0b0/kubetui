@@ -14,8 +14,8 @@ use std::time::{Duration, Instant};
 
 use std::collections::HashSet;
 
-use super::focus_block;
-use super::widget::*;
+use tui_wrapper::focus_block;
+use tui_wrapper::widget::*;
 
 #[derive(Debug)]
 enum Mode {
