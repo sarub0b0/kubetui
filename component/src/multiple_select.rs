@@ -2,179 +2,20 @@ use tui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::*,
-    text::{Span, Spans},
-    widgets::{Block, Borders, Paragraph},
+    text::Span,
+    widgets::{Block, Paragraph},
     Frame,
 };
 
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 
-use std::time::{Duration, Instant};
-
 use std::collections::HashSet;
 
 use tui_wrapper::focus_block;
 use tui_wrapper::widget::*;
 
-#[derive(Debug)]
-enum Mode {
-    Show,
-    Hide,
-}
-
-impl Mode {
-    fn toggle(&mut self) {
-        match self {
-            Mode::Show => *self = Mode::Hide,
-            Mode::Hide => *self = Mode::Show,
-        }
-    }
-}
-
-#[derive(Debug)]
-struct Cursor {
-    cursor: char,
-    pos: usize,
-    last_tick: Instant,
-    tick_rate: Duration,
-    mode: Mode,
-}
-
-impl Cursor {
-    fn forward(&mut self) {
-        self.pos = self.pos.saturating_add(1);
-        self.last_tick = Instant::now();
-        self.mode = Mode::Show;
-    }
-
-    fn back(&mut self) {
-        self.pos = self.pos.saturating_sub(1);
-        self.last_tick = Instant::now();
-        self.mode = Mode::Show;
-    }
-
-    fn update_tick(&mut self) {
-        if self.tick_rate <= self.last_tick.elapsed() {
-            self.mode.toggle();
-            self.last_tick = Instant::now();
-        }
-    }
-
-    fn cursor_style(&self) -> Style {
-        match self.mode {
-            Mode::Show => Style::default().add_modifier(Modifier::REVERSED),
-            Mode::Hide => Style::default(),
-        }
-    }
-
-    fn pos(&self) -> usize {
-        self.pos
-    }
-}
-
-impl Default for Cursor {
-    fn default() -> Self {
-        Self {
-            cursor: ' ',
-            pos: 0,
-            last_tick: Instant::now(),
-            tick_rate: Duration::from_millis(500),
-            mode: Mode::Show,
-        }
-    }
-}
-
-#[derive(Debug)]
-struct InputForm<'a> {
-    content: String,
-    cursor: Cursor,
-    widget: Widget<'a>,
-    width: usize,
-    chunk: Rect,
-}
-
-impl Default for InputForm<'_> {
-    fn default() -> Self {
-        Self {
-            content: String::default(),
-            cursor: Cursor::default(),
-            widget: Widget::Text(Text::default()),
-            width: 1,
-            chunk: Rect::default(),
-        }
-    }
-}
-
-impl<'a> InputForm<'a> {
-    fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
-        self.cursor.update_tick();
-
-        let spans = Self::render_content(self.content.as_str(), &self.cursor);
-
-        let widget = Paragraph::new(spans).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::DarkGray))
-                .title(Span::styled("Filter", Style::reset()))
-                .title_offset(1),
-        );
-
-        f.render_widget(widget, self.chunk);
-    }
-
-    fn render_content(content: &str, cursor: &Cursor) -> Spans<'a> {
-        match (content.len(), cursor.pos()) {
-            (0, _) => Spans::from(Span::styled(" ", cursor.cursor_style())),
-            (len, pos) if pos < len => Spans::from(
-                content
-                    .chars()
-                    .enumerate()
-                    .map(|(i, c)| {
-                        if i == pos {
-                            Span::styled(c.to_string(), cursor.cursor_style())
-                        } else {
-                            Span::raw(c.to_string())
-                        }
-                    })
-                    .collect::<Vec<Span>>(),
-            ),
-            _ => Spans::from(vec![
-                Span::raw(content.to_string()),
-                Span::styled(" ", cursor.cursor_style()),
-            ]),
-        }
-    }
-
-    fn update_chunk(&mut self, chunk: Rect) {
-        self.chunk = chunk;
-    }
-
-    fn insert_char(&mut self, c: char) {
-        self.content.insert(self.cursor.pos(), c);
-        self.cursor.forward();
-    }
-
-    fn remove_char(&mut self) {
-        if !self.content.is_empty() && 0 < self.cursor.pos() {
-            self.cursor.back();
-            self.content.remove(self.cursor.pos());
-        }
-    }
-
-    fn forward_cursor(&mut self) {
-        if self.cursor.pos() < self.content.len() {
-            self.cursor.forward()
-        }
-    }
-    fn back_cursor(&mut self) {
-        self.cursor.back();
-    }
-
-    fn content(&self) -> &str {
-        self.content.as_str()
-    }
-}
+use super::input::InputForm;
 
 struct SelectForm<'a> {
     list_items: HashSet<String>,
@@ -208,6 +49,7 @@ impl Default for SelectForm<'_> {
 }
 
 impl<'a> SelectForm<'a> {
+    // - TODO: ウィジェットのレンダー関数に変更 <06-05-21, yourname> -
     fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
         let mut ch_list = self.chunk[0];
         ch_list.width = ch_list.width.saturating_sub(1);
@@ -254,6 +96,7 @@ impl<'a> SelectForm<'a> {
         f.render_stateful_widget(w, ch_selected, &mut list.state().borrow_mut());
     }
 
+    // TODO: 借用に変更
     fn filter_items(&self, items: HashSet<String>) -> Vec<String> {
         items
             .iter()
@@ -418,7 +261,7 @@ const LAYOUT_INDEX_FOR_INPUT_FORM: usize = 0;
 const LAYOUT_INDEX_FOR_STATUS: usize = 1;
 const LAYOUT_INDEX_FOR_SELECT_FORM: usize = 2;
 
-pub struct Select<'a> {
+pub struct MultipleSelect<'a> {
     id: String,
     title: String,
     input_widget: InputForm<'a>,
@@ -428,7 +271,7 @@ pub struct Select<'a> {
     chunk: Rect,
 }
 
-impl<'a> Select<'a> {
+impl<'a> MultipleSelect<'a> {
     pub fn new(id: impl Into<String>, title: impl Into<String>) -> Self {
         // split [InputForm, SelectForms]
         // ---------------------
@@ -529,7 +372,7 @@ impl<'a> Select<'a> {
     }
 }
 
-impl Default for Select<'_> {
+impl Default for MultipleSelect<'_> {
     fn default() -> Self {
         Self {
             id: String::default(),
@@ -551,125 +394,16 @@ fn is_odd(num: u16) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
 
-    mod cursor {
-        use super::*;
-        use pretty_assertions::assert_eq;
-        #[test]
-        fn move_forward() {
-            let mut cursor = Cursor::default();
-            cursor.forward();
+    #[test]
+    fn focus_toggle() {
+        let mut select = MultipleSelect::default();
 
-            assert_eq!(cursor.pos(), 1);
-        }
+        select.toggle_focus();
+        assert_eq!(select.selected_widget.focus_id, 1);
 
-        #[test]
-        fn move_back() {
-            let mut cursor = Cursor::default();
-            cursor.forward();
-            cursor.forward();
-            cursor.back();
-
-            assert_eq!(cursor.pos(), 1);
-        }
-    }
-
-    mod input_form {
-        use super::*;
-        use pretty_assertions::assert_eq;
-
-        #[test]
-        fn push_char() {
-            let mut form = InputForm::default();
-
-            let input = "test";
-
-            input.chars().for_each(|c| form.insert_char(c));
-
-            assert_eq!(input, form.content);
-        }
-
-        #[test]
-        fn insert_char() {
-            let mut form = InputForm::default();
-
-            let input = "test";
-
-            input.chars().for_each(|c| form.insert_char(c));
-
-            form.back_cursor();
-
-            form.insert_char('a');
-
-            assert_eq!("tesat", form.content);
-
-            form.forward_cursor();
-            form.forward_cursor();
-
-            form.insert_char('b');
-            assert_eq!("tesatb", form.content);
-        }
-
-        #[test]
-        fn render_content_empty() {
-            let form = InputForm::default();
-
-            assert_eq!(
-                InputForm::render_content(form.content.as_str(), &form.cursor),
-                Spans::from(Span::styled(
-                    " ",
-                    Style::default().add_modifier(Modifier::REVERSED)
-                ))
-            );
-        }
-
-        #[test]
-        fn render_content_add_char() {
-            let mut form = InputForm::default();
-
-            form.insert_char('a');
-            form.insert_char('b');
-
-            assert_eq!(
-                InputForm::render_content(form.content.as_str(), &form.cursor),
-                Spans::from(vec![
-                    Span::raw("ab"),
-                    Span::styled(" ", Style::default().add_modifier(Modifier::REVERSED))
-                ])
-            );
-        }
-
-        #[test]
-        fn render_content_add_char_and_cursor_back() {
-            let mut form = InputForm::default();
-
-            form.insert_char('a');
-            form.insert_char('b');
-            form.back_cursor();
-
-            assert_eq!(
-                InputForm::render_content(form.content.as_str(), &form.cursor),
-                Spans::from(vec![
-                    Span::raw("a"),
-                    Span::styled("b", Style::default().add_modifier(Modifier::REVERSED))
-                ])
-            );
-        }
-    }
-
-    mod select {
-        use super::*;
-        use pretty_assertions::assert_eq;
-
-        #[test]
-        fn focus_toggle() {
-            let mut select = Select::default();
-
-            select.toggle_focus();
-            assert_eq!(select.selected_widget.focus_id, 1);
-
-            select.toggle_focus();
-            assert_eq!(select.selected_widget.focus_id, 0);
-        }
+        select.toggle_focus();
+        assert_eq!(select.selected_widget.focus_id, 0);
     }
 }

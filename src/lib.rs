@@ -16,8 +16,10 @@ use tui::{
 use event::{kubernetes::*, Event};
 use tui_wrapper::{widget::*, *};
 
-use component::select::*;
-use sub_window::*;
+use component::{multiple_select::MultipleSelect, single_select::SingleSelect};
+
+mod sub_window;
+pub use sub_window::*;
 
 pub mod view_id {
 
@@ -348,6 +350,7 @@ fn text_status((current, rows): (u64, u64)) -> Span<'static> {
     Span::raw(format!("{}/{}", current, rows))
 }
 
+// Main Logic
 pub enum WindowEvent {
     CloseWindow,
     Continue,
@@ -430,7 +433,7 @@ pub fn apis_subwin_action<'a, P>(
     rx: &Receiver<Event>,
 ) -> WindowEvent
 where
-    P: PaneTrait<Item = Select<'a>>,
+    P: PaneTrait<Item = MultipleSelect<'a>>,
 {
     let pane = subwin.pane_mut();
 
@@ -507,40 +510,57 @@ pub fn namespace_subwin_action<'a, P>(
     current_namespace: &mut String,
 ) -> WindowEvent
 where
-    P: PaneTrait<Item = Pane<'a>>,
+    P: PaneTrait<Item = SingleSelect<'a>>,
 {
     let pane = subwin.pane_mut();
     match rx.recv().unwrap() {
-        Event::Input(ev) => match ev.code {
-            KeyCode::Char('q') => return WindowEvent::CloseSubWindow,
-            KeyCode::Char('j') | KeyCode::Down => {
-                pane.select_next_item(1);
-            }
-            KeyCode::Char('k') | KeyCode::Up => {
-                pane.select_prev_item(1);
-            }
-            KeyCode::Char('n') if ev.modifiers == KeyModifiers::CONTROL => {
-                pane.select_next_item(1);
-            }
-            KeyCode::Char('p') if ev.modifiers == KeyModifiers::CONTROL => {
-                pane.select_prev_item(1);
-            }
-            KeyCode::Char('u') if ev.modifiers == KeyModifiers::CONTROL => {
-                pane.select_next_item(1);
-            }
-            KeyCode::Char('d') if ev.modifiers == KeyModifiers::CONTROL => {
-                pane.select_prev_item(1);
+        Event::Input(key) => match key.code {
+            KeyCode::Char('q') if key.modifiers == KeyModifiers::CONTROL => {
+                return WindowEvent::CloseSubWindow
             }
 
-            KeyCode::Char('G') => {
-                pane.select_last_item();
+            KeyCode::Char('n') if key.modifiers == KeyModifiers::CONTROL => {
+                pane.select_next_item();
             }
-            KeyCode::Char('g') => {
-                pane.select_first_item();
+
+            KeyCode::Char('p') if key.modifiers == KeyModifiers::CONTROL => {
+                pane.select_prev_item();
+            }
+
+            KeyCode::Char('u') if key.modifiers == KeyModifiers::CONTROL => {
+                pane.select_next_item();
+            }
+
+            KeyCode::Char('d') if key.modifiers == KeyModifiers::CONTROL => {
+                pane.select_prev_item();
+            }
+
+            KeyCode::Char('h') if key.modifiers == KeyModifiers::CONTROL => {
+                pane.remove_char();
+            }
+
+            KeyCode::Tab => {
+                pane.select_next_pane();
+            }
+
+            KeyCode::Delete | KeyCode::Backspace => {
+                pane.remove_char();
+            }
+
+            KeyCode::Right => {
+                pane.forward_cursor();
+            }
+
+            KeyCode::Left => {
+                pane.back_cursor();
+            }
+
+            KeyCode::Char(c) => {
+                pane.insert_char(c);
             }
 
             KeyCode::Enter => {
-                if let Some(item) = pane.get_item(view_id::subwin_ns_pane_ns) {
+                if let Some(item) = pane.get_item() {
                     let item = item.get_simple();
 
                     tx.send(Event::Kube(Kube::SetNamespace(item.to_string())))
@@ -567,7 +587,7 @@ where
             _ => {}
         },
         Event::Kube(k) => match k {
-            Kube::GetNamespacesResponse(ns) => pane.set_items(WidgetItem::Array(ns)),
+            Kube::GetNamespacesResponse(ns) => pane.set_items(ns),
             _ => {}
         },
         Event::Resize(_w, _h) => {

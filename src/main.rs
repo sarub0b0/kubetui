@@ -24,9 +24,8 @@ use event::{input::*, kubernetes::*, tick::*, Event};
 use tui_wrapper::{widget::*, *};
 
 extern crate kubetui;
-use component::select::*;
+use component::{multiple_select::MultipleSelect, single_select::SingleSelect};
 use kubetui::*;
-use sub_window::*;
 
 macro_rules! enable_raw_mode {
     () => {
@@ -136,23 +135,17 @@ fn run() {
         ),
     ];
 
-    // - TODO: select.rsを応用してnamespacenにもフィルター機能を実装
     let mut subwin_namespace = SubWindow::new(
         view_id::subwin_ns,
         "Namespace",
-        Pane::new(
-            "Namespace",
-            Widget::List(List::new(vec![])),
-            0,
-            view_id::subwin_ns_pane_ns,
-        ),
-        None,
+        SingleSelect::new(view_id::subwin_ns_pane_ns, "Namespace"),
+        Some(Block::default().borders(Borders::ALL)),
     );
 
     let mut subwin_apis = SubWindow::new(
         view_id::subwin_apis,
         "APIs",
-        Select::new(view_id::subwin_apis_pane, "Select APIs"),
+        MultipleSelect::new(view_id::subwin_apis_pane, "Select APIs"),
         Some(Block::default().borders(Borders::ALL)),
     );
 
