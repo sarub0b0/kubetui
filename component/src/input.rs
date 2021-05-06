@@ -84,7 +84,6 @@ pub struct InputForm<'a> {
     content: String,
     cursor: Cursor,
     widget: Widget<'a>,
-    width: usize,
     chunk: Rect,
 }
 
@@ -94,7 +93,6 @@ impl Default for InputForm<'_> {
             content: String::default(),
             cursor: Cursor::default(),
             widget: Widget::Text(Text::default()),
-            width: 1,
             chunk: Rect::default(),
         }
     }
@@ -170,7 +168,8 @@ impl<'a> InputForm<'a> {
     }
 
     pub fn clear_content(&mut self) {
-        self.content.clear()
+        self.cursor = Cursor::default();
+        self.content.clear();
     }
 }
 

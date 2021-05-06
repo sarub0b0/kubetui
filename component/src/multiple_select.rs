@@ -49,7 +49,6 @@ impl Default for SelectForm<'_> {
 }
 
 impl<'a> SelectForm<'a> {
-    // - TODO: ウィジェットのレンダー関数に変更 <06-05-21, yourname> -
     fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
         let mut ch_list = self.chunk[0];
         ch_list.width = ch_list.width.saturating_sub(1);
@@ -75,11 +74,8 @@ impl<'a> SelectForm<'a> {
         ch_selected.x = ch_selected.x.saturating_add(addend);
         ch_selected.width = ch_selected.width.saturating_sub(addend);
 
-        let list = self.list_widget.list().unwrap();
-
-        let w = list.widget(focus_block("Items", self.focus_id == 0));
-
-        f.render_stateful_widget(w, ch_list, &mut list.state().borrow_mut());
+        self.list_widget
+            .render(f, focus_block("Items", self.focus_id == 0), ch_list);
 
         let w = Paragraph::new(Span::styled(
             arrow,
@@ -90,21 +86,20 @@ impl<'a> SelectForm<'a> {
 
         f.render_widget(w, ch_arrow);
 
-        let list = self.selected_widget.list().unwrap();
-        let w = list.widget(focus_block("Selected", self.focus_id == 1));
-
-        f.render_stateful_widget(w, ch_selected, &mut list.state().borrow_mut());
+        self.selected_widget
+            .render(f, focus_block("Selected", self.focus_id == 1), ch_selected);
     }
 
-    // TODO: 借用に変更
-    fn filter_items(&self, items: HashSet<String>) -> Vec<String> {
-        items
+    fn filter_items(&self, items: &HashSet<String>) -> Vec<String> {
+        let mut ret: Vec<String> = items
             .iter()
             .filter_map(|item| match self.matcher.fuzzy_match(&item, &self.filter) {
                 Some(_) => Some(item.to_string()),
                 None => None,
             })
-            .collect()
+            .collect();
+        ret.sort();
+        ret
     }
 
     fn update_chunk(&mut self, chunk: Rect) {
@@ -170,13 +165,13 @@ impl<'a> SelectForm<'a> {
         self.unfocused_item_mut().insert(item.to_string());
 
         let mut focused_item = if self.focus_id == 0 {
-            self.filter_items(self.list_items.clone())
+            self.filter_items(&self.list_items)
         } else {
             self.selected_items.clone().into_iter().collect()
         };
 
         let mut unfocused_item = if self.focus_id == 1 {
-            self.filter_items(self.list_items.clone())
+            self.filter_items(&self.list_items)
         } else {
             self.selected_items.clone().into_iter().collect()
         };
@@ -232,10 +227,9 @@ impl<'a> SelectForm<'a> {
             self.selected_items.remove(item);
         });
 
-        let mut items: Vec<String> = self.list_items.clone().into_iter().collect();
-        items.sort();
+        let filter = self.filter.clone();
 
-        self.list_widget.set_items(WidgetItem::Array(items));
+        self.update_filter(&filter);
 
         let mut items: Vec<String> = self.selected_items.clone().into_iter().collect();
         items.sort();
@@ -247,13 +241,37 @@ impl<'a> SelectForm<'a> {
         self.filter = filter.to_string();
         self.focus_id = 0;
 
-        self.list_widget.set_items(WidgetItem::Array(
-            self.filter_items(self.list_items.clone()),
-        ));
+        self.list_widget
+            .set_items(WidgetItem::Array(self.filter_items(&self.list_items)));
+
+        let list = self.list_widget.list_mut().unwrap();
+        let current_pos = list.state().borrow().selected();
+
+        if let Some(pos) = current_pos {
+            let list = self.list_widget.list_mut().unwrap();
+            if list.items().len() <= pos {
+                list.select_last()
+            }
+        }
     }
 
     fn status(&self) -> (usize, usize) {
-        (self.selected_items.len(), self.list_items.len())
+        let mut pos = self
+            .list_widget
+            .list()
+            .unwrap()
+            .state()
+            .borrow()
+            .selected()
+            .unwrap_or_else(|| 0);
+
+        let size = self.list_widget.list().unwrap().items().len();
+
+        if 0 < size {
+            pos += 1;
+        }
+
+        (pos, size)
     }
 }
 
@@ -368,6 +386,8 @@ impl<'a> MultipleSelect<'a> {
     }
 
     pub fn set_items(&mut self, items: Vec<String>) {
+        self.input_widget.clear_content();
+        self.selected_widget.update_filter("");
         self.selected_widget.set_items(items);
     }
 }

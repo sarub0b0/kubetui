@@ -16,6 +16,7 @@ use super::input::InputForm;
 struct SelectForm<'a> {
     list_items: Vec<String>,
     list_widget: Widget<'a>,
+    filter: String,
     chunk: Rect,
     matcher: SkimMatcherV2,
 }
@@ -24,6 +25,7 @@ impl Default for SelectForm<'_> {
     fn default() -> Self {
         Self {
             list_items: Vec::new(),
+            filter: String::default(),
             list_widget: Widget::List(List::default()),
             chunk: Rect::default(),
             matcher: SkimMatcherV2::default(),
@@ -34,7 +36,7 @@ impl Default for SelectForm<'_> {
 impl<'a> SelectForm<'a> {
     fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
         self.list_widget
-            .render(f, focus_block("Items", false), self.chunk);
+            .render(f, focus_block("Items", true), self.chunk);
     }
 
     fn select_next(&mut self) {
@@ -45,14 +47,16 @@ impl<'a> SelectForm<'a> {
         self.list_widget.select_prev(1);
     }
 
-    fn filter_items(&self, items: &[String], filter: &str) -> Vec<String> {
-        items
+    fn filter_items(&self, items: &[String]) -> Vec<String> {
+        let mut ret: Vec<String> = items
             .iter()
-            .filter_map(|item| match self.matcher.fuzzy_match(&item, filter) {
+            .filter_map(|item| match self.matcher.fuzzy_match(&item, &self.filter) {
                 Some(_) => Some(item.to_string()),
                 None => None,
             })
-            .collect()
+            .collect();
+        ret.sort();
+        ret
     }
 
     fn update_chunk(&mut self, chunk: Rect) {
@@ -62,6 +66,9 @@ impl<'a> SelectForm<'a> {
     fn set_items(&mut self, items: Vec<String>) {
         self.list_items = items.clone();
         self.list_widget.set_items(WidgetItem::Array(items));
+
+        let filter = self.filter.clone();
+        self.update_filter(&filter);
     }
 
     fn get_item(&self) -> Option<WidgetItem> {
@@ -69,9 +76,9 @@ impl<'a> SelectForm<'a> {
     }
 
     fn update_filter(&mut self, filter: &str) {
-        self.list_widget.set_items(WidgetItem::Array(
-            self.filter_items(&self.list_items, filter),
-        ));
+        self.filter = filter.to_string();
+        self.list_widget
+            .set_items(WidgetItem::Array(self.filter_items(&self.list_items)));
 
         let list = self.list_widget.list_mut().unwrap();
         let current_pos = list.state().borrow().selected();
@@ -201,6 +208,8 @@ impl<'a> SingleSelect<'a> {
     }
 
     pub fn set_items(&mut self, items: Vec<String>) {
+        self.input_widget.clear_content();
+        self.selected_widget.update_filter("");
         self.selected_widget.set_items(items);
     }
 
