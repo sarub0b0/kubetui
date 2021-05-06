@@ -168,6 +168,10 @@ impl<'a> InputForm<'a> {
     pub fn content(&self) -> &str {
         self.content.as_str()
     }
+
+    pub fn clear_content(&mut self) {
+        self.content.clear()
+    }
 }
 
 #[cfg(test)]
