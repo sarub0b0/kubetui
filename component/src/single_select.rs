@@ -208,7 +208,7 @@ impl<'a> SingleSelect<'a> {
     }
 
     pub fn set_items(&mut self, items: Vec<String>) {
-        self.input_widget.clear_content();
+        self.input_widget.clear();
         self.selected_widget.update_filter("");
         self.selected_widget.set_items(items);
     }

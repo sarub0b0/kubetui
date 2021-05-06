@@ -167,7 +167,7 @@ impl<'a> InputForm<'a> {
         self.content.as_str()
     }
 
-    pub fn clear_content(&mut self) {
+    pub fn clear(&mut self) {
         self.cursor = Cursor::default();
         self.content.clear();
     }
