@@ -1,108 +1,119 @@
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{
-    APIGroup, APIGroupList, APIResource, APIResourceList, APIVersions, GroupVersionForDiscovery,
+    APIGroupList, APIResource, APIResourceList, APIVersions,
 };
 use kube::Client;
 
 use super::request::get_request;
 
 use futures::future::join_all;
-use futures::Future;
 
 use std::collections::HashSet;
 
-pub async fn apis_list(client: Client, server_url: &str) -> Vec<String> {
-    let mut ret = api_group_version_list(&client, server_url).await;
+#[derive(Debug)]
+struct APIInfo {
+    api_group: String,
+    api_version: String,
+    api_resource: APIResource,
+}
 
-    ret.append(&mut api_resource_list(&client, server_url).await);
+#[derive(Debug)]
+struct GroupVersion {
+    group: String,
+    version: String,
+}
+
+pub async fn apis_list(client: Client, server_url: &str) -> Vec<String> {
+    let mut group_versions = Vec::new();
+
+    let result: Result<APIVersions, kube::Error> = client
+        .request(get_request(server_url, "api").unwrap())
+        .await;
+
+    if let Ok(api_versions) = result.as_ref() {
+        api_versions.versions.iter().for_each(|v| {
+            group_versions.push(GroupVersion {
+                group: String::default(),
+                version: v.to_string(),
+            })
+        });
+    }
+
+    let result: Result<APIGroupList, kube::Error> = client
+        .request(get_request(server_url, "apis").unwrap())
+        .await;
+
+    if let Ok(api_group_list) = result.as_ref() {
+        api_group_list.groups.iter().for_each(|group| {
+            group.versions.iter().for_each(|gv| {
+                group_versions.push(GroupVersion {
+                    group: group.name.to_string(),
+                    version: gv.version.to_string(),
+                })
+            })
+        });
+    }
+
+    // APIResourceListを取得
+    //      /api/v1
+    //      /api/v2
+    //      /api/v*
+    //      /apis/group/version
+
+    let job = join_all(
+        group_versions
+            .iter()
+            .map(|gv| api_resource_list_to_api_info_list(&client, server_url, gv)),
+    )
+    .await;
+
+    let set: HashSet<String> = job
+        .iter()
+        .flat_map(|api_info_list| {
+            api_info_list.iter().map(|api_info| {
+                if api_info.api_group == "" {
+                    api_info.api_resource.name.to_string()
+                } else {
+                    format!("{}.{}", api_info.api_resource.name, api_info.api_group)
+                }
+            })
+        })
+        .collect();
+
+    let mut ret: Vec<String> = set.into_iter().collect();
+    ret.sort();
 
     ret
 }
 
-async fn api_resource_list(client: &Client, server_url: &str) -> Vec<String> {
-    let res: Result<APIVersions, kube::Error> = client
-        .request(get_request(server_url, "api").unwrap())
-        .await;
-
-    if let Ok(api_versions) = res {
-        let versions = api_versions.versions;
-
-        let job = join_all(versions.iter().map(|v| {
-            client
-                .request::<APIResourceList>(get_request(server_url, &format!("api/{}", v)).unwrap())
-        }))
-        .await;
-
-        job.iter()
-            .flat_map(|v| v.as_ref().unwrap().clone().resources)
-            .filter_map(|r| {
-                if !r.name.contains(&String::from("/")) {
-                    Some(r)
-                } else {
-                    None
-                }
-            })
-            .map(|r| r.name.clone())
-            .collect()
-    } else {
-        vec![]
-    }
-}
-
-struct APIData<'a> {
-    pub name: &'a str,
-    pub version: &'a GroupVersionForDiscovery,
-}
-
-async fn api_group_version_list(client: &Client, server_url: &str) -> Vec<String> {
-    let res: Result<APIGroupList, kube::Error> = client
-        .request(get_request(server_url, "apis").unwrap())
-        .await;
-
-    if let Ok(list) = res {
-        let preferred_list: Vec<APIData> = list
-            .groups
-            .iter()
-            .flat_map(|group| {
-                group.versions.iter().map(move |v| APIData {
-                    name: group.name.as_str(),
-                    version: v,
-                })
-            })
-            .collect();
-
-        let job = join_all(preferred_list.iter().map(|api| async move {
-            (
-                api.name,
-                client
-                    .request::<APIResourceList>(
-                        get_request(server_url, &format!("apis/{}", api.version.group_version))
-                            .unwrap(),
-                    )
-                    .await,
+async fn api_resource_list_to_api_info_list(
+    client: &Client,
+    server_url: &str,
+    gv: &GroupVersion,
+) -> Vec<APIInfo> {
+    let result = if gv.group == "" {
+        client
+            .request::<APIResourceList>(
+                get_request(server_url, &format!("api/{}", gv.version)).unwrap(),
             )
-        }))
-        .await;
+            .await
+    } else {
+        client
+            .request::<APIResourceList>(
+                get_request(server_url, &format!("apis/{}/{}", gv.group, gv.version)).unwrap(),
+            )
+            .await
+    };
 
-        let set: HashSet<String> = job
+    if let Ok(list) = result {
+        list.resources
             .iter()
-            .flat_map(|(group_name, response)| {
-                response
-                    .as_ref()
-                    .unwrap()
-                    .resources
-                    .iter()
-                    .filter_map(|r| {
-                        if !r.name.contains(&String::from("/")) {
-                            Some(r)
-                        } else {
-                            None
-                        }
-                    })
-                    .map(move |r| format!("{}.{}", r.name, group_name))
+            .filter(|resource| !resource.name.contains("/"))
+            .map(|resource| APIInfo {
+                api_group: gv.group.to_string(),
+                api_version: gv.version.to_string(),
+                api_resource: resource.clone(),
             })
-            .collect();
-
-        set.into_iter().collect()
+            .collect()
     } else {
         Vec::new()
     }
