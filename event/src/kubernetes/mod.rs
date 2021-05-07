@@ -34,7 +34,7 @@ pub enum Kube {
     GetAPIsRequest,
     GetAPIsResponse(Vec<String>),
     SetAPIsRequest(Vec<String>),
-    APIsResults(Vec<Vec<String>>),
+    APIsResults(Vec<String>),
     // Context
     GetContextsRequest,
     GetContextsResponse(Vec<String>),
