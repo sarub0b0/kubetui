@@ -1,11 +1,16 @@
+use crossbeam::channel::Sender;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{
     APIGroupList, APIResource, APIResourceList, APIVersions, GroupVersionForDiscovery,
 };
 use k8s_openapi::Resource;
 use kube::Client;
+use std::sync::Arc;
+use std::time;
+use tokio::sync::RwLock;
 
 use super::request::{get_request, get_table_request};
 use super::v1_table::*;
+use super::{Event, Kube};
 
 use futures::future::join_all;
 
@@ -175,7 +180,7 @@ pub async fn get_api_resources(
     client: &Client,
     server_url: &str,
     ns: &str,
-    apis: Vec<String>,
+    apis: &[String],
 ) -> Vec<String> {
     let api_info_list = get_all_api_info(client, server_url).await;
 
@@ -183,7 +188,7 @@ pub async fn get_api_resources(
 
     let mut ret = Vec::new();
     for api in apis {
-        if let Some(info) = db.get(&api) {
+        if let Some(info) = db.get(api) {
             let mut path = if info.api_group.is_empty() {
                 format!("api/{}", info.api_group_version)
             } else {
@@ -213,4 +218,23 @@ pub async fn get_api_resources(
     }
 
     ret
+}
+
+pub async fn apis_loop(
+    tx: Sender<Event>,
+    client: Client,
+    server_url: String,
+    namespace: Arc<RwLock<String>>,
+    api_resources: Arc<RwLock<Vec<String>>>,
+) {
+    let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
+    loop {
+        interval.tick().await;
+        let ns = namespace.read().await;
+        let apis = api_resources.read().await;
+
+        let result = get_api_resources(&client, &server_url, &ns, &apis).await;
+
+        tx.send(Event::Kube(Kube::APIsResults(result))).unwrap();
+    }
 }

@@ -8,7 +8,7 @@ mod request;
 mod v1_table;
 
 use super::Event;
-use api_resources::{apis_list, get_api_resources};
+use api_resources::{apis_list, apis_loop};
 use config::{configs_loop, get_config};
 use context::namespace_list;
 use event::event_loop;
@@ -95,6 +95,8 @@ pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
             None => "default".to_string(),
         }));
 
+        let api_resources: Arc<RwLock<Vec<String>>> = Arc::new(RwLock::new(Vec::new()));
+
         let server_url = cluster_server_url(&kubeconfig, named_context.as_ref().unwrap());
 
         let client = Client::try_default().await.unwrap();
@@ -105,6 +107,7 @@ pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
             client.clone(),
             Arc::clone(&namespace),
             current_context,
+            Arc::clone(&api_resources),
             server_url.clone(),
         ));
 
@@ -125,13 +128,22 @@ pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
             tx.clone(),
             client.clone(),
             Arc::clone(&namespace),
-            server_url,
+            server_url.clone(),
+        ));
+
+        let apis_loop = tokio::spawn(apis_loop(
+            tx.clone(),
+            client.clone(),
+            server_url.clone(),
+            Arc::clone(&namespace),
+            api_resources,
         ));
 
         main_loop.await.unwrap();
         pod_loop.await.unwrap();
         config_loop.await.unwrap();
         event_loop.await.unwrap();
+        apis_loop.await.unwrap();
     });
 }
 
@@ -141,6 +153,7 @@ async fn main_loop(
     client: Client,
     namespace: Arc<RwLock<String>>,
     current_context: String,
+    api_resources: Arc<RwLock<Vec<String>>>,
     server_url: String,
 ) {
     let mut log_stream_handler: Option<Handlers> = None;
@@ -201,12 +214,8 @@ async fn main_loop(
                         tx.send(Event::Kube(Kube::GetAPIsResponse(apis))).unwrap();
                     }
                     Kube::SetAPIsRequest(apis) => {
-                        // apisの詳細を取得
-                        // kubectl get resourceを実行
-                        let ns = namespace.read().await;
-                        let result = get_api_resources(&client, &server_url, &ns, apis).await;
-
-                        tx.send(Event::Kube(Kube::APIsResults(result))).unwrap();
+                        let mut api_resources = api_resources.write().await;
+                        *api_resources = apis;
                     }
                     _ => unreachable!(),
                 },
