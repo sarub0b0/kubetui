@@ -390,13 +390,17 @@ impl<'a> MultipleSelect<'a> {
     }
 
     pub fn set_items(&mut self, items: Vec<String>) {
-        self.input_widget.clear();
-        self.selected_widget.update_filter("");
+        self.clear_filter();
         self.selected_widget.set_items(items);
     }
 
     pub fn get_selected_items(&self) -> Vec<String> {
         self.selected_widget.get_selected_items()
+    }
+
+    pub fn clear_filter(&mut self) {
+        self.input_widget.clear();
+        self.selected_widget.update_filter("");
     }
 }
 
