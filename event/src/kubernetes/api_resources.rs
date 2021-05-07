@@ -1,6 +1,7 @@
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{
-    APIGroupList, APIResource, APIResourceList, APIVersions,
+    APIGroupList, APIResource, APIResourceList, APIVersions, GroupVersionForDiscovery,
 };
+use k8s_openapi::Resource;
 use kube::Client;
 
 use super::request::get_request;
@@ -11,18 +12,51 @@ use std::collections::HashSet;
 
 #[derive(Debug)]
 struct APIInfo {
-    api_group: String,
     api_version: String,
+    api_group: String,
+    api_group_version: String,
     api_resource: APIResource,
+    preferred_version: Option<bool>,
 }
 
 #[derive(Debug)]
 struct GroupVersion {
     group: String,
     version: String,
+    preferred_version: Option<bool>,
 }
 
-pub async fn apis_list(client: Client, server_url: &str) -> Vec<String> {
+fn is_preferred_version(
+    version: &str,
+    preferred_version: &Option<GroupVersionForDiscovery>,
+) -> Option<bool> {
+    match preferred_version {
+        Some(gv) => Some(gv.version == version),
+        None => None,
+    }
+}
+
+pub async fn apis_list(client: &Client, server_url: &str) -> Vec<String> {
+    let api_info_list = get_all_api_info(client, server_url).await;
+
+    let set: HashSet<String> = api_info_list
+        .iter()
+        .map(|api_info| {
+            if api_info.api_group == "" {
+                api_info.api_resource.name.to_string()
+            } else {
+                format!("{}.{}", api_info.api_resource.name, api_info.api_group)
+            }
+        })
+        .collect();
+
+    let mut ret: Vec<String> = set.into_iter().collect();
+    ret.sort();
+
+    ret
+}
+
+async fn get_all_api_info(client: &Client, server_url: &str) -> Vec<APIInfo> {
     let mut group_versions = Vec::new();
 
     let result: Result<APIVersions, kube::Error> = client
@@ -34,6 +68,7 @@ pub async fn apis_list(client: Client, server_url: &str) -> Vec<String> {
             group_versions.push(GroupVersion {
                 group: String::default(),
                 version: v.to_string(),
+                preferred_version: None,
             })
         });
     }
@@ -48,6 +83,7 @@ pub async fn apis_list(client: Client, server_url: &str) -> Vec<String> {
                 group_versions.push(GroupVersion {
                     group: group.name.to_string(),
                     version: gv.version.to_string(),
+                    preferred_version: is_preferred_version(&gv.version, &group.preferred_version),
                 })
             })
         });
@@ -66,23 +102,7 @@ pub async fn apis_list(client: Client, server_url: &str) -> Vec<String> {
     )
     .await;
 
-    let set: HashSet<String> = job
-        .iter()
-        .flat_map(|api_info_list| {
-            api_info_list.iter().map(|api_info| {
-                if api_info.api_group == "" {
-                    api_info.api_resource.name.to_string()
-                } else {
-                    format!("{}.{}", api_info.api_resource.name, api_info.api_group)
-                }
-            })
-        })
-        .collect();
-
-    let mut ret: Vec<String> = set.into_iter().collect();
-    ret.sort();
-
-    ret
+    job.into_iter().flatten().collect()
 }
 
 async fn api_resource_list_to_api_info_list(
@@ -110,11 +130,24 @@ async fn api_resource_list_to_api_info_list(
             .filter(|resource| !resource.name.contains("/"))
             .map(|resource| APIInfo {
                 api_group: gv.group.to_string(),
-                api_version: gv.version.to_string(),
+                api_version: APIResourceList::API_VERSION.to_string(),
+                api_group_version: gv.version.to_string(),
                 api_resource: resource.clone(),
+                preferred_version: gv.preferred_version,
             })
             .collect()
     } else {
         Vec::new()
     }
+}
+
+pub async fn get_api_resources(
+    client: &Client,
+    server_url: &str,
+    ns: &str,
+    apis: Vec<String>,
+) -> Vec<Vec<String>> {
+    let api_info_list = get_all_api_info(client, server_url).await;
+
+    apis.into_iter().map(|api| vec![api]).collect()
 }
