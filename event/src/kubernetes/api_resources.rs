@@ -4,13 +4,14 @@ use k8s_openapi::apimachinery::pkg::apis::meta::v1::{
 use k8s_openapi::Resource;
 use kube::Client;
 
-use super::request::get_request;
+use super::request::{get_request, get_table_request};
+use super::v1_table::*;
 
 use futures::future::join_all;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct APIInfo {
     api_version: String,
     api_group: String,
@@ -141,13 +142,73 @@ async fn api_resource_list_to_api_info_list(
     }
 }
 
+fn convert_api_database(api_info_list: &[APIInfo]) -> HashMap<String, APIInfo> {
+    let mut db: HashMap<String, APIInfo> = HashMap::new();
+
+    for info in api_info_list {
+        let api_name = if info.api_group == "" {
+            info.api_resource.name.to_string()
+        } else {
+            format!("{}.{}", info.api_resource.name, info.api_group)
+        };
+
+        let mut is_insert = false;
+        if db.contains_key(&api_name) {
+            if let Some(pv) = info.preferred_version {
+                if pv {
+                    is_insert = true;
+                }
+            }
+        } else {
+            is_insert = true;
+        }
+
+        if is_insert {
+            db.insert(api_name, info.clone());
+        }
+    }
+
+    db
+}
+
 pub async fn get_api_resources(
     client: &Client,
     server_url: &str,
     ns: &str,
     apis: Vec<String>,
-) -> Vec<Vec<String>> {
+) -> Vec<String> {
     let api_info_list = get_all_api_info(client, server_url).await;
 
-    apis.into_iter().map(|api| vec![api]).collect()
+    let db = convert_api_database(&api_info_list);
+
+    let mut ret = Vec::new();
+    for api in apis {
+        if let Some(info) = db.get(&api) {
+            let mut path = if info.api_group.is_empty() {
+                format!("api/{}", info.api_group_version)
+            } else {
+                format!("apis/{}/{}", info.api_group, info.api_group_version)
+            };
+
+            if info.api_resource.namespaced {
+                path += &format!("/namespaces/{}/{}", ns, info.api_resource.name)
+            } else {
+                path += &format!("/{}", info.api_resource.name)
+            }
+
+            let result = client
+                .request::<Table>(get_table_request(server_url, &path).unwrap())
+                .await;
+
+            if let Ok(table) = result {
+                ret.push(table.to_print())
+            } else {
+                ret.push(format!("failed: {}", path))
+            }
+
+            ret.push("".to_string());
+        }
+    }
+
+    ret
 }
