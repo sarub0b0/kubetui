@@ -46,7 +46,13 @@ const TARGET: [&str; TARGET_LEN] = ["Last Seen", "Object", "Reason", "Message"];
 
 async fn get_event_list(client: Client, ns: &str, server_url: &str) -> Vec<String> {
     let table: Result<Table, kube::Error> = client
-        .request(get_table_request(server_url, ns, "events").unwrap())
+        .request(
+            get_table_request(
+                server_url,
+                &format!("api/v1/namespaces/{}/{}", ns, "events"),
+            )
+            .unwrap(),
+        )
         .await;
 
     match table {

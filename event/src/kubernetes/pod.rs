@@ -58,7 +58,13 @@ pub async fn pod_loop(
 
 async fn get_pod_info(client: Client, namespace: &str, server_url: &str) -> Vec<Vec<String>> {
     let table: Result<Table, kube::Error> = client
-        .request(get_table_request(server_url, namespace, "pods").unwrap())
+        .request(
+            get_table_request(
+                server_url,
+                &format!("api/v1/namespaces/{}/{}", namespace, "pods"),
+            )
+            .unwrap(),
+        )
         .await;
 
     let mut ret = Vec::new();
