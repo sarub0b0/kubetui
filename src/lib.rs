@@ -186,7 +186,6 @@ where
         Event::Kube(k) => match k {
             Kube::GetAPIsResponse(apis) => pane.set_items(apis),
             Kube::APIsResults(apis) => {
-                let apis = apis.into_iter().flatten().collect();
                 update_window_pane_items(
                     window,
                     view_id::tab_apis_pane_apis,
@@ -415,7 +414,6 @@ pub fn window_action<P: PaneTrait>(
                 update_event(window, ev);
             }
             Kube::APIsResults(apis) => {
-                let apis = apis.into_iter().flatten().collect();
                 update_window_pane_items(
                     window,
                     view_id::tab_apis_pane_apis,
