@@ -201,9 +201,11 @@ pub async fn get_api_resources(
                 .await;
 
             if let Ok(table) = result {
+                if table.rows.is_empty() {
+                    continue;
+                }
+
                 ret.push(table.to_print())
-            } else {
-                ret.push(format!("failed: {}", path))
             }
 
             ret.push("".to_string());
