@@ -118,7 +118,7 @@ fn update_window_pane_items(window: &mut Window, id: &str, items: WidgetItem) {
 }
 
 pub fn apis_subwin_action<'a, P>(
-    _window: &mut Window,
+    window: &mut Window,
     subwin: &mut SubWindow<P>,
     tx: &Sender<Event>,
     rx: &Receiver<Event>,
@@ -185,6 +185,14 @@ where
         },
         Event::Kube(k) => match k {
             Kube::GetAPIsResponse(apis) => pane.set_items(apis),
+            Kube::APIsResults(apis) => {
+                let apis = apis.into_iter().flatten().collect();
+                update_window_pane_items(
+                    window,
+                    view_id::tab_apis_pane_apis,
+                    WidgetItem::Array(apis),
+                );
+            }
             _ => {}
         },
         Event::Resize(_w, _h) => {
@@ -405,6 +413,14 @@ pub fn window_action<P: PaneTrait>(
             }
             Kube::Event(ev) => {
                 update_event(window, ev);
+            }
+            Kube::APIsResults(apis) => {
+                let apis = apis.into_iter().flatten().collect();
+                update_window_pane_items(
+                    window,
+                    view_id::tab_apis_pane_apis,
+                    WidgetItem::Array(apis),
+                );
             }
             _ => unreachable!(),
         },

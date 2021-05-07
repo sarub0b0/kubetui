@@ -8,7 +8,7 @@ mod request;
 mod v1_table;
 
 use super::Event;
-use api_resources::apis_list;
+use api_resources::{apis_list, get_api_resources};
 use config::{configs_loop, get_config};
 use context::namespace_list;
 use event::event_loop;
@@ -196,9 +196,17 @@ async fn main_loop(
                         .unwrap();
                     }
                     Kube::GetAPIsRequest => {
-                        let apis = apis_list(client, &server_url).await;
+                        let apis = apis_list(&client, &server_url).await;
 
                         tx.send(Event::Kube(Kube::GetAPIsResponse(apis))).unwrap();
+                    }
+                    Kube::SetAPIsRequest(apis) => {
+                        // apisの詳細を取得
+                        // kubectl get resourceを実行
+                        let ns = namespace.read().await;
+                        let result = get_api_resources(&client, &server_url, &ns, apis).await;
+
+                        tx.send(Event::Kube(Kube::APIsResults(result))).unwrap();
                     }
                     _ => unreachable!(),
                 },
