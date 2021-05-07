@@ -233,6 +233,10 @@ pub async fn apis_loop(
         let ns = namespace.read().await;
         let apis = api_resources.read().await;
 
+        if apis.is_empty() {
+            continue;
+        }
+
         let result = get_api_resources(&client, &server_url, &ns, &apis).await;
 
         tx.send(Event::Kube(Kube::APIsResults(result))).unwrap();
