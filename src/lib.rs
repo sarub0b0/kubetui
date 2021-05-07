@@ -160,6 +160,7 @@ where
 
             KeyCode::Enter | KeyCode::Char(' ') => {
                 pane.toggle_select_unselect();
+                pane.clear_filter();
 
                 tx.send(Event::Kube(Kube::SetAPIsRequest(pane.get_selected_items())))
                     .unwrap();
