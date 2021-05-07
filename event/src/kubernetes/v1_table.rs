@@ -70,6 +70,84 @@ impl Table {
     }
 }
 
+fn to_print_value(value: &Value) -> String {
+    match value {
+        Value::Null => "Null".to_string(),
+        Value::Bool(b) => if *b { "True" } else { "False" }.to_string(),
+        Value::Number(n) => n.to_string(),
+        Value::String(s) => s.to_string(),
+        Value::Array(_) => {
+            format!("{}", value)
+        }
+        Value::Object(_) => {
+            format!("{}", value)
+        }
+    }
+}
+
+impl Table {
+    pub fn to_print(&self) -> String {
+        let header: Vec<(usize, &str)> = self
+            .column_definitions
+            .iter()
+            .enumerate()
+            .filter_map(|(i, coldef)| {
+                if coldef.priority == 0 {
+                    Some((i, coldef.name.as_str()))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let rows: Vec<Vec<String>> = self
+            .rows
+            .iter()
+            .map(|row| {
+                header
+                    .iter()
+                    .map(|(i, _)| format!("{}", to_print_value(&row.cells[*i])))
+                    .collect()
+            })
+            .collect();
+
+        let mut digits: Vec<usize> = header.iter().map(|h| h.1.len()).collect();
+
+        rows.iter().for_each(|cells| {
+            cells.iter().enumerate().for_each(|(i, cell)| {
+                if digits[i] < cell.len() {
+                    digits[i] = cell.len()
+                }
+            });
+        });
+
+        let mut buf = header
+            .iter()
+            .enumerate()
+            .map(|(i, h)| {
+                format!(
+                    "\x1b[90m{:<digit$}\x1b[0m",
+                    h.1.to_uppercase(),
+                    digit = digits[i]
+                )
+            })
+            .collect::<Vec<String>>()
+            .join("   ");
+
+        rows.iter().for_each(|row| {
+            buf += &("\n".to_owned()
+                + &row
+                    .iter()
+                    .enumerate()
+                    .map(|(i, cell)| format!("{:<digit$}", cell, digit = digits[i]))
+                    .collect::<Vec<String>>()
+                    .join("   "));
+        });
+
+        return buf;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
