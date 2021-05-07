@@ -50,6 +50,28 @@ pub enum WindowEvent {
     ResizeWindow,
 }
 
+fn update_window_text_pane_items_and_keep_scroll(window: &mut Window, id: &str, items: WidgetItem) {
+    let pane = window.pane_mut(id);
+    if let Some(p) = pane {
+        let widget = p.widget_mut().text_mut().unwrap();
+
+        let old_select = widget.selected();
+        let is_bottom = widget.is_bottom();
+
+        widget.set_items(items);
+
+        let new_len = widget.spans().len();
+
+        if old_select == 0 {
+            widget.select_first();
+        } else if is_bottom || (new_len < old_select as usize) {
+            widget.select_last();
+        } else {
+            widget.select(old_select);
+        }
+    }
+}
+
 fn update_event(window: &mut Window, ev: Vec<String>) {
     let pane = window.pane_mut(view_id::tab_event_pane_event);
     if let Some(p) = pane {
@@ -187,7 +209,7 @@ where
         Event::Kube(k) => match k {
             Kube::GetAPIsResponse(apis) => pane.set_items(apis),
             Kube::APIsResults(apis) => {
-                update_window_pane_items(
+                update_window_text_pane_items_and_keep_scroll(
                     window,
                     view_id::tab_apis_pane_apis,
                     WidgetItem::Array(apis),
@@ -415,7 +437,7 @@ pub fn window_action<P: PaneTrait>(
                 update_event(window, ev);
             }
             Kube::APIsResults(apis) => {
-                update_window_pane_items(
+                update_window_text_pane_items_and_keep_scroll(
                     window,
                     view_id::tab_apis_pane_apis,
                     WidgetItem::Array(apis),

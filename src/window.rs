@@ -272,7 +272,7 @@ impl<'a> Window<'a> {
             view_id::tab_pods => self.scroll_status(view_id::tab_pods_pane_logs),
             view_id::tab_configs => self.scroll_status(view_id::tab_configs_pane_raw_data),
             view_id::tab_event => self.scroll_status(view_id::tab_event_pane_event),
-            view_id::tab_apis => None,
+            view_id::tab_apis => self.scroll_status(view_id::tab_apis_pane_apis),
             _ => unreachable!(),
         };
 
