@@ -120,7 +120,7 @@ fn update_window_pane_items(window: &mut Window, id: &str, items: WidgetItem) {
 pub fn apis_subwin_action<'a, P>(
     _window: &mut Window,
     subwin: &mut SubWindow<P>,
-    _tx: &Sender<Event>,
+    tx: &Sender<Event>,
     rx: &Receiver<Event>,
 ) -> WindowEvent
 where
@@ -160,6 +160,9 @@ where
 
             KeyCode::Enter | KeyCode::Char(' ') => {
                 pane.toggle_select_unselect();
+
+                tx.send(Event::Kube(Kube::SetAPIsRequest(pane.get_selected_items())))
+                    .unwrap();
             }
 
             KeyCode::Delete | KeyCode::Backspace => {
