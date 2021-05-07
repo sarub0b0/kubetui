@@ -273,6 +273,10 @@ impl<'a> SelectForm<'a> {
 
         (pos, size)
     }
+
+    fn get_selected_items(&self) -> Vec<String> {
+        self.selected_items.clone().into_iter().collect()
+    }
 }
 
 const LAYOUT_INDEX_FOR_INPUT_FORM: usize = 0;
@@ -389,6 +393,10 @@ impl<'a> MultipleSelect<'a> {
         self.input_widget.clear();
         self.selected_widget.update_filter("");
         self.selected_widget.set_items(items);
+    }
+
+    pub fn get_selected_items(&self) -> Vec<String> {
+        self.selected_widget.get_selected_items()
     }
 }
 
