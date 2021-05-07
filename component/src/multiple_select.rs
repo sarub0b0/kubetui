@@ -138,6 +138,10 @@ impl<'a> SelectForm<'a> {
         }
     }
 
+    fn focus(&mut self, id: usize) {
+        self.focus_id = id;
+    }
+
     fn toggle_select_unselect(&mut self) {
         // 1. フィルタされているアイテムをフォーカスしているリストからアイテムを取り出す
         // 2. 取得したアイテムをフォーカスしているリストから削除
@@ -239,7 +243,6 @@ impl<'a> SelectForm<'a> {
 
     fn update_filter(&mut self, filter: &str) {
         self.filter = filter.to_string();
-        self.focus_id = 0;
 
         self.list_widget
             .set_items(WidgetItem::Array(self.filter_items(&self.list_items)));
@@ -357,12 +360,14 @@ impl<'a> MultipleSelect<'a> {
         self.input_widget.insert_char(c);
         self.selected_widget
             .update_filter(self.input_widget.content());
+        self.selected_widget.focus(0);
     }
 
     pub fn remove_char(&mut self) {
         self.input_widget.remove_char();
         self.selected_widget
             .update_filter(self.input_widget.content());
+        self.selected_widget.focus(0);
     }
 
     pub fn forward_cursor(&mut self) {
