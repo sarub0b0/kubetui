@@ -62,45 +62,53 @@ impl Default for Widget<'_> {
 }
 
 impl<'a> Widget<'a> {
-    pub fn list(&self) -> Option<&List> {
-        match self {
-            Widget::List(list) => Some(list),
-            _ => None,
+    // as_*
+    pub fn as_list(&self) -> &List {
+        if let Self::List(w) = self {
+            w
+        } else {
+            panic!("called as_list() on {:?}", self)
         }
     }
 
-    pub fn list_mut(&mut self) -> Option<&mut List<'a>> {
-        match self {
-            Widget::List(list) => Some(list),
-            _ => None,
+    pub fn as_text(&self) -> &Text {
+        if let Self::Text(w) = self {
+            w
+        } else {
+            panic!("called as_text() on {:?}", self)
         }
     }
 
-    pub fn text(&self) -> Option<&Text> {
-        match self {
-            Widget::Text(text) => Some(text),
-            _ => None,
+    pub fn as_table(&self) -> &Table {
+        if let Self::Table(w) = self {
+            w
+        } else {
+            panic!("called as_table() on {:?}", self)
         }
     }
 
-    pub fn text_mut(&mut self) -> Option<&mut Text<'a>> {
-        match self {
-            Widget::Text(text) => Some(text),
-            _ => None,
+    // as_mut_*
+    pub fn as_mut_list(&mut self) -> &mut List<'a> {
+        if let Self::List(w) = self {
+            w
+        } else {
+            panic!("called as_mut_list() on {:?}", self)
         }
     }
 
-    pub fn table(&self) -> Option<&Table> {
-        match self {
-            Widget::Table(table) => Some(table),
-            _ => None,
+    pub fn as_mut_text(&mut self) -> &mut Text<'a> {
+        if let Self::Text(w) = self {
+            w
+        } else {
+            panic!("called as_mut_text() on {:?}", self)
         }
     }
 
-    pub fn table_mut(&mut self) -> Option<&mut Table<'a>> {
-        match self {
-            Widget::Table(table) => Some(table),
-            _ => None,
+    pub fn as_mut_table(&mut self) -> &mut Table<'a> {
+        if let Self::Table(w) = self {
+            w
+        } else {
+            panic!("called as_mut_table() on {:?}", self)
         }
     }
 }

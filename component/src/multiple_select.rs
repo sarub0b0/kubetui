@@ -146,12 +146,9 @@ impl<'a> SelectForm<'a> {
         // 1. フィルタされているアイテムをフォーカスしているリストからアイテムを取り出す
         // 2. 取得したアイテムをフォーカスしているリストから削除
         // 3  フォーカスしていないリストに追加
-        let selected_item = if let Some(list) = self.focused_form_mut().list_mut() {
-            if let Some(index) = list.selected() {
-                Some(list.items()[index].to_string())
-            } else {
-                None
-            }
+        let list = self.focused_form_mut().as_mut_list();
+        let selected_item = if let Some(index) = list.selected() {
+            Some(list.items()[index].to_string())
         } else {
             None
         };
@@ -183,12 +180,13 @@ impl<'a> SelectForm<'a> {
         focused_item.sort();
         unfocused_item.sort();
 
-        if let Some(list) = self.focused_form_mut().list_mut() {
-            list.set_items(WidgetItem::Array(focused_item));
-        }
-        if let Some(list) = self.unfocused_form_mut().list_mut() {
-            list.set_items(WidgetItem::Array(unfocused_item));
-        }
+        self.focused_form_mut()
+            .as_mut_list()
+            .set_items(WidgetItem::Array(focused_item));
+
+        self.unfocused_form_mut()
+            .as_mut_list()
+            .set_items(WidgetItem::Array(unfocused_item));
     }
 
     fn focused_item_mut(&mut self) -> &mut HashSet<String> {
@@ -247,11 +245,11 @@ impl<'a> SelectForm<'a> {
         self.list_widget
             .set_items(WidgetItem::Array(self.filter_items(&self.list_items)));
 
-        let list = self.list_widget.list_mut().unwrap();
+        let list = self.list_widget.as_mut_list();
         let current_pos = list.state().borrow().selected();
 
         if let Some(pos) = current_pos {
-            let list = self.list_widget.list_mut().unwrap();
+            let list = self.list_widget.as_mut_list();
             if list.items().len() <= pos {
                 list.select_last()
             }
@@ -261,14 +259,13 @@ impl<'a> SelectForm<'a> {
     fn status(&self) -> (usize, usize) {
         let mut pos = self
             .list_widget
-            .list()
-            .unwrap()
+            .as_list()
             .state()
             .borrow()
             .selected()
             .unwrap_or_else(|| 0);
 
-        let size = self.list_widget.list().unwrap().items().len();
+        let size = self.list_widget.as_list().items().len();
 
         if 0 < size {
             pos += 1;

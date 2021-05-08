@@ -80,11 +80,10 @@ impl<'a> SelectForm<'a> {
         self.list_widget
             .set_items(WidgetItem::Array(self.filter_items(&self.list_items)));
 
-        let list = self.list_widget.list_mut().unwrap();
+        let list = self.list_widget.as_mut_list();
         let current_pos = list.state().borrow().selected();
 
         if let Some(pos) = current_pos {
-            let list = self.list_widget.list_mut().unwrap();
             if list.items().len() <= pos {
                 list.select_last()
             }
@@ -92,16 +91,11 @@ impl<'a> SelectForm<'a> {
     }
 
     fn status(&self) -> (usize, usize) {
-        let mut pos = self
-            .list_widget
-            .list()
-            .unwrap()
-            .state()
-            .borrow()
-            .selected()
-            .unwrap_or_else(|| 0);
+        let list = self.list_widget.as_list();
 
-        let size = self.list_widget.list().unwrap().items().len();
+        let mut pos = list.state().borrow().selected().unwrap_or_else(|| 0);
+
+        let size = list.items().len();
 
         if 0 < size {
             pos += 1;
@@ -249,7 +243,7 @@ mod tests {
 
         select_form.update_filter("ab");
 
-        let res = select_form.list_widget.list().unwrap().items().clone();
+        let res = select_form.list_widget.as_list().items().clone();
 
         assert_eq!(res, vec!["abb", "abc"])
     }

@@ -53,7 +53,7 @@ pub enum WindowEvent {
 fn update_window_text_pane_items_and_keep_scroll(window: &mut Window, id: &str, items: WidgetItem) {
     let pane = window.pane_mut(id);
     if let Some(p) = pane {
-        let widget = p.widget_mut().text_mut().unwrap();
+        let widget = p.widget_mut().as_mut_text();
 
         let old_select = widget.selected();
         let is_bottom = widget.is_bottom();
@@ -75,7 +75,7 @@ fn update_window_text_pane_items_and_keep_scroll(window: &mut Window, id: &str, 
 fn update_event(window: &mut Window, ev: Vec<String>) {
     let pane = window.pane_mut(view_id::tab_event_pane_event);
     if let Some(p) = pane {
-        let widget = p.widget_mut().text_mut().unwrap();
+        let widget = p.widget_mut().as_mut_text();
 
         let old_select = widget.selected();
         let is_bottom = widget.is_bottom();
@@ -95,7 +95,7 @@ fn update_event(window: &mut Window, ev: Vec<String>) {
 fn update_pod_logs(window: &mut Window, logs: Vec<String>) {
     let pane = window.pane_mut(view_id::tab_pods_pane_logs);
     if let Some(p) = pane {
-        let widget = p.widget_mut().text_mut().unwrap();
+        let widget = p.widget_mut().as_mut_text();
 
         let is_bottom = widget.is_bottom();
 
@@ -110,7 +110,7 @@ fn update_pod_logs(window: &mut Window, logs: Vec<String>) {
 fn selected_pod(window: &Window) -> String {
     match window.pane(view_id::tab_pods_pane_pods) {
         Some(pane) => {
-            let w = pane.widget().table().unwrap();
+            let w = pane.widget().as_table();
             let index = w.state().borrow().selected();
 
             w.items()[index.unwrap()][0].to_string()
@@ -121,15 +121,10 @@ fn selected_pod(window: &Window) -> String {
 
 fn selected_config(window: &Window) -> String {
     let pane = window.pane(view_id::tab_configs_pane_configs).unwrap();
-    let selected_index = pane
-        .widget()
-        .list()
-        .unwrap()
-        .state()
-        .borrow()
-        .selected()
-        .unwrap();
-    pane.widget().list().unwrap().items()[selected_index].clone()
+    let widget = pane.widget().as_list();
+    let selected_index = widget.state().borrow().selected().unwrap();
+
+    widget.items()[selected_index].clone()
 }
 
 fn update_window_pane_items(window: &mut Window, id: &str, items: WidgetItem) {

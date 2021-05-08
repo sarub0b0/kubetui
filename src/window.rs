@@ -283,11 +283,8 @@ impl<'a> Window<'a> {
 
     fn scroll_status(&self, id: &str) -> Option<Paragraph<'a>> {
         if let Some(pane) = self.selected_tab().widgets().iter().find(|p| p.id() == id) {
-            let widget = pane.widget().text();
-            let span = match widget {
-                Some(t) => text_status((t.selected(), t.row_size())),
-                None => text_status((0, 0)),
-            };
+            let widget = pane.widget().as_text();
+            let span = text_status((widget.selected(), widget.row_size()));
 
             let spans = Spans::from(span);
             let block = Block::default().style(Style::default());
