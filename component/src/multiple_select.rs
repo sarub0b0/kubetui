@@ -246,7 +246,7 @@ impl<'a> SelectForm<'a> {
             .set_items(WidgetItem::Array(self.filter_items(&self.list_items)));
 
         let list = self.list_widget.as_mut_list();
-        let current_pos = list.state().borrow().selected();
+        let current_pos = list.state().selected();
 
         if let Some(pos) = current_pos {
             let list = self.list_widget.as_mut_list();
@@ -261,7 +261,6 @@ impl<'a> SelectForm<'a> {
             .list_widget
             .as_list()
             .state()
-            .borrow()
             .selected()
             .unwrap_or_else(|| 0);
 

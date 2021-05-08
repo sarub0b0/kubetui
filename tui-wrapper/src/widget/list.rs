@@ -1,6 +1,3 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use tui::{
     backend::Backend,
     layout::Rect,
@@ -15,7 +12,7 @@ use super::{RenderTrait, WidgetItem, WidgetTrait};
 #[derive(Debug, Clone)]
 pub struct List<'a> {
     items: Vec<String>,
-    state: Rc<RefCell<ListState>>,
+    state: ListState,
     list_item: Vec<ListItem<'a>>,
 }
 
@@ -23,7 +20,7 @@ impl Default for List<'_> {
     fn default() -> Self {
         Self {
             items: Vec::new(),
-            state: Rc::new(RefCell::new(ListState::default())),
+            state: ListState::default(),
             list_item: Vec::new(),
         }
     }
@@ -39,12 +36,13 @@ impl<'a> List<'a> {
 
         Self {
             items,
-            state: Rc::new(RefCell::new(state)),
+            state,
             list_item,
         }
     }
-    pub fn state(&self) -> Rc<RefCell<ListState>> {
-        Rc::clone(&self.state)
+
+    pub fn state(&self) -> &ListState {
+        &self.state
     }
 
     pub fn next(&mut self) {
@@ -60,7 +58,7 @@ impl<'a> List<'a> {
     }
 
     pub fn selected(&self) -> Option<usize> {
-        self.state.borrow().selected()
+        self.state.selected()
     }
 
     pub fn widget(&self, block: Block<'a>) -> widgets::List<'a> {
@@ -84,7 +82,7 @@ impl WidgetTrait for List<'_> {
             return;
         }
 
-        let i = match self.state.borrow().selected() {
+        let i = match self.state.selected() {
             Some(i) => {
                 if self.items.len() - 1 <= i {
                     self.items.len() - 1
@@ -94,7 +92,7 @@ impl WidgetTrait for List<'_> {
             }
             None => 0,
         };
-        self.state.borrow_mut().select(Some(i));
+        self.state.select(Some(i));
     }
 
     fn select_prev(&mut self, index: usize) {
@@ -102,7 +100,7 @@ impl WidgetTrait for List<'_> {
             return;
         }
 
-        let i = match self.state.borrow().selected() {
+        let i = match self.state.selected() {
             Some(i) => {
                 if i < index {
                     0
@@ -113,18 +111,18 @@ impl WidgetTrait for List<'_> {
             None => 0,
         };
 
-        self.state.borrow_mut().select(Some(i));
+        self.state.select(Some(i));
     }
 
     fn select_first(&mut self) {
-        self.state.borrow_mut().select(Some(0));
+        self.state.select(Some(0));
     }
 
     fn select_last(&mut self) {
         if self.items.is_empty() {
-            self.state.borrow_mut().select(Some(0));
+            self.state.select(Some(0));
         } else {
-            self.state.borrow_mut().select(Some(self.items.len() - 1))
+            self.state.select(Some(self.items.len() - 1))
         }
     }
 
@@ -133,16 +131,16 @@ impl WidgetTrait for List<'_> {
         let old_len = self.items.len();
 
         match items.len() {
-            0 => self.state.borrow_mut().select(None),
+            0 => self.state.select(None),
             new_len if new_len < old_len => {
-                let i = self.state.borrow().selected();
+                let i = self.state.selected();
                 if i == Some(old_len - 1) {
-                    self.state.borrow_mut().select(Some(new_len - 1));
+                    self.state.select(Some(new_len - 1));
                 }
             }
             _ => {
-                if self.state.borrow().selected() == None {
-                    self.state().borrow_mut().select(Some(0))
+                if self.state.selected() == None {
+                    self.state.select(Some(0))
                 }
             }
         }
@@ -155,7 +153,7 @@ impl WidgetTrait for List<'_> {
     fn clear(&mut self) {}
 
     fn get_item(&self) -> Option<WidgetItem> {
-        let index = self.state.borrow().selected();
+        let index = self.state.selected();
         match index {
             Some(i) => Some(WidgetItem::Single(self.items[i].clone())),
             None => None,
@@ -165,7 +163,7 @@ impl WidgetTrait for List<'_> {
 
 impl RenderTrait for List<'_> {
     fn render<B: Backend>(&mut self, f: &mut Frame<B>, block: Block, chunk: Rect) {
-        f.render_stateful_widget(self.widget(block), chunk, &mut self.state.borrow_mut());
+        f.render_stateful_widget(self.widget(block), chunk, &mut self.state);
     }
 }
 

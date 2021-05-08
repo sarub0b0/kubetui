@@ -81,7 +81,7 @@ impl<'a> SelectForm<'a> {
             .set_items(WidgetItem::Array(self.filter_items(&self.list_items)));
 
         let list = self.list_widget.as_mut_list();
-        let current_pos = list.state().borrow().selected();
+        let current_pos = list.state().selected();
 
         if let Some(pos) = current_pos {
             if list.items().len() <= pos {
@@ -93,7 +93,7 @@ impl<'a> SelectForm<'a> {
     fn status(&self) -> (usize, usize) {
         let list = self.list_widget.as_list();
 
-        let mut pos = list.state().borrow().selected().unwrap_or_else(|| 0);
+        let mut pos = list.state().selected().unwrap_or_else(|| 0);
 
         let size = list.items().len();
 

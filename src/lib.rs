@@ -122,7 +122,7 @@ fn selected_pod(window: &Window) -> String {
 fn selected_config(window: &Window) -> String {
     let pane = window.pane(view_id::tab_configs_pane_configs).unwrap();
     let widget = pane.widget().as_list();
-    let selected_index = widget.state().borrow().selected().unwrap();
+    let selected_index = widget.state().selected().unwrap();
 
     widget.items()[selected_index].clone()
 }
