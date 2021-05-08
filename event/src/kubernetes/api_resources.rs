@@ -211,10 +211,10 @@ pub async fn get_api_resources(
                 }
 
                 let mut buf = if info.api_group.is_empty() {
-                    format!("\x1b[90;1m[ {} ]\x1b[0m\n", info.api_resource.name)
+                    format!("\x1b[90m[ {} ]\x1b[0m\n", info.api_resource.name)
                 } else {
                     format!(
-                        "\x1b[90;1m[ {}.{} ]\x1b[0m\n",
+                        "\x1b[90m[ {}.{} ]\x1b[0m\n",
                         info.api_resource.name, info.api_group
                     )
                 };
