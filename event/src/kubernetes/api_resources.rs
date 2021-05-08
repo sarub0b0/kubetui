@@ -210,7 +210,18 @@ pub async fn get_api_resources(
                     continue;
                 }
 
-                ret.push(table.to_print())
+                let mut buf = if info.api_group.is_empty() {
+                    format!("\x1b[90;1m[ {} ]\x1b[0m\n", info.api_resource.name)
+                } else {
+                    format!(
+                        "\x1b[90;1m[ {}.{} ]\x1b[0m\n",
+                        info.api_resource.name, info.api_group
+                    )
+                };
+
+                buf += &table.to_print();
+
+                ret.push(buf)
             }
 
             ret.push("".to_string());
