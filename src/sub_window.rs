@@ -175,7 +175,7 @@ impl<'a> PaneTrait for MultipleSelect<'a> {
     fn select_last_item(&mut self) {}
 
     fn set_items(&mut self, _id: &str, items: WidgetItem) {
-        self.set_items(items.get_array())
+        self.set_list_items(items.array())
     }
 
     fn get_item(&self, _id: &str) -> Option<WidgetItem> {
@@ -223,7 +223,7 @@ impl<'a> PaneTrait for SingleSelect<'a> {
     fn select_last_item(&mut self) {}
 
     fn set_items(&mut self, _id: &str, items: WidgetItem) {
-        self.set_items(items.get_array())
+        self.set_items(items.array())
     }
 
     fn get_item(&self, _id: &str) -> Option<WidgetItem> {

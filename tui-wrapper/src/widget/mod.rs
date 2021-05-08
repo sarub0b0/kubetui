@@ -9,29 +9,35 @@ pub use text::*;
 
 use tui::{backend::Backend, layout::Rect, widgets::Block, Frame};
 
+#[derive(Debug)]
 pub enum WidgetItem {
-    Simple(String),
+    Single(String),
     Array(Vec<String>),
     DoubleArray(Vec<Vec<String>>),
 }
 
 impl WidgetItem {
-    pub fn get_simple(self) -> String {
-        match self {
-            WidgetItem::Simple(item) => item,
-            _ => String::default(),
+    pub fn single(self) -> String {
+        if let Self::Single(v) = self {
+            v
+        } else {
+            panic!("called single() on {:?}", self)
         }
     }
-    pub fn get_array(self) -> Vec<String> {
-        match self {
-            WidgetItem::Array(item) => item,
-            _ => Vec::new(),
+
+    pub fn array(self) -> Vec<String> {
+        if let Self::Array(v) = self {
+            v
+        } else {
+            panic!("called array() on {:?}", self)
         }
     }
-    pub fn get_double_array(self) -> Vec<Vec<String>> {
-        match self {
-            WidgetItem::DoubleArray(item) => item,
-            _ => Vec::new(),
+
+    pub fn double_array(self) -> Vec<Vec<String>> {
+        if let Self::DoubleArray(v) = self {
+            v
+        } else {
+            panic!("called double_array() on {:?}", self)
         }
     }
 }

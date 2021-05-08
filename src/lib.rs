@@ -286,7 +286,7 @@ where
 
             KeyCode::Enter => {
                 if let Some(item) = pane.get_item() {
-                    let item = item.get_simple();
+                    let item = item.single();
 
                     tx.send(Event::Kube(Kube::SetNamespace(item.to_string())))
                         .unwrap();

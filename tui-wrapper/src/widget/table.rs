@@ -164,7 +164,7 @@ impl WidgetTrait for Table<'_> {
     }
 
     fn set_items(&mut self, items: WidgetItem) {
-        let items = items.get_double_array();
+        let items = items.double_array();
 
         match items.len() {
             0 => self.state.borrow_mut().select(None),

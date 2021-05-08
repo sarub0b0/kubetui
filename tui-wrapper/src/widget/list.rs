@@ -129,7 +129,7 @@ impl WidgetTrait for List<'_> {
     }
 
     fn set_items(&mut self, items: WidgetItem) {
-        let items = items.get_array();
+        let items = items.array();
         let old_len = self.items.len();
 
         match items.len() {
@@ -157,7 +157,7 @@ impl WidgetTrait for List<'_> {
     fn get_item(&self) -> Option<WidgetItem> {
         let index = self.state.borrow().selected();
         match index {
-            Some(i) => Some(WidgetItem::Simple(self.items[i].clone())),
+            Some(i) => Some(WidgetItem::Single(self.items[i].clone())),
             None => None,
         }
     }

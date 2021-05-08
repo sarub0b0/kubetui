@@ -221,7 +221,7 @@ impl WidgetTrait for Text<'_> {
 
     fn set_items(&mut self, items: WidgetItem) {
         self.state.select(0);
-        self.items = items.get_array();
+        self.items = items.array();
 
         self.update_spans();
         self.update_rows_size();
@@ -241,7 +241,7 @@ impl WidgetTrait for Text<'_> {
     }
     fn get_item(&self) -> Option<WidgetItem> {
         let index = self.state.selected();
-        Some(WidgetItem::Simple(
+        Some(WidgetItem::Single(
             self.spans[index as usize].clone().into(),
         ))
     }
