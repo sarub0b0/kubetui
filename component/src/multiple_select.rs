@@ -274,8 +274,12 @@ impl<'a> SelectForm<'a> {
         (pos, size)
     }
 
-    fn get_selected_items(&self) -> Vec<String> {
+    fn to_vec_selected_items(&self) -> Vec<String> {
         self.selected_items.clone().into_iter().collect()
+    }
+
+    fn selected_items(&self) -> &HashSet<String> {
+        &self.selected_items
     }
 }
 
@@ -396,8 +400,12 @@ impl<'a> MultipleSelect<'a> {
         self.selected_widget.set_items(items);
     }
 
-    pub fn get_selected_items(&self) -> Vec<String> {
-        self.selected_widget.get_selected_items()
+    pub fn to_vec_selected_items(&self) -> Vec<String> {
+        self.selected_widget.to_vec_selected_items()
+    }
+
+    pub fn selected_items(&self) -> &HashSet<String> {
+        self.selected_widget.selected_items()
     }
 
     pub fn clear_filter(&mut self) {
