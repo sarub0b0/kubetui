@@ -111,7 +111,7 @@ fn selected_pod(window: &Window) -> String {
     match window.pane(view_id::tab_pods_pane_pods) {
         Some(pane) => {
             let w = pane.widget().as_table();
-            let index = w.state().borrow().selected();
+            let index = w.state().selected();
 
             w.items()[index.unwrap()][0].to_string()
         }

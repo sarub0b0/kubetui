@@ -1,8 +1,5 @@
 use super::{RenderTrait, WidgetItem, WidgetTrait};
 
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use tui::{
     backend::Backend,
     layout::{Constraint, Rect},
@@ -16,7 +13,7 @@ use tui::{
 pub struct Table<'a> {
     items: Vec<Vec<String>>,
     header: Vec<String>,
-    state: Rc<RefCell<TableState>>,
+    state: TableState,
     rows: Vec<Row<'a>>,
     widths: Vec<Constraint>,
 }
@@ -43,7 +40,7 @@ impl<'a> Table<'a> {
         let mut table = Self {
             items,
             header,
-            state: Rc::new(RefCell::new(state)),
+            state,
             ..Default::default()
         };
 
@@ -81,8 +78,8 @@ impl<'a> Table<'a> {
             .widths(&self.widths)
     }
 
-    pub fn state(&self) -> Rc<RefCell<TableState>> {
-        self.state.clone()
+    pub fn state(&self) -> &TableState {
+        &self.state
     }
 
     fn set_widths(&mut self) {
@@ -122,7 +119,7 @@ impl WidgetTrait for Table<'_> {
     }
 
     fn select_next(&mut self, index: usize) {
-        let i = match self.state.borrow().selected() {
+        let i = match self.state.selected() {
             Some(i) => {
                 if self.items.len() - 1 <= i {
                     self.items.len() - 1
@@ -133,11 +130,11 @@ impl WidgetTrait for Table<'_> {
             None => 0,
         };
 
-        self.state.borrow_mut().select(Some(i))
+        self.state.select(Some(i))
     }
 
     fn select_prev(&mut self, index: usize) {
-        let i = match self.state.borrow().selected() {
+        let i = match self.state.selected() {
             Some(i) => {
                 if i < index {
                     0
@@ -148,18 +145,18 @@ impl WidgetTrait for Table<'_> {
             None => 0,
         };
 
-        self.state.borrow_mut().select(Some(i))
+        self.state.select(Some(i))
     }
 
     fn select_first(&mut self) {
-        self.state.borrow_mut().select(Some(0))
+        self.state.select(Some(0))
     }
 
     fn select_last(&mut self) {
         if self.items.is_empty() {
-            self.state.borrow_mut().select(Some(0));
+            self.state.select(Some(0));
         } else {
-            self.state.borrow_mut().select(Some(self.items.len() - 1))
+            self.state.select(Some(self.items.len() - 1))
         }
     }
 
@@ -167,11 +164,11 @@ impl WidgetTrait for Table<'_> {
         let items = items.double_array();
 
         match items.len() {
-            0 => self.state.borrow_mut().select(None),
-            len if len < self.items.len() => self.state.borrow_mut().select(Some(len - 1)),
+            0 => self.state.select(None),
+            len if len < self.items.len() => self.state.select(Some(len - 1)),
             _ => {
-                if self.state.borrow().selected() == None {
-                    self.state().borrow_mut().select(Some(0))
+                if self.state.selected() == None {
+                    self.state.select(Some(0))
                 }
             }
         }
@@ -188,7 +185,7 @@ impl WidgetTrait for Table<'_> {
     }
 
     fn get_item(&self) -> Option<WidgetItem> {
-        let index = self.state.borrow().selected();
+        let index = self.state.selected();
         match index {
             Some(i) => Some(WidgetItem::Array(self.items[i].clone())),
             None => None,
@@ -216,6 +213,6 @@ impl RenderTrait for Table<'_> {
             .column_spacing(3)
             .widths(&self.widths);
 
-        f.render_stateful_widget(widget, chunk, &mut self.state.borrow_mut());
+        f.render_stateful_widget(widget, chunk, &mut self.state);
     }
 }
