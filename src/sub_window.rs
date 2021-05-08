@@ -1,13 +1,14 @@
 use tui::{
     backend::Backend,
     layout::Rect,
+    text::Span,
     widgets::{Block, Clear},
     Frame,
 };
 
 use component::*;
 use tui_wrapper::widget::{WidgetItem, WidgetTrait};
-use tui_wrapper::{child_window_chunk, Pane};
+use tui_wrapper::{child_window_chunk, focus_title_style, Pane};
 
 pub trait PaneTrait {
     type Item;
@@ -60,12 +61,12 @@ where
     pub fn update_chunks(&mut self, chunk: Rect) {
         self.chunk = child_window_chunk(80, 80, chunk);
 
-        let chunk = match self.block {
-            Some(ref b) => b.inner(self.chunk),
+        let inner_chunk = match self.block {
+            Some(ref b) => b.inner(b.inner(self.chunk)),
             None => self.chunk,
         };
 
-        self.pane.update_chunks(chunk);
+        self.pane.update_chunks(inner_chunk);
     }
 
     pub fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
@@ -73,8 +74,10 @@ where
 
         if let Some(ref b) = self.block {
             f.render_widget(
-                b.clone().title(self.title.as_str()).title_offset(1),
-                self.chunk,
+                b.clone()
+                    .title(Span::styled(self.title.as_str(), focus_title_style(true)))
+                    .title_offset(1),
+                b.inner(self.chunk),
             );
         }
 
