@@ -127,7 +127,7 @@ fn run() {
             "4:APIs",
             vec![Pane::new(
                 "APIs",
-                Widget::Text(Text::new(vec![])),
+                Widget::Text(Text::new(vec![]).disable_wrap()),
                 0,
                 view_id::tab_apis_pane_apis,
             )],

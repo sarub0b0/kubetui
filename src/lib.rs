@@ -55,7 +55,7 @@ fn update_window_text_pane_items_and_keep_scroll(window: &mut Window, id: &str, 
     if let Some(p) = pane {
         let widget = p.widget_mut().as_mut_text();
 
-        let old_select = widget.selected();
+        let old_select = widget.state().selected_vertical();
         let is_bottom = widget.is_bottom();
 
         widget.set_items(items);
@@ -67,7 +67,7 @@ fn update_window_text_pane_items_and_keep_scroll(window: &mut Window, id: &str, 
         } else if is_bottom || (new_len < old_select as usize) {
             widget.select_last();
         } else {
-            widget.select(old_select);
+            widget.select_vertical(old_select);
         }
     }
 }
@@ -77,7 +77,7 @@ fn update_event(window: &mut Window, ev: Vec<String>) {
     if let Some(p) = pane {
         let widget = p.widget_mut().as_mut_text();
 
-        let old_select = widget.selected();
+        let old_select = widget.state().selected_vertical();
         let is_bottom = widget.is_bottom();
 
         widget.set_items(WidgetItem::Array(ev));
@@ -87,7 +87,7 @@ fn update_event(window: &mut Window, ev: Vec<String>) {
         if is_bottom || (new_len < old_select as usize) {
             widget.select_last();
         } else {
-            widget.select(old_select);
+            widget.select_vertical(old_select);
         }
     }
 }
@@ -354,6 +354,22 @@ pub fn window_action<P: PaneTrait>(
             }
             KeyCode::Char('d') if ev.modifiers == KeyModifiers::CONTROL => {
                 window.scroll_down();
+            }
+            KeyCode::Char('f') if ev.modifiers == KeyModifiers::CONTROL => {
+                if window.selected_pane_id() == view_id::tab_apis_pane_apis {
+                    if let Some(pane) = window.pane_mut(view_id::tab_apis_pane_apis) {
+                        let w = pane.widget_mut().as_mut_text();
+                        w.scroll_right(10);
+                    }
+                }
+            }
+            KeyCode::Char('b') if ev.modifiers == KeyModifiers::CONTROL => {
+                if window.selected_pane_id() == view_id::tab_apis_pane_apis {
+                    if let Some(pane) = window.pane_mut(view_id::tab_apis_pane_apis) {
+                        let w = pane.widget_mut().as_mut_text();
+                        w.scroll_left(10);
+                    }
+                }
             }
             KeyCode::Tab if ev.modifiers == KeyModifiers::NONE => {
                 window.select_next_pane();
