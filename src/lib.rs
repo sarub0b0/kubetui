@@ -208,7 +208,7 @@ where
             _ => {}
         },
         Event::Kube(k) => match k {
-            Kube::GetAPIsResponse(apis) => pane.set_items(apis),
+            Kube::GetAPIsResponse(apis) => pane.set_list_items(apis),
             Kube::APIsResults(apis) => {
                 update_window_text_pane_items_and_keep_scroll(
                     window,

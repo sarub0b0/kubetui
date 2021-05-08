@@ -205,7 +205,7 @@ impl<'a> SelectForm<'a> {
         }
     }
 
-    fn set_items(&mut self, items: Vec<String>) {
+    fn set_list_items(&mut self, items: Vec<String>) {
         // マージ処理
         let new_items: HashSet<String> = items.clone().into_iter().collect();
         let mut old_items = self.list_items.clone();
@@ -395,9 +395,9 @@ impl<'a> MultipleSelect<'a> {
         self.selected_widget.toggle_select_unselect();
     }
 
-    pub fn set_items(&mut self, items: Vec<String>) {
+    pub fn set_list_items(&mut self, items: Vec<String>) {
         self.clear_filter();
-        self.selected_widget.set_items(items);
+        self.selected_widget.set_list_items(items);
     }
 
     pub fn to_vec_selected_items(&self) -> Vec<String> {
