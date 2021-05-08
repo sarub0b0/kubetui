@@ -7,12 +7,12 @@ pub use tab::Tab;
 
 use tui::{
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Style},
+    style::{Color, Modifier, Style},
     text::{Span, Spans},
     widgets::{Block, Borders},
 };
 
-pub fn focus_style(selected: bool) -> Color {
+pub fn focus_border_color(selected: bool) -> Color {
     if selected {
         Color::Reset
     } else {
@@ -20,12 +20,25 @@ pub fn focus_style(selected: bool) -> Color {
     }
 }
 
+pub fn focus_border_style(selected: bool) -> Style {
+    Style::default().fg(focus_border_color(selected))
+}
+
+pub fn focus_title_style(selected: bool) -> Style {
+    let mut style = Style::default().fg(Color::White);
+
+    if selected {
+        style = style.add_modifier(Modifier::BOLD);
+    }
+    style
+}
+
 pub fn generate_title(title: &str, selected: bool) -> Spans {
     let prefix = if selected { " ✔︎ " } else { "───" };
     Spans::from(vec![
         Span::styled("─", Style::default()),
-        Span::styled(prefix, Style::default().fg(focus_style(selected))),
-        Span::styled(title, Style::default().fg(Color::White)),
+        Span::styled(prefix, focus_border_style(selected)),
+        Span::styled(title, focus_title_style(selected)),
     ])
 }
 
@@ -33,7 +46,7 @@ pub fn focus_block(title: &str, selected: bool) -> Block {
     Block::default()
         .borders(Borders::ALL)
         .title(generate_title(title, selected))
-        .border_style(Style::default().fg(focus_style(selected)))
+        .border_style(focus_border_style(selected))
 }
 
 pub fn child_window_chunk(width_rate: u16, height_rate: u16, chunk: Rect) -> Rect {
