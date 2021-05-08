@@ -61,23 +61,6 @@ impl<'a> Table<'a> {
         self.select_prev(1)
     }
 
-    pub fn widget(&'a self, block: Block<'a>) -> TTable<'a> {
-        let header_cells = self
-            .header
-            .iter()
-            .cloned()
-            .map(|h| Cell::from(h).style(Style::default().fg(Color::DarkGray)));
-
-        let header = Row::new(header_cells).height(1);
-
-        TTable::new(self.rows.clone())
-            .block(block)
-            .header(header)
-            .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
-            .column_spacing(3)
-            .widths(&self.widths)
-    }
-
     pub fn state(&self) -> &TableState {
         &self.state
     }
