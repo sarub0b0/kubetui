@@ -179,8 +179,14 @@ where
                 pane.toggle_select_unselect();
                 pane.clear_filter();
 
-                tx.send(Event::Kube(Kube::SetAPIsRequest(pane.get_selected_items())))
-                    .unwrap();
+                tx.send(Event::Kube(Kube::SetAPIsRequest(
+                    pane.to_vec_selected_items(),
+                )))
+                .unwrap();
+
+                if pane.selected_items().is_empty() {
+                    window.pane_clear(view_id::tab_apis_pane_apis)
+                }
             }
 
             KeyCode::Delete | KeyCode::Backspace => {
