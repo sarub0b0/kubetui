@@ -12,4 +12,4 @@ tui-wrapper = { path = "../tui-wrapper" }
 fuzzy-matcher = "0.3"
 
 [dev-dependencies]
-pretty_assertions = "0.7.1"
+pretty_assertions = "0.7"

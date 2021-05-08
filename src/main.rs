@@ -1,10 +1,9 @@
-// use std::sync::mpsc::{self, Receiver, Sender};
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use std::panic;
 use std::thread;
 use std::time;
 
-use std::io::{self, Write};
+use std::io;
 
 use crossterm::{
     cursor::Show,
