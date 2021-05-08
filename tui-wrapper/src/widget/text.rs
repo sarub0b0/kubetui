@@ -117,8 +117,8 @@ impl Text<'_> {
         self.state.select_horizontal(scroll);
     }
 
-    pub fn state(&self) -> TextState {
-        self.state
+    pub fn state(&self) -> &TextState {
+        &self.state
     }
 
     pub fn selected(&self) -> (u64, u64) {
