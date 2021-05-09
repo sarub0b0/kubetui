@@ -130,7 +130,7 @@ impl<'a> Window<'a> {
 impl<'a> Window<'a> {
     pub fn pane(&self, id: &str) -> Option<&Pane<'a>> {
         for t in &self.tabs {
-            let p = t.widgets().iter().find(|p| p.id() == id);
+            let p = t.panes().iter().find(|p| p.id() == id);
             if p.is_some() {
                 return p;
             }
@@ -139,7 +139,7 @@ impl<'a> Window<'a> {
     }
     pub fn pane_mut(&mut self, id: &str) -> Option<&mut Pane<'a>> {
         for t in &mut self.tabs {
-            let p = t.widgets_mut().iter_mut().find(|p| p.id() == id);
+            let p = t.panes_mut().iter_mut().find(|p| p.id() == id);
             if p.is_some() {
                 return p;
             }
@@ -282,7 +282,7 @@ impl<'a> Window<'a> {
     }
 
     fn scroll_status(&self, id: &str) -> Option<Paragraph<'a>> {
-        if let Some(pane) = self.selected_tab().widgets().iter().find(|p| p.id() == id) {
+        if let Some(pane) = self.selected_tab().panes().iter().find(|p| p.id() == id) {
             let widget = pane.widget().as_text();
             let span = text_status((widget.state().selected_vertical(), widget.row_size()));
 

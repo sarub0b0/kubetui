@@ -51,11 +51,11 @@ impl<'a> Tab<'a> {
         self.layout.split(tab_size)
     }
 
-    pub fn widgets(&self) -> &Vec<Pane<'a>> {
+    pub fn panes(&self) -> &Vec<Pane<'a>> {
         &self.panes
     }
 
-    pub fn widgets_mut(&mut self) -> &mut Vec<Pane<'a>> {
+    pub fn panes_mut(&mut self) -> &mut Vec<Pane<'a>> {
         &mut self.panes
     }
 
