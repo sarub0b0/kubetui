@@ -4,18 +4,26 @@ use tui::{
     backend::Backend,
     layout::{Constraint, Rect},
     style::{Color, Modifier, Style},
-    text::Span,
     widgets::{Block, Cell, Row, Table as TTable, TableState},
     Frame,
 };
+
+use super::spans::generate_spans_line;
+use super::wrap::wrap_line;
+
+const COLUMN_SPACING: u16 = 3;
+const HIGHLIGHT_SYMBOL: &str = " ";
 
 #[derive(Debug, Clone)]
 pub struct Table<'a> {
     items: Vec<Vec<String>>,
     header: Vec<String>,
+    header_row: Row<'a>,
     state: TableState,
     rows: Vec<Row<'a>>,
     widths: Vec<Constraint>,
+    row_width: usize,
+    digits: Vec<usize>,
 }
 
 impl Default for Table<'_> {
@@ -23,9 +31,12 @@ impl Default for Table<'_> {
         Self {
             items: Default::default(),
             header: Default::default(),
+            header_row: Default::default(),
             state: Default::default(),
             rows: Default::default(),
             widths: Default::default(),
+            row_width: Default::default(),
+            digits: Default::default(),
         }
     }
 }
@@ -37,15 +48,23 @@ impl<'a> Table<'a> {
             state.select(Some(0))
         }
 
+        let header_cells = header
+            .iter()
+            .cloned()
+            .map(|h| Cell::from(h).style(Style::default().fg(Color::DarkGray)));
+
+        let header_row = Row::new(header_cells).bottom_margin(1);
+
         let mut table = Self {
             items,
             header,
+            header_row,
             state,
             ..Default::default()
         };
 
-        table.set_rows();
         table.set_widths();
+        table.set_rows();
 
         table
     }
@@ -66,33 +85,73 @@ impl<'a> Table<'a> {
     }
 
     fn set_widths(&mut self) {
-        let mut digit_vec: Vec<usize> = self.header.iter().map(|h| h.len()).collect();
+        self.digits = self.header.iter().map(|h| h.len()).collect();
 
         for row in &self.items {
             for (i, col) in row.iter().enumerate() {
                 let len = col.len();
-                if digit_vec.len() < i {
+                if self.digits.len() < i {
                     break;
                 }
 
-                if digit_vec[i] < len {
-                    digit_vec[i] = len
+                if self.digits[i] < len {
+                    self.digits[i] = len
                 }
             }
         }
 
-        self.widths = digit_vec
-            .iter()
-            .map(|d| Constraint::Length(*d as u16))
-            .collect()
+        if self.digits.iter().sum::<usize>()
+            + (COLUMN_SPACING as usize * self.digits.len().saturating_sub(1))
+            <= self.row_width
+        {
+            self.widths = self
+                .digits
+                .iter()
+                .map(|d| Constraint::Length(*d as u16))
+                .collect()
+        } else {
+            self.digits[0] = self.row_width.saturating_sub(
+                (COLUMN_SPACING as usize * self.digits.len().saturating_sub(1))
+                    + self.digits.iter().skip(1).sum::<usize>(),
+            );
+
+            self.widths = self
+                .digits
+                .iter()
+                .map(|d| Constraint::Length(*d as u16))
+                .collect();
+        }
     }
 
     fn set_rows(&mut self) {
+        let mut margin = 0;
         self.rows = self
             .items
             .iter()
-            .map(|i| Row::new(i.iter().cloned().map(|s| Cell::from(Span::from(s)))))
+            .map(|row| {
+                let mut height = 1;
+                let cells = row.iter().cloned().enumerate().map(|(i, cell)| {
+                    let wrapped = wrap_line(&cell, self.digits[i]);
+
+                    if height < wrapped.len() {
+                        height = wrapped.len();
+                        margin = 1;
+                    }
+                    Cell::from(generate_spans_line(&wrapped))
+                });
+
+                Row::new(cells).height(height as u16)
+            })
             .collect();
+
+        if margin == 1 {
+            self.rows = self
+                .rows
+                .iter()
+                .cloned()
+                .map(|row| row.bottom_margin(margin))
+                .collect()
+        }
     }
 }
 
@@ -157,11 +216,13 @@ impl WidgetTrait for Table<'_> {
         }
 
         self.items = items;
+        self.set_widths();
         self.set_rows();
-        self.set_widths()
     }
 
-    fn update_area(&mut self, _area: tui::layout::Rect) {}
+    fn update_area(&mut self, area: tui::layout::Rect) {
+        self.row_width = area.width.saturating_sub(2) as usize;
+    }
 
     fn clear(&mut self) {
         *self = Self::default();
@@ -181,19 +242,12 @@ impl RenderTrait for Table<'_> {
     where
         B: Backend,
     {
-        let header_cells = self
-            .header
-            .iter()
-            .cloned()
-            .map(|h| Cell::from(h).style(Style::default().fg(Color::DarkGray)));
-
-        let header = Row::new(header_cells).height(1);
-
         let widget = TTable::new(self.rows.clone())
             .block(block)
-            .header(header)
+            .header(self.header_row.clone())
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
-            .column_spacing(3)
+            .highlight_symbol(HIGHLIGHT_SYMBOL)
+            .column_spacing(COLUMN_SPACING)
             .widths(&self.widths);
 
         f.render_stateful_widget(widget, chunk, &mut self.state);
