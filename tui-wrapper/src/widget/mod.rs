@@ -1,4 +1,7 @@
 mod ansi;
+mod spans;
+mod wrap;
+
 pub mod list;
 pub mod table;
 pub mod text;
