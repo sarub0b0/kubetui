@@ -3,7 +3,7 @@ use tui::{
     text::{Span, Spans},
 };
 
-use super::ansi::*;
+use super::ansi_color::*;
 
 use ansi::{self, AnsiEscapeSequence, TextParser};
 

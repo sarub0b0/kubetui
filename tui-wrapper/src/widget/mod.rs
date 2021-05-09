@@ -1,4 +1,4 @@
-mod ansi;
+mod ansi_color;
 mod spans;
 mod wrap;
 
