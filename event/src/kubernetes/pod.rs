@@ -74,13 +74,7 @@ async fn get_pod_info(client: Client, namespace: &str, server_url: &str) -> Vec<
             let indexes = t.find_indexes(&["Name", "Ready", "Status", "Age"]);
 
             for row in t.rows.iter() {
-                ret.push(
-                    indexes
-                        .iter()
-                        .filter_map(|i| row.cells[*i].as_str())
-                        .map(ToString::to_string)
-                        .collect(),
-                );
+                ret.push(indexes.iter().map(|i| row.cells[*i].to_string()).collect());
             }
         }
         Err(e) => return vec![vec![e.to_string()]],
