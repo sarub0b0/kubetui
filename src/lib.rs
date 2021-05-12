@@ -48,9 +48,14 @@ pub enum WindowEvent {
     OpenSubWindow(&'static str),
     CloseSubWindow,
     ResizeWindow,
+    UpdateContents(Kube),
 }
 
-fn update_window_text_pane_items_and_keep_scroll(window: &mut Window, id: &str, items: WidgetItem) {
+pub fn update_window_text_pane_items_and_keep_scroll(
+    window: &mut Window,
+    id: &str,
+    items: WidgetItem,
+) {
     let pane = window.pane_mut(id);
     if let Some(p) = pane {
         let widget = p.widget_mut().as_mut_text();
@@ -72,7 +77,7 @@ fn update_window_text_pane_items_and_keep_scroll(window: &mut Window, id: &str, 
     }
 }
 
-fn update_event(window: &mut Window, ev: Vec<String>) {
+pub fn update_event(window: &mut Window, ev: Vec<String>) {
     let pane = window.pane_mut(view_id::tab_event_pane_event);
     if let Some(p) = pane {
         let widget = p.widget_mut().as_mut_text();
@@ -92,7 +97,7 @@ fn update_event(window: &mut Window, ev: Vec<String>) {
     }
 }
 
-fn update_pod_logs(window: &mut Window, logs: Vec<String>) {
+pub fn update_pod_logs(window: &mut Window, logs: Vec<String>) {
     let pane = window.pane_mut(view_id::tab_pods_pane_logs);
     if let Some(p) = pane {
         let widget = p.widget_mut().as_mut_text();
@@ -127,7 +132,7 @@ fn selected_config(window: &Window) -> String {
     widget.items()[selected_index].clone()
 }
 
-fn update_window_pane_items(window: &mut Window, id: &str, items: WidgetItem) {
+pub fn update_window_pane_items(window: &mut Window, id: &str, items: WidgetItem) {
     let pane = window.pane_mut(id);
     if let Some(p) = pane {
         p.set_items(items);
@@ -207,17 +212,7 @@ where
 
             _ => {}
         },
-        Event::Kube(k) => match k {
-            Kube::GetAPIsResponse(apis) => pane.set_list_items(apis),
-            Kube::APIsResults(apis) => {
-                update_window_text_pane_items_and_keep_scroll(
-                    window,
-                    view_id::tab_apis_pane_apis,
-                    WidgetItem::Array(apis),
-                );
-            }
-            _ => {}
-        },
+        Event::Kube(k) => return WindowEvent::UpdateContents(k),
         Event::Resize(_w, _h) => {
             return WindowEvent::ResizeWindow;
         }
@@ -311,10 +306,7 @@ where
             }
             _ => {}
         },
-        Event::Kube(k) => match k {
-            Kube::GetNamespacesResponse(ns) => pane.set_items(ns),
-            _ => {}
-        },
+        Event::Kube(k) => return WindowEvent::UpdateContents(k),
         Event::Resize(_w, _h) => {
             return WindowEvent::ResizeWindow;
         }
@@ -324,14 +316,7 @@ where
     WindowEvent::Continue
 }
 
-pub fn window_action<P: PaneTrait>(
-    window: &mut Window,
-    _subwin: &mut SubWindow<P>,
-    tx: &Sender<Event>,
-    rx: &Receiver<Event>,
-    current_namespace: &mut String,
-    current_context: &mut String,
-) -> WindowEvent {
+pub fn window_action(window: &mut Window, tx: &Sender<Event>, rx: &Receiver<Event>) -> WindowEvent {
     match rx.recv().unwrap() {
         Event::Input(ev) => match ev.code {
             KeyCode::Char('q') => {
@@ -418,50 +403,7 @@ pub fn window_action<P: PaneTrait>(
         }
         Event::Tick => {}
         Event::Mouse => {}
-        Event::Kube(k) => match k {
-            Kube::Pod(info) => {
-                update_window_pane_items(
-                    window,
-                    view_id::tab_pods_pane_pods,
-                    WidgetItem::DoubleArray(info),
-                );
-            }
-
-            Kube::Configs(configs) => {
-                update_window_pane_items(
-                    window,
-                    view_id::tab_configs_pane_configs,
-                    WidgetItem::Array(configs),
-                );
-            }
-            Kube::LogStreamResponse(logs) => {
-                update_pod_logs(window, logs);
-            }
-
-            Kube::ConfigResponse(raw) => {
-                update_window_pane_items(
-                    window,
-                    view_id::tab_configs_pane_raw_data,
-                    WidgetItem::Array(raw),
-                );
-            }
-
-            Kube::GetCurrentContextResponse(ctx, ns) => {
-                *current_context = ctx;
-                *current_namespace = ns;
-            }
-            Kube::Event(ev) => {
-                update_event(window, ev);
-            }
-            Kube::APIsResults(apis) => {
-                update_window_text_pane_items_and_keep_scroll(
-                    window,
-                    view_id::tab_apis_pane_apis,
-                    WidgetItem::Array(apis),
-                );
-            }
-            _ => unreachable!(),
-        },
+        Event::Kube(k) => return WindowEvent::UpdateContents(k),
     }
     WindowEvent::Continue
 }

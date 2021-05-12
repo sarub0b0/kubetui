@@ -184,8 +184,8 @@ fn run() {
             })
             .unwrap();
 
-        if let Some(id) = subwin_id {
-            let event = match id {
+        let event = if let Some(id) = subwin_id {
+            match id {
                 view_id::subwin_ns => namespace_subwin_action(
                     &mut window,
                     &mut subwin_namespace,
@@ -198,42 +198,80 @@ fn run() {
                     apis_subwin_action(&mut window, &mut subwin_apis, &tx_main, &rx_main)
                 }
                 _ => WindowEvent::Continue,
-            };
-
-            match event {
-                WindowEvent::CloseSubWindow => {
-                    subwin_id = None;
-                }
-                WindowEvent::CloseWindow => {}
-                WindowEvent::Continue => {}
-                WindowEvent::OpenSubWindow(_) => {}
-                WindowEvent::ResizeWindow => {
-                    window.update_chunks(terminal.size().unwrap());
-                    subwin_namespace.update_chunks(terminal.size().unwrap());
-                    subwin_apis.update_chunks(terminal.size().unwrap());
-                }
             }
         } else {
-            match window_action(
-                &mut window,
-                &mut subwin_namespace,
-                &tx_main,
-                &rx_main,
-                &mut current_namespace,
-                &mut current_context,
-            ) {
-                WindowEvent::CloseWindow => break,
-                WindowEvent::Continue => {}
-                WindowEvent::OpenSubWindow(id) => subwin_id = Some(id),
-                WindowEvent::CloseSubWindow => {
-                    unreachable!()
-                }
-                WindowEvent::ResizeWindow => {
-                    window.update_chunks(terminal.size().unwrap());
-                    subwin_namespace.update_chunks(terminal.size().unwrap());
-                    subwin_apis.update_chunks(terminal.size().unwrap());
-                }
+            window_action(&mut window, &tx_main, &rx_main)
+        };
+
+        match event {
+            WindowEvent::Continue => {}
+            WindowEvent::CloseWindow => {
+                break;
             }
+            WindowEvent::CloseSubWindow => {
+                subwin_id = None;
+            }
+            WindowEvent::OpenSubWindow(id) => {
+                subwin_id = Some(id);
+            }
+            WindowEvent::ResizeWindow => {
+                window.update_chunks(terminal.size().unwrap());
+                subwin_namespace.update_chunks(terminal.size().unwrap());
+                subwin_apis.update_chunks(terminal.size().unwrap());
+            }
+            WindowEvent::UpdateContents(kube_ev) => match kube_ev {
+                Kube::Pod(info) => {
+                    update_window_pane_items(
+                        &mut window,
+                        view_id::tab_pods_pane_pods,
+                        WidgetItem::DoubleArray(info),
+                    );
+                }
+
+                Kube::Configs(configs) => {
+                    update_window_pane_items(
+                        &mut window,
+                        view_id::tab_configs_pane_configs,
+                        WidgetItem::Array(configs),
+                    );
+                }
+                Kube::LogStreamResponse(logs) => {
+                    update_pod_logs(&mut window, logs);
+                }
+
+                Kube::ConfigResponse(raw) => {
+                    update_window_pane_items(
+                        &mut window,
+                        view_id::tab_configs_pane_raw_data,
+                        WidgetItem::Array(raw),
+                    );
+                }
+
+                Kube::GetCurrentContextResponse(ctx, ns) => {
+                    current_context = ctx;
+                    current_namespace = ns;
+                }
+                Kube::Event(ev) => {
+                    update_event(&mut window, ev);
+                }
+                Kube::APIsResults(apis) => {
+                    update_window_text_pane_items_and_keep_scroll(
+                        &mut window,
+                        view_id::tab_apis_pane_apis,
+                        WidgetItem::Array(apis),
+                    );
+                }
+                Kube::GetNamespacesResponse(ns) => {
+                    let pane = subwin_namespace.pane_mut();
+                    pane.set_items(ns);
+                }
+
+                Kube::GetAPIsResponse(apis) => {
+                    let pane = subwin_apis.pane_mut();
+                    pane.set_list_items(apis);
+                }
+                _ => unreachable!(),
+            },
         }
     }
 }
