@@ -266,7 +266,9 @@ impl<'a> SelectForm<'a> {
     }
 
     fn to_vec_selected_items(&self) -> Vec<String> {
-        self.selected_items.clone().into_iter().collect()
+        let mut vec: Vec<String> = self.selected_items.clone().into_iter().collect();
+        vec.sort();
+        vec
     }
 
     fn selected_items(&self) -> &HashSet<String> {
