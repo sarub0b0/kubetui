@@ -149,6 +149,14 @@ impl Text<'_> {
 
 // コンテンツ操作
 impl<'a> Text<'a> {
+    fn wrap_width(&self) -> usize {
+        if self.wrap {
+            self.area.width
+        } else {
+            usize::MAX
+        }
+    }
+
     pub fn items(&self) -> &Vec<String> {
         &self.items
     }
@@ -166,14 +174,7 @@ impl<'a> Text<'a> {
 
         self.items.append(&mut items.to_vec());
 
-        let wrapped = wrap(
-            items,
-            if self.wrap {
-                self.area.width
-            } else {
-                usize::MAX
-            },
-        );
+        let wrapped = wrap(items, self.wrap_width());
 
         self.spans.append(&mut generate_spans(&wrapped));
 
@@ -185,29 +186,13 @@ impl<'a> Text<'a> {
     }
 
     fn update_spans(&mut self) {
-        let lines = wrap(
-            &self.items,
-            if self.wrap {
-                self.area.width
-            } else {
-                usize::MAX
-            },
-        );
+        let lines = wrap(&self.items, self.wrap_width());
 
         self.spans = generate_spans(&lines);
     }
 
     fn update_rows_size(&mut self) {
-        let mut count = self.spans.len() as u64;
-
-        let height = self.area.height as u64;
-        if height < count {
-            count -= height;
-        } else {
-            count = 0
-        }
-
-        self.row_size = count;
+        self.row_size = self.spans().len().saturating_sub(self.area.height) as u64;
     }
 }
 
@@ -252,10 +237,6 @@ impl WidgetTrait for Text<'_> {
         let follow = self.follow;
 
         *self = Self::default();
-
-        if !wrap {
-            self.wrap = wrap;
-        }
 
         self.area = area;
         self.wrap = wrap;
