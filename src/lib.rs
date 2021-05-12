@@ -51,59 +51,6 @@ pub enum WindowEvent {
     UpdateContents(Kube),
 }
 
-pub fn update_window_text_pane_items_and_keep_scroll(
-    window: &mut Window,
-    id: &str,
-    items: WidgetItem,
-) {
-    let pane = window.pane_mut(id);
-    if let Some(p) = pane {
-        let widget = p.widget_mut().as_mut_text();
-
-        let old_select = widget.state().selected_vertical();
-        let is_bottom = widget.is_bottom();
-
-        widget.set_items(items);
-
-        let new_len = widget.spans().len();
-
-        if old_select == 0 {
-            widget.select_first();
-        } else if is_bottom || (new_len < old_select as usize) {
-            widget.select_last();
-        } else {
-            widget.select_vertical(old_select);
-        }
-    }
-}
-
-pub fn update_event(window: &mut Window, ev: Vec<String>) {
-    let pane = window.pane_mut(view_id::tab_event_pane_event);
-    if let Some(p) = pane {
-        let widget = p.widget_mut().as_mut_text();
-
-        let old_select = widget.state().selected_vertical();
-        let is_bottom = widget.is_bottom();
-
-        widget.set_items(WidgetItem::Array(ev));
-
-        let new_len = widget.spans().len();
-
-        if is_bottom || (new_len < old_select as usize) {
-            widget.select_last();
-        } else {
-            widget.select_vertical(old_select);
-        }
-    }
-}
-
-pub fn append_items_window_pane(window: &mut Window, id: &str, items: WidgetItem) {
-    let pane = window.pane_mut(id);
-    if let Some(p) = pane {
-        p.widget_mut().append_items(items)
-    }
-}
-
 fn selected_pod(window: &Window) -> String {
     match window.pane(view_id::tab_pods_pane_pods) {
         Some(pane) => {
@@ -124,10 +71,15 @@ fn selected_config(window: &Window) -> String {
     widget.items()[selected_index].clone()
 }
 
-pub fn update_window_pane_items(window: &mut Window, id: &str, items: WidgetItem) {
-    let pane = window.pane_mut(id);
-    if let Some(p) = pane {
-        p.set_items(items);
+pub fn set_items_window_pane(window: &mut Window, id: &str, items: WidgetItem) {
+    if let Some(pane) = window.pane_mut(id) {
+        pane.set_items(items);
+    }
+}
+
+pub fn append_items_window_pane(window: &mut Window, id: &str, items: WidgetItem) {
+    if let Some(pane) = window.pane_mut(id) {
+        pane.append_items(items);
     }
 }
 

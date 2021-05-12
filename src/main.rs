@@ -221,7 +221,7 @@ fn run() {
             }
             WindowEvent::UpdateContents(kube_ev) => match kube_ev {
                 Kube::Pod(info) => {
-                    update_window_pane_items(
+                    set_items_window_pane(
                         &mut window,
                         view_id::tab_pods_pane_pods,
                         WidgetItem::DoubleArray(info),
@@ -229,7 +229,7 @@ fn run() {
                 }
 
                 Kube::Configs(configs) => {
-                    update_window_pane_items(
+                    set_items_window_pane(
                         &mut window,
                         view_id::tab_configs_pane_configs,
                         WidgetItem::Array(configs),
@@ -244,7 +244,7 @@ fn run() {
                 }
 
                 Kube::ConfigResponse(raw) => {
-                    update_window_pane_items(
+                    set_items_window_pane(
                         &mut window,
                         view_id::tab_configs_pane_raw_data,
                         WidgetItem::Array(raw),
@@ -256,10 +256,14 @@ fn run() {
                     current_namespace = ns;
                 }
                 Kube::Event(ev) => {
-                    update_event(&mut window, ev);
+                    set_items_window_pane(
+                        &mut window,
+                        view_id::tab_event_pane_event,
+                        WidgetItem::Array(ev),
+                    );
                 }
                 Kube::APIsResults(apis) => {
-                    update_window_text_pane_items_and_keep_scroll(
+                    set_items_window_pane(
                         &mut window,
                         view_id::tab_apis_pane_apis,
                         WidgetItem::Array(apis),

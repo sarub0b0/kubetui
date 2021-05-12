@@ -107,6 +107,15 @@ impl Text<'_> {
     pub fn selected(&self) -> (u64, u64) {
         self.state.selected()
     }
+
+    pub fn selected_vertical(&self) -> u64 {
+        self.state.selected_vertical()
+    }
+
+    pub fn selected_horizontal(&self) -> u64 {
+        self.state.selected_horizontal()
+    }
+
     pub fn scroll_top(&mut self) {
         self.state.select_vertical(0);
     }
@@ -201,11 +210,21 @@ impl WidgetTrait for Text<'_> {
     }
 
     fn set_items(&mut self, items: WidgetItem) {
-        self.state.select_vertical(0);
+        let is_bottom = self.is_bottom();
+        let pos = self.selected_vertical();
+
         self.items = items.array();
 
         self.update_spans();
         self.update_rows_size();
+
+        if self.follow && is_bottom {
+            self.scroll_bottom();
+        }
+
+        if self.row_size < pos {
+            self.scroll_bottom();
+        }
     }
 
     fn update_area(&mut self, area: Rect) {
@@ -231,6 +250,7 @@ impl WidgetTrait for Text<'_> {
         let index = self.state.selected_vertical() as usize;
         Some(WidgetItem::Single(self.spans[index].clone().into()))
     }
+
     fn append_items(&mut self, items: WidgetItem) {
         let is_bottom = self.is_bottom();
 

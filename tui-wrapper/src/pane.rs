@@ -64,6 +64,10 @@ impl<'a> Pane<'a> {
         self.widget.set_items(items);
     }
 
+    pub fn append_items(&mut self, items: WidgetItem) {
+        self.widget.append_items(items);
+    }
+
     pub fn is_selected(&self, rhs: &Pane) -> bool {
         std::ptr::eq(self, rhs)
     }
