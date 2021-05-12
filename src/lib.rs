@@ -278,7 +278,7 @@ where
                     tx.send(Event::Kube(Kube::SetNamespace(item.to_string())))
                         .unwrap();
 
-                    *current_namespace = item.to_string();
+                    *current_namespace = item;
 
                     if let Some(p) = window.pane_mut(view_id::tab_event_pane_event) {
                         p.clear();

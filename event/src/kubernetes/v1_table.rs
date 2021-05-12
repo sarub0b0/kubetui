@@ -106,7 +106,7 @@ impl Table {
             .map(|row| {
                 header
                     .iter()
-                    .map(|(i, _)| format!("{}", to_print_value(&row.cells[*i])))
+                    .map(|(i, _)| to_print_value(&row.cells[*i]))
                     .collect()
             })
             .collect();
@@ -144,7 +144,7 @@ impl Table {
                     .join("   "));
         });
 
-        return buf;
+        buf
     }
 }
 

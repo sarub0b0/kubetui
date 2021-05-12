@@ -93,9 +93,10 @@ impl<'a> SelectForm<'a> {
     fn filter_items(&self, items: &HashSet<String>) -> Vec<String> {
         let mut ret: Vec<String> = items
             .iter()
-            .filter_map(|item| match self.matcher.fuzzy_match(&item, &self.filter) {
-                Some(_) => Some(item.to_string()),
-                None => None,
+            .filter_map(|item| {
+                self.matcher
+                    .fuzzy_match(&item, &self.filter)
+                    .map(|_| item.to_string())
             })
             .collect();
         ret.sort();
@@ -147,11 +148,7 @@ impl<'a> SelectForm<'a> {
         // 2. 取得したアイテムをフォーカスしているリストから削除
         // 3  フォーカスしていないリストに追加
         let list = self.focused_form_mut().as_mut_list();
-        let selected_item = if let Some(index) = list.selected() {
-            Some(list.items()[index].to_string())
-        } else {
-            None
-        };
+        let selected_item = list.selected().map(|index| list.items()[index].to_string());
 
         if let Some(selected_item) = selected_item {
             self.swap_item(&selected_item)
@@ -207,7 +204,7 @@ impl<'a> SelectForm<'a> {
 
     fn set_list_items(&mut self, items: Vec<String>) {
         // マージ処理
-        let new_items: HashSet<String> = items.clone().into_iter().collect();
+        let new_items: HashSet<String> = items.into_iter().collect();
         let mut old_items = self.list_items.clone();
 
         self.selected_items.iter().for_each(|item| {
@@ -257,12 +254,7 @@ impl<'a> SelectForm<'a> {
     }
 
     fn status(&self) -> (usize, usize) {
-        let mut pos = self
-            .list_widget
-            .as_list()
-            .state()
-            .selected()
-            .unwrap_or_else(|| 0);
+        let mut pos = self.list_widget.as_list().state().selected().unwrap_or(0);
 
         let size = self.list_widget.as_list().items().len();
 

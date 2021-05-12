@@ -50,9 +50,10 @@ impl<'a> SelectForm<'a> {
     fn filter_items(&self, items: &[String]) -> Vec<String> {
         let mut ret: Vec<String> = items
             .iter()
-            .filter_map(|item| match self.matcher.fuzzy_match(&item, &self.filter) {
-                Some(_) => Some(item.to_string()),
-                None => None,
+            .filter_map(|item| {
+                self.matcher
+                    .fuzzy_match(&item, &self.filter)
+                    .map(|_| item.to_string())
             })
             .collect();
         ret.sort();
@@ -93,7 +94,7 @@ impl<'a> SelectForm<'a> {
     fn status(&self) -> (usize, usize) {
         let list = self.list_widget.as_list();
 
-        let mut pos = list.state().selected().unwrap_or_else(|| 0);
+        let mut pos = list.state().selected().unwrap_or(0);
 
         let size = list.items().len();
 

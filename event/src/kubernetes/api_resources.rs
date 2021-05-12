@@ -36,10 +36,7 @@ fn is_preferred_version(
     version: &str,
     preferred_version: &Option<GroupVersionForDiscovery>,
 ) -> Option<bool> {
-    match preferred_version {
-        Some(gv) => Some(gv.version == version),
-        None => None,
-    }
+    preferred_version.as_ref().map(|gv| gv.version == version)
 }
 
 pub async fn apis_list(client: &Client, server_url: &str) -> Vec<String> {
@@ -48,7 +45,7 @@ pub async fn apis_list(client: &Client, server_url: &str) -> Vec<String> {
     let set: HashSet<String> = api_info_list
         .iter()
         .map(|api_info| {
-            if api_info.api_group == "" {
+            if api_info.api_group.is_empty() {
                 api_info.api_resource.name.to_string()
             } else {
                 format!("{}.{}", api_info.api_resource.name, api_info.api_group)
@@ -116,7 +113,7 @@ async fn api_resource_list_to_api_info_list(
     server_url: &str,
     gv: &GroupVersion,
 ) -> Vec<APIInfo> {
-    let result = if gv.group == "" {
+    let result = if gv.group.is_empty() {
         client
             .request::<APIResourceList>(
                 get_request(server_url, &format!("api/{}", gv.version)).unwrap(),
@@ -133,7 +130,7 @@ async fn api_resource_list_to_api_info_list(
     if let Ok(list) = result {
         list.resources
             .iter()
-            .filter(|resource| !resource.name.contains("/"))
+            .filter(|resource| !resource.name.contains('/'))
             .map(|resource| APIInfo {
                 api_group: gv.group.to_string(),
                 api_version: APIResourceList::API_VERSION.to_string(),
@@ -151,7 +148,7 @@ fn convert_api_database(api_info_list: &[APIInfo]) -> HashMap<String, APIInfo> {
     let mut db: HashMap<String, APIInfo> = HashMap::new();
 
     for info in api_info_list {
-        let api_name = if info.api_group == "" {
+        let api_name = if info.api_group.is_empty() {
             info.api_resource.name.to_string()
         } else {
             format!("{}.{}", info.api_resource.name, info.api_group)

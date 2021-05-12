@@ -153,11 +153,9 @@ impl WidgetTrait for List<'_> {
     fn clear(&mut self) {}
 
     fn get_item(&self) -> Option<WidgetItem> {
-        let index = self.state.selected();
-        match index {
-            Some(i) => Some(WidgetItem::Single(self.items[i].clone())),
-            None => None,
-        }
+        self.state
+            .selected()
+            .map(|i| WidgetItem::Single(self.items[i].clone()))
     }
 
     fn append_items(&mut self, _items: WidgetItem) {
