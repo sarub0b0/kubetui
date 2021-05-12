@@ -7,11 +7,11 @@ mod pod;
 mod request;
 mod v1_table;
 
+use self::event::event_loop;
 use super::Event;
 use api_resources::{apis_list, apis_loop};
 use config::{configs_loop, get_config};
 use context::namespace_list;
-use event::event_loop;
 use log::log_stream;
 use pod::pod_loop;
 
