@@ -97,12 +97,10 @@ pub fn update_event(window: &mut Window, ev: Vec<String>) {
     }
 }
 
-pub fn update_pod_logs(window: &mut Window, logs: Vec<String>) {
-    let pane = window.pane_mut(view_id::tab_pods_pane_logs);
+pub fn append_items_window_pane(window: &mut Window, id: &str, items: WidgetItem) {
+    let pane = window.pane_mut(id);
     if let Some(p) = pane {
-        let widget = p.widget_mut().as_mut_text();
-
-        widget.append_items(&logs);
+        p.widget_mut().append_items(items)
     }
 }
 

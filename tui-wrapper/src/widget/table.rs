@@ -235,6 +235,9 @@ impl WidgetTrait for Table<'_> {
             None => None,
         }
     }
+    fn append_items(&mut self, _: WidgetItem) {
+        todo!()
+    }
 }
 
 impl RenderTrait for Table<'_> {

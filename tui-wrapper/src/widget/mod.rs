@@ -43,6 +43,14 @@ impl WidgetItem {
             panic!("called double_array() on {:?}", self)
         }
     }
+
+    pub fn as_array(&self) -> &[String] {
+        if let Self::Array(v) = self {
+            v
+        } else {
+            panic!("called as_array() on {:?}", self)
+        }
+    }
 }
 
 pub trait WidgetTrait {
@@ -52,6 +60,7 @@ pub trait WidgetTrait {
     fn select_first(&mut self);
     fn select_last(&mut self);
     fn set_items(&mut self, items: WidgetItem);
+    fn append_items(&mut self, items: WidgetItem);
     fn get_item(&self) -> Option<WidgetItem>;
     fn update_area(&mut self, area: Rect);
     fn clear(&mut self);
@@ -192,6 +201,14 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.get_item(),
             Widget::Text(w) => w.get_item(),
             Widget::Table(w) => w.get_item(),
+        }
+    }
+
+    fn append_items(&mut self, items: WidgetItem) {
+        match self {
+            Widget::List(w) => w.append_items(items),
+            Widget::Text(w) => w.append_items(items),
+            Widget::Table(w) => w.append_items(items),
         }
     }
 }

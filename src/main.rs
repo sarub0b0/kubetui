@@ -236,7 +236,11 @@ fn run() {
                     );
                 }
                 Kube::LogStreamResponse(logs) => {
-                    update_pod_logs(&mut window, logs);
+                    append_items_window_pane(
+                        &mut window,
+                        view_id::tab_pods_pane_logs,
+                        WidgetItem::Array(logs),
+                    );
                 }
 
                 Kube::ConfigResponse(raw) => {

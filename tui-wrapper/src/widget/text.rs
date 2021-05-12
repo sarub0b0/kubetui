@@ -169,22 +169,6 @@ impl<'a> Text<'a> {
         self.row_size
     }
 
-    pub fn append_items(&mut self, items: &[String]) {
-        let is_bottom = self.is_bottom();
-
-        self.items.append(&mut items.to_vec());
-
-        let wrapped = wrap(items, self.wrap_width());
-
-        self.spans.append(&mut generate_spans(&wrapped));
-
-        self.update_rows_size();
-
-        if self.follow && is_bottom {
-            self.select_last()
-        }
-    }
-
     fn update_spans(&mut self) {
         let lines = wrap(&self.items, self.wrap_width());
 
@@ -246,6 +230,23 @@ impl WidgetTrait for Text<'_> {
     fn get_item(&self) -> Option<WidgetItem> {
         let index = self.state.selected_vertical() as usize;
         Some(WidgetItem::Single(self.spans[index].clone().into()))
+    }
+    fn append_items(&mut self, items: WidgetItem) {
+        let is_bottom = self.is_bottom();
+
+        let items = items.as_array();
+
+        self.items.append(&mut items.to_vec());
+
+        let wrapped = wrap(items, self.wrap_width());
+
+        self.spans.append(&mut generate_spans(&wrapped));
+
+        self.update_rows_size();
+
+        if self.follow && is_bottom {
+            self.select_last()
+        }
     }
 }
 
@@ -309,7 +310,7 @@ mod tests {
         let mut text = Text::new(vec![]).enable_wrap().enable_follow();
 
         text.update_area(Rect::new(0, 0, 2, 10));
-        text.append_items(&data);
+        text.append_items(WidgetItem::Array(data));
 
         assert!(text.is_bottom())
     }

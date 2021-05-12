@@ -159,6 +159,10 @@ impl WidgetTrait for List<'_> {
             None => None,
         }
     }
+
+    fn append_items(&mut self, _items: WidgetItem) {
+        todo!()
+    }
 }
 
 impl RenderTrait for List<'_> {
