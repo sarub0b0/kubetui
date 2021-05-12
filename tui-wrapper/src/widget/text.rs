@@ -141,7 +141,7 @@ impl Text<'_> {
     pub fn scroll_down(&mut self, index: u64) {
         let mut i = self.state.selected_vertical();
 
-        if self.row_size <= i {
+        if self.row_size <= i + index {
             i = self.row_size;
         } else {
             i += index as u64;
