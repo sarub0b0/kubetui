@@ -1,6 +1,7 @@
 #[allow(unused_imports)]
 use chrono::{DateTime, Duration, Utc};
 
+#[allow(dead_code)]
 pub fn age(duration: Duration) -> String {
     let duration_seconds = duration.num_seconds();
 
