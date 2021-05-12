@@ -14,7 +14,7 @@ use super::{WidgetItem, WidgetTrait};
 use super::spans::generate_spans;
 use super::wrap::*;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 struct TRect {
     width: usize,
     height: usize,
@@ -29,16 +29,7 @@ impl TRect {
     }
 }
 
-impl Default for TRect {
-    fn default() -> Self {
-        Self {
-            width: 0,
-            height: 0,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Text<'a> {
     items: Vec<String>,
     state: TextState,
@@ -46,9 +37,10 @@ pub struct Text<'a> {
     row_size: u64,
     area: TRect,
     wrap: bool,
+    follow: bool,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct TextState {
     scroll_vertical: u64,
     scroll_horizontal: u64,
@@ -81,15 +73,6 @@ impl TextState {
     }
 }
 
-impl Default for TextState {
-    fn default() -> Self {
-        Self {
-            scroll_vertical: 0,
-            scroll_horizontal: 0,
-        }
-    }
-}
-
 // ステート
 impl Text<'_> {
     pub fn new(items: Vec<String>) -> Self {
@@ -99,8 +82,13 @@ impl Text<'_> {
         }
     }
 
-    pub fn disable_wrap(mut self) -> Self {
-        self.wrap = false;
+    pub fn enable_wrap(mut self) -> Self {
+        self.wrap = true;
+        self
+    }
+
+    pub fn enable_follow(mut self) -> Self {
+        self.follow = true;
         self
     }
 
@@ -150,19 +138,6 @@ impl Text<'_> {
     }
 }
 
-impl Default for Text<'_> {
-    fn default() -> Self {
-        Self {
-            items: Vec::new(),
-            state: TextState::default(),
-            spans: Vec::new(),
-            row_size: 0,
-            area: TRect::default(),
-            wrap: true,
-        }
-    }
-}
-
 // コンテンツ操作
 impl<'a> Text<'a> {
     pub fn items(&self) -> &Vec<String> {
@@ -178,6 +153,8 @@ impl<'a> Text<'a> {
     }
 
     pub fn append_items(&mut self, items: &[String]) {
+        let is_bottom = self.is_bottom();
+
         self.items.append(&mut items.to_vec());
 
         let wrapped = wrap(
@@ -192,6 +169,10 @@ impl<'a> Text<'a> {
         self.spans.append(&mut generate_spans(&wrapped));
 
         self.update_rows_size();
+
+        if self.follow && is_bottom {
+            self.select_last()
+        }
     }
 
     fn update_spans(&mut self) {
@@ -210,8 +191,7 @@ impl<'a> Text<'a> {
     fn update_rows_size(&mut self) {
         let mut count = self.spans.len() as u64;
 
-        let height = self.area.height as u64; // 2: border-line
-
+        let height = self.area.height as u64;
         if height < count {
             count -= height;
         } else {
@@ -280,6 +260,7 @@ impl WidgetTrait for Text<'_> {
         }
         self.area = area;
     }
+
     fn get_item(&self) -> Option<WidgetItem> {
         let index = self.state.selected_vertical() as usize;
         Some(WidgetItem::Single(self.spans[index].clone().into()))
@@ -309,4 +290,36 @@ impl RenderTrait for Text<'_> {
 
         f.render_widget(widget, chunk);
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn disable_wrap() {
+        let data = (0..10).map(|_| "abcd\nefg".to_string()).collect();
+
+        let mut text = Text::new(vec![]);
+
+        text.set_items(WidgetItem::Array(data));
+
+        assert_eq!(text.spans().len(), 20)
+    }
+
+    #[test]
+    fn enable_wrap() {
+        let data = (0..10).map(|_| "abcd\nefg".to_string()).collect();
+
+        let mut text = Text::new(vec![]).enable_wrap();
+
+        text.update_area(Rect::new(0, 0, 2, 10));
+        text.set_items(WidgetItem::Array(data));
+
+        assert_eq!(text.spans().len(), 40)
+    }
+
+    #[test]
+    fn feature() {}
 }

@@ -80,7 +80,7 @@ fn run() {
                 ),
                 Pane::new(
                     "Logs",
-                    Widget::Text(Text::new(vec![])),
+                    Widget::Text(Text::new(vec![]).enable_wrap().enable_follow()),
                     1,
                     view_id::tab_pods_pane_logs,
                 ),
@@ -101,7 +101,7 @@ fn run() {
                 ),
                 Pane::new(
                     "Raw Data",
-                    Widget::Text(Text::new(vec![])),
+                    Widget::Text(Text::new(vec![]).enable_wrap()),
                     1,
                     view_id::tab_configs_pane_raw_data,
                 ),
@@ -115,7 +115,7 @@ fn run() {
             "3:Event",
             vec![Pane::new(
                 "Event",
-                Widget::Text(Text::new(vec![])),
+                Widget::Text(Text::new(vec![]).enable_wrap()),
                 0,
                 view_id::tab_event_pane_event,
             )],
@@ -126,7 +126,7 @@ fn run() {
             "4:APIs",
             vec![Pane::new(
                 "APIs",
-                Widget::Text(Text::new(vec![]).disable_wrap()),
+                Widget::Text(Text::new(vec![])),
                 0,
                 view_id::tab_apis_pane_apis,
             )],
