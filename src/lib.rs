@@ -102,13 +102,7 @@ pub fn update_pod_logs(window: &mut Window, logs: Vec<String>) {
     if let Some(p) = pane {
         let widget = p.widget_mut().as_mut_text();
 
-        let is_bottom = widget.is_bottom();
-
         widget.append_items(&logs);
-
-        if is_bottom {
-            widget.select_last();
-        }
     }
 }
 

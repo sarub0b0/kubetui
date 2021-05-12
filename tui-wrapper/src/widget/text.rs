@@ -130,11 +130,20 @@ impl Text<'_> {
     }
 
     pub fn scroll_down(&mut self, index: u64) {
-        (0..index).for_each(|_| self.select_next(1));
+        let mut i = self.state.selected_vertical();
+
+        if self.row_size <= i {
+            i = self.row_size;
+        } else {
+            i += index as u64;
+        }
+
+        self.state.select_vertical(i);
     }
 
     pub fn scroll_up(&mut self, index: u64) {
-        (0..index).for_each(|_| self.select_prev(1));
+        self.state
+            .select_vertical(self.state.selected_vertical().saturating_sub(index));
     }
 }
 
@@ -208,32 +217,18 @@ impl WidgetTrait for Text<'_> {
     }
 
     fn select_next(&mut self, index: usize) {
-        let mut i = self.state.selected_vertical();
-
-        if self.row_size <= i {
-            i = self.row_size;
-        } else {
-            i += index as u64;
-        }
-
-        self.state.select_vertical(i);
+        self.scroll_down(index as u64)
     }
 
     fn select_prev(&mut self, index: usize) {
-        let mut i = self.state.selected_vertical();
-        if i < index as u64 {
-            i = 0;
-        } else {
-            i -= index as u64;
-        }
-        self.state.select_vertical(i);
+        self.scroll_up(index as u64)
     }
 
     fn select_first(&mut self) {
-        self.state.select_vertical(0);
+        self.scroll_top();
     }
     fn select_last(&mut self) {
-        self.state.select_vertical(self.row_size);
+        self.scroll_bottom();
     }
 
     fn set_items(&mut self, items: WidgetItem) {
@@ -254,11 +249,17 @@ impl WidgetTrait for Text<'_> {
     fn clear(&mut self) {
         let area = self.area;
         let wrap = self.wrap;
+        let follow = self.follow;
+
         *self = Self::default();
+
         if !wrap {
             self.wrap = wrap;
         }
+
         self.area = area;
+        self.wrap = wrap;
+        self.follow = follow;
     }
 
     fn get_item(&self) -> Option<WidgetItem> {
@@ -321,5 +322,14 @@ mod tests {
     }
 
     #[test]
-    fn feature() {}
+    fn append_items_enable_follow_and_wrap() {
+        let data: Vec<String> = (0..10).map(|_| "abcd\nefg".to_string()).collect();
+
+        let mut text = Text::new(vec![]).enable_wrap().enable_follow();
+
+        text.update_area(Rect::new(0, 0, 2, 10));
+        text.append_items(&data);
+
+        assert!(text.is_bottom())
+    }
 }
