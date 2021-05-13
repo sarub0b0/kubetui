@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags: ["*"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  publish:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: kubetui
+            asset_name: kubetui-linux-amd64
+          - os: windows-latest
+            artifact_name: kubetui.exe
+            asset_name: kubetui-windows-amd64.exe
+          - os: macos-latest
+            artifact_name: kubetui
+            asset_name: kubetui-macos-amd64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
+
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/release/${{ matrix.artifact_name }}
+          asset_name: ${{ matrix.asset_name }}
+          tag: ${{ github.ref }}
