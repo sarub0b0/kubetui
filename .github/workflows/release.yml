@@ -29,10 +29,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release
+        run: cargo build --release
 
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
