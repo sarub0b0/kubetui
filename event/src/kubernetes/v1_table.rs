@@ -61,6 +61,7 @@ pub const CONDITION_FALSE: &str = "False";
 pub const CONDITION_UNKNOWN: &str = "Unknown";
 
 impl Value {
+    #[allow(dead_code)]
     pub fn as_str(&self) -> Option<&str> {
         self.0.as_str()
     }
@@ -168,13 +169,13 @@ impl Table {
             })
             .collect();
 
-        let rows: Vec<Vec<&str>> = self
+        let rows: Vec<Vec<String>> = self
             .rows
             .iter()
             .map(|row| {
                 header
                     .iter()
-                    .filter_map(|(i, _)| row.cells[*i].as_str())
+                    .map(|(i, _)| row.cells[*i].to_string())
                     .collect()
             })
             .collect();
