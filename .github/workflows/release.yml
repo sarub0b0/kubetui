@@ -72,7 +72,7 @@ jobs:
 
           curl -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_1k.tar.gz | tar --strip-components=1 -xzf -
 
-          export CC=${{ matrix.target }}-gcc
+          export CC=musl-gcc
 
           ./Configure linux-x86_64 -fPIC no-shared --prefix=$OPENSSL_DIR
 
