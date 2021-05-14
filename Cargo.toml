@@ -11,7 +11,7 @@ members = [ "tui-wrapper", "event", "ansi", "component" ]
 
 [dependencies]
 crossterm = "0.19.0"
-tui = { git = "https://github.com/sarub0b0/tui-rs.git", features = ["crossterm"] }
+tui = { git = "https://github.com/sarub0b0/tui-rs.git", features = ["crossterm"], default-features = false }
 tokio = { version = "1", features = ["rt"] }
 crossbeam = "0.8"
 chrono = "0.4"
