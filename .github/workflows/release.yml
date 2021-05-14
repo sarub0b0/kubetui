@@ -67,9 +67,9 @@ jobs:
           sudo apt update
           sudo apt install musl-tools linux-headers-generic
 
-          sudo ln -s /usr/include/linux /usr/include/x86_64-linux-musl/linux
-          sudo ln -s /usr/include/asm /usr/include/x86_64-linux-musl/asm
-          sudo ln -s /usr/include/asm-generic /usr/include/x86_64-linux-musl/asm-generic
+          sudo ln -sv /usr/include/linux /usr/include/x86_64-linux-musl/linux
+          sudo ln -sv /usr/include/asm /usr/include/x86_64-linux-musl/asm
+          sudo ln -sv /usr/include/asm-generic /usr/include/x86_64-linux-musl/asm-generic
 
           mkdir /tmp/build
           cd /tmp/build
