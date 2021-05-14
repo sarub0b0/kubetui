@@ -74,7 +74,7 @@ jobs:
 
           export CC=${{ matrix.target }}-gcc
 
-          ./Configure linux-x86_64 -fPIC no-share --prefix=$OPENSSL_DIR
+          ./Configure linux-x86_64 -fPIC no-shared --prefix=$OPENSSL_DIR
 
           make depend
           make -j
