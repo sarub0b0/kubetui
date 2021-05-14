@@ -2,39 +2,173 @@ name: Release
 
 on:
   push:
-    tags: ["*"]
+    tags:
+      - "*"
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  publish:
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            artifact_name: kubetui
-            asset_name: kubetui-linux-amd64
-          - os: windows-latest
-            artifact_name: kubetui.exe
-            asset_name: kubetui-windows-amd64.exe
-          - os: macos-latest
-            artifact_name: kubetui
-            asset_name: kubetui-macos-amd64
+  build-windows:
+    runs-on: windows-latest
 
-    runs-on: ${{ matrix.os }}
+    env:
+      TARGET: x86_64-pc-windows-msvc
 
     steps:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - run: echo "OPENSSL_DIR=$env:VCPKG_ROOT\installed\x64-windows-static" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - run: |
+          echo "OPENSSL_LIB_DIR=$env:OPENSSL_DIR\lib" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "OPENSSL_INCLUDE_DIR=$env:OPENSSL_DIR\include" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - run: vcpkg install openssl:x64-windows-static
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - run: cargo build --release --target $env:TARGET
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.TARGET }}
+          path: target/${{ env.TARGET }}/release/kubetui.exe
+
+  build-linux:
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+
+    runs-on: ubuntu-latest
+
+    env:
+      OPENSSL_DIR: /opt/openssl
+      OPENSSL_INCLUDE_DIR: /opt/openssl/include
+      OPENSSL_LIB_DIR: /opt/openssl/lib
+      OPENSSL_STATIC: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install Packages
+        run: |
+          sudo apt update
+          sudo apt install libssl-dev
+
+      - name: Make OpenSSL
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        env:
+          OPENSSL_DIR: /opt/openssl
+          OPENSSL_INCLUDE_DIR: /opt/openssl/include
+          OPENSSL_LIB_DIR: /opt/openssl/lib
+        run: |
+          sudo apt install musl-tools linux-headers-generic
+
+          sudo ln -sv /usr/include/linux /usr/include/x86_64-linux-musl/linux
+          sudo ln -sv /usr/include/x86_64-linux-gnu/asm /usr/include/x86_64-linux-musl/asm
+          sudo ln -sv /usr/include/asm-generic /usr/include/x86_64-linux-musl/asm-generic
+
+          mkdir /tmp/build
+          cd /tmp/build
+
+          curl -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_1k.tar.gz | tar --strip-components=1 -xzf -
+
+          export CC=musl-gcc
+
+          ./Configure linux-x86_64 --prefix=$OPENSSL_DIR -fPIC no-shared
+
+          make depend
+          make -j
+          make install_sw
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
       - name: Build
-        run: cargo build --release
+        run: |
+          if [[ "${{ matrix.target }}" != "x86_64-unknown-linux-musl" ]]; then
+              unset OPENSSL_DIR
+              unset OPENSSL_LIB_DIR
+              unset OPENSSL_INCLUDE_DIR
+              unset OPENSSL_STATIC
+          fi
+          cargo build --release --target ${{ matrix.target }}
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/kubetui
+
+  build-macos:
+    runs-on: macos-latest
+
+    env:
+      TARGET: x86_64-apple-darwin
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - run: cargo build --release --target $TARGET
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.TARGET }}
+          path: target/${{ env.TARGET }}/release/kubetui
+
+  release:
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            artifact_name: kubetui
+            asset_name: kubetui-x86_64-unknown-linux-gnu
+          - target: x86_64-unknown-linux-musl
+            artifact_name: kubetui
+            asset_name: kubetui-x86_64-unknown-linux-musl
+          - target: x86_64-pc-windows-msvc
+            artifact_name: kubetui.exe
+            asset_name: kubetui-x86_64-pc-windows-msvc.exe
+          - target: x86_64-apple-darwin
+            artifact_name: kubetui
+            asset_name: kubetui-x86_64-apple-darwin
+
+    runs-on: ubuntu-latest
+
+    needs:
+      - build-windows
+      - build-linux
+      - build-macos
+
+    steps:
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ matrix.target }}
 
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/release/${{ matrix.artifact_name }}
+          file: ${{ matrix.artifact_name }}
           asset_name: ${{ matrix.asset_name }}
           tag: ${{ github.ref }}
