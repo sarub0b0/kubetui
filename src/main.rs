@@ -115,7 +115,7 @@ fn run() {
             "3:Event",
             vec![Pane::new(
                 "Event",
-                Widget::Text(Text::new(vec![]).enable_wrap()),
+                Widget::Text(Text::new(vec![]).enable_wrap().enable_follow()),
                 0,
                 view_id::tab_event_pane_event,
             )],
