@@ -68,7 +68,7 @@ jobs:
           sudo apt install musl-tools linux-headers-generic
 
           sudo ln -sv /usr/include/linux /usr/include/x86_64-linux-musl/linux
-          sudo ln -sv /usr/include/asm /usr/include/x86_64-linux-musl/asm
+          sudo ln -sv /usr/include/x86_64-linux-gnu/asm /usr/include/x86_64-linux-musl/asm
           sudo ln -sv /usr/include/asm-generic /usr/include/x86_64-linux-musl/asm-generic
 
           mkdir /tmp/build
@@ -78,11 +78,11 @@ jobs:
 
           export CC=musl-gcc
 
-          ./Configure linux-x86_64 -fPIC no-shared --prefix=$OPENSSL_DIR
+          ./Configure linux-x86_64 --prefix=$OPENSSL_DIR -fPIC no-shared
 
           make depend
           make -j
-          make install
+          make install_sw
 
       - run: |
           if [[ "${{ matrix.target }}" == "x86_64-unknown-linux-musl" ]]; then
