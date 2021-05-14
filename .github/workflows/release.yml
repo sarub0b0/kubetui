@@ -60,7 +60,7 @@ jobs:
           OPENSSL_LIB_DIR: /opt/openssl/lib
         run: |
           sudo apt update
-          sudo apt install musl-tools linux-headers-generic
+          sudo apt install musl-tools linux-headers-generic libssl-dev
 
           sudo ln -sv /usr/include/linux /usr/include/x86_64-linux-musl/linux
           sudo ln -sv /usr/include/x86_64-linux-gnu/asm /usr/include/x86_64-linux-musl/asm
