@@ -1,43 +1,42 @@
 name: Release
 
-on:
-  push:
-    tags: ["*"]
+on: push
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  publish:
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            artifact_name: kubetui
-            asset_name: kubetui-linux-amd64
-          - os: windows-latest
-            artifact_name: kubetui.exe
-            asset_name: kubetui-windows-amd64.exe
-          - os: macos-latest
-            artifact_name: kubetui
-            asset_name: kubetui-macos-amd64
+  build-windows:
+    runs-on: windows-latest
 
-    runs-on: ${{ matrix.os }}
+    env:
+      TARGET: x86_64-pc-windows-msvc
 
     steps:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - run: vcpkg install openssl:x64-windows
-        if: matrix.os == "windows-latest"
+      - run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      - name: Build
-        run: cargo build --release
+      - run: echo "OPENSSL_DIR=$env:VCPKG_ROOT\installed\x64-windows-static" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - run: |
+          echo "OPENSSL_LIB_DIR=$env:OPENSSL_DIR\lib" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "OPENSSL_INCLUDE_DIR=$env:OPENSSL_DIR\include" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - run: vcpkg install openssl:x64-windows-static
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - run: cargo build --release --target $env:TARGET
 
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/release/${{ matrix.artifact_name }}
-          asset_name: ${{ matrix.asset_name }}
+          file: target/$env:TARGET/release/kubetui.exe
+          asset_name: kubetui-$env:TARGET.exe
           tag: ${{ github.ref }}
