@@ -90,7 +90,7 @@ jobs:
           else
             unset OPENSSL_DIR
             unset OPENSSL_LIB_DIR
-            unse OPENSSL_INCLUDE_DIR
+            unset OPENSSL_INCLUDE_DIR
           fi
 
           cargo build --release --target ${{ matrix.target }}
