@@ -28,6 +28,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - run: vcpkg install openssl:x64-windows
+        if: matrix.os == "windows-latest"
+
       - name: Build
         run: cargo build --release
 
