@@ -229,9 +229,19 @@ impl WidgetTrait for Text<'_> {
 
     fn update_area(&mut self, area: Rect) {
         self.area = TRect::new(area);
+        let is_bottom = self.is_bottom();
+        let pos = self.selected_vertical();
 
         self.update_spans();
         self.update_rows_size();
+
+        if self.follow && is_bottom {
+            self.scroll_bottom();
+        }
+
+        if self.row_size < pos {
+            self.scroll_bottom();
+        }
     }
 
     fn clear(&mut self) {
