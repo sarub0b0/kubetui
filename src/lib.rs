@@ -128,6 +128,22 @@ where
                 pane.remove_char();
             }
 
+            KeyCode::Char('w') if key.modifiers == KeyModifiers::CONTROL => {
+                pane.remove_chars_before_cursor();
+            }
+
+            KeyCode::Char('k') if key.modifiers == KeyModifiers::CONTROL => {
+                pane.remove_chars_after_cursor();
+            }
+
+            KeyCode::Char('a') if key.modifiers == KeyModifiers::CONTROL => {
+                pane.move_cursor_top();
+            }
+
+            KeyCode::Char('e') if key.modifiers == KeyModifiers::CONTROL => {
+                pane.move_cursor_end();
+            }
+
             KeyCode::Tab => {
                 pane.select_next_pane();
             }
@@ -216,6 +232,22 @@ where
 
             KeyCode::Char('h') if key.modifiers == KeyModifiers::CONTROL => {
                 pane.remove_char();
+            }
+
+            KeyCode::Char('w') if key.modifiers == KeyModifiers::CONTROL => {
+                pane.remove_chars_before_cursor();
+            }
+
+            KeyCode::Char('k') if key.modifiers == KeyModifiers::CONTROL => {
+                pane.remove_chars_after_cursor();
+            }
+
+            KeyCode::Char('a') if key.modifiers == KeyModifiers::CONTROL => {
+                pane.move_cursor_top();
+            }
+
+            KeyCode::Char('e') if key.modifiers == KeyModifiers::CONTROL => {
+                pane.move_cursor_end();
             }
 
             KeyCode::Tab => {
