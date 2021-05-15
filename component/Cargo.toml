@@ -10,6 +10,7 @@ edition = "2018"
 tui = { git = "https://github.com/sarub0b0/tui-rs.git", features = ["crossterm"], default-features = false }
 tui-wrapper = { path = "../tui-wrapper" }
 fuzzy-matcher = "0.3"
+unicode-width = "0.1"
 
 [dev-dependencies]
 pretty_assertions = "0.7"

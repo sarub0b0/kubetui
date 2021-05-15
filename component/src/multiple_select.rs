@@ -9,6 +9,7 @@ use tui::{
 
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
+use unicode_width::UnicodeWidthStr;
 
 use std::collections::HashSet;
 
@@ -49,28 +50,23 @@ impl<'a> SelectForm<'a> {
     fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
         let (chunks, arrow) = match self.direction {
             Direction::Horizontal => {
-                let (arrow, margin) = if is_odd(self.chunk.width) {
-                    ("→", 0)
+                let arrow = if is_odd(self.chunk.width) {
+                    "-->"
                 } else {
-                    ("-→", 1)
+                    "->"
                 };
 
                 let (cx, cy, cw, ch) = (
                     self.chunk.x,
                     self.chunk.y,
-                    self.chunk.width / 2 - margin,
+                    self.chunk.width / 2 - 1,
                     self.chunk.height,
                 );
 
                 let left_chunk = Rect::new(cx, cy, cw, ch);
-                let center_chunk = Rect::new(
-                    left_chunk.x + cw,
-                    cy + ch / 2,
-                    arrow.chars().count() as u16,
-                    ch / 2,
-                );
-                let right_chunk =
-                    Rect::new(center_chunk.x + arrow.chars().count() as u16, cy, cw, ch);
+                let center_chunk =
+                    Rect::new(left_chunk.x + cw, cy + ch / 2, arrow.width() as u16, ch / 2);
+                let right_chunk = Rect::new(center_chunk.x + arrow.width() as u16, cy, cw, ch);
 
                 let w = Paragraph::new(Span::styled(
                     arrow,
@@ -93,9 +89,9 @@ impl<'a> SelectForm<'a> {
                     self.chunk.height / 2,
                 );
 
-                let left_chunk = Rect::new(cx, cy, cw, ch - margin);
-                let center_chunk = Rect::new(cx, cy + ch - margin, cw, 1);
-                let right_chunk = Rect::new(cx, center_chunk.y + 1, cw, ch);
+                let left_chunk = Rect::new(cx, cy, cw, ch);
+                let center_chunk = Rect::new(cx, cy + ch, cw, 1);
+                let right_chunk = Rect::new(cx, center_chunk.y + 1, cw, ch - margin);
 
                 let w = Paragraph::new(Span::styled(
                     "↓",
