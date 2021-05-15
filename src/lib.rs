@@ -134,7 +134,6 @@ where
 
             KeyCode::Enter | KeyCode::Char(' ') => {
                 pane.toggle_select_unselect();
-                pane.clear_filter();
 
                 tx.send(Event::Kube(Kube::SetAPIsRequest(
                     pane.to_vec_selected_items(),
