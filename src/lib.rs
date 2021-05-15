@@ -108,6 +108,14 @@ where
                 pane.select_prev_item();
             }
 
+            KeyCode::Down => {
+                pane.select_next_item();
+            }
+
+            KeyCode::Up => {
+                pane.select_prev_item();
+            }
+
             KeyCode::Char('u') if key.modifiers == KeyModifiers::CONTROL => {
                 pane.select_next_item();
             }
@@ -188,6 +196,14 @@ where
             }
 
             KeyCode::Char('p') if key.modifiers == KeyModifiers::CONTROL => {
+                pane.select_prev_item();
+            }
+
+            KeyCode::Down => {
+                pane.select_next_item();
+            }
+
+            KeyCode::Up => {
                 pane.select_prev_item();
             }
 
