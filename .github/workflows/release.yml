@@ -48,9 +48,19 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    env:
+      OPENSSL_DIR: /opt/openssl
+      OPENSSL_INCLUDE_DIR: /opt/openssl/include
+      OPENSSL_LIB_DIR: /opt/openssl/lib
+      OPENSSL_STATIC: true
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+
+      - name: Install Packages
+        run: |
+          sudo apt update
+          sudo apt install libssl-dev
 
       - name: Make OpenSSL
         if: matrix.target == 'x86_64-unknown-linux-musl'
@@ -59,8 +69,7 @@ jobs:
           OPENSSL_INCLUDE_DIR: /opt/openssl/include
           OPENSSL_LIB_DIR: /opt/openssl/lib
         run: |
-          sudo apt update
-          sudo apt install musl-tools linux-headers-generic libssl-dev
+          sudo apt install musl-tools linux-headers-generic
 
           sudo ln -sv /usr/include/linux /usr/include/x86_64-linux-musl/linux
           sudo ln -sv /usr/include/x86_64-linux-gnu/asm /usr/include/x86_64-linux-musl/asm
@@ -83,28 +92,18 @@ jobs:
         with:
           profile: minimal
           toolchain: stable
+          target: ${{ matrix.target }}
           override: true
 
-      - name: Build (Static Link)
-        if: matrix.target == 'x86_64-unknown-linux-musl'
-        env:
-          OPENSSL_DIR: /opt/openssl
-          OPENSSL_INCLUDE_DIR: /opt/openssl/include
-          OPENSSL_LIB_DIR: /opt/openssl/lib
-          OPENSSL_STATIC: true
-        uses: actions-rs/cargo@v1
-        with:
-          use-cross: true
-          command: build
-          args: --release --target ${{ matrix.target }}
-
-      - name: Build (Dynamic Link)
-        if: matrix.target != 'x86_64-unknown-linux-musl'
-        uses: actions-rs/cargo@v1
-        with:
-          use-cross: true
-          command: build
-          args: --release --target ${{ matrix.target }}
+      - name: Build
+        run: |
+          if [[ "${{ matrix.target }}" != "x86_64-unknown-linux-musl" ]]; then
+              unset OPENSSL_DIR
+              unset OPENSSL_LIB_DIR
+              unset OPENSSL_INCLUDE_DIR
+              unset OPENSSL_STATIC
+          fi
+          cargo build --release --target ${{ matrix.target }}
 
       - uses: actions/upload-artifact@v2
         with:
