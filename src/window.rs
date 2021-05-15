@@ -79,12 +79,7 @@ impl<'a> Window<'a> {
     }
 
     pub fn tab_chunk(&self) -> Rect {
-        let chunk = self.chunks()[window_layout_index::TAB];
-        if chunk.height == 0 {
-            Rect::new(chunk.x, chunk.y, chunk.width, 1)
-        } else {
-            chunk
-        }
+        self.chunks()[window_layout_index::TAB]
     }
 }
 
