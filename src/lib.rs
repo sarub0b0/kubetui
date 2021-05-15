@@ -47,7 +47,7 @@ pub enum WindowEvent {
     Continue,
     OpenSubWindow(&'static str),
     CloseSubWindow,
-    ResizeWindow,
+    ResizeWindow(u16, u16),
     UpdateContents(Kube),
 }
 
@@ -180,8 +180,8 @@ where
             _ => {}
         },
         Event::Kube(k) => return WindowEvent::UpdateContents(k),
-        Event::Resize(_w, _h) => {
-            return WindowEvent::ResizeWindow;
+        Event::Resize(w, h) => {
+            return WindowEvent::ResizeWindow(w, h);
         }
         _ => {}
     }
@@ -298,8 +298,8 @@ where
             _ => {}
         },
         Event::Kube(k) => return WindowEvent::UpdateContents(k),
-        Event::Resize(_w, _h) => {
-            return WindowEvent::ResizeWindow;
+        Event::Resize(w, h) => {
+            return WindowEvent::ResizeWindow(w, h);
         }
         _ => {}
     }
@@ -389,8 +389,8 @@ pub fn window_action(window: &mut Window, tx: &Sender<Event>, rx: &Receiver<Even
             _ => {}
         },
 
-        Event::Resize(_w, _h) => {
-            return WindowEvent::ResizeWindow;
+        Event::Resize(w, h) => {
+            return WindowEvent::ResizeWindow(w, h);
         }
         Event::Tick => {}
         Event::Mouse => {}

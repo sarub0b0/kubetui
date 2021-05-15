@@ -13,10 +13,10 @@ use crossterm::{
 };
 
 use tui::{
-    backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout},
+    backend::{Backend, CrosstermBackend},
+    layout::{Constraint, Direction, Layout, Rect},
     widgets::{Block, Borders},
-    Terminal,
+    Terminal, TerminalOptions, Viewport,
 };
 
 use event::{input::*, kubernetes::*, tick::*, Event};
@@ -57,7 +57,24 @@ fn run() {
     thread::spawn(move || tick(tx_tick, time::Duration::from_millis(200)));
 
     let backend = CrosstermBackend::new(io::stdout());
-    let mut terminal = Terminal::new(backend).unwrap();
+    let chunk = backend.size().unwrap();
+
+    // TODO: 画面サイズ変更時にクラッシュする問題の解決
+    //
+    // Terminal::new()の場合は、teminal.draw実行時にautoresizeを実行してバッファを更新する。
+    // そのため、リサイズイベント時に使用したサイズとterminal.draw実行時のサイズに差がでで
+    // クラッシュすることがある。
+    // 応急処置として、ドキュメントにはUNSTABLEとあるがdraw実行時のautoresizeを無効にする
+    // オプションを使用する。
+    //
+    // UNSTABLE CODE
+    let mut terminal = Terminal::with_options(
+        backend,
+        TerminalOptions {
+            viewport: Viewport::fixed(chunk),
+        },
+    )
+    .unwrap();
 
     let tabs = vec![
         Tab::new(
@@ -214,10 +231,12 @@ fn run() {
             WindowEvent::OpenSubWindow(id) => {
                 subwin_id = Some(id);
             }
-            WindowEvent::ResizeWindow => {
-                window.update_chunks(terminal.size().unwrap());
-                subwin_namespace.update_chunks(terminal.size().unwrap());
-                subwin_apis.update_chunks(terminal.size().unwrap());
+            WindowEvent::ResizeWindow(w, h) => {
+                let chunk = Rect::new(0, 0, w, h);
+                terminal.resize(chunk).unwrap();
+                window.update_chunks(chunk);
+                subwin_namespace.update_chunks(chunk);
+                subwin_apis.update_chunks(chunk);
             }
             WindowEvent::UpdateContents(kube_ev) => match kube_ev {
                 Kube::Pod(info) => {
