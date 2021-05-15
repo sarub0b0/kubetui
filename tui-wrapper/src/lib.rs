@@ -45,7 +45,7 @@ fn focus_mark_style(selected: bool) -> Style {
 }
 
 pub fn generate_title(title: &str, selected: bool) -> Spans {
-    let mark = if selected { "◆" } else { "─" };
+    let mark = if selected { "+" } else { "─" };
     let margin = if selected { " " } else { "─" };
     Spans::from(vec![
         Span::styled(margin, focus_border_style(selected)),

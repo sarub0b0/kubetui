@@ -127,6 +127,7 @@ dependencies = [
  "pretty_assertions",
  "tui",
  "tui-wrapper",
+ "unicode-width",
 ]
 
 [[package]]
