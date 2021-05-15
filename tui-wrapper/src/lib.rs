@@ -12,7 +12,7 @@ use tui::{
     widgets::{Block, Borders},
 };
 
-pub fn focus_border_color(selected: bool) -> Color {
+fn focus_border_color(selected: bool) -> Color {
     if selected {
         Color::Reset
     } else {
@@ -20,24 +20,37 @@ pub fn focus_border_color(selected: bool) -> Color {
     }
 }
 
-pub fn focus_border_style(selected: bool) -> Style {
+fn focus_border_style(selected: bool) -> Style {
     Style::default().fg(focus_border_color(selected))
 }
 
 pub fn focus_title_style(selected: bool) -> Style {
-    let mut style = Style::default().fg(Color::White);
+    let style = Style::default().fg(Color::White);
 
     if selected {
-        style = style.add_modifier(Modifier::BOLD);
+        style.add_modifier(Modifier::BOLD)
+    } else {
+        style
     }
-    style
+}
+
+fn focus_mark_style(selected: bool) -> Style {
+    if selected {
+        Style::default()
+            .fg(Color::White)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    }
 }
 
 pub fn generate_title(title: &str, selected: bool) -> Spans {
-    let prefix = if selected { " ✔︎ " } else { "───" };
+    let mark = if selected { "◆" } else { "─" };
+    let margin = if selected { " " } else { "─" };
     Spans::from(vec![
-        Span::styled("─", Style::default()),
-        Span::styled(prefix, focus_border_style(selected)),
+        Span::styled(margin, focus_border_style(selected)),
+        Span::styled(mark, focus_mark_style(selected)),
+        Span::styled(margin, focus_border_style(selected)),
         Span::styled(title, focus_title_style(selected)),
     ])
 }
@@ -46,6 +59,7 @@ pub fn focus_block(title: &str, selected: bool) -> Block {
     Block::default()
         .borders(Borders::ALL)
         .title(generate_title(title, selected))
+        .title_offset(1)
         .border_style(focus_border_style(selected))
 }
 
