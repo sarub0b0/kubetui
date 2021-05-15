@@ -23,9 +23,8 @@ struct SelectForm<'a> {
     filter: String,
     list_widget: Widget<'a>,
     selected_widget: Widget<'a>,
-    chunk: Vec<Rect>,
+    chunk: Rect,
     focus_id: usize,
-    layout: Layout,
     matcher: SkimMatcherV2,
     direction: Direction,
 }
@@ -38,9 +37,8 @@ impl Default for SelectForm<'_> {
             filter: String::default(),
             list_widget: Widget::List(List::default()),
             selected_widget: Widget::List(List::default()),
-            chunk: Vec::new(),
+            chunk: Rect::default(),
             focus_id: 0,
-            layout: Layout::default(),
             matcher: SkimMatcherV2::default(),
             direction: Direction::Vertical,
         }
@@ -51,48 +49,64 @@ impl<'a> SelectForm<'a> {
     fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
         let (chunks, arrow) = match self.direction {
             Direction::Horizontal => {
-                let mut ch_list = self.chunk[0];
-                ch_list.width = ch_list.width.saturating_sub(1);
+                let (arrow, margin) = if is_odd(self.chunk.width) {
+                    ("→", 0)
+                } else {
+                    ("-→", 1)
+                };
 
-                let sum_width: u16 = self.chunk.iter().map(|c| c.width).sum();
-
-                let is_odd_width = is_odd(sum_width);
-
-                let sub = if is_odd(ch_list.height) { 0 } else { 1 };
-
-                let arrow = if is_odd_width { "←→ " } else { "↔︎ " };
-
-                let ch_arrow = Rect::new(
-                    ch_list.x + ch_list.width,
-                    ch_list.y + (ch_list.height / 2).saturating_sub(sub),
-                    arrow.chars().count() as u16,
-                    1,
+                let (cx, cy, cw, ch) = (
+                    self.chunk.x,
+                    self.chunk.y,
+                    self.chunk.width / 2 - margin,
+                    self.chunk.height,
                 );
 
-                let mut ch_selected = self.chunk[1];
-
-                let addend = if is_odd_width { 2 } else { 1 };
-                ch_selected.x = ch_selected.x.saturating_add(addend);
-                ch_selected.width = ch_selected.width.saturating_sub(addend);
+                let left_chunk = Rect::new(cx, cy, cw, ch);
+                let center_chunk = Rect::new(
+                    left_chunk.x + cw,
+                    cy + ch / 2,
+                    arrow.chars().count() as u16,
+                    ch / 2,
+                );
+                let right_chunk =
+                    Rect::new(center_chunk.x + arrow.chars().count() as u16, cy, cw, ch);
 
                 let w = Paragraph::new(Span::styled(
                     arrow,
-                    Style::default().add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(Color::White)
+                        .add_modifier(Modifier::BOLD),
                 ))
                 .alignment(Alignment::Center)
                 .block(Block::default());
 
-                ([ch_list, ch_arrow, ch_selected], w)
+                ([left_chunk, center_chunk, right_chunk], w)
             }
             Direction::Vertical => {
+                let margin = if is_odd(self.chunk.height) { 0 } else { 1 };
+
+                let (cx, cy, cw, ch) = (
+                    self.chunk.x,
+                    self.chunk.y,
+                    self.chunk.width,
+                    self.chunk.height / 2,
+                );
+
+                let left_chunk = Rect::new(cx, cy, cw, ch - margin);
+                let center_chunk = Rect::new(cx, cy + ch - margin, cw, 1);
+                let right_chunk = Rect::new(cx, center_chunk.y + 1, cw, ch);
+
                 let w = Paragraph::new(Span::styled(
-                    "↕︎",
-                    Style::default().add_modifier(Modifier::BOLD),
+                    "↓",
+                    Style::default()
+                        .fg(Color::White)
+                        .add_modifier(Modifier::BOLD),
                 ))
                 .alignment(Alignment::Center)
                 .block(Block::default());
 
-                ([self.chunk[0], self.chunk[1], self.chunk[2]], w)
+                ([left_chunk, center_chunk, right_chunk], w)
             }
         };
 
@@ -108,20 +122,8 @@ impl<'a> SelectForm<'a> {
     fn update_layout(&mut self, chunk: Rect) {
         if 65 < chunk.width {
             self.direction = Direction::Horizontal;
-
-            self.layout = Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)]);
         } else {
             self.direction = Direction::Vertical;
-
-            self.layout = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Percentage(49),
-                    Constraint::Length(1),
-                    Constraint::Percentage(49),
-                ]);
         };
     }
 
@@ -141,7 +143,7 @@ impl<'a> SelectForm<'a> {
     fn update_chunk(&mut self, chunk: Rect) {
         self.update_layout(chunk);
 
-        self.chunk = self.layout.split(chunk);
+        self.chunk = chunk;
     }
 
     fn select_next(&mut self) {
