@@ -154,6 +154,15 @@ impl<'a> InputForm<'a> {
         }
     }
 
+    pub fn remove_chars_before_cursor(&mut self) {
+        self.content = self.content[self.cursor.pos..].to_string();
+        self.cursor.pos = 0;
+    }
+
+    pub fn remove_chars_after_cursor(&mut self) {
+        self.content = self.content[..self.cursor.pos].to_string();
+    }
+
     pub fn forward_cursor(&mut self) {
         if self.cursor.pos() < self.content.len() {
             self.cursor.forward()
@@ -170,6 +179,14 @@ impl<'a> InputForm<'a> {
     pub fn clear(&mut self) {
         self.cursor = Cursor::default();
         self.content.clear();
+    }
+
+    pub fn move_cursor_top(&mut self) {
+        self.cursor.pos = 0;
+    }
+
+    pub fn move_cursor_end(&mut self) {
+        self.cursor.pos = self.content.len();
     }
 }
 
