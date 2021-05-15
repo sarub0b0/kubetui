@@ -186,6 +186,18 @@ impl<'a> SingleSelect<'a> {
             .update_filter(self.input_widget.content());
     }
 
+    pub fn remove_chars_before_cursor(&mut self) {
+        self.input_widget.remove_chars_before_cursor();
+        self.selected_widget
+            .update_filter(self.input_widget.content());
+    }
+
+    pub fn remove_chars_after_cursor(&mut self) {
+        self.input_widget.remove_chars_after_cursor();
+        self.selected_widget
+            .update_filter(self.input_widget.content());
+    }
+
     pub fn forward_cursor(&mut self) {
         self.input_widget.forward_cursor();
     }
@@ -210,6 +222,14 @@ impl<'a> SingleSelect<'a> {
 
     pub fn get_item(&self) -> Option<WidgetItem> {
         self.selected_widget.get_item()
+    }
+
+    pub fn move_cursor_top(&mut self) {
+        self.input_widget.move_cursor_top();
+    }
+
+    pub fn move_cursor_end(&mut self) {
+        self.input_widget.move_cursor_end();
     }
 }
 

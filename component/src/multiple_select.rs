@@ -442,6 +442,28 @@ impl<'a> MultipleSelect<'a> {
         self.input_widget.clear();
         self.selected_widget.update_filter("");
     }
+
+    pub fn remove_chars_before_cursor(&mut self) {
+        self.input_widget.remove_chars_before_cursor();
+        self.selected_widget
+            .update_filter(self.input_widget.content());
+        self.selected_widget.focus(0);
+    }
+
+    pub fn remove_chars_after_cursor(&mut self) {
+        self.input_widget.remove_chars_after_cursor();
+        self.selected_widget
+            .update_filter(self.input_widget.content());
+        self.selected_widget.focus(0);
+    }
+
+    pub fn move_cursor_top(&mut self) {
+        self.input_widget.move_cursor_top();
+    }
+
+    pub fn move_cursor_end(&mut self) {
+        self.input_widget.move_cursor_end();
+    }
 }
 
 impl Default for MultipleSelect<'_> {
