@@ -70,9 +70,7 @@ impl<'a> SelectForm<'a> {
 
                 let w = Paragraph::new(Span::styled(
                     arrow,
-                    Style::default()
-                        .fg(Color::White)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().add_modifier(Modifier::BOLD),
                 ))
                 .alignment(Alignment::Center)
                 .block(Block::default());
@@ -95,9 +93,7 @@ impl<'a> SelectForm<'a> {
 
                 let w = Paragraph::new(Span::styled(
                     "↓",
-                    Style::default()
-                        .fg(Color::White)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().add_modifier(Modifier::BOLD),
                 ))
                 .alignment(Alignment::Center)
                 .block(Block::default());

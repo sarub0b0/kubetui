@@ -25,7 +25,7 @@ fn focus_border_style(selected: bool) -> Style {
 }
 
 pub fn focus_title_style(selected: bool) -> Style {
-    let style = Style::default().fg(Color::White);
+    let style = Style::default();
 
     if selected {
         style.add_modifier(Modifier::BOLD)
@@ -36,9 +36,7 @@ pub fn focus_title_style(selected: bool) -> Style {
 
 fn focus_mark_style(selected: bool) -> Style {
     if selected {
-        Style::default()
-            .fg(Color::White)
-            .add_modifier(Modifier::BOLD)
+        Style::default().add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::DarkGray)
     }

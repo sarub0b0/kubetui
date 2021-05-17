@@ -3,7 +3,7 @@ use chrono::Local;
 use tui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Style},
+    style::{Color, Modifier, Style},
     text::{Span, Spans},
     widgets::{Block, Paragraph, Tabs},
     Frame,
@@ -75,7 +75,11 @@ impl<'a> Window<'a> {
         Tabs::new(titles)
             .block(block)
             .select(self.selected_tab_index)
-            .highlight_style(Style::default().fg(Color::White).bg(Color::LightBlue))
+            .highlight_style(
+                Style::default()
+                    .bg(Color::LightBlue)
+                    .add_modifier(Modifier::BOLD),
+            )
     }
 
     pub fn tab_chunk(&self) -> Rect {
