@@ -1,6 +1,6 @@
 use crossbeam::channel::{Receiver, Sender};
 
-use crossterm::event::{KeyCode, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use event::{kubernetes::*, Event};
 use tui_wrapper::widget::*;
@@ -83,6 +83,28 @@ pub fn append_items_window_pane(window: &mut Window, id: &str, items: WidgetItem
     }
 }
 
+fn key_event_to_code(key: KeyEvent) -> KeyCode {
+    use KeyCode::*;
+
+    match key.code {
+        Char('p') if key.modifiers == KeyModifiers::CONTROL => Up,
+        Char('n') if key.modifiers == KeyModifiers::CONTROL => Down,
+
+        Char('b') if key.modifiers == KeyModifiers::CONTROL => Left,
+        Char('f') if key.modifiers == KeyModifiers::CONTROL => Right,
+
+        Char('u') if key.modifiers == KeyModifiers::CONTROL => PageUp,
+        Char('d') if key.modifiers == KeyModifiers::CONTROL => PageDown,
+
+        Char('h') if key.modifiers == KeyModifiers::CONTROL => Delete,
+        Backspace => Delete,
+
+        Char('a') if key.modifiers == KeyModifiers::CONTROL => Home,
+        Char('e') if key.modifiers == KeyModifiers::CONTROL => End,
+        _ => key.code,
+    }
+}
+
 pub fn apis_subwin_action<'a, P>(
     window: &mut Window,
     subwin: &mut SubWindow<P>,
@@ -95,17 +117,9 @@ where
     let pane = subwin.pane_mut();
 
     match rx.recv().unwrap() {
-        Event::Input(key) => match key.code {
+        Event::Input(key) => match key_event_to_code(key) {
             KeyCode::Char('q') if key.modifiers == KeyModifiers::CONTROL => {
                 return WindowEvent::CloseSubWindow
-            }
-
-            KeyCode::Char('n') if key.modifiers == KeyModifiers::CONTROL => {
-                pane.select_next_item();
-            }
-
-            KeyCode::Char('p') if key.modifiers == KeyModifiers::CONTROL => {
-                pane.select_prev_item();
             }
 
             KeyCode::Down => {
@@ -116,15 +130,15 @@ where
                 pane.select_prev_item();
             }
 
-            KeyCode::Char('u') if key.modifiers == KeyModifiers::CONTROL => {
+            KeyCode::PageDown => {
                 pane.select_next_item();
             }
 
-            KeyCode::Char('d') if key.modifiers == KeyModifiers::CONTROL => {
+            KeyCode::PageUp => {
                 pane.select_prev_item();
             }
 
-            KeyCode::Char('h') if key.modifiers == KeyModifiers::CONTROL => {
+            KeyCode::Delete => {
                 pane.remove_char();
             }
 
@@ -136,16 +150,24 @@ where
                 pane.remove_chars_after_cursor();
             }
 
-            KeyCode::Char('a') if key.modifiers == KeyModifiers::CONTROL => {
+            KeyCode::Home => {
                 pane.move_cursor_top();
             }
 
-            KeyCode::Char('e') if key.modifiers == KeyModifiers::CONTROL => {
+            KeyCode::End => {
                 pane.move_cursor_end();
             }
 
             KeyCode::Tab => {
                 pane.select_next_pane();
+            }
+
+            KeyCode::Right => {
+                pane.forward_cursor();
+            }
+
+            KeyCode::Left => {
+                pane.back_cursor();
             }
 
             KeyCode::Enter | KeyCode::Char(' ') => {
@@ -159,18 +181,6 @@ where
                 if pane.selected_items().is_empty() {
                     window.pane_clear(view_id::tab_apis_pane_apis)
                 }
-            }
-
-            KeyCode::Delete | KeyCode::Backspace => {
-                pane.remove_char();
-            }
-
-            KeyCode::Right => {
-                pane.forward_cursor();
-            }
-
-            KeyCode::Left => {
-                pane.back_cursor();
             }
 
             KeyCode::Char(c) => {
@@ -201,17 +211,9 @@ where
 {
     let pane = subwin.pane_mut();
     match rx.recv().unwrap() {
-        Event::Input(key) => match key.code {
+        Event::Input(key) => match key_event_to_code(key) {
             KeyCode::Char('q') if key.modifiers == KeyModifiers::CONTROL => {
                 return WindowEvent::CloseSubWindow
-            }
-
-            KeyCode::Char('n') if key.modifiers == KeyModifiers::CONTROL => {
-                pane.select_next_item();
-            }
-
-            KeyCode::Char('p') if key.modifiers == KeyModifiers::CONTROL => {
-                pane.select_prev_item();
             }
 
             KeyCode::Down => {
@@ -222,15 +224,15 @@ where
                 pane.select_prev_item();
             }
 
-            KeyCode::Char('u') if key.modifiers == KeyModifiers::CONTROL => {
-                pane.select_next_item();
-            }
-
-            KeyCode::Char('d') if key.modifiers == KeyModifiers::CONTROL => {
+            KeyCode::PageUp => {
                 pane.select_prev_item();
             }
 
-            KeyCode::Char('h') if key.modifiers == KeyModifiers::CONTROL => {
+            KeyCode::PageDown => {
+                pane.select_next_item();
+            }
+
+            KeyCode::Delete => {
                 pane.remove_char();
             }
 
@@ -242,20 +244,16 @@ where
                 pane.remove_chars_after_cursor();
             }
 
-            KeyCode::Char('a') if key.modifiers == KeyModifiers::CONTROL => {
+            KeyCode::Home => {
                 pane.move_cursor_top();
             }
 
-            KeyCode::Char('e') if key.modifiers == KeyModifiers::CONTROL => {
+            KeyCode::End => {
                 pane.move_cursor_end();
             }
 
             KeyCode::Tab => {
                 pane.select_next_pane();
-            }
-
-            KeyCode::Delete | KeyCode::Backspace => {
-                pane.remove_char();
             }
 
             KeyCode::Right => {
@@ -309,29 +307,28 @@ where
 
 pub fn window_action(window: &mut Window, tx: &Sender<Event>, rx: &Receiver<Event>) -> WindowEvent {
     match rx.recv().unwrap() {
-        Event::Input(ev) => match ev.code {
+        Event::Input(key) => match key_event_to_code(key) {
             KeyCode::Char('q') => {
                 return WindowEvent::CloseWindow;
             }
+
             KeyCode::Char('j') | KeyCode::Down => {
                 window.select_next_item();
             }
+
             KeyCode::Char('k') | KeyCode::Up => {
                 window.select_prev_item();
             }
-            KeyCode::Char('n') if ev.modifiers == KeyModifiers::CONTROL => {
-                window.select_next_item();
-            }
-            KeyCode::Char('p') if ev.modifiers == KeyModifiers::CONTROL => {
-                window.select_prev_item();
-            }
-            KeyCode::Char('u') if ev.modifiers == KeyModifiers::CONTROL => {
+
+            KeyCode::PageUp => {
                 window.scroll_up();
             }
-            KeyCode::Char('d') if ev.modifiers == KeyModifiers::CONTROL => {
+
+            KeyCode::PageDown => {
                 window.scroll_down();
             }
-            KeyCode::Char('f') if ev.modifiers == KeyModifiers::CONTROL => {
+
+            KeyCode::Right => {
                 if window.selected_pane_id() == view_id::tab_apis_pane_apis {
                     if let Some(pane) = window.pane_mut(view_id::tab_apis_pane_apis) {
                         let w = pane.widget_mut().as_mut_text();
@@ -339,7 +336,8 @@ pub fn window_action(window: &mut Window, tx: &Sender<Event>, rx: &Receiver<Even
                     }
                 }
             }
-            KeyCode::Char('b') if ev.modifiers == KeyModifiers::CONTROL => {
+
+            KeyCode::Left => {
                 if window.selected_pane_id() == view_id::tab_apis_pane_apis {
                     if let Some(pane) = window.pane_mut(view_id::tab_apis_pane_apis) {
                         let w = pane.widget_mut().as_mut_text();
@@ -347,19 +345,24 @@ pub fn window_action(window: &mut Window, tx: &Sender<Event>, rx: &Receiver<Even
                     }
                 }
             }
-            KeyCode::Tab if ev.modifiers == KeyModifiers::NONE => {
+
+            KeyCode::Tab => {
                 window.select_next_pane();
             }
-            KeyCode::BackTab | KeyCode::Tab if ev.modifiers == KeyModifiers::SHIFT => {
+
+            KeyCode::BackTab => {
                 window.select_prev_pane();
             }
+
             KeyCode::Char(n @ '1'..='9') => {
                 window.select_tab(n as usize - b'0' as usize);
             }
+
             KeyCode::Char('n') => {
                 tx.send(Event::Kube(Kube::GetNamespacesRequest)).unwrap();
                 return WindowEvent::OpenSubWindow(view_id::subwin_ns);
             }
+
             KeyCode::Char('G') => {
                 window.select_last_item();
             }
@@ -373,6 +376,7 @@ pub fn window_action(window: &mut Window, tx: &Sender<Event>, rx: &Receiver<Even
                     return WindowEvent::OpenSubWindow(view_id::subwin_apis);
                 }
             }
+
             KeyCode::Enter => match window.selected_pane_id() {
                 view_id::tab_pods_pane_pods => {
                     window.pane_clear(view_id::tab_pods_pane_logs);
