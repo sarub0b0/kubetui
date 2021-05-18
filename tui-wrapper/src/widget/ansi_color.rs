@@ -260,8 +260,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn color_3_4bit_panic() {
-        color_3_4bit(Style::default(), 108);
+        assert_eq!(color_3_4bit(Style::default(), 108), Style::reset())
     }
 }
