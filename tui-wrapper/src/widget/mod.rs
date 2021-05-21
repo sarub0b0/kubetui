@@ -10,6 +10,7 @@ pub use list::*;
 pub use table::*;
 pub use text::*;
 
+use crossterm::event::MouseEvent;
 use tui::{backend::Backend, layout::Rect, widgets::Block, Frame};
 
 #[derive(Debug)]
@@ -64,6 +65,7 @@ pub trait WidgetTrait {
     fn get_item(&self) -> Option<WidgetItem>;
     fn update_area(&mut self, area: Rect);
     fn clear(&mut self);
+    fn on_mouse_event(&mut self, ev: MouseEvent);
 }
 
 #[derive(Debug, Clone)]
@@ -209,6 +211,14 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.append_items(items),
             Widget::Text(w) => w.append_items(items),
             Widget::Table(w) => w.append_items(items),
+        }
+    }
+
+    fn on_mouse_event(&mut self, ev: MouseEvent) {
+        match self {
+            Widget::List(w) => w.on_mouse_event(ev),
+            Widget::Text(w) => w.on_mouse_event(ev),
+            Widget::Table(w) => w.on_mouse_event(ev),
         }
     }
 }

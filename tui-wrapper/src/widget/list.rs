@@ -5,6 +5,7 @@ use tui::{
     Frame,
 };
 
+use crossterm::event::MouseEvent;
 use tui::widgets::{self, Block, ListItem, ListState};
 
 use super::{RenderTrait, WidgetItem, WidgetTrait};
@@ -161,6 +162,8 @@ impl WidgetTrait for List<'_> {
     fn append_items(&mut self, _items: WidgetItem) {
         todo!()
     }
+
+    fn on_mouse_event(&mut self, _: MouseEvent) {}
 }
 
 impl RenderTrait for List<'_> {

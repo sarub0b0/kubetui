@@ -320,20 +320,27 @@ trait MouseEventTrait {
 
 // Mouse Event
 impl Window<'_> {
-    pub fn on_mouse_event(&mut self, event: MouseEvent) {
-        let pos = (event.column, event.row);
+    pub fn on_mouse_event(&mut self, ev: MouseEvent) {
+        let pos = (ev.column, ev.row);
 
         if contains(self.tab_chunk(), pos) {
-            self.on_click_tab(event)
+            self.on_click_tab(ev)
+        } else if contains(self.chunks()[window_layout_index::CONTENTS], pos) {
+            for pane in self.selected_tab_mut().panes_mut() {
+                if contains(pane.chunk(), pos) {
+                    pane.on_mouse_event(ev);
+                    break;
+                }
+            }
         }
     }
 
-    fn on_click_tab(&mut self, event: MouseEvent) {
-        if event.kind != MouseEventKind::Down(MouseButton::Left) {
+    fn on_click_tab(&mut self, ev: MouseEvent) {
+        if ev.kind != MouseEventKind::Down(MouseButton::Left) {
             return;
         }
 
-        let pos = mouse_pos(event);
+        let pos = mouse_pos(ev);
 
         let chunk = Self::tab_block().inner(self.tab_chunk());
         let divider_width = 1;
@@ -362,10 +369,11 @@ impl Window<'_> {
 }
 
 #[inline]
-fn mouse_pos(event: MouseEvent) -> (u16, u16) {
-    (event.column, event.row)
+fn mouse_pos(ev: MouseEvent) -> (u16, u16) {
+    (ev.column, ev.row)
 }
 
+#[inline]
 fn contains(chunk: Rect, point: (u16, u16)) -> bool {
     let (px, py) = point;
     if (chunk.left() <= px && px <= chunk.right()) && (chunk.top() <= py && py <= chunk.bottom()) {

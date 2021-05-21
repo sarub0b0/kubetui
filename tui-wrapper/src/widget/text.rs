@@ -1,3 +1,4 @@
+use crossterm::event::MouseEvent;
 use tui::{
     backend::Backend,
     layout::Rect,
@@ -278,6 +279,7 @@ impl WidgetTrait for Text<'_> {
             self.select_last()
         }
     }
+    fn on_mouse_event(&mut self, _: MouseEvent) {}
 }
 
 impl RenderTrait for Text<'_> {

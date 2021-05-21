@@ -1624,6 +1624,7 @@ name = "tui-wrapper"
 version = "0.1.0"
 dependencies = [
  "ansi",
+ "crossterm",
  "pretty_assertions",
  "rayon",
  "tui",

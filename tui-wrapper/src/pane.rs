@@ -1,3 +1,4 @@
+use crossterm::event::MouseEvent;
 use tui::{backend::Backend, layout::Rect, widgets::Block, Frame};
 
 use super::focus_block;
@@ -92,6 +93,10 @@ impl<'a> Pane<'a> {
 
     pub fn clear(&mut self) {
         self.widget.clear()
+    }
+
+    pub fn on_mouse_event(&mut self, ev: MouseEvent) {
+        self.widget.on_mouse_event(ev);
     }
 }
 
