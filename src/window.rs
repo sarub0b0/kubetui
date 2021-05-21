@@ -1,5 +1,6 @@
 use chrono::Local;
 
+use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use tui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -8,6 +9,8 @@ use tui::{
     widgets::{Block, Paragraph, Tabs},
     Frame,
 };
+
+use unicode_width::UnicodeWidthStr;
 
 use tui_wrapper::{widget::*, *};
 
@@ -67,19 +70,25 @@ impl<'a> Window<'a> {
         let titles: Vec<Spans> = self
             .tabs
             .iter()
-            .map(|t| Spans::from(format!(" {} ", t.title())))
+            .map(|t| Spans::from(Self::tab_title_format(t.title())))
             .collect();
 
-        let block = Block::default().style(Style::default());
-
         Tabs::new(titles)
-            .block(block)
+            .block(Self::tab_block())
             .select(self.selected_tab_index)
             .highlight_style(
                 Style::default()
                     .bg(Color::LightBlue)
                     .add_modifier(Modifier::BOLD),
             )
+    }
+
+    fn tab_title_format(title: &str) -> String {
+        format!(" {} ", title)
+    }
+
+    fn tab_block() -> Block<'a> {
+        Block::default().style(Style::default())
     }
 
     pub fn tab_chunk(&self) -> Rect {
@@ -256,7 +265,7 @@ impl<'a> Window<'a> {
     fn render_status<B: Backend>(&mut self, f: &mut Frame<B>) {
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+            .constraints([Constraint::Percentage(30), Constraint::Percentage(30)])
             .split(self.chunks()[STATUSBAR]);
 
         let datetime = datetime();
@@ -276,7 +285,7 @@ impl<'a> Window<'a> {
         };
 
         if let Some(widget) = widget {
-            f.render_widget(widget, chunks[1]);
+            f.render_widget(widget.alignment(Alignment::Left), chunks[1]);
         }
     }
 
@@ -288,11 +297,7 @@ impl<'a> Window<'a> {
             let spans = Spans::from(span);
             let block = Block::default().style(Style::default());
 
-            return Some(
-                Paragraph::new(spans)
-                    .block(block)
-                    .alignment(Alignment::Right),
-            );
+            return Some(Paragraph::new(spans).block(block));
         }
         None
     }
@@ -307,4 +312,65 @@ fn datetime() -> Span<'static> {
 
 fn text_status((current, rows): (u64, u64)) -> Span<'static> {
     Span::raw(format!("{}/{}", current, rows))
+}
+
+trait MouseEventTrait {
+    fn on_click(&mut self);
+}
+
+// Mouse Event
+impl Window<'_> {
+    pub fn on_mouse_event(&mut self, event: MouseEvent) {
+        let pos = (event.column, event.row);
+
+        if contains(self.tab_chunk(), pos) {
+            self.on_click_tab(event)
+        }
+    }
+
+    fn on_click_tab(&mut self, event: MouseEvent) {
+        if event.kind != MouseEventKind::Down(MouseButton::Left) {
+            return;
+        }
+
+        let pos = mouse_pos(event);
+
+        let chunk = Self::tab_block().inner(self.tab_chunk());
+        let divider_width = 1;
+
+        let mut x = chunk.left();
+        let y = chunk.top();
+        let h = chunk.height;
+
+        for (i, tab) in self.tabs.iter().enumerate() {
+            let w = Self::tab_title_format(tab.title()).width() as u16;
+            x = x.saturating_add(1);
+
+            let title_chunk = Rect::new(x, y, w, h);
+
+            if contains(title_chunk, pos) {
+                self.select_tab(i + 1);
+                break;
+            }
+
+            x = x
+                .saturating_add(1)
+                .saturating_add(w)
+                .saturating_add(divider_width);
+        }
+    }
+}
+
+#[inline]
+fn mouse_pos(event: MouseEvent) -> (u16, u16) {
+    (event.column, event.row)
+}
+
+fn contains(chunk: Rect, point: (u16, u16)) -> bool {
+    let (px, py) = point;
+    if (chunk.left() <= px && px <= chunk.right()) && (chunk.top() <= py && py <= chunk.bottom()) {
+        true
+    } else {
+        false
+    }
 }

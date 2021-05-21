@@ -397,7 +397,9 @@ pub fn window_action(window: &mut Window, tx: &Sender<Event>, rx: &Receiver<Even
             return WindowEvent::ResizeWindow(w, h);
         }
         Event::Tick => {}
-        Event::Mouse => {}
+        Event::Mouse(ev) => {
+            window.on_mouse_event(ev);
+        }
         Event::Kube(k) => return WindowEvent::UpdateContents(k),
     }
     WindowEvent::Continue

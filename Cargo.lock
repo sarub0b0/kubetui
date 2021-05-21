@@ -733,6 +733,7 @@ dependencies = [
  "tokio",
  "tui",
  "tui-wrapper",
+ "unicode-width",
 ]
 
 [[package]]
