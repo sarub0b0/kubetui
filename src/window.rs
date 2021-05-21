@@ -285,7 +285,7 @@ impl<'a> Window<'a> {
         };
 
         if let Some(widget) = widget {
-            f.render_widget(widget.alignment(Alignment::Left), chunks[1]);
+            f.render_widget(widget.alignment(Alignment::Right), chunks[1]);
         }
     }
 
