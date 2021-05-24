@@ -1,12 +1,14 @@
-use crossterm::event::MouseEvent;
+use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use tui::{
     backend::Backend,
     layout::Rect,
-    style::Style,
-    text::Spans,
+    style::{Modifier, Style},
+    text::{Span, Spans},
     widgets::{Block, Paragraph},
     Frame,
 };
+
+use unicode_segmentation::Graphemes;
 
 use super::RenderTrait;
 
@@ -14,6 +16,18 @@ use super::{WidgetItem, WidgetTrait};
 
 use super::spans::generate_spans;
 use super::wrap::*;
+
+#[derive(Default, Debug, Clone)]
+struct HighlightContent<'a> {
+    spans: Spans<'a>,
+    index: usize,
+}
+
+impl<'a> HighlightContent<'a> {
+    fn spans(&mut self) -> Spans<'a> {
+        std::mem::take(&mut self.spans)
+    }
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct Text<'a> {
@@ -24,6 +38,7 @@ pub struct Text<'a> {
     wrap: bool,
     follow: bool,
     chunk: Rect,
+    highlight_content: Option<HighlightContent<'a>>,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -263,7 +278,40 @@ impl WidgetTrait for Text<'_> {
             self.select_last()
         }
     }
-    fn on_mouse_event(&mut self, _: MouseEvent) {}
+
+    fn on_mouse_event(&mut self, ev: MouseEvent) {
+        if ev.kind != MouseEventKind::Down(MouseButton::Left) {
+            return;
+        }
+
+        let (_x, y) = (
+            ev.column.saturating_sub(self.chunk.left()) as usize,
+            ev.row.saturating_sub(self.chunk.top()) as usize,
+        );
+
+        if self.spans.len() <= y {
+            return;
+        }
+
+        if let Some(hc) = &mut self.highlight_content {
+            self.spans[hc.index] = hc.spans();
+        }
+
+        self.highlight_content = Some(HighlightContent {
+            spans: self.spans[y].clone(),
+            index: y,
+        });
+
+        self.spans[y] = highlight_content(self.spans[y].clone());
+    }
+}
+
+fn highlight_content(target: Spans) -> Spans {
+    let target: String = target.into();
+    Spans::from(Span::styled(
+        target,
+        Style::default().add_modifier(Modifier::REVERSED),
+    ))
 }
 
 impl RenderTrait for Text<'_> {
