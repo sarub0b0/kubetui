@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use tui::{
     backend::Backend,
@@ -8,7 +11,8 @@ use tui::{
     Frame,
 };
 
-use unicode_segmentation::Graphemes;
+use clipboard::{ClipboardContext, ClipboardProvider};
+use derivative::*;
 
 use super::RenderTrait;
 
@@ -29,7 +33,8 @@ impl<'a> HighlightContent<'a> {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Derivative)]
+#[derivative(Debug, Clone, Default)]
 pub struct Text<'a> {
     items: Vec<String>,
     state: TextState,
@@ -39,6 +44,8 @@ pub struct Text<'a> {
     follow: bool,
     chunk: Rect,
     highlight_content: Option<HighlightContent<'a>>,
+    #[derivative(Debug = "ignore")]
+    clipboard: Option<Rc<RefCell<ClipboardContext>>>,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -90,6 +97,11 @@ impl Text<'_> {
 
     pub fn enable_follow(mut self) -> Self {
         self.follow = true;
+        self
+    }
+
+    pub fn clipboard(mut self, clipboard: Rc<RefCell<ClipboardContext>>) -> Self {
+        self.clipboard = Some(clipboard);
         self
     }
 
@@ -301,6 +313,13 @@ impl WidgetTrait for Text<'_> {
             spans: self.spans[y].clone(),
             index: y,
         });
+
+        if let Some(clipboard) = &self.clipboard {
+            clipboard
+                .borrow_mut()
+                .set_contents(self.spans[y].clone().into())
+                .unwrap();
+        }
 
         self.spans[y] = highlight_content(self.spans[y].clone());
     }
