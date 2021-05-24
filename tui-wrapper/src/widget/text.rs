@@ -246,15 +246,10 @@ impl WidgetTrait for Text<'_> {
     }
 
     fn clear(&mut self) {
-        let area = self.area;
-        let wrap = self.wrap;
-        let follow = self.follow;
-
-        *self = Self::default();
-
-        self.area = area;
-        self.wrap = wrap;
-        self.follow = follow;
+        self.items = Vec::default();
+        self.spans = Vec::default();
+        self.state = TextState::default();
+        self.row_size = 0;
     }
 
     fn get_item(&self) -> Option<WidgetItem> {
