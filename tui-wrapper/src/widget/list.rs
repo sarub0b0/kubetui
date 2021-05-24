@@ -150,7 +150,7 @@ impl WidgetTrait for List<'_> {
         self.set_listitem();
     }
 
-    fn update_area(&mut self, _area: Rect) {}
+    fn update_chunk(&mut self, _area: Rect) {}
     fn clear(&mut self) {}
 
     fn get_item(&self) -> Option<WidgetItem> {

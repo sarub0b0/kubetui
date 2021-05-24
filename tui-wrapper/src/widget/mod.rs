@@ -63,7 +63,7 @@ pub trait WidgetTrait {
     fn set_items(&mut self, items: WidgetItem);
     fn append_items(&mut self, items: WidgetItem);
     fn get_item(&self) -> Option<WidgetItem>;
-    fn update_area(&mut self, area: Rect);
+    fn update_chunk(&mut self, area: Rect);
     fn clear(&mut self);
     fn on_mouse_event(&mut self, ev: MouseEvent);
 }
@@ -182,11 +182,11 @@ impl WidgetTrait for Widget<'_> {
         }
     }
 
-    fn update_area(&mut self, area: Rect) {
+    fn update_chunk(&mut self, area: Rect) {
         match self {
-            Widget::List(w) => w.update_area(area),
-            Widget::Text(w) => w.update_area(area),
-            Widget::Table(w) => w.update_area(area),
+            Widget::List(w) => w.update_chunk(area),
+            Widget::Text(w) => w.update_chunk(area),
+            Widget::Table(w) => w.update_chunk(area),
         }
     }
 

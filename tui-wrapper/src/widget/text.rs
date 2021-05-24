@@ -228,7 +228,7 @@ impl WidgetTrait for Text<'_> {
         }
     }
 
-    fn update_area(&mut self, area: Rect) {
+    fn update_chunk(&mut self, area: Rect) {
         self.area = TRect::new(area);
         let is_bottom = self.is_bottom();
         let pos = self.selected_vertical();
@@ -329,7 +329,7 @@ mod tests {
 
         let mut text = Text::new(vec![]).enable_wrap();
 
-        text.update_area(Rect::new(0, 0, 2, 10));
+        text.update_chunk(Rect::new(0, 0, 2, 10));
         text.set_items(WidgetItem::Array(data));
 
         assert_eq!(text.spans().len(), 40)
@@ -341,7 +341,7 @@ mod tests {
 
         let mut text = Text::new(vec![]).enable_wrap().enable_follow();
 
-        text.update_area(Rect::new(0, 0, 2, 10));
+        text.update_chunk(Rect::new(0, 0, 2, 10));
         text.append_items(WidgetItem::Array(data));
 
         assert!(text.is_bottom())

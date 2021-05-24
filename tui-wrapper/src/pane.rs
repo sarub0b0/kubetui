@@ -80,7 +80,7 @@ impl<'a> Pane<'a> {
     pub fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
 
-        self.widget.update_area(self.block(false).inner(chunk));
+        self.widget.update_chunk(self.block(false).inner(chunk));
     }
 
     pub fn chunk(&self) -> Rect {

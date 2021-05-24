@@ -221,7 +221,7 @@ impl WidgetTrait for Table<'_> {
         self.set_rows();
     }
 
-    fn update_area(&mut self, area: tui::layout::Rect) {
+    fn update_chunk(&mut self, area: tui::layout::Rect) {
         self.row_width = area.width.saturating_sub(2) as usize;
     }
 
