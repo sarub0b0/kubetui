@@ -292,13 +292,18 @@ impl WidgetTrait for Text<'_> {
     }
 
     fn on_mouse_event(&mut self, ev: MouseEvent) {
+        // TODO マウスイベント実装
+        // 1. 範囲選択した場所をクリップボードへ保存
+        // 2. スクロール
+        // 3. ドラッグ中にカーソル位置が領域外に移動した時のスクロールと範囲選択した場所のコピー
         if ev.kind != MouseEventKind::Down(MouseButton::Left) {
             return;
         }
 
         let (_x, y) = (
             ev.column.saturating_sub(self.chunk.left()) as usize,
-            ev.row.saturating_sub(self.chunk.top()) as usize,
+            ev.row.saturating_sub(self.chunk.top()) as usize
+                + self.state.selected_vertical() as usize,
         );
 
         if self.spans.len() <= y {
