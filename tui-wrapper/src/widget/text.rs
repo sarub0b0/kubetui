@@ -107,7 +107,7 @@ pub struct Text<'a> {
     wrap: bool,
     follow: bool,
     chunk: Rect,
-    highlight_content: Option<HighlightContent<'a>>,
+    highlight_content: HighlightContent<'a>,
     #[derivative(Debug = "ignore")]
     clipboard: Option<Rc<RefCell<ClipboardContext>>>,
 }
@@ -373,33 +373,27 @@ impl WidgetTrait for Text<'_> {
         if self.spans.len() <= y {
             return;
         }
-
-        if let Some(hc) = &mut self.highlight_content {
-            self.spans[hc.index] = hc.spans();
-        }
-
-        self.highlight_content = Some(HighlightContent {
-            spans: self.spans[y].clone(),
-            index: y,
-        });
-
-        if let Some(clipboard) = &self.clipboard {
-            clipboard
-                .borrow_mut()
-                .set_contents(self.spans[y].clone().into())
-                .unwrap();
-        }
-
-        self.spans[y] = highlight_content(self.spans[y].clone());
     }
 }
 
-fn highlight_content(target: Spans) -> Spans {
-    let target: String = target.into();
-    Spans::from(Span::styled(
-        target,
-        Style::default().add_modifier(Modifier::REVERSED),
-    ))
+fn highlight_content_partial(src: Spans, (start, end): (usize, usize)) -> (Spans, String) {
+    let range = end.saturating_sub(start);
+
+    if src.width() == range {
+        let spans = Spans::from(
+            src.0
+                .into_iter()
+                .map(|mut span| {
+                    span.style = Style::default().add_modifier(Modifier::REVERSED);
+                    span
+                })
+                .collect::<Vec<Span>>(),
+        );
+        let content: String = spans.clone().into();
+        return (spans, content);
+    }
+
+    (Spans::default(), String::default())
 }
 
 impl RenderTrait for Text<'_> {
@@ -469,62 +463,95 @@ mod tests {
 
     mod highlight {
         use super::*;
-        use pretty_assertions::assert_eq;
+        mod content_highlight {
+            use super::*;
+            use crate::widget::spans::generate_spans_line;
+            use pretty_assertions::assert_eq;
+            use tui::style::Color;
 
-        #[test]
-        fn move_up() {
-            let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+            #[test]
+            fn one_line_all() {
+                let text = vec!["ℹ ｢wds｣: Project is running at http://10.1.157.45/".to_string()];
 
-            area.update_pos((11, 8));
+                let spans = generate_spans_line(&text)[0].clone();
 
-            assert_eq!(
-                area.highlight_ranges(),
-                vec![
-                    (8, RangeType::StartLine(11)),
-                    (9, RangeType::Full),
-                    (10, RangeType::EndLine(10)),
-                ]
-            )
+                let hi = highlight_content_partial(spans, (0, 50));
+
+                assert_eq!(
+                    hi.1,
+                    "ℹ ｢wds｣: Project is running at http://10.1.157.45/".to_string()
+                );
+
+                assert_eq!(
+                    hi.0,
+                    Spans::from(vec![Span::styled(
+                        "ℹ ｢wds｣: Project is running at http://10.1.157.45/",
+                        Style::default().add_modifier(Modifier::REVERSED)
+                    ),])
+                );
+            }
         }
 
-        #[test]
-        fn move_down() {
-            let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+        mod highlight_area {
 
-            area.update_pos((10, 12));
+            use super::*;
+            use pretty_assertions::assert_eq;
 
-            assert_eq!(
-                area.highlight_ranges(),
-                vec![
-                    (10, RangeType::StartLine(10)),
-                    (11, RangeType::Full),
-                    (12, RangeType::EndLine(10)),
-                ]
-            )
-        }
+            #[test]
+            fn move_up() {
+                let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
 
-        #[test]
-        fn move_left() {
-            let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+                area.update_pos((11, 8));
 
-            area.update_pos((0, 10));
+                assert_eq!(
+                    area.highlight_ranges(),
+                    vec![
+                        (8, RangeType::StartLine(11)),
+                        (9, RangeType::Full),
+                        (10, RangeType::EndLine(10)),
+                    ]
+                )
+            }
 
-            assert_eq!(
-                area.highlight_ranges(),
-                vec![(10, RangeType::Partial(0, 10))]
-            )
-        }
+            #[test]
+            fn move_down() {
+                let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
 
-        #[test]
-        fn move_right() {
-            let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+                area.update_pos((10, 12));
 
-            area.update_pos((20, 10));
+                assert_eq!(
+                    area.highlight_ranges(),
+                    vec![
+                        (10, RangeType::StartLine(10)),
+                        (11, RangeType::Full),
+                        (12, RangeType::EndLine(10)),
+                    ]
+                )
+            }
 
-            assert_eq!(
-                area.highlight_ranges(),
-                vec![(10, RangeType::Partial(10, 20))]
-            )
+            #[test]
+            fn move_left() {
+                let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+
+                area.update_pos((0, 10));
+
+                assert_eq!(
+                    area.highlight_ranges(),
+                    vec![(10, RangeType::Partial(0, 10))]
+                )
+            }
+
+            #[test]
+            fn move_right() {
+                let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+
+                area.update_pos((20, 10));
+
+                assert_eq!(
+                    area.highlight_ranges(),
+                    vec![(10, RangeType::Partial(10, 20))]
+                )
+            }
         }
     }
 }
