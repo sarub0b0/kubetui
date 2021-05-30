@@ -49,6 +49,16 @@ fn color_3_4bit(style: Style, code: u8) -> Style {
         // modifiers
         //////////////////////////
         n @ 1..=9 => style.add_modifier(modifiers(n)),
+
+        20 => Style::reset(),
+        21 => Style::reset(),
+        22 => style.remove_modifier(Modifier::BOLD | Modifier::DIM),
+        23 => style.remove_modifier(Modifier::ITALIC),
+        24 => style.remove_modifier(Modifier::UNDERLINED),
+        25 => style.remove_modifier(Modifier::SLOW_BLINK | Modifier::RAPID_BLINK),
+        27 => style.remove_modifier(Modifier::REVERSED),
+        28 => Style::reset(),
+        29 => style.remove_modifier(Modifier::CROSSED_OUT),
         //////////////////////////
         // foreground
         //////////////////////////
@@ -63,7 +73,7 @@ fn color_3_4bit(style: Style, code: u8) -> Style {
         49 => style.bg(Color::Reset),
 
         // error
-        _ => unreachable!(),
+        _ => Style::reset(),
     }
 }
 
@@ -250,8 +260,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn color_3_4bit_panic() {
-        color_3_4bit(Style::default(), 108);
+        assert_eq!(color_3_4bit(Style::default(), 108), Style::reset())
     }
 }
