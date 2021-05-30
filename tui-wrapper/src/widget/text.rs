@@ -93,6 +93,7 @@ struct HighlightContent<'a> {
     area: HighlightArea,
     state: TextState,
     copy_content: Vec<String>,
+    follow: bool,
 }
 
 #[derive(Derivative)]
@@ -105,7 +106,7 @@ pub struct Text<'a> {
     wrap: bool,
     follow: bool,
     chunk: Rect,
-    highlight_content: HighlightContent<'a>,
+    highlight_content: Option<HighlightContent<'a>>,
     #[derivative(Debug = "ignore")]
     clipboard: Option<Rc<RefCell<ClipboardContext>>>,
 }
@@ -366,18 +367,13 @@ impl WidgetTrait for Text<'_> {
     }
 
     fn on_mouse_event(&mut self, ev: MouseEvent) {
-        fn clear_highlight(text: &mut Text) {
-            let (start, end) = text.view_range();
-
-            let dst = &mut text.spans[start..end];
-            let src = &text.highlight_content.spans;
-
-            for i in 0..end.saturating_sub(start) {
+        fn clear_highlight<'a>(dst: &mut [Spans<'a>], src: &[Spans<'a>], len: usize) {
+            for i in 0..len {
                 dst[i] = src[i].clone();
             }
         }
 
-        if self.spans.is_empty() {
+        if self.spans.is_empty() || self.clipboard.is_none() {
             return;
         }
 
@@ -393,55 +389,94 @@ impl WidgetTrait for Text<'_> {
         }
 
         let spans_width = self.spans[row].width();
-        if spans_width < col {
+        if spans_width <= col {
             col = spans_width.saturating_sub(1);
         }
 
+        // TODO スクロールを使って画面外の文字列をコピーできるようにする
         let (start, end) = self.view_range();
         match ev.kind {
             MouseEventKind::Down(MouseButton::Left) => {
-                self.highlight_content = HighlightContent {
+                let (spans, content) =
+                    highlight_content_partial(self.spans[row].clone(), (col, col));
+
+                self.highlight_content = Some(HighlightContent {
                     spans: self.spans[start..end].to_vec(),
                     area: HighlightArea::default().start((col, row)).end((col, row)),
                     state: self.state,
-                    copy_content: Vec::new(),
-                };
-
-                let (spans, content) = highlight_content_partial(
-                    self.spans[row].clone(),
-                    (0, self.spans[row].width()),
-                );
+                    copy_content: vec![content],
+                    follow: self.follow,
+                });
 
                 self.spans[row] = spans;
-                self.highlight_content.copy_content.push(content);
+                self.follow = false;
             }
-            MouseEventKind::Drag(MouseButton::Left) => {}
+            MouseEventKind::Drag(MouseButton::Left) => {
+                if let Some(highlight_content) = self.highlight_content.as_mut() {
+                    clear_highlight(
+                        &mut self.spans[start..end],
+                        &highlight_content.spans,
+                        end.saturating_sub(start),
+                    );
+
+                    highlight_content.area.update_pos((col, row));
+
+                    let mut copy_content = Vec::new();
+                    for (row, range) in highlight_content.area.highlight_ranges() {
+                        let (s, e) = match range {
+                            RangeType::Full => (0, self.spans[row].width().saturating_sub(1)),
+                            RangeType::StartLine(i) => {
+                                (i, self.spans[row].width().saturating_sub(1))
+                            }
+                            RangeType::EndLine(i) => (0, i),
+                            RangeType::Partial(i, j) => (i, j),
+                        };
+
+                        let (spans, content) =
+                            highlight_content_partial(self.spans[row].clone(), (s, e));
+
+                        self.spans[row] = spans;
+
+                        copy_content.push(content);
+                    }
+
+                    highlight_content.copy_content = copy_content;
+                }
+            }
             MouseEventKind::Up(MouseButton::Left) => {
-                clear_highlight(self);
+                if let Some(highlight_content) = self.highlight_content.as_mut() {
+                    clear_highlight(
+                        &mut self.spans[start..end],
+                        &highlight_content.spans,
+                        end.saturating_sub(start),
+                    );
 
-                if let Some(clipboard) = &self.clipboard {
-                    let content = std::mem::take(&mut self.highlight_content.copy_content);
+                    self.follow = highlight_content.follow;
 
-                    clipboard
-                        .borrow_mut()
-                        .set_contents(
-                            content
-                                .into_iter()
-                                .map(|mut c| {
-                                    if c.width() == self.wrap_width() {
-                                        c
-                                    } else {
-                                        c.push('\n');
-                                        c
-                                    }
-                                })
-                                .collect::<Vec<String>>()
-                                .concat(),
-                        )
-                        .unwrap();
+                    if let Some(clipboard) = &self.clipboard {
+                        let content = std::mem::take(&mut highlight_content.copy_content);
+
+                        clipboard
+                            .borrow_mut()
+                            .set_contents(
+                                content
+                                    .into_iter()
+                                    .map(|mut c| {
+                                        if c.width() == self.wrap_width() {
+                                            c
+                                        } else {
+                                            c.push('\n');
+                                            c
+                                        }
+                                    })
+                                    .collect::<Vec<String>>()
+                                    .concat(),
+                            )
+                            .unwrap();
+                    }
                 }
 
-                self.highlight_content = HighlightContent::default();
+                self.highlight_content = None;
             }
             MouseEventKind::Down(_) => {}
             MouseEventKind::Drag(_) => {}
@@ -498,9 +533,6 @@ fn highlight_content_partial(src: Spans, (start, end): (usize, usize)) -> (Spans
         .flat_map(|(i, span)| {
             let width = span.width();
             let ret = if sum_width < end && end <= sum_width + width {
-                dbg!(sum_width);
-                dbg!(sum_width + width);
-                dbg!(end);
                 if sum_width + width != end {
                     let first = content[sum_width..end].concat();
                     let second = content[end..(sum_width + width)].concat();
