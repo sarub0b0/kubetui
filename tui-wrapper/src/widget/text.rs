@@ -21,6 +21,70 @@ use super::{WidgetItem, WidgetTrait};
 use super::spans::generate_spans;
 use super::wrap::*;
 
+#[derive(Debug, PartialEq)]
+enum RangeType {
+    Full,
+    StartLine(usize),
+    EndLine(usize),
+    Partial(usize, usize),
+}
+
+#[derive(Default, Debug, Copy, Clone)]
+struct HighlightArea {
+    start: (usize, usize),
+    end: (usize, usize),
+}
+
+impl HighlightArea {
+    fn start(mut self, start: (usize, usize)) -> Self {
+        self.start = start;
+        self
+    }
+
+    fn end(mut self, end: (usize, usize)) -> Self {
+        self.end = end;
+        self
+    }
+
+    fn update_pos(&mut self, pos: (usize, usize)) {
+        self.end = pos;
+    }
+
+    fn highlight_ranges(&self) -> Vec<(usize, RangeType)> {
+        use std::mem::swap;
+
+        let mut area = *self;
+
+        if (area.end.1 < area.start.1) || (area.start.1 == area.end.1 && area.end.0 < area.start.0)
+        {
+            swap(&mut area.start, &mut area.end);
+        }
+
+        let start = area.start.1;
+        let end = area.end.1;
+
+        let mut ret = Vec::new();
+        for i in start..=end {
+            match i {
+                i if start == i && end == i => {
+                    ret.push((i, RangeType::Partial(area.start.0, area.end.0)));
+                }
+                i if start == i => {
+                    ret.push((i, RangeType::StartLine(area.start.0)));
+                }
+                i if end == i => {
+                    ret.push((i, RangeType::EndLine(area.end.0)));
+                }
+                _ => {
+                    ret.push((i, RangeType::Full));
+                }
+            }
+        }
+
+        ret
+    }
+}
+
 #[derive(Default, Debug, Clone)]
 struct HighlightContent<'a> {
     spans: Spans<'a>,
@@ -401,5 +465,66 @@ mod tests {
         text.append_items(WidgetItem::Array(data));
 
         assert!(text.is_bottom())
+    }
+
+    mod highlight {
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn move_up() {
+            let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+
+            area.update_pos((11, 8));
+
+            assert_eq!(
+                area.highlight_ranges(),
+                vec![
+                    (8, RangeType::StartLine(11)),
+                    (9, RangeType::Full),
+                    (10, RangeType::EndLine(10)),
+                ]
+            )
+        }
+
+        #[test]
+        fn move_down() {
+            let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+
+            area.update_pos((10, 12));
+
+            assert_eq!(
+                area.highlight_ranges(),
+                vec![
+                    (10, RangeType::StartLine(10)),
+                    (11, RangeType::Full),
+                    (12, RangeType::EndLine(10)),
+                ]
+            )
+        }
+
+        #[test]
+        fn move_left() {
+            let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+
+            area.update_pos((0, 10));
+
+            assert_eq!(
+                area.highlight_ranges(),
+                vec![(10, RangeType::Partial(0, 10))]
+            )
+        }
+
+        #[test]
+        fn move_right() {
+            let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+
+            area.update_pos((20, 10));
+
+            assert_eq!(
+                area.highlight_ranges(),
+                vec![(10, RangeType::Partial(10, 20))]
+            )
+        }
     }
 }
