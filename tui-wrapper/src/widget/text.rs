@@ -13,6 +13,7 @@ use tui::{
 
 use clipboard::{ClipboardContext, ClipboardProvider};
 use derivative::*;
+use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
 use super::RenderTrait;
@@ -453,23 +454,80 @@ impl WidgetTrait for Text<'_> {
 }
 
 fn highlight_content_partial(src: Spans, (start, end): (usize, usize)) -> (Spans, String) {
-    let range = end.saturating_sub(start);
+    let end = end.saturating_add(1); // カーソル位置を含めるため１を足す
+    let content: String = src.clone().into();
+    let content: Vec<&str> = content.graphemes(true).collect();
 
-    if src.width() == range {
-        let spans = Spans::from(
-            src.0
-                .into_iter()
-                .map(|mut span| {
-                    span.style = Style::default().add_modifier(Modifier::REVERSED);
-                    span
-                })
-                .collect::<Vec<Span>>(),
-        );
-        let content: String = spans.clone().into();
-        return (spans, content);
+    let mut start_index = 0;
+    let mut sum_width = 0;
+    let spans: Vec<Span> = src
+        .0
+        .into_iter()
+        .enumerate()
+        .flat_map(|(i, span)| {
+            let width = span.width();
+            let ret = if sum_width <= start && start < sum_width + width {
+                if sum_width != start {
+                    let first = content[sum_width..start].concat();
+                    let second = content[start..(sum_width + width)].concat();
+
+                    start_index = i + 1;
+                    vec![
+                        Span::styled(first, span.style),
+                        Span::styled(second, span.style),
+                    ]
+                } else {
+                    start_index = i;
+                    vec![span]
+                }
+            } else {
+                vec![span]
+            };
+
+            sum_width += width;
+
+            ret
+        })
+        .collect();
+
+    let mut end_index = 0;
+    let mut sum_width = 0;
+    let mut spans: Vec<Span> = spans
+        .into_iter()
+        .enumerate()
+        .flat_map(|(i, span)| {
+            let width = span.width();
+            let ret = if sum_width < end && end <= sum_width + width {
+                dbg!(sum_width);
+                dbg!(sum_width + width);
+                dbg!(end);
+                if sum_width + width != end {
+                    let first = content[sum_width..end].concat();
+                    let second = content[end..(sum_width + width)].concat();
+                    end_index = i;
+                    vec![
+                        Span::styled(first, span.style),
+                        Span::styled(second, span.style),
+                    ]
+                } else {
+                    end_index = i;
+                    vec![span]
+                }
+            } else {
+                vec![span]
+            };
+
+            sum_width += width;
+
+            ret
+        })
+        .collect();
+
+    for span in &mut spans[start_index..=end_index] {
+        span.style = Style::default().add_modifier(Modifier::REVERSED)
     }
 
-    (Spans::default(), String::default())
+    (Spans::from(spans), content[start..end].concat())
 }
 
 impl RenderTrait for Text<'_> {
@@ -540,24 +598,159 @@ mod tests {
             use tui::style::Color;
 
             #[test]
-            fn one_line_all() {
-                let text = vec!["ℹ ｢wds｣: Project is running at http://10.1.157.45/".to_string()];
+            fn line_all() {
+                let text = vec!["\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: Project is running at http://10.1.157.9/".to_string() ];
 
                 let spans = generate_spans_line(&text)[0].clone();
 
-                let hi = highlight_content_partial(spans, (0, 50));
+                let hi = highlight_content_partial(spans, (0, 48));
 
                 assert_eq!(
                     hi.1,
-                    "ℹ ｢wds｣: Project is running at http://10.1.157.45/".to_string()
+                    "ℹ ｢wds｣: Project is running at http://10.1.157.9/".to_string()
                 );
 
                 assert_eq!(
                     hi.0,
-                    Spans::from(vec![Span::styled(
-                        "ℹ ｢wds｣: Project is running at http://10.1.157.45/",
-                        Style::default().add_modifier(Modifier::REVERSED)
-                    ),])
+                    Spans::from(vec![
+                        Span::styled("ℹ", Style::default().add_modifier(Modifier::REVERSED)),
+                        Span::styled(" ", Style::default().add_modifier(Modifier::REVERSED)),
+                        Span::styled("｢wds｣", Style::default().add_modifier(Modifier::REVERSED)),
+                        Span::styled(
+                            ": Project is running at http://10.1.157.9/",
+                            Style::default().add_modifier(Modifier::REVERSED)
+                        )
+                    ])
+                );
+            }
+
+            #[test]
+            fn line_partial_char() {
+                let text = vec!["\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: Project is running at http://10.1.157.9/".to_string() ];
+
+                let spans = generate_spans_line(&text)[0].clone();
+
+                let hi = highlight_content_partial(spans, (0, 0));
+
+                assert_eq!(hi.1, "ℹ".to_string());
+
+                assert_eq!(
+                    hi.0,
+                    Spans::from(vec![
+                        Span::styled("ℹ", Style::default().add_modifier(Modifier::REVERSED)),
+                        Span::styled(" ", Style::default().fg(Color::Reset)),
+                        Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
+                        Span::styled(
+                            ": Project is running at http://10.1.157.9/",
+                            Style::default().fg(Color::Reset)
+                        )
+                    ])
+                );
+            }
+
+            #[test]
+            fn line_partial_chars() {
+                let text = vec!["\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: Project is running at http://10.1.157.9/".to_string() ];
+
+                let spans = generate_spans_line(&text)[0].clone();
+
+                let hi = highlight_content_partial(spans, (0, 1));
+
+                assert_eq!(hi.1, "ℹ ".to_string());
+
+                assert_eq!(
+                    hi.0,
+                    Spans::from(vec![
+                        Span::styled("ℹ", Style::default().add_modifier(Modifier::REVERSED)),
+                        Span::styled(" ", Style::default().add_modifier(Modifier::REVERSED)),
+                        Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
+                        Span::styled(
+                            ": Project is running at http://10.1.157.9/",
+                            Style::default().fg(Color::Reset)
+                        )
+                    ])
+                );
+            }
+
+            #[test]
+            fn line_partial_left() {
+                let text = vec!["\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: Project is running at http://10.1.157.9/".to_string()];
+
+                let spans = generate_spans_line(&text)[0].clone();
+
+                let hi = highlight_content_partial(spans, (0, 10));
+
+                assert_eq!(hi.1, "ℹ ｢wds｣: Pr".to_string());
+
+                assert_eq!(
+                    hi.0,
+                    Spans::from(vec![
+                        Span::styled("ℹ", Style::default().add_modifier(Modifier::REVERSED)),
+                        Span::styled(" ", Style::default().add_modifier(Modifier::REVERSED)),
+                        Span::styled("｢wds｣", Style::default().add_modifier(Modifier::REVERSED)),
+                        Span::styled(": Pr", Style::default().add_modifier(Modifier::REVERSED)),
+                        Span::styled(
+                            "oject is running at http://10.1.157.9/",
+                            Style::default().fg(Color::Reset)
+                        ),
+                    ])
+                );
+            }
+
+            #[test]
+            fn line_partial_middle() {
+                let text = vec!["\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: Project is running at http://10.1.157.9/".to_string()];
+
+                let spans = generate_spans_line(&text)[0].clone();
+
+                let hi = highlight_content_partial(spans, (10, 20));
+
+                assert_eq!(hi.1, "roject is r".to_string());
+
+                assert_eq!(
+                    hi.0,
+                    Spans::from(vec![
+                        Span::styled("ℹ", Style::default().fg(Color::Blue)),
+                        Span::styled(" ", Style::default().fg(Color::Reset)),
+                        Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
+                        Span::styled(": P", Style::default().fg(Color::Reset)),
+                        Span::styled(
+                            "roject is r",
+                            Style::default().add_modifier(Modifier::REVERSED)
+                        ),
+                        Span::styled(
+                            "unning at http://10.1.157.9/",
+                            Style::default().fg(Color::Reset)
+                        ),
+                    ])
+                );
+            }
+
+            #[test]
+            fn line_partial_right() {
+                let text = vec!["\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: Project is running at http://10.1.157.9/".to_string()];
+
+                let spans = generate_spans_line(&text)[0].clone();
+
+                let hi = highlight_content_partial(spans, (39, 48));
+
+                assert_eq!(hi.1, "0.1.157.9/".to_string());
+
+                assert_eq!(
+                    hi.0,
+                    Spans::from(vec![
+                        Span::styled("ℹ", Style::default().fg(Color::Blue)),
+                        Span::styled(" ", Style::default().fg(Color::Reset)),
+                        Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
+                        Span::styled(
+                            ": Project is running at http://1",
+                            Style::default().fg(Color::Reset)
+                        ),
+                        Span::styled(
+                            "0.1.157.9/",
+                            Style::default().add_modifier(Modifier::REVERSED)
+                        ),
+                    ])
                 );
             }
         }
