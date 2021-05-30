@@ -267,6 +267,18 @@ impl<'a> Text<'a> {
             .len()
             .saturating_sub(self.chunk.height as usize) as u64;
     }
+
+    fn view_range(&self) -> (usize, usize) {
+        let start = self.state.selected_vertical() as usize;
+
+        let end = if self.spans.len() < self.chunk.height as usize {
+            self.spans.len()
+        } else {
+            start + self.chunk.height as usize
+        };
+
+        (start, end)
+    }
 }
 
 impl WidgetTrait for Text<'_> {
@@ -360,6 +372,7 @@ impl WidgetTrait for Text<'_> {
         // 1. 範囲選択した場所をクリップボードへ保存
         // 2. スクロール
         // 3. ドラッグ中にカーソル位置が領域外に移動した時のスクロールと範囲選択した場所のコピー
+
         if ev.kind != MouseEventKind::Down(MouseButton::Left) {
             return;
         }
@@ -372,6 +385,13 @@ impl WidgetTrait for Text<'_> {
 
         if self.spans.len() <= y {
             return;
+        }
+
+        match ev.kind {
+            MouseEventKind::Down(MouseButton::Left) => {}
+            MouseEventKind::Drag(MouseButton::Left) => {}
+            MouseEventKind::Up(MouseButton::Left) => {}
+            _ => {}
         }
     }
 }
@@ -401,13 +421,7 @@ impl RenderTrait for Text<'_> {
     where
         B: Backend,
     {
-        let start = self.state.selected_vertical() as usize;
-
-        let end = if self.spans.len() < self.chunk.height as usize {
-            self.spans.len()
-        } else {
-            start + self.chunk.height as usize
-        };
+        let (start, end) = self.view_range();
 
         let mut widget = Paragraph::new(self.spans[start..end].to_vec())
             .style(Style::default())
