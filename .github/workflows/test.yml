@@ -16,6 +16,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Install Packages
+        run: |
+          sudo apt install libssl-dev libxcb-shape0-dev libxcb-xfixes0-dev xorg-dev
+
       - name: Build
         run: cargo build
 

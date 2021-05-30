@@ -62,7 +62,6 @@ jobs:
 
       - name: Install Packages
         run: |
-          sudo apt update
           sudo apt install libssl-dev libxcb-shape0-dev libxcb-xfixes0-dev xorg-dev
 
       - name: Make OpenSSL
