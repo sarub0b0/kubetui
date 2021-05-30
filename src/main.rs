@@ -83,9 +83,12 @@ fn run() {
     .unwrap();
 
     let mut logs_widget = Text::new(vec![]).enable_wrap().enable_follow();
+    let mut raw_data_widget = Text::new(vec![]).enable_wrap();
 
     if let Ok(cb) = clipboard {
-        logs_widget = logs_widget.clipboard(Rc::new(RefCell::new(cb)));
+        let cb = Rc::new(RefCell::new(cb));
+        logs_widget = logs_widget.clipboard(cb.clone());
+        raw_data_widget = raw_data_widget.clipboard(cb.clone());
     }
 
     let tabs = vec![
@@ -130,7 +133,7 @@ fn run() {
                 ),
                 Pane::new(
                     "Raw Data",
-                    Widget::Text(Text::new(vec![]).enable_wrap()),
+                    Widget::Text(raw_data_widget),
                     1,
                     view_id::tab_configs_pane_raw_data,
                 ),
