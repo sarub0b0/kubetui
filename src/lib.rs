@@ -101,6 +101,9 @@ fn key_event_to_code(key: KeyEvent) -> KeyCode {
 
         Char('a') if key.modifiers == KeyModifiers::CONTROL => Home,
         Char('e') if key.modifiers == KeyModifiers::CONTROL => End,
+
+        Char('[') if key.modifiers == KeyModifiers::CONTROL => Esc,
+
         _ => key.code,
     }
 }
@@ -118,8 +121,8 @@ where
 
     match rx.recv().unwrap() {
         Event::Input(key) => match key_event_to_code(key) {
-            KeyCode::Char('q') if key.modifiers == KeyModifiers::CONTROL => {
-                return WindowEvent::CloseSubWindow
+            KeyCode::Esc => {
+                return WindowEvent::CloseSubWindow;
             }
 
             KeyCode::Down => {
@@ -212,8 +215,8 @@ where
     let pane = subwin.pane_mut();
     match rx.recv().unwrap() {
         Event::Input(key) => match key_event_to_code(key) {
-            KeyCode::Char('q') if key.modifiers == KeyModifiers::CONTROL => {
-                return WindowEvent::CloseSubWindow
+            KeyCode::Esc => {
+                return WindowEvent::CloseSubWindow;
             }
 
             KeyCode::Down => {
