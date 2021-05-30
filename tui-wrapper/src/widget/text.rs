@@ -13,6 +13,7 @@ use tui::{
 
 use clipboard::{ClipboardContext, ClipboardProvider};
 use derivative::*;
+use unicode_width::UnicodeWidthStr;
 
 use super::RenderTrait;
 
@@ -87,14 +88,10 @@ impl HighlightArea {
 
 #[derive(Default, Debug, Clone)]
 struct HighlightContent<'a> {
-    spans: Spans<'a>,
-    index: usize,
-}
-
-impl<'a> HighlightContent<'a> {
-    fn spans(&mut self) -> Spans<'a> {
-        std::mem::take(&mut self.spans)
-    }
+    spans: Vec<Spans<'a>>,
+    area: HighlightArea,
+    state: TextState,
+    copy_content: Vec<String>,
 }
 
 #[derive(Derivative)]
@@ -368,30 +365,89 @@ impl WidgetTrait for Text<'_> {
     }
 
     fn on_mouse_event(&mut self, ev: MouseEvent) {
-        // TODO マウスイベント実装
-        // 1. 範囲選択した場所をクリップボードへ保存
-        // 2. スクロール
-        // 3. ドラッグ中にカーソル位置が領域外に移動した時のスクロールと範囲選択した場所のコピー
+        fn clear_highlight(text: &mut Text) {
+            let (start, end) = text.view_range();
 
-        if ev.kind != MouseEventKind::Down(MouseButton::Left) {
+            let dst = &mut text.spans[start..end];
+            let src = &text.highlight_content.spans;
+
+            for i in 0..end.saturating_sub(start) {
+                dst[i] = src[i].clone();
+            }
+        }
+
+        if self.spans.is_empty() {
             return;
         }
 
-        let (_x, y) = (
+        let (mut col, mut row) = (
             ev.column.saturating_sub(self.chunk.left()) as usize,
             ev.row.saturating_sub(self.chunk.top()) as usize
                 + self.state.selected_vertical() as usize,
         );
 
-        if self.spans.len() <= y {
-            return;
+        let spans_len = self.spans.len();
+        if spans_len <= row {
+            row = self.spans.len().saturating_sub(1);
         }
 
+        let spans_width = self.spans[row].width();
+        if spans_width < col {
+            col = spans_width.saturating_sub(1);
+        }
+
+        let (start, end) = self.view_range();
         match ev.kind {
-            MouseEventKind::Down(MouseButton::Left) => {}
+            MouseEventKind::Down(MouseButton::Left) => {
+                self.highlight_content = HighlightContent {
+                    spans: self.spans[start..end].to_vec(),
+                    area: HighlightArea::default().start((col, row)).end((col, row)),
+                    state: self.state,
+                    copy_content: Vec::new(),
+                };
+
+                let (spans, content) = highlight_content_partial(
+                    self.spans[row].clone(),
+                    (0, self.spans[row].width()),
+                );
+
+                self.spans[row] = spans;
+                self.highlight_content.copy_content.push(content);
+            }
             MouseEventKind::Drag(MouseButton::Left) => {}
-            MouseEventKind::Up(MouseButton::Left) => {}
-            _ => {}
+            MouseEventKind::Up(MouseButton::Left) => {
+                clear_highlight(self);
+
+                if let Some(clipboard) = &self.clipboard {
+                    let content = std::mem::take(&mut self.highlight_content.copy_content);
+
+                    clipboard
+                        .borrow_mut()
+                        .set_contents(
+                            content
+                                .into_iter()
+                                .map(|mut c| {
+                                    if c.width() == self.wrap_width() {
+                                        c
+                                    } else {
+                                        c.push('\n');
+                                        c
+                                    }
+                                })
+                                .collect::<Vec<String>>()
+                                .concat(),
+                        )
+                        .unwrap();
+                }
+
+                self.highlight_content = HighlightContent::default();
+            }
+            MouseEventKind::Down(_) => {}
+            MouseEventKind::Drag(_) => {}
+            MouseEventKind::Up(_) => {}
+            MouseEventKind::Moved => {}
+            MouseEventKind::ScrollDown => {}
+            MouseEventKind::ScrollUp => {}
         }
     }
 }
