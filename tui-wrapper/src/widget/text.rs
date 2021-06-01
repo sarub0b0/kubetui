@@ -373,7 +373,7 @@ impl WidgetTrait for Text<'_> {
             }
         }
 
-        if self.spans.is_empty() || self.clipboard.is_none() {
+        if self.spans.is_empty() {
             return;
         }
 
@@ -482,8 +482,12 @@ impl WidgetTrait for Text<'_> {
             MouseEventKind::Drag(_) => {}
             MouseEventKind::Up(_) => {}
             MouseEventKind::Moved => {}
-            MouseEventKind::ScrollDown => {}
-            MouseEventKind::ScrollUp => {}
+            MouseEventKind::ScrollDown => {
+                self.scroll_down(3);
+            }
+            MouseEventKind::ScrollUp => {
+                self.scroll_up(3);
+            }
         }
     }
 }
