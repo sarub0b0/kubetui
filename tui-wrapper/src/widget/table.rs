@@ -1,5 +1,6 @@
 use super::{RenderTrait, WidgetItem, WidgetTrait};
 
+use crossterm::event::MouseEvent;
 use tui::{
     backend::Backend,
     layout::{Constraint, Rect},
@@ -220,7 +221,7 @@ impl WidgetTrait for Table<'_> {
         self.set_rows();
     }
 
-    fn update_area(&mut self, area: tui::layout::Rect) {
+    fn update_chunk(&mut self, area: tui::layout::Rect) {
         self.row_width = area.width.saturating_sub(2) as usize;
     }
 
@@ -237,6 +238,7 @@ impl WidgetTrait for Table<'_> {
     fn append_items(&mut self, _: WidgetItem) {
         todo!()
     }
+    fn on_mouse_event(&mut self, _: MouseEvent) {}
 }
 
 impl RenderTrait for Table<'_> {

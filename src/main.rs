@@ -1,5 +1,7 @@
 use crossbeam::channel::{unbounded, Receiver, Sender};
+use std::cell::RefCell;
 use std::panic;
+use std::rc::Rc;
 use std::thread;
 use std::time;
 
@@ -18,6 +20,8 @@ use tui::{
     widgets::{Block, Borders},
     Terminal, TerminalOptions, Viewport,
 };
+
+use clipboard::{ClipboardContext, ClipboardProvider};
 
 use event::{input::*, kubernetes::*, tick::*, Event};
 use tui_wrapper::{widget::*, *};
@@ -59,6 +63,8 @@ fn run() {
     let backend = CrosstermBackend::new(io::stdout());
     let chunk = backend.size().unwrap();
 
+    let clipboard: Result<ClipboardContext, _> = ClipboardProvider::new();
+
     // TODO: 画面サイズ変更時にクラッシュする問題の解決
     //
     // Terminal::new()の場合は、teminal.draw実行時にautoresizeを実行してバッファを更新する。
@@ -75,6 +81,15 @@ fn run() {
         },
     )
     .unwrap();
+
+    let mut logs_widget = Text::new(vec![]).enable_wrap().enable_follow();
+    let mut raw_data_widget = Text::new(vec![]).enable_wrap();
+
+    if let Ok(cb) = clipboard {
+        let cb = Rc::new(RefCell::new(cb));
+        logs_widget = logs_widget.clipboard(cb.clone());
+        raw_data_widget = raw_data_widget.clipboard(cb.clone());
+    }
 
     let tabs = vec![
         Tab::new(
@@ -97,7 +112,7 @@ fn run() {
                 ),
                 Pane::new(
                     "Logs",
-                    Widget::Text(Text::new(vec![]).enable_wrap().enable_follow()),
+                    Widget::Text(logs_widget),
                     1,
                     view_id::tab_pods_pane_logs,
                 ),
@@ -118,7 +133,7 @@ fn run() {
                 ),
                 Pane::new(
                     "Raw Data",
-                    Widget::Text(Text::new(vec![]).enable_wrap()),
+                    Widget::Text(raw_data_widget),
                     1,
                     view_id::tab_configs_pane_raw_data,
                 ),
