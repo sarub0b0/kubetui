@@ -1677,7 +1677,7 @@ checksum = "59547bce71d9c38b83d9c0e92b6066c4253371f15005def0c30d9657f50c7642"
 [[package]]
 name = "tui"
 version = "0.15.0"
-source = "git+https://github.com/sarub0b0/tui-rs.git#fdea776f46af29c032dc45f3f4e600747e793e7e"
+source = "git+https://github.com/sarub0b0/tui-rs.git#54a819c420ae7eb8090736a820d3c44d22ead598"
 dependencies = [
  "bitflags",
  "cassowary",
