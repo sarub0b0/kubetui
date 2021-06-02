@@ -200,34 +200,26 @@ impl Window<'_> {
         let pane = self.selected_tab_mut().selected_pane_mut();
         let ch = pane.chunk();
 
-        match pane.widget_mut() {
-            Widget::List(list) => {
-                list.prev();
-            }
-            Widget::Text(text) => {
-                text.scroll_up(ch.height as u64);
-            }
-            Widget::Table(table) => {
-                table.prev();
-            }
-        }
+        let index = if let Widget::Text(_) = pane.widget() {
+            ch.height as usize
+        } else {
+            1
+        };
+
+        pane.widget_mut().select_prev(index);
     }
 
     pub fn scroll_down(&mut self) {
         let pane = self.selected_tab_mut().selected_pane_mut();
         let ch = pane.chunk();
 
-        match pane.widget_mut() {
-            Widget::List(list) => {
-                list.next();
-            }
-            Widget::Text(text) => {
-                text.scroll_down(ch.height as u64);
-            }
-            Widget::Table(table) => {
-                table.next();
-            }
-        }
+        let index = if let Widget::Text(_) = pane.widget() {
+            ch.height as usize
+        } else {
+            1
+        };
+
+        pane.widget_mut().select_next(index);
     }
 }
 
@@ -289,12 +281,11 @@ impl<'a> Window<'a> {
         }
     }
 
-    fn scroll_status(&self, id: &str) -> Option<Paragraph<'a>> {
+    fn scroll_status(&self, id: &str) -> Option<Paragraph> {
         if let Some(pane) = self.selected_tab().panes().iter().find(|p| p.id() == id) {
             let widget = pane.widget().as_text();
-            let span = text_status((widget.state().selected_vertical(), widget.row_size()));
 
-            let spans = Spans::from(span);
+            let spans = widget.status();
             let block = Block::default().style(Style::default());
 
             return Some(Paragraph::new(spans).block(block));
@@ -308,10 +299,6 @@ fn datetime() -> Span<'static> {
         " {}",
         Local::now().format("%Y年%m月%d日 %H時%M分%S秒")
     ))
-}
-
-fn text_status((current, rows): (u64, u64)) -> Span<'static> {
-    Span::raw(format!("{}/{}", current, rows))
 }
 
 trait MouseEventTrait {

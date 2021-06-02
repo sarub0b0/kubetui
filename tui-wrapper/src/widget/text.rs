@@ -168,35 +168,11 @@ impl Text<'_> {
         self
     }
 
-    pub fn select_vertical(&mut self, scroll: u64) {
-        self.state.select_vertical(scroll);
-    }
-
-    pub fn select_horizontal(&mut self, scroll: u64) {
-        self.state.select_horizontal(scroll);
-    }
-
-    pub fn state(&self) -> &TextState {
-        &self.state
-    }
-
-    pub fn selected(&self) -> (u64, u64) {
-        self.state.selected()
-    }
-
-    pub fn selected_vertical(&self) -> u64 {
-        self.state.selected_vertical()
-    }
-
-    pub fn selected_horizontal(&self) -> u64 {
-        self.state.selected_horizontal()
-    }
-
-    pub fn scroll_top(&mut self) {
+    fn scroll_top(&mut self) {
         self.state.select_vertical(0);
     }
 
-    pub fn scroll_bottom(&mut self) {
+    fn scroll_bottom(&mut self) {
         self.state.select_vertical(self.row_size);
     }
 
@@ -210,7 +186,7 @@ impl Text<'_> {
             .select_horizontal(self.state.selected_horizontal().saturating_add(index));
     }
 
-    pub fn is_bottom(&self) -> bool {
+    fn is_bottom(&self) -> bool {
         self.state.selected_vertical() == self.row_size
     }
 
@@ -250,10 +226,6 @@ impl<'a> Text<'a> {
         &self.spans
     }
 
-    pub fn row_size(&self) -> u64 {
-        self.row_size
-    }
-
     fn update_spans(&mut self) {
         let lines = wrap(&self.items, self.wrap_width());
 
@@ -277,6 +249,14 @@ impl<'a> Text<'a> {
         };
 
         (start, end)
+    }
+
+    pub fn status(&self) -> Spans {
+        Spans::from(format!(
+            "{}/{}",
+            self.state.selected_vertical(),
+            self.row_size
+        ))
     }
 }
 
@@ -302,7 +282,7 @@ impl WidgetTrait for Text<'_> {
 
     fn set_items(&mut self, items: WidgetItem) {
         let is_bottom = self.is_bottom();
-        let pos = self.selected_vertical();
+        let pos = self.state.selected_vertical();
 
         self.items = items.array();
 
@@ -322,7 +302,7 @@ impl WidgetTrait for Text<'_> {
         self.chunk = area;
 
         let is_bottom = self.is_bottom();
-        let pos = self.selected_vertical();
+        let pos = self.state.selected_vertical();
 
         self.update_spans();
         self.update_rows_size();

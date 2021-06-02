@@ -74,13 +74,6 @@ impl<'a> Table<'a> {
         &self.items
     }
 
-    pub fn next(&mut self) {
-        self.select_next(1)
-    }
-    pub fn prev(&mut self) {
-        self.select_prev(1)
-    }
-
     pub fn state(&self) -> &TableState {
         &self.state
     }
@@ -164,8 +157,8 @@ impl WidgetTrait for Table<'_> {
     fn select_next(&mut self, index: usize) {
         let i = match self.state.selected() {
             Some(i) => {
-                if self.items.len() - 1 <= i {
-                    self.items.len() - 1
+                if self.items.len().saturating_sub(1) <= i + index {
+                    self.items.len().saturating_sub(1)
                 } else {
                     i + index
                 }
@@ -173,22 +166,13 @@ impl WidgetTrait for Table<'_> {
             None => 0,
         };
 
-        self.state.select(Some(i))
+        self.state.select(Some(i));
     }
 
     fn select_prev(&mut self, index: usize) {
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i < index {
-                    0
-                } else {
-                    i - index
-                }
-            }
-            None => 0,
-        };
+        let i = self.state.selected().unwrap_or(0);
 
-        self.state.select(Some(i))
+        self.state.select(Some(i.saturating_sub(index)));
     }
 
     fn select_first(&mut self) {

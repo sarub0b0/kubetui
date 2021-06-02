@@ -46,14 +46,6 @@ impl<'a> List<'a> {
         &self.state
     }
 
-    pub fn next(&mut self) {
-        self.select_next(1);
-    }
-
-    pub fn prev(&mut self) {
-        self.select_prev(1);
-    }
-
     pub fn items(&self) -> &Vec<String> {
         &self.items
     }
@@ -78,41 +70,26 @@ impl WidgetTrait for List<'_> {
     fn selectable(&self) -> bool {
         true
     }
-    fn select_next(&mut self, index: usize) {
-        if self.items.is_empty() {
-            return;
-        }
 
+    fn select_next(&mut self, index: usize) {
         let i = match self.state.selected() {
             Some(i) => {
-                if self.items.len() - 1 <= i {
-                    self.items.len() - 1
+                if self.items.len().saturating_sub(1) < i + index {
+                    self.items.len().saturating_sub(1)
                 } else {
                     i + index
                 }
             }
             None => 0,
         };
+
         self.state.select(Some(i));
     }
 
     fn select_prev(&mut self, index: usize) {
-        if self.items.is_empty() {
-            return;
-        }
+        let i = self.state.selected().unwrap_or(0);
 
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i < index {
-                    0
-                } else {
-                    i.saturating_sub(1)
-                }
-            }
-            None => 0,
-        };
-
-        self.state.select(Some(i));
+        self.state.select(Some(i.saturating_sub(index)));
     }
 
     fn select_first(&mut self) {
@@ -195,8 +172,7 @@ mod tests {
             String::from("Item 2"),
         ]);
 
-        list.prev();
-        list.prev();
+        list.select_prev(2);
         assert_eq!(Some(0), list.selected())
     }
     #[test]
@@ -207,7 +183,7 @@ mod tests {
             String::from("Item 2"),
         ]);
 
-        list.next();
+        list.select_next(1);
         assert_eq!(Some(1), list.selected())
     }
 
@@ -219,9 +195,7 @@ mod tests {
             String::from("Item 2"),
         ]);
 
-        list.next();
-        list.next();
-        list.next();
+        list.select_next(3);
         assert_eq!(Some(2), list.selected())
     }
 }
