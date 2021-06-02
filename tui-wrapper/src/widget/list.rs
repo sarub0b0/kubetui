@@ -5,26 +5,19 @@ use tui::{
     Frame,
 };
 
-use crossterm::event::MouseEvent;
+use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+
 use tui::widgets::{self, Block, ListItem, ListState};
 
 use super::{RenderTrait, WidgetItem, WidgetTrait};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct List<'a> {
     items: Vec<String>,
     state: ListState,
+    offset: usize,
+    chunk: Rect,
     list_item: Vec<ListItem<'a>>,
-}
-
-impl Default for List<'_> {
-    fn default() -> Self {
-        Self {
-            items: Vec::new(),
-            state: ListState::default(),
-            list_item: Vec::new(),
-        }
-    }
 }
 
 impl<'a> List<'a> {
@@ -39,6 +32,7 @@ impl<'a> List<'a> {
             items,
             state,
             list_item,
+            ..Self::default()
         }
     }
 
@@ -84,12 +78,21 @@ impl WidgetTrait for List<'_> {
         };
 
         self.state.select(Some(i));
+
+        let limit = self.chunk.height.saturating_sub(1) as usize;
+        if limit <= i {
+            self.offset = i.saturating_sub(limit);
+        }
     }
 
     fn select_prev(&mut self, index: usize) {
-        let i = self.state.selected().unwrap_or(0);
+        let i = self.state.selected().unwrap_or(0).saturating_sub(index);
 
-        self.state.select(Some(i.saturating_sub(index)));
+        self.state.select(Some(i));
+
+        if i < self.offset {
+            self.offset = i
+        }
     }
 
     fn select_first(&mut self) {
@@ -127,7 +130,10 @@ impl WidgetTrait for List<'_> {
         self.set_listitem();
     }
 
-    fn update_chunk(&mut self, _area: Rect) {}
+    fn update_chunk(&mut self, chunk: Rect) {
+        self.chunk = chunk;
+    }
+
     fn clear(&mut self) {}
 
     fn get_item(&self) -> Option<WidgetItem> {
@@ -140,7 +146,34 @@ impl WidgetTrait for List<'_> {
         todo!()
     }
 
-    fn on_mouse_event(&mut self, _: MouseEvent) {}
+    fn on_mouse_event(&mut self, ev: MouseEvent) {
+        if self.list_item.is_empty() {
+            return;
+        }
+
+        let (_, row) = (
+            ev.column.saturating_sub(self.chunk.left()) as usize,
+            ev.row.saturating_sub(self.chunk.top()) as usize,
+        );
+
+        if self.list_item.len() <= row {
+            return;
+        }
+
+        match ev.kind {
+            MouseEventKind::Down(MouseButton::Left) => {
+                self.state.select(Some(row + self.offset));
+            }
+
+            MouseEventKind::ScrollDown => {
+                self.select_next(1);
+            }
+            MouseEventKind::ScrollUp => {
+                self.select_prev(1);
+            }
+            _ => {}
+        }
+    }
 }
 
 impl RenderTrait for List<'_> {
@@ -152,6 +185,7 @@ impl RenderTrait for List<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn initial_index() {
@@ -197,5 +231,58 @@ mod tests {
 
         list.select_next(3);
         assert_eq!(Some(2), list.selected())
+    }
+
+    #[test]
+    fn next_offset() {
+        let chunk = Rect::new(0, 0, 10, 5);
+        let mut list = List::new(vec![
+            "Item-0".to_string(),
+            "Item-1".to_string(),
+            "Item-2".to_string(),
+            "Item-3".to_string(),
+            "Item-4".to_string(),
+            "Item-5".to_string(),
+            "Item-6".to_string(),
+        ]);
+
+        list.update_chunk(chunk);
+
+        list.select_next(5);
+
+        assert_eq!(list.offset, 1);
+
+        list.select_next(10);
+
+        assert_eq!(list.offset, 2);
+
+        assert_eq!(list.state.selected().unwrap(), 6);
+    }
+
+    #[test]
+    fn prev_offset() {
+        let chunk = Rect::new(0, 0, 10, 5);
+        let mut list = List::new(vec![
+            "Item-0".to_string(),
+            "Item-1".to_string(),
+            "Item-2".to_string(),
+            "Item-3".to_string(),
+            "Item-4".to_string(),
+            "Item-5".to_string(),
+            "Item-6".to_string(),
+        ]);
+
+        list.update_chunk(chunk);
+
+        list.select_next(10);
+
+        assert_eq!(list.offset, 2);
+
+        list.select_prev(5);
+
+        assert_eq!(list.state.selected().unwrap(), 1);
+
+        list.select_prev(4);
+        assert_eq!(list.state.selected().unwrap(), 0);
     }
 }
