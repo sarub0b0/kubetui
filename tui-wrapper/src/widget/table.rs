@@ -263,11 +263,8 @@ impl WidgetTrait for Table<'_> {
                             b.0 - offset_bound.0 + ROW_START_INDEX,
                             b.1 - offset_bound.1 + ROW_START_INDEX,
                         );
-                        if b.0 <= row && row <= b.1 {
-                            true
-                        } else {
-                            false
-                        }
+
+                        b.0 <= row && row <= b.1
                     })
                 {
                     self.state.select(Some(index + offset));

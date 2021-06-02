@@ -348,9 +348,7 @@ impl WidgetTrait for Text<'_> {
 
     fn on_mouse_event(&mut self, ev: MouseEvent) {
         fn clear_highlight<'a>(dst: &mut [Spans<'a>], src: &[Spans<'a>], len: usize) {
-            for i in 0..len {
-                dst[i] = src[i].clone();
-            }
+            dst[..len].clone_from_slice(&src[..len])
         }
 
         if self.spans.is_empty() {

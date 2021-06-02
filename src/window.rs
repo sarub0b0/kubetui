@@ -363,9 +363,5 @@ fn mouse_pos(ev: MouseEvent) -> (u16, u16) {
 #[inline]
 fn contains(chunk: Rect, point: (u16, u16)) -> bool {
     let (px, py) = point;
-    if (chunk.left() <= px && px <= chunk.right()) && (chunk.top() <= py && py <= chunk.bottom()) {
-        true
-    } else {
-        false
-    }
+    (chunk.left() <= px && px <= chunk.right()) && (chunk.top() <= py && py <= chunk.bottom())
 }

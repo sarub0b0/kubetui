@@ -88,7 +88,7 @@ fn run() {
     if let Ok(cb) = clipboard {
         let cb = Rc::new(RefCell::new(cb));
         logs_widget = logs_widget.clipboard(cb.clone());
-        raw_data_widget = raw_data_widget.clipboard(cb.clone());
+        raw_data_widget = raw_data_widget.clipboard(cb);
     }
 
     let tabs = vec![
