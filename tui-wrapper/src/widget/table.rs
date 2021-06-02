@@ -1,6 +1,6 @@
 use super::{RenderTrait, WidgetItem, WidgetTrait};
 
-use crossterm::event::MouseEvent;
+use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use tui::{
     backend::Backend,
     layout::{Constraint, Rect},
@@ -14,8 +14,9 @@ use super::wrap::wrap_line;
 
 const COLUMN_SPACING: u16 = 3;
 const HIGHLIGHT_SYMBOL: &str = " ";
+const ROW_START_INDEX: usize = 2;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Table<'a> {
     items: Vec<Vec<String>>,
     header: Vec<String>,
@@ -25,21 +26,8 @@ pub struct Table<'a> {
     widths: Vec<Constraint>,
     row_width: usize,
     digits: Vec<usize>,
-}
-
-impl Default for Table<'_> {
-    fn default() -> Self {
-        Self {
-            items: Default::default(),
-            header: Default::default(),
-            header_row: Default::default(),
-            state: Default::default(),
-            rows: Default::default(),
-            widths: Default::default(),
-            row_width: Default::default(),
-            digits: Default::default(),
-        }
-    }
+    chunk: Rect,
+    row_bounds: Vec<(usize, usize)>,
 }
 
 impl<'a> Table<'a> {
@@ -119,24 +107,44 @@ impl<'a> Table<'a> {
 
     fn set_rows(&mut self) {
         let mut margin = 0;
+        let mut row_bounds: Vec<(usize, usize)> = Vec::new();
+
         self.rows = self
             .items
             .iter()
-            .map(|row| {
-                let mut height = 1;
-                let cells = row.iter().cloned().enumerate().map(|(i, cell)| {
-                    let wrapped = wrap_line(&cell, self.digits[i]);
+            .scan(0, |current_height, row| {
+                let cells: Vec<(Cell, usize)> = row
+                    .iter()
+                    .cloned()
+                    .enumerate()
+                    .map(|(i, cell)| {
+                        let wrapped = wrap_line(&cell, self.digits[i]);
 
-                    if height < wrapped.len() {
-                        height = wrapped.len();
-                        margin = 1;
-                    }
-                    Cell::from(generate_spans_line(&wrapped))
-                });
+                        let mut height = 1;
+                        if height < wrapped.len() {
+                            height = wrapped.len();
+                            margin = 1;
+                        }
 
-                Row::new(cells).height(height as u16)
+                        (Cell::from(generate_spans_line(&wrapped)), height)
+                    })
+                    .collect();
+
+                let height = if let Some((_, h)) = cells.iter().max_by_key(|(_, h)| h) {
+                    *h
+                } else {
+                    1
+                };
+
+                row_bounds.push((*current_height, *current_height + height.saturating_sub(1)));
+                *current_height += height;
+
+                let cells = cells.into_iter().map(|(c, _)| c);
+                Some(Row::new(cells).height(height as u16))
             })
             .collect();
+
+        self.row_bounds = row_bounds;
 
         if margin == 1 {
             self.rows = self
@@ -144,7 +152,18 @@ impl<'a> Table<'a> {
                 .iter()
                 .cloned()
                 .map(|row| row.bottom_margin(margin))
-                .collect()
+                .collect();
+
+            self.row_bounds = self
+                .row_bounds
+                .iter()
+                .scan(0, |height, b| {
+                    let b = (b.0 + *height, b.1 + *height);
+
+                    *height += 1;
+                    Some(b)
+                })
+                .collect();
         }
     }
 }
@@ -206,6 +225,7 @@ impl WidgetTrait for Table<'_> {
     }
 
     fn update_chunk(&mut self, area: tui::layout::Rect) {
+        self.chunk = area;
         self.row_width = area.width.saturating_sub(2) as usize;
     }
 
@@ -222,7 +242,47 @@ impl WidgetTrait for Table<'_> {
     fn append_items(&mut self, _: WidgetItem) {
         todo!()
     }
-    fn on_mouse_event(&mut self, _: MouseEvent) {}
+
+    fn on_mouse_event(&mut self, ev: MouseEvent) {
+        if self.items.is_empty() {
+            return;
+        }
+
+        let (_, row) = (
+            ev.column.saturating_sub(self.chunk.left()) as usize,
+            ev.row.saturating_sub(self.chunk.top()) as usize,
+        );
+
+        match ev.kind {
+            MouseEventKind::Down(MouseButton::Left) => {
+                let offset = self.state.offset();
+                let offset_bound = self.row_bounds[offset];
+                if let Some((index, _)) =
+                    self.row_bounds[offset..].iter().enumerate().find(|(_, b)| {
+                        let b = (
+                            b.0 - offset_bound.0 + ROW_START_INDEX,
+                            b.1 - offset_bound.1 + ROW_START_INDEX,
+                        );
+                        if b.0 <= row && row <= b.1 {
+                            true
+                        } else {
+                            false
+                        }
+                    })
+                {
+                    self.state.select(Some(index + offset));
+                }
+            }
+
+            MouseEventKind::ScrollDown => {
+                self.select_next(1);
+            }
+            MouseEventKind::ScrollUp => {
+                self.select_prev(1);
+            }
+            _ => {}
+        }
+    }
 }
 
 impl RenderTrait for Table<'_> {
