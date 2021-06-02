@@ -15,7 +15,6 @@ use super::{RenderTrait, WidgetItem, WidgetTrait};
 pub struct List<'a> {
     items: Vec<String>,
     state: ListState,
-    offset: usize,
     chunk: Rect,
     list_item: Vec<ListItem<'a>>,
 }
@@ -78,21 +77,12 @@ impl WidgetTrait for List<'_> {
         };
 
         self.state.select(Some(i));
-
-        let limit = self.chunk.height.saturating_sub(1) as usize;
-        if limit <= i {
-            self.offset = i.saturating_sub(limit);
-        }
     }
 
     fn select_prev(&mut self, index: usize) {
         let i = self.state.selected().unwrap_or(0).saturating_sub(index);
 
         self.state.select(Some(i));
-
-        if i < self.offset {
-            self.offset = i
-        }
     }
 
     fn select_first(&mut self) {
@@ -162,7 +152,7 @@ impl WidgetTrait for List<'_> {
 
         match ev.kind {
             MouseEventKind::Down(MouseButton::Left) => {
-                self.state.select(Some(row + self.offset));
+                self.state.select(Some(row + self.state.offset()));
             }
 
             MouseEventKind::ScrollDown => {
@@ -250,11 +240,7 @@ mod tests {
 
         list.select_next(5);
 
-        assert_eq!(list.offset, 1);
-
         list.select_next(10);
-
-        assert_eq!(list.offset, 2);
 
         assert_eq!(list.state.selected().unwrap(), 6);
     }
@@ -275,8 +261,6 @@ mod tests {
         list.update_chunk(chunk);
 
         list.select_next(10);
-
-        assert_eq!(list.offset, 2);
 
         list.select_prev(5);
 
