@@ -148,6 +148,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "clipboard-wrapper"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "clipboard",
+ "wsl",
+]
+
+[[package]]
 name = "component"
 version = "0.1.0"
 dependencies = [
@@ -754,7 +763,7 @@ version = "0.1.0"
 dependencies = [
  "ansi",
  "chrono",
- "clipboard",
+ "clipboard-wrapper",
  "component",
  "crossbeam",
  "crossterm",
@@ -1691,7 +1700,7 @@ name = "tui-wrapper"
 version = "0.1.0"
 dependencies = [
  "ansi",
- "clipboard",
+ "clipboard-wrapper",
  "crossterm",
  "derivative",
  "pretty_assertions",
@@ -1807,6 +1816,12 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
+
+[[package]]
+name = "wsl"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8dab7ac864710bdea6594becbea5b5050333cf34fefb0dc319567eb347950d4"
 
 [[package]]
 name = "wyz"

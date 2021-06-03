@@ -11,7 +11,6 @@ use tui::{
     Frame,
 };
 
-use clipboard::{ClipboardContext, ClipboardProvider};
 use derivative::*;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
@@ -22,6 +21,7 @@ use super::{WidgetItem, WidgetTrait};
 
 use super::spans::generate_spans;
 use super::wrap::*;
+use clipboard_wrapper::{ClipboardContextWrapper, ClipboardProvider};
 
 #[derive(Debug, PartialEq)]
 enum RangeType {
@@ -108,7 +108,7 @@ pub struct Text<'a> {
     chunk: Rect,
     highlight_content: Option<HighlightContent<'a>>,
     #[derivative(Debug = "ignore")]
-    clipboard: Option<Rc<RefCell<ClipboardContext>>>,
+    clipboard: Option<Rc<RefCell<ClipboardContextWrapper>>>,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -163,7 +163,7 @@ impl Text<'_> {
         self
     }
 
-    pub fn clipboard(mut self, clipboard: Rc<RefCell<ClipboardContext>>) -> Self {
+    pub fn clipboard(mut self, clipboard: Rc<RefCell<ClipboardContextWrapper>>) -> Self {
         self.clipboard = Some(clipboard);
         self
     }

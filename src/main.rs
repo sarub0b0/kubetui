@@ -21,7 +21,7 @@ use tui::{
     Terminal, TerminalOptions, Viewport,
 };
 
-use clipboard::{ClipboardContext, ClipboardProvider};
+use clipboard_wrapper::{ClipboardContextWrapper, ClipboardProvider};
 
 use event::{input::*, kubernetes::*, tick::*, Event};
 use tui_wrapper::{widget::*, *};
@@ -63,8 +63,9 @@ fn run() {
     let backend = CrosstermBackend::new(io::stdout());
     let chunk = backend.size().unwrap();
 
-    let clipboard: Result<ClipboardContext, _> = ClipboardProvider::new();
-
+    // TODO WSLの時はclip.exeにデータを渡せるようにデータ構造を定義する
+    let clipboard: Result<ClipboardContextWrapper, _> =
+        clipboard_wrapper::ClipboardContextWrapper::new();
     // TODO: 画面サイズ変更時にクラッシュする問題の解決
     //
     // Terminal::new()の場合は、teminal.draw実行時にautoresizeを実行してバッファを更新する。
