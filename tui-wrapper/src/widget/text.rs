@@ -448,7 +448,9 @@ impl WidgetTrait for Text<'_> {
                                         }
                                     })
                                     .collect::<Vec<String>>()
-                                    .concat(),
+                                    .concat()
+                                    .trim_end()
+                                    .to_string(),
                             )
                             .unwrap();
                     }
