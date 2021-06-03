@@ -58,7 +58,7 @@ where
         let mut osc52 = format!("\x1b]52;;{}\x07", encode(contents));
 
         if self.tmux {
-            osc52 = format!("\x1bPtmux;\x1b{}\x1b\\\\\x1b\\", osc52);
+            osc52 = format!("\x1bPtmux;\x1b{}\x1b\x1b\\\x1b\\", osc52);
         }
 
         print!("{}", osc52);
