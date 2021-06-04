@@ -1,11 +1,16 @@
-use tui::{
-    backend::Backend,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::*,
-    text::Span,
-    widgets::{Block, Paragraph},
-    Frame,
+use tui_wrapper::{
+    contains, mouse_pos,
+    tui::{
+        backend::Backend,
+        layout::{Alignment, Constraint, Direction, Layout, Rect},
+        style::*,
+        text::Span,
+        widgets::{Block, Paragraph},
+        Frame,
+    },
 };
+
+use tui_wrapper::crossterm::event::MouseEvent;
 
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
@@ -47,8 +52,8 @@ impl Default for SelectForm<'_> {
 }
 
 impl<'a> SelectForm<'a> {
-    fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
-        let (chunks, arrow) = match self.direction {
+    fn chunks_and_arrow(&self) -> ([Rect; 3], String) {
+        match self.direction {
             Direction::Horizontal => {
                 let arrow = if is_odd(self.chunk.width) {
                     "-->"
@@ -68,14 +73,7 @@ impl<'a> SelectForm<'a> {
                     Rect::new(left_chunk.x + cw, cy + ch / 2, arrow.width() as u16, ch / 2);
                 let right_chunk = Rect::new(center_chunk.x + arrow.width() as u16, cy, cw, ch);
 
-                let w = Paragraph::new(Span::styled(
-                    arrow,
-                    Style::default().add_modifier(Modifier::BOLD),
-                ))
-                .alignment(Alignment::Center)
-                .block(Block::default());
-
-                ([left_chunk, center_chunk, right_chunk], w)
+                ([left_chunk, center_chunk, right_chunk], arrow.to_string())
             }
             Direction::Vertical => {
                 let margin = if is_odd(self.chunk.height) { 0 } else { 1 };
@@ -91,16 +89,20 @@ impl<'a> SelectForm<'a> {
                 let center_chunk = Rect::new(cx, cy + ch, cw, 1);
                 let right_chunk = Rect::new(cx, center_chunk.y + 1, cw, ch - margin);
 
-                let w = Paragraph::new(Span::styled(
-                    "↓",
-                    Style::default().add_modifier(Modifier::BOLD),
-                ))
-                .alignment(Alignment::Center)
-                .block(Block::default());
-
-                ([left_chunk, center_chunk, right_chunk], w)
+                ([left_chunk, center_chunk, right_chunk], "↓".to_string())
             }
-        };
+        }
+    }
+
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
+        let (chunks, arrow) = self.chunks_and_arrow();
+
+        let arrow = Paragraph::new(Span::styled(
+            arrow,
+            Style::default().add_modifier(Modifier::BOLD),
+        ))
+        .alignment(Alignment::Center)
+        .block(Block::default());
 
         self.list_widget
             .render(f, focus_block("Items", self.focus_id == 0), chunks[0]);
@@ -136,6 +138,13 @@ impl<'a> SelectForm<'a> {
         self.update_layout(chunk);
 
         self.chunk = chunk;
+
+        let (chunks, _) = self.chunks_and_arrow();
+
+        self.list_widget
+            .update_chunk(focus_block("", true).inner(chunks[0]));
+        self.selected_widget
+            .update_chunk(focus_block("", true).inner(chunks[2]));
     }
 
     fn select_next(&mut self) {
@@ -305,6 +314,20 @@ impl<'a> SelectForm<'a> {
     fn selected_items(&self) -> &HashSet<String> {
         &self.selected_items
     }
+
+    fn on_mouse_event(&mut self, ev: MouseEvent) {
+        let pos = mouse_pos(ev);
+
+        let (chunks, _) = self.chunks_and_arrow();
+
+        if contains(chunks[0], pos) {
+            self.focus(0);
+            self.list_widget.on_mouse_event(ev);
+        } else if contains(chunks[2], pos) {
+            self.focus(1);
+            self.selected_widget.on_mouse_event(ev);
+        }
+    }
 }
 
 const LAYOUT_INDEX_FOR_INPUT_FORM: usize = 0;
@@ -457,6 +480,18 @@ impl<'a> MultipleSelect<'a> {
 
     pub fn move_cursor_end(&mut self) {
         self.input_widget.move_cursor_end();
+    }
+
+    pub fn on_mouse_event(&mut self, ev: MouseEvent) {
+        let pos = (ev.column, ev.row);
+
+        let chunks = self.layout.split(self.block.inner(self.chunk));
+
+        if contains(chunks[LAYOUT_INDEX_FOR_INPUT_FORM], pos) {
+            self.input_widget.on_mouse_event(ev);
+        } else if contains(chunks[LAYOUT_INDEX_FOR_SELECT_FORM], pos) {
+            self.selected_widget.on_mouse_event(ev);
+        }
     }
 }
 

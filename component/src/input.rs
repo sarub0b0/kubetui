@@ -9,7 +9,7 @@ use tui::{
     Frame,
 };
 
-use tui_wrapper::widget::*;
+use tui_wrapper::{crossterm::event::MouseEvent, widget::*};
 
 #[derive(Debug)]
 enum Mode {
@@ -99,18 +99,20 @@ impl Default for InputForm<'_> {
 }
 
 impl<'a> InputForm<'a> {
+    fn block() -> Block<'a> {
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::DarkGray))
+            .title(Span::styled("Filter", Style::reset()))
+            .title_offset(1)
+    }
+
     pub fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
         self.cursor.update_tick();
 
         let spans = Self::render_content(self.content.as_str(), &self.cursor);
 
-        let widget = Paragraph::new(spans).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::DarkGray))
-                .title(Span::styled("Filter", Style::reset()))
-                .title_offset(1),
-        );
+        let widget = Paragraph::new(spans).block(Self::block());
 
         f.render_widget(widget, self.chunk);
     }
@@ -140,6 +142,7 @@ impl<'a> InputForm<'a> {
 
     pub fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
+        self.widget.update_chunk(Self::block().inner(chunk));
     }
 
     pub fn insert_char(&mut self, c: char) {
@@ -188,6 +191,12 @@ impl<'a> InputForm<'a> {
     pub fn move_cursor_end(&mut self) {
         self.cursor.pos = self.content.len();
     }
+
+    pub fn chunk(&self) -> Rect {
+        self.chunk
+    }
+
+    pub fn on_mouse_event(&mut self, _: MouseEvent) {}
 }
 
 #[cfg(test)]

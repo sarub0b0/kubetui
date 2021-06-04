@@ -1,4 +1,5 @@
-use tui::{
+use tui_wrapper::crossterm::event::MouseEvent;
+use tui_wrapper::tui::{
     backend::Backend,
     layout::Rect,
     text::Span,
@@ -14,17 +15,20 @@ pub trait PaneTrait {
     type Item;
     fn id(&self) -> &str;
     fn update_chunks(&mut self, chunk: Rect);
-    fn select_next_pane(&mut self);
-    fn select_prev_pane(&mut self);
-    fn select_next_item(&mut self);
-    fn select_prev_item(&mut self);
-    fn select_first_item(&mut self);
-    fn select_last_item(&mut self);
+    fn select_next_pane(&mut self) {}
+    fn select_prev_pane(&mut self) {}
+    fn select_next_item(&mut self) {}
+    fn select_prev_item(&mut self) {}
+    fn select_first_item(&mut self) {}
+    fn select_last_item(&mut self) {}
     fn set_items(&mut self, id: &str, items: WidgetItem);
-    fn get_item(&self, id: &str) -> Option<WidgetItem>;
+    fn get_item(&self, id: &str) -> Option<WidgetItem> {
+        None
+    }
     fn render<B: Backend>(&mut self, f: &mut Frame<B>);
     fn get(&self) -> &Self::Item;
     fn get_mut(&mut self) -> &mut Self::Item;
+    fn on_mouse_event(&mut self, ev: MouseEvent);
 }
 
 pub struct SubWindow<'a, P> {
@@ -91,6 +95,10 @@ where
     pub fn pane_mut(&mut self) -> &mut P::Item {
         self.pane.get_mut()
     }
+
+    pub fn on_mouse_event(&mut self, ev: MouseEvent) {
+        self.pane.on_mouse_event(ev);
+    }
 }
 
 // impl
@@ -144,14 +152,14 @@ impl<'a> PaneTrait for Pane<'a> {
     fn get_mut(&mut self) -> &mut Self::Item {
         self
     }
+
+    fn on_mouse_event(&mut self, ev: MouseEvent) {
+        self.on_mouse_event(ev);
+    }
 }
 
 impl<'a> PaneTrait for MultipleSelect<'a> {
     type Item = MultipleSelect<'a>;
-
-    fn id(&self) -> &str {
-        self.id()
-    }
 
     fn update_chunks(&mut self, chunk: Rect) {
         self.update_chunk(chunk)
@@ -173,16 +181,8 @@ impl<'a> PaneTrait for MultipleSelect<'a> {
         self.select_prev_item()
     }
 
-    fn select_first_item(&mut self) {}
-
-    fn select_last_item(&mut self) {}
-
     fn set_items(&mut self, _id: &str, items: WidgetItem) {
         self.set_list_items(items.array())
-    }
-
-    fn get_item(&self, _id: &str) -> Option<WidgetItem> {
-        None
     }
 
     fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
@@ -196,22 +196,18 @@ impl<'a> PaneTrait for MultipleSelect<'a> {
     fn get_mut(&mut self) -> &mut Self::Item {
         self
     }
-}
-
-impl<'a> PaneTrait for SingleSelect<'a> {
-    type Item = SingleSelect<'a>;
 
     fn id(&self) -> &str {
         self.id()
     }
 
-    fn update_chunks(&mut self, chunk: Rect) {
-        self.update_chunk(chunk)
+    fn on_mouse_event(&mut self, ev: MouseEvent) {
+        self.on_mouse_event(ev);
     }
+}
 
-    fn select_next_pane(&mut self) {}
-
-    fn select_prev_pane(&mut self) {}
+impl<'a> PaneTrait for SingleSelect<'a> {
+    type Item = SingleSelect<'a>;
 
     fn select_next_item(&mut self) {
         self.select_next_item()
@@ -220,10 +216,6 @@ impl<'a> PaneTrait for SingleSelect<'a> {
     fn select_prev_item(&mut self) {
         self.select_prev_item()
     }
-
-    fn select_first_item(&mut self) {}
-
-    fn select_last_item(&mut self) {}
 
     fn set_items(&mut self, _id: &str, items: WidgetItem) {
         self.set_items(items.array())
@@ -243,5 +235,16 @@ impl<'a> PaneTrait for SingleSelect<'a> {
 
     fn get_mut(&mut self) -> &mut Self::Item {
         self
+    }
+
+    fn id(&self) -> &str {
+        self.id()
+    }
+
+    fn update_chunks(&mut self, chunk: Rect) {
+        self.update_chunk(chunk);
+    }
+    fn on_mouse_event(&mut self, ev: MouseEvent) {
+        self.on_mouse_event(ev);
     }
 }

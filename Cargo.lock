@@ -766,10 +766,8 @@ dependencies = [
  "clipboard-wrapper",
  "component",
  "crossbeam",
- "crossterm",
  "event",
  "tokio",
- "tui",
  "tui-wrapper",
  "unicode-width",
 ]

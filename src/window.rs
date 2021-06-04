@@ -354,14 +354,3 @@ impl Window<'_> {
         }
     }
 }
-
-#[inline]
-fn mouse_pos(ev: MouseEvent) -> (u16, u16) {
-    (ev.column, ev.row)
-}
-
-#[inline]
-fn contains(chunk: Rect, point: (u16, u16)) -> bool {
-    let (px, py) = point;
-    (chunk.left() <= px && px <= chunk.right()) && (chunk.top() <= py && py <= chunk.bottom())
-}

@@ -1,6 +1,6 @@
 use crossbeam::channel::{Receiver, Sender};
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use tui_wrapper::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use event::{kubernetes::*, Event};
 use tui_wrapper::widget::*;
@@ -196,7 +196,10 @@ where
         Event::Resize(w, h) => {
             return WindowEvent::ResizeWindow(w, h);
         }
-        _ => {}
+        Event::Tick => {}
+        Event::Mouse(ev) => {
+            subwin.on_mouse_event(ev);
+        }
     }
 
     WindowEvent::Continue
@@ -302,7 +305,10 @@ where
         Event::Resize(w, h) => {
             return WindowEvent::ResizeWindow(w, h);
         }
-        _ => {}
+        Event::Tick => {}
+        Event::Mouse(ev) => {
+            subwin.on_mouse_event(ev);
+        }
     }
 
     WindowEvent::Continue

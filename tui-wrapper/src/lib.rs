@@ -5,12 +5,28 @@ pub mod widget;
 pub use pane::Pane;
 pub use tab::Tab;
 
+pub use crossterm;
+pub use tui;
+
 use tui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Span, Spans},
     widgets::{Block, Borders},
 };
+
+use crossterm::event::MouseEvent;
+
+#[inline]
+pub fn mouse_pos(ev: MouseEvent) -> (u16, u16) {
+    (ev.column, ev.row)
+}
+
+#[inline]
+pub fn contains(chunk: Rect, point: (u16, u16)) -> bool {
+    let (px, py) = point;
+    (chunk.left() <= px && px <= chunk.right()) && (chunk.top() <= py && py <= chunk.bottom())
+}
 
 fn focus_border_color(selected: bool) -> Color {
     if selected {

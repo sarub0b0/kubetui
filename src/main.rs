@@ -7,14 +7,14 @@ use std::time;
 
 use std::io;
 
-use crossterm::{
+use tui_wrapper::crossterm::{
     cursor::Show,
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
-use tui::{
+use tui_wrapper::tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout, Rect},
     widgets::{Block, Borders},
@@ -24,7 +24,8 @@ use tui::{
 use clipboard_wrapper::{ClipboardContextWrapper, ClipboardProvider};
 
 use event::{input::*, kubernetes::*, tick::*, Event};
-use tui_wrapper::{widget::*, *};
+use tui_wrapper::widget::*;
+use tui_wrapper::*;
 
 extern crate kubetui;
 use component::{multiple_select::MultipleSelect, single_select::SingleSelect};

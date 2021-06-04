@@ -1,9 +1,14 @@
-use tui::{
-    backend::Backend,
-    layout::{Constraint, Direction, Layout, Rect},
-    widgets::{Block, Paragraph},
-    Frame,
+use tui_wrapper::{
+    contains,
+    tui::{
+        backend::Backend,
+        layout::{Constraint, Direction, Layout, Rect},
+        widgets::{Block, Paragraph},
+        Frame,
+    },
 };
+
+use tui_wrapper::crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
@@ -62,6 +67,8 @@ impl<'a> SelectForm<'a> {
 
     fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
+        self.list_widget
+            .update_chunk(focus_block("", true).inner(chunk));
     }
 
     fn set_items(&mut self, items: Vec<String>) {
@@ -103,6 +110,10 @@ impl<'a> SelectForm<'a> {
         }
 
         (pos, size)
+    }
+
+    pub fn on_mouse_event(&mut self, ev: MouseEvent) {
+        self.list_widget.on_mouse_event(ev);
     }
 }
 
@@ -230,6 +241,18 @@ impl<'a> SingleSelect<'a> {
 
     pub fn move_cursor_end(&mut self) {
         self.input_widget.move_cursor_end();
+    }
+
+    pub fn on_mouse_event(&mut self, ev: MouseEvent) {
+        let pos = (ev.column, ev.row);
+
+        let chunks = self.layout.split(self.block.inner(self.chunk));
+
+        if contains(chunks[LAYOUT_INDEX_FOR_INPUT_FORM], pos) {
+            self.input_widget.on_mouse_event(ev);
+        } else if contains(chunks[LAYOUT_INDEX_FOR_SELECT_FORM], pos) {
+            self.selected_widget.on_mouse_event(ev);
+        }
     }
 }
 
