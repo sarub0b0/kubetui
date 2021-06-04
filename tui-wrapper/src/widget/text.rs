@@ -472,6 +472,36 @@ impl WidgetTrait for Text<'_> {
     }
 }
 
+fn dragging_range_to_graphemes_range(
+    content: &str,
+    (start, end): (usize, usize),
+) -> (usize, usize) {
+    let graphemes: Vec<&str> = content.graphemes(true).collect();
+
+    let mut ret = (0, 0);
+
+    let mut find_start = false;
+
+    let mut sum = 0;
+    for (i, g) in graphemes.iter().enumerate() {
+        let width = g.width();
+
+        if !find_start && start < sum + width {
+            ret.0 = i;
+            find_start = true;
+        }
+
+        if find_start && end < sum + width {
+            ret.1 = i;
+            break;
+        }
+
+        sum += width;
+    }
+
+    ret
+}
+
 fn highlight_content_partial(src: Spans, (start, end): (usize, usize)) -> (Spans, String) {
     let end = end.saturating_add(1); // カーソル位置を含めるため１を足す
     let content: String = src.clone().into();
@@ -612,6 +642,39 @@ mod tests {
             use crate::widget::spans::generate_spans_line;
             use pretty_assertions::assert_eq;
             use tui::style::Color;
+
+            mod graphemes {
+                use super::*;
+                use pretty_assertions::assert_eq;
+
+                #[test]
+                fn ascii() {
+                    let content = "abcdefg";
+
+                    assert_eq!(dragging_range_to_graphemes_range(content, (2, 5)), (2, 5));
+                }
+
+                #[test]
+                fn japanese_fullwidth() {
+                    let content = "アイウエオ";
+
+                    assert_eq!(dragging_range_to_graphemes_range(content, (2, 5)), (1, 2))
+                }
+
+                #[test]
+                fn japanese_halfwidth() {
+                    let content = "ｱｲｳｴｵ";
+
+                    assert_eq!(dragging_range_to_graphemes_range(content, (2, 3)), (2, 3))
+                }
+
+                #[test]
+                fn complex() {
+                    let content = "aあbいcdうefｱｲｳｴｵg";
+
+                    assert_eq!(dragging_range_to_graphemes_range(content, (2, 5)), (1, 3));
+                }
+            }
 
             #[test]
             fn line_all() {
