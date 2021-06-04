@@ -473,17 +473,15 @@ impl WidgetTrait for Text<'_> {
 }
 
 fn dragging_range_to_graphemes_range(
-    content: &str,
+    content: &[&str],
     (start, end): (usize, usize),
 ) -> (usize, usize) {
-    let graphemes: Vec<&str> = content.graphemes(true).collect();
-
     let mut ret = (0, 0);
 
     let mut find_start = false;
 
     let mut sum = 0;
-    for (i, g) in graphemes.iter().enumerate() {
+    for (i, g) in content.iter().enumerate() {
         let width = g.width();
 
         if !find_start && start < sum + width {
@@ -649,30 +647,30 @@ mod tests {
 
                 #[test]
                 fn ascii() {
-                    let content = "abcdefg";
+                    let content: Vec<&str> = "abcdefg".graphemes(true).collect();
 
-                    assert_eq!(dragging_range_to_graphemes_range(content, (2, 5)), (2, 5));
+                    assert_eq!(dragging_range_to_graphemes_range(&content, (2, 5)), (2, 5));
                 }
 
                 #[test]
                 fn japanese_fullwidth() {
-                    let content = "アイウエオ";
+                    let content: Vec<&str> = "アイウエオ".graphemes(true).collect();
 
-                    assert_eq!(dragging_range_to_graphemes_range(content, (2, 5)), (1, 2))
+                    assert_eq!(dragging_range_to_graphemes_range(&content, (2, 5)), (1, 2))
                 }
 
                 #[test]
                 fn japanese_halfwidth() {
-                    let content = "ｱｲｳｴｵ";
+                    let content: Vec<&str> = "ｱｲｳｴｵ".graphemes(true).collect();
 
-                    assert_eq!(dragging_range_to_graphemes_range(content, (2, 3)), (2, 3))
+                    assert_eq!(dragging_range_to_graphemes_range(&content, (2, 3)), (2, 3))
                 }
 
                 #[test]
                 fn complex() {
-                    let content = "aあbいcdうefｱｲｳｴｵg";
+                    let content: Vec<&str> = "aあbいcdうefｱｲｳｴｵg".graphemes(true).collect();
 
-                    assert_eq!(dragging_range_to_graphemes_range(content, (2, 5)), (1, 3));
+                    assert_eq!(dragging_range_to_graphemes_range(&content, (2, 5)), (1, 3));
                 }
             }
 
