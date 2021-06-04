@@ -1,3 +1,5 @@
+use crate::EventResult;
+
 use super::{RenderTrait, WidgetItem, WidgetTrait};
 
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
@@ -243,9 +245,9 @@ impl WidgetTrait for Table<'_> {
         todo!()
     }
 
-    fn on_mouse_event(&mut self, ev: MouseEvent) {
+    fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         if self.items.is_empty() {
-            return;
+            return EventResult::none();
         }
 
         let (_, row) = (
@@ -279,6 +281,8 @@ impl WidgetTrait for Table<'_> {
             }
             _ => {}
         }
+
+        EventResult::none()
     }
 }
 

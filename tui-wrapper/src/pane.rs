@@ -1,10 +1,12 @@
 use crossterm::event::MouseEvent;
 use tui::{backend::Backend, layout::Rect, widgets::Block, Frame};
 
+use crate::EventResult;
+
 use super::focus_block;
 use super::widget::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Pane<'a> {
     widget: Widget<'a>,
     chunk_index: usize,
@@ -95,8 +97,8 @@ impl<'a> Pane<'a> {
         self.widget.clear()
     }
 
-    pub fn on_mouse_event(&mut self, ev: MouseEvent) {
-        self.widget.on_mouse_event(ev);
+    pub fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
+        self.widget.on_mouse_event(ev)
     }
 }
 

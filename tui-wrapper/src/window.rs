@@ -1,6 +1,6 @@
 use chrono::Local;
 
-use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use tui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -259,6 +259,7 @@ impl<'a> Window<'a> {
 
         f.render_widget(paragraph, self.chunks()[CONTEXT]);
     }
+
     fn render_status<B: Backend>(&mut self, f: &mut Frame<B>) {
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
@@ -314,7 +315,7 @@ trait MouseEventTrait {
 
 // Mouse Event
 impl Window<'_> {
-    pub fn on_mouse_event(&mut self, ev: MouseEvent) {
+    pub fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         let pos = (ev.column, ev.row);
 
         if contains(self.tab_chunk(), pos) {
@@ -322,11 +323,11 @@ impl Window<'_> {
         } else if contains(self.chunks()[window_layout_index::CONTENTS], pos) {
             for pane in self.selected_tab_mut().panes_mut() {
                 if contains(pane.chunk(), pos) {
-                    pane.on_mouse_event(ev);
-                    break;
+                    return pane.on_mouse_event(ev);
                 }
             }
         }
+        EventResult { cb: None }
     }
 
     fn on_click_tab(&mut self, ev: MouseEvent) {

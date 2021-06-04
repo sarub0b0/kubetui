@@ -13,6 +13,8 @@ pub use text::*;
 use crossterm::event::MouseEvent;
 use tui::{backend::Backend, layout::Rect, widgets::Block, Frame};
 
+use crate::EventResult;
+
 #[derive(Debug)]
 pub enum WidgetItem {
     Single(String),
@@ -65,10 +67,10 @@ pub trait WidgetTrait {
     fn get_item(&self) -> Option<WidgetItem>;
     fn update_chunk(&mut self, area: Rect);
     fn clear(&mut self);
-    fn on_mouse_event(&mut self, ev: MouseEvent);
+    fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum Widget<'a> {
     List(List<'a>),
     Text(Text<'a>),
@@ -214,7 +216,7 @@ impl WidgetTrait for Widget<'_> {
         }
     }
 
-    fn on_mouse_event(&mut self, ev: MouseEvent) {
+    fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         match self {
             Widget::List(w) => w.on_mouse_event(ev),
             Widget::Text(w) => w.on_mouse_event(ev),

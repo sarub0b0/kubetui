@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 pub mod complex_widgets;
 pub mod pane;
 pub mod sub_window;
@@ -5,102 +7,47 @@ pub mod tab;
 pub mod widget;
 pub mod window;
 
+mod util;
+
+use util::*;
+
 pub use complex_widgets::{MultipleSelect, SingleSelect};
 pub use pane::Pane;
 pub use sub_window::SubWindow;
 pub use tab::Tab;
+pub use util::key_event_to_code;
 pub use window::*;
 
 pub use crossterm;
 pub use tui;
 
-use tui::{
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
-    text::{Span, Spans},
-    widgets::{Block, Borders},
-};
+pub struct Callback(Rc<dyn Fn(&mut Window)>);
 
-use crossterm::event::MouseEvent;
-
-#[inline]
-pub fn mouse_pos(ev: MouseEvent) -> (u16, u16) {
-    (ev.column, ev.row)
-}
-
-#[inline]
-pub fn contains(chunk: Rect, point: (u16, u16)) -> bool {
-    let (px, py) = point;
-    (chunk.left() <= px && px <= chunk.right()) && (chunk.top() <= py && py <= chunk.bottom())
-}
-
-fn focus_border_color(selected: bool) -> Color {
-    if selected {
-        Color::Reset
-    } else {
-        Color::DarkGray
+impl Callback {
+    fn from_fn<F>(f: F) -> Callback
+    where
+        F: 'static + Fn(&mut Window),
+    {
+        Callback(Rc::new(move |win| {
+            f(win);
+        }))
     }
 }
 
-fn focus_border_style(selected: bool) -> Style {
-    Style::default().fg(focus_border_color(selected))
-}
+impl std::ops::Deref for Callback {
+    type Target = dyn Fn(&mut Window) + 'static;
 
-pub fn focus_title_style(selected: bool) -> Style {
-    let style = Style::default();
-
-    if selected {
-        style.add_modifier(Modifier::BOLD)
-    } else {
-        style
+    fn deref(&self) -> &Self::Target {
+        &*self.0
     }
 }
 
-fn focus_mark_style(selected: bool) -> Style {
-    if selected {
-        Style::default().add_modifier(Modifier::BOLD)
-    } else {
-        Style::default().fg(Color::DarkGray)
+pub struct EventResult {
+    pub cb: Option<Callback>,
+}
+
+impl EventResult {
+    pub fn none() -> Self {
+        Self { cb: None }
     }
-}
-
-pub fn generate_title(title: &str, selected: bool) -> Spans {
-    let mark = if selected { "+" } else { "─" };
-    let margin = if selected { " " } else { "─" };
-    Spans::from(vec![
-        Span::styled(margin, focus_border_style(selected)),
-        Span::styled(mark, focus_mark_style(selected)),
-        Span::styled(margin, focus_border_style(selected)),
-        Span::styled(title, focus_title_style(selected)),
-    ])
-}
-
-pub fn focus_block(title: &str, selected: bool) -> Block {
-    Block::default()
-        .borders(Borders::ALL)
-        .title(generate_title(title, selected))
-        .title_offset(1)
-        .border_style(focus_border_style(selected))
-}
-
-pub fn child_window_chunk(width_rate: u16, height_rate: u16, chunk: Rect) -> Rect {
-    let w = width_rate;
-    let h = height_rate;
-    let chunk = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - h) / 2),
-            Constraint::Percentage(h),
-            Constraint::Percentage((100 - h) / 2),
-        ])
-        .split(chunk);
-
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - w) / 2),
-            Constraint::Percentage(w),
-            Constraint::Percentage((100 - w) / 2),
-        ])
-        .split(chunk[1])[1]
 }

@@ -3,7 +3,9 @@ use crossbeam::channel::{Receiver, Sender};
 use tui_wrapper::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use event::{kubernetes::*, Event};
+use tui_wrapper::key_event_to_code;
 use tui_wrapper::widget::*;
+use tui_wrapper::EventResult;
 
 use tui_wrapper::complex_widgets::{multiple_select::MultipleSelect, single_select::SingleSelect};
 
@@ -49,7 +51,7 @@ pub enum WindowEvent {
     UpdateContents(Kube),
 }
 
-fn selected_pod(window: &Window) -> String {
+pub fn selected_pod(window: &Window) -> String {
     match window.pane(view_id::tab_pods_pane_pods) {
         Some(pane) => {
             let w = pane.widget().as_table();
@@ -61,7 +63,7 @@ fn selected_pod(window: &Window) -> String {
     }
 }
 
-fn selected_config(window: &Window) -> String {
+pub fn selected_config(window: &Window) -> String {
     let pane = window.pane(view_id::tab_configs_pane_configs).unwrap();
     let widget = pane.widget().as_list();
     let selected_index = widget.state().selected().unwrap();
@@ -78,31 +80,6 @@ pub fn set_items_window_pane(window: &mut Window, id: &str, items: WidgetItem) {
 pub fn append_items_window_pane(window: &mut Window, id: &str, items: WidgetItem) {
     if let Some(pane) = window.pane_mut(id) {
         pane.append_items(items);
-    }
-}
-
-fn key_event_to_code(key: KeyEvent) -> KeyCode {
-    use KeyCode::*;
-
-    match key.code {
-        Char('p') if key.modifiers == KeyModifiers::CONTROL => Up,
-        Char('n') if key.modifiers == KeyModifiers::CONTROL => Down,
-
-        Char('b') if key.modifiers == KeyModifiers::CONTROL => Left,
-        Char('f') if key.modifiers == KeyModifiers::CONTROL => Right,
-
-        Char('u') if key.modifiers == KeyModifiers::CONTROL => PageUp,
-        Char('d') if key.modifiers == KeyModifiers::CONTROL => PageDown,
-
-        Char('h') if key.modifiers == KeyModifiers::CONTROL => Delete,
-        Backspace => Delete,
-
-        Char('a') if key.modifiers == KeyModifiers::CONTROL => Home,
-        Char('e') if key.modifiers == KeyModifiers::CONTROL => End,
-
-        Char('[') if key.modifiers == KeyModifiers::CONTROL => Esc,
-
-        _ => key.code,
     }
 }
 
@@ -405,7 +382,9 @@ pub fn window_action(window: &mut Window, tx: &Sender<Event>, rx: &Receiver<Even
         }
         Event::Tick => {}
         Event::Mouse(ev) => {
-            window.on_mouse_event(ev);
+            if let EventResult { cb: Some(cb) } = window.on_mouse_event(ev) {
+                cb(window)
+            }
         }
         Event::Kube(k) => return WindowEvent::UpdateContents(k),
     }

@@ -93,6 +93,8 @@ fn run() {
         raw_data_widget = raw_data_widget.clipboard(cb);
     }
 
+    let tx_configs = tx_main.clone();
+
     let tabs = vec![
         Tab::new(
             view_id::tab_pods,
@@ -129,7 +131,14 @@ fn run() {
             vec![
                 Pane::new(
                     "Configs",
-                    Widget::List(List::new(vec![])),
+                    Widget::List(List::new(vec![]).on_select(move |w, item| {
+                        if let Some(pane) = w.pane_mut(view_id::tab_configs_pane_raw_data) {
+                            pane.clear();
+                        }
+                        tx_configs
+                            .send(Event::Kube(Kube::ConfigRequest(item)))
+                            .unwrap();
+                    })),
                     0,
                     view_id::tab_configs_pane_configs,
                 ),

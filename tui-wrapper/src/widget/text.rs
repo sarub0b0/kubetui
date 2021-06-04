@@ -1,3 +1,4 @@
+use crate::EventResult;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -346,13 +347,13 @@ impl WidgetTrait for Text<'_> {
         }
     }
 
-    fn on_mouse_event(&mut self, ev: MouseEvent) {
+    fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         fn clear_highlight<'a>(dst: &mut [Spans<'a>], src: &[Spans<'a>], len: usize) {
             dst[..len].clone_from_slice(&src[..len])
         }
 
         if self.spans.is_empty() {
-            return;
+            return EventResult::none();
         }
 
         let (mut col, mut row) = (
@@ -469,6 +470,7 @@ impl WidgetTrait for Text<'_> {
                 self.scroll_up(3);
             }
         }
+        EventResult::none()
     }
 }
 
