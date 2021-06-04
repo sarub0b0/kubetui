@@ -192,10 +192,6 @@ impl<'a> InputForm<'a> {
         self.cursor.pos = self.content.len();
     }
 
-    pub fn chunk(&self) -> Rect {
-        self.chunk
-    }
-
     pub fn on_mouse_event(&mut self, _: MouseEvent) {}
 }
 

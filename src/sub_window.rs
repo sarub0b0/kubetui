@@ -22,7 +22,7 @@ pub trait PaneTrait {
     fn select_first_item(&mut self) {}
     fn select_last_item(&mut self) {}
     fn set_items(&mut self, id: &str, items: WidgetItem);
-    fn get_item(&self, id: &str) -> Option<WidgetItem> {
+    fn get_item(&self, _: &str) -> Option<WidgetItem> {
         None
     }
     fn render<B: Backend>(&mut self, f: &mut Frame<B>);

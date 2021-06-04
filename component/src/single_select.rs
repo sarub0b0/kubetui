@@ -8,7 +8,7 @@ use tui_wrapper::{
     },
 };
 
-use tui_wrapper::crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+use tui_wrapper::crossterm::event::MouseEvent;
 
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
