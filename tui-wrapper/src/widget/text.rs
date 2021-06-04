@@ -472,36 +472,42 @@ impl WidgetTrait for Text<'_> {
     }
 }
 
-fn dragging_range_to_graphemes_range(
+fn width_base_range_to_graphemes_range(
     content: &[&str],
     (start, end): (usize, usize),
 ) -> (usize, usize) {
-    let mut ret = (0, 0);
-
-    let mut find_start = false;
+    let mut start_index = None;
+    let mut end_index = None;
 
     let mut sum = 0;
     for (i, g) in content.iter().enumerate() {
         let width = g.width();
 
-        if !find_start && start < sum + width {
-            ret.0 = i;
-            find_start = true;
+        if start_index.is_none() && start < sum + width {
+            start_index = Some(i);
         }
 
-        if find_start && end < sum + width {
-            ret.1 = i;
+        if start_index.is_some() && end < sum + width {
+            end_index = Some(i);
             break;
         }
 
         sum += width;
     }
 
-    ret
+    let start_index = if let Some(i) = start_index { i } else { 0 };
+
+    let end_index = if let Some(i) = end_index {
+        i
+    } else {
+        content.len()
+    };
+
+    (start_index, end_index)
 }
 
 fn highlight_content_partial(src: Spans, (start, end): (usize, usize)) -> (Spans, String) {
-    let end = end.saturating_add(1); // カーソル位置を含めるため１を足す
+    let end = end + 1;
     let content: String = src.clone().into();
     let content: Vec<&str> = content.graphemes(true).collect();
 
@@ -515,10 +521,17 @@ fn highlight_content_partial(src: Spans, (start, end): (usize, usize)) -> (Spans
             let width = span.width();
             let ret = if sum_width <= start && start < sum_width + width {
                 if sum_width != start {
-                    let first = content[sum_width..start].concat();
-                    let second = content[start..(sum_width + width)].concat();
+                    let (s, e) = width_base_range_to_graphemes_range(&content, (sum_width, start));
+
+                    let first = content[s..e].concat();
+
+                    let (s, e) =
+                        width_base_range_to_graphemes_range(&content, (start, sum_width + width));
+
+                    let second = content[s..e].concat();
 
                     start_index = i + 1;
+
                     vec![
                         Span::styled(first, span.style),
                         Span::styled(second, span.style),
@@ -546,8 +559,13 @@ fn highlight_content_partial(src: Spans, (start, end): (usize, usize)) -> (Spans
             let width = span.width();
             let ret = if sum_width < end && end <= sum_width + width {
                 if sum_width + width != end {
-                    let first = content[sum_width..end].concat();
-                    let second = content[end..(sum_width + width)].concat();
+                    let (s, e) = width_base_range_to_graphemes_range(&content, (sum_width, end));
+                    let first = content[s..e].concat();
+
+                    let (s, e) =
+                        width_base_range_to_graphemes_range(&content, (end, sum_width + width));
+                    let second = content[s..e].concat();
+
                     end_index = i;
                     vec![
                         Span::styled(first, span.style),
@@ -571,7 +589,8 @@ fn highlight_content_partial(src: Spans, (start, end): (usize, usize)) -> (Spans
         span.style = Style::default().add_modifier(Modifier::REVERSED)
     }
 
-    (Spans::from(spans), content[start..end].concat())
+    let (s, e) = width_base_range_to_graphemes_range(&content, (start, end));
+    (Spans::from(spans), content[s..e].concat())
 }
 
 impl RenderTrait for Text<'_> {
@@ -646,31 +665,71 @@ mod tests {
                 use pretty_assertions::assert_eq;
 
                 #[test]
+                fn ascii_one() {
+                    let content: Vec<&str> = "abcdefg".graphemes(true).collect();
+
+                    assert_eq!(
+                        width_base_range_to_graphemes_range(&content, (2, 2)),
+                        (2, 2)
+                    );
+                }
+
+                #[test]
+                fn ascii_all() {
+                    let content: Vec<&str> = "abcdefg".graphemes(true).collect();
+
+                    assert_eq!(
+                        width_base_range_to_graphemes_range(&content, (0, 6)),
+                        (0, 6)
+                    );
+                }
+
+                #[test]
                 fn ascii() {
                     let content: Vec<&str> = "abcdefg".graphemes(true).collect();
 
-                    assert_eq!(dragging_range_to_graphemes_range(&content, (2, 5)), (2, 5));
+                    assert_eq!(
+                        width_base_range_to_graphemes_range(&content, (2, 5)),
+                        (2, 5)
+                    );
+                    assert_eq!(
+                        width_base_range_to_graphemes_range(&content, (6, 6)),
+                        (6, 6)
+                    );
                 }
 
                 #[test]
                 fn japanese_fullwidth() {
                     let content: Vec<&str> = "アイウエオ".graphemes(true).collect();
 
-                    assert_eq!(dragging_range_to_graphemes_range(&content, (2, 5)), (1, 2))
+                    assert_eq!(
+                        width_base_range_to_graphemes_range(&content, (2, 5)),
+                        (1, 2)
+                    );
+                    assert_eq!(
+                        width_base_range_to_graphemes_range(&content, (1, 2)),
+                        (0, 1)
+                    );
                 }
 
                 #[test]
                 fn japanese_halfwidth() {
                     let content: Vec<&str> = "ｱｲｳｴｵ".graphemes(true).collect();
 
-                    assert_eq!(dragging_range_to_graphemes_range(&content, (2, 3)), (2, 3))
+                    assert_eq!(
+                        width_base_range_to_graphemes_range(&content, (2, 3)),
+                        (2, 3)
+                    )
                 }
 
                 #[test]
                 fn complex() {
                     let content: Vec<&str> = "aあbいcdうefｱｲｳｴｵg".graphemes(true).collect();
 
-                    assert_eq!(dragging_range_to_graphemes_range(&content, (2, 5)), (1, 3));
+                    assert_eq!(
+                        width_base_range_to_graphemes_range(&content, (2, 5)),
+                        (1, 3)
+                    );
                 }
             }
 
