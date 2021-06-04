@@ -5,12 +5,10 @@ use tui_wrapper::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use event::{kubernetes::*, Event};
 use tui_wrapper::widget::*;
 
-use component::{multiple_select::MultipleSelect, single_select::SingleSelect};
+use tui_wrapper::complex_widgets::{multiple_select::MultipleSelect, single_select::SingleSelect};
 
-mod sub_window;
-mod window;
-pub use sub_window::*;
-pub use window::*;
+pub use tui_wrapper::sub_window::*;
+pub use tui_wrapper::window::*;
 
 pub mod view_id {
 

@@ -24,11 +24,11 @@ use tui_wrapper::tui::{
 use clipboard_wrapper::{ClipboardContextWrapper, ClipboardProvider};
 
 use event::{input::*, kubernetes::*, tick::*, Event};
+use tui_wrapper::complex_widgets::*;
 use tui_wrapper::widget::*;
 use tui_wrapper::*;
 
 extern crate kubetui;
-use component::{multiple_select::MultipleSelect, single_select::SingleSelect};
 use kubetui::*;
 
 macro_rules! enable_raw_mode {
@@ -182,7 +182,12 @@ fn run() {
         Some(Block::default().borders(Borders::ALL)),
     );
 
-    let mut window = Window::new(tabs);
+    let mut window = Window::new(tabs).status_target_id(vec![
+        (view_id::tab_pods, view_id::tab_pods_pane_logs),
+        (view_id::tab_configs, view_id::tab_configs_pane_raw_data),
+        (view_id::tab_event, view_id::tab_event_pane_event),
+        (view_id::tab_apis, view_id::tab_apis_pane_apis),
+    ]);
 
     terminal.clear().unwrap();
 

@@ -9,7 +9,7 @@ use tui::{
     Frame,
 };
 
-use tui_wrapper::{crossterm::event::MouseEvent, widget::*};
+use crate::{crossterm::event::MouseEvent, widget::*};
 
 #[derive(Debug)]
 enum Mode {

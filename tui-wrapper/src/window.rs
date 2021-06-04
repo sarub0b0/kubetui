@@ -12,15 +12,15 @@ use tui::{
 
 use unicode_width::UnicodeWidthStr;
 
-use tui_wrapper::{widget::*, *};
+use super::{widget::*, *};
 
-use super::view_id;
-
+#[derive(Default)]
 pub struct Window<'a> {
     tabs: Vec<Tab<'a>>,
     selected_tab_index: usize,
     layout: Layout,
     chunk: Rect,
+    status_target_id: Vec<(&'a str, &'a str)>,
 }
 
 pub mod window_layout_index {
@@ -48,8 +48,13 @@ impl<'a> Window<'a> {
                     ]
                     .as_ref(),
                 ),
-            chunk: Default::default(),
+            ..Default::default()
         }
+    }
+
+    pub fn status_target_id(mut self, id: impl Into<Vec<(&'a str, &'a str)>>) -> Self {
+        self.status_target_id = id.into();
+        self
     }
 
     pub fn update_chunks(&mut self, chunk: Rect) {
@@ -268,12 +273,14 @@ impl<'a> Window<'a> {
 
         f.render_widget(paragraph, chunks[0]);
 
-        let widget = match self.selected_tab_id() {
-            view_id::tab_pods => self.scroll_status(view_id::tab_pods_pane_logs),
-            view_id::tab_configs => self.scroll_status(view_id::tab_configs_pane_raw_data),
-            view_id::tab_event => self.scroll_status(view_id::tab_event_pane_event),
-            view_id::tab_apis => self.scroll_status(view_id::tab_apis_pane_apis),
-            _ => unreachable!(),
+        let widget: Option<Paragraph> = if let Some(id) = self
+            .status_target_id
+            .iter()
+            .find(|id| id.0 == self.selected_tab_id())
+        {
+            self.scroll_status(id.1)
+        } else {
+            None
         };
 
         if let Some(widget) = widget {

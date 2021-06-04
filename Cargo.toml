@@ -5,20 +5,18 @@ authors = ["kohashimoto <kohashimoto@bbtower.co.jp>"]
 edition = "2018"
 
 [workspace]
-members = [ "tui-wrapper", "event", "ansi", "component", "clipboard-wrapper" ]
+members = [ "tui-wrapper", "event", "ansi", "clipboard-wrapper" ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 tokio = { version = "1", features = ["rt"] }
 crossbeam = "0.8"
-chrono = "0.4"
 unicode-width = "0.1"
 
 clipboard-wrapper = { path = "./clipboard-wrapper" }
 tui-wrapper = { path = "./tui-wrapper" }
 event = { path = "./event" }
 ansi = { path = "./ansi" }
-component = { path = "component" }
 
 

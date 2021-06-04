@@ -1,20 +1,18 @@
-use tui_wrapper::{
+use crate::{
     contains,
+    crossterm::event::MouseEvent,
+    focus_block,
     tui::{
         backend::Backend,
         layout::{Constraint, Direction, Layout, Rect},
         widgets::{Block, Paragraph},
         Frame,
     },
+    widget::*,
 };
-
-use tui_wrapper::crossterm::event::MouseEvent;
 
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
-
-use tui_wrapper::focus_block;
-use tui_wrapper::widget::*;
 
 use super::input::InputForm;
 

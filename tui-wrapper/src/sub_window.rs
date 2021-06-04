@@ -1,5 +1,5 @@
-use tui_wrapper::crossterm::event::MouseEvent;
-use tui_wrapper::tui::{
+use super::crossterm::event::MouseEvent;
+use super::tui::{
     backend::Backend,
     layout::Rect,
     text::Span,
@@ -7,9 +7,10 @@ use tui_wrapper::tui::{
     Frame,
 };
 
-use component::*;
-use tui_wrapper::widget::{WidgetItem, WidgetTrait};
-use tui_wrapper::{child_window_chunk, focus_title_style, Pane};
+use super::widget::{WidgetItem, WidgetTrait};
+use super::{child_window_chunk, focus_title_style, Pane};
+
+use super::complex_widgets::{MultipleSelect, SingleSelect};
 
 pub trait PaneTrait {
     type Item;

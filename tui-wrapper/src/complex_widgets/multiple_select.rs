@@ -1,5 +1,7 @@
-use tui_wrapper::{
-    contains, mouse_pos,
+use crate::{
+    contains,
+    crossterm::event::MouseEvent,
+    focus_block, mouse_pos,
     tui::{
         backend::Backend,
         layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -8,18 +10,15 @@ use tui_wrapper::{
         widgets::{Block, Paragraph},
         Frame,
     },
+    widget::*,
 };
-
-use tui_wrapper::crossterm::event::MouseEvent;
 
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
+
 use unicode_width::UnicodeWidthStr;
 
 use std::collections::HashSet;
-
-use tui_wrapper::focus_block;
-use tui_wrapper::widget::*;
 
 use super::input::InputForm;
 

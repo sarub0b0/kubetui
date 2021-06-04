@@ -157,17 +157,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "component"
-version = "0.1.0"
-dependencies = [
- "fuzzy-matcher",
- "pretty_assertions",
- "tui",
- "tui-wrapper",
- "unicode-width",
-]
-
-[[package]]
 name = "core-foundation"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -762,9 +751,7 @@ name = "kubetui"
 version = "0.1.0"
 dependencies = [
  "ansi",
- "chrono",
  "clipboard-wrapper",
- "component",
  "crossbeam",
  "event",
  "tokio",
@@ -1698,9 +1685,11 @@ name = "tui-wrapper"
 version = "0.1.0"
 dependencies = [
  "ansi",
+ "chrono",
  "clipboard-wrapper",
  "crossterm",
  "derivative",
+ "fuzzy-matcher",
  "pretty_assertions",
  "rayon",
  "tui",
