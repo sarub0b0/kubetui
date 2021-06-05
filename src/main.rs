@@ -94,6 +94,7 @@ fn run() {
     }
 
     let tx_configs = tx_main.clone();
+    let tx_pods = tx_main.clone();
 
     let tabs = vec![
         Tab::new(
@@ -102,15 +103,23 @@ fn run() {
             vec![
                 Pane::new(
                     "Pods",
-                    Widget::Table(Table::new(
-                        vec![vec![]],
-                        vec![
-                            "NAME".to_string(),
-                            "READY".to_string(),
-                            "STATUS".to_string(),
-                            "AGE".to_string(),
-                        ],
-                    )),
+                    Widget::Table(
+                        Table::new(
+                            vec![vec![]],
+                            vec![
+                                "NAME".to_string(),
+                                "READY".to_string(),
+                                "STATUS".to_string(),
+                                "AGE".to_string(),
+                            ],
+                        )
+                        .on_select(move |w, v| {
+                            w.pane_clear(view_id::tab_pods_pane_logs);
+                            tx_pods
+                                .send(Event::Kube(Kube::LogStreamRequest(v[0].to_string())))
+                                .unwrap();
+                        }),
+                    ),
                     0,
                     view_id::tab_pods_pane_pods,
                 ),

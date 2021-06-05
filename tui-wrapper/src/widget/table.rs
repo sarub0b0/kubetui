@@ -1,8 +1,10 @@
+use crate::Callback;
 use crate::EventResult;
-
-use super::{RenderTrait, WidgetItem, WidgetTrait};
+use crate::Window;
 
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+use derivative::*;
+use std::rc::Rc;
 use tui::{
     backend::Backend,
     layout::{Constraint, Rect},
@@ -13,12 +15,16 @@ use tui::{
 
 use super::spans::generate_spans_line;
 use super::wrap::wrap_line;
+use super::{RenderTrait, WidgetItem, WidgetTrait};
 
 const COLUMN_SPACING: u16 = 3;
 const HIGHLIGHT_SYMBOL: &str = " ";
 const ROW_START_INDEX: usize = 2;
 
-#[derive(Debug, Clone, Default)]
+type InnerCallback = Rc<dyn Fn(&mut Window, &[String])>;
+
+#[derive(Derivative)]
+#[derivative(Debug, Default)]
 pub struct Table<'a> {
     items: Vec<Vec<String>>,
     header: Vec<String>,
@@ -30,6 +36,8 @@ pub struct Table<'a> {
     digits: Vec<usize>,
     chunk: Rect,
     row_bounds: Vec<(usize, usize)>,
+    #[derivative(Debug = "ignore")]
+    on_select: Option<InnerCallback>,
 }
 
 impl<'a> Table<'a> {
@@ -271,6 +279,8 @@ impl WidgetTrait for Table<'_> {
                 {
                     self.state.select(Some(index + offset));
                 }
+
+                return EventResult::Callback(self.on_select_callback());
             }
 
             MouseEventKind::ScrollDown => {
@@ -283,6 +293,29 @@ impl WidgetTrait for Table<'_> {
         }
 
         EventResult::Nop
+    }
+}
+
+impl<'a> Table<'a> {
+    pub fn on_select<F>(mut self, cb: F) -> Self
+    where
+        F: Fn(&mut Window, &[String]) + 'static,
+    {
+        self.on_select = Some(Rc::new(cb));
+        self
+    }
+
+    fn on_select_callback(&self) -> Option<Callback> {
+        self.on_select.clone().and_then(|cb| {
+            self.selected_item()
+                .map(|v| Callback::from_fn(move |w| cb(w, &v)))
+        })
+    }
+
+    fn selected_item(&self) -> Option<Rc<Vec<String>>> {
+        self.state
+            .selected()
+            .map(|i| Rc::new(self.items[i].clone()))
     }
 }
 
