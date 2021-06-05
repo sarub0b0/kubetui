@@ -247,7 +247,7 @@ impl WidgetTrait for Table<'_> {
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         if self.items.is_empty() {
-            return EventResult::none();
+            return EventResult::Nop;
         }
 
         let (_, row) = (
@@ -282,7 +282,7 @@ impl WidgetTrait for Table<'_> {
             _ => {}
         }
 
-        EventResult::none()
+        EventResult::Nop
     }
 }
 

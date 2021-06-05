@@ -11,10 +11,8 @@ use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 
 use tui::widgets::{self, Block, ListItem, ListState};
 
-use crate::{Callback, EventResult};
-
 use super::{RenderTrait, WidgetItem, WidgetTrait};
-use crate::Window;
+use crate::{Callback, EventResult, Window};
 
 use derivative::*;
 
@@ -26,7 +24,7 @@ pub struct List<'a> {
     chunk: Rect,
     list_item: Vec<ListItem<'a>>,
     #[derivative(Debug = "ignore")]
-    on_select: Option<Rc<dyn Fn(&mut Window, String)>>,
+    on_select: Option<Rc<dyn Fn(&mut Window, &String)>>,
 }
 
 impl<'a> List<'a> {
@@ -43,14 +41,6 @@ impl<'a> List<'a> {
             list_item,
             ..Self::default()
         }
-    }
-
-    pub fn on_select<F>(mut self, cb: F) -> Self
-    where
-        F: Fn(&mut Window, String) + 'static,
-    {
-        self.on_select = Some(Rc::new(cb));
-        self
     }
 
     pub fn state(&self) -> &ListState {
@@ -156,7 +146,7 @@ impl<'a> WidgetTrait for List<'a> {
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         if self.list_item.is_empty() {
-            return EventResult::none();
+            return EventResult::Nop;
         }
 
         let (_, row) = (
@@ -165,16 +155,14 @@ impl<'a> WidgetTrait for List<'a> {
         );
 
         if self.list_item.len() <= row {
-            return EventResult::none();
+            return EventResult::Nop;
         }
 
         match ev.kind {
             MouseEventKind::Down(MouseButton::Left) => {
                 self.state.select(Some(row + self.state.offset()));
 
-                return EventResult {
-                    cb: self.on_select2(),
-                };
+                return EventResult::Callback(self.on_select_callback());
             }
 
             MouseEventKind::ScrollDown => {
@@ -188,20 +176,28 @@ impl<'a> WidgetTrait for List<'a> {
             MouseEventKind::Drag(_) => {}
             MouseEventKind::Moved => {}
         }
-        EventResult::none()
+        EventResult::Nop
     }
 }
 
-impl List<'_> {
-    fn on_select2(&self) -> Option<Callback> {
+impl<'a> List<'a> {
+    pub fn on_select<F>(mut self, cb: F) -> Self
+    where
+        F: Fn(&mut Window, &String) + 'static,
+    {
+        self.on_select = Some(Rc::new(cb));
+        self
+    }
+
+    fn on_select_callback(&self) -> Option<Callback> {
         self.on_select.clone().and_then(|cb| {
-            self.selection()
-                .map(|v| Callback::from_fn(move |w| cb(w, v.to_string())))
+            self.selected_item()
+                .map(|v| Callback::from_fn(move |w| cb(w, &v)))
         })
     }
 
-    fn selection(&self) -> Option<Rc<String>> {
-        self.selected().map(|i| Rc::new(self.items[i].to_string()))
+    fn selected_item(&self) -> Option<Rc<String>> {
+        self.selected().map(|i| Rc::new(self.items[i].clone()))
     }
 }
 

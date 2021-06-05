@@ -1,6 +1,6 @@
 use chrono::Local;
 
-use crossterm::event::{KeyEvent, MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use tui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -327,7 +327,7 @@ impl Window<'_> {
                 }
             }
         }
-        EventResult { cb: None }
+        EventResult::Nop
     }
 
     fn on_click_tab(&mut self, ev: MouseEvent) {

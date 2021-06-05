@@ -1,11 +1,11 @@
 use crossbeam::channel::{Receiver, Sender};
 
-use tui_wrapper::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use tui_wrapper::crossterm::event::{KeyCode, KeyModifiers};
 
 use event::{kubernetes::*, Event};
+
 use tui_wrapper::key_event_to_code;
 use tui_wrapper::widget::*;
-use tui_wrapper::EventResult;
 
 use tui_wrapper::complex_widgets::{multiple_select::MultipleSelect, single_select::SingleSelect};
 
@@ -51,7 +51,7 @@ pub enum WindowEvent {
     UpdateContents(Kube),
 }
 
-pub fn selected_pod(window: &Window) -> String {
+fn selected_pod(window: &Window) -> String {
     match window.pane(view_id::tab_pods_pane_pods) {
         Some(pane) => {
             let w = pane.widget().as_table();
@@ -63,7 +63,7 @@ pub fn selected_pod(window: &Window) -> String {
     }
 }
 
-pub fn selected_config(window: &Window) -> String {
+fn selected_config(window: &Window) -> String {
     let pane = window.pane(view_id::tab_configs_pane_configs).unwrap();
     let widget = pane.widget().as_list();
     let selected_index = widget.state().selected().unwrap();
@@ -382,9 +382,8 @@ pub fn window_action(window: &mut Window, tx: &Sender<Event>, rx: &Receiver<Even
         }
         Event::Tick => {}
         Event::Mouse(ev) => {
-            if let EventResult { cb: Some(cb) } = window.on_mouse_event(ev) {
-                cb(window)
-            }
+            let callback = window.on_mouse_event(ev);
+            callback.exec(window);
         }
         Event::Kube(k) => return WindowEvent::UpdateContents(k),
     }

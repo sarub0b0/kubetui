@@ -23,7 +23,7 @@ use tui_wrapper::tui::{
 
 use clipboard_wrapper::{ClipboardContextWrapper, ClipboardProvider};
 
-use event::{input::*, kubernetes::*, tick::*, Event};
+use ::event::{input::*, kubernetes::*, tick::*, Event};
 use tui_wrapper::complex_widgets::*;
 use tui_wrapper::widget::*;
 use tui_wrapper::*;
@@ -136,7 +136,7 @@ fn run() {
                             pane.clear();
                         }
                         tx_configs
-                            .send(Event::Kube(Kube::ConfigRequest(item)))
+                            .send(Event::Kube(Kube::ConfigRequest(item.to_string())))
                             .unwrap();
                     })),
                     0,

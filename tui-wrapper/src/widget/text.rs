@@ -353,7 +353,7 @@ impl WidgetTrait for Text<'_> {
         }
 
         if self.spans.is_empty() {
-            return EventResult::none();
+            return EventResult::Nop;
         }
 
         let (mut col, mut row) = (
@@ -470,7 +470,7 @@ impl WidgetTrait for Text<'_> {
                 self.scroll_up(3);
             }
         }
-        EventResult::none()
+        EventResult::Nop
     }
 }
 
