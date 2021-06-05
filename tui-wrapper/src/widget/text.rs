@@ -526,11 +526,8 @@ impl WidgetTrait for Text<'_> {
 
             _ => {
                 if let Some(cb) = self.match_action(UserEvent::Key(ev)) {
-                    match (cb)() {
-                        ev @ EventResult::WindowEvent(_) => {
-                            return ev;
-                        }
-                        _ => {}
+                    if let ev @ EventResult::WindowEvent(_) = (cb)() {
+                        return ev;
                     }
                 }
                 return EventResult::Ignore;

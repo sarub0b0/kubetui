@@ -272,11 +272,8 @@ pub fn window_action(window: &mut Window, rx: &Receiver<Event>) -> WindowEvent {
 
                 EventResult::Ignore => {
                     if let Some(cb) = window.match_callback(ev) {
-                        match (cb)(window) {
-                            EventResult::WindowEvent(ev) => {
-                                return ev;
-                            }
-                            _ => {}
+                        if let EventResult::WindowEvent(ev) = (cb)(window) {
+                            return ev;
                         }
                     }
                 }

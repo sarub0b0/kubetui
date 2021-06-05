@@ -368,7 +368,7 @@ impl Window<'_> {
                     return EventResult::Ignore;
                 }
             },
-            ev @ _ => {
+            ev => {
                 return ev;
             }
         }

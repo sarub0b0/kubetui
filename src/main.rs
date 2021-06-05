@@ -97,7 +97,7 @@ fn run() {
     let tx_apis = tx_main.clone();
     let open_subwin = move || {
         tx_apis.send(Event::Kube(Kube::GetAPIsRequest)).unwrap();
-        return EventResult::WindowEvent(WindowEvent::OpenSubWindow(view_id::subwin_apis));
+        EventResult::WindowEvent(WindowEvent::OpenSubWindow(view_id::subwin_apis))
     };
     apis_widget.add_action('/', open_subwin.clone());
     apis_widget.add_action('f', open_subwin);
@@ -219,12 +219,10 @@ fn run() {
     let tx_ns = tx_main.clone();
     window.add_action('n', move |_| {
         tx_ns.send(Event::Kube(Kube::GetNamespacesRequest)).unwrap();
-        return EventResult::WindowEvent(WindowEvent::OpenSubWindow(view_id::subwin_ns));
+        EventResult::WindowEvent(WindowEvent::OpenSubWindow(view_id::subwin_ns))
     });
 
-    window.add_action('q', |_| {
-        return EventResult::WindowEvent(WindowEvent::CloseWindow);
-    });
+    window.add_action('q', |_| EventResult::WindowEvent(WindowEvent::CloseWindow));
 
     terminal.clear().unwrap();
 
