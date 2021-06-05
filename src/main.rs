@@ -92,6 +92,15 @@ fn run() {
         logs_widget = logs_widget.clipboard(cb.clone());
         raw_data_widget = raw_data_widget.clipboard(cb);
     }
+    let mut apis_widget = Text::new(vec![]);
+
+    let tx_apis = tx_main.clone();
+    let open_subwin = move || {
+        tx_apis.send(Event::Kube(Kube::GetAPIsRequest)).unwrap();
+        return EventResult::WindowEvent(WindowEvent::OpenSubWindow(view_id::subwin_apis));
+    };
+    apis_widget.add_action('/', open_subwin.clone());
+    apis_widget.add_action('f', open_subwin);
 
     let tx_configs = tx_main.clone();
     let tx_pods = tx_main.clone();
@@ -166,10 +175,10 @@ fn run() {
             view_id::tab_event,
             "3:Event",
             vec![Pane::new(
-                "Event",
-                Widget::Text(Text::new(vec![]).enable_wrap().enable_follow()),
+                "APIs",
+                Widget::Text(Text::new(vec![])),
                 0,
-                view_id::tab_event_pane_event,
+                view_id::tab_apis_pane_apis,
             )],
             Layout::default().constraints([Constraint::Percentage(100)].as_ref()),
         ),
@@ -178,7 +187,7 @@ fn run() {
             "4:APIs",
             vec![Pane::new(
                 "APIs",
-                Widget::Text(Text::new(vec![])),
+                Widget::Text(apis_widget),
                 0,
                 view_id::tab_apis_pane_apis,
             )],

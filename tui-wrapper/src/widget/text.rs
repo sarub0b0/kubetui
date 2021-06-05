@@ -15,15 +15,18 @@ use derivative::*;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
-use super::RenderTrait;
-
-use super::{WidgetItem, WidgetTrait};
-
-use super::spans::generate_spans;
-use super::wrap::*;
-use crate::key_event_to_code;
-use crate::EventResult;
 use clipboard_wrapper::{ClipboardContextWrapper, ClipboardProvider};
+use event::UserEvent;
+
+use super::{
+    spans::generate_spans,
+    wrap::*,
+    RenderTrait, {WidgetItem, WidgetTrait},
+};
+
+use crate::{key_event_to_code, EventResult};
+
+type InnerCallback = Rc<dyn Fn() -> EventResult>;
 
 #[derive(Debug, PartialEq)]
 enum RangeType {
@@ -111,6 +114,8 @@ pub struct Text<'a> {
     highlight_content: Option<HighlightContent<'a>>,
     #[derivative(Debug = "ignore")]
     clipboard: Option<Rc<RefCell<ClipboardContextWrapper>>>,
+    #[derivative(Debug = "ignore")]
+    callbacks: Vec<(UserEvent, InnerCallback)>,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -168,6 +173,19 @@ impl Text<'_> {
     pub fn clipboard(mut self, clipboard: Rc<RefCell<ClipboardContextWrapper>>) -> Self {
         self.clipboard = Some(clipboard);
         self
+    }
+
+    pub fn add_action<F, E: Into<UserEvent>>(&mut self, ev: E, cb: F)
+    where
+        F: Fn() -> EventResult + 'static,
+    {
+        self.callbacks.push((ev.into(), Rc::new(cb)));
+    }
+
+    fn match_action(&self, ev: UserEvent) -> Option<InnerCallback> {
+        self.callbacks
+            .iter()
+            .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb.clone()) } else { None })
     }
 
     fn scroll_top(&mut self) {
@@ -493,6 +511,7 @@ impl WidgetTrait for Text<'_> {
             KeyCode::Char('G') | KeyCode::End => {
                 self.select_last();
             }
+
             KeyCode::Char('g') | KeyCode::Home => {
                 self.select_first();
             }
@@ -500,14 +519,20 @@ impl WidgetTrait for Text<'_> {
             KeyCode::Left => {
                 self.scroll_left(10);
             }
+
             KeyCode::Right => {
                 self.scroll_right(10);
             }
 
-            KeyCode::Char(_) => {
-                return EventResult::Ignore;
-            }
             _ => {
+                if let Some(cb) = self.match_action(UserEvent::Key(ev)) {
+                    match (cb)() {
+                        ev @ EventResult::WindowEvent(_) => {
+                            return ev;
+                        }
+                        _ => {}
+                    }
+                }
                 return EventResult::Ignore;
             }
         }
