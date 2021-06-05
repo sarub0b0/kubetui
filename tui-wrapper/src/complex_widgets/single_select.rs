@@ -9,6 +9,7 @@ use crate::{
         Frame,
     },
     widget::*,
+    EventResult,
 };
 
 use fuzzy_matcher::skim::SkimMatcherV2;
@@ -110,8 +111,8 @@ impl<'a> SelectForm<'a> {
         (pos, size)
     }
 
-    pub fn on_mouse_event(&mut self, ev: MouseEvent) {
-        self.list_widget.on_mouse_event(ev);
+    pub fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
+        self.list_widget.on_mouse_event(ev)
     }
 }
 
@@ -241,15 +242,17 @@ impl<'a> SingleSelect<'a> {
         self.input_widget.move_cursor_end();
     }
 
-    pub fn on_mouse_event(&mut self, ev: MouseEvent) {
+    pub fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         let pos = (ev.column, ev.row);
 
         let chunks = self.layout.split(self.block.inner(self.chunk));
 
         if contains(chunks[LAYOUT_INDEX_FOR_INPUT_FORM], pos) {
-            self.input_widget.on_mouse_event(ev);
+            self.input_widget.on_mouse_event(ev)
         } else if contains(chunks[LAYOUT_INDEX_FOR_SELECT_FORM], pos) {
-            self.selected_widget.on_mouse_event(ev);
+            self.selected_widget.on_mouse_event(ev)
+        } else {
+            EventResult::Nop
         }
     }
 }

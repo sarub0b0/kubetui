@@ -9,7 +9,7 @@ use tui::{
     Frame,
 };
 
-use crate::{crossterm::event::MouseEvent, widget::*};
+use crate::{crossterm::event::MouseEvent, widget::*, EventResult};
 
 #[derive(Debug)]
 enum Mode {
@@ -192,7 +192,9 @@ impl<'a> InputForm<'a> {
         self.cursor.pos = self.content.len();
     }
 
-    pub fn on_mouse_event(&mut self, _: MouseEvent) {}
+    pub fn on_mouse_event(&mut self, _: MouseEvent) -> EventResult {
+        EventResult::Nop
+    }
 }
 
 #[cfg(test)]

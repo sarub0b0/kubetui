@@ -173,7 +173,7 @@ where
         }
         Event::Tick => {}
         Event::Mouse(ev) => {
-            subwin.on_mouse_event(ev);
+            let _callback = subwin.on_mouse_event(ev);
         }
     }
 
@@ -282,7 +282,7 @@ where
         }
         Event::Tick => {}
         Event::Mouse(ev) => {
-            subwin.on_mouse_event(ev);
+            let _callback = subwin.on_mouse_event(ev);
         }
     }
 

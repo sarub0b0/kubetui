@@ -1,3 +1,5 @@
+use crate::EventResult;
+
 use super::crossterm::event::MouseEvent;
 use super::tui::{
     backend::Backend,
@@ -29,7 +31,7 @@ pub trait PaneTrait {
     fn render<B: Backend>(&mut self, f: &mut Frame<B>);
     fn get(&self) -> &Self::Item;
     fn get_mut(&mut self) -> &mut Self::Item;
-    fn on_mouse_event(&mut self, ev: MouseEvent);
+    fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult;
 }
 
 pub struct SubWindow<'a, P> {
@@ -97,8 +99,8 @@ where
         self.pane.get_mut()
     }
 
-    pub fn on_mouse_event(&mut self, ev: MouseEvent) {
-        self.pane.on_mouse_event(ev);
+    pub fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
+        self.pane.on_mouse_event(ev)
     }
 }
 
@@ -154,8 +156,8 @@ impl<'a> PaneTrait for Pane<'a> {
         self
     }
 
-    fn on_mouse_event(&mut self, ev: MouseEvent) {
-        self.on_mouse_event(ev);
+    fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
+        self.on_mouse_event(ev)
     }
 }
 
@@ -202,8 +204,8 @@ impl<'a> PaneTrait for MultipleSelect<'a> {
         self.id()
     }
 
-    fn on_mouse_event(&mut self, ev: MouseEvent) {
-        self.on_mouse_event(ev);
+    fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
+        self.on_mouse_event(ev)
     }
 }
 
@@ -245,7 +247,7 @@ impl<'a> PaneTrait for SingleSelect<'a> {
     fn update_chunks(&mut self, chunk: Rect) {
         self.update_chunk(chunk);
     }
-    fn on_mouse_event(&mut self, ev: MouseEvent) {
-        self.on_mouse_event(ev);
+    fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
+        self.on_mouse_event(ev)
     }
 }
