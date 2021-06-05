@@ -15,6 +15,12 @@ pub enum UserEvent {
     Resize(u16, u16),
 }
 
+impl UserEvent {
+    pub fn from_key(code: KeyCode) -> Self {
+        UserEvent::Key(KeyEvent::from(code))
+    }
+}
+
 impl From<char> for UserEvent {
     fn from(c: char) -> Self {
         UserEvent::Key(KeyEvent::from(KeyCode::Char(c)))

@@ -1,3 +1,4 @@
+use ::event::UserEvent;
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use std::cell::RefCell;
 use std::panic;
@@ -9,7 +10,7 @@ use std::io;
 
 use tui_wrapper::crossterm::{
     cursor::Show,
-    event::{DisableMouseCapture, EnableMouseCapture},
+    event::{DisableMouseCapture, EnableMouseCapture, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -223,6 +224,9 @@ fn run() {
     });
 
     window.add_action('q', |_| EventResult::WindowEvent(WindowEvent::CloseWindow));
+    window.add_action(UserEvent::from_key(KeyCode::Esc), |_| {
+        EventResult::WindowEvent(WindowEvent::CloseWindow)
+    });
 
     terminal.clear().unwrap();
 
