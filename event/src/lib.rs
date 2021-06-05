@@ -8,10 +8,14 @@ mod util;
 use crate::kubernetes::Kube;
 use crossterm::event::{KeyEvent, MouseEvent};
 
-pub enum Event {
-    Input(KeyEvent),
-    Kube(Kube),
-    Tick,
-    Resize(u16, u16),
+pub enum UserEvent {
+    Key(KeyEvent),
     Mouse(MouseEvent),
+    Resize(u16, u16),
+}
+
+pub enum Event {
+    Kube(Kube),
+    User(UserEvent),
+    Tick,
 }

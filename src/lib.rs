@@ -2,7 +2,7 @@ use crossbeam::channel::{Receiver, Sender};
 
 use tui_wrapper::crossterm::event::{KeyCode, KeyModifiers};
 
-use event::{kubernetes::*, Event};
+use event::{kubernetes::*, Event, UserEvent};
 
 use tui_wrapper::key_event_to_code;
 use tui_wrapper::widget::*;
@@ -95,86 +95,88 @@ where
     let pane = subwin.pane_mut();
 
     match rx.recv().unwrap() {
-        Event::Input(key) => match key_event_to_code(key) {
-            KeyCode::Esc => {
-                return WindowEvent::CloseSubWindow;
-            }
-
-            KeyCode::Down => {
-                pane.select_next_item();
-            }
-
-            KeyCode::Up => {
-                pane.select_prev_item();
-            }
-
-            KeyCode::PageDown => {
-                pane.select_next_item();
-            }
-
-            KeyCode::PageUp => {
-                pane.select_prev_item();
-            }
-
-            KeyCode::Delete => {
-                pane.remove_char();
-            }
-
-            KeyCode::Char('w') if key.modifiers == KeyModifiers::CONTROL => {
-                pane.remove_chars_before_cursor();
-            }
-
-            KeyCode::Char('k') if key.modifiers == KeyModifiers::CONTROL => {
-                pane.remove_chars_after_cursor();
-            }
-
-            KeyCode::Home => {
-                pane.move_cursor_top();
-            }
-
-            KeyCode::End => {
-                pane.move_cursor_end();
-            }
-
-            KeyCode::Tab => {
-                pane.select_next_pane();
-            }
-
-            KeyCode::Right => {
-                pane.forward_cursor();
-            }
-
-            KeyCode::Left => {
-                pane.back_cursor();
-            }
-
-            KeyCode::Enter | KeyCode::Char(' ') => {
-                pane.toggle_select_unselect();
-
-                tx.send(Event::Kube(Kube::SetAPIsRequest(
-                    pane.to_vec_selected_items(),
-                )))
-                .unwrap();
-
-                if pane.selected_items().is_empty() {
-                    window.pane_clear(view_id::tab_apis_pane_apis)
+        Event::User(ev) => match ev {
+            UserEvent::Key(key) => match key_event_to_code(key) {
+                KeyCode::Esc => {
+                    return WindowEvent::CloseSubWindow;
                 }
-            }
 
-            KeyCode::Char(c) => {
-                pane.insert_char(c);
-            }
+                KeyCode::Down => {
+                    pane.select_next_item();
+                }
 
-            _ => {}
+                KeyCode::Up => {
+                    pane.select_prev_item();
+                }
+
+                KeyCode::PageDown => {
+                    pane.select_next_item();
+                }
+
+                KeyCode::PageUp => {
+                    pane.select_prev_item();
+                }
+
+                KeyCode::Delete => {
+                    pane.remove_char();
+                }
+
+                KeyCode::Char('w') if key.modifiers == KeyModifiers::CONTROL => {
+                    pane.remove_chars_before_cursor();
+                }
+
+                KeyCode::Char('k') if key.modifiers == KeyModifiers::CONTROL => {
+                    pane.remove_chars_after_cursor();
+                }
+
+                KeyCode::Home => {
+                    pane.move_cursor_top();
+                }
+
+                KeyCode::End => {
+                    pane.move_cursor_end();
+                }
+
+                KeyCode::Tab => {
+                    pane.select_next_pane();
+                }
+
+                KeyCode::Right => {
+                    pane.forward_cursor();
+                }
+
+                KeyCode::Left => {
+                    pane.back_cursor();
+                }
+
+                KeyCode::Enter | KeyCode::Char(' ') => {
+                    pane.toggle_select_unselect();
+
+                    tx.send(Event::Kube(Kube::SetAPIsRequest(
+                        pane.to_vec_selected_items(),
+                    )))
+                    .unwrap();
+
+                    if pane.selected_items().is_empty() {
+                        window.pane_clear(view_id::tab_apis_pane_apis)
+                    }
+                }
+
+                KeyCode::Char(c) => {
+                    pane.insert_char(c);
+                }
+
+                _ => {}
+            },
+            UserEvent::Mouse(ev) => {
+                let _callback = subwin.on_mouse_event(ev);
+            }
+            UserEvent::Resize(w, h) => {
+                return WindowEvent::ResizeWindow(w, h);
+            }
         },
         Event::Kube(k) => return WindowEvent::UpdateContents(k),
-        Event::Resize(w, h) => {
-            return WindowEvent::ResizeWindow(w, h);
-        }
         Event::Tick => {}
-        Event::Mouse(ev) => {
-            let _callback = subwin.on_mouse_event(ev);
-        }
     }
 
     WindowEvent::Continue
@@ -192,98 +194,101 @@ where
 {
     let pane = subwin.pane_mut();
     match rx.recv().unwrap() {
-        Event::Input(key) => match key_event_to_code(key) {
-            KeyCode::Esc => {
-                return WindowEvent::CloseSubWindow;
-            }
-
-            KeyCode::Down => {
-                pane.select_next_item();
-            }
-
-            KeyCode::Up => {
-                pane.select_prev_item();
-            }
-
-            KeyCode::PageUp => {
-                pane.select_prev_item();
-            }
-
-            KeyCode::PageDown => {
-                pane.select_next_item();
-            }
-
-            KeyCode::Delete => {
-                pane.remove_char();
-            }
-
-            KeyCode::Char('w') if key.modifiers == KeyModifiers::CONTROL => {
-                pane.remove_chars_before_cursor();
-            }
-
-            KeyCode::Char('k') if key.modifiers == KeyModifiers::CONTROL => {
-                pane.remove_chars_after_cursor();
-            }
-
-            KeyCode::Home => {
-                pane.move_cursor_top();
-            }
-
-            KeyCode::End => {
-                pane.move_cursor_end();
-            }
-
-            KeyCode::Tab => {
-                pane.select_next_pane();
-            }
-
-            KeyCode::Right => {
-                pane.forward_cursor();
-            }
-
-            KeyCode::Left => {
-                pane.back_cursor();
-            }
-
-            KeyCode::Char(c) => {
-                pane.insert_char(c);
-            }
-
-            KeyCode::Enter => {
-                if let Some(item) = pane.get_item() {
-                    let item = item.single();
-
-                    tx.send(Event::Kube(Kube::SetNamespace(item.to_string())))
-                        .unwrap();
-
-                    *current_namespace = item;
-
-                    if let Some(p) = window.pane_mut(view_id::tab_event_pane_event) {
-                        p.clear();
-                    }
-
-                    if let Some(p) = window.pane_mut(view_id::tab_pods_pane_logs) {
-                        p.clear();
-                        window.select_pane(view_id::tab_pods_pane_pods);
-                    }
-
-                    if let Some(p) = window.pane_mut(view_id::tab_configs_pane_raw_data) {
-                        p.clear();
-                        window.select_pane(view_id::tab_configs_pane_configs);
-                    }
+        Event::User(ev) => match ev {
+            UserEvent::Key(key) => match key_event_to_code(key) {
+                KeyCode::Esc => {
+                    return WindowEvent::CloseSubWindow;
                 }
-                return WindowEvent::CloseSubWindow;
+
+                KeyCode::Down => {
+                    pane.select_next_item();
+                }
+
+                KeyCode::Up => {
+                    pane.select_prev_item();
+                }
+
+                KeyCode::PageUp => {
+                    pane.select_prev_item();
+                }
+
+                KeyCode::PageDown => {
+                    pane.select_next_item();
+                }
+
+                KeyCode::Delete => {
+                    pane.remove_char();
+                }
+
+                KeyCode::Char('w') if key.modifiers == KeyModifiers::CONTROL => {
+                    pane.remove_chars_before_cursor();
+                }
+
+                KeyCode::Char('k') if key.modifiers == KeyModifiers::CONTROL => {
+                    pane.remove_chars_after_cursor();
+                }
+
+                KeyCode::Home => {
+                    pane.move_cursor_top();
+                }
+
+                KeyCode::End => {
+                    pane.move_cursor_end();
+                }
+
+                KeyCode::Tab => {
+                    pane.select_next_pane();
+                }
+
+                KeyCode::Right => {
+                    pane.forward_cursor();
+                }
+
+                KeyCode::Left => {
+                    pane.back_cursor();
+                }
+
+                KeyCode::Char(c) => {
+                    pane.insert_char(c);
+                }
+
+                KeyCode::Enter => {
+                    if let Some(item) = pane.get_item() {
+                        let item = item.single();
+
+                        tx.send(Event::Kube(Kube::SetNamespace(item.to_string())))
+                            .unwrap();
+
+                        *current_namespace = item;
+
+                        if let Some(p) = window.pane_mut(view_id::tab_event_pane_event) {
+                            p.clear();
+                        }
+
+                        if let Some(p) = window.pane_mut(view_id::tab_pods_pane_logs) {
+                            p.clear();
+                            window.select_pane(view_id::tab_pods_pane_pods);
+                        }
+
+                        if let Some(p) = window.pane_mut(view_id::tab_configs_pane_raw_data) {
+                            p.clear();
+                            window.select_pane(view_id::tab_configs_pane_configs);
+                        }
+                    }
+                    return WindowEvent::CloseSubWindow;
+                }
+                _ => {}
+            },
+            UserEvent::Mouse(ev) => {
+                let _callback = subwin.on_mouse_event(ev);
             }
-            _ => {}
+            UserEvent::Resize(w, h) => {
+                return WindowEvent::ResizeWindow(w, h);
+            }
         },
+
         Event::Kube(k) => return WindowEvent::UpdateContents(k),
-        Event::Resize(w, h) => {
-            return WindowEvent::ResizeWindow(w, h);
-        }
         Event::Tick => {}
-        Event::Mouse(ev) => {
-            let _callback = subwin.on_mouse_event(ev);
-        }
     }
 
     WindowEvent::Continue
@@ -291,100 +296,102 @@ where
 
 pub fn window_action(window: &mut Window, tx: &Sender<Event>, rx: &Receiver<Event>) -> WindowEvent {
     match rx.recv().unwrap() {
-        Event::Input(key) => match key_event_to_code(key) {
-            KeyCode::Char('q') => {
-                return WindowEvent::CloseWindow;
-            }
+        Event::User(ev) => match ev {
+            UserEvent::Key(key) => match key_event_to_code(key) {
+                KeyCode::Char('q') => {
+                    return WindowEvent::CloseWindow;
+                }
 
-            KeyCode::Char('j') | KeyCode::Down => {
-                window.select_next_item();
-            }
+                KeyCode::Char('j') | KeyCode::Down => {
+                    window.select_next_item();
+                }
 
-            KeyCode::Char('k') | KeyCode::Up => {
-                window.select_prev_item();
-            }
+                KeyCode::Char('k') | KeyCode::Up => {
+                    window.select_prev_item();
+                }
 
-            KeyCode::PageUp => {
-                window.scroll_up();
-            }
+                KeyCode::PageUp => {
+                    window.scroll_up();
+                }
 
-            KeyCode::PageDown => {
-                window.scroll_down();
-            }
+                KeyCode::PageDown => {
+                    window.scroll_down();
+                }
 
-            KeyCode::Right => {
-                if window.selected_pane_id() == view_id::tab_apis_pane_apis {
-                    if let Some(pane) = window.pane_mut(view_id::tab_apis_pane_apis) {
-                        let w = pane.widget_mut().as_mut_text();
-                        w.scroll_right(10);
+                KeyCode::Right => {
+                    if window.selected_pane_id() == view_id::tab_apis_pane_apis {
+                        if let Some(pane) = window.pane_mut(view_id::tab_apis_pane_apis) {
+                            let w = pane.widget_mut().as_mut_text();
+                            w.scroll_right(10);
+                        }
                     }
                 }
-            }
 
-            KeyCode::Left => {
-                if window.selected_pane_id() == view_id::tab_apis_pane_apis {
-                    if let Some(pane) = window.pane_mut(view_id::tab_apis_pane_apis) {
-                        let w = pane.widget_mut().as_mut_text();
-                        w.scroll_left(10);
+                KeyCode::Left => {
+                    if window.selected_pane_id() == view_id::tab_apis_pane_apis {
+                        if let Some(pane) = window.pane_mut(view_id::tab_apis_pane_apis) {
+                            let w = pane.widget_mut().as_mut_text();
+                            w.scroll_left(10);
+                        }
                     }
                 }
-            }
 
-            KeyCode::Tab => {
-                window.select_next_pane();
-            }
-
-            KeyCode::BackTab => {
-                window.select_prev_pane();
-            }
-
-            KeyCode::Char(n @ '1'..='9') => {
-                window.select_tab(n as usize - b'0' as usize);
-            }
-
-            KeyCode::Char('n') => {
-                tx.send(Event::Kube(Kube::GetNamespacesRequest)).unwrap();
-                return WindowEvent::OpenSubWindow(view_id::subwin_ns);
-            }
-
-            KeyCode::Char('G') => {
-                window.select_last_item();
-            }
-            KeyCode::Char('g') => {
-                window.select_first_item();
-            }
-
-            KeyCode::Char('/') | KeyCode::Char('f') => {
-                if window.selected_tab_id() == view_id::tab_apis {
-                    tx.send(Event::Kube(Kube::GetAPIsRequest)).unwrap();
-                    return WindowEvent::OpenSubWindow(view_id::subwin_apis);
+                KeyCode::Tab => {
+                    window.select_next_pane();
                 }
-            }
 
-            KeyCode::Enter => match window.selected_pane_id() {
-                view_id::tab_pods_pane_pods => {
-                    window.pane_clear(view_id::tab_pods_pane_logs);
-                    tx.send(Event::Kube(Kube::LogStreamRequest(selected_pod(&window))))
-                        .unwrap();
+                KeyCode::BackTab => {
+                    window.select_prev_pane();
                 }
-                view_id::tab_configs_pane_configs => {
-                    window.pane_clear(view_id::tab_configs_pane_configs);
-                    tx.send(Event::Kube(Kube::ConfigRequest(selected_config(&window))))
-                        .unwrap();
+
+                KeyCode::Char(n @ '1'..='9') => {
+                    window.select_tab(n as usize - b'0' as usize);
                 }
+
+                KeyCode::Char('n') => {
+                    tx.send(Event::Kube(Kube::GetNamespacesRequest)).unwrap();
+                    return WindowEvent::OpenSubWindow(view_id::subwin_ns);
+                }
+
+                KeyCode::Char('G') => {
+                    window.select_last_item();
+                }
+                KeyCode::Char('g') => {
+                    window.select_first_item();
+                }
+
+                KeyCode::Char('/') | KeyCode::Char('f') => {
+                    if window.selected_tab_id() == view_id::tab_apis {
+                        tx.send(Event::Kube(Kube::GetAPIsRequest)).unwrap();
+                        return WindowEvent::OpenSubWindow(view_id::subwin_apis);
+                    }
+                }
+
+                KeyCode::Enter => match window.selected_pane_id() {
+                    view_id::tab_pods_pane_pods => {
+                        window.pane_clear(view_id::tab_pods_pane_logs);
+                        tx.send(Event::Kube(Kube::LogStreamRequest(selected_pod(&window))))
+                            .unwrap();
+                    }
+                    view_id::tab_configs_pane_configs => {
+                        window.pane_clear(view_id::tab_configs_pane_configs);
+                        tx.send(Event::Kube(Kube::ConfigRequest(selected_config(&window))))
+                            .unwrap();
+                    }
+                    _ => {}
+                },
                 _ => {}
             },
-            _ => {}
+            UserEvent::Mouse(ev) => {
+                let callback = window.on_mouse_event(ev);
+                callback.exec(window);
+            }
+            UserEvent::Resize(w, h) => {
+                return WindowEvent::ResizeWindow(w, h);
+            }
         },
 
-        Event::Resize(w, h) => {
-            return WindowEvent::ResizeWindow(w, h);
-        }
         Event::Tick => {}
-        Event::Mouse(ev) => {
-            let callback = window.on_mouse_event(ev);
-            callback.exec(window);
-        }
         Event::Kube(k) => return WindowEvent::UpdateContents(k),
     }
     WindowEvent::Continue
