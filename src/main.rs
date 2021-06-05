@@ -196,17 +196,21 @@ fn run() {
         ),
     ];
 
+    // TODO on_selectハンドラーを実装する
     let mut subwin_namespace = SubWindow::new(
         view_id::subwin_ns,
         "Namespace",
-        SingleSelect::new(view_id::subwin_ns_pane_ns, "Namespace"),
+        SubWidget::Single(SingleSelect::new(view_id::subwin_ns_pane_ns, "Namespace")),
         Some(Block::default().borders(Borders::ALL)),
     );
 
     let mut subwin_apis = SubWindow::new(
         view_id::subwin_apis,
         "APIs",
-        MultipleSelect::new(view_id::subwin_apis_pane, "Select APIs"),
+        SubWidget::Multiple(MultipleSelect::new(
+            view_id::subwin_apis_pane,
+            "Select APIs",
+        )),
         Some(Block::default().borders(Borders::ALL)),
     );
 
@@ -351,12 +355,12 @@ fn run() {
                 }
                 Kube::GetNamespacesResponse(ns) => {
                     let pane = subwin_namespace.pane_mut();
-                    pane.set_items(ns);
+                    pane.set_items(WidgetItem::Array(ns));
                 }
 
                 Kube::GetAPIsResponse(apis) => {
                     let pane = subwin_apis.pane_mut();
-                    pane.set_list_items(apis);
+                    pane.set_items(WidgetItem::Array(apis));
                 }
                 _ => unreachable!(),
             },

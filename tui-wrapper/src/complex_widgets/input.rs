@@ -1,5 +1,6 @@
 use std::time::{Duration, Instant};
 
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tui::{
     backend::Backend,
     layout::Rect,
@@ -9,7 +10,7 @@ use tui::{
     Frame,
 };
 
-use crate::{crossterm::event::MouseEvent, widget::*, EventResult};
+use crate::{crossterm::event::MouseEvent, key_event_to_code, widget::*, EventResult};
 
 #[derive(Debug)]
 enum Mode {
@@ -193,6 +194,46 @@ impl<'a> InputForm<'a> {
     }
 
     pub fn on_mouse_event(&mut self, _: MouseEvent) -> EventResult {
+        EventResult::Ignore
+    }
+
+    pub fn on_key_event(&mut self, key: KeyEvent) -> EventResult {
+        match key_event_to_code(key) {
+            KeyCode::Delete => {
+                self.remove_char();
+            }
+
+            KeyCode::Char('w') if key.modifiers == KeyModifiers::CONTROL => {
+                self.remove_chars_before_cursor();
+            }
+
+            KeyCode::Char('k') if key.modifiers == KeyModifiers::CONTROL => {
+                self.remove_chars_after_cursor();
+            }
+
+            KeyCode::Home => {
+                self.move_cursor_top();
+            }
+
+            KeyCode::End => {
+                self.move_cursor_end();
+            }
+
+            KeyCode::Right => {
+                self.forward_cursor();
+            }
+
+            KeyCode::Left => {
+                self.back_cursor();
+            }
+
+            KeyCode::Char(c) => {
+                self.insert_char(c);
+            }
+            _ => {
+                return EventResult::Ignore;
+            }
+        }
         EventResult::Nop
     }
 }

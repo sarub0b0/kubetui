@@ -343,7 +343,7 @@ impl Window<'_> {
         match ev {
             UserEvent::Key(ev) => self.on_key_event(ev),
             UserEvent::Mouse(ev) => self.on_mouse_event(ev),
-            UserEvent::Resize(_, _) => EventResult::Nop,
+            UserEvent::Resize(_, _) => EventResult::Ignore,
         }
     }
 

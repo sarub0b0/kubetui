@@ -1,6 +1,6 @@
 use crate::{
     contains,
-    crossterm::event::MouseEvent,
+    crossterm::event::{KeyEvent, MouseEvent},
     focus_block,
     tui::{
         backend::Backend,
@@ -12,10 +12,15 @@ use crate::{
     EventResult,
 };
 
+use std::rc::Rc;
+
+use event::UserEvent;
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 
 use super::input::InputForm;
+use crate::sub_window::InnerCallback;
+use crate::Window;
 
 struct SelectForm<'a> {
     list_items: Vec<String>,
@@ -111,8 +116,12 @@ impl<'a> SelectForm<'a> {
         (pos, size)
     }
 
-    pub fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
+    fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         self.list_widget.on_mouse_event(ev)
+    }
+
+    fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
+        self.list_widget.on_key_event(ev)
     }
 }
 
@@ -128,6 +137,7 @@ pub struct SingleSelect<'a> {
     layout: Layout,
     block: Block<'a>,
     chunk: Rect,
+    callbacks: Vec<(UserEvent, InnerCallback)>,
 }
 
 impl<'a> SingleSelect<'a> {
@@ -255,6 +265,33 @@ impl<'a> SingleSelect<'a> {
             EventResult::Nop
         }
     }
+
+    pub fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
+        match self.input_widget.on_key_event(ev) {
+            EventResult::Ignore => {
+                return self.selected_widget.on_key_event(ev);
+            }
+            _ => {
+                self.selected_widget
+                    .update_filter(self.input_widget.content());
+            }
+        }
+
+        EventResult::Nop
+    }
+
+    pub fn match_callback(&self, ev: UserEvent) -> Option<InnerCallback> {
+        self.callbacks
+            .iter()
+            .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb.clone()) } else { None })
+    }
+
+    pub fn add_action<F, E: Into<UserEvent>>(&mut self, ev: E, cb: F)
+    where
+        F: Fn(&mut Window) -> EventResult + 'static,
+    {
+        self.callbacks.push((ev.into(), Rc::new(cb)));
+    }
 }
 
 impl Default for SingleSelect<'_> {
@@ -267,6 +304,7 @@ impl Default for SingleSelect<'_> {
             chunk: Rect::default(),
             layout: Layout::default(),
             block: Block::default(),
+            callbacks: Vec::new(),
         }
     }
 }

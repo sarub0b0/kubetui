@@ -1,6 +1,6 @@
 use crate::{
     contains,
-    crossterm::event::MouseEvent,
+    crossterm::event::{KeyCode, KeyEvent, MouseEvent},
     focus_block, mouse_pos,
     tui::{
         backend::Backend,
@@ -242,7 +242,7 @@ impl<'a> SelectForm<'a> {
         }
     }
 
-    fn set_list_items(&mut self, items: Vec<String>) {
+    fn set_items(&mut self, items: Vec<String>) {
         // マージ処理
         let new_items: HashSet<String> = items.into_iter().collect();
         let mut old_items = self.list_items.clone();
@@ -329,6 +329,10 @@ impl<'a> SelectForm<'a> {
         } else {
             EventResult::Nop
         }
+    }
+
+    fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
+        self.focused_form_mut().on_key_event(ev)
     }
 }
 
@@ -444,9 +448,9 @@ impl<'a> MultipleSelect<'a> {
         self.selected_widget.toggle_select_unselect();
     }
 
-    pub fn set_list_items(&mut self, items: Vec<String>) {
+    pub fn set_items(&mut self, items: Vec<String>) {
         self.clear_filter();
-        self.selected_widget.set_list_items(items);
+        self.selected_widget.set_items(items);
     }
 
     pub fn to_vec_selected_items(&self) -> Vec<String> {
@@ -495,6 +499,16 @@ impl<'a> MultipleSelect<'a> {
             self.selected_widget.on_mouse_event(ev)
         } else {
             EventResult::Nop
+        }
+    }
+
+    pub fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
+        match ev.code {
+            KeyCode::Enter => {
+                self.toggle_select_unselect();
+                return EventResult::Nop;
+            }
+            _ => self.selected_widget.on_key_event(ev),
         }
     }
 }
