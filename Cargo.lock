@@ -1689,6 +1689,7 @@ dependencies = [
  "clipboard-wrapper",
  "crossterm",
  "derivative",
+ "event",
  "fuzzy-matcher",
  "pretty_assertions",
  "rayon",

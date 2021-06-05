@@ -7,12 +7,12 @@ use tui::{
     Frame,
 };
 
-use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 
 use tui::widgets::{self, Block, ListItem, ListState};
 
 use super::{RenderTrait, WidgetItem, WidgetTrait};
-use crate::{Callback, EventResult, Window};
+use crate::{key_event_to_code, Callback, EventResult, Window};
 
 use derivative::*;
 
@@ -176,6 +176,37 @@ impl<'a> WidgetTrait for List<'a> {
             MouseEventKind::Drag(_) => {}
             MouseEventKind::Moved => {}
         }
+        EventResult::Nop
+    }
+
+    fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
+        match key_event_to_code(ev) {
+            KeyCode::Char('j') | KeyCode::Down | KeyCode::PageDown => {
+                self.select_next(1);
+            }
+
+            KeyCode::Char('k') | KeyCode::Up | KeyCode::PageUp => {
+                self.select_prev(1);
+            }
+
+            KeyCode::Char('G') => {
+                self.select_last();
+            }
+            KeyCode::Char('g') => {
+                self.select_first();
+            }
+
+            KeyCode::Enter => {
+                return EventResult::Callback(self.on_select_callback());
+            }
+            KeyCode::Char(_) => {
+                return EventResult::Ignore;
+            }
+            _ => {
+                return EventResult::Ignore;
+            }
+        }
+
         EventResult::Nop
     }
 }

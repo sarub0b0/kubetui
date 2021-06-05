@@ -1,8 +1,6 @@
-use crate::Callback;
-use crate::EventResult;
-use crate::Window;
+use crate::{key_event_to_code, Callback, EventResult, Window};
 
-use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use derivative::*;
 use std::rc::Rc;
 use tui::{
@@ -285,11 +283,48 @@ impl WidgetTrait for Table<'_> {
 
             MouseEventKind::ScrollDown => {
                 self.select_next(1);
+                return EventResult::Nop;
             }
             MouseEventKind::ScrollUp => {
                 self.select_prev(1);
+                return EventResult::Nop;
             }
             _ => {}
+        }
+
+        EventResult::Ignore
+    }
+
+    fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
+        match key_event_to_code(ev) {
+            KeyCode::Char('j') | KeyCode::Down | KeyCode::PageDown => {
+                self.select_next(1);
+            }
+
+            KeyCode::Char('k') | KeyCode::Up | KeyCode::PageUp => {
+                self.select_prev(1);
+            }
+
+            // TODO Add Home, End key
+            KeyCode::Char('G') => {
+                self.select_last();
+            }
+
+            KeyCode::Char('g') => {
+                self.select_first();
+            }
+
+            KeyCode::Enter => {
+                return EventResult::Callback(self.on_select_callback());
+            }
+
+            KeyCode::Char(_) => {
+                return EventResult::Ignore;
+            }
+
+            _ => {
+                return EventResult::Ignore;
+            }
         }
 
         EventResult::Nop

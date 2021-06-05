@@ -4,8 +4,8 @@ use tui_wrapper::crossterm::event::{KeyCode, KeyModifiers};
 
 use event::{kubernetes::*, Event, UserEvent};
 
-use tui_wrapper::key_event_to_code;
 use tui_wrapper::widget::*;
+use tui_wrapper::{key_event_to_code, EventResult};
 
 use tui_wrapper::complex_widgets::{multiple_select::MultipleSelect, single_select::SingleSelect};
 
@@ -39,16 +39,6 @@ pub mod view_id {
     generate_id!(subwin_apis_pane_filter);
     generate_id!(subwin_apis_pane_items);
     generate_id!(subwin_apis_pane_selected);
-}
-
-// Main Logic
-pub enum WindowEvent {
-    CloseWindow,
-    Continue,
-    OpenSubWindow(&'static str),
-    CloseSubWindow,
-    ResizeWindow(u16, u16),
-    UpdateContents(Kube),
 }
 
 fn selected_pod(window: &Window) -> String {
@@ -294,98 +284,30 @@ where
     WindowEvent::Continue
 }
 
-pub fn window_action(window: &mut Window, tx: &Sender<Event>, rx: &Receiver<Event>) -> WindowEvent {
+pub fn window_action(window: &mut Window, rx: &Receiver<Event>) -> WindowEvent {
     match rx.recv().unwrap() {
         Event::User(ev) => match ev {
-            UserEvent::Key(key) => match key_event_to_code(key) {
-                KeyCode::Char('q') => {
-                    return WindowEvent::CloseWindow;
-                }
+            UserEvent::Key(_) | UserEvent::Mouse(_) => match window.on_event(ev) {
+                EventResult::Nop => {}
 
-                KeyCode::Char('j') | KeyCode::Down => {
-                    window.select_next_item();
-                }
-
-                KeyCode::Char('k') | KeyCode::Up => {
-                    window.select_prev_item();
-                }
-
-                KeyCode::PageUp => {
-                    window.scroll_up();
-                }
-
-                KeyCode::PageDown => {
-                    window.scroll_down();
-                }
-
-                KeyCode::Right => {
-                    if window.selected_pane_id() == view_id::tab_apis_pane_apis {
-                        if let Some(pane) = window.pane_mut(view_id::tab_apis_pane_apis) {
-                            let w = pane.widget_mut().as_mut_text();
-                            w.scroll_right(10);
+                EventResult::Ignore => {
+                    if let Some(cb) = window.match_callback(ev) {
+                        match (cb)(window) {
+                            EventResult::WindowEvent(ev) => {
+                                return ev;
+                            }
+                            _ => {}
                         }
                     }
                 }
-
-                KeyCode::Left => {
-                    if window.selected_pane_id() == view_id::tab_apis_pane_apis {
-                        if let Some(pane) = window.pane_mut(view_id::tab_apis_pane_apis) {
-                            let w = pane.widget_mut().as_mut_text();
-                            w.scroll_left(10);
-                        }
-                    }
+                ev @ EventResult::Callback(_) => {
+                    ev.exec(window);
                 }
-
-                KeyCode::Tab => {
-                    window.select_next_pane();
+                EventResult::WindowEvent(ev) => {
+                    return ev;
                 }
-
-                KeyCode::BackTab => {
-                    window.select_prev_pane();
-                }
-
-                KeyCode::Char(n @ '1'..='9') => {
-                    window.select_tab(n as usize - b'0' as usize);
-                }
-
-                KeyCode::Char('n') => {
-                    tx.send(Event::Kube(Kube::GetNamespacesRequest)).unwrap();
-                    return WindowEvent::OpenSubWindow(view_id::subwin_ns);
-                }
-
-                KeyCode::Char('G') => {
-                    window.select_last_item();
-                }
-                KeyCode::Char('g') => {
-                    window.select_first_item();
-                }
-
-                KeyCode::Char('/') | KeyCode::Char('f') => {
-                    if window.selected_tab_id() == view_id::tab_apis {
-                        tx.send(Event::Kube(Kube::GetAPIsRequest)).unwrap();
-                        return WindowEvent::OpenSubWindow(view_id::subwin_apis);
-                    }
-                }
-
-                KeyCode::Enter => match window.selected_pane_id() {
-                    view_id::tab_pods_pane_pods => {
-                        window.pane_clear(view_id::tab_pods_pane_logs);
-                        tx.send(Event::Kube(Kube::LogStreamRequest(selected_pod(&window))))
-                            .unwrap();
-                    }
-                    view_id::tab_configs_pane_configs => {
-                        window.pane_clear(view_id::tab_configs_pane_configs);
-                        tx.send(Event::Kube(Kube::ConfigRequest(selected_config(&window))))
-                            .unwrap();
-                    }
-                    _ => {}
-                },
-                _ => {}
             },
-            UserEvent::Mouse(ev) => {
-                let callback = window.on_mouse_event(ev);
-                callback.exec(window);
-            }
+
             UserEvent::Resize(w, h) => {
                 return WindowEvent::ResizeWindow(w, h);
             }

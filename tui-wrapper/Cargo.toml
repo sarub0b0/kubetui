@@ -18,6 +18,7 @@ fuzzy-matcher = "0.3"
 chrono = "0.4"
 
 clipboard-wrapper = { path = "../clipboard-wrapper" }
+event = { path = "../event" }
 
 [dev-dependencies]
 pretty_assertions = "0.7"

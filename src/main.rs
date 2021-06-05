@@ -207,6 +207,16 @@ fn run() {
         (view_id::tab_apis, view_id::tab_apis_pane_apis),
     ]);
 
+    let tx_ns = tx_main.clone();
+    window.add_action('n', move |_| {
+        tx_ns.send(Event::Kube(Kube::GetNamespacesRequest)).unwrap();
+        return EventResult::WindowEvent(WindowEvent::OpenSubWindow(view_id::subwin_ns));
+    });
+
+    window.add_action('q', |_| {
+        return EventResult::WindowEvent(WindowEvent::CloseWindow);
+    });
+
     terminal.clear().unwrap();
 
     window.update_chunks(terminal.size().unwrap());
@@ -257,7 +267,7 @@ fn run() {
                 _ => WindowEvent::Continue,
             }
         } else {
-            window_action(&mut window, &tx_main, &rx_main)
+            window_action(&mut window, &rx_main)
         };
 
         match event {

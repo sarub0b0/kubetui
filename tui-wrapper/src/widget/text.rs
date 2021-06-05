@@ -1,8 +1,7 @@
-use crate::EventResult;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use tui::{
     backend::Backend,
     layout::Rect,
@@ -22,6 +21,8 @@ use super::{WidgetItem, WidgetTrait};
 
 use super::spans::generate_spans;
 use super::wrap::*;
+use crate::key_event_to_code;
+use crate::EventResult;
 use clipboard_wrapper::{ClipboardContextWrapper, ClipboardProvider};
 
 #[derive(Debug, PartialEq)]
@@ -178,11 +179,17 @@ impl Text<'_> {
     }
 
     pub fn scroll_left(&mut self, index: u64) {
+        if self.wrap {
+            return;
+        }
         self.state
             .select_horizontal(self.state.selected_horizontal().saturating_sub(index));
     }
 
     pub fn scroll_right(&mut self, index: u64) {
+        if self.wrap {
+            return;
+        }
         self.state
             .select_horizontal(self.state.selected_horizontal().saturating_add(index));
     }
@@ -468,6 +475,41 @@ impl WidgetTrait for Text<'_> {
             }
             MouseEventKind::ScrollUp => {
                 self.scroll_up(3);
+            }
+        }
+        EventResult::Nop
+    }
+
+    fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
+        match key_event_to_code(ev) {
+            KeyCode::Char('j') | KeyCode::Down | KeyCode::PageDown => {
+                self.select_next(1);
+            }
+
+            KeyCode::Char('k') | KeyCode::Up | KeyCode::PageUp => {
+                self.select_prev(1);
+            }
+
+            // TODO Add Home, End key
+            KeyCode::Char('G') => {
+                self.select_last();
+            }
+            KeyCode::Char('g') => {
+                self.select_first();
+            }
+
+            KeyCode::Left => {
+                self.scroll_left(10);
+            }
+            KeyCode::Right => {
+                self.scroll_right(10);
+            }
+
+            KeyCode::Char(_) => {
+                return EventResult::Ignore;
+            }
+            _ => {
+                return EventResult::Ignore;
             }
         }
         EventResult::Nop

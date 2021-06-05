@@ -1,5 +1,7 @@
 use std::rc::Rc;
 
+use crate::WindowEvent;
+
 use super::Window;
 
 pub struct Callback(Rc<dyn Fn(&mut Window)>);
@@ -31,7 +33,9 @@ impl std::ops::Deref for Callback {
 
 pub enum EventResult {
     Nop,
+    Ignore,
     Callback(Option<Callback>),
+    WindowEvent(WindowEvent),
 }
 
 impl EventResult {

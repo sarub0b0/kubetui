@@ -1,6 +1,7 @@
 use chrono::Local;
+use std::rc::Rc;
 
-use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use tui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -14,6 +15,10 @@ use unicode_width::UnicodeWidthStr;
 
 use super::{widget::*, *};
 
+use ::event::UserEvent;
+
+type InnerCallback = Rc<dyn Fn(&mut Window) -> EventResult>;
+
 #[derive(Default)]
 pub struct Window<'a> {
     tabs: Vec<Tab<'a>>,
@@ -21,6 +26,7 @@ pub struct Window<'a> {
     layout: Layout,
     chunk: Rect,
     status_target_id: Vec<(&'a str, &'a str)>,
+    callbacks: Vec<(UserEvent, InnerCallback)>,
 }
 
 pub mod window_layout_index {
@@ -98,6 +104,12 @@ impl<'a> Window<'a> {
 
     pub fn tab_chunk(&self) -> Rect {
         self.chunks()[window_layout_index::TAB]
+    }
+
+    pub fn match_callback(&self, ev: UserEvent) -> Option<InnerCallback> {
+        self.callbacks
+            .iter()
+            .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb.clone()) } else { None })
     }
 }
 
@@ -309,12 +321,61 @@ fn datetime() -> Span<'static> {
     ))
 }
 
-trait MouseEventTrait {
-    fn on_click(&mut self);
+pub enum WindowEvent {
+    CloseWindow,
+    Continue,
+    OpenSubWindow(&'static str),
+    CloseSubWindow,
+    ResizeWindow(u16, u16),
+    UpdateContents(::event::kubernetes::Kube),
 }
 
-// Mouse Event
+// Event
 impl Window<'_> {
+    pub fn add_action<F, E: Into<UserEvent>>(&mut self, ev: E, cb: F)
+    where
+        F: Fn(&mut Window) -> EventResult + 'static,
+    {
+        self.callbacks.push((ev.into(), Rc::new(cb)));
+    }
+
+    pub fn on_event(&mut self, ev: UserEvent) -> EventResult {
+        match ev {
+            UserEvent::Key(ev) => self.on_key_event(ev),
+            UserEvent::Mouse(ev) => self.on_mouse_event(ev),
+            UserEvent::Resize(_, _) => EventResult::Nop,
+        }
+    }
+
+    pub fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
+        let focus_pane = self.selected_tab_mut().selected_pane_mut();
+
+        match focus_pane.on_key_event(ev) {
+            EventResult::Ignore => match key_event_to_code(ev) {
+                KeyCode::Tab => {
+                    self.select_next_pane();
+                }
+
+                KeyCode::BackTab => {
+                    self.select_prev_pane();
+                }
+
+                KeyCode::Char(n @ '1'..='9') => {
+                    self.select_tab(n as usize - b'0' as usize);
+                }
+
+                _ => {
+                    return EventResult::Ignore;
+                }
+            },
+            ev @ _ => {
+                return ev;
+            }
+        }
+
+        EventResult::Nop
+    }
+
     pub fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         let pos = (ev.column, ev.row);
 
@@ -327,7 +388,7 @@ impl Window<'_> {
                 }
             }
         }
-        EventResult::Nop
+        EventResult::Ignore
     }
 
     fn on_click_tab(&mut self, ev: MouseEvent) {

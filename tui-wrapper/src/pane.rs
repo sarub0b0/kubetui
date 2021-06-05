@@ -1,3 +1,4 @@
+use crossterm::event::KeyEvent;
 use crossterm::event::MouseEvent;
 use tui::{backend::Backend, layout::Rect, widgets::Block, Frame};
 
@@ -99,6 +100,10 @@ impl<'a> Pane<'a> {
 
     pub fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         self.widget.on_mouse_event(ev)
+    }
+
+    pub fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
+        self.widget.on_key_event(ev)
     }
 }
 

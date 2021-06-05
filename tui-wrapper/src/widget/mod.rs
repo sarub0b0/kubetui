@@ -10,7 +10,7 @@ pub use list::*;
 pub use table::*;
 pub use text::*;
 
-use crossterm::event::MouseEvent;
+use crossterm::event::{KeyEvent, MouseEvent};
 use tui::{backend::Backend, layout::Rect, widgets::Block, Frame};
 
 use crate::EventResult;
@@ -57,17 +57,26 @@ impl WidgetItem {
 }
 
 pub trait WidgetTrait {
-    fn selectable(&self) -> bool;
-    fn select_next(&mut self, index: usize);
-    fn select_prev(&mut self, index: usize);
-    fn select_first(&mut self);
-    fn select_last(&mut self);
-    fn set_items(&mut self, items: WidgetItem);
-    fn append_items(&mut self, items: WidgetItem);
-    fn get_item(&self) -> Option<WidgetItem>;
-    fn update_chunk(&mut self, area: Rect);
-    fn clear(&mut self);
-    fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult;
+    fn selectable(&self) -> bool {
+        false
+    }
+    fn select_next(&mut self, _: usize) {}
+    fn select_prev(&mut self, _: usize) {}
+    fn select_first(&mut self) {}
+    fn select_last(&mut self) {}
+    fn set_items(&mut self, _: WidgetItem) {}
+    fn append_items(&mut self, _: WidgetItem) {}
+    fn get_item(&self) -> Option<WidgetItem> {
+        None
+    }
+    fn update_chunk(&mut self, _: Rect) {}
+    fn clear(&mut self) {}
+    fn on_mouse_event(&mut self, _: MouseEvent) -> EventResult {
+        EventResult::Ignore
+    }
+    fn on_key_event(&mut self, _: KeyEvent) -> EventResult {
+        EventResult::Ignore
+    }
 }
 
 #[derive(Debug)]
@@ -221,6 +230,14 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.on_mouse_event(ev),
             Widget::Text(w) => w.on_mouse_event(ev),
             Widget::Table(w) => w.on_mouse_event(ev),
+        }
+    }
+
+    fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
+        match self {
+            Widget::List(w) => w.on_key_event(ev),
+            Widget::Text(w) => w.on_key_event(ev),
+            Widget::Table(w) => w.on_key_event(ev),
         }
     }
 }

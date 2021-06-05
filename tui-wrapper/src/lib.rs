@@ -8,7 +8,7 @@ pub mod window;
 
 mod util;
 
-pub use event::*;
+pub use crate::event::*;
 use util::*;
 
 pub use complex_widgets::{MultipleSelect, SingleSelect};
