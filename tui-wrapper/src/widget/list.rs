@@ -189,10 +189,10 @@ impl<'a> WidgetTrait for List<'a> {
                 self.select_prev(1);
             }
 
-            KeyCode::Char('G') => {
+            KeyCode::Char('G') | KeyCode::End => {
                 self.select_last();
             }
-            KeyCode::Char('g') => {
+            KeyCode::Char('g') | KeyCode::Home => {
                 self.select_first();
             }
 

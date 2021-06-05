@@ -490,11 +490,10 @@ impl WidgetTrait for Text<'_> {
                 self.select_prev(1);
             }
 
-            // TODO Add Home, End key
-            KeyCode::Char('G') => {
+            KeyCode::Char('G') | KeyCode::End => {
                 self.select_last();
             }
-            KeyCode::Char('g') => {
+            KeyCode::Char('g') | KeyCode::Home => {
                 self.select_first();
             }
 
