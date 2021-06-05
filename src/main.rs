@@ -175,10 +175,10 @@ fn run() {
             view_id::tab_event,
             "3:Event",
             vec![Pane::new(
-                "APIs",
-                Widget::Text(Text::new(vec![])),
+                "Event",
+                Widget::Text(Text::new(vec![]).enable_wrap().enable_follow()),
                 0,
-                view_id::tab_apis_pane_apis,
+                view_id::tab_event_pane_event,
             )],
             Layout::default().constraints([Constraint::Percentage(100)].as_ref()),
         ),

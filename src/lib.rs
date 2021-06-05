@@ -41,26 +41,6 @@ pub mod view_id {
     generate_id!(subwin_apis_pane_selected);
 }
 
-fn selected_pod(window: &Window) -> String {
-    match window.pane(view_id::tab_pods_pane_pods) {
-        Some(pane) => {
-            let w = pane.widget().as_table();
-            let index = w.state().selected();
-
-            w.items()[index.unwrap()][0].to_string()
-        }
-        None => String::new(),
-    }
-}
-
-fn selected_config(window: &Window) -> String {
-    let pane = window.pane(view_id::tab_configs_pane_configs).unwrap();
-    let widget = pane.widget().as_list();
-    let selected_index = widget.state().selected().unwrap();
-
-    widget.items()[selected_index].clone()
-}
-
 pub fn set_items_window_pane(window: &mut Window, id: &str, items: WidgetItem) {
     if let Some(pane) = window.pane_mut(id) {
         pane.set_items(items);
