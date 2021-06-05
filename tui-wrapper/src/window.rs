@@ -379,16 +379,37 @@ impl Window<'_> {
     pub fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         let pos = (ev.column, ev.row);
 
-        if contains(self.tab_chunk(), pos) {
-            self.on_click_tab(ev)
+        let selected_pane_id = self.selected_pane_id().to_string();
+        let mut focus_pane_id = None;
+
+        let result = if contains(self.tab_chunk(), pos) {
+            self.on_click_tab(ev);
+            EventResult::Nop
         } else if contains(self.chunks()[window_layout_index::CONTENTS], pos) {
-            for pane in self.selected_tab_mut().panes_mut() {
-                if contains(pane.chunk(), pos) {
-                    return pane.on_mouse_event(ev);
-                }
+            if let Some(pane) = self
+                .selected_tab_mut()
+                .panes_mut()
+                .iter_mut()
+                .find(|pane| contains(pane.chunk(), pos))
+            {
+                focus_pane_id = if pane.id() != selected_pane_id {
+                    Some(pane.id().to_string())
+                } else {
+                    None
+                };
+                pane.on_mouse_event(ev)
+            } else {
+                EventResult::Ignore
             }
+        } else {
+            EventResult::Ignore
+        };
+
+        if let Some(id) = focus_pane_id {
+            self.select_pane(&id);
         }
-        EventResult::Ignore
+
+        result
     }
 
     fn on_click_tab(&mut self, ev: MouseEvent) {
