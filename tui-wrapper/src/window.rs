@@ -5,7 +5,7 @@ use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKin
 use tui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Span, Spans},
     widgets::{Block, Clear, Paragraph, Tabs},
     Frame,
@@ -122,11 +122,7 @@ impl<'a> Window<'a> {
         Tabs::new(titles)
             .block(Self::tab_block())
             .select(self.selected_tab_index)
-            .highlight_style(
-                Style::default()
-                    .bg(Color::LightBlue)
-                    .add_modifier(Modifier::BOLD),
-            )
+            .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
     }
 
     fn tab_title_format(title: &str) -> String {
