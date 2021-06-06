@@ -727,7 +727,8 @@ mod tests {
 
         let mut text = Text::new(vec![]).enable_wrap();
 
-        text.update_chunk(Rect::new(0, 0, 2, 10));
+        text.update_chunk(Rect::new(0, 0, 4, 12));
+
         text.set_items(WidgetItem::Array(data));
 
         assert_eq!(text.spans().len(), 40)
