@@ -1,13 +1,19 @@
-use crate::{key_event_to_code, Callback, EventResult, Window};
+use crate::{
+    event::{Callback, EventResult},
+    key_event_to_code,
+    util::{default_focus_block, focus_block},
+    Window,
+};
 
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use derivative::*;
+
 use std::rc::Rc;
 use tui::{
     backend::Backend,
     layout::{Constraint, Rect},
     style::{Color, Modifier, Style},
-    widgets::{Block, Cell, Row, Table as TTable, TableState},
+    widgets::{Cell, Row, Table as TTable, TableState},
     Frame,
 };
 
@@ -19,11 +25,14 @@ const COLUMN_SPACING: u16 = 3;
 const HIGHLIGHT_SYMBOL: &str = " ";
 const ROW_START_INDEX: usize = 2;
 
-type InnerCallback = Rc<dyn Fn(&mut Window, &[String])>;
+type InnerCallback = Rc<dyn Fn(&mut Window, &[String]) -> EventResult>;
 
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
 pub struct Table<'a> {
+    id: String,
+    title: String,
+    chunk_index: usize,
     items: Vec<Vec<String>>,
     header: Vec<String>,
     header_row: Row<'a>,
@@ -33,6 +42,7 @@ pub struct Table<'a> {
     row_width: usize,
     digits: Vec<usize>,
     chunk: Rect,
+    inner_chunk: Rect,
     row_bounds: Vec<(usize, usize)>,
     #[derivative(Debug = "ignore")]
     on_select: Option<InnerCallback>,
@@ -64,6 +74,16 @@ impl<'a> Table<'a> {
         table.set_rows();
 
         table
+    }
+
+    pub fn set_id(mut self, id: impl Into<String>) -> Self {
+        self.id = id.into();
+        self
+    }
+
+    pub fn set_title(mut self, title: impl Into<String>) -> Self {
+        self.title = title.into();
+        self
     }
 
     pub fn items(&self) -> &Vec<Vec<String>> {
@@ -232,9 +252,10 @@ impl WidgetTrait for Table<'_> {
         self.set_rows();
     }
 
-    fn update_chunk(&mut self, area: tui::layout::Rect) {
-        self.chunk = area;
-        self.row_width = area.width.saturating_sub(2) as usize;
+    fn update_chunk(&mut self, chunk: Rect) {
+        self.chunk = chunk;
+        self.inner_chunk = default_focus_block().inner(chunk);
+        self.row_width = self.inner_chunk.width.saturating_sub(2) as usize;
     }
 
     fn clear(&mut self) {
@@ -257,8 +278,8 @@ impl WidgetTrait for Table<'_> {
         }
 
         let (_, row) = (
-            ev.column.saturating_sub(self.chunk.left()) as usize,
-            ev.row.saturating_sub(self.chunk.top()) as usize,
+            ev.column.saturating_sub(self.inner_chunk.left()) as usize,
+            ev.row.saturating_sub(self.inner_chunk.top()) as usize,
         );
 
         match ev.kind {
@@ -328,12 +349,24 @@ impl WidgetTrait for Table<'_> {
 
         EventResult::Nop
     }
+
+    fn title(&self) -> &str {
+        &self.title
+    }
+
+    fn chunk(&self) -> Rect {
+        self.chunk
+    }
+
+    fn id(&self) -> &str {
+        &self.id
+    }
 }
 
 impl<'a> Table<'a> {
     pub fn on_select<F>(mut self, cb: F) -> Self
     where
-        F: Fn(&mut Window, &[String]) + 'static,
+        F: Fn(&mut Window, &[String]) -> EventResult + 'static,
     {
         self.on_select = Some(Rc::new(cb));
         self
@@ -354,18 +387,19 @@ impl<'a> Table<'a> {
 }
 
 impl RenderTrait for Table<'_> {
-    fn render<B>(&mut self, f: &mut Frame<'_, B>, block: Block, chunk: Rect)
+    fn render<B>(&mut self, f: &mut Frame<'_, B>, selected: bool)
     where
         B: Backend,
     {
+        let title = self.title().to_string();
         let widget = TTable::new(self.rows.clone())
-            .block(block)
+            .block(focus_block(&title, selected))
             .header(self.header_row.clone())
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
             .highlight_symbol(HIGHLIGHT_SYMBOL)
             .column_spacing(COLUMN_SPACING)
             .widths(&self.widths);
 
-        f.render_stateful_widget(widget, chunk, &mut self.state);
+        f.render_stateful_widget(widget, self.chunk, &mut self.state);
     }
 }

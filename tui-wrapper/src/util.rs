@@ -77,14 +77,16 @@ pub fn generate_title(title: &str, selected: bool) -> Spans {
     Spans::from(vec![
         Span::styled(margin, focus_border_style(selected)),
         Span::styled(mark, focus_mark_style(selected)),
-        Span::styled(margin, focus_border_style(selected)),
-        Span::styled(title, focus_title_style(selected)),
+        Span::styled(format!(" {} ", title), focus_title_style(selected)),
     ])
 }
 
+pub fn default_focus_block() -> Block<'static> {
+    Block::default().borders(Borders::ALL)
+}
+
 pub fn focus_block(title: &str, selected: bool) -> Block {
-    Block::default()
-        .borders(Borders::ALL)
+    default_focus_block()
         .title(generate_title(title, selected))
         .title_offset(1)
         .border_style(focus_border_style(selected))

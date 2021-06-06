@@ -2,18 +2,20 @@ mod ansi_color;
 mod spans;
 mod wrap;
 
+pub mod complex;
 pub mod list;
 pub mod table;
 pub mod text;
 
+pub use complex::{ComplexWidget, MultipleSelect, SingleSelect};
 pub use list::*;
 pub use table::*;
 pub use text::*;
 
 use crossterm::event::{KeyEvent, MouseEvent};
-use tui::{backend::Backend, layout::Rect, widgets::Block, Frame};
+use tui::{backend::Backend, layout::Rect, Frame};
 
-use crate::EventResult;
+use super::event::EventResult;
 
 #[derive(Debug)]
 pub enum WidgetItem {
@@ -57,9 +59,13 @@ impl WidgetItem {
 }
 
 pub trait WidgetTrait {
+    fn id(&self) -> &str;
+    fn title(&self) -> &str;
+
     fn selectable(&self) -> bool {
         false
     }
+    fn chunk(&self) -> Rect;
     fn select_next(&mut self, _: usize) {}
     fn select_prev(&mut self, _: usize) {}
     fn select_first(&mut self) {}
@@ -81,14 +87,15 @@ pub trait WidgetTrait {
 
 #[derive(Debug)]
 pub enum Widget<'a> {
-    List(List<'a>),
-    Text(Text<'a>),
-    Table(Table<'a>),
+    List(Box<List<'a>>),
+    Text(Box<Text<'a>>),
+    Table(Box<Table<'a>>),
+    Complex(Box<ComplexWidget<'a>>),
 }
 
 impl Default for Widget<'_> {
     fn default() -> Self {
-        Widget::Text(Text::new(Vec::new()))
+        Widget::Text(Box::new(Text::new(Vec::new())))
     }
 }
 
@@ -118,6 +125,14 @@ impl<'a> Widget<'a> {
         }
     }
 
+    pub fn as_complex(&self) -> &ComplexWidget {
+        if let Self::Complex(w) = self {
+            w
+        } else {
+            panic!("called as_complex() on {:?}", self)
+        }
+    }
+
     // as_mut_*
     pub fn as_mut_list(&mut self) -> &mut List<'a> {
         if let Self::List(w) = self {
@@ -142,6 +157,14 @@ impl<'a> Widget<'a> {
             panic!("called as_mut_table() on {:?}", self)
         }
     }
+
+    pub fn as_mut_complex(&mut self) -> &mut ComplexWidget<'a> {
+        if let Self::Complex(w) = self {
+            w
+        } else {
+            panic!("called as_mut_complex() on {:?}", self)
+        }
+    }
 }
 
 impl WidgetTrait for Widget<'_> {
@@ -150,6 +173,7 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.selectable(),
             Widget::Text(w) => w.selectable(),
             Widget::Table(w) => w.selectable(),
+            Widget::Complex(w) => w.selectable(),
         }
     }
 
@@ -158,6 +182,7 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.select_next(index),
             Widget::Text(w) => w.select_next(index),
             Widget::Table(w) => w.select_next(index),
+            Widget::Complex(w) => w.select_next(index),
         }
     }
 
@@ -166,6 +191,7 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.select_prev(index),
             Widget::Text(w) => w.select_prev(index),
             Widget::Table(w) => w.select_prev(index),
+            Widget::Complex(w) => w.select_prev(index),
         }
     }
 
@@ -174,6 +200,7 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.select_first(),
             Widget::Text(w) => w.select_first(),
             Widget::Table(w) => w.select_first(),
+            Widget::Complex(w) => w.select_first(),
         }
     }
 
@@ -182,6 +209,7 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.select_last(),
             Widget::Text(w) => w.select_last(),
             Widget::Table(w) => w.select_last(),
+            Widget::Complex(w) => w.select_last(),
         }
     }
 
@@ -190,6 +218,7 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.set_items(items),
             Widget::Text(w) => w.set_items(items),
             Widget::Table(w) => w.set_items(items),
+            Widget::Complex(w) => w.set_items(items),
         }
     }
 
@@ -198,6 +227,7 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.update_chunk(area),
             Widget::Text(w) => w.update_chunk(area),
             Widget::Table(w) => w.update_chunk(area),
+            Widget::Complex(w) => w.update_chunk(area),
         }
     }
 
@@ -206,6 +236,7 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.clear(),
             Widget::Text(w) => w.clear(),
             Widget::Table(w) => w.clear(),
+            Widget::Complex(w) => w.clear(),
         }
     }
 
@@ -214,6 +245,7 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.get_item(),
             Widget::Text(w) => w.get_item(),
             Widget::Table(w) => w.get_item(),
+            Widget::Complex(w) => w.get_item(),
         }
     }
 
@@ -222,6 +254,7 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.append_items(items),
             Widget::Text(w) => w.append_items(items),
             Widget::Table(w) => w.append_items(items),
+            Widget::Complex(w) => w.append_items(items),
         }
     }
 
@@ -230,6 +263,7 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.on_mouse_event(ev),
             Widget::Text(w) => w.on_mouse_event(ev),
             Widget::Table(w) => w.on_mouse_event(ev),
+            Widget::Complex(w) => w.on_mouse_event(ev),
         }
     }
 
@@ -238,23 +272,52 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.on_key_event(ev),
             Widget::Text(w) => w.on_key_event(ev),
             Widget::Table(w) => w.on_key_event(ev),
+            Widget::Complex(w) => w.on_key_event(ev),
+        }
+    }
+
+    fn title(&self) -> &str {
+        match self {
+            Widget::List(w) => w.title(),
+            Widget::Text(w) => w.title(),
+            Widget::Table(w) => w.title(),
+            Widget::Complex(w) => w.title(),
+        }
+    }
+
+    fn chunk(&self) -> Rect {
+        match self {
+            Widget::List(w) => w.chunk(),
+            Widget::Text(w) => w.chunk(),
+            Widget::Table(w) => w.chunk(),
+            Widget::Complex(w) => w.chunk(),
+        }
+    }
+
+    fn id(&self) -> &str {
+        match self {
+            Widget::List(w) => w.id(),
+            Widget::Text(w) => w.id(),
+            Widget::Table(w) => w.id(),
+            Widget::Complex(w) => w.id(),
         }
     }
 }
 
 pub trait RenderTrait {
-    fn render<B: Backend>(&mut self, f: &mut Frame<B>, block: Block, chunk: Rect);
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>, selected: bool);
 }
 
 impl RenderTrait for Widget<'_> {
-    fn render<B>(&mut self, f: &mut Frame<B>, block: Block, chunk: Rect)
+    fn render<B>(&mut self, f: &mut Frame<B>, selected: bool)
     where
         B: Backend,
     {
         match self {
-            Widget::List(w) => w.render(f, block, chunk),
-            Widget::Text(w) => w.render(f, block, chunk),
-            Widget::Table(w) => w.render(f, block, chunk),
+            Widget::List(w) => w.render(f, selected),
+            Widget::Text(w) => w.render(f, selected),
+            Widget::Table(w) => w.render(f, selected),
+            Widget::Complex(w) => w.render(f, selected),
         }
     }
 }

@@ -1,7 +1,6 @@
 use crate::{
-    contains,
     crossterm::event::{KeyCode, KeyEvent, MouseEvent},
-    focus_block, mouse_pos,
+    event::EventResult,
     tui::{
         backend::Backend,
         layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -10,8 +9,11 @@ use crate::{
         widgets::{Block, Paragraph},
         Frame,
     },
+    util::{
+        contains, default_focus_block, focus_block, focus_title_style, key_event_to_code, mouse_pos,
+    },
     widget::*,
-    EventResult,
+    Window,
 };
 
 use fuzzy_matcher::skim::SkimMatcherV2;
@@ -19,20 +21,24 @@ use fuzzy_matcher::FuzzyMatcher;
 
 use unicode_width::UnicodeWidthStr;
 
+use derivative::*;
 use std::collections::HashSet;
 
 use super::input::InputForm;
 
+#[derive(Derivative)]
+#[derivative(Debug)]
 struct SelectForm<'a> {
     list_items: HashSet<String>,
     selected_items: HashSet<String>,
     filter: String,
-    list_widget: Widget<'a>,
-    selected_widget: Widget<'a>,
+    list_widget: List<'a>,
+    selected_widget: List<'a>,
     chunk: Rect,
     focus_id: usize,
-    matcher: SkimMatcherV2,
     direction: Direction,
+    #[derivative(Debug = "ignore")]
+    matcher: SkimMatcherV2,
 }
 
 impl Default for SelectForm<'_> {
@@ -41,8 +47,8 @@ impl Default for SelectForm<'_> {
             list_items: HashSet::new(),
             selected_items: HashSet::new(),
             filter: String::default(),
-            list_widget: Widget::List(List::default()),
-            selected_widget: Widget::List(List::default()),
+            list_widget: List::default(),
+            selected_widget: List::default(),
             chunk: Rect::default(),
             focus_id: 0,
             matcher: SkimMatcherV2::default(),
@@ -94,7 +100,7 @@ impl<'a> SelectForm<'a> {
         }
     }
 
-    fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>, _: bool) {
         let (chunks, arrow) = self.chunks_and_arrow();
 
         let arrow = Paragraph::new(Span::styled(
@@ -104,13 +110,11 @@ impl<'a> SelectForm<'a> {
         .alignment(Alignment::Center)
         .block(Block::default());
 
-        self.list_widget
-            .render(f, focus_block("Items", self.focus_id == 0), chunks[0]);
+        self.list_widget.render(f, self.focus_id == 0);
 
         f.render_widget(arrow, chunks[1]);
 
-        self.selected_widget
-            .render(f, focus_block("Selected", self.focus_id == 1), chunks[2]);
+        self.selected_widget.render(f, self.focus_id == 1);
     }
 
     fn update_layout(&mut self, chunk: Rect) {
@@ -141,21 +145,27 @@ impl<'a> SelectForm<'a> {
 
         let (chunks, _) = self.chunks_and_arrow();
 
-        self.list_widget
-            .update_chunk(focus_block("", true).inner(chunks[0]));
-        self.selected_widget
-            .update_chunk(focus_block("", true).inner(chunks[2]));
+        self.list_widget.update_chunk(chunks[0]);
+        self.selected_widget.update_chunk(chunks[2]);
     }
 
-    fn select_next(&mut self) {
-        self.focused_form_mut().select_next(1);
+    fn select_next(&mut self, i: usize) {
+        self.focused_form_mut().select_next(i);
     }
 
-    fn select_prev(&mut self) {
-        self.focused_form_mut().select_prev(1);
+    fn select_prev(&mut self, i: usize) {
+        self.focused_form_mut().select_prev(i);
     }
 
-    fn focused_form_mut(&mut self) -> &mut Widget<'a> {
+    fn select_first(&mut self) {
+        self.focused_form_mut().select_first();
+    }
+
+    fn select_last(&mut self) {
+        self.focused_form_mut().select_last();
+    }
+
+    fn focused_form_mut(&mut self) -> &mut List<'a> {
         if self.focus_id == 0 {
             &mut self.list_widget
         } else {
@@ -163,7 +173,7 @@ impl<'a> SelectForm<'a> {
         }
     }
 
-    fn unfocused_form_mut(&mut self) -> &mut Widget<'a> {
+    fn unfocused_form_mut(&mut self) -> &mut List<'a> {
         if self.focus_id == 1 {
             &mut self.list_widget
         } else {
@@ -187,7 +197,7 @@ impl<'a> SelectForm<'a> {
         // 1. フィルタされているアイテムをフォーカスしているリストからアイテムを取り出す
         // 2. 取得したアイテムをフォーカスしているリストから削除
         // 3  フォーカスしていないリストに追加
-        let list = self.focused_form_mut().as_mut_list();
+        let list = self.focused_form_mut();
         let selected_item = list.selected().map(|index| list.items()[index].to_string());
 
         if let Some(selected_item) = selected_item {
@@ -218,11 +228,9 @@ impl<'a> SelectForm<'a> {
         unfocused_item.sort();
 
         self.focused_form_mut()
-            .as_mut_list()
             .set_items(WidgetItem::Array(focused_item));
 
         self.unfocused_form_mut()
-            .as_mut_list()
             .set_items(WidgetItem::Array(unfocused_item));
     }
 
@@ -282,21 +290,19 @@ impl<'a> SelectForm<'a> {
         self.list_widget
             .set_items(WidgetItem::Array(self.filter_items(&self.list_items)));
 
-        let list = self.list_widget.as_mut_list();
-        let current_pos = list.state().selected();
+        let current_pos = self.list_widget.state().selected();
 
         if let Some(pos) = current_pos {
-            let list = self.list_widget.as_mut_list();
-            if list.items().len() <= pos {
-                list.select_last()
+            if self.list_widget.items().len() <= pos {
+                self.list_widget.select_last()
             }
         }
     }
 
     fn status(&self) -> (usize, usize) {
-        let mut pos = self.list_widget.as_list().state().selected().unwrap_or(0);
+        let mut pos = self.list_widget.state().selected().unwrap_or(0);
 
-        let size = self.list_widget.as_list().items().len();
+        let size = self.list_widget.items().len();
 
         if 0 < size {
             pos += 1;
@@ -340,14 +346,41 @@ const LAYOUT_INDEX_FOR_INPUT_FORM: usize = 0;
 const LAYOUT_INDEX_FOR_STATUS: usize = 1;
 const LAYOUT_INDEX_FOR_SELECT_FORM: usize = 2;
 
+#[derive(Derivative)]
+#[derivative(Debug, Default)]
 pub struct MultipleSelect<'a> {
     id: String,
     title: String,
+    chunk_index: usize,
     input_widget: InputForm<'a>,
     selected_widget: SelectForm<'a>,
     layout: Layout,
-    block: Block<'a>,
     chunk: Rect,
+}
+
+impl RenderTrait for MultipleSelect<'_> {
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>, selected: bool) {
+        let title = self.title.to_string();
+        let block = focus_block(&title, selected);
+        let inner_chunk = block.inner(self.chunk);
+
+        f.render_widget(
+            block.title(Span::styled(
+                format!(" {} ", self.title()),
+                focus_title_style(selected),
+            )),
+            self.chunk,
+        );
+
+        self.input_widget.render(f);
+
+        let status = self.selected_widget.status();
+        f.render_widget(
+            Paragraph::new(format!("[{}/{}]", status.0, status.1)),
+            self.layout.split(inner_chunk)[LAYOUT_INDEX_FOR_STATUS],
+        );
+        self.selected_widget.render(f, selected);
+    }
 }
 
 impl<'a> MultipleSelect<'a> {
@@ -369,45 +402,31 @@ impl<'a> MultipleSelect<'a> {
                 Constraint::Min(3),
             ]);
 
+        let mut selected_widget = SelectForm::default();
+
+        selected_widget.list_widget = selected_widget.list_widget.set_title("Item");
+        selected_widget.selected_widget = selected_widget.selected_widget.set_title("Selected");
+
         Self {
             id: id.into(),
             title: title.into(),
             layout,
+            selected_widget,
             ..Self::default()
         }
     }
 
-    pub fn block(mut self, block: Block<'a>) -> Self {
-        self.block = block;
+    pub fn on_select<F>(mut self, f: F) -> Self
+    where
+        F: Fn(&mut Window, &String) -> EventResult + 'static + Clone,
+    {
+        self.selected_widget.list_widget = self.selected_widget.list_widget.on_select(f.clone());
+        self.selected_widget.selected_widget = self.selected_widget.selected_widget.on_select(f);
         self
     }
 
     pub fn id(&self) -> &str {
         &self.id
-    }
-
-    pub fn update_chunk(&mut self, chunk: Rect) {
-        self.chunk = chunk;
-
-        let inner_chunks = self.layout.split(self.block.inner(self.chunk));
-
-        self.input_widget
-            .update_chunk(inner_chunks[LAYOUT_INDEX_FOR_INPUT_FORM]);
-
-        self.selected_widget
-            .update_chunk(inner_chunks[LAYOUT_INDEX_FOR_SELECT_FORM]);
-    }
-
-    pub fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
-        f.render_widget(self.block.clone().title(self.title.as_str()), self.chunk);
-        self.input_widget.render(f);
-
-        let status = self.selected_widget.status();
-        f.render_widget(
-            Paragraph::new(format!("[{}/{}]", status.0, status.1)),
-            self.layout.split(self.block.inner(self.chunk))[LAYOUT_INDEX_FOR_STATUS],
-        );
-        self.selected_widget.render(f);
     }
 
     pub fn insert_char(&mut self, c: char) {
@@ -436,25 +455,8 @@ impl<'a> MultipleSelect<'a> {
         self.selected_widget.toggle_focus();
     }
 
-    pub fn select_next_item(&mut self) {
-        self.selected_widget.select_next();
-    }
-
-    pub fn select_prev_item(&mut self) {
-        self.selected_widget.select_prev();
-    }
-
     pub fn toggle_select_unselect(&mut self) {
         self.selected_widget.toggle_select_unselect();
-    }
-
-    pub fn set_items(&mut self, items: Vec<String>) {
-        self.clear_filter();
-        self.selected_widget.set_items(items);
-    }
-
-    pub fn to_vec_selected_items(&self) -> Vec<String> {
-        self.selected_widget.to_vec_selected_items()
     }
 
     pub fn selected_items(&self) -> &HashSet<String> {
@@ -487,11 +489,60 @@ impl<'a> MultipleSelect<'a> {
     pub fn move_cursor_end(&mut self) {
         self.input_widget.move_cursor_end();
     }
+}
 
-    pub fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
+impl WidgetTrait for MultipleSelect<'_> {
+    fn selectable(&self) -> bool {
+        true
+    }
+
+    fn select_next(&mut self, i: usize) {
+        self.selected_widget.select_next(i);
+    }
+
+    fn select_prev(&mut self, i: usize) {
+        self.selected_widget.select_prev(i);
+    }
+
+    fn select_first(&mut self) {
+        self.selected_widget.select_first()
+    }
+
+    fn select_last(&mut self) {
+        self.selected_widget.select_last()
+    }
+
+    fn set_items(&mut self, items: WidgetItem) {
+        self.clear_filter();
+        self.selected_widget.set_items(items.array());
+    }
+
+    fn append_items(&mut self, _: WidgetItem) {}
+
+    fn get_item(&self) -> Option<WidgetItem> {
+        Some(WidgetItem::Array(
+            self.selected_widget.to_vec_selected_items(),
+        ))
+    }
+
+    fn update_chunk(&mut self, chunk: Rect) {
+        self.chunk = chunk;
+
+        let inner_chunks = self.layout.split(default_focus_block().inner(self.chunk));
+
+        self.input_widget
+            .update_chunk(inner_chunks[LAYOUT_INDEX_FOR_INPUT_FORM]);
+
+        self.selected_widget
+            .update_chunk(inner_chunks[LAYOUT_INDEX_FOR_SELECT_FORM]);
+    }
+
+    fn clear(&mut self) {}
+
+    fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         let pos = (ev.column, ev.row);
 
-        let chunks = self.layout.split(self.block.inner(self.chunk));
+        let chunks = self.layout.split(default_focus_block().inner(self.chunk));
 
         if contains(chunks[LAYOUT_INDEX_FOR_INPUT_FORM], pos) {
             self.input_widget.on_mouse_event(ev)
@@ -502,28 +553,33 @@ impl<'a> MultipleSelect<'a> {
         }
     }
 
-    pub fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
-        match ev.code {
-            KeyCode::Enter => {
-                self.toggle_select_unselect();
-                return EventResult::Nop;
+    fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
+        match self.input_widget.on_key_event(ev) {
+            EventResult::Ignore => {
+                if let KeyCode::Tab | KeyCode::BackTab = key_event_to_code(ev) {
+                    self.toggle_focus();
+                } else {
+                    return self.selected_widget.on_key_event(ev);
+                }
             }
-            _ => self.selected_widget.on_key_event(ev),
+            _ => {
+                self.selected_widget
+                    .update_filter(self.input_widget.content());
+            }
         }
+        EventResult::Nop
     }
-}
 
-impl Default for MultipleSelect<'_> {
-    fn default() -> Self {
-        Self {
-            id: String::default(),
-            title: String::default(),
-            input_widget: InputForm::default(),
-            selected_widget: SelectForm::default(),
-            chunk: Rect::default(),
-            layout: Layout::default(),
-            block: Block::default(),
-        }
+    fn id(&self) -> &str {
+        &self.id
+    }
+
+    fn title(&self) -> &str {
+        &self.title
+    }
+
+    fn chunk(&self) -> Rect {
+        self.chunk
     }
 }
 

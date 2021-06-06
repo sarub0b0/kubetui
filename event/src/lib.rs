@@ -26,7 +26,11 @@ impl From<char> for UserEvent {
         UserEvent::Key(KeyEvent::from(KeyCode::Char(c)))
     }
 }
-
+impl From<KeyCode> for UserEvent {
+    fn from(code: KeyCode) -> Self {
+        UserEvent::Key(KeyEvent::from(code))
+    }
+}
 pub enum Event {
     Kube(Kube),
     User(UserEvent),

@@ -1,33 +1,34 @@
-use ::event::UserEvent;
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use std::cell::RefCell;
 use std::panic;
 use std::rc::Rc;
 use std::thread;
 use std::time;
+use tui_wrapper::widget::ComplexWidget;
+use tui_wrapper::widget::MultipleSelect;
 
 use std::io;
-
-use tui_wrapper::crossterm::{
-    cursor::Show,
-    event::{DisableMouseCapture, EnableMouseCapture, KeyCode},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
-
-use tui_wrapper::tui::{
-    backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Direction, Layout, Rect},
-    widgets::{Block, Borders},
-    Terminal, TerminalOptions, Viewport,
-};
 
 use clipboard_wrapper::{ClipboardContextWrapper, ClipboardProvider};
 
 use ::event::{input::*, kubernetes::*, tick::*, Event};
-use tui_wrapper::complex_widgets::*;
-use tui_wrapper::widget::*;
-use tui_wrapper::*;
+use tui_wrapper::{
+    crossterm::{
+        cursor::Show,
+        event::{DisableMouseCapture, EnableMouseCapture, KeyCode},
+        execute,
+        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    },
+    event::EventResult,
+    tab::WidgetData,
+    tui::{
+        backend::{Backend, CrosstermBackend},
+        layout::{Constraint, Direction, Layout, Rect},
+        Terminal, TerminalOptions, Viewport,
+    },
+    widget::{complex::SingleSelect, List, Table, Text, Widget, WidgetItem, WidgetTrait},
+    Tab, Window, WindowEvent,
+};
 
 extern crate kubetui;
 use kubetui::*;
@@ -65,6 +66,9 @@ fn run() {
     let backend = CrosstermBackend::new(io::stdout());
     let chunk = backend.size().unwrap();
 
+    let current_namespace = Rc::new(RefCell::new("None".to_string()));
+    let mut current_context = "None".to_string();
+
     // TODO WSLの時はclip.exeにデータを渡せるようにデータ構造を定義する
     let clipboard: Result<ClipboardContextWrapper, _> =
         clipboard_wrapper::ClipboardContextWrapper::new();
@@ -96,10 +100,13 @@ fn run() {
     let mut apis_widget = Text::new(vec![]);
 
     let tx_apis = tx_main.clone();
-    let open_subwin = move || {
+
+    let open_subwin = move |w: &mut Window| {
         tx_apis.send(Event::Kube(Kube::GetAPIsRequest)).unwrap();
-        EventResult::WindowEvent(WindowEvent::OpenSubWindow(view_id::subwin_apis))
+        w.open_popup(view_id::subwin_apis);
+        EventResult::Nop
     };
+
     apis_widget.add_action('/', open_subwin.clone());
     apis_widget.add_action('f', open_subwin);
 
@@ -111,9 +118,9 @@ fn run() {
             view_id::tab_pods,
             "1:Pods",
             vec![
-                Pane::new(
-                    "Pods",
-                    Widget::Table(
+                WidgetData {
+                    chunk_index: 0,
+                    widget: Widget::Table(Box::new(
                         Table::new(
                             vec![vec![]],
                             vec![
@@ -128,17 +135,21 @@ fn run() {
                             tx_pods
                                 .send(Event::Kube(Kube::LogStreamRequest(v[0].to_string())))
                                 .unwrap();
-                        }),
-                    ),
-                    0,
-                    view_id::tab_pods_pane_pods,
-                ),
-                Pane::new(
-                    "Logs",
-                    Widget::Text(logs_widget),
-                    1,
-                    view_id::tab_pods_pane_logs,
-                ),
+
+                            EventResult::Window(WindowEvent::Continue)
+                        })
+                        .set_id(view_id::tab_pods_pane_pods)
+                        .set_title("Pods"),
+                    )),
+                },
+                WidgetData {
+                    chunk_index: 1,
+                    widget: Widget::Text(Box::new(
+                        logs_widget
+                            .set_title("Logs")
+                            .set_id(view_id::tab_pods_pane_logs),
+                    )),
+                },
             ],
             Layout::default()
                 .direction(Direction::Vertical)
@@ -148,25 +159,31 @@ fn run() {
             view_id::tab_configs,
             "2:Configs",
             vec![
-                Pane::new(
-                    "Configs",
-                    Widget::List(List::new(vec![]).on_select(move |w, item| {
-                        if let Some(pane) = w.pane_mut(view_id::tab_configs_pane_raw_data) {
-                            pane.clear();
-                        }
-                        tx_configs
-                            .send(Event::Kube(Kube::ConfigRequest(item.to_string())))
-                            .unwrap();
-                    })),
-                    0,
-                    view_id::tab_configs_pane_configs,
-                ),
-                Pane::new(
-                    "Raw Data",
-                    Widget::Text(raw_data_widget),
-                    1,
-                    view_id::tab_configs_pane_raw_data,
-                ),
+                WidgetData {
+                    chunk_index: 0,
+                    widget: Widget::List(Box::new(
+                        List::new(vec![])
+                            .on_select(move |w, item| {
+                                if let Some(pane) = w.pane_mut(view_id::tab_configs_pane_raw_data) {
+                                    pane.clear();
+                                }
+                                tx_configs
+                                    .send(Event::Kube(Kube::ConfigRequest(item.to_string())))
+                                    .unwrap();
+                                EventResult::Window(WindowEvent::Continue)
+                            })
+                            .set_id(view_id::tab_configs_pane_configs)
+                            .set_title("Configs"),
+                    )),
+                },
+                WidgetData {
+                    widget: Widget::Text(Box::new(
+                        raw_data_widget
+                            .set_id(view_id::tab_configs_pane_raw_data)
+                            .set_title("Raw Data"),
+                    )),
+                    chunk_index: 1,
+                },
             ],
             Layout::default()
                 .direction(Direction::Vertical)
@@ -175,44 +192,78 @@ fn run() {
         Tab::new(
             view_id::tab_event,
             "3:Event",
-            vec![Pane::new(
-                "Event",
-                Widget::Text(Text::new(vec![]).enable_wrap().enable_follow()),
-                0,
-                view_id::tab_event_pane_event,
-            )],
+            vec![WidgetData {
+                widget: Widget::Text(Box::new(
+                    Text::new(vec![])
+                        .enable_wrap()
+                        .enable_follow()
+                        .set_title("Event")
+                        .set_id(view_id::tab_event_pane_event),
+                )),
+                chunk_index: 0,
+            }],
             Layout::default().constraints([Constraint::Percentage(100)].as_ref()),
         ),
         Tab::new(
             view_id::tab_apis,
             "4:APIs",
-            vec![Pane::new(
-                "APIs",
-                Widget::Text(apis_widget),
-                0,
-                view_id::tab_apis_pane_apis,
-            )],
+            vec![WidgetData {
+                widget: Widget::Text(Box::new(
+                    apis_widget
+                        .set_id(view_id::tab_apis_pane_apis)
+                        .set_title("APIs"),
+                )),
+                chunk_index: 0,
+            }],
             Layout::default().constraints([Constraint::Percentage(100)].as_ref()),
         ),
     ];
 
-    // TODO on_selectハンドラーを実装する
-    let mut subwin_namespace = SubWindow::new(
-        view_id::subwin_ns,
-        "Namespace",
-        SubWidget::Single(SingleSelect::new(view_id::subwin_ns_pane_ns, "Namespace")),
-        Some(Block::default().borders(Borders::ALL)),
-    );
+    let tx_ns = tx_main.clone();
+    let cn = current_namespace.clone();
+    let subwin_namespace = Widget::Complex(Box::new(ComplexWidget::from(
+        SingleSelect::new(view_id::subwin_ns, "Namespace").on_select(
+            move |w: &mut Window, item: &String| {
+                tx_ns
+                    .send(Event::Kube(Kube::SetNamespace(item.to_string())))
+                    .unwrap();
 
-    let mut subwin_apis = SubWindow::new(
-        view_id::subwin_apis,
-        "APIs",
-        SubWidget::Multiple(MultipleSelect::new(
-            view_id::subwin_apis_pane,
-            "Select APIs",
-        )),
-        Some(Block::default().borders(Borders::ALL)),
-    );
+                let mut ns = cn.borrow_mut();
+                *ns = item.to_string();
+
+                w.close_popup();
+
+                w.pane_clear(view_id::tab_pods_pane_logs);
+                w.pane_clear(view_id::tab_configs_pane_raw_data);
+                w.pane_clear(view_id::tab_event_pane_event);
+                w.pane_clear(view_id::tab_apis_pane_apis);
+
+                EventResult::Nop
+            },
+        ),
+    )));
+
+    let tx_apis = tx_main.clone();
+    let subwin_apis = Widget::Complex(Box::new(ComplexWidget::from(
+        MultipleSelect::new(view_id::subwin_apis, "APIs").on_select(move |w, _| {
+            if let Some(widget) = w.pane_mut(view_id::subwin_apis) {
+                if let ComplexWidget::MultipleSelect(widget) = widget.as_mut_complex() {
+                    widget.toggle_select_unselect();
+
+                    if let Some(item) = widget.get_item() {
+                        tx_apis
+                            .send(Event::Kube(Kube::SetAPIsRequest(item.array())))
+                            .unwrap();
+                    }
+
+                    if widget.selected_items().is_empty() {
+                        w.pane_clear(view_id::tab_apis_pane_apis)
+                    }
+                }
+            }
+            EventResult::Nop
+        }),
+    )));
 
     let mut window = Window::new(tabs).status_target_id(vec![
         (view_id::tab_pods, view_id::tab_pods_pane_logs),
@@ -222,86 +273,50 @@ fn run() {
     ]);
 
     let tx_ns = tx_main.clone();
-    window.add_action('n', move |_| {
+    window.add_action('n', move |w| {
         tx_ns.send(Event::Kube(Kube::GetNamespacesRequest)).unwrap();
-        EventResult::WindowEvent(WindowEvent::OpenSubWindow(view_id::subwin_ns))
+        w.open_popup(view_id::subwin_ns);
+        EventResult::Nop
     });
 
-    window.add_action('q', |_| EventResult::WindowEvent(WindowEvent::CloseWindow));
-    window.add_action(UserEvent::from_key(KeyCode::Esc), |_| {
-        EventResult::WindowEvent(WindowEvent::CloseWindow)
-    });
+    let fn_close = |w: &mut Window| {
+        if w.opening_popup() {
+            w.close_popup();
+            EventResult::Nop
+        } else {
+            EventResult::Window(WindowEvent::CloseWindow)
+        }
+    };
+    window.add_action('q', fn_close);
+    window.add_action(KeyCode::Esc, fn_close);
+
+    window.add_popup(vec![subwin_namespace, subwin_apis]);
 
     terminal.clear().unwrap();
 
     window.update_chunks(terminal.size().unwrap());
-    subwin_namespace.update_chunks(terminal.size().unwrap());
-    subwin_apis.update_chunks(terminal.size().unwrap());
-
-    let mut current_namespace = "None".to_string();
-    let mut current_context = "None".to_string();
 
     tx_main
         .send(Event::Kube(Kube::GetCurrentContextRequest))
         .unwrap();
 
-    let mut subwin_id: Option<&str> = None;
-
     loop {
         terminal
             .draw(|f| {
-                window.render(f, &current_context, &current_namespace);
-
-                if let Some(id) = subwin_id {
-                    match id {
-                        view_id::subwin_ns => {
-                            subwin_namespace.render(f);
-                        }
-                        view_id::subwin_apis => {
-                            subwin_apis.render(f);
-                        }
-                        _ => {}
-                    }
-                }
+                let ns: &str = &current_namespace.borrow();
+                window.render(f, &current_context, ns);
             })
             .unwrap();
 
-        let event = if let Some(id) = subwin_id {
-            match id {
-                view_id::subwin_ns => namespace_subwin_action(
-                    &mut window,
-                    &mut subwin_namespace,
-                    &tx_main,
-                    &rx_main,
-                    &mut current_namespace,
-                ),
-
-                view_id::subwin_apis => {
-                    apis_subwin_action(&mut window, &mut subwin_apis, &tx_main, &rx_main)
-                }
-                _ => WindowEvent::Continue,
-            }
-        } else {
-            window_action(&mut window, &rx_main)
-        };
-
-        match event {
+        match window_action(&mut window, &rx_main) {
             WindowEvent::Continue => {}
             WindowEvent::CloseWindow => {
                 break;
-            }
-            WindowEvent::CloseSubWindow => {
-                subwin_id = None;
-            }
-            WindowEvent::OpenSubWindow(id) => {
-                subwin_id = Some(id);
             }
             WindowEvent::ResizeWindow(w, h) => {
                 let chunk = Rect::new(0, 0, w, h);
                 terminal.resize(chunk).unwrap();
                 window.update_chunks(chunk);
-                subwin_namespace.update_chunks(chunk);
-                subwin_apis.update_chunks(chunk);
             }
             WindowEvent::UpdateContents(kube_ev) => match kube_ev {
                 Kube::Pod(info) => {
@@ -337,7 +352,8 @@ fn run() {
 
                 Kube::GetCurrentContextResponse(ctx, ns) => {
                     current_context = ctx;
-                    current_namespace = ns;
+                    let mut cn = current_namespace.borrow_mut();
+                    *cn = ns;
                 }
                 Kube::Event(ev) => {
                     set_items_window_pane(
@@ -354,13 +370,15 @@ fn run() {
                     );
                 }
                 Kube::GetNamespacesResponse(ns) => {
-                    let pane = subwin_namespace.pane_mut();
-                    pane.set_items(WidgetItem::Array(ns));
+                    set_items_window_pane(&mut window, view_id::subwin_ns, WidgetItem::Array(ns));
                 }
 
                 Kube::GetAPIsResponse(apis) => {
-                    let pane = subwin_apis.pane_mut();
-                    pane.set_items(WidgetItem::Array(apis));
+                    set_items_window_pane(
+                        &mut window,
+                        view_id::subwin_apis,
+                        WidgetItem::Array(apis),
+                    );
                 }
                 _ => unreachable!(),
             },

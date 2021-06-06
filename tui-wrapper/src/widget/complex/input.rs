@@ -6,11 +6,11 @@ use tui::{
     layout::Rect,
     style::*,
     text::{Span, Spans},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Paragraph},
     Frame,
 };
 
-use crate::{crossterm::event::MouseEvent, key_event_to_code, widget::*, EventResult};
+use crate::{crossterm::event::MouseEvent, event::EventResult, key_event_to_code, util, widget::*};
 
 #[derive(Debug)]
 enum Mode {
@@ -80,32 +80,17 @@ impl Default for Cursor {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct InputForm<'a> {
     content: String,
     cursor: Cursor,
-    widget: Widget<'a>,
+    widget: Text<'a>,
     chunk: Rect,
-}
-
-impl Default for InputForm<'_> {
-    fn default() -> Self {
-        Self {
-            content: String::default(),
-            cursor: Cursor::default(),
-            widget: Widget::Text(Text::default()),
-            chunk: Rect::default(),
-        }
-    }
 }
 
 impl<'a> InputForm<'a> {
     fn block() -> Block<'a> {
-        Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::DarkGray))
-            .title(Span::styled("Filter", Style::reset()))
-            .title_offset(1)
+        util::focus_block("", false).title(Span::styled("Filter", Style::reset()))
     }
 
     pub fn render<B: Backend>(&mut self, f: &mut Frame<B>) {

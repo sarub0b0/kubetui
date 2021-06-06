@@ -7,7 +7,7 @@ use tui::{
     layout::Rect,
     style::{Modifier, Style},
     text::{Span, Spans},
-    widgets::{Block, Paragraph},
+    widgets::Paragraph,
     Frame,
 };
 
@@ -24,9 +24,12 @@ use super::{
     RenderTrait, {WidgetItem, WidgetTrait},
 };
 
-use crate::{key_event_to_code, EventResult};
-
-type InnerCallback = Rc<dyn Fn() -> EventResult>;
+use crate::{
+    event::{Callback, EventResult, InnerCallback},
+    key_event_to_code,
+    util::{default_focus_block, focus_block},
+    Window,
+};
 
 #[derive(Debug, PartialEq)]
 enum RangeType {
@@ -102,8 +105,11 @@ struct HighlightContent<'a> {
 }
 
 #[derive(Derivative)]
-#[derivative(Debug, Clone, Default)]
+#[derivative(Debug, Default)]
 pub struct Text<'a> {
+    id: String,
+    title: String,
+    chunk_index: usize,
     items: Vec<String>,
     state: TextState,
     spans: Vec<Spans<'a>>,
@@ -111,6 +117,7 @@ pub struct Text<'a> {
     wrap: bool,
     follow: bool,
     chunk: Rect,
+    inner_chunk: Rect,
     highlight_content: Option<HighlightContent<'a>>,
     #[derivative(Debug = "ignore")]
     clipboard: Option<Rc<RefCell<ClipboardContextWrapper>>>,
@@ -160,6 +167,16 @@ impl Text<'_> {
         }
     }
 
+    pub fn set_id(mut self, id: impl Into<String>) -> Self {
+        self.id = id.into();
+        self
+    }
+
+    pub fn set_title(mut self, title: impl Into<String>) -> Self {
+        self.title = title.into();
+        self
+    }
+
     pub fn enable_wrap(mut self) -> Self {
         self.wrap = true;
         self
@@ -177,7 +194,7 @@ impl Text<'_> {
 
     pub fn add_action<F, E: Into<UserEvent>>(&mut self, ev: E, cb: F)
     where
-        F: Fn() -> EventResult + 'static,
+        F: Fn(&mut Window) -> EventResult + 'static,
     {
         self.callbacks.push((ev.into(), Rc::new(cb)));
     }
@@ -238,7 +255,7 @@ impl Text<'_> {
 impl<'a> Text<'a> {
     fn wrap_width(&self) -> usize {
         if self.wrap {
-            self.chunk.width as usize
+            self.inner_chunk.width as usize
         } else {
             usize::MAX
         }
@@ -262,16 +279,16 @@ impl<'a> Text<'a> {
         self.row_size = self
             .spans()
             .len()
-            .saturating_sub(self.chunk.height as usize) as u64;
+            .saturating_sub(self.inner_chunk.height as usize) as u64;
     }
 
     fn view_range(&self) -> (usize, usize) {
         let start = self.state.selected_vertical() as usize;
 
-        let end = if self.spans.len() < self.chunk.height as usize {
+        let end = if self.spans.len() < self.inner_chunk.height as usize {
             self.spans.len()
         } else {
-            start + self.chunk.height as usize
+            start + self.inner_chunk.height as usize
         };
 
         (start, end)
@@ -324,8 +341,9 @@ impl WidgetTrait for Text<'_> {
         }
     }
 
-    fn update_chunk(&mut self, area: Rect) {
-        self.chunk = area;
+    fn update_chunk(&mut self, chunk: Rect) {
+        self.chunk = chunk;
+        self.inner_chunk = default_focus_block().inner(chunk);
 
         let is_bottom = self.is_bottom();
         let pos = self.state.selected_vertical();
@@ -382,8 +400,8 @@ impl WidgetTrait for Text<'_> {
         }
 
         let (mut col, mut row) = (
-            ev.column.saturating_sub(self.chunk.left()) as usize,
-            ev.row.saturating_sub(self.chunk.top()) as usize
+            ev.column.saturating_sub(self.inner_chunk.left()) as usize,
+            ev.row.saturating_sub(self.inner_chunk.top()) as usize
                 + self.state.selected_vertical() as usize,
         );
 
@@ -526,14 +544,24 @@ impl WidgetTrait for Text<'_> {
 
             _ => {
                 if let Some(cb) = self.match_action(UserEvent::Key(ev)) {
-                    if let ev @ EventResult::WindowEvent(_) = (cb)() {
-                        return ev;
-                    }
+                    return EventResult::Callback(Some(Callback::from(cb)));
                 }
                 return EventResult::Ignore;
             }
         }
         EventResult::Nop
+    }
+
+    fn title(&self) -> &str {
+        &self.title
+    }
+
+    fn chunk(&self) -> Rect {
+        self.chunk
+    }
+
+    fn id(&self) -> &str {
+        &self.id
     }
 }
 
@@ -659,7 +687,7 @@ fn highlight_content_partial(src: Spans, (start, end): (usize, usize)) -> (Spans
 }
 
 impl RenderTrait for Text<'_> {
-    fn render<B>(&mut self, f: &mut Frame<'_, B>, block: Block, chunk: Rect)
+    fn render<B>(&mut self, f: &mut Frame<'_, B>, selected: bool)
     where
         B: Backend,
     {
@@ -667,13 +695,13 @@ impl RenderTrait for Text<'_> {
 
         let mut widget = Paragraph::new(self.spans[start..end].to_vec())
             .style(Style::default())
-            .block(block);
+            .block(focus_block(self.title(), selected));
 
         if !self.wrap {
             widget = widget.scroll((0, self.state.selected_horizontal() as u16));
         }
 
-        f.render_widget(widget, chunk);
+        f.render_widget(widget, self.chunk);
     }
 }
 

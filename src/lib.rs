@@ -1,16 +1,12 @@
-use crossbeam::channel::{Receiver, Sender};
+use crossbeam::channel::Receiver;
 
-use tui_wrapper::crossterm::event::{KeyCode, KeyModifiers};
+use event::Event;
 
-use event::{kubernetes::*, Event, UserEvent};
-
-use tui_wrapper::widget::*;
-use tui_wrapper::{key_event_to_code, EventResult};
-
-use tui_wrapper::complex_widgets::single_select::SingleSelect;
-
-pub use tui_wrapper::sub_window::*;
-pub use tui_wrapper::window::*;
+use tui_wrapper::{
+    event::{exec_to_window_event, EventResult},
+    widget::{WidgetItem, WidgetTrait},
+    Window, WindowEvent,
+};
 
 pub mod view_id {
 
@@ -53,193 +49,23 @@ pub fn append_items_window_pane(window: &mut Window, id: &str, items: WidgetItem
     }
 }
 
-pub fn apis_subwin_action<'a>(
-    window: &mut Window,
-    subwin: &mut SubWindow,
-    tx: &Sender<Event>,
-    rx: &Receiver<Event>,
-) -> WindowEvent {
-    let pane = subwin.pane_mut();
-
-    match rx.recv().unwrap() {
-        Event::User(ev) => match ev {
-            UserEvent::Key(_) | UserEvent::Mouse(_) => match subwin.on_event(ev) {
-                EventResult::Nop => {}
-                EventResult::Ignore => {
-                    if let Some(cb) = subwin.match_callback(ev) {
-                        if let EventResult::WindowEvent(ev) = (cb)(window) {
-                            return ev;
-                        }
-                    }
-                }
-                ev @ EventResult::Callback(_) => {
-                    ev.exec(window);
-                }
-                EventResult::WindowEvent(ev) => {
-                    return ev;
-                } // KeyCode::Esc => {
-                  //     return WindowEvent::CloseSubWindow;
-                  // } // KeyCode::Down => {
-                  //     pane.select_next_item();
-                  // }
-
-                  // KeyCode::Up => {
-                  //     pane.select_prev_item();
-                  // }
-
-                  // KeyCode::PageDown => {
-                  //     pane.select_next_item();
-                  // }
-
-                  // KeyCode::PageUp => {
-                  //     pane.select_prev_item();
-                  // }
-
-                  // KeyCode::Delete => {
-                  //     pane.remove_char();
-                  // }
-
-                  // KeyCode::Char('w') if key.modifiers == KeyModifiers::CONTROL => {
-                  //     pane.remove_chars_before_cursor();
-                  // }
-
-                  // KeyCode::Char('k') if key.modifiers == KeyModifiers::CONTROL => {
-                  //     pane.remove_chars_after_cursor();
-                  // }
-
-                  // KeyCode::Home => {
-                  //     pane.move_cursor_top();
-                  // }
-
-                  // KeyCode::End => {
-                  //     pane.move_cursor_end();
-                  // }
-
-                  // KeyCode::Tab => {
-                  //     pane.select_next_pane();
-                  // }
-
-                  // KeyCode::Right => {
-                  //     pane.forward_cursor();
-                  // }
-
-                  // KeyCode::Left => {
-                  //     pane.back_cursor();
-                  // }
-
-                  // KeyCode::Enter | KeyCode::Char(' ') => {
-                  //     pane.toggle_select_unselect();
-
-                  //     tx.send(Event::Kube(Kube::SetAPIsRequest(
-                  //         pane.to_vec_selected_items(),
-                  //     )))
-                  //     .unwrap();
-
-                  //     if pane.selected_items().is_empty() {
-                  //         window.pane_clear(view_id::tab_apis_pane_apis)
-                  //     }
-                  // }
-
-                  // KeyCode::Char(c) => {
-                  //     pane.insert_char(c);
-                  // }
-            },
-            UserEvent::Resize(w, h) => {
-                return WindowEvent::ResizeWindow(w, h);
-            }
-        },
-        Event::Kube(k) => return WindowEvent::UpdateContents(k),
-        Event::Tick => {}
-    }
-
-    WindowEvent::Continue
-}
-
-pub fn namespace_subwin_action<'a>(
-    window: &mut Window,
-    subwin: &mut SubWindow,
-    tx: &Sender<Event>,
-    rx: &Receiver<Event>,
-    current_namespace: &mut String,
-) -> WindowEvent {
-    match rx.recv().unwrap() {
-        Event::User(ev) => match ev {
-            UserEvent::Key(_) | UserEvent::Mouse(_) => match subwin.on_event(ev) {
-                // KeyCode::Enter => {
-                //     if let Some(item) = pane.get_item() {
-                //         let item = item.single();
-
-                //         tx.send(Event::Kube(Kube::SetNamespace(item.to_string())))
-                //             .unwrap();
-
-                //         *current_namespace = item;
-
-                //         if let Some(p) = window.pane_mut(view_id::tab_event_pane_event) {
-                //             p.clear();
-                //         }
-
-                //         if let Some(p) = window.pane_mut(view_id::tab_pods_pane_logs) {
-                //             p.clear();
-                //             window.select_pane(view_id::tab_pods_pane_pods);
-                //         }
-
-                //         if let Some(p) = window.pane_mut(view_id::tab_configs_pane_raw_data) {
-                //             p.clear();
-                //             window.select_pane(view_id::tab_configs_pane_configs);
-                //         }
-                //     }
-                //     return WindowEvent::CloseSubWindow;
-                // }
-                EventResult::Nop => {}
-                EventResult::Ignore => {
-                    if let Some(cb) = subwin.match_callback(ev) {
-                        if let EventResult::WindowEvent(ev) = (cb)(window) {
-                            return ev;
-                        }
-                    }
-                }
-                ev @ EventResult::Callback(_) => {
-                    ev.exec(window);
-                }
-                EventResult::WindowEvent(ev) => {
-                    return ev;
-                }
-            },
-            UserEvent::Resize(w, h) => {
-                return WindowEvent::ResizeWindow(w, h);
-            }
-        },
-
-        Event::Kube(k) => return WindowEvent::UpdateContents(k),
-        Event::Tick => {}
-    }
-
-    WindowEvent::Continue
-}
-
 pub fn window_action(window: &mut Window, rx: &Receiver<Event>) -> WindowEvent {
     match rx.recv().unwrap() {
-        Event::User(ev) => match ev {
-            UserEvent::Key(_) | UserEvent::Mouse(_) => match window.on_event(ev) {
-                EventResult::Nop => {}
+        Event::User(ev) => match window.on_event(ev) {
+            EventResult::Nop => {}
 
-                EventResult::Ignore => {
-                    if let Some(cb) = window.match_callback(ev) {
-                        if let EventResult::WindowEvent(ev) = (cb)(window) {
-                            return ev;
-                        }
+            EventResult::Ignore => {
+                if let Some(cb) = window.match_callback(ev) {
+                    if let EventResult::Window(ev) = (cb)(window) {
+                        return ev;
                     }
                 }
-                ev @ EventResult::Callback(_) => {
-                    ev.exec(window);
-                }
-                EventResult::WindowEvent(ev) => {
-                    return ev;
-                }
-            },
-
-            UserEvent::Resize(w, h) => {
-                return WindowEvent::ResizeWindow(w, h);
+            }
+            ev @ EventResult::Callback(_) => {
+                return exec_to_window_event(ev, window);
+            }
+            EventResult::Window(ev) => {
+                return ev;
             }
         },
 

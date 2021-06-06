@@ -7,17 +7,22 @@ use tui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Span, Spans},
-    widgets::{Block, Paragraph, Tabs},
+    widgets::{Block, Clear, Paragraph, Tabs},
     Frame,
 };
 
 use unicode_width::UnicodeWidthStr;
 
-use super::{widget::*, *};
+use crate::util::child_window_chunk;
+
+use super::{
+    event::{EventResult, InnerCallback},
+    util,
+    widget::{RenderTrait, Widget, WidgetTrait},
+    Tab,
+};
 
 use ::event::UserEvent;
-
-type InnerCallback = Rc<dyn Fn(&mut Window) -> EventResult>;
 
 #[derive(Default)]
 pub struct Window<'a> {
@@ -27,6 +32,8 @@ pub struct Window<'a> {
     chunk: Rect,
     status_target_id: Vec<(&'a str, &'a str)>,
     callbacks: Vec<(UserEvent, InnerCallback)>,
+    popup: Vec<Widget<'a>>,
+    open_popup_id: Option<String>,
 }
 
 pub mod window_layout_index {
@@ -58,6 +65,30 @@ impl<'a> Window<'a> {
         }
     }
 
+    pub fn add_popup(&mut self, popup: Vec<Widget<'a>>) {
+        self.popup = popup;
+    }
+
+    pub fn open_popup(&mut self, id: impl Into<String>) {
+        self.open_popup_id = Some(id.into());
+    }
+
+    pub fn close_popup(&mut self) {
+        self.open_popup_id = None;
+    }
+
+    pub fn opening_popup(&self) -> bool {
+        self.open_popup_id.is_some()
+    }
+
+    pub fn popup(&self, id: &str) -> Option<&Widget<'a>> {
+        self.popup.iter().find(|w| w.id() == id)
+    }
+
+    pub fn popup_mut(&mut self, id: &str) -> Option<&mut Widget<'a>> {
+        self.popup.iter_mut().find(|w| w.id() == id)
+    }
+
     pub fn status_target_id(mut self, id: impl Into<Vec<(&'a str, &'a str)>>) -> Self {
         self.status_target_id = id.into();
         self
@@ -71,6 +102,10 @@ impl<'a> Window<'a> {
         self.tabs.iter_mut().for_each(|tab| {
             tab.update_chunk(chunks[window_layout_index::CONTENTS]);
         });
+
+        self.popup.iter_mut().for_each(|w| {
+            w.update_chunk(util::default_focus_block().inner(child_window_chunk(80, 80, chunk)))
+        })
     }
 
     pub fn chunks(&self) -> Vec<Rect> {
@@ -153,23 +188,39 @@ impl<'a> Window<'a> {
 
 // Pane
 impl<'a> Window<'a> {
-    pub fn pane(&self, id: &str) -> Option<&Pane<'a>> {
+    pub fn pane(&self, id: &str) -> Option<&Widget<'a>> {
         for t in &self.tabs {
-            let p = t.panes().iter().find(|p| p.id() == id);
-            if p.is_some() {
-                return p;
+            let w = t.panes().into_iter().find(|p| p.id() == id);
+            if w.is_some() {
+                return w;
             }
         }
-        None
+
+        self.popup(id)
     }
-    pub fn pane_mut(&mut self, id: &str) -> Option<&mut Pane<'a>> {
-        for t in &mut self.tabs {
-            let p = t.panes_mut().iter_mut().find(|p| p.id() == id);
-            if p.is_some() {
-                return p;
+    pub fn pane_mut(&mut self, id: &str) -> Option<&mut Widget<'a>> {
+        if self.opening_popup() {
+            let w = self.popup.iter_mut().find(|w| w.id() == id);
+
+            if w.is_some() {
+                w
+            } else {
+                self.tabs
+                    .iter_mut()
+                    .find_map(|t| t.panes_mut().into_iter().find(|p| p.id() == id))
+            }
+        } else {
+            let w = self
+                .tabs
+                .iter_mut()
+                .find_map(|t| t.panes_mut().into_iter().find(|p| p.id() == id));
+
+            if w.is_some() {
+                w
+            } else {
+                self.popup.iter_mut().find(|w| w.id() == id)
             }
         }
-        None
     }
 
     pub fn selected_pane_id(&self) -> &str {
@@ -195,51 +246,6 @@ impl<'a> Window<'a> {
     }
 }
 
-// フォーカスしているwidgetの状態変更
-impl Window<'_> {
-    pub fn select_next_item(&mut self) {
-        self.selected_tab_mut().select_pane_next_item();
-    }
-
-    pub fn select_prev_item(&mut self) {
-        self.selected_tab_mut().select_pane_prev_item();
-    }
-
-    pub fn select_first_item(&mut self) {
-        self.selected_tab_mut().select_pane_first_item();
-    }
-
-    pub fn select_last_item(&mut self) {
-        self.selected_tab_mut().select_pane_last_item();
-    }
-
-    pub fn scroll_up(&mut self) {
-        let pane = self.selected_tab_mut().selected_pane_mut();
-        let ch = pane.chunk();
-
-        let index = if let Widget::Text(_) = pane.widget() {
-            ch.height as usize
-        } else {
-            1
-        };
-
-        pane.widget_mut().select_prev(index);
-    }
-
-    pub fn scroll_down(&mut self) {
-        let pane = self.selected_tab_mut().selected_pane_mut();
-        let ch = pane.chunk();
-
-        let index = if let Widget::Text(_) = pane.widget() {
-            ch.height as usize
-        } else {
-            1
-        };
-
-        pane.widget_mut().select_next(index);
-    }
-}
-
 // Render
 use window_layout_index::*;
 impl<'a> Window<'a> {
@@ -256,6 +262,13 @@ impl<'a> Window<'a> {
         self.selected_tab_mut().render(f);
 
         self.render_status(f);
+
+        if let Some(id) = &self.open_popup_id {
+            if let Some(popup) = self.popup.iter_mut().find(|p| p.id() == id) {
+                f.render_widget(Clear, child_window_chunk(80, 80, self.chunk));
+                popup.render(f, true);
+            }
+        }
     }
 
     fn render_tab<B: Backend>(&mut self, f: &mut Frame<B>) {
@@ -303,7 +316,7 @@ impl<'a> Window<'a> {
 
     fn scroll_status(&self, id: &str) -> Option<Paragraph> {
         if let Some(pane) = self.selected_tab().panes().iter().find(|p| p.id() == id) {
-            let widget = pane.widget().as_text();
+            let widget = pane.as_text();
 
             let spans = widget.status();
             let block = Block::default().style(Style::default());
@@ -324,10 +337,8 @@ fn datetime() -> Span<'static> {
 pub enum WindowEvent {
     CloseWindow,
     Continue,
-    OpenSubWindow(&'static str),
-    CloseSubWindow,
-    ResizeWindow(u16, u16),
     UpdateContents(::event::kubernetes::Kube),
+    ResizeWindow(u16, u16),
 }
 
 // Event
@@ -343,15 +354,21 @@ impl Window<'_> {
         match ev {
             UserEvent::Key(ev) => self.on_key_event(ev),
             UserEvent::Mouse(ev) => self.on_mouse_event(ev),
-            UserEvent::Resize(_, _) => EventResult::Ignore,
+            UserEvent::Resize(w, h) => EventResult::Window(WindowEvent::ResizeWindow(w, h)),
         }
     }
 
     pub fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
+        if let Some(id) = &self.open_popup_id {
+            if let Some(popup) = self.popup.iter_mut().find(|w| w.id() == id) {
+                return popup.on_key_event(ev);
+            }
+        }
+
         let focus_pane = self.selected_tab_mut().selected_pane_mut();
 
         match focus_pane.on_key_event(ev) {
-            EventResult::Ignore => match key_event_to_code(ev) {
+            EventResult::Ignore => match util::key_event_to_code(ev) {
                 KeyCode::Tab => {
                     self.select_next_pane();
                 }
@@ -377,20 +394,25 @@ impl Window<'_> {
     }
 
     pub fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
-        let pos = (ev.column, ev.row);
+        if let Some(id) = &self.open_popup_id {
+            if let Some(popup) = self.popup.iter_mut().find(|w| w.id() == id) {
+                return popup.on_mouse_event(ev);
+            }
+        }
 
+        let pos = (ev.column, ev.row);
         let selected_pane_id = self.selected_pane_id().to_string();
         let mut focus_pane_id = None;
 
-        let result = if contains(self.tab_chunk(), pos) {
+        let result = if util::contains(self.tab_chunk(), pos) {
             self.on_click_tab(ev);
             EventResult::Nop
-        } else if contains(self.chunks()[window_layout_index::CONTENTS], pos) {
+        } else if util::contains(self.chunks()[window_layout_index::CONTENTS], pos) {
             if let Some(pane) = self
                 .selected_tab_mut()
                 .panes_mut()
                 .iter_mut()
-                .find(|pane| contains(pane.chunk(), pos))
+                .find(|pane| util::contains(pane.chunk(), pos))
             {
                 focus_pane_id = if pane.id() != selected_pane_id {
                     Some(pane.id().to_string())
@@ -417,7 +439,7 @@ impl Window<'_> {
             return;
         }
 
-        let pos = mouse_pos(ev);
+        let pos = util::mouse_pos(ev);
 
         let chunk = Self::tab_block().inner(self.tab_chunk());
         let divider_width = 1;
@@ -432,7 +454,7 @@ impl Window<'_> {
 
             let title_chunk = Rect::new(x, y, w, h);
 
-            if contains(title_chunk, pos) {
+            if util::contains(title_chunk, pos) {
                 self.select_tab(i + 1);
                 break;
             }

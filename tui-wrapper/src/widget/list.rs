@@ -12,19 +12,27 @@ use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKin
 use tui::widgets::{self, Block, ListItem, ListState};
 
 use super::{RenderTrait, WidgetItem, WidgetTrait};
-use crate::{key_event_to_code, Callback, EventResult, Window};
+use crate::{
+    event::{Callback, EventResult},
+    key_event_to_code,
+    util::{default_focus_block, focus_block},
+    Window,
+};
 
 use derivative::*;
 
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
 pub struct List<'a> {
+    id: String,
+    title: String,
     items: Vec<String>,
     state: ListState,
     chunk: Rect,
+    inner_chunk: Rect,
     list_item: Vec<ListItem<'a>>,
     #[derivative(Debug = "ignore")]
-    on_select: Option<Rc<dyn Fn(&mut Window, &String)>>,
+    on_select: Option<Rc<dyn Fn(&mut Window, &String) -> EventResult>>,
 }
 
 impl<'a> List<'a> {
@@ -41,6 +49,16 @@ impl<'a> List<'a> {
             list_item,
             ..Self::default()
         }
+    }
+
+    pub fn set_id(mut self, id: impl Into<String>) -> Self {
+        self.id = id.into();
+        self
+    }
+
+    pub fn set_title(mut self, title: impl Into<String>) -> Self {
+        self.title = title.into();
+        self
     }
 
     pub fn state(&self) -> &ListState {
@@ -130,6 +148,7 @@ impl<'a> WidgetTrait for List<'a> {
 
     fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
+        self.inner_chunk = default_focus_block().inner(chunk);
     }
 
     fn clear(&mut self) {}
@@ -150,8 +169,8 @@ impl<'a> WidgetTrait for List<'a> {
         }
 
         let (_, row) = (
-            ev.column.saturating_sub(self.chunk.left()) as usize,
-            ev.row.saturating_sub(self.chunk.top()) as usize,
+            ev.column.saturating_sub(self.inner_chunk.left()) as usize,
+            ev.row.saturating_sub(self.inner_chunk.top()) as usize,
         );
 
         if self.list_item.len() <= row {
@@ -209,12 +228,24 @@ impl<'a> WidgetTrait for List<'a> {
 
         EventResult::Nop
     }
+
+    fn title(&self) -> &str {
+        &self.title
+    }
+
+    fn chunk(&self) -> Rect {
+        self.chunk
+    }
+
+    fn id(&self) -> &str {
+        &self.id
+    }
 }
 
 impl<'a> List<'a> {
     pub fn on_select<F>(mut self, cb: F) -> Self
     where
-        F: Fn(&mut Window, &String) + 'static,
+        F: Fn(&mut Window, &String) -> EventResult + 'static,
     {
         self.on_select = Some(Rc::new(cb));
         self
@@ -233,8 +264,13 @@ impl<'a> List<'a> {
 }
 
 impl RenderTrait for List<'_> {
-    fn render<B: Backend>(&mut self, f: &mut Frame<B>, block: Block, chunk: Rect) {
-        f.render_stateful_widget(self.widget(block), chunk, &mut self.state);
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>, selected: bool) {
+        let title = self.title.to_string();
+        f.render_stateful_widget(
+            self.widget(focus_block(&title, selected)),
+            self.chunk,
+            &mut self.state,
+        );
     }
 }
 
