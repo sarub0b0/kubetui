@@ -304,7 +304,7 @@ impl<'a> Text<'a> {
 }
 
 impl WidgetTrait for Text<'_> {
-    fn selectable(&self) -> bool {
+    fn focusable(&self) -> bool {
         true
     }
 

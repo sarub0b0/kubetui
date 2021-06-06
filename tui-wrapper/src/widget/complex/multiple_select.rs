@@ -492,7 +492,7 @@ impl<'a> MultipleSelect<'a> {
 }
 
 impl WidgetTrait for MultipleSelect<'_> {
-    fn selectable(&self) -> bool {
+    fn focusable(&self) -> bool {
         true
     }
 

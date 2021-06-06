@@ -86,7 +86,7 @@ impl<'a> List<'a> {
 }
 
 impl<'a> WidgetTrait for List<'a> {
-    fn selectable(&self) -> bool {
+    fn focusable(&self) -> bool {
         true
     }
 

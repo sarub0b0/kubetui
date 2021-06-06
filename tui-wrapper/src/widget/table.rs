@@ -197,7 +197,7 @@ impl<'a> Table<'a> {
 }
 
 impl WidgetTrait for Table<'_> {
-    fn selectable(&self) -> bool {
+    fn focusable(&self) -> bool {
         true
     }
 

@@ -41,43 +41,43 @@ pub fn contains(chunk: Rect, point: (u16, u16)) -> bool {
     (chunk.left() <= px && px <= chunk.right()) && (chunk.top() <= py && py <= chunk.bottom())
 }
 
-fn focus_border_color(selected: bool) -> Color {
-    if selected {
+fn focus_border_color(focused: bool) -> Color {
+    if focused {
         Color::Reset
     } else {
         Color::DarkGray
     }
 }
 
-fn focus_border_style(selected: bool) -> Style {
-    Style::default().fg(focus_border_color(selected))
+fn focus_border_style(focused: bool) -> Style {
+    Style::default().fg(focus_border_color(focused))
 }
 
-pub fn focus_title_style(selected: bool) -> Style {
+pub fn focus_title_style(focused: bool) -> Style {
     let style = Style::default();
 
-    if selected {
+    if focused {
         style.add_modifier(Modifier::BOLD)
     } else {
         style
     }
 }
 
-fn focus_mark_style(selected: bool) -> Style {
-    if selected {
+fn focus_mark_style(focused: bool) -> Style {
+    if focused {
         Style::default().add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::DarkGray)
     }
 }
 
-pub fn generate_title(title: &str, selected: bool) -> Spans {
-    let mark = if selected { "+" } else { "─" };
-    let margin = if selected { " " } else { "─" };
+pub fn generate_title(title: &str, focused: bool) -> Spans {
+    let mark = if focused { "+" } else { "─" };
+    let margin = if focused { " " } else { "─" };
     Spans::from(vec![
-        Span::styled(margin, focus_border_style(selected)),
-        Span::styled(mark, focus_mark_style(selected)),
-        Span::styled(format!(" {} ", title), focus_title_style(selected)),
+        Span::styled(margin, focus_border_style(focused)),
+        Span::styled(mark, focus_mark_style(focused)),
+        Span::styled(format!(" {} ", title), focus_title_style(focused)),
     ])
 }
 
@@ -85,11 +85,11 @@ pub fn default_focus_block() -> Block<'static> {
     Block::default().borders(Borders::ALL)
 }
 
-pub fn focus_block(title: &str, selected: bool) -> Block {
+pub fn focus_block(title: &str, focused: bool) -> Block {
     default_focus_block()
-        .title(generate_title(title, selected))
+        .title(generate_title(title, focused))
         .title_offset(1)
-        .border_style(focus_border_style(selected))
+        .border_style(focus_border_style(focused))
 }
 
 pub fn child_window_chunk(width_rate: u16, height_rate: u16, chunk: Rect) -> Rect {

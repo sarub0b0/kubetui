@@ -27,7 +27,7 @@ use ::event::UserEvent;
 #[derive(Default)]
 pub struct Window<'a> {
     tabs: Vec<Tab<'a>>,
-    selected_tab_index: usize,
+    focused_tab_index: usize,
     layout: Layout,
     chunk: Rect,
     status_target_id: Vec<(&'a str, &'a str)>,
@@ -48,7 +48,7 @@ impl<'a> Window<'a> {
     pub fn new(tabs: Vec<Tab<'a>>) -> Self {
         Self {
             tabs,
-            selected_tab_index: 0,
+            focused_tab_index: 0,
             layout: Layout::default()
                 .direction(Direction::Vertical)
                 .constraints(
@@ -121,7 +121,7 @@ impl<'a> Window<'a> {
 
         Tabs::new(titles)
             .block(Self::tab_block())
-            .select(self.selected_tab_index)
+            .select(self.focused_tab_index)
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
     }
 
@@ -146,38 +146,38 @@ impl<'a> Window<'a> {
 
 // Tab
 impl<'a> Window<'a> {
-    pub fn selected_tab_id(&self) -> &str {
-        &self.tabs[self.selected_tab_index].id()
+    pub fn focused_tab_id(&self) -> &str {
+        &self.tabs[self.focused_tab_index].id()
     }
 
-    pub fn selected_tab(&self) -> &Tab {
-        &self.tabs[self.selected_tab_index]
+    pub fn focused_tab(&self) -> &Tab {
+        &self.tabs[self.focused_tab_index]
     }
 
-    pub fn selected_tab_mut(&mut self) -> &mut Tab<'a> {
-        &mut self.tabs[self.selected_tab_index]
+    pub fn focused_tab_mut(&mut self) -> &mut Tab<'a> {
+        &mut self.tabs[self.focused_tab_index]
     }
 
-    pub fn select_tab(&mut self, index: usize) {
+    pub fn focus_tab(&mut self, index: usize) {
         let index = index - 1;
         if index < self.tabs.len() {
-            self.selected_tab_index = index;
+            self.focused_tab_index = index;
         }
     }
 
-    pub fn select_next_tab(&mut self) {
-        if self.tabs.len() - 1 <= self.selected_tab_index {
-            self.selected_tab_index = 0;
+    pub fn focus_next_tab(&mut self) {
+        if self.tabs.len() - 1 <= self.focused_tab_index {
+            self.focused_tab_index = 0;
         } else {
-            self.selected_tab_index += 1;
+            self.focused_tab_index += 1;
         }
     }
 
-    pub fn select_prev_tab(&mut self) {
-        if 0 == self.selected_tab_index {
-            self.selected_tab_index = self.tabs.len() - 1;
+    pub fn focus_prev_tab(&mut self) {
+        if 0 == self.focused_tab_index {
+            self.focused_tab_index = self.tabs.len() - 1;
         } else {
-            self.selected_tab_index -= 1;
+            self.focused_tab_index -= 1;
         }
     }
 }
@@ -219,16 +219,16 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn selected_widget_id(&self) -> &str {
-        self.selected_tab().selected_widget_id()
+    pub fn focused_widget_id(&self) -> &str {
+        self.focused_tab().focused_widget_id()
     }
 
-    pub fn select_next_widget(&mut self) {
-        self.selected_tab_mut().next_widget();
+    fn focus_next_widget(&mut self) {
+        self.focused_tab_mut().next_widget();
     }
 
-    pub fn select_prev_widget(&mut self) {
-        self.selected_tab_mut().prev_widget();
+    fn focus_prev_widget(&mut self) {
+        self.focused_tab_mut().prev_widget();
     }
 
     pub fn widget_clear(&mut self, id: &str) {
@@ -237,8 +237,8 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn select_widget(&mut self, id: &str) {
-        self.selected_tab_mut().select_widget(id)
+    pub fn focus_widget(&mut self, id: &str) {
+        self.focused_tab_mut().focus_widget(id)
     }
 }
 
@@ -255,7 +255,7 @@ impl<'a> Window<'a> {
 
         self.render_context(f, current_context, current_namespace);
 
-        self.selected_tab_mut().render(f);
+        self.focused_tab_mut().render(f);
 
         self.render_status(f);
 
@@ -310,10 +310,10 @@ impl<'a> Window<'a> {
         if let Some(id) = self
             .status_target_id
             .iter()
-            .find(|id| id.0 == self.selected_tab_id())
+            .find(|id| id.0 == self.focused_tab_id())
         {
             if let Some(w) = self
-                .selected_tab()
+                .focused_tab()
                 .as_ref_widgets()
                 .iter()
                 .find(|w| w.id() == id.1)
@@ -364,20 +364,20 @@ impl Window<'_> {
             }
         }
 
-        let focus_widget = self.selected_tab_mut().selected_widget_mut();
+        let focus_widget = self.focused_tab_mut().focused_widget_mut();
 
         match focus_widget.on_key_event(ev) {
             EventResult::Ignore => match util::key_event_to_code(ev) {
                 KeyCode::Tab => {
-                    self.select_next_widget();
+                    self.focus_next_widget();
                 }
 
                 KeyCode::BackTab => {
-                    self.select_prev_widget();
+                    self.focus_prev_widget();
                 }
 
                 KeyCode::Char(n @ '1'..='9') => {
-                    self.select_tab(n as usize - b'0' as usize);
+                    self.focus_tab(n as usize - b'0' as usize);
                 }
 
                 _ => {
@@ -400,7 +400,7 @@ impl Window<'_> {
         }
 
         let pos = (ev.column, ev.row);
-        let selected_view_id = self.selected_widget_id().to_string();
+        let focused_view_id = self.focused_widget_id().to_string();
         let mut focus_widget_id = None;
 
         let result = if util::contains(self.tab_chunk(), pos) {
@@ -408,12 +408,12 @@ impl Window<'_> {
             EventResult::Nop
         } else if util::contains(self.chunks()[window_layout_index::CONTENTS], pos) {
             if let Some(w) = self
-                .selected_tab_mut()
+                .focused_tab_mut()
                 .as_mut_widgets()
                 .iter_mut()
                 .find(|w| util::contains(w.chunk(), pos))
             {
-                focus_widget_id = if w.id() != selected_view_id {
+                focus_widget_id = if w.id() != focused_view_id {
                     Some(w.id().to_string())
                 } else {
                     None
@@ -427,7 +427,7 @@ impl Window<'_> {
         };
 
         if let Some(id) = focus_widget_id {
-            self.select_widget(&id);
+            self.focus_widget(&id);
         }
 
         result
@@ -454,7 +454,7 @@ impl Window<'_> {
             let title_chunk = Rect::new(x, y, w, h);
 
             if util::contains(title_chunk, pos) {
-                self.select_tab(i + 1);
+                self.focus_tab(i + 1);
                 break;
             }
 

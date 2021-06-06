@@ -31,10 +31,10 @@ impl<'a> From<MultipleSelect<'a>> for ComplexWidget<'a> {
 }
 
 impl WidgetTrait for ComplexWidget<'_> {
-    fn selectable(&self) -> bool {
+    fn focusable(&self) -> bool {
         match self {
-            Self::SingleSelect(w) => w.selectable(),
-            Self::MultipleSelect(w) => w.selectable(),
+            Self::SingleSelect(w) => w.focusable(),
+            Self::MultipleSelect(w) => w.focusable(),
         }
     }
 

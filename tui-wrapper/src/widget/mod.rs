@@ -62,7 +62,7 @@ pub trait WidgetTrait {
     fn id(&self) -> &str;
     fn title(&self) -> &str;
 
-    fn selectable(&self) -> bool {
+    fn focusable(&self) -> bool {
         false
     }
     fn chunk(&self) -> Rect;
@@ -168,12 +168,12 @@ impl<'a> Widget<'a> {
 }
 
 impl WidgetTrait for Widget<'_> {
-    fn selectable(&self) -> bool {
+    fn focusable(&self) -> bool {
         match self {
-            Widget::List(w) => w.selectable(),
-            Widget::Text(w) => w.selectable(),
-            Widget::Table(w) => w.selectable(),
-            Widget::Complex(w) => w.selectable(),
+            Widget::List(w) => w.focusable(),
+            Widget::Text(w) => w.focusable(),
+            Widget::Table(w) => w.focusable(),
+            Widget::Complex(w) => w.focusable(),
         }
     }
 
@@ -305,19 +305,19 @@ impl WidgetTrait for Widget<'_> {
 }
 
 pub trait RenderTrait {
-    fn render<B: Backend>(&mut self, f: &mut Frame<B>, selected: bool);
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>, focused: bool);
 }
 
 impl RenderTrait for Widget<'_> {
-    fn render<B>(&mut self, f: &mut Frame<B>, selected: bool)
+    fn render<B>(&mut self, f: &mut Frame<B>, focused: bool)
     where
         B: Backend,
     {
         match self {
-            Widget::List(w) => w.render(f, selected),
-            Widget::Text(w) => w.render(f, selected),
-            Widget::Table(w) => w.render(f, selected),
-            Widget::Complex(w) => w.render(f, selected),
+            Widget::List(w) => w.render(f, focused),
+            Widget::Text(w) => w.render(f, focused),
+            Widget::Table(w) => w.render(f, focused),
+            Widget::Complex(w) => w.render(f, focused),
         }
     }
 }

@@ -219,7 +219,7 @@ impl<'a> SingleSelect<'a> {
 }
 
 impl WidgetTrait for SingleSelect<'_> {
-    fn selectable(&self) -> bool {
+    fn focusable(&self) -> bool {
         true
     }
 
