@@ -71,6 +71,7 @@ jobs:
           OPENSSL_INCLUDE_DIR: /opt/openssl/include
           OPENSSL_LIB_DIR: /opt/openssl/lib
         run: |
+          sudo apt-get update
           sudo apt-get install musl-tools linux-headers-generic
 
           sudo ln -sv /usr/include/linux /usr/include/x86_64-linux-musl/linux
