@@ -184,9 +184,9 @@ impl<'a> Window<'a> {
 
 // Pane
 impl<'a> Window<'a> {
-    pub fn pane(&self, id: &str) -> Option<&Widget<'a>> {
+    pub fn find_widget(&self, id: &str) -> Option<&Widget<'a>> {
         for t in &self.tabs {
-            let w = t.panes().into_iter().find(|p| p.id() == id);
+            let w = t.as_ref_widgets().into_iter().find(|w| w.id() == id);
             if w.is_some() {
                 return w;
             }
@@ -194,7 +194,7 @@ impl<'a> Window<'a> {
 
         self.popup(id)
     }
-    pub fn pane_mut(&mut self, id: &str) -> Option<&mut Widget<'a>> {
+    pub fn find_widget_mut(&mut self, id: &str) -> Option<&mut Widget<'a>> {
         if self.opening_popup() {
             let w = self.popup.iter_mut().find(|w| w.id() == id);
 
@@ -203,13 +203,13 @@ impl<'a> Window<'a> {
             } else {
                 self.tabs
                     .iter_mut()
-                    .find_map(|t| t.panes_mut().into_iter().find(|p| p.id() == id))
+                    .find_map(|t| t.as_mut_widgets().into_iter().find(|w| w.id() == id))
             }
         } else {
             let w = self
                 .tabs
                 .iter_mut()
-                .find_map(|t| t.panes_mut().into_iter().find(|p| p.id() == id));
+                .find_map(|t| t.as_mut_widgets().into_iter().find(|w| w.id() == id));
 
             if w.is_some() {
                 w
@@ -219,26 +219,26 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn selected_pane_id(&self) -> &str {
-        self.selected_tab().selected_pane_id()
+    pub fn selected_widget_id(&self) -> &str {
+        self.selected_tab().selected_widget_id()
     }
 
-    pub fn select_next_pane(&mut self) {
-        self.selected_tab_mut().next_pane();
+    pub fn select_next_widget(&mut self) {
+        self.selected_tab_mut().next_widget();
     }
 
-    pub fn select_prev_pane(&mut self) {
-        self.selected_tab_mut().prev_pane();
+    pub fn select_prev_widget(&mut self) {
+        self.selected_tab_mut().prev_widget();
     }
 
-    pub fn pane_clear(&mut self, id: &str) {
-        if let Some(pane) = self.pane_mut(id) {
-            pane.clear();
+    pub fn widget_clear(&mut self, id: &str) {
+        if let Some(w) = self.find_widget_mut(id) {
+            w.clear();
         }
     }
 
-    pub fn select_pane(&mut self, id: &str) {
-        self.selected_tab_mut().select_pane(id)
+    pub fn select_widget(&mut self, id: &str) {
+        self.selected_tab_mut().select_widget(id)
     }
 }
 
@@ -282,44 +282,47 @@ impl<'a> Window<'a> {
     }
 
     fn render_status<B: Backend>(&mut self, f: &mut Frame<B>) {
+        let scroll_status_spans = self.scroll_status();
+        let datetime_spans = Spans::from(datetime());
+
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([Constraint::Min(28), Constraint::Min(1)])
+            .constraints([
+                Constraint::Length(datetime_spans.width() as u16),
+                Constraint::Length(scroll_status_spans.width() as u16),
+            ])
             .split(self.chunks()[STATUSBAR]);
 
-        let datetime = datetime();
+        f.render_widget(
+            Paragraph::new(datetime_spans).block(Block::default().style(Style::default())),
+            chunks[0],
+        );
 
-        let datetime = Spans::from(datetime);
-        let block = Block::default().style(Style::default());
-        let paragraph = Paragraph::new(datetime).block(block);
+        f.render_widget(
+            Paragraph::new(scroll_status_spans)
+                .block(Block::default().style(Style::default()))
+                .alignment(Alignment::Right),
+            chunks[1],
+        );
+    }
 
-        f.render_widget(paragraph, chunks[0]);
-
-        let widget: Option<Paragraph> = if let Some(id) = self
+    fn scroll_status(&self) -> Spans {
+        if let Some(id) = self
             .status_target_id
             .iter()
             .find(|id| id.0 == self.selected_tab_id())
         {
-            self.scroll_status(id.1)
-        } else {
-            None
-        };
-
-        if let Some(widget) = widget {
-            f.render_widget(widget.alignment(Alignment::Right), chunks[1]);
+            if let Some(w) = self
+                .selected_tab()
+                .as_ref_widgets()
+                .iter()
+                .find(|w| w.id() == id.1)
+            {
+                return w.as_text().status();
+            }
         }
-    }
 
-    fn scroll_status(&self, id: &str) -> Option<Paragraph> {
-        if let Some(pane) = self.selected_tab().panes().iter().find(|p| p.id() == id) {
-            let widget = pane.as_text();
-
-            let spans = widget.status();
-            let block = Block::default().style(Style::default());
-
-            return Some(Paragraph::new(spans).block(block));
-        }
-        None
+        Spans::default()
     }
 }
 
@@ -361,16 +364,16 @@ impl Window<'_> {
             }
         }
 
-        let focus_pane = self.selected_tab_mut().selected_pane_mut();
+        let focus_widget = self.selected_tab_mut().selected_widget_mut();
 
-        match focus_pane.on_key_event(ev) {
+        match focus_widget.on_key_event(ev) {
             EventResult::Ignore => match util::key_event_to_code(ev) {
                 KeyCode::Tab => {
-                    self.select_next_pane();
+                    self.select_next_widget();
                 }
 
                 KeyCode::BackTab => {
-                    self.select_prev_pane();
+                    self.select_prev_widget();
                 }
 
                 KeyCode::Char(n @ '1'..='9') => {
@@ -397,25 +400,25 @@ impl Window<'_> {
         }
 
         let pos = (ev.column, ev.row);
-        let selected_pane_id = self.selected_pane_id().to_string();
-        let mut focus_pane_id = None;
+        let selected_view_id = self.selected_widget_id().to_string();
+        let mut focus_widget_id = None;
 
         let result = if util::contains(self.tab_chunk(), pos) {
             self.on_click_tab(ev);
             EventResult::Nop
         } else if util::contains(self.chunks()[window_layout_index::CONTENTS], pos) {
-            if let Some(pane) = self
+            if let Some(w) = self
                 .selected_tab_mut()
-                .panes_mut()
+                .as_mut_widgets()
                 .iter_mut()
-                .find(|pane| util::contains(pane.chunk(), pos))
+                .find(|w| util::contains(w.chunk(), pos))
             {
-                focus_pane_id = if pane.id() != selected_pane_id {
-                    Some(pane.id().to_string())
+                focus_widget_id = if w.id() != selected_view_id {
+                    Some(w.id().to_string())
                 } else {
                     None
                 };
-                pane.on_mouse_event(ev)
+                w.on_mouse_event(ev)
             } else {
                 EventResult::Ignore
             }
@@ -423,8 +426,8 @@ impl Window<'_> {
             EventResult::Ignore
         };
 
-        if let Some(id) = focus_pane_id {
-            self.select_pane(&id);
+        if let Some(id) = focus_widget_id {
+            self.select_widget(&id);
         }
 
         result

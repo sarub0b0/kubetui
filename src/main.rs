@@ -131,14 +131,14 @@ fn run() {
                             ],
                         )
                         .on_select(move |w, v| {
-                            w.pane_clear(view_id::tab_pods_pane_logs);
+                            w.widget_clear(view_id::tab_pods_widget_logs);
                             tx_pods
                                 .send(Event::Kube(Kube::LogStreamRequest(v[0].to_string())))
                                 .unwrap();
 
                             EventResult::Window(WindowEvent::Continue)
                         })
-                        .set_id(view_id::tab_pods_pane_pods)
+                        .set_id(view_id::tab_pods_widget_pods)
                         .set_title("Pods"),
                     )),
                 },
@@ -147,7 +147,7 @@ fn run() {
                     widget: Widget::Text(Box::new(
                         logs_widget
                             .set_title("Logs")
-                            .set_id(view_id::tab_pods_pane_logs),
+                            .set_id(view_id::tab_pods_widget_logs),
                     )),
                 },
             ],
@@ -164,22 +164,24 @@ fn run() {
                     widget: Widget::List(Box::new(
                         List::new(vec![])
                             .on_select(move |w, item| {
-                                if let Some(pane) = w.pane_mut(view_id::tab_configs_pane_raw_data) {
-                                    pane.clear();
+                                if let Some(widget) =
+                                    w.find_widget_mut(view_id::tab_configs_widget_raw_data)
+                                {
+                                    widget.clear();
                                 }
                                 tx_configs
                                     .send(Event::Kube(Kube::ConfigRequest(item.to_string())))
                                     .unwrap();
                                 EventResult::Window(WindowEvent::Continue)
                             })
-                            .set_id(view_id::tab_configs_pane_configs)
+                            .set_id(view_id::tab_configs_widget_configs)
                             .set_title("Configs"),
                     )),
                 },
                 WidgetData {
                     widget: Widget::Text(Box::new(
                         raw_data_widget
-                            .set_id(view_id::tab_configs_pane_raw_data)
+                            .set_id(view_id::tab_configs_widget_raw_data)
                             .set_title("Raw Data"),
                     )),
                     chunk_index: 1,
@@ -198,7 +200,7 @@ fn run() {
                         .enable_wrap()
                         .enable_follow()
                         .set_title("Event")
-                        .set_id(view_id::tab_event_pane_event),
+                        .set_id(view_id::tab_event_widget_event),
                 )),
                 chunk_index: 0,
             }],
@@ -210,7 +212,7 @@ fn run() {
             vec![WidgetData {
                 widget: Widget::Text(Box::new(
                     apis_widget
-                        .set_id(view_id::tab_apis_pane_apis)
+                        .set_id(view_id::tab_apis_widget_apis)
                         .set_title("APIs"),
                 )),
                 chunk_index: 0,
@@ -233,10 +235,10 @@ fn run() {
 
                 w.close_popup();
 
-                w.pane_clear(view_id::tab_pods_pane_logs);
-                w.pane_clear(view_id::tab_configs_pane_raw_data);
-                w.pane_clear(view_id::tab_event_pane_event);
-                w.pane_clear(view_id::tab_apis_pane_apis);
+                w.widget_clear(view_id::tab_pods_widget_logs);
+                w.widget_clear(view_id::tab_configs_widget_raw_data);
+                w.widget_clear(view_id::tab_event_widget_event);
+                w.widget_clear(view_id::tab_apis_widget_apis);
 
                 EventResult::Nop
             },
@@ -246,7 +248,7 @@ fn run() {
     let tx_apis = tx_main.clone();
     let subwin_apis = Widget::Complex(Box::new(ComplexWidget::from(
         MultipleSelect::new(view_id::subwin_apis, "APIs").on_select(move |w, _| {
-            if let Some(widget) = w.pane_mut(view_id::subwin_apis) {
+            if let Some(widget) = w.find_widget_mut(view_id::subwin_apis) {
                 if let ComplexWidget::MultipleSelect(widget) = widget.as_mut_complex() {
                     widget.toggle_select_unselect();
 
@@ -257,7 +259,7 @@ fn run() {
                     }
 
                     if widget.selected_items().is_empty() {
-                        w.pane_clear(view_id::tab_apis_pane_apis)
+                        w.widget_clear(view_id::tab_apis_widget_apis)
                     }
                 }
             }
@@ -266,10 +268,10 @@ fn run() {
     )));
 
     let mut window = Window::new(tabs).status_target_id(vec![
-        (view_id::tab_pods, view_id::tab_pods_pane_logs),
-        (view_id::tab_configs, view_id::tab_configs_pane_raw_data),
-        (view_id::tab_event, view_id::tab_event_pane_event),
-        (view_id::tab_apis, view_id::tab_apis_pane_apis),
+        (view_id::tab_pods, view_id::tab_pods_widget_logs),
+        (view_id::tab_configs, view_id::tab_configs_widget_raw_data),
+        (view_id::tab_event, view_id::tab_event_widget_event),
+        (view_id::tab_apis, view_id::tab_apis_widget_apis),
     ]);
 
     let tx_ns = tx_main.clone();
@@ -320,32 +322,32 @@ fn run() {
             }
             WindowEvent::UpdateContents(kube_ev) => match kube_ev {
                 Kube::Pod(info) => {
-                    set_items_window_pane(
+                    set_items_widget(
                         &mut window,
-                        view_id::tab_pods_pane_pods,
+                        view_id::tab_pods_widget_pods,
                         WidgetItem::DoubleArray(info),
                     );
                 }
 
                 Kube::Configs(configs) => {
-                    set_items_window_pane(
+                    set_items_widget(
                         &mut window,
-                        view_id::tab_configs_pane_configs,
+                        view_id::tab_configs_widget_configs,
                         WidgetItem::Array(configs),
                     );
                 }
                 Kube::LogStreamResponse(logs) => {
-                    append_items_window_pane(
+                    append_items_widget(
                         &mut window,
-                        view_id::tab_pods_pane_logs,
+                        view_id::tab_pods_widget_logs,
                         WidgetItem::Array(logs),
                     );
                 }
 
                 Kube::ConfigResponse(raw) => {
-                    set_items_window_pane(
+                    set_items_widget(
                         &mut window,
-                        view_id::tab_configs_pane_raw_data,
+                        view_id::tab_configs_widget_raw_data,
                         WidgetItem::Array(raw),
                     );
                 }
@@ -356,29 +358,25 @@ fn run() {
                     *cn = ns;
                 }
                 Kube::Event(ev) => {
-                    set_items_window_pane(
+                    set_items_widget(
                         &mut window,
-                        view_id::tab_event_pane_event,
+                        view_id::tab_event_widget_event,
                         WidgetItem::Array(ev),
                     );
                 }
                 Kube::APIsResults(apis) => {
-                    set_items_window_pane(
+                    set_items_widget(
                         &mut window,
-                        view_id::tab_apis_pane_apis,
+                        view_id::tab_apis_widget_apis,
                         WidgetItem::Array(apis),
                     );
                 }
                 Kube::GetNamespacesResponse(ns) => {
-                    set_items_window_pane(&mut window, view_id::subwin_ns, WidgetItem::Array(ns));
+                    set_items_widget(&mut window, view_id::subwin_ns, WidgetItem::Array(ns));
                 }
 
                 Kube::GetAPIsResponse(apis) => {
-                    set_items_window_pane(
-                        &mut window,
-                        view_id::subwin_apis,
-                        WidgetItem::Array(apis),
-                    );
+                    set_items_widget(&mut window, view_id::subwin_apis, WidgetItem::Array(apis));
                 }
                 _ => unreachable!(),
             },

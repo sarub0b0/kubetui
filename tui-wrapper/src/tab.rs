@@ -14,20 +14,20 @@ pub struct WidgetData<'a> {
 pub struct Tab<'a> {
     id: String,
     title: String,
-    panes: Vec<WidgetData<'a>>,
+    widgets: Vec<WidgetData<'a>>,
     layout: Layout,
-    selected_pane_index: usize,
-    selectable_panes: Vec<usize>,
+    selected_widget_index: usize,
+    selectable_widgets: Vec<usize>,
 }
 
 impl<'a> Tab<'a> {
     pub fn new(
         id: impl Into<String>,
         title: impl Into<String>,
-        panes: Vec<WidgetData<'a>>,
+        widgets: Vec<WidgetData<'a>>,
         layout: Layout,
     ) -> Self {
-        let selectable_widgets = panes
+        let selectable_widgets = widgets
             .iter()
             .enumerate()
             .filter(|&(_, w)| w.widget.selectable())
@@ -37,10 +37,10 @@ impl<'a> Tab<'a> {
         Self {
             id: id.into(),
             title: title.into(),
-            panes,
+            widgets,
             layout,
-            selectable_panes: selectable_widgets,
-            selected_pane_index: 0,
+            selectable_widgets,
+            selected_widget_index: 0,
         }
     }
 
@@ -56,60 +56,60 @@ impl<'a> Tab<'a> {
         self.layout.split(tab_size)
     }
 
-    pub fn panes(&self) -> Vec<&Widget<'a>> {
-        self.panes.iter().map(|w| &w.widget).collect()
+    pub fn as_ref_widgets(&self) -> Vec<&Widget<'a>> {
+        self.widgets.iter().map(|w| &w.widget).collect()
     }
 
-    pub fn panes_mut(&mut self) -> Vec<&mut Widget<'a>> {
-        self.panes
+    pub fn as_mut_widgets(&mut self) -> Vec<&mut Widget<'a>> {
+        self.widgets
             .iter_mut()
             .map(|w: &mut WidgetData| &mut w.widget)
             .collect()
     }
 
-    pub fn next_pane(&mut self) {
-        if self.selectable_panes.len() - 1 <= self.selected_pane_index {
-            self.selected_pane_index = 0;
+    pub fn next_widget(&mut self) {
+        if self.selectable_widgets.len() - 1 <= self.selected_widget_index {
+            self.selected_widget_index = 0;
         } else {
-            self.selected_pane_index += 1;
+            self.selected_widget_index += 1;
         }
     }
 
-    pub fn prev_pane(&mut self) {
-        if self.selected_pane_index == 0 {
-            self.selected_pane_index = self.selectable_panes.len() - 1;
+    pub fn prev_widget(&mut self) {
+        if self.selected_widget_index == 0 {
+            self.selected_widget_index = self.selectable_widgets.len() - 1;
         } else {
-            self.selected_pane_index -= 1;
+            self.selected_widget_index -= 1;
         }
     }
 
-    pub fn selected_pane_id(&self) -> &str {
-        self.selected_pane().id()
+    pub fn selected_widget_id(&self) -> &str {
+        self.selected_widget().id()
     }
 
-    pub fn selected_pane_mut(&mut self) -> &mut Widget<'a> {
-        &mut self.panes[self.selected_pane_index].widget
+    pub fn selected_widget_mut(&mut self) -> &mut Widget<'a> {
+        &mut self.widgets[self.selected_widget_index].widget
     }
 
-    pub fn selected_pane(&self) -> &Widget {
-        &self.panes[self.selected_pane_index].widget
+    pub fn selected_widget(&self) -> &Widget {
+        &self.widgets[self.selected_widget_index].widget
     }
 
     pub fn update_chunk(&mut self, chunk: Rect) {
         let chunks = self.layout.split(chunk);
-        self.panes
+        self.widgets
             .iter_mut()
-            .for_each(|pane| pane.widget.update_chunk(chunks[pane.chunk_index]));
+            .for_each(|w| w.widget.update_chunk(chunks[w.chunk_index]));
     }
 
-    pub fn select_pane(&mut self, id: &str) {
+    pub fn select_widget(&mut self, id: &str) {
         if let Some((index, _)) = self
-            .panes
+            .widgets
             .iter()
             .enumerate()
-            .find(|(_i, pane)| pane.widget.id() == id)
+            .find(|(_i, w)| w.widget.id() == id)
         {
-            self.selected_pane_index = index;
+            self.selected_widget_index = index;
         }
     }
 }
@@ -119,11 +119,11 @@ impl Tab<'_> {
     where
         B: Backend,
     {
-        let selected_pane_index = self.selected_pane_index;
+        let selected_widget_index = self.selected_widget_index;
 
-        self.panes
+        self.widgets
             .iter_mut()
             .enumerate()
-            .for_each(|(i, w)| w.widget.render(f, i == selected_pane_index));
+            .for_each(|(i, w)| w.widget.render(f, i == selected_widget_index));
     }
 }
