@@ -1,6 +1,6 @@
 use crossbeam::channel::Receiver;
 
-use event::Event;
+use event::{kubernetes::Kube, Event};
 
 use tui_wrapper::{
     event::{exec_to_window_event, EventResult},
@@ -32,13 +32,15 @@ pub mod view_id {
     generate_id!(subwin_apis);
 }
 
-pub fn set_items_widget(window: &mut Window, id: &str, items: WidgetItem) {
+#[inline]
+fn set_items_widget(window: &mut Window, id: &str, items: WidgetItem) {
     if let Some(w) = window.find_widget_mut(id) {
         w.set_items(items);
     }
 }
 
-pub fn append_items_widget(window: &mut Window, id: &str, items: WidgetItem) {
+#[inline]
+fn append_items_widget(window: &mut Window, id: &str, items: WidgetItem) {
     if let Some(w) = window.find_widget_mut(id) {
         w.append_items(items);
     }
@@ -68,4 +70,72 @@ pub fn window_action(window: &mut Window, rx: &Receiver<Event>) -> WindowEvent {
         Event::Kube(k) => return WindowEvent::UpdateContents(k),
     }
     WindowEvent::Continue
+}
+
+pub fn update_contents(
+    window: &mut Window,
+    ev: Kube,
+    kube_context: &mut String,
+    kube_namespace: &mut String,
+) {
+    match ev {
+        Kube::Pod(info) => {
+            set_items_widget(
+                window,
+                view_id::tab_pods_widget_pods,
+                WidgetItem::DoubleArray(info),
+            );
+        }
+
+        Kube::Configs(configs) => {
+            set_items_widget(
+                window,
+                view_id::tab_configs_widget_configs,
+                WidgetItem::Array(configs),
+            );
+        }
+        Kube::LogStreamResponse(logs) => {
+            append_items_widget(
+                window,
+                view_id::tab_pods_widget_logs,
+                WidgetItem::Array(logs),
+            );
+        }
+
+        Kube::ConfigResponse(raw) => {
+            set_items_widget(
+                window,
+                view_id::tab_configs_widget_raw_data,
+                WidgetItem::Array(raw),
+            );
+        }
+
+        Kube::GetCurrentContextResponse(ctx, ns) => {
+            *kube_context = ctx;
+            // let mut cn = current_namespace.borrow_mut();
+            *kube_namespace = ns;
+        }
+        Kube::Event(ev) => {
+            set_items_widget(
+                window,
+                view_id::tab_event_widget_event,
+                WidgetItem::Array(ev),
+            );
+        }
+        Kube::APIsResults(apis) => {
+            set_items_widget(
+                window,
+                view_id::tab_apis_widget_apis,
+                WidgetItem::Array(apis),
+            );
+        }
+        Kube::GetNamespacesResponse(ns) => {
+            set_items_widget(window, view_id::subwin_ns, WidgetItem::Array(ns));
+        }
+
+        Kube::GetAPIsResponse(apis) => {
+            set_items_widget(window, view_id::subwin_apis, WidgetItem::Array(apis));
+        }
+        _ => unreachable!(),
+    }
 }

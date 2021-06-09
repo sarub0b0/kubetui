@@ -26,7 +26,7 @@ use tui_wrapper::{
         layout::{Constraint, Direction, Layout, Rect},
         Terminal, TerminalOptions, Viewport,
     },
-    widget::{complex::SingleSelect, List, Table, Text, Widget, WidgetItem, WidgetTrait},
+    widget::{complex::SingleSelect, List, Table, Text, Widget, WidgetTrait},
     Tab, Window, WindowEvent,
 };
 
@@ -67,7 +67,7 @@ fn run() {
     let chunk = backend.size().unwrap();
 
     let current_namespace = Rc::new(RefCell::new("None".to_string()));
-    let mut current_context = "None".to_string();
+    let current_context = Rc::new(RefCell::new("None".to_string()));
 
     // TODO WSLの時はclip.exeにデータを渡せるようにデータ構造を定義する
     let clipboard: Result<ClipboardContextWrapper, _> =
@@ -295,9 +295,7 @@ fn run() {
     window.add_popup(vec![subwin_namespace, subwin_apis]);
 
     terminal.clear().unwrap();
-
     window.update_chunks(terminal.size().unwrap());
-
     tx_main
         .send(Event::Kube(Kube::GetCurrentContextRequest))
         .unwrap();
@@ -305,8 +303,7 @@ fn run() {
     loop {
         terminal
             .draw(|f| {
-                let ns: &str = &current_namespace.borrow();
-                window.render(f, &current_context, ns);
+                window.render(f, &current_context.borrow(), &current_namespace.borrow());
             })
             .unwrap();
 
@@ -320,66 +317,14 @@ fn run() {
                 terminal.resize(chunk).unwrap();
                 window.update_chunks(chunk);
             }
-            WindowEvent::UpdateContents(kube_ev) => match kube_ev {
-                Kube::Pod(info) => {
-                    set_items_widget(
-                        &mut window,
-                        view_id::tab_pods_widget_pods,
-                        WidgetItem::DoubleArray(info),
-                    );
-                }
-
-                Kube::Configs(configs) => {
-                    set_items_widget(
-                        &mut window,
-                        view_id::tab_configs_widget_configs,
-                        WidgetItem::Array(configs),
-                    );
-                }
-                Kube::LogStreamResponse(logs) => {
-                    append_items_widget(
-                        &mut window,
-                        view_id::tab_pods_widget_logs,
-                        WidgetItem::Array(logs),
-                    );
-                }
-
-                Kube::ConfigResponse(raw) => {
-                    set_items_widget(
-                        &mut window,
-                        view_id::tab_configs_widget_raw_data,
-                        WidgetItem::Array(raw),
-                    );
-                }
-
-                Kube::GetCurrentContextResponse(ctx, ns) => {
-                    current_context = ctx;
-                    let mut cn = current_namespace.borrow_mut();
-                    *cn = ns;
-                }
-                Kube::Event(ev) => {
-                    set_items_widget(
-                        &mut window,
-                        view_id::tab_event_widget_event,
-                        WidgetItem::Array(ev),
-                    );
-                }
-                Kube::APIsResults(apis) => {
-                    set_items_widget(
-                        &mut window,
-                        view_id::tab_apis_widget_apis,
-                        WidgetItem::Array(apis),
-                    );
-                }
-                Kube::GetNamespacesResponse(ns) => {
-                    set_items_widget(&mut window, view_id::subwin_ns, WidgetItem::Array(ns));
-                }
-
-                Kube::GetAPIsResponse(apis) => {
-                    set_items_widget(&mut window, view_id::subwin_apis, WidgetItem::Array(apis));
-                }
-                _ => unreachable!(),
-            },
+            WindowEvent::UpdateContents(ev) => {
+                update_contents(
+                    &mut window,
+                    ev,
+                    &mut current_context.borrow_mut(),
+                    &mut current_namespace.borrow_mut(),
+                );
+            }
         }
     }
 }
