@@ -35,17 +35,42 @@ pub struct List<'a> {
     on_select: Option<Rc<dyn Fn(&mut Window, &String) -> EventResult>>,
 }
 
-impl<'a> List<'a> {
-    pub fn set_id(mut self, id: impl Into<String>) -> Self {
+#[derive(Debug, Default)]
+pub struct ListBuilder {
+    id: String,
+    title: String,
+    items: Vec<String>,
+}
+
+impl ListBuilder {
+    pub fn id(mut self, id: impl Into<String>) -> Self {
         self.id = id.into();
         self
     }
 
-    pub fn set_title(mut self, title: impl Into<String>) -> Self {
+    pub fn title(mut self, title: impl Into<String>) -> Self {
         self.title = title.into();
         self
     }
 
+    pub fn items(mut self, items: impl Into<Vec<String>>) -> Self {
+        self.items = items.into();
+        self
+    }
+
+    pub fn build(self) -> List<'static> {
+        let mut list = List {
+            id: self.id,
+            title: self.title,
+            ..Default::default()
+        };
+
+        list.set_items(WidgetItem::Array(self.items));
+        list
+    }
+}
+
+impl<'a> List<'a> {
     pub fn state(&self) -> &ListState {
         &self.state
     }

@@ -404,8 +404,8 @@ impl<'a> MultipleSelect<'a> {
 
         let mut selected_widget = SelectForm::default();
 
-        selected_widget.list_widget = selected_widget.list_widget.set_title("Item");
-        selected_widget.selected_widget = selected_widget.selected_widget.set_title("Selected");
+        selected_widget.list_widget = ListBuilder::default().title("Items").build();
+        selected_widget.selected_widget = ListBuilder::default().title("Selected").build();
 
         Self {
             id: id.into(),

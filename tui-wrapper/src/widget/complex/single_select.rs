@@ -133,7 +133,7 @@ impl<'a> SingleSelect<'a> {
             ]);
 
         let mut selected_widget = SelectForm::default();
-        selected_widget.list_widget = selected_widget.list_widget.set_title("Item");
+        selected_widget.list_widget = ListBuilder::default().title("Items").build();
 
         Self {
             id: id.into(),

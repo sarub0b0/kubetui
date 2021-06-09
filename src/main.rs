@@ -5,6 +5,7 @@ use std::rc::Rc;
 use std::thread;
 use std::time;
 use tui_wrapper::widget::ComplexWidget;
+use tui_wrapper::widget::ListBuilder;
 use tui_wrapper::widget::MultipleSelect;
 
 use std::io;
@@ -117,7 +118,11 @@ fn run() {
 
     // Raw
     let tx_configs = tx_main.clone();
-    let configs_widget = List::default()
+
+    let configs_widget = ListBuilder::default()
+        .id(view_id::tab_configs_widget_configs)
+        .title("Configs")
+        .build()
         .on_select(move |w, item| {
             if let Some(widget) = w.find_widget_mut(view_id::tab_configs_widget_raw_data) {
                 widget.clear();
@@ -126,9 +131,7 @@ fn run() {
                 .send(Event::Kube(Kube::ConfigRequest(item.to_string())))
                 .unwrap();
             EventResult::Window(WindowEvent::Continue)
-        })
-        .set_id(view_id::tab_configs_widget_configs)
-        .set_title("Configs");
+        });
 
     let mut raw_data_widget = Text::default()
         .enable_wrap()
