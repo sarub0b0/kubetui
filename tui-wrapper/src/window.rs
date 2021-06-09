@@ -69,26 +69,6 @@ impl<'a> Window<'a> {
         self.popup = popup;
     }
 
-    pub fn open_popup(&mut self, id: impl Into<String>) {
-        self.open_popup_id = Some(id.into());
-    }
-
-    pub fn close_popup(&mut self) {
-        self.open_popup_id = None;
-    }
-
-    pub fn opening_popup(&self) -> bool {
-        self.open_popup_id.is_some()
-    }
-
-    pub fn popup(&self, id: &str) -> Option<&Widget<'a>> {
-        self.popup.iter().find(|w| w.id() == id)
-    }
-
-    pub fn popup_mut(&mut self, id: &str) -> Option<&mut Widget<'a>> {
-        self.popup.iter_mut().find(|w| w.id() == id)
-    }
-
     pub fn status_target_id(mut self, id: impl Into<Vec<(&'a str, &'a str)>>) -> Self {
         self.status_target_id = id.into();
         self
@@ -108,7 +88,7 @@ impl<'a> Window<'a> {
         })
     }
 
-    pub fn chunks(&self) -> Vec<Rect> {
+    fn chunks(&self) -> Vec<Rect> {
         self.layout.split(self.chunk)
     }
 
@@ -125,22 +105,33 @@ impl<'a> Window<'a> {
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
     }
 
-    fn tab_title_format(title: &str) -> String {
-        format!(" {} ", title)
-    }
-
-    fn tab_block() -> Block<'a> {
-        Block::default().style(Style::default())
-    }
-
-    pub fn tab_chunk(&self) -> Rect {
-        self.chunks()[window_layout_index::TAB]
-    }
-
     pub fn match_callback(&self, ev: UserEvent) -> Option<InnerCallback> {
         self.callbacks
             .iter()
             .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb.clone()) } else { None })
+    }
+}
+
+// Popup
+impl<'a> Window<'a> {
+    pub fn open_popup(&mut self, id: impl Into<String>) {
+        self.open_popup_id = Some(id.into());
+    }
+
+    pub fn close_popup(&mut self) {
+        self.open_popup_id = None;
+    }
+
+    pub fn opening_popup(&self) -> bool {
+        self.open_popup_id.is_some()
+    }
+
+    pub fn popup(&self, id: &str) -> Option<&Widget<'a>> {
+        self.popup.iter().find(|w| w.id() == id)
+    }
+
+    pub fn popup_mut(&mut self, id: &str) -> Option<&mut Widget<'a>> {
+        self.popup.iter_mut().find(|w| w.id() == id)
     }
 }
 
@@ -179,6 +170,18 @@ impl<'a> Window<'a> {
         } else {
             self.focused_tab_index -= 1;
         }
+    }
+
+    fn tab_title_format(title: &str) -> String {
+        format!(" {} ", title)
+    }
+
+    fn tab_block() -> Block<'a> {
+        Block::default().style(Style::default())
+    }
+
+    pub fn tab_chunk(&self) -> Rect {
+        self.chunks()[window_layout_index::TAB]
     }
 }
 
