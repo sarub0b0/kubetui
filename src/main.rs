@@ -7,6 +7,7 @@ use std::time;
 use tui_wrapper::widget::ComplexWidget;
 use tui_wrapper::widget::ListBuilder;
 use tui_wrapper::widget::MultipleSelect;
+use tui_wrapper::widget::TableBuilder;
 
 use std::io;
 
@@ -92,13 +93,17 @@ fn run() {
 
     // Pods
     let tx_pods = tx_main.clone();
-    let pods_widget = Table::default()
+
+    let pods_widget = TableBuilder::default()
+        .id(view_id::tab_pods_widget_pods)
+        .title("Pods")
         .header([
             "NAME".to_string(),
             "READY".to_string(),
             "STATUS".to_string(),
             "AGE".to_string(),
         ])
+        .build()
         .on_select(move |w, v| {
             w.widget_clear(view_id::tab_pods_widget_logs);
             tx_pods
@@ -106,9 +111,7 @@ fn run() {
                 .unwrap();
 
             EventResult::Window(WindowEvent::Continue)
-        })
-        .set_id(view_id::tab_pods_widget_pods)
-        .set_title("Pods");
+        });
 
     let mut logs_widget = Text::default()
         .enable_wrap()

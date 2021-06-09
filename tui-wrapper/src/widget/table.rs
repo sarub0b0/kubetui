@@ -17,6 +17,8 @@ use tui::{
     Frame,
 };
 
+use unicode_width::UnicodeWidthStr;
+
 use super::spans::generate_spans_line;
 use super::wrap::wrap_line;
 use super::{RenderTrait, WidgetItem, WidgetTrait};
@@ -26,6 +28,49 @@ const HIGHLIGHT_SYMBOL: &str = " ";
 const ROW_START_INDEX: usize = 2;
 
 type InnerCallback = Rc<dyn Fn(&mut Window, &[String]) -> EventResult>;
+
+#[derive(Debug, Default)]
+pub struct TableBuilder {
+    id: String,
+    title: String,
+    header: Vec<String>,
+    items: Vec<Vec<String>>,
+}
+
+impl TableBuilder {
+    pub fn id(mut self, id: impl Into<String>) -> Self {
+        self.id = id.into();
+        self
+    }
+
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = title.into();
+        self
+    }
+
+    pub fn items(mut self, items: impl Into<Vec<Vec<String>>>) -> Self {
+        self.items = items.into();
+        self
+    }
+
+    pub fn header(mut self, header: impl Into<Vec<String>>) -> Self {
+        self.header = header.into();
+        self
+    }
+
+    pub fn build(self) -> Table<'static> {
+        let table = Table {
+            id: self.id,
+            title: self.title,
+            ..Default::default()
+        };
+
+        let mut table = table.header(self.header);
+
+        table.set_items(WidgetItem::DoubleArray(self.items));
+        table
+    }
+}
 
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
@@ -66,16 +111,6 @@ impl<'a> Table<'a> {
         self
     }
 
-    pub fn set_id(mut self, id: impl Into<String>) -> Self {
-        self.id = id.into();
-        self
-    }
-
-    pub fn set_title(mut self, title: impl Into<String>) -> Self {
-        self.title = title.into();
-        self
-    }
-
     pub fn items(&self) -> &Vec<Vec<String>> {
         &self.items
     }
@@ -85,7 +120,15 @@ impl<'a> Table<'a> {
     }
 
     fn set_widths(&mut self) {
-        self.digits = self.header.iter().map(|h| h.len()).collect();
+        if self.items.is_empty() {
+            return;
+        }
+
+        self.digits = if self.header.is_empty() {
+            self.items[0].iter().map(|i| i.width()).collect()
+        } else {
+            self.header.iter().map(|h| h.width()).collect()
+        };
 
         for row in &self.items {
             for (i, col) in row.iter().enumerate() {
@@ -124,6 +167,10 @@ impl<'a> Table<'a> {
     }
 
     fn set_rows(&mut self) {
+        if self.digits.is_empty() {
+            return;
+        }
+
         let mut margin = 0;
         let mut row_bounds: Vec<(usize, usize)> = Vec::new();
 
@@ -382,13 +429,16 @@ impl RenderTrait for Table<'_> {
         B: Backend,
     {
         let title = self.title().to_string();
-        let widget = TTable::new(self.rows.clone())
+        let mut widget = TTable::new(self.rows.clone())
             .block(focus_block(&title, selected))
-            .header(self.header_row.clone())
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
             .highlight_symbol(HIGHLIGHT_SYMBOL)
             .column_spacing(COLUMN_SPACING)
             .widths(&self.widths);
+
+        if !self.header.is_empty() {
+            widget = widget.header(self.header_row.clone());
+        }
 
         f.render_stateful_widget(widget, self.chunk, &mut self.state);
     }
