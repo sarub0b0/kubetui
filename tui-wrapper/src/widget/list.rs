@@ -21,16 +21,44 @@ use crate::{
 
 use derivative::*;
 
+#[derive(Debug, Default)]
+struct InnerItem<'a> {
+    vec: Vec<String>,
+    list: Vec<ListItem<'a>>,
+}
+
+impl<'a> InnerItem<'a> {
+    fn update_item(&mut self, item: WidgetItem) {
+        self.vec = item.array();
+        self.list = self.vec.iter().cloned().map(ListItem::new).collect();
+    }
+
+    fn raw_items(&self) -> &[String] {
+        &self.vec
+    }
+
+    fn widget_items(&self) -> &[ListItem<'a>] {
+        &self.list
+    }
+
+    fn len(&self) -> usize {
+        self.vec.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.vec.is_empty()
+    }
+}
+
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
 pub struct List<'a> {
     id: String,
     title: String,
-    items: Vec<String>,
+    items: InnerItem<'a>,
     state: ListState,
     chunk: Rect,
     inner_chunk: Rect,
-    list_item: Vec<ListItem<'a>>,
     #[derivative(Debug = "ignore")]
     on_select: Option<Rc<dyn Fn(&mut Window, &String) -> EventResult>>,
 }
@@ -75,8 +103,8 @@ impl<'a> List<'a> {
         &self.state
     }
 
-    pub fn items(&self) -> &Vec<String> {
-        &self.items
+    pub fn items(&self) -> &[String] {
+        self.items.raw_items()
     }
 
     pub fn selected(&self) -> Option<usize> {
@@ -84,14 +112,10 @@ impl<'a> List<'a> {
     }
 
     pub fn widget(&self, block: Block<'a>) -> widgets::List<'a> {
-        widgets::List::new(self.list_item.clone())
+        widgets::List::new(self.items.widget_items().to_vec())
             .block(block)
             .style(Style::default())
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
-    }
-
-    fn set_listitem(&mut self) {
-        self.list_item = self.items.iter().cloned().map(ListItem::new).collect();
     }
 }
 
@@ -134,10 +158,11 @@ impl<'a> WidgetTrait for List<'a> {
     }
 
     fn update_widget_item(&mut self, items: WidgetItem) {
-        let items = items.array();
         let old_len = self.items.len();
 
-        match items.len() {
+        self.items.update_item(items);
+
+        match self.items.len() {
             0 => self.state.select(None),
             new_len if new_len < old_len => {
                 let i = self.state.selected();
@@ -151,9 +176,6 @@ impl<'a> WidgetTrait for List<'a> {
                 }
             }
         }
-        self.items = items;
-
-        self.set_listitem();
     }
 
     fn update_chunk(&mut self, chunk: Rect) {
@@ -166,11 +188,11 @@ impl<'a> WidgetTrait for List<'a> {
     fn widget_item(&self) -> Option<WidgetItem> {
         self.state
             .selected()
-            .map(|i| WidgetItem::Single(self.items[i].clone()))
+            .map(|i| WidgetItem::Single(self.items.vec[i].clone()))
     }
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
-        if self.list_item.is_empty() {
+        if self.items.is_empty() {
             return EventResult::Nop;
         }
 
@@ -179,7 +201,7 @@ impl<'a> WidgetTrait for List<'a> {
             ev.row.saturating_sub(self.inner_chunk.top()) as usize,
         );
 
-        if self.list_item.len() <= row {
+        if self.items.len() <= row {
             return EventResult::Nop;
         }
 
@@ -265,7 +287,7 @@ impl<'a> List<'a> {
     }
 
     fn selected_item(&self) -> Option<Rc<String>> {
-        self.selected().map(|i| Rc::new(self.items[i].clone()))
+        self.selected().map(|i| Rc::new(self.items.vec[i].clone()))
     }
 }
 
