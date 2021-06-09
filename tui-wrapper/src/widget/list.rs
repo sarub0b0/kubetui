@@ -36,21 +36,6 @@ pub struct List<'a> {
 }
 
 impl<'a> List<'a> {
-    pub fn new(items: Vec<String>) -> Self {
-        let mut state = ListState::default();
-        if !items.is_empty() {
-            state.select(Some(0));
-        }
-        let list_item = items.iter().cloned().map(ListItem::new).collect();
-
-        Self {
-            items,
-            state,
-            list_item,
-            ..Self::default()
-        }
-    }
-
     pub fn set_id(mut self, id: impl Into<String>) -> Self {
         self.id = id.into();
         self
@@ -281,33 +266,36 @@ mod tests {
 
     #[test]
     fn initial_index() {
-        let list = List::new(vec![
+        let mut list = List::default();
+        list.set_items(WidgetItem::Array(vec![
             String::from("Item 0"),
             String::from("Item 1"),
             String::from("Item 2"),
-        ]);
+        ]));
 
         assert_eq!(Some(0), list.selected())
     }
 
     #[test]
     fn two_prev_is_selected_last_index() {
-        let mut list = List::new(vec![
+        let mut list = List::default();
+        list.set_items(WidgetItem::Array(vec![
             String::from("Item 0"),
             String::from("Item 1"),
             String::from("Item 2"),
-        ]);
+        ]));
 
         list.select_prev(2);
         assert_eq!(Some(0), list.selected())
     }
     #[test]
     fn one_next_is_selected_second_index() {
-        let mut list = List::new(vec![
+        let mut list = List::default();
+        list.set_items(WidgetItem::Array(vec![
             String::from("Item 0"),
             String::from("Item 1"),
             String::from("Item 2"),
-        ]);
+        ]));
 
         list.select_next(1);
         assert_eq!(Some(1), list.selected())
@@ -315,11 +303,12 @@ mod tests {
 
     #[test]
     fn last_next_is_selected_first_index() {
-        let mut list = List::new(vec![
+        let mut list = List::default();
+        list.set_items(WidgetItem::Array(vec![
             String::from("Item 0"),
             String::from("Item 1"),
             String::from("Item 2"),
-        ]);
+        ]));
 
         list.select_next(3);
         assert_eq!(Some(2), list.selected())
@@ -328,7 +317,8 @@ mod tests {
     #[test]
     fn next_offset() {
         let chunk = Rect::new(0, 0, 10, 5);
-        let mut list = List::new(vec![
+        let mut list = List::default();
+        list.set_items(WidgetItem::Array(vec![
             "Item-0".to_string(),
             "Item-1".to_string(),
             "Item-2".to_string(),
@@ -336,7 +326,7 @@ mod tests {
             "Item-4".to_string(),
             "Item-5".to_string(),
             "Item-6".to_string(),
-        ]);
+        ]));
 
         list.update_chunk(chunk);
 
@@ -350,7 +340,8 @@ mod tests {
     #[test]
     fn prev_offset() {
         let chunk = Rect::new(0, 0, 10, 5);
-        let mut list = List::new(vec![
+        let mut list = List::default();
+        list.set_items(WidgetItem::Array(vec![
             "Item-0".to_string(),
             "Item-1".to_string(),
             "Item-2".to_string(),
@@ -358,7 +349,7 @@ mod tests {
             "Item-4".to_string(),
             "Item-5".to_string(),
             "Item-6".to_string(),
-        ]);
+        ]));
 
         list.update_chunk(chunk);
 

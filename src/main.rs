@@ -64,14 +64,13 @@ fn run() {
     thread::spawn(move || tick(tx_tick, time::Duration::from_millis(200)));
 
     let backend = CrosstermBackend::new(io::stdout());
-    let chunk = backend.size().unwrap();
 
     let current_namespace = Rc::new(RefCell::new("None".to_string()));
     let current_context = Rc::new(RefCell::new("None".to_string()));
 
-    // TODO WSLの時はclip.exeにデータを渡せるようにデータ構造を定義する
     let clipboard: Result<ClipboardContextWrapper, _> =
         clipboard_wrapper::ClipboardContextWrapper::new();
+
     // TODO: 画面サイズ変更時にクラッシュする問題の解決
     //
     // Terminal::new()の場合は、teminal.draw実行時にautoresizeを実行してバッファを更新する。
@@ -81,6 +80,7 @@ fn run() {
     // オプションを使用する。
     //
     // UNSTABLE CODE
+    let chunk = backend.size().unwrap();
     let mut terminal = Terminal::with_options(
         backend,
         TerminalOptions {
@@ -89,18 +89,65 @@ fn run() {
     )
     .unwrap();
 
-    let mut logs_widget = Text::new(vec![]).enable_wrap().enable_follow();
-    let mut raw_data_widget = Text::new(vec![]).enable_wrap();
+    // Pods
+    let tx_pods = tx_main.clone();
+    let pods_widget = Table::default()
+        .header([
+            "NAME".to_string(),
+            "READY".to_string(),
+            "STATUS".to_string(),
+            "AGE".to_string(),
+        ])
+        .on_select(move |w, v| {
+            w.widget_clear(view_id::tab_pods_widget_logs);
+            tx_pods
+                .send(Event::Kube(Kube::LogStreamRequest(v[0].to_string())))
+                .unwrap();
 
-    if let Ok(cb) = clipboard {
-        let cb = Rc::new(RefCell::new(cb));
-        logs_widget = logs_widget.clipboard(cb.clone());
-        raw_data_widget = raw_data_widget.clipboard(cb);
-    }
-    let mut apis_widget = Text::new(vec![]);
+            EventResult::Window(WindowEvent::Continue)
+        })
+        .set_id(view_id::tab_pods_widget_pods)
+        .set_title("Pods");
+
+    let mut logs_widget = Text::default()
+        .enable_wrap()
+        .enable_follow()
+        .set_title("Logs")
+        .set_id(view_id::tab_pods_widget_logs);
+
+    // Raw
+    let tx_configs = tx_main.clone();
+    let configs_widget = List::default()
+        .on_select(move |w, item| {
+            if let Some(widget) = w.find_widget_mut(view_id::tab_configs_widget_raw_data) {
+                widget.clear();
+            }
+            tx_configs
+                .send(Event::Kube(Kube::ConfigRequest(item.to_string())))
+                .unwrap();
+            EventResult::Window(WindowEvent::Continue)
+        })
+        .set_id(view_id::tab_configs_widget_configs)
+        .set_title("Configs");
+
+    let mut raw_data_widget = Text::default()
+        .enable_wrap()
+        .set_id(view_id::tab_configs_widget_raw_data)
+        .set_title("Raw Data");
+
+    // Event
+    let event_widget = Text::default()
+        .enable_wrap()
+        .enable_follow()
+        .set_title("Event")
+        .set_id(view_id::tab_event_widget_event);
+
+    // APIs
+    let mut apis_widget = Text::default()
+        .set_id(view_id::tab_apis_widget_apis)
+        .set_title("APIs");
 
     let tx_apis = tx_main.clone();
-
     let open_subwin = move |w: &mut Window| {
         tx_apis.send(Event::Kube(Kube::GetAPIsRequest)).unwrap();
         w.open_popup(view_id::subwin_apis);
@@ -110,47 +157,23 @@ fn run() {
     apis_widget.add_action('/', open_subwin.clone());
     apis_widget.add_action('f', open_subwin);
 
-    let tx_configs = tx_main.clone();
-    let tx_pods = tx_main.clone();
+    // Clipboard
+    if let Ok(cb) = clipboard {
+        let cb = Rc::new(RefCell::new(cb));
+        logs_widget = logs_widget.clipboard(cb.clone());
+        raw_data_widget = raw_data_widget.clipboard(cb);
+    }
 
-    let tabs = vec![
+    let tabs = [
         Tab::new(
             view_id::tab_pods,
             "1:Pods",
-            vec![
-                WidgetData {
-                    chunk_index: 0,
-                    widget: Widget::Table(Box::new(
-                        Table::new(
-                            vec![vec![]],
-                            vec![
-                                "NAME".to_string(),
-                                "READY".to_string(),
-                                "STATUS".to_string(),
-                                "AGE".to_string(),
-                            ],
-                        )
-                        .on_select(move |w, v| {
-                            w.widget_clear(view_id::tab_pods_widget_logs);
-                            tx_pods
-                                .send(Event::Kube(Kube::LogStreamRequest(v[0].to_string())))
-                                .unwrap();
-
-                            EventResult::Window(WindowEvent::Continue)
-                        })
-                        .set_id(view_id::tab_pods_widget_pods)
-                        .set_title("Pods"),
-                    )),
-                },
-                WidgetData {
-                    chunk_index: 1,
-                    widget: Widget::Text(Box::new(
-                        logs_widget
-                            .set_title("Logs")
-                            .set_id(view_id::tab_pods_widget_logs),
-                    )),
-                },
+            [
+                WidgetData::new(pods_widget).chunk_index(0),
+                WidgetData::new(logs_widget).chunk_index(1),
             ],
+        )
+        .layout(
             Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()),
@@ -158,35 +181,12 @@ fn run() {
         Tab::new(
             view_id::tab_configs,
             "2:Configs",
-            vec![
-                WidgetData {
-                    chunk_index: 0,
-                    widget: Widget::List(Box::new(
-                        List::new(vec![])
-                            .on_select(move |w, item| {
-                                if let Some(widget) =
-                                    w.find_widget_mut(view_id::tab_configs_widget_raw_data)
-                                {
-                                    widget.clear();
-                                }
-                                tx_configs
-                                    .send(Event::Kube(Kube::ConfigRequest(item.to_string())))
-                                    .unwrap();
-                                EventResult::Window(WindowEvent::Continue)
-                            })
-                            .set_id(view_id::tab_configs_widget_configs)
-                            .set_title("Configs"),
-                    )),
-                },
-                WidgetData {
-                    widget: Widget::Text(Box::new(
-                        raw_data_widget
-                            .set_id(view_id::tab_configs_widget_raw_data)
-                            .set_title("Raw Data"),
-                    )),
-                    chunk_index: 1,
-                },
+            [
+                WidgetData::new(configs_widget).chunk_index(0),
+                WidgetData::new(raw_data_widget).chunk_index(1),
             ],
+        )
+        .layout(
             Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()),
@@ -194,36 +194,14 @@ fn run() {
         Tab::new(
             view_id::tab_event,
             "3:Event",
-            vec![WidgetData {
-                widget: Widget::Text(Box::new(
-                    Text::new(vec![])
-                        .enable_wrap()
-                        .enable_follow()
-                        .set_title("Event")
-                        .set_id(view_id::tab_event_widget_event),
-                )),
-                chunk_index: 0,
-            }],
-            Layout::default().constraints([Constraint::Percentage(100)].as_ref()),
+            [WidgetData::new(event_widget)],
         ),
-        Tab::new(
-            view_id::tab_apis,
-            "4:APIs",
-            vec![WidgetData {
-                widget: Widget::Text(Box::new(
-                    apis_widget
-                        .set_id(view_id::tab_apis_widget_apis)
-                        .set_title("APIs"),
-                )),
-                chunk_index: 0,
-            }],
-            Layout::default().constraints([Constraint::Percentage(100)].as_ref()),
-        ),
+        Tab::new(view_id::tab_apis, "4:APIs", [WidgetData::new(apis_widget)]),
     ];
 
     let tx_ns = tx_main.clone();
     let cn = current_namespace.clone();
-    let subwin_namespace = Widget::Complex(Box::new(ComplexWidget::from(
+    let subwin_namespace = Widget::from(
         SingleSelect::new(view_id::subwin_ns, "Namespace").on_select(
             move |w: &mut Window, item: &String| {
                 tx_ns
@@ -243,11 +221,11 @@ fn run() {
                 EventResult::Nop
             },
         ),
-    )));
+    );
 
     let tx_apis = tx_main.clone();
-    let subwin_apis = Widget::Complex(Box::new(ComplexWidget::from(
-        MultipleSelect::new(view_id::subwin_apis, "APIs").on_select(move |w, _| {
+    let subwin_apis = Widget::from(MultipleSelect::new(view_id::subwin_apis, "APIs").on_select(
+        move |w, _| {
             if let Some(widget) = w.find_widget_mut(view_id::subwin_apis) {
                 if let ComplexWidget::MultipleSelect(widget) = widget.as_mut_complex() {
                     widget.toggle_select_unselect();
@@ -264,10 +242,10 @@ fn run() {
                 }
             }
             EventResult::Nop
-        }),
-    )));
+        },
+    ));
 
-    let mut window = Window::new(tabs).status_target_id(vec![
+    let mut window = Window::new(tabs).status_target_id([
         (view_id::tab_pods, view_id::tab_pods_widget_logs),
         (view_id::tab_configs, view_id::tab_configs_widget_raw_data),
         (view_id::tab_event, view_id::tab_event_widget_event),
@@ -289,10 +267,10 @@ fn run() {
             EventResult::Window(WindowEvent::CloseWindow)
         }
     };
+
     window.add_action('q', fn_close);
     window.add_action(KeyCode::Esc, fn_close);
-
-    window.add_popup(vec![subwin_namespace, subwin_apis]);
+    window.add_popup([subwin_namespace, subwin_apis]);
 
     terminal.clear().unwrap();
     window.update_chunks(terminal.size().unwrap());

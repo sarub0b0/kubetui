@@ -49,31 +49,21 @@ pub struct Table<'a> {
 }
 
 impl<'a> Table<'a> {
-    pub fn new(items: Vec<Vec<String>>, header: Vec<String>) -> Self {
-        let mut state = TableState::default();
-        if !items.is_empty() {
-            state.select(Some(0))
-        }
+    pub fn header(mut self, header: impl Into<Vec<String>>) -> Self {
+        self.header = header.into();
 
-        let header_cells = header
+        let header_cells = self
+            .header
             .iter()
             .cloned()
             .map(|h| Cell::from(h).style(Style::default().fg(Color::DarkGray)));
 
-        let header_row = Row::new(header_cells).bottom_margin(1);
+        self.header_row = Row::new(header_cells).bottom_margin(1);
 
-        let mut table = Self {
-            items,
-            header,
-            header_row,
-            state,
-            ..Default::default()
-        };
+        self.set_widths();
+        self.set_rows();
 
-        table.set_widths();
-        table.set_rows();
-
-        table
+        self
     }
 
     pub fn set_id(mut self, id: impl Into<String>) -> Self {

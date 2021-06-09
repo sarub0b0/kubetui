@@ -45,9 +45,9 @@ pub mod window_layout_index {
 
 // Window
 impl<'a> Window<'a> {
-    pub fn new(tabs: Vec<Tab<'a>>) -> Self {
+    pub fn new(tabs: impl Into<Vec<Tab<'a>>>) -> Self {
         Self {
-            tabs,
+            tabs: tabs.into(),
             focused_tab_index: 0,
             layout: Layout::default()
                 .direction(Direction::Vertical)
@@ -65,8 +65,8 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn add_popup(&mut self, popup: Vec<Widget<'a>>) {
-        self.popup = popup;
+    pub fn add_popup(&mut self, popup: impl Into<Vec<Widget<'a>>>) {
+        self.popup = popup.into();
     }
 
     pub fn status_target_id(mut self, id: impl Into<Vec<(&'a str, &'a str)>>) -> Self {

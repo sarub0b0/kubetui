@@ -2,13 +2,27 @@ use super::widget::*;
 
 use tui::{
     backend::Backend,
-    layout::{Layout, Rect},
+    layout::{Constraint, Layout, Rect},
     Frame,
 };
 
 pub struct WidgetData<'a> {
-    pub chunk_index: usize,
-    pub widget: Widget<'a>,
+    chunk_index: usize,
+    widget: Widget<'a>,
+}
+
+impl<'a> WidgetData<'a> {
+    pub fn new(widget: impl Into<Widget<'a>>) -> Self {
+        Self {
+            widget: widget.into(),
+            chunk_index: 0,
+        }
+    }
+
+    pub fn chunk_index(mut self, index: usize) -> Self {
+        self.chunk_index = index;
+        self
+    }
 }
 
 pub struct Tab<'a> {
@@ -24,15 +38,17 @@ impl<'a> Tab<'a> {
     pub fn new(
         id: impl Into<String>,
         title: impl Into<String>,
-        widgets: Vec<WidgetData<'a>>,
-        layout: Layout,
+        widgets: impl Into<Vec<WidgetData<'a>>>,
     ) -> Self {
+        let widgets = widgets.into();
         let focusable_widgets = widgets
             .iter()
             .enumerate()
             .filter(|&(_, w)| w.widget.focusable())
             .map(|(i, _)| i)
             .collect();
+
+        let layout = Layout::default().constraints([Constraint::Percentage(100)]);
 
         Self {
             id: id.into(),
@@ -42,6 +58,11 @@ impl<'a> Tab<'a> {
             focusable_widgets,
             focused_widget_index: 0,
         }
+    }
+
+    pub fn layout(mut self, layout: Layout) -> Self {
+        self.layout = layout;
+        self
     }
 
     pub fn id(&self) -> &str {

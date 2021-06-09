@@ -93,6 +93,42 @@ pub enum Widget<'a> {
     Complex(Box<ComplexWidget<'a>>),
 }
 
+impl<'a> From<List<'a>> for Widget<'a> {
+    fn from(w: List<'a>) -> Self {
+        Self::List(Box::new(w))
+    }
+}
+
+impl<'a> From<Text<'a>> for Widget<'a> {
+    fn from(w: Text<'a>) -> Self {
+        Self::Text(Box::new(w))
+    }
+}
+
+impl<'a> From<Table<'a>> for Widget<'a> {
+    fn from(w: Table<'a>) -> Self {
+        Self::Table(Box::new(w))
+    }
+}
+
+impl<'a> From<ComplexWidget<'a>> for Widget<'a> {
+    fn from(w: ComplexWidget<'a>) -> Self {
+        Self::Complex(Box::new(w))
+    }
+}
+
+impl<'a> From<SingleSelect<'a>> for Widget<'a> {
+    fn from(w: SingleSelect<'a>) -> Self {
+        Self::Complex(Box::new(ComplexWidget::from(w)))
+    }
+}
+
+impl<'a> From<MultipleSelect<'a>> for Widget<'a> {
+    fn from(w: MultipleSelect<'a>) -> Self {
+        Self::Complex(Box::new(ComplexWidget::from(w)))
+    }
+}
+
 impl Default for Widget<'_> {
     fn default() -> Self {
         Widget::Text(Box::new(Text::new(Vec::new())))
