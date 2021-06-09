@@ -198,7 +198,10 @@ impl<'a> SelectForm<'a> {
         // 2. 取得したアイテムをフォーカスしているリストから削除
         // 3  フォーカスしていないリストに追加
         let list = self.focused_form_mut();
-        let selected_item = list.selected().map(|index| list.items()[index].to_string());
+        let selected_item = list
+            .state()
+            .selected()
+            .map(|index| list.items()[index].to_string());
 
         if let Some(selected_item) = selected_item {
             self.swap_item(&selected_item)
