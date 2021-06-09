@@ -8,10 +8,11 @@ use tui_wrapper::widget::ComplexWidget;
 use tui_wrapper::widget::ListBuilder;
 use tui_wrapper::widget::MultipleSelect;
 use tui_wrapper::widget::TableBuilder;
+use tui_wrapper::widget::TextBuilder;
 
 use std::io;
 
-use clipboard_wrapper::{ClipboardContextWrapper, ClipboardProvider};
+use clipboard_wrapper::ClipboardProvider;
 
 use ::event::{input::*, kubernetes::*, tick::*, Event};
 use tui_wrapper::{
@@ -28,7 +29,7 @@ use tui_wrapper::{
         layout::{Constraint, Direction, Layout, Rect},
         Terminal, TerminalOptions, Viewport,
     },
-    widget::{complex::SingleSelect, List, Table, Text, Widget, WidgetTrait},
+    widget::{complex::SingleSelect, Widget, WidgetTrait},
     Tab, Window, WindowEvent,
 };
 
@@ -70,8 +71,10 @@ fn run() {
     let current_namespace = Rc::new(RefCell::new("None".to_string()));
     let current_context = Rc::new(RefCell::new("None".to_string()));
 
-    let clipboard: Result<ClipboardContextWrapper, _> =
-        clipboard_wrapper::ClipboardContextWrapper::new();
+    let clipboard = match clipboard_wrapper::ClipboardContextWrapper::new() {
+        Ok(cb) => Some(Rc::new(RefCell::new(cb))),
+        Err(_) => None,
+    };
 
     // TODO: 画面サイズ変更時にクラッシュする問題の解決
     //
@@ -113,11 +116,18 @@ fn run() {
             EventResult::Window(WindowEvent::Continue)
         });
 
-    let mut logs_widget = Text::default()
-        .enable_wrap()
-        .enable_follow()
-        .set_title("Logs")
-        .set_id(view_id::tab_pods_widget_logs);
+    let logs_builder = TextBuilder::default()
+        .id(view_id::tab_pods_widget_logs)
+        .title("Logs")
+        .wrap()
+        .follow();
+
+    let logs_widget = if let Some(cb) = &clipboard {
+        logs_builder.clipboard(cb.clone())
+    } else {
+        logs_builder
+    }
+    .build();
 
     // Raw
     let tx_configs = tx_main.clone();
@@ -136,22 +146,31 @@ fn run() {
             EventResult::Window(WindowEvent::Continue)
         });
 
-    let mut raw_data_widget = Text::default()
-        .enable_wrap()
-        .set_id(view_id::tab_configs_widget_raw_data)
-        .set_title("Raw Data");
+    let raw_data_builder = TextBuilder::default()
+        .id(view_id::tab_configs_widget_raw_data)
+        .title("Raw Data")
+        .wrap();
+
+    let raw_data_widget = if let Some(cb) = clipboard {
+        raw_data_builder.clipboard(cb.clone())
+    } else {
+        raw_data_builder
+    }
+    .build();
 
     // Event
-    let event_widget = Text::default()
-        .enable_wrap()
-        .enable_follow()
-        .set_title("Event")
-        .set_id(view_id::tab_event_widget_event);
+    let event_widget = TextBuilder::default()
+        .id(view_id::tab_event_widget_event)
+        .title("Event")
+        .wrap()
+        .follow()
+        .build();
 
     // APIs
-    let mut apis_widget = Text::default()
-        .set_id(view_id::tab_apis_widget_apis)
-        .set_title("APIs");
+    let mut apis_widget = TextBuilder::default()
+        .id(view_id::tab_apis_widget_apis)
+        .title("APIs")
+        .build();
 
     let tx_apis = tx_main.clone();
     let open_subwin = move |w: &mut Window| {
@@ -162,13 +181,6 @@ fn run() {
 
     apis_widget.add_action('/', open_subwin.clone());
     apis_widget.add_action('f', open_subwin);
-
-    // Clipboard
-    if let Ok(cb) = clipboard {
-        let cb = Rc::new(RefCell::new(cb));
-        logs_widget = logs_widget.clipboard(cb.clone());
-        raw_data_widget = raw_data_widget.clipboard(cb);
-    }
 
     let tabs = [
         Tab::new(

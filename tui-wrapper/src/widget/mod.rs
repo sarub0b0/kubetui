@@ -131,7 +131,7 @@ impl<'a> From<MultipleSelect<'a>> for Widget<'a> {
 
 impl Default for Widget<'_> {
     fn default() -> Self {
-        Widget::Text(Box::new(Text::new(Vec::new())))
+        Widget::Text(Box::new(Text::default()))
     }
 }
 

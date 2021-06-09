@@ -106,6 +106,64 @@ struct HighlightContent<'a> {
 
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
+pub struct TextBuilder {
+    id: String,
+    title: String,
+    items: Vec<String>,
+    wrap: bool,
+    follow: bool,
+    #[derivative(Debug = "ignore")]
+    clipboard: Option<Rc<RefCell<ClipboardContextWrapper>>>,
+}
+
+impl TextBuilder {
+    pub fn id(mut self, id: impl Into<String>) -> Self {
+        self.id = id.into();
+        self
+    }
+
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = title.into();
+        self
+    }
+
+    pub fn items(mut self, items: impl Into<Vec<String>>) -> Self {
+        self.items = items.into();
+        self
+    }
+
+    pub fn wrap(mut self) -> Self {
+        self.wrap = true;
+        self
+    }
+
+    pub fn follow(mut self) -> Self {
+        self.follow = true;
+        self
+    }
+
+    pub fn clipboard(mut self, clipboard: Rc<RefCell<ClipboardContextWrapper>>) -> Self {
+        self.clipboard = Some(clipboard);
+        self
+    }
+
+    pub fn build(self) -> Text<'static> {
+        let mut text = Text {
+            id: self.id,
+            title: self.title,
+            wrap: self.wrap,
+            follow: self.follow,
+            clipboard: self.clipboard,
+            ..Default::default()
+        };
+
+        text.set_items(WidgetItem::Array(self.items));
+        text
+    }
+}
+
+#[derive(Derivative)]
+#[derivative(Debug, Default)]
 pub struct Text<'a> {
     id: String,
     title: String,
@@ -160,38 +218,6 @@ impl TextState {
 
 // ステート
 impl Text<'_> {
-    pub fn new(items: Vec<String>) -> Self {
-        Self {
-            items,
-            ..Default::default()
-        }
-    }
-
-    pub fn set_id(mut self, id: impl Into<String>) -> Self {
-        self.id = id.into();
-        self
-    }
-
-    pub fn set_title(mut self, title: impl Into<String>) -> Self {
-        self.title = title.into();
-        self
-    }
-
-    pub fn enable_wrap(mut self) -> Self {
-        self.wrap = true;
-        self
-    }
-
-    pub fn enable_follow(mut self) -> Self {
-        self.follow = true;
-        self
-    }
-
-    pub fn clipboard(mut self, clipboard: Rc<RefCell<ClipboardContextWrapper>>) -> Self {
-        self.clipboard = Some(clipboard);
-        self
-    }
-
     pub fn add_action<F, E: Into<UserEvent>>(&mut self, ev: E, cb: F)
     where
         F: Fn(&mut Window) -> EventResult + 'static,
@@ -714,7 +740,7 @@ mod tests {
     fn disable_wrap() {
         let data = (0..10).map(|_| "abcd\nefg".to_string()).collect();
 
-        let mut text = Text::new(vec![]);
+        let mut text = TextBuilder::default().build();
 
         text.set_items(WidgetItem::Array(data));
 
@@ -725,7 +751,7 @@ mod tests {
     fn enable_wrap() {
         let data = (0..10).map(|_| "abcd\nefg".to_string()).collect();
 
-        let mut text = Text::new(vec![]).enable_wrap();
+        let mut text = TextBuilder::default().wrap().build();
 
         text.update_chunk(Rect::new(0, 0, 4, 12));
 
@@ -738,7 +764,7 @@ mod tests {
     fn append_items_enable_follow_and_wrap() {
         let data: Vec<String> = (0..10).map(|_| "abcd\nefg".to_string()).collect();
 
-        let mut text = Text::new(vec![]).enable_wrap().enable_follow();
+        let mut text = TextBuilder::default().wrap().follow().build();
 
         text.update_chunk(Rect::new(0, 0, 2, 10));
         text.append_items(WidgetItem::Array(data));

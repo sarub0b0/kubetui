@@ -23,6 +23,7 @@ impl ClipboardProvider for ClipboardContextWrapper {
             Ok(Self::OS(ClipboardContext::new()?))
         }
     }
+
     fn get_contents(&mut self) -> Result<String, Box<(dyn std::error::Error + 'static)>> {
         match self {
             ClipboardContextWrapper::OSC52(c) => c.get_contents(),
