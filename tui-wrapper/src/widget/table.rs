@@ -30,6 +30,181 @@ const ROW_START_INDEX: usize = 2;
 type InnerCallback = Rc<dyn Fn(&mut Window, &[String]) -> EventResult>;
 
 #[derive(Debug, Default)]
+struct InnerItemBuilder {
+    header: Vec<String>,
+    rows: Vec<Vec<String>>,
+}
+
+impl InnerItemBuilder {
+    fn header(mut self, header: impl Into<Vec<String>>) -> Self {
+        self.header = header.into();
+        self
+    }
+
+    fn rows(mut self, rows: impl Into<Vec<Vec<String>>>) -> Self {
+        self.rows = rows.into();
+        self
+    }
+
+    fn build(self) -> InnerItem<'static> {
+        let mut inner_item = InnerItem {
+            header: self.header,
+            rows: self.rows,
+            ..Default::default()
+        };
+
+        inner_item.header_row = Row::new(
+            inner_item
+                .header
+                .iter()
+                .cloned()
+                .map(|h| Cell::from(h).style(Style::default().fg(Color::DarkGray))),
+        )
+        .bottom_margin(1);
+
+        inner_item.inner_update_rows();
+
+        inner_item
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+struct InnerRow<'a> {
+    row: Row<'a>,
+    height: usize,
+}
+
+#[derive(Debug, Default)]
+struct InnerItem<'a> {
+    header: Vec<String>,
+    header_row: Row<'a>,
+    rows: Vec<Vec<String>>,
+    widget_rows: Vec<InnerRow<'a>>,
+    bottom_margin: u16,
+    digits: Vec<usize>,
+    max_width: usize,
+}
+
+impl<'a> InnerItem<'a> {
+    fn len(&self) -> usize {
+        self.rows.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.rows.is_empty()
+    }
+
+    fn update_item(&mut self, item: WidgetItem) {
+        self.rows = item.double_array();
+        self.inner_update_rows();
+    }
+
+    fn update_rows(&mut self, max_width: usize) {
+        self.max_width = max_width;
+
+        self.inner_update_rows();
+    }
+
+    fn inner_update_rows(&mut self) {
+        self.update_digits();
+        self.inner_update_widget_rows();
+    }
+
+    fn inner_update_widget_rows(&mut self) {
+        if self.digits.is_empty() {
+            return;
+        }
+
+        let mut margin = 0;
+
+        self.widget_rows = self
+            .rows
+            .iter()
+            .map(|row| {
+                let cells: Vec<(Cell, usize)> = row
+                    .iter()
+                    .cloned()
+                    .enumerate()
+                    .map(|(i, cell)| {
+                        let wrapped = wrap_line(&cell, self.digits[i]);
+
+                        let mut height = 1;
+                        if height < wrapped.len() {
+                            height = wrapped.len();
+                            margin = 1;
+                        }
+
+                        (Cell::from(generate_spans_line(&wrapped)), height)
+                    })
+                    .collect();
+
+                let height = if let Some((_, h)) = cells.iter().max_by_key(|(_, h)| h) {
+                    *h
+                } else {
+                    1
+                };
+
+                let cells = cells.into_iter().map(|(c, _)| c);
+
+                InnerRow {
+                    row: Row::new(cells).height(height as u16),
+                    height,
+                }
+            })
+            .collect();
+
+        if margin == 1 {
+            self.widget_rows = self
+                .widget_rows
+                .iter()
+                .cloned()
+                .map(|r| InnerRow {
+                    row: r.row.bottom_margin(margin),
+                    ..r
+                })
+                .collect();
+
+            self.bottom_margin = 1;
+        }
+    }
+
+    fn update_digits(&mut self) {
+        if self.rows.is_empty() {
+            return;
+        }
+
+        self.digits = if self.header.is_empty() {
+            self.rows[0].iter().map(|i| i.width()).collect()
+        } else {
+            self.header.iter().map(|h| h.width()).collect()
+        };
+
+        for row in &self.rows {
+            for (i, col) in row.iter().enumerate() {
+                let len = col.len();
+                if self.digits.len() < i {
+                    break;
+                }
+
+                if self.digits[i] < len {
+                    self.digits[i] = len
+                }
+            }
+        }
+
+        let sum_width = self.digits.iter().sum::<usize>()
+            + (COLUMN_SPACING as usize * self.digits.len().saturating_sub(1));
+
+        if self.max_width < sum_width {
+            self.digits[0] = self.max_width.saturating_sub(
+                (COLUMN_SPACING as usize * self.digits.len().saturating_sub(1))
+                    + self.digits.iter().skip(1).sum::<usize>(),
+            );
+        }
+    }
+}
+
+#[derive(Debug, Default)]
 pub struct TableBuilder {
     id: String,
     title: String,
@@ -59,15 +234,19 @@ impl TableBuilder {
     }
 
     pub fn build(self) -> Table<'static> {
-        let table = Table {
+        let mut table = Table {
             id: self.id,
             title: self.title,
             ..Default::default()
         };
 
-        let mut table = table.header(self.header);
+        table.items = InnerItemBuilder::default()
+            .header(self.header)
+            .rows(self.items)
+            .build();
 
-        table.update_widget_item(WidgetItem::DoubleArray(self.items));
+        table.update_row_bounds();
+
         table
     }
 }
@@ -78,14 +257,8 @@ pub struct Table<'a> {
     id: String,
     title: String,
     chunk_index: usize,
-    items: Vec<Vec<String>>,
-    header: Vec<String>,
-    header_row: Row<'a>,
+    items: InnerItem<'a>,
     state: TableState,
-    rows: Vec<Row<'a>>,
-    widths: Vec<Constraint>,
-    row_width: usize,
-    digits: Vec<usize>,
     chunk: Rect,
     inner_chunk: Rect,
     row_bounds: Vec<(usize, usize)>,
@@ -94,142 +267,26 @@ pub struct Table<'a> {
 }
 
 impl<'a> Table<'a> {
-    pub fn header(mut self, header: impl Into<Vec<String>>) -> Self {
-        self.header = header.into();
-
-        let header_cells = self
-            .header
-            .iter()
-            .cloned()
-            .map(|h| Cell::from(h).style(Style::default().fg(Color::DarkGray)));
-
-        self.header_row = Row::new(header_cells).bottom_margin(1);
-
-        self.set_widths();
-        self.set_rows();
-
-        self
-    }
-
-    pub fn items(&self) -> &Vec<Vec<String>> {
-        &self.items
+    pub fn items(&self) -> &[Vec<String>] {
+        &self.items.rows
     }
 
     pub fn state(&self) -> &TableState {
         &self.state
     }
 
-    fn set_widths(&mut self) {
-        if self.items.is_empty() {
-            return;
-        }
-
-        self.digits = if self.header.is_empty() {
-            self.items[0].iter().map(|i| i.width()).collect()
-        } else {
-            self.header.iter().map(|h| h.width()).collect()
-        };
-
-        for row in &self.items {
-            for (i, col) in row.iter().enumerate() {
-                let len = col.len();
-                if self.digits.len() < i {
-                    break;
-                }
-
-                if self.digits[i] < len {
-                    self.digits[i] = len
-                }
-            }
-        }
-
-        if self.digits.iter().sum::<usize>()
-            + (COLUMN_SPACING as usize * self.digits.len().saturating_sub(1))
-            <= self.row_width
-        {
-            self.widths = self
-                .digits
-                .iter()
-                .map(|d| Constraint::Length(*d as u16))
-                .collect()
-        } else {
-            self.digits[0] = self.row_width.saturating_sub(
-                (COLUMN_SPACING as usize * self.digits.len().saturating_sub(1))
-                    + self.digits.iter().skip(1).sum::<usize>(),
-            );
-
-            self.widths = self
-                .digits
-                .iter()
-                .map(|d| Constraint::Length(*d as u16))
-                .collect();
-        }
-    }
-
-    fn set_rows(&mut self) {
-        if self.digits.is_empty() {
-            return;
-        }
-
-        let mut margin = 0;
-        let mut row_bounds: Vec<(usize, usize)> = Vec::new();
-
-        self.rows = self
+    fn update_row_bounds(&mut self) {
+        let bottom_margin = self.items.bottom_margin;
+        self.row_bounds = self
             .items
+            .widget_rows
             .iter()
-            .scan(0, |current_height, row| {
-                let cells: Vec<(Cell, usize)> = row
-                    .iter()
-                    .cloned()
-                    .enumerate()
-                    .map(|(i, cell)| {
-                        let wrapped = wrap_line(&cell, self.digits[i]);
-
-                        let mut height = 1;
-                        if height < wrapped.len() {
-                            height = wrapped.len();
-                            margin = 1;
-                        }
-
-                        (Cell::from(generate_spans_line(&wrapped)), height)
-                    })
-                    .collect();
-
-                let height = if let Some((_, h)) = cells.iter().max_by_key(|(_, h)| h) {
-                    *h
-                } else {
-                    1
-                };
-
-                row_bounds.push((*current_height, *current_height + height.saturating_sub(1)));
-                *current_height += height;
-
-                let cells = cells.into_iter().map(|(c, _)| c);
-                Some(Row::new(cells).height(height as u16))
+            .scan(0, |sum, row| {
+                let b = (*sum, *sum + row.height.saturating_sub(1));
+                *sum += row.height + bottom_margin as usize;
+                Some(b)
             })
             .collect();
-
-        self.row_bounds = row_bounds;
-
-        if margin == 1 {
-            self.rows = self
-                .rows
-                .iter()
-                .cloned()
-                .map(|row| row.bottom_margin(margin))
-                .collect();
-
-            self.row_bounds = self
-                .row_bounds
-                .iter()
-                .scan(0, |height, b| {
-                    let b = (b.0 + *height, b.1 + *height);
-
-                    *height += 1;
-                    Some(b)
-                })
-                .collect();
-        }
     }
 }
 
@@ -272,9 +329,9 @@ impl WidgetTrait for Table<'_> {
     }
 
     fn update_widget_item(&mut self, items: WidgetItem) {
-        let items = items.double_array();
+        self.items.update_item(items);
 
-        match items.len() {
+        match self.items.len() {
             0 => self.state.select(None),
             len if len < self.items.len() => self.state.select(Some(len - 1)),
             _ => {
@@ -284,15 +341,17 @@ impl WidgetTrait for Table<'_> {
             }
         }
 
-        self.items = items;
-        self.set_widths();
-        self.set_rows();
+        self.update_row_bounds();
     }
 
     fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
         self.inner_chunk = default_focus_block().inner(chunk);
-        self.row_width = self.inner_chunk.width.saturating_sub(2) as usize;
+
+        self.items
+            .update_rows(self.inner_chunk.width.saturating_sub(2) as usize);
+
+        self.update_row_bounds();
     }
 
     fn clear(&mut self) {
@@ -302,7 +361,7 @@ impl WidgetTrait for Table<'_> {
     fn widget_item(&self) -> Option<WidgetItem> {
         self.state
             .selected()
-            .map(|i| WidgetItem::Array(self.items[i].clone()))
+            .map(|i| WidgetItem::Array(self.items.rows[i].clone()))
     }
 
     fn append_widget_item(&mut self, _: WidgetItem) {}
@@ -417,7 +476,7 @@ impl<'a> Table<'a> {
     fn selected_item(&self) -> Option<Rc<Vec<String>>> {
         self.state
             .selected()
-            .map(|i| Rc::new(self.items[i].clone()))
+            .map(|i| Rc::new(self.items.rows[i].clone()))
     }
 }
 
@@ -427,17 +486,27 @@ impl RenderTrait for Table<'_> {
         B: Backend,
     {
         let title = self.title().to_string();
-        let mut widget = TTable::new(self.rows.clone())
+
+        let constraints = constraints(&self.items.digits);
+
+        let mut widget = TTable::new(self.items.widget_rows.iter().cloned().map(|row| row.row))
             .block(focus_block(&title, selected))
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
             .highlight_symbol(HIGHLIGHT_SYMBOL)
             .column_spacing(COLUMN_SPACING)
-            .widths(&self.widths);
+            .widths(&constraints);
 
-        if !self.header.is_empty() {
-            widget = widget.header(self.header_row.clone());
+        if !self.items.header.is_empty() {
+            widget = widget.header(self.items.header_row.clone());
         }
 
         f.render_stateful_widget(widget, self.chunk, &mut self.state);
     }
+}
+
+fn constraints(digits: &[usize]) -> Vec<Constraint> {
+    digits
+        .iter()
+        .map(|d| Constraint::Length(*d as u16))
+        .collect()
 }
