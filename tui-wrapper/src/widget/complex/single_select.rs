@@ -123,27 +123,6 @@ pub struct SingleSelect<'a> {
 }
 
 impl<'a> SingleSelect<'a> {
-    pub fn new(id: impl Into<String>, title: impl Into<String>) -> Self {
-        let layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3),
-                Constraint::Length(1),
-                Constraint::Min(3),
-            ]);
-
-        let mut selected_widget = SelectForm::default();
-        selected_widget.list_widget = ListBuilder::default().title("Items").build();
-
-        Self {
-            id: id.into(),
-            title: title.into(),
-            layout,
-            selected_widget,
-            ..Self::default()
-        }
-    }
-
     pub fn id(&self) -> &str {
         &self.id
     }
@@ -321,6 +300,45 @@ impl RenderTrait for SingleSelect<'_> {
         self.input_widget.render(f);
         self.render_status(f);
         self.selected_widget.render(f);
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct SingleSelectBuilder {
+    id: String,
+    title: String,
+}
+
+impl SingleSelectBuilder {
+    pub fn id(mut self, id: impl Into<String>) -> Self {
+        self.id = id.into();
+        self
+    }
+
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = title.into();
+        self
+    }
+
+    pub fn build(self) -> SingleSelect<'static> {
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3),
+                Constraint::Length(1),
+                Constraint::Min(3),
+            ]);
+
+        let mut selected_widget = SelectForm::default();
+        selected_widget.list_widget = ListBuilder::default().title("Items").build();
+
+        SingleSelect {
+            id: self.id,
+            title: self.title,
+            layout,
+            selected_widget,
+            ..Default::default()
+        }
     }
 }
 

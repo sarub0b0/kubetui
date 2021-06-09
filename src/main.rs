@@ -7,6 +7,7 @@ use std::time;
 use tui_wrapper::widget::ComplexWidget;
 use tui_wrapper::widget::ListBuilder;
 use tui_wrapper::widget::MultipleSelect;
+use tui_wrapper::widget::SingleSelectBuilder;
 use tui_wrapper::widget::TableBuilder;
 use tui_wrapper::widget::TextBuilder;
 
@@ -220,8 +221,11 @@ fn run() {
     let tx_ns = tx_main.clone();
     let cn = current_namespace.clone();
     let subwin_namespace = Widget::from(
-        SingleSelect::new(view_id::subwin_ns, "Namespace").on_select(
-            move |w: &mut Window, item: &String| {
+        SingleSelectBuilder::default()
+            .id(view_id::subwin_ns)
+            .title("Namespace")
+            .build()
+            .on_select(move |w: &mut Window, item: &String| {
                 tx_ns
                     .send(Event::Kube(Kube::SetNamespace(item.to_string())))
                     .unwrap();
@@ -237,8 +241,7 @@ fn run() {
                 w.widget_clear(view_id::tab_apis_widget_apis);
 
                 EventResult::Nop
-            },
-        ),
+            }),
     );
 
     let tx_apis = tx_main.clone();

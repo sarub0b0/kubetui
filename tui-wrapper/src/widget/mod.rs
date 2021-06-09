@@ -7,7 +7,7 @@ pub mod list;
 pub mod table;
 pub mod text;
 
-pub use complex::{ComplexWidget, MultipleSelect, SingleSelect};
+pub use complex::*;
 pub use list::*;
 pub use table::*;
 pub use text::*;
