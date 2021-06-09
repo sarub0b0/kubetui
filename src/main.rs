@@ -248,7 +248,7 @@ fn run() {
                 if let ComplexWidget::MultipleSelect(widget) = widget.as_mut_complex() {
                     widget.toggle_select_unselect();
 
-                    if let Some(item) = widget.get_item() {
+                    if let Some(item) = widget.widget_item() {
                         tx_apis
                             .send(Event::Kube(Kube::SetAPIsRequest(item.array())))
                             .unwrap();

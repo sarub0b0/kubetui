@@ -67,7 +67,7 @@ impl TableBuilder {
 
         let mut table = table.header(self.header);
 
-        table.set_items(WidgetItem::DoubleArray(self.items));
+        table.update_widget_item(WidgetItem::DoubleArray(self.items));
         table
     }
 }
@@ -271,7 +271,7 @@ impl WidgetTrait for Table<'_> {
         }
     }
 
-    fn set_items(&mut self, items: WidgetItem) {
+    fn update_widget_item(&mut self, items: WidgetItem) {
         let items = items.double_array();
 
         match items.len() {
@@ -299,15 +299,13 @@ impl WidgetTrait for Table<'_> {
         *self = Self::default();
     }
 
-    fn get_item(&self) -> Option<WidgetItem> {
+    fn widget_item(&self) -> Option<WidgetItem> {
         self.state
             .selected()
             .map(|i| WidgetItem::Array(self.items[i].clone()))
     }
 
-    fn append_items(&mut self, _: WidgetItem) {
-        todo!()
-    }
+    fn append_widget_item(&mut self, _: WidgetItem) {}
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         if self.items.is_empty() {

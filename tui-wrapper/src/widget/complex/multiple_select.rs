@@ -228,10 +228,10 @@ impl<'a> SelectForm<'a> {
         unfocused_item.sort();
 
         self.focused_form_mut()
-            .set_items(WidgetItem::Array(focused_item));
+            .update_widget_item(WidgetItem::Array(focused_item));
 
         self.unfocused_form_mut()
-            .set_items(WidgetItem::Array(unfocused_item));
+            .update_widget_item(WidgetItem::Array(unfocused_item));
     }
 
     fn focused_item_mut(&mut self) -> &mut HashSet<String> {
@@ -250,9 +250,10 @@ impl<'a> SelectForm<'a> {
         }
     }
 
-    fn set_items(&mut self, items: Vec<String>) {
+    fn update_widget_item(&mut self, items: WidgetItem) {
         // マージ処理
-        let new_items: HashSet<String> = items.into_iter().collect();
+
+        let new_items: HashSet<String> = items.array().into_iter().collect();
         let mut old_items = self.list_items.clone();
 
         self.selected_items.iter().for_each(|item| {
@@ -281,14 +282,15 @@ impl<'a> SelectForm<'a> {
         let mut items: Vec<String> = self.selected_items.clone().into_iter().collect();
         items.sort();
 
-        self.selected_widget.set_items(WidgetItem::Array(items));
+        self.selected_widget
+            .update_widget_item(WidgetItem::Array(items));
     }
 
     fn update_filter(&mut self, filter: &str) {
         self.filter = filter.to_string();
 
         self.list_widget
-            .set_items(WidgetItem::Array(self.filter_items(&self.list_items)));
+            .update_widget_item(WidgetItem::Array(self.filter_items(&self.list_items)));
 
         let current_pos = self.list_widget.state().selected();
 
@@ -512,14 +514,14 @@ impl WidgetTrait for MultipleSelect<'_> {
         self.selected_widget.select_last()
     }
 
-    fn set_items(&mut self, items: WidgetItem) {
+    fn update_widget_item(&mut self, items: WidgetItem) {
         self.clear_filter();
-        self.selected_widget.set_items(items.array());
+        self.selected_widget.update_widget_item(items);
     }
 
-    fn append_items(&mut self, _: WidgetItem) {}
+    fn append_widget_item(&mut self, _: WidgetItem) {}
 
-    fn get_item(&self) -> Option<WidgetItem> {
+    fn widget_item(&self) -> Option<WidgetItem> {
         Some(WidgetItem::Array(
             self.selected_widget.to_vec_selected_items(),
         ))

@@ -66,24 +66,24 @@ impl WidgetTrait for ComplexWidget<'_> {
         }
     }
 
-    fn set_items(&mut self, item: WidgetItem) {
+    fn update_widget_item(&mut self, item: WidgetItem) {
         match self {
-            Self::SingleSelect(w) => w.set_items(item),
-            Self::MultipleSelect(w) => w.set_items(item),
+            Self::SingleSelect(w) => w.update_widget_item(item),
+            Self::MultipleSelect(w) => w.update_widget_item(item),
         }
     }
 
-    fn append_items(&mut self, item: WidgetItem) {
+    fn append_widget_item(&mut self, item: WidgetItem) {
         match self {
-            Self::SingleSelect(w) => w.set_items(item),
-            Self::MultipleSelect(w) => w.set_items(item),
+            Self::SingleSelect(w) => w.update_widget_item(item),
+            Self::MultipleSelect(w) => w.update_widget_item(item),
         }
     }
 
-    fn get_item(&self) -> Option<WidgetItem> {
+    fn widget_item(&self) -> Option<WidgetItem> {
         match self {
-            Self::SingleSelect(w) => w.get_item(),
-            Self::MultipleSelect(w) => w.get_item(),
+            Self::SingleSelect(w) => w.widget_item(),
+            Self::MultipleSelect(w) => w.widget_item(),
         }
     }
 

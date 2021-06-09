@@ -157,7 +157,7 @@ impl TextBuilder {
             ..Default::default()
         };
 
-        text.set_items(WidgetItem::Array(self.items));
+        text.update_widget_item(WidgetItem::Array(self.items));
         text
     }
 }
@@ -349,7 +349,7 @@ impl WidgetTrait for Text<'_> {
         self.scroll_bottom();
     }
 
-    fn set_items(&mut self, items: WidgetItem) {
+    fn update_widget_item(&mut self, items: WidgetItem) {
         let is_bottom = self.is_bottom();
         let pos = self.state.selected_vertical();
 
@@ -393,12 +393,12 @@ impl WidgetTrait for Text<'_> {
         self.row_size = 0;
     }
 
-    fn get_item(&self) -> Option<WidgetItem> {
+    fn widget_item(&self) -> Option<WidgetItem> {
         let index = self.state.selected_vertical() as usize;
         Some(WidgetItem::Single(self.spans[index].clone().into()))
     }
 
-    fn append_items(&mut self, items: WidgetItem) {
+    fn append_widget_item(&mut self, items: WidgetItem) {
         let is_bottom = self.is_bottom();
 
         let items = items.as_array();
@@ -742,7 +742,7 @@ mod tests {
 
         let mut text = TextBuilder::default().build();
 
-        text.set_items(WidgetItem::Array(data));
+        text.update_widget_item(WidgetItem::Array(data));
 
         assert_eq!(text.spans().len(), 20)
     }
@@ -755,7 +755,7 @@ mod tests {
 
         text.update_chunk(Rect::new(0, 0, 4, 12));
 
-        text.set_items(WidgetItem::Array(data));
+        text.update_widget_item(WidgetItem::Array(data));
 
         assert_eq!(text.spans().len(), 40)
     }
@@ -767,7 +767,7 @@ mod tests {
         let mut text = TextBuilder::default().wrap().follow().build();
 
         text.update_chunk(Rect::new(0, 0, 2, 10));
-        text.append_items(WidgetItem::Array(data));
+        text.append_widget_item(WidgetItem::Array(data));
 
         assert!(text.is_bottom())
     }

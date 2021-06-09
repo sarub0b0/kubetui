@@ -33,16 +33,16 @@ pub mod view_id {
 }
 
 #[inline]
-fn set_items_widget(window: &mut Window, id: &str, items: WidgetItem) {
+fn update_widget_items(window: &mut Window, id: &str, items: WidgetItem) {
     if let Some(w) = window.find_widget_mut(id) {
-        w.set_items(items);
+        w.update_widget_item(items);
     }
 }
 
 #[inline]
-fn append_items_widget(window: &mut Window, id: &str, items: WidgetItem) {
+fn append_widget_items(window: &mut Window, id: &str, items: WidgetItem) {
     if let Some(w) = window.find_widget_mut(id) {
-        w.append_items(items);
+        w.append_widget_item(items);
     }
 }
 
@@ -80,7 +80,7 @@ pub fn update_contents(
 ) {
     match ev {
         Kube::Pod(info) => {
-            set_items_widget(
+            update_widget_items(
                 window,
                 view_id::tab_pods_widget_pods,
                 WidgetItem::DoubleArray(info),
@@ -88,14 +88,14 @@ pub fn update_contents(
         }
 
         Kube::Configs(configs) => {
-            set_items_widget(
+            update_widget_items(
                 window,
                 view_id::tab_configs_widget_configs,
                 WidgetItem::Array(configs),
             );
         }
         Kube::LogStreamResponse(logs) => {
-            append_items_widget(
+            append_widget_items(
                 window,
                 view_id::tab_pods_widget_logs,
                 WidgetItem::Array(logs),
@@ -103,7 +103,7 @@ pub fn update_contents(
         }
 
         Kube::ConfigResponse(raw) => {
-            set_items_widget(
+            update_widget_items(
                 window,
                 view_id::tab_configs_widget_raw_data,
                 WidgetItem::Array(raw),
@@ -116,25 +116,25 @@ pub fn update_contents(
             *kube_namespace = ns;
         }
         Kube::Event(ev) => {
-            set_items_widget(
+            update_widget_items(
                 window,
                 view_id::tab_event_widget_event,
                 WidgetItem::Array(ev),
             );
         }
         Kube::APIsResults(apis) => {
-            set_items_widget(
+            update_widget_items(
                 window,
                 view_id::tab_apis_widget_apis,
                 WidgetItem::Array(apis),
             );
         }
         Kube::GetNamespacesResponse(ns) => {
-            set_items_widget(window, view_id::subwin_ns, WidgetItem::Array(ns));
+            update_widget_items(window, view_id::subwin_ns, WidgetItem::Array(ns));
         }
 
         Kube::GetAPIsResponse(apis) => {
-            set_items_widget(window, view_id::subwin_apis, WidgetItem::Array(apis));
+            update_widget_items(window, view_id::subwin_apis, WidgetItem::Array(apis));
         }
         _ => unreachable!(),
     }

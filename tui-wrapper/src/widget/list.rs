@@ -65,7 +65,7 @@ impl ListBuilder {
             ..Default::default()
         };
 
-        list.set_items(WidgetItem::Array(self.items));
+        list.update_widget_item(WidgetItem::Array(self.items));
         list
     }
 }
@@ -133,7 +133,7 @@ impl<'a> WidgetTrait for List<'a> {
         }
     }
 
-    fn set_items(&mut self, items: WidgetItem) {
+    fn update_widget_item(&mut self, items: WidgetItem) {
         let items = items.array();
         let old_len = self.items.len();
 
@@ -163,14 +163,10 @@ impl<'a> WidgetTrait for List<'a> {
 
     fn clear(&mut self) {}
 
-    fn get_item(&self) -> Option<WidgetItem> {
+    fn widget_item(&self) -> Option<WidgetItem> {
         self.state
             .selected()
             .map(|i| WidgetItem::Single(self.items[i].clone()))
-    }
-
-    fn append_items(&mut self, _items: WidgetItem) {
-        todo!()
     }
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
@@ -292,7 +288,7 @@ mod tests {
     #[test]
     fn initial_index() {
         let mut list = List::default();
-        list.set_items(WidgetItem::Array(vec![
+        list.update_widget_item(WidgetItem::Array(vec![
             String::from("Item 0"),
             String::from("Item 1"),
             String::from("Item 2"),
@@ -304,7 +300,7 @@ mod tests {
     #[test]
     fn two_prev_is_selected_last_index() {
         let mut list = List::default();
-        list.set_items(WidgetItem::Array(vec![
+        list.update_widget_item(WidgetItem::Array(vec![
             String::from("Item 0"),
             String::from("Item 1"),
             String::from("Item 2"),
@@ -316,7 +312,7 @@ mod tests {
     #[test]
     fn one_next_is_selected_second_index() {
         let mut list = List::default();
-        list.set_items(WidgetItem::Array(vec![
+        list.update_widget_item(WidgetItem::Array(vec![
             String::from("Item 0"),
             String::from("Item 1"),
             String::from("Item 2"),
@@ -329,7 +325,7 @@ mod tests {
     #[test]
     fn last_next_is_selected_first_index() {
         let mut list = List::default();
-        list.set_items(WidgetItem::Array(vec![
+        list.update_widget_item(WidgetItem::Array(vec![
             String::from("Item 0"),
             String::from("Item 1"),
             String::from("Item 2"),
@@ -343,7 +339,7 @@ mod tests {
     fn next_offset() {
         let chunk = Rect::new(0, 0, 10, 5);
         let mut list = List::default();
-        list.set_items(WidgetItem::Array(vec![
+        list.update_widget_item(WidgetItem::Array(vec![
             "Item-0".to_string(),
             "Item-1".to_string(),
             "Item-2".to_string(),
@@ -366,7 +362,7 @@ mod tests {
     fn prev_offset() {
         let chunk = Rect::new(0, 0, 10, 5);
         let mut list = List::default();
-        list.set_items(WidgetItem::Array(vec![
+        list.update_widget_item(WidgetItem::Array(vec![
             "Item-0".to_string(),
             "Item-1".to_string(),
             "Item-2".to_string(),

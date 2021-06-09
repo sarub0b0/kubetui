@@ -17,7 +17,7 @@ use tui::{backend::Backend, layout::Rect, Frame};
 
 use super::event::EventResult;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum WidgetItem {
     Single(String),
     Array(Vec<String>),
@@ -70,9 +70,9 @@ pub trait WidgetTrait {
     fn select_prev(&mut self, _: usize) {}
     fn select_first(&mut self) {}
     fn select_last(&mut self) {}
-    fn set_items(&mut self, _: WidgetItem) {}
-    fn append_items(&mut self, _: WidgetItem) {}
-    fn get_item(&self) -> Option<WidgetItem> {
+    fn append_widget_item(&mut self, _: WidgetItem) {}
+    fn update_widget_item(&mut self, _: WidgetItem) {}
+    fn widget_item(&self) -> Option<WidgetItem> {
         None
     }
     fn update_chunk(&mut self, _: Rect) {}
@@ -249,12 +249,12 @@ impl WidgetTrait for Widget<'_> {
         }
     }
 
-    fn set_items(&mut self, items: WidgetItem) {
+    fn update_widget_item(&mut self, items: WidgetItem) {
         match self {
-            Widget::List(w) => w.set_items(items),
-            Widget::Text(w) => w.set_items(items),
-            Widget::Table(w) => w.set_items(items),
-            Widget::Complex(w) => w.set_items(items),
+            Widget::List(w) => w.update_widget_item(items),
+            Widget::Text(w) => w.update_widget_item(items),
+            Widget::Table(w) => w.update_widget_item(items),
+            Widget::Complex(w) => w.update_widget_item(items),
         }
     }
 
@@ -276,21 +276,21 @@ impl WidgetTrait for Widget<'_> {
         }
     }
 
-    fn get_item(&self) -> Option<WidgetItem> {
+    fn widget_item(&self) -> Option<WidgetItem> {
         match self {
-            Widget::List(w) => w.get_item(),
-            Widget::Text(w) => w.get_item(),
-            Widget::Table(w) => w.get_item(),
-            Widget::Complex(w) => w.get_item(),
+            Widget::List(w) => w.widget_item(),
+            Widget::Text(w) => w.widget_item(),
+            Widget::Table(w) => w.widget_item(),
+            Widget::Complex(w) => w.widget_item(),
         }
     }
 
-    fn append_items(&mut self, items: WidgetItem) {
+    fn append_widget_item(&mut self, items: WidgetItem) {
         match self {
-            Widget::List(w) => w.append_items(items),
-            Widget::Text(w) => w.append_items(items),
-            Widget::Table(w) => w.append_items(items),
-            Widget::Complex(w) => w.append_items(items),
+            Widget::List(w) => w.append_widget_item(items),
+            Widget::Text(w) => w.append_widget_item(items),
+            Widget::Table(w) => w.append_widget_item(items),
+            Widget::Complex(w) => w.append_widget_item(items),
         }
     }
 
