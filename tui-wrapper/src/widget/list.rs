@@ -23,30 +23,30 @@ use derivative::*;
 
 #[derive(Debug, Default)]
 struct InnerItem<'a> {
-    vec: Vec<String>,
-    list: Vec<ListItem<'a>>,
+    list: Vec<String>,
+    widget_list: Vec<ListItem<'a>>,
 }
 
 impl<'a> InnerItem<'a> {
     fn update_item(&mut self, item: WidgetItem) {
-        self.vec = item.array();
-        self.list = self.vec.iter().cloned().map(ListItem::new).collect();
+        self.list = item.array();
+        self.widget_list = self.list.iter().cloned().map(ListItem::new).collect();
     }
 
     fn raw_items(&self) -> &[String] {
-        &self.vec
-    }
-
-    fn widget_items(&self) -> &[ListItem<'a>] {
         &self.list
     }
 
+    fn widget_items(&self) -> &[ListItem<'a>] {
+        &self.widget_list
+    }
+
     fn len(&self) -> usize {
-        self.vec.len()
+        self.list.len()
     }
 
     fn is_empty(&self) -> bool {
-        self.vec.is_empty()
+        self.list.is_empty()
     }
 }
 
@@ -107,11 +107,7 @@ impl<'a> List<'a> {
         self.items.raw_items()
     }
 
-    pub fn selected(&self) -> Option<usize> {
-        self.state.selected()
-    }
-
-    pub fn widget(&self, block: Block<'a>) -> widgets::List<'a> {
+    fn widget(&self, block: Block<'a>) -> widgets::List<'a> {
         widgets::List::new(self.items.widget_items().to_vec())
             .block(block)
             .style(Style::default())
@@ -188,7 +184,7 @@ impl<'a> WidgetTrait for List<'a> {
     fn widget_item(&self) -> Option<WidgetItem> {
         self.state
             .selected()
-            .map(|i| WidgetItem::Single(self.items.vec[i].clone()))
+            .map(|i| WidgetItem::Single(self.items.list[i].clone()))
     }
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
@@ -287,7 +283,9 @@ impl<'a> List<'a> {
     }
 
     fn selected_item(&self) -> Option<Rc<String>> {
-        self.selected().map(|i| Rc::new(self.items.vec[i].clone()))
+        self.state
+            .selected()
+            .map(|i| Rc::new(self.items.list[i].clone()))
     }
 }
 
@@ -316,7 +314,7 @@ mod tests {
             String::from("Item 2"),
         ]));
 
-        assert_eq!(Some(0), list.selected())
+        assert_eq!(Some(0), list.state.selected())
     }
 
     #[test]
@@ -329,7 +327,7 @@ mod tests {
         ]));
 
         list.select_prev(2);
-        assert_eq!(Some(0), list.selected())
+        assert_eq!(Some(0), list.state.selected())
     }
     #[test]
     fn one_next_is_selected_second_index() {
@@ -341,7 +339,7 @@ mod tests {
         ]));
 
         list.select_next(1);
-        assert_eq!(Some(1), list.selected())
+        assert_eq!(Some(1), list.state.selected())
     }
 
     #[test]
@@ -354,7 +352,7 @@ mod tests {
         ]));
 
         list.select_next(3);
-        assert_eq!(Some(2), list.selected())
+        assert_eq!(Some(2), list.state.selected())
     }
 
     #[test]
