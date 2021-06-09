@@ -1,17 +1,5 @@
 use crossbeam::channel::{unbounded, Receiver, Sender};
-use std::cell::RefCell;
-use std::panic;
-use std::rc::Rc;
-use std::thread;
-use std::time;
-use tui_wrapper::widget::ComplexWidget;
-use tui_wrapper::widget::ListBuilder;
-use tui_wrapper::widget::MultipleSelect;
-use tui_wrapper::widget::SingleSelectBuilder;
-use tui_wrapper::widget::TableBuilder;
-use tui_wrapper::widget::TextBuilder;
-
-use std::io;
+use std::{cell::RefCell, io, panic, rc::Rc, thread, time};
 
 use clipboard_wrapper::ClipboardProvider;
 
@@ -30,7 +18,10 @@ use tui_wrapper::{
         layout::{Constraint, Direction, Layout, Rect},
         Terminal, TerminalOptions, Viewport,
     },
-    widget::{complex::SingleSelect, Widget, WidgetTrait},
+    widget::{
+        ComplexWidget, ListBuilder, MultipleSelectBuilder, SingleSelectBuilder, TableBuilder,
+        TextBuilder, Widget, WidgetTrait,
+    },
     Tab, Window, WindowEvent,
 };
 
@@ -245,26 +236,30 @@ fn run() {
     );
 
     let tx_apis = tx_main.clone();
-    let subwin_apis = Widget::from(MultipleSelect::new(view_id::subwin_apis, "APIs").on_select(
-        move |w, _| {
-            if let Some(widget) = w.find_widget_mut(view_id::subwin_apis) {
-                if let ComplexWidget::MultipleSelect(widget) = widget.as_mut_complex() {
-                    widget.toggle_select_unselect();
+    let subwin_apis = Widget::from(
+        MultipleSelectBuilder::default()
+            .id(view_id::subwin_apis)
+            .title("APIs")
+            .build()
+            .on_select(move |w, _| {
+                if let Some(widget) = w.find_widget_mut(view_id::subwin_apis) {
+                    if let ComplexWidget::MultipleSelect(widget) = widget.as_mut_complex() {
+                        widget.toggle_select_unselect();
 
-                    if let Some(item) = widget.widget_item() {
-                        tx_apis
-                            .send(Event::Kube(Kube::SetAPIsRequest(item.array())))
-                            .unwrap();
-                    }
+                        if let Some(item) = widget.widget_item() {
+                            tx_apis
+                                .send(Event::Kube(Kube::SetAPIsRequest(item.array())))
+                                .unwrap();
+                        }
 
-                    if widget.selected_items().is_empty() {
-                        w.widget_clear(view_id::tab_apis_widget_apis)
+                        if widget.selected_items().is_empty() {
+                            w.widget_clear(view_id::tab_apis_widget_apis)
+                        }
                     }
                 }
-            }
-            EventResult::Nop
-        },
-    ));
+                EventResult::Nop
+            }),
+    );
 
     let mut window = Window::new(tabs).status_target_id([
         (view_id::tab_pods, view_id::tab_pods_widget_logs),

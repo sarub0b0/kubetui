@@ -347,6 +347,47 @@ impl<'a> SelectForm<'a> {
     }
 }
 
+#[derive(Debug, Default)]
+pub struct MultipleSelectBuilder {
+    id: String,
+    title: String,
+}
+
+impl MultipleSelectBuilder {
+    pub fn id(mut self, id: impl Into<String>) -> Self {
+        self.id = id.into();
+        self
+    }
+
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = title.into();
+        self
+    }
+
+    pub fn build(self) -> MultipleSelect<'static> {
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3),
+                Constraint::Length(1),
+                Constraint::Min(3),
+            ]);
+
+        let mut selected_widget = SelectForm::default();
+
+        selected_widget.list_widget = ListBuilder::default().title("Items").build();
+        selected_widget.selected_widget = ListBuilder::default().title("Selected").build();
+
+        MultipleSelect {
+            id: self.id,
+            title: self.title,
+            layout,
+            selected_widget,
+            ..Default::default()
+        }
+    }
+}
+
 const LAYOUT_INDEX_FOR_INPUT_FORM: usize = 0;
 const LAYOUT_INDEX_FOR_STATUS: usize = 1;
 const LAYOUT_INDEX_FOR_SELECT_FORM: usize = 2;
@@ -388,39 +429,16 @@ impl RenderTrait for MultipleSelect<'_> {
     }
 }
 
+// split [InputForm, SelectForms]
+// ---------------------
+// |     InputForm     |
+// |-------------------|
+// |         |         |
+// | Select  | Select  |
+// |         |         |
+// |         |         |
+// ---------------------
 impl<'a> MultipleSelect<'a> {
-    pub fn new(id: impl Into<String>, title: impl Into<String>) -> Self {
-        // split [InputForm, SelectForms]
-        // ---------------------
-        // |     InputForm     |
-        // |-------------------|
-        // |         |         |
-        // | Select  | Select  |
-        // |         |         |
-        // |         |         |
-        // ---------------------
-        let layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3),
-                Constraint::Length(1),
-                Constraint::Min(3),
-            ]);
-
-        let mut selected_widget = SelectForm::default();
-
-        selected_widget.list_widget = ListBuilder::default().title("Items").build();
-        selected_widget.selected_widget = ListBuilder::default().title("Selected").build();
-
-        Self {
-            id: id.into(),
-            title: title.into(),
-            layout,
-            selected_widget,
-            ..Self::default()
-        }
-    }
-
     pub fn on_select<F>(mut self, f: F) -> Self
     where
         F: Fn(&mut Window, &String) -> EventResult + 'static + Clone,
