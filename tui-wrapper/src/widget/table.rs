@@ -165,6 +165,8 @@ impl<'a> InnerItem<'a> {
                 .collect();
 
             self.bottom_margin = 1;
+        } else {
+            self.bottom_margin = 0;
         }
     }
 
@@ -276,14 +278,14 @@ impl<'a> Table<'a> {
     }
 
     fn update_row_bounds(&mut self) {
-        let bottom_margin = self.items.bottom_margin;
+        let bottom_margin = self.items.bottom_margin as usize;
         self.row_bounds = self
             .items
             .widget_rows
             .iter()
             .scan(0, |sum, row| {
                 let b = (*sum, *sum + row.height.saturating_sub(1));
-                *sum += row.height + bottom_margin as usize;
+                *sum += row.height + bottom_margin;
                 Some(b)
             })
             .collect();
@@ -380,11 +382,18 @@ impl WidgetTrait for Table<'_> {
             MouseEventKind::Down(MouseButton::Left) => {
                 let offset = self.state.offset();
                 let offset_bound = self.row_bounds[offset];
+
+                let header_margin = if self.items.header.is_empty() {
+                    0
+                } else {
+                    ROW_START_INDEX
+                };
+
                 if let Some((index, _)) =
                     self.row_bounds[offset..].iter().enumerate().find(|(_, b)| {
                         let b = (
-                            b.0 - offset_bound.0 + ROW_START_INDEX,
-                            b.1 - offset_bound.1 + ROW_START_INDEX,
+                            b.0 - offset_bound.0 + header_margin,
+                            b.1 - offset_bound.1 + header_margin,
                         );
 
                         b.0 <= row && row <= b.1
@@ -392,7 +401,6 @@ impl WidgetTrait for Table<'_> {
                 {
                     self.state.select(Some(index + offset));
                 }
-
                 return EventResult::Callback(self.on_select_callback());
             }
 
