@@ -373,6 +373,10 @@ impl WidgetTrait for Table<'_> {
             return EventResult::Nop;
         }
 
+        if ev.row == self.inner_chunk.bottom() {
+            return EventResult::Ignore;
+        }
+
         let (_, row) = (
             ev.column.saturating_sub(self.inner_chunk.left()) as usize,
             ev.row.saturating_sub(self.inner_chunk.top()) as usize,
@@ -400,8 +404,8 @@ impl WidgetTrait for Table<'_> {
                     })
                 {
                     self.state.select(Some(index + offset));
+                    return EventResult::Callback(self.on_select_callback());
                 }
-                return EventResult::Callback(self.on_select_callback());
             }
 
             MouseEventKind::ScrollDown => {
