@@ -357,7 +357,6 @@ fn configure() -> Config {
         .author(crate_authors!())
         .version(crate_version!())
         .about(crate_description!())
-        .max_term_width(80)
         .arg(
             Arg::with_name("split-mode")
                 .short("s")

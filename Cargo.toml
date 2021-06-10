@@ -12,7 +12,7 @@ members = [ "tui-wrapper", "event", "ansi", "clipboard-wrapper" ]
 [dependencies]
 tokio = { version = "1", features = ["rt"] }
 crossbeam = "0.8"
-clap = "2"
+clap = { version = "2", features = ["wrap_help"] }
 
 clipboard-wrapper = { path = "./clipboard-wrapper" }
 tui-wrapper = { path = "./tui-wrapper" }
