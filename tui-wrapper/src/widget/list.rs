@@ -9,7 +9,7 @@ use tui::{
 
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 
-use tui::widgets::{self, Block, ListItem, ListState};
+use tui::widgets::{self, Block, ListState};
 
 use super::{RenderTrait, WidgetItem, WidgetTrait};
 use crate::{
@@ -21,35 +21,51 @@ use crate::{
 
 use derivative::*;
 
-#[derive(Debug, Default)]
-struct InnerItem<'a> {
-    list: Vec<String>,
-    widget_list: Vec<ListItem<'a>>,
+mod inner_item {
+
+    use super::WidgetItem;
+    use tui::widgets::ListItem;
+
+    #[derive(Debug, Default)]
+    pub struct InnerItem<'a> {
+        items: Vec<String>,
+        list_item: Vec<ListItem<'a>>,
+    }
+
+    impl<'a> InnerItem<'a> {
+        pub fn items(&self) -> &Vec<String> {
+            &self.items
+        }
+
+        #[allow(dead_code)]
+        pub fn list_item(&self) -> &Vec<ListItem> {
+            &self.list_item
+        }
+
+        pub fn update_item(&mut self, item: WidgetItem) {
+            self.items = item.array();
+            self.list_item = self.items.iter().cloned().map(ListItem::new).collect();
+        }
+
+        pub fn raw_items(&self) -> &[String] {
+            &self.items
+        }
+
+        pub fn widget_items(&self) -> &[ListItem<'a>] {
+            &self.list_item
+        }
+
+        pub fn len(&self) -> usize {
+            self.items.len()
+        }
+
+        pub fn is_empty(&self) -> bool {
+            self.items.is_empty()
+        }
+    }
 }
 
-impl<'a> InnerItem<'a> {
-    fn update_item(&mut self, item: WidgetItem) {
-        self.list = item.array();
-        self.widget_list = self.list.iter().cloned().map(ListItem::new).collect();
-    }
-
-    fn raw_items(&self) -> &[String] {
-        &self.list
-    }
-
-    fn widget_items(&self) -> &[ListItem<'a>] {
-        &self.widget_list
-    }
-
-    fn len(&self) -> usize {
-        self.list.len()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.list.is_empty()
-    }
-}
-
+use inner_item::InnerItem;
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
 pub struct List<'a> {
@@ -184,7 +200,7 @@ impl<'a> WidgetTrait for List<'a> {
     fn widget_item(&self) -> Option<WidgetItem> {
         self.state
             .selected()
-            .map(|i| WidgetItem::Single(self.items.list[i].clone()))
+            .map(|i| WidgetItem::Single(self.items.items()[i].clone()))
     }
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
@@ -285,7 +301,7 @@ impl<'a> List<'a> {
     fn selected_item(&self) -> Option<Rc<String>> {
         self.state
             .selected()
-            .map(|i| Rc::new(self.items.list[i].clone()))
+            .map(|i| Rc::new(self.items.items()[i].clone()))
     }
 }
 
