@@ -492,7 +492,7 @@ impl WidgetTrait for Text<'_> {
 
     fn widget_item(&self) -> Option<WidgetItem> {
         let index = self.state.selected_vertical() as usize;
-        Some(WidgetItem::Single(self.items.items()[index].clone().into()))
+        Some(WidgetItem::Single(self.items.items()[index].clone()))
     }
 
     fn append_widget_item(&mut self, items: WidgetItem) {

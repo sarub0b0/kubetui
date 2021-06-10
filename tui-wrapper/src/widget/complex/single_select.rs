@@ -329,8 +329,10 @@ impl SingleSelectBuilder {
                 Constraint::Min(3),
             ]);
 
-        let mut selected_widget = SelectForm::default();
-        selected_widget.list_widget = ListBuilder::default().title("Items").build();
+        let selected_widget = SelectForm {
+            list_widget: ListBuilder::default().title("Items").build(),
+            ..Default::default()
+        };
 
         SingleSelect {
             id: self.id,

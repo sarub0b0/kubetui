@@ -373,10 +373,11 @@ impl MultipleSelectBuilder {
                 Constraint::Min(3),
             ]);
 
-        let mut selected_widget = SelectForm::default();
-
-        selected_widget.list_widget = ListBuilder::default().title("Items").build();
-        selected_widget.selected_widget = ListBuilder::default().title("Selected").build();
+        let selected_widget = SelectForm {
+            list_widget: ListBuilder::default().title("Items").build(),
+            selected_widget: ListBuilder::default().title("Selected").build(),
+            ..Default::default()
+        };
 
         MultipleSelect {
             id: self.id,

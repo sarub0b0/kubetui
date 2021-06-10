@@ -144,7 +144,7 @@ fn run() {
         .wrap();
 
     let raw_data_widget = if let Some(cb) = clipboard {
-        raw_data_builder.clipboard(cb.clone())
+        raw_data_builder.clipboard(cb)
     } else {
         raw_data_builder
     }
