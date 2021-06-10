@@ -19,8 +19,6 @@ use clipboard_wrapper::{ClipboardContextWrapper, ClipboardProvider};
 use event::UserEvent;
 
 use super::{
-    spans::generate_spans,
-    wrap::*,
     RenderTrait, {WidgetItem, WidgetTrait},
 };
 
@@ -31,77 +29,208 @@ use crate::{
     Window,
 };
 
-#[derive(Debug, PartialEq)]
-enum RangeType {
-    Full,
-    StartLine(usize),
-    EndLine(usize),
-    Partial(usize, usize),
-}
+mod inner_item {
+    use super::super::{spans::generate_spans, wrap::*, WidgetItem};
+    use tui::text::Spans;
 
-#[derive(Default, Debug, Copy, Clone)]
-struct HighlightArea {
-    start: (usize, usize),
-    end: (usize, usize),
-}
-
-impl HighlightArea {
-    fn start(mut self, start: (usize, usize)) -> Self {
-        self.start = start;
-        self
+    #[derive(Debug, Default)]
+    pub struct InnerItem<'a> {
+        items: Vec<String>,
+        spans: Vec<Spans<'a>>,
+        max_width: usize,
     }
 
-    fn end(mut self, end: (usize, usize)) -> Self {
-        self.end = end;
-        self
-    }
-
-    fn update_pos(&mut self, pos: (usize, usize)) {
-        self.end = pos;
-    }
-
-    fn highlight_ranges(&self) -> Vec<(usize, RangeType)> {
-        use std::mem::swap;
-
-        let mut area = *self;
-
-        if (area.end.1 < area.start.1) || (area.start.1 == area.end.1 && area.end.0 < area.start.0)
-        {
-            swap(&mut area.start, &mut area.end);
+    impl<'a> InnerItem<'a> {
+        pub fn is_empty(&self) -> bool {
+            self.items.is_empty()
         }
 
-        let start = area.start.1;
-        let end = area.end.1;
+        pub fn items(&self) -> &Vec<String> {
+            &self.items
+        }
 
-        let mut ret = Vec::new();
-        for i in start..=end {
-            match i {
-                i if start == i && end == i => {
-                    ret.push((i, RangeType::Partial(area.start.0, area.end.0)));
-                }
-                i if start == i => {
-                    ret.push((i, RangeType::StartLine(area.start.0)));
-                }
-                i if end == i => {
-                    ret.push((i, RangeType::EndLine(area.end.0)));
-                }
-                _ => {
-                    ret.push((i, RangeType::Full));
+        pub fn spans(&self) -> &Vec<Spans<'a>> {
+            &self.spans
+        }
+
+        #[allow(dead_code)]
+        pub fn items_mut(&mut self) -> &mut Vec<String> {
+            &mut self.items
+        }
+
+        pub fn spans_mut(&mut self) -> &mut Vec<Spans<'a>> {
+            &mut self.spans
+        }
+
+        pub fn update_max_width(&mut self, max_width: usize) {
+            self.max_width = max_width;
+            self.update_spans();
+        }
+
+        pub fn update_item(&mut self, item: WidgetItem) {
+            self.items = item.array();
+
+            self.update_spans();
+        }
+
+        pub fn update_spans(&mut self) {
+            let lines = wrap(&self.items, self.max_width);
+
+            self.spans = generate_spans(&lines);
+        }
+
+        pub fn append_widget_item(&mut self, item: WidgetItem) {
+            let mut item = item.array();
+
+            let wrapped = wrap(&item, self.max_width);
+
+            self.items.append(&mut item);
+
+            self.spans.append(&mut generate_spans(&&wrapped));
+        }
+    }
+}
+
+mod highlight_content {
+    use super::TextState;
+    use tui::text::Spans;
+
+    #[derive(Debug, PartialEq)]
+    pub enum RangeType {
+        Full,
+        StartLine(usize),
+        EndLine(usize),
+        Partial(usize, usize),
+    }
+
+    #[derive(Default, Debug, Copy, Clone)]
+    pub struct HighlightArea {
+        start: (usize, usize),
+        end: (usize, usize),
+    }
+
+    impl HighlightArea {
+        pub fn start(mut self, start: (usize, usize)) -> Self {
+            self.start = start;
+            self
+        }
+
+        pub fn end(mut self, end: (usize, usize)) -> Self {
+            self.end = end;
+            self
+        }
+
+        pub fn update_pos(&mut self, pos: (usize, usize)) {
+            self.end = pos;
+        }
+
+        pub fn highlight_ranges(&self) -> Vec<(usize, RangeType)> {
+            use std::mem::swap;
+
+            let mut area = *self;
+
+            if (area.end.1 < area.start.1)
+                || (area.start.1 == area.end.1 && area.end.0 < area.start.0)
+            {
+                swap(&mut area.start, &mut area.end);
+            }
+
+            let start = area.start.1;
+            let end = area.end.1;
+
+            let mut ret = Vec::new();
+            for i in start..=end {
+                match i {
+                    i if start == i && end == i => {
+                        ret.push((i, RangeType::Partial(area.start.0, area.end.0)));
+                    }
+                    i if start == i => {
+                        ret.push((i, RangeType::StartLine(area.start.0)));
+                    }
+                    i if end == i => {
+                        ret.push((i, RangeType::EndLine(area.end.0)));
+                    }
+                    _ => {
+                        ret.push((i, RangeType::Full));
+                    }
                 }
             }
+
+            ret
+        }
+    }
+
+    #[derive(Default, Debug, Clone)]
+    pub struct HighlightContent<'a> {
+        pub spans: Vec<Spans<'a>>,
+        pub area: HighlightArea,
+        pub state: TextState,
+        pub copy_content: Vec<String>,
+        pub follow: bool,
+    }
+
+    #[cfg(test)]
+    mod highlight_area {
+
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn move_up() {
+            let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+
+            area.update_pos((11, 8));
+
+            assert_eq!(
+                area.highlight_ranges(),
+                vec![
+                    (8, RangeType::StartLine(11)),
+                    (9, RangeType::Full),
+                    (10, RangeType::EndLine(10)),
+                ]
+            )
         }
 
-        ret
-    }
-}
+        #[test]
+        fn move_down() {
+            let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
 
-#[derive(Default, Debug, Clone)]
-struct HighlightContent<'a> {
-    spans: Vec<Spans<'a>>,
-    area: HighlightArea,
-    state: TextState,
-    copy_content: Vec<String>,
-    follow: bool,
+            area.update_pos((10, 12));
+
+            assert_eq!(
+                area.highlight_ranges(),
+                vec![
+                    (10, RangeType::StartLine(10)),
+                    (11, RangeType::Full),
+                    (12, RangeType::EndLine(10)),
+                ]
+            )
+        }
+
+        #[test]
+        fn move_left() {
+            let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+
+            area.update_pos((0, 10));
+
+            assert_eq!(
+                area.highlight_ranges(),
+                vec![(10, RangeType::Partial(0, 10))]
+            )
+        }
+
+        #[test]
+        fn move_right() {
+            let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+
+            area.update_pos((20, 10));
+
+            assert_eq!(
+                area.highlight_ranges(),
+                vec![(10, RangeType::Partial(10, 20))]
+            )
+        }
+    }
 }
 
 #[derive(Derivative)]
@@ -158,19 +287,22 @@ impl TextBuilder {
         };
 
         text.update_widget_item(WidgetItem::Array(self.items));
+        text.items.update_max_width(text.wrap_width());
         text
     }
 }
+
+use highlight_content::*;
+use inner_item::InnerItem;
 
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
 pub struct Text<'a> {
     id: String,
     title: String,
+    items: InnerItem<'a>,
     chunk_index: usize,
-    items: Vec<String>,
     state: TextState,
-    spans: Vec<Spans<'a>>,
     row_size: u64,
     wrap: bool,
     follow: bool,
@@ -190,34 +322,60 @@ pub struct TextState {
 }
 
 impl TextState {
-    pub fn select_vertical(&mut self, index: u64) {
+    fn select_vertical(&mut self, index: u64) {
         self.scroll_vertical = index;
     }
 
-    pub fn select_horizontal(&mut self, index: u64) {
+    fn select_horizontal(&mut self, index: u64) {
         self.scroll_horizontal = index;
     }
 
-    pub fn selected_vertical(&self) -> u64 {
+    fn selected_vertical(&self) -> u64 {
         self.scroll_vertical
     }
 
-    pub fn selected_horizontal(&self) -> u64 {
+    fn selected_horizontal(&self) -> u64 {
         self.scroll_horizontal
     }
 
-    pub fn select(&mut self, index: (u64, u64)) {
+    #[allow(dead_code)]
+    fn select(&mut self, index: (u64, u64)) {
         self.scroll_vertical = index.0;
         self.scroll_horizontal = index.1;
     }
 
-    pub fn selected(&self) -> (u64, u64) {
+    #[allow(dead_code)]
+    fn selected(&self) -> (u64, u64) {
         (self.scroll_vertical, self.scroll_horizontal)
     }
 }
 
 // ステート
 impl Text<'_> {
+    fn scroll_left(&mut self, index: u64) {
+        if self.wrap {
+            return;
+        }
+        self.state
+            .select_horizontal(self.state.selected_horizontal().saturating_sub(index));
+    }
+
+    fn scroll_right(&mut self, index: u64) {
+        if self.wrap {
+            return;
+        }
+        self.state
+            .select_horizontal(self.state.selected_horizontal().saturating_add(index));
+    }
+
+    pub fn status(&self) -> Spans {
+        Spans::from(format!(
+            "{}/{}",
+            self.state.selected_vertical(),
+            self.row_size
+        ))
+    }
+
     pub fn add_action<F, E: Into<UserEvent>>(&mut self, ev: E, cb: F)
     where
         F: Fn(&mut Window) -> EventResult + 'static,
@@ -231,54 +389,6 @@ impl Text<'_> {
             .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb.clone()) } else { None })
     }
 
-    fn scroll_top(&mut self) {
-        self.state.select_vertical(0);
-    }
-
-    fn scroll_bottom(&mut self) {
-        self.state.select_vertical(self.row_size);
-    }
-
-    pub fn scroll_left(&mut self, index: u64) {
-        if self.wrap {
-            return;
-        }
-        self.state
-            .select_horizontal(self.state.selected_horizontal().saturating_sub(index));
-    }
-
-    pub fn scroll_right(&mut self, index: u64) {
-        if self.wrap {
-            return;
-        }
-        self.state
-            .select_horizontal(self.state.selected_horizontal().saturating_add(index));
-    }
-
-    fn is_bottom(&self) -> bool {
-        self.state.selected_vertical() == self.row_size
-    }
-
-    pub fn scroll_down(&mut self, index: u64) {
-        let mut i = self.state.selected_vertical();
-
-        if self.row_size <= i + index {
-            i = self.row_size;
-        } else {
-            i += index as u64;
-        }
-
-        self.state.select_vertical(i);
-    }
-
-    pub fn scroll_up(&mut self, index: u64) {
-        self.state
-            .select_vertical(self.state.selected_vertical().saturating_sub(index));
-    }
-}
-
-// コンテンツ操作
-impl<'a> Text<'a> {
     fn wrap_width(&self) -> usize {
         if self.wrap {
             self.inner_chunk.width as usize
@@ -287,22 +397,9 @@ impl<'a> Text<'a> {
         }
     }
 
-    pub fn items(&self) -> &Vec<String> {
-        &self.items
-    }
-
-    pub fn spans(&self) -> &Vec<Spans> {
-        &self.spans
-    }
-
-    fn update_spans(&mut self) {
-        let lines = wrap(&self.items, self.wrap_width());
-
-        self.spans = generate_spans(&lines);
-    }
-
     fn update_rows_size(&mut self) {
         self.row_size = self
+            .items
             .spans()
             .len()
             .saturating_sub(self.inner_chunk.height as usize) as u64;
@@ -311,8 +408,8 @@ impl<'a> Text<'a> {
     fn view_range(&self) -> (usize, usize) {
         let start = self.state.selected_vertical() as usize;
 
-        let end = if self.spans.len() < self.inner_chunk.height as usize {
-            self.spans.len()
+        let end = if self.items.spans().len() < self.inner_chunk.height as usize {
+            self.items.spans().len()
         } else {
             start + self.inner_chunk.height as usize
         };
@@ -320,12 +417,18 @@ impl<'a> Text<'a> {
         (start, end)
     }
 
-    pub fn status(&self) -> Spans {
-        Spans::from(format!(
-            "{}/{}",
-            self.state.selected_vertical(),
-            self.row_size
-        ))
+    fn is_bottom(&self) -> bool {
+        self.state.selected_vertical() == self.row_size
+    }
+
+    fn update_select(&mut self, is_bottom: bool) {
+        if self.follow && is_bottom {
+            self.select_last();
+        }
+
+        if self.row_size < self.state.selected_vertical() {
+            self.select_last();
+        }
     }
 }
 
@@ -335,36 +438,37 @@ impl WidgetTrait for Text<'_> {
     }
 
     fn select_next(&mut self, index: usize) {
-        self.scroll_down(index as u64)
+        let mut i = self.state.selected_vertical();
+
+        if self.row_size <= i + index as u64 {
+            i = self.row_size;
+        } else {
+            i += index as u64;
+        }
+
+        self.state.select_vertical(i);
     }
 
     fn select_prev(&mut self, index: usize) {
-        self.scroll_up(index as u64)
+        self.state
+            .select_vertical(self.state.selected_vertical().saturating_sub(index as u64));
     }
 
     fn select_first(&mut self) {
-        self.scroll_top();
+        self.state.select_vertical(0);
     }
+
     fn select_last(&mut self) {
-        self.scroll_bottom();
+        self.state.select_vertical(self.row_size);
     }
 
     fn update_widget_item(&mut self, items: WidgetItem) {
         let is_bottom = self.is_bottom();
-        let pos = self.state.selected_vertical();
 
-        self.items = items.array();
-
-        self.update_spans();
+        self.items.update_item(items);
         self.update_rows_size();
 
-        if self.follow && is_bottom {
-            self.scroll_bottom();
-        }
-
-        if self.row_size < pos {
-            self.scroll_bottom();
-        }
+        self.update_select(is_bottom);
     }
 
     fn update_chunk(&mut self, chunk: Rect) {
@@ -372,42 +476,29 @@ impl WidgetTrait for Text<'_> {
         self.inner_chunk = default_focus_block().inner(chunk);
 
         let is_bottom = self.is_bottom();
-        let pos = self.state.selected_vertical();
 
-        self.update_spans();
+        self.items.update_max_width(self.wrap_width());
         self.update_rows_size();
 
-        if self.follow && is_bottom {
-            self.scroll_bottom();
-        }
-
-        if self.row_size < pos {
-            self.scroll_bottom();
-        }
+        self.update_select(is_bottom);
     }
 
     fn clear(&mut self) {
-        self.items = Vec::default();
-        self.spans = Vec::default();
+        self.items = Default::default();
         self.state = TextState::default();
         self.row_size = 0;
+        self.items.update_max_width(self.wrap_width());
     }
 
     fn widget_item(&self) -> Option<WidgetItem> {
         let index = self.state.selected_vertical() as usize;
-        Some(WidgetItem::Single(self.spans[index].clone().into()))
+        Some(WidgetItem::Single(self.items.items()[index].clone().into()))
     }
 
     fn append_widget_item(&mut self, items: WidgetItem) {
         let is_bottom = self.is_bottom();
 
-        let items = items.as_array();
-
-        self.items.append(&mut items.to_vec());
-
-        let wrapped = wrap(items, self.wrap_width());
-
-        self.spans.append(&mut generate_spans(&wrapped));
+        self.items.append_widget_item(items);
 
         self.update_rows_size();
 
@@ -421,7 +512,7 @@ impl WidgetTrait for Text<'_> {
             dst[..len].clone_from_slice(&src[..len])
         }
 
-        if self.spans.is_empty() {
+        if self.items.is_empty() {
             return EventResult::Nop;
         }
 
@@ -431,12 +522,12 @@ impl WidgetTrait for Text<'_> {
                 + self.state.selected_vertical() as usize,
         );
 
-        let spans_len = self.spans.len();
+        let spans_len = self.items.spans().len();
         if spans_len <= row {
-            row = self.spans.len().saturating_sub(1);
+            row = spans_len.saturating_sub(1);
         }
 
-        let spans_width = self.spans[row].width();
+        let spans_width = self.items.spans()[row].width();
         if spans_width <= col {
             col = spans_width.saturating_sub(1);
         }
@@ -446,23 +537,23 @@ impl WidgetTrait for Text<'_> {
         match ev.kind {
             MouseEventKind::Down(MouseButton::Left) => {
                 let (spans, content) =
-                    highlight_content_partial(self.spans[row].clone(), (col, col));
+                    highlight_content_partial(self.items.spans()[row].clone(), (col, col));
 
                 self.highlight_content = Some(HighlightContent {
-                    spans: self.spans[start..end].to_vec(),
+                    spans: self.items.spans()[start..end].to_vec(),
                     area: HighlightArea::default().start((col, row)).end((col, row)),
                     state: self.state,
                     copy_content: vec![content],
                     follow: self.follow,
                 });
 
-                self.spans[row] = spans;
+                self.items.spans_mut()[row] = spans;
                 self.follow = false;
             }
             MouseEventKind::Drag(MouseButton::Left) => {
                 if let Some(highlight_content) = self.highlight_content.as_mut() {
                     clear_highlight(
-                        &mut self.spans[start..end],
+                        &mut self.items.spans_mut()[start..end],
                         &highlight_content.spans,
                         end.saturating_sub(start),
                     );
@@ -472,18 +563,20 @@ impl WidgetTrait for Text<'_> {
                     let mut copy_content = Vec::new();
                     for (row, range) in highlight_content.area.highlight_ranges() {
                         let (s, e) = match range {
-                            RangeType::Full => (0, self.spans[row].width().saturating_sub(1)),
+                            RangeType::Full => {
+                                (0, self.items.spans()[row].width().saturating_sub(1))
+                            }
                             RangeType::StartLine(i) => {
-                                (i, self.spans[row].width().saturating_sub(1))
+                                (i, self.items.spans()[row].width().saturating_sub(1))
                             }
                             RangeType::EndLine(i) => (0, i),
                             RangeType::Partial(i, j) => (i, j),
                         };
 
                         let (spans, content) =
-                            highlight_content_partial(self.spans[row].clone(), (s, e));
+                            highlight_content_partial(self.items.spans()[row].clone(), (s, e));
 
-                        self.spans[row] = spans;
+                        self.items.spans_mut()[row] = spans;
 
                         copy_content.push(content);
                     }
@@ -494,7 +587,7 @@ impl WidgetTrait for Text<'_> {
             MouseEventKind::Up(MouseButton::Left) => {
                 if let Some(highlight_content) = self.highlight_content.as_mut() {
                     clear_highlight(
-                        &mut self.spans[start..end],
+                        &mut self.items.spans_mut()[start..end],
                         &highlight_content.spans,
                         end.saturating_sub(start),
                     );
@@ -533,10 +626,10 @@ impl WidgetTrait for Text<'_> {
             MouseEventKind::Up(_) => {}
             MouseEventKind::Moved => {}
             MouseEventKind::ScrollDown => {
-                self.scroll_down(3);
+                self.select_next(3);
             }
             MouseEventKind::ScrollUp => {
-                self.scroll_up(3);
+                self.select_prev(3);
             }
         }
         EventResult::Nop
@@ -719,7 +812,7 @@ impl RenderTrait for Text<'_> {
     {
         let (start, end) = self.view_range();
 
-        let mut widget = Paragraph::new(self.spans[start..end].to_vec())
+        let mut widget = Paragraph::new(self.items.spans()[start..end].to_vec())
             .style(Style::default())
             .block(focus_block(self.title(), selected));
 
@@ -744,7 +837,7 @@ mod tests {
 
         text.update_widget_item(WidgetItem::Array(data));
 
-        assert_eq!(text.spans().len(), 20)
+        assert_eq!(text.items.spans().len(), 20)
     }
 
     #[test]
@@ -757,7 +850,7 @@ mod tests {
 
         text.update_widget_item(WidgetItem::Array(data));
 
-        assert_eq!(text.spans().len(), 40)
+        assert_eq!(text.items.spans().len(), 40)
     }
 
     #[test]
@@ -772,305 +865,258 @@ mod tests {
         assert!(text.is_bottom())
     }
 
-    mod highlight {
+    mod content_highlight {
         use super::*;
-        mod content_highlight {
+        use crate::widget::spans::generate_spans_line;
+        use pretty_assertions::assert_eq;
+        use tui::style::Color;
+
+        mod graphemes {
             use super::*;
-            use crate::widget::spans::generate_spans_line;
             use pretty_assertions::assert_eq;
-            use tui::style::Color;
-
-            mod graphemes {
-                use super::*;
-                use pretty_assertions::assert_eq;
-
-                #[test]
-                fn ascii_one() {
-                    let content: Vec<&str> = "abcdefg".graphemes(true).collect();
-
-                    assert_eq!(
-                        width_base_range_to_graphemes_range(&content, (2, 2)),
-                        (2, 2)
-                    );
-                }
-
-                #[test]
-                fn ascii_all() {
-                    let content: Vec<&str> = "abcdefg".graphemes(true).collect();
-
-                    assert_eq!(
-                        width_base_range_to_graphemes_range(&content, (0, 6)),
-                        (0, 6)
-                    );
-                }
-
-                #[test]
-                fn ascii() {
-                    let content: Vec<&str> = "abcdefg".graphemes(true).collect();
-
-                    assert_eq!(
-                        width_base_range_to_graphemes_range(&content, (2, 5)),
-                        (2, 5)
-                    );
-                    assert_eq!(
-                        width_base_range_to_graphemes_range(&content, (6, 6)),
-                        (6, 6)
-                    );
-                }
-
-                #[test]
-                fn japanese_fullwidth() {
-                    let content: Vec<&str> = "アイウエオ".graphemes(true).collect();
-
-                    assert_eq!(
-                        width_base_range_to_graphemes_range(&content, (2, 5)),
-                        (1, 2)
-                    );
-                    assert_eq!(
-                        width_base_range_to_graphemes_range(&content, (1, 2)),
-                        (0, 1)
-                    );
-                }
-
-                #[test]
-                fn japanese_halfwidth() {
-                    let content: Vec<&str> = "ｱｲｳｴｵ".graphemes(true).collect();
-
-                    assert_eq!(
-                        width_base_range_to_graphemes_range(&content, (2, 3)),
-                        (2, 3)
-                    )
-                }
-
-                #[test]
-                fn complex() {
-                    let content: Vec<&str> = "aあbいcdうefｱｲｳｴｵg".graphemes(true).collect();
-
-                    assert_eq!(
-                        width_base_range_to_graphemes_range(&content, (2, 5)),
-                        (1, 3)
-                    );
-                }
-            }
 
             #[test]
-            fn line_all() {
-                let text = vec!["\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: Project is running at http://10.1.157.9/".to_string() ];
-
-                let spans = generate_spans_line(&text)[0].clone();
-
-                let hi = highlight_content_partial(spans, (0, 48));
+            fn ascii_one() {
+                let content: Vec<&str> = "abcdefg".graphemes(true).collect();
 
                 assert_eq!(
-                    hi.1,
-                    "ℹ ｢wds｣: Project is running at http://10.1.157.9/".to_string()
-                );
-
-                assert_eq!(
-                    hi.0,
-                    Spans::from(vec![
-                        Span::styled("ℹ", Style::default().add_modifier(Modifier::REVERSED)),
-                        Span::styled(" ", Style::default().add_modifier(Modifier::REVERSED)),
-                        Span::styled("｢wds｣", Style::default().add_modifier(Modifier::REVERSED)),
-                        Span::styled(
-                            ": Project is running at http://10.1.157.9/",
-                            Style::default().add_modifier(Modifier::REVERSED)
-                        )
-                    ])
+                    width_base_range_to_graphemes_range(&content, (2, 2)),
+                    (2, 2)
                 );
             }
 
             #[test]
-            fn line_partial_char() {
-                let text = vec!["\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: Project is running at http://10.1.157.9/".to_string() ];
-
-                let spans = generate_spans_line(&text)[0].clone();
-
-                let hi = highlight_content_partial(spans, (0, 0));
-
-                assert_eq!(hi.1, "ℹ".to_string());
+            fn ascii_all() {
+                let content: Vec<&str> = "abcdefg".graphemes(true).collect();
 
                 assert_eq!(
-                    hi.0,
-                    Spans::from(vec![
-                        Span::styled("ℹ", Style::default().add_modifier(Modifier::REVERSED)),
-                        Span::styled(" ", Style::default().fg(Color::Reset)),
-                        Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
-                        Span::styled(
-                            ": Project is running at http://10.1.157.9/",
-                            Style::default().fg(Color::Reset)
-                        )
-                    ])
+                    width_base_range_to_graphemes_range(&content, (0, 6)),
+                    (0, 6)
                 );
             }
 
             #[test]
-            fn line_partial_chars() {
-                let text = vec!["\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: Project is running at http://10.1.157.9/".to_string() ];
-
-                let spans = generate_spans_line(&text)[0].clone();
-
-                let hi = highlight_content_partial(spans, (0, 1));
-
-                assert_eq!(hi.1, "ℹ ".to_string());
+            fn ascii() {
+                let content: Vec<&str> = "abcdefg".graphemes(true).collect();
 
                 assert_eq!(
-                    hi.0,
-                    Spans::from(vec![
-                        Span::styled("ℹ", Style::default().add_modifier(Modifier::REVERSED)),
-                        Span::styled(" ", Style::default().add_modifier(Modifier::REVERSED)),
-                        Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
-                        Span::styled(
-                            ": Project is running at http://10.1.157.9/",
-                            Style::default().fg(Color::Reset)
-                        )
-                    ])
+                    width_base_range_to_graphemes_range(&content, (2, 5)),
+                    (2, 5)
+                );
+                assert_eq!(
+                    width_base_range_to_graphemes_range(&content, (6, 6)),
+                    (6, 6)
                 );
             }
 
             #[test]
-            fn line_partial_left() {
-                let text = vec!["\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: Project is running at http://10.1.157.9/".to_string()];
-
-                let spans = generate_spans_line(&text)[0].clone();
-
-                let hi = highlight_content_partial(spans, (0, 10));
-
-                assert_eq!(hi.1, "ℹ ｢wds｣: Pr".to_string());
+            fn japanese_fullwidth() {
+                let content: Vec<&str> = "アイウエオ".graphemes(true).collect();
 
                 assert_eq!(
-                    hi.0,
-                    Spans::from(vec![
-                        Span::styled("ℹ", Style::default().add_modifier(Modifier::REVERSED)),
-                        Span::styled(" ", Style::default().add_modifier(Modifier::REVERSED)),
-                        Span::styled("｢wds｣", Style::default().add_modifier(Modifier::REVERSED)),
-                        Span::styled(": Pr", Style::default().add_modifier(Modifier::REVERSED)),
-                        Span::styled(
-                            "oject is running at http://10.1.157.9/",
-                            Style::default().fg(Color::Reset)
-                        ),
-                    ])
+                    width_base_range_to_graphemes_range(&content, (2, 5)),
+                    (1, 2)
+                );
+                assert_eq!(
+                    width_base_range_to_graphemes_range(&content, (1, 2)),
+                    (0, 1)
                 );
             }
 
             #[test]
-            fn line_partial_middle() {
-                let text = vec!["\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: Project is running at http://10.1.157.9/".to_string()];
-
-                let spans = generate_spans_line(&text)[0].clone();
-
-                let hi = highlight_content_partial(spans, (10, 20));
-
-                assert_eq!(hi.1, "roject is r".to_string());
+            fn japanese_halfwidth() {
+                let content: Vec<&str> = "ｱｲｳｴｵ".graphemes(true).collect();
 
                 assert_eq!(
-                    hi.0,
-                    Spans::from(vec![
-                        Span::styled("ℹ", Style::default().fg(Color::Blue)),
-                        Span::styled(" ", Style::default().fg(Color::Reset)),
-                        Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
-                        Span::styled(": P", Style::default().fg(Color::Reset)),
-                        Span::styled(
-                            "roject is r",
-                            Style::default().add_modifier(Modifier::REVERSED)
-                        ),
-                        Span::styled(
-                            "unning at http://10.1.157.9/",
-                            Style::default().fg(Color::Reset)
-                        ),
-                    ])
-                );
+                    width_base_range_to_graphemes_range(&content, (2, 3)),
+                    (2, 3)
+                )
             }
 
             #[test]
-            fn line_partial_right() {
-                let text = vec!["\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: Project is running at http://10.1.157.9/".to_string()];
-
-                let spans = generate_spans_line(&text)[0].clone();
-
-                let hi = highlight_content_partial(spans, (39, 48));
-
-                assert_eq!(hi.1, "0.1.157.9/".to_string());
+            fn complex() {
+                let content: Vec<&str> = "aあbいcdうefｱｲｳｴｵg".graphemes(true).collect();
 
                 assert_eq!(
-                    hi.0,
-                    Spans::from(vec![
-                        Span::styled("ℹ", Style::default().fg(Color::Blue)),
-                        Span::styled(" ", Style::default().fg(Color::Reset)),
-                        Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
-                        Span::styled(
-                            ": Project is running at http://1",
-                            Style::default().fg(Color::Reset)
-                        ),
-                        Span::styled(
-                            "0.1.157.9/",
-                            Style::default().add_modifier(Modifier::REVERSED)
-                        ),
-                    ])
+                    width_base_range_to_graphemes_range(&content, (2, 5)),
+                    (1, 3)
                 );
             }
         }
 
-        mod highlight_area {
+        #[test]
+        fn line_all() {
+            let text = vec![
+                "\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: Project is running at http://10.1.157.9/"
+                    .to_string(),
+            ];
 
-            use super::*;
-            use pretty_assertions::assert_eq;
+            let spans = generate_spans_line(&text)[0].clone();
 
-            #[test]
-            fn move_up() {
-                let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+            let hi = highlight_content_partial(spans, (0, 48));
 
-                area.update_pos((11, 8));
+            assert_eq!(
+                hi.1,
+                "ℹ ｢wds｣: Project is running at http://10.1.157.9/".to_string()
+            );
 
-                assert_eq!(
-                    area.highlight_ranges(),
-                    vec![
-                        (8, RangeType::StartLine(11)),
-                        (9, RangeType::Full),
-                        (10, RangeType::EndLine(10)),
-                    ]
-                )
-            }
+            assert_eq!(
+                hi.0,
+                Spans::from(vec![
+                    Span::styled("ℹ", Style::default().add_modifier(Modifier::REVERSED)),
+                    Span::styled(" ", Style::default().add_modifier(Modifier::REVERSED)),
+                    Span::styled("｢wds｣", Style::default().add_modifier(Modifier::REVERSED)),
+                    Span::styled(
+                        ": Project is running at http://10.1.157.9/",
+                        Style::default().add_modifier(Modifier::REVERSED)
+                    )
+                ])
+            );
+        }
 
-            #[test]
-            fn move_down() {
-                let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+        #[test]
+        fn line_partial_char() {
+            let text = vec![
+                "\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: Project is running at http://10.1.157.9/"
+                    .to_string(),
+            ];
 
-                area.update_pos((10, 12));
+            let spans = generate_spans_line(&text)[0].clone();
 
-                assert_eq!(
-                    area.highlight_ranges(),
-                    vec![
-                        (10, RangeType::StartLine(10)),
-                        (11, RangeType::Full),
-                        (12, RangeType::EndLine(10)),
-                    ]
-                )
-            }
+            let hi = highlight_content_partial(spans, (0, 0));
 
-            #[test]
-            fn move_left() {
-                let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+            assert_eq!(hi.1, "ℹ".to_string());
 
-                area.update_pos((0, 10));
+            assert_eq!(
+                hi.0,
+                Spans::from(vec![
+                    Span::styled("ℹ", Style::default().add_modifier(Modifier::REVERSED)),
+                    Span::styled(" ", Style::default().fg(Color::Reset)),
+                    Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
+                    Span::styled(
+                        ": Project is running at http://10.1.157.9/",
+                        Style::default().fg(Color::Reset)
+                    )
+                ])
+            );
+        }
 
-                assert_eq!(
-                    area.highlight_ranges(),
-                    vec![(10, RangeType::Partial(0, 10))]
-                )
-            }
+        #[test]
+        fn line_partial_chars() {
+            let text = vec![
+                "\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: Project is running at http://10.1.157.9/"
+                    .to_string(),
+            ];
 
-            #[test]
-            fn move_right() {
-                let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+            let spans = generate_spans_line(&text)[0].clone();
 
-                area.update_pos((20, 10));
+            let hi = highlight_content_partial(spans, (0, 1));
 
-                assert_eq!(
-                    area.highlight_ranges(),
-                    vec![(10, RangeType::Partial(10, 20))]
-                )
-            }
+            assert_eq!(hi.1, "ℹ ".to_string());
+
+            assert_eq!(
+                hi.0,
+                Spans::from(vec![
+                    Span::styled("ℹ", Style::default().add_modifier(Modifier::REVERSED)),
+                    Span::styled(" ", Style::default().add_modifier(Modifier::REVERSED)),
+                    Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
+                    Span::styled(
+                        ": Project is running at http://10.1.157.9/",
+                        Style::default().fg(Color::Reset)
+                    )
+                ])
+            );
+        }
+
+        #[test]
+        fn line_partial_left() {
+            let text = vec![
+                "\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: Project is running at http://10.1.157.9/"
+                    .to_string(),
+            ];
+
+            let spans = generate_spans_line(&text)[0].clone();
+
+            let hi = highlight_content_partial(spans, (0, 10));
+
+            assert_eq!(hi.1, "ℹ ｢wds｣: Pr".to_string());
+
+            assert_eq!(
+                hi.0,
+                Spans::from(vec![
+                    Span::styled("ℹ", Style::default().add_modifier(Modifier::REVERSED)),
+                    Span::styled(" ", Style::default().add_modifier(Modifier::REVERSED)),
+                    Span::styled("｢wds｣", Style::default().add_modifier(Modifier::REVERSED)),
+                    Span::styled(": Pr", Style::default().add_modifier(Modifier::REVERSED)),
+                    Span::styled(
+                        "oject is running at http://10.1.157.9/",
+                        Style::default().fg(Color::Reset)
+                    ),
+                ])
+            );
+        }
+
+        #[test]
+        fn line_partial_middle() {
+            let text = vec![
+                "\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: Project is running at http://10.1.157.9/"
+                    .to_string(),
+            ];
+
+            let spans = generate_spans_line(&text)[0].clone();
+
+            let hi = highlight_content_partial(spans, (10, 20));
+
+            assert_eq!(hi.1, "roject is r".to_string());
+
+            assert_eq!(
+                hi.0,
+                Spans::from(vec![
+                    Span::styled("ℹ", Style::default().fg(Color::Blue)),
+                    Span::styled(" ", Style::default().fg(Color::Reset)),
+                    Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
+                    Span::styled(": P", Style::default().fg(Color::Reset)),
+                    Span::styled(
+                        "roject is r",
+                        Style::default().add_modifier(Modifier::REVERSED)
+                    ),
+                    Span::styled(
+                        "unning at http://10.1.157.9/",
+                        Style::default().fg(Color::Reset)
+                    ),
+                ])
+            );
+        }
+
+        #[test]
+        fn line_partial_right() {
+            let text = vec![
+                "\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: Project is running at http://10.1.157.9/"
+                    .to_string(),
+            ];
+
+            let spans = generate_spans_line(&text)[0].clone();
+
+            let hi = highlight_content_partial(spans, (39, 48));
+
+            assert_eq!(hi.1, "0.1.157.9/".to_string());
+
+            assert_eq!(
+                hi.0,
+                Spans::from(vec![
+                    Span::styled("ℹ", Style::default().fg(Color::Blue)),
+                    Span::styled(" ", Style::default().fg(Color::Reset)),
+                    Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
+                    Span::styled(
+                        ": Project is running at http://1",
+                        Style::default().fg(Color::Reset)
+                    ),
+                    Span::styled(
+                        "0.1.157.9/",
+                        Style::default().add_modifier(Modifier::REVERSED)
+                    ),
+                ])
+            );
         }
     }
 }
