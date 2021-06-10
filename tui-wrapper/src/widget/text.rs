@@ -350,22 +350,13 @@ impl TextState {
     }
 }
 
-// ステート
 impl Text<'_> {
-    fn scroll_left(&mut self, index: u64) {
-        if self.wrap {
-            return;
-        }
-        self.state
-            .select_horizontal(self.state.selected_horizontal().saturating_sub(index));
+    pub fn state(&self) -> &TextState {
+        &self.state
     }
 
-    fn scroll_right(&mut self, index: u64) {
-        if self.wrap {
-            return;
-        }
-        self.state
-            .select_horizontal(self.state.selected_horizontal().saturating_add(index));
+    pub fn items(&self) -> &[String] {
+        self.items.items()
     }
 
     pub fn status(&self) -> Spans {
@@ -419,6 +410,22 @@ impl Text<'_> {
 
     fn is_bottom(&self) -> bool {
         self.state.selected_vertical() == self.row_size
+    }
+
+    fn scroll_left(&mut self, index: u64) {
+        if self.wrap {
+            return;
+        }
+        self.state
+            .select_horizontal(self.state.selected_horizontal().saturating_sub(index));
+    }
+
+    fn scroll_right(&mut self, index: u64) {
+        if self.wrap {
+            return;
+        }
+        self.state
+            .select_horizontal(self.state.selected_horizontal().saturating_add(index));
     }
 
     fn update_select(&mut self, is_bottom: bool) {
