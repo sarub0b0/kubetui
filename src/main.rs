@@ -1,3 +1,4 @@
+use clap::crate_name;
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use std::{cell::RefCell, io, panic, rc::Rc, thread, time};
 
@@ -25,8 +26,36 @@ use tui_wrapper::{
     Tab, Window, WindowEvent,
 };
 
+use clap::{crate_authors, crate_description, crate_version, App, Arg};
+
 extern crate kubetui;
 use kubetui::*;
+
+#[derive(Debug)]
+enum DirectionWrapper {
+    Horizontal,
+    Vertical,
+}
+
+impl Default for DirectionWrapper {
+    fn default() -> Self {
+        Self::Vertical
+    }
+}
+
+#[derive(Debug, Default)]
+struct Config {
+    split_mode: DirectionWrapper,
+}
+
+impl Config {
+    fn split_mode(&self) -> Direction {
+        match self.split_mode {
+            DirectionWrapper::Vertical => Direction::Vertical,
+            DirectionWrapper::Horizontal => Direction::Horizontal,
+        }
+    }
+}
 
 macro_rules! enable_raw_mode {
     () => {
@@ -48,7 +77,7 @@ macro_rules! disable_raw_mode {
     };
 }
 
-fn run() {
+fn run(config: Config) {
     let (tx_input, rx_main): (Sender<Event>, Receiver<Event>) = unbounded();
     let (tx_main, rx_kube): (Sender<Event>, Receiver<Event>) = unbounded();
     let tx_kube = tx_input.clone();
@@ -185,7 +214,7 @@ fn run() {
         )
         .layout(
             Layout::default()
-                .direction(Direction::Vertical)
+                .direction(config.split_mode())
                 .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()),
         ),
         Tab::new(
@@ -198,7 +227,7 @@ fn run() {
         )
         .layout(
             Layout::default()
-                .direction(Direction::Vertical)
+                .direction(config.split_mode())
                 .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()),
         ),
         Tab::new(
@@ -323,7 +352,44 @@ fn run() {
     }
 }
 
+fn configure() -> Config {
+    let app = App::new(crate_name!())
+        .author(crate_authors!())
+        .version(crate_version!())
+        .about(crate_description!())
+        .max_term_width(80)
+        .arg(
+            Arg::with_name("split-mode")
+                .short("s")
+                .long("split-mode")
+                .help("Window split mode")
+                .value_name("direction")
+                .default_value("vertical")
+                .possible_values(&["vertical", "v", "horizontal", "h"])
+                .takes_value(true),
+        )
+        .get_matches();
+
+    let mut config = Config::default();
+
+    if let Some(d) = app.value_of("split-mode") {
+        match d {
+            "vertical" | "v" => {
+                config.split_mode = DirectionWrapper::Vertical;
+            }
+            "horizontal" | "h" => {
+                config.split_mode = DirectionWrapper::Horizontal;
+            }
+            _ => {}
+        }
+    }
+
+    config
+}
+
 fn main() {
+    let config = configure();
+
     let default_hook = panic::take_hook();
 
     panic::set_hook(Box::new(move |info| {
@@ -336,7 +402,7 @@ fn main() {
 
     enable_raw_mode!();
 
-    run();
+    run(config);
 
     disable_raw_mode!();
 }

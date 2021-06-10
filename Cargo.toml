@@ -1,7 +1,7 @@
 [package]
 name = "kubetui"
 version = "0.3.0"
-authors = ["kohashimoto <kohashimoto@bbtower.co.jp>"]
+authors = ["kosay <ekr59uv25@gmail.com>"]
 edition = "2018"
 
 [workspace]
@@ -12,6 +12,7 @@ members = [ "tui-wrapper", "event", "ansi", "clipboard-wrapper" ]
 [dependencies]
 tokio = { version = "1", features = ["rt"] }
 crossbeam = "0.8"
+clap = "2"
 
 clipboard-wrapper = { path = "./clipboard-wrapper" }
 tui-wrapper = { path = "./tui-wrapper" }
