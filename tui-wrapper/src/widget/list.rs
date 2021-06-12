@@ -119,6 +119,10 @@ impl<'a> List<'a> {
         &self.state
     }
 
+    pub fn state_mut(&mut self) -> &mut ListState {
+        &mut self.state
+    }
+
     pub fn items(&self) -> &[String] {
         self.items.raw_items()
     }
