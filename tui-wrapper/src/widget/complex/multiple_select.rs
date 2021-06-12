@@ -26,6 +26,7 @@ use std::collections::HashSet;
 
 use super::input::InputForm;
 
+// TODO list_itemsから追加削除するのではなく選択されているかを示す状態をもつ構造体にすればもっとシンプルにできそう
 #[derive(Derivative)]
 #[derivative(Debug)]
 struct SelectForm<'a> {
@@ -326,6 +327,18 @@ impl<'a> SelectForm<'a> {
         &self.selected_items
     }
 
+    fn select_item(&mut self, item: &str) {
+        if let Some((i, _)) = self
+            .list_items
+            .iter()
+            .enumerate()
+            .find(|(_, i)| item == i.as_str())
+        {
+            self.list_widget.select_next(i);
+            self.toggle_select_unselect();
+        }
+    }
+
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         let pos = mouse_pos(ev);
 
@@ -512,6 +525,10 @@ impl<'a> MultipleSelect<'a> {
 
     pub fn move_cursor_end(&mut self) {
         self.input_widget.move_cursor_end();
+    }
+
+    pub fn select_item(&mut self, item: &str) {
+        self.selected_widget.select_item(item);
     }
 }
 
