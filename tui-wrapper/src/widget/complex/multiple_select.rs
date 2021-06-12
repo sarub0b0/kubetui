@@ -31,7 +31,6 @@ mod inner {
     #[derive(Debug, Default)]
     pub struct SelectItems {
         items: HashMap<String, bool>,
-        default: String,
     }
 
     impl SelectItems {
