@@ -33,6 +33,7 @@ type InnerCallback = Rc<dyn Fn(&mut Window, &[String]) -> EventResult>;
 struct InnerItemBuilder {
     header: Vec<String>,
     rows: Vec<Vec<String>>,
+    max_width: usize,
 }
 
 impl InnerItemBuilder {
@@ -43,6 +44,11 @@ impl InnerItemBuilder {
 
     fn rows(mut self, rows: impl Into<Vec<Vec<String>>>) -> Self {
         self.rows = rows.into();
+        self
+    }
+
+    fn max_width(mut self, max_width: usize) -> Self {
+        self.max_width = max_width;
         self
     }
 
@@ -62,7 +68,7 @@ impl InnerItemBuilder {
         )
         .bottom_margin(1);
 
-        inner_item.inner_update_rows();
+        inner_item.update_rows(self.max_width);
 
         inner_item
     }
@@ -198,9 +204,29 @@ impl<'a> InnerItem<'a> {
             + (COLUMN_SPACING as usize * self.digits.len().saturating_sub(1));
 
         if self.max_width < sum_width {
-            self.digits[0] = self.max_width.saturating_sub(
-                (COLUMN_SPACING as usize * self.digits.len().saturating_sub(1))
-                    + self.digits.iter().skip(1).sum::<usize>(),
+            let index_of_long_digits = self
+                .digits
+                .iter()
+                .enumerate()
+                .max_by_key(|(_, l)| *l)
+                .unwrap_or((0, &0))
+                .0;
+
+            let sum_width: usize = self
+                .digits
+                .iter()
+                .enumerate()
+                .filter_map(|(i, w)| {
+                    if i == index_of_long_digits {
+                        None
+                    } else {
+                        Some(w)
+                    }
+                })
+                .sum();
+
+            self.digits[index_of_long_digits] = self.max_width.saturating_sub(
+                (COLUMN_SPACING as usize * self.digits.len().saturating_sub(1)) + sum_width,
             );
         }
     }
@@ -277,6 +303,24 @@ impl<'a> Table<'a> {
         &self.state
     }
 
+    pub fn equal_header(&self, header: &[String]) -> bool {
+        self.items.header == header
+    }
+
+    fn max_width(&self) -> usize {
+        self.inner_chunk.width.saturating_sub(2) as usize
+    }
+
+    pub fn update_header_and_rows(&mut self, header: &[String], rows: &[Vec<String>]) {
+        self.items = InnerItemBuilder::default()
+            .header(header)
+            .rows(rows)
+            .max_width(self.max_width())
+            .build();
+
+        self.update_widget_item(WidgetItem::DoubleArray(rows.to_vec()));
+    }
+
     fn update_row_bounds(&mut self) {
         let bottom_margin = self.items.bottom_margin as usize;
         self.row_bounds = self
@@ -350,8 +394,7 @@ impl WidgetTrait for Table<'_> {
         self.chunk = chunk;
         self.inner_chunk = default_focus_block().inner(chunk);
 
-        self.items
-            .update_rows(self.inner_chunk.width.saturating_sub(2) as usize);
+        self.items.update_rows(self.max_width());
 
         self.update_row_bounds();
     }
