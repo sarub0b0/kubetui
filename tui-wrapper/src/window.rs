@@ -288,7 +288,7 @@ impl<'a> Window<'a> {
                         s += ", ";
                     }
 
-                    s += &format!("{}", ns);
+                    s += ns;
 
                     Span::raw(s)
                 })
