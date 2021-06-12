@@ -72,6 +72,14 @@ mod inner {
             Self::filter_items(&self.items, false)
         }
 
+        pub fn select_all(&mut self) {
+            self.items.values_mut().for_each(|v| *v = true);
+        }
+
+        pub fn unselect_all(&mut self) {
+            self.items.values_mut().for_each(|v| *v = false);
+        }
+
         fn filter_items(items: &HashMap<String, bool>, selected: bool) -> Vec<String> {
             let mut ret: Vec<String> = items
                 .iter()
@@ -390,6 +398,16 @@ impl<'a> SelectForm<'a> {
         }
     }
 
+    fn select_all(&mut self) {
+        self.items.select_all();
+        self.update_widgets();
+    }
+
+    fn unselect_all(&mut self) {
+        self.items.unselect_all();
+        self.update_widgets();
+    }
+
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         let pos = mouse_pos(ev);
 
@@ -528,6 +546,14 @@ impl<'a> MultipleSelect<'a> {
 
     pub fn toggle_select_unselect(&mut self) {
         self.selected_widget.toggle_select_unselect();
+    }
+
+    pub fn unselect_all(&mut self) {
+        self.selected_widget.unselect_all();
+    }
+
+    pub fn select_all(&mut self) {
+        self.selected_widget.select_all();
     }
 }
 
