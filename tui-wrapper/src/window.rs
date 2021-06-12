@@ -55,7 +55,7 @@ impl<'a> Window<'a> {
                     [
                         Constraint::Length(1),
                         Constraint::Length(1),
-                        Constraint::Length(1),
+                        Constraint::Length(2),
                         Constraint::Min(1),
                         Constraint::Length(1),
                     ]
@@ -252,11 +252,11 @@ impl<'a> Window<'a> {
         &mut self,
         f: &mut Frame<B>,
         current_context: &str,
-        current_namespace: &str,
+        current_namespaces: &[String],
     ) {
         self.render_tab(f);
 
-        self.render_context(f, current_context, current_namespace);
+        self.render_context(f, current_context, current_namespaces);
 
         self.focused_tab_mut().render(f);
 
@@ -274,12 +274,27 @@ impl<'a> Window<'a> {
         f.render_widget(self.widget(), self.tab_chunk());
     }
 
-    fn render_context<B: Backend>(&mut self, f: &mut Frame<B>, ctx: &str, ns: &str) {
+    fn render_context<B: Backend>(&mut self, f: &mut Frame<B>, ctx: &str, ns: &[String]) {
         let block = Block::default().style(Style::default());
 
-        let text = format!("{}: {}", ns, ctx);
-        let spans = Spans::from(text);
-        let paragraph = Paragraph::new(spans).block(block);
+        let spans_ctx = Spans::from(format!("ctx: {}", ctx));
+        let mut spans_ns = vec![Span::raw("ns: ")];
+        spans_ns.extend(
+            ns.iter()
+                .enumerate()
+                .map(|(i, ns)| {
+                    let mut s = String::default();
+                    if i != 0 {
+                        s += ", ";
+                    }
+
+                    s += &format!("{}", ns);
+
+                    Span::raw(s)
+                })
+                .collect::<Vec<Span>>(),
+        );
+        let paragraph = Paragraph::new(vec![spans_ctx, Spans::from(spans_ns)]).block(block);
 
         f.render_widget(paragraph, self.chunks()[CONTEXT]);
     }
