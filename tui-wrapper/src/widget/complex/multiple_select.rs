@@ -22,16 +22,135 @@ use fuzzy_matcher::FuzzyMatcher;
 use unicode_width::UnicodeWidthStr;
 
 use derivative::*;
-use std::collections::HashSet;
 
 use super::input::InputForm;
 
-// TODO list_itemsから追加削除するのではなく選択されているかを示す状態をもつ構造体にすればもっとシンプルにできそう
+mod inner {
+    use std::collections::HashMap;
+
+    #[derive(Debug, Default)]
+    pub struct SelectItems {
+        items: HashMap<String, bool>,
+        default: String,
+    }
+
+    impl SelectItems {
+        pub fn update_items<T>(&mut self, items: impl Into<Vec<T>>)
+        where
+            T: Into<String>,
+        {
+            let old = self.items.clone();
+
+            self.items = items
+                .into()
+                .into_iter()
+                .map(|i| (i.into(), false))
+                .collect();
+
+            old.iter().for_each(|(k, v)| {
+                if let Some(value) = self.items.get_mut(k) {
+                    *value = *v;
+                }
+            })
+        }
+
+        pub fn toggle_select_unselect(&mut self, key: &str) {
+            if let Some(value) = self.items.get_mut(key) {
+                *value = !*value;
+            }
+        }
+
+        #[allow(dead_code)]
+        pub fn items(&self) -> Vec<&str> {
+            self.items.iter().map(|(k, _)| k.as_str()).collect()
+        }
+
+        pub fn selected_items(&self) -> Vec<String> {
+            Self::filter_items(&self.items, true)
+        }
+
+        pub fn unselected_items(&self) -> Vec<String> {
+            Self::filter_items(&self.items, false)
+        }
+
+        fn filter_items(items: &HashMap<String, bool>, selected: bool) -> Vec<String> {
+            let mut ret: Vec<String> = items
+                .iter()
+                .filter_map(|(k, v)| {
+                    if *v == selected {
+                        Some(k.to_string())
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            ret.sort();
+            ret
+        }
+
+        #[allow(dead_code)]
+        pub fn select(&mut self, key: &str) {
+            if let Some(value) = self.items.get_mut(key) {
+                *value = true;
+            }
+        }
+
+        #[allow(dead_code)]
+        pub fn unselect(&mut self, key: &str) {
+            if let Some(value) = self.items.get_mut(key) {
+                *value = false;
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn select_unselect_and_selected_items() {
+            let mut items = SelectItems::default();
+
+            items.update_items(["Item 0", "Item 1", "Item 2", "Item 3", "Item 4", "Item 5"]);
+
+            items.select("Item 2");
+            items.select("Item 5");
+            items.select("Item 4");
+
+            assert_eq!(items.selected_items(), vec!["Item 2", "Item 4", "Item 5"]);
+
+            items.unselect("Item 2");
+
+            assert_eq!(items.selected_items(), vec!["Item 4", "Item 5"]);
+        }
+
+        #[test]
+        fn update_items() {
+            let mut items = SelectItems::default();
+
+            items.update_items(["Item 0", "Item 1", "Item 2", "Item 3", "Item 4", "Item 5"]);
+
+            items.select("Item 2");
+            items.select("Item 5");
+            items.select("Item 4");
+
+            assert_eq!(items.selected_items(), vec!["Item 2", "Item 4", "Item 5"]);
+
+            items.update_items(["Item 0", "Item 1", "Item 2"]);
+
+            assert_eq!(items.selected_items(), vec!["Item 2"]);
+        }
+    }
+}
+
+use inner::SelectItems;
+
 #[derive(Derivative)]
 #[derivative(Debug)]
 struct SelectForm<'a> {
-    list_items: HashSet<String>,
-    selected_items: HashSet<String>,
+    items: SelectItems,
     filter: String,
     list_widget: List<'a>,
     selected_widget: List<'a>,
@@ -45,8 +164,7 @@ struct SelectForm<'a> {
 impl Default for SelectForm<'_> {
     fn default() -> Self {
         Self {
-            list_items: HashSet::new(),
-            selected_items: HashSet::new(),
+            items: SelectItems::default(),
             filter: String::default(),
             list_widget: List::default(),
             selected_widget: List::default(),
@@ -126,19 +244,6 @@ impl<'a> SelectForm<'a> {
         };
     }
 
-    fn filter_items(&self, items: &HashSet<String>) -> Vec<String> {
-        let mut ret: Vec<String> = items
-            .iter()
-            .filter_map(|item| {
-                self.matcher
-                    .fuzzy_match(&item, &self.filter)
-                    .map(|_| item.to_string())
-            })
-            .collect();
-        ret.sort();
-        ret
-    }
-
     fn update_chunk(&mut self, chunk: Rect) {
         self.update_layout(chunk);
 
@@ -166,6 +271,27 @@ impl<'a> SelectForm<'a> {
         self.focused_form_mut().select_last();
     }
 
+    fn filter_items(&self, items: &[String]) -> Vec<String> {
+        let mut ret: Vec<String> = items
+            .iter()
+            .filter_map(|item| {
+                self.matcher
+                    .fuzzy_match(&item, &self.filter)
+                    .map(|_| item.to_string())
+            })
+            .collect();
+        ret.sort();
+        ret
+    }
+
+    fn focused_form(&mut self) -> &List<'a> {
+        if self.focus_id == 0 {
+            &self.list_widget
+        } else {
+            &self.selected_widget
+        }
+    }
+
     fn focused_form_mut(&mut self) -> &mut List<'a> {
         if self.focus_id == 0 {
             &mut self.list_widget
@@ -174,6 +300,7 @@ impl<'a> SelectForm<'a> {
         }
     }
 
+    #[allow(dead_code)]
     fn unfocused_form_mut(&mut self) -> &mut List<'a> {
         if self.focus_id == 1 {
             &mut self.list_widget
@@ -194,107 +321,36 @@ impl<'a> SelectForm<'a> {
         self.focus_id = id;
     }
 
-    fn toggle_select_unselect(&mut self) {
-        // 1. フィルタされているアイテムをフォーカスしているリストからアイテムを取り出す
-        // 2. 取得したアイテムをフォーカスしているリストから削除
-        // 3  フォーカスしていないリストに追加
-        let list = self.focused_form_mut();
-        let selected_item = list
-            .state()
-            .selected()
-            .map(|index| list.items()[index].to_string());
-
-        if let Some(selected_item) = selected_item {
-            self.swap_item(&selected_item)
-        }
-    }
-
-    fn swap_item(&mut self, item: &str) {
-        // 1. 選択されたアイテムを探して
-        // 2. 一覧から削除
-        // 3. 選択中リストに追加
-        self.focused_item_mut().remove(item);
-        self.unfocused_item_mut().insert(item.to_string());
-
-        let mut focused_item = if self.focus_id == 0 {
-            self.filter_items(&self.list_items)
-        } else {
-            self.selected_items.clone().into_iter().collect()
-        };
-
-        let mut unfocused_item = if self.focus_id == 1 {
-            self.filter_items(&self.list_items)
-        } else {
-            self.selected_items.clone().into_iter().collect()
-        };
-
-        focused_item.sort();
-        unfocused_item.sort();
-
-        self.focused_form_mut()
-            .update_widget_item(WidgetItem::Array(focused_item));
-
-        self.unfocused_form_mut()
-            .update_widget_item(WidgetItem::Array(unfocused_item));
-    }
-
-    fn focused_item_mut(&mut self) -> &mut HashSet<String> {
-        if self.focus_id == 0 {
-            &mut self.list_items
-        } else {
-            &mut self.selected_items
-        }
-    }
-
-    fn unfocused_item_mut(&mut self) -> &mut HashSet<String> {
-        if self.focus_id == 1 {
-            &mut self.list_items
-        } else {
-            &mut self.selected_items
-        }
-    }
-
     fn update_widget_item(&mut self, items: WidgetItem) {
-        // マージ処理
+        self.items.update_items(items.as_array());
 
-        let new_items: HashSet<String> = items.array().into_iter().collect();
-        let mut old_items = self.list_items.clone();
-
-        self.selected_items.iter().for_each(|item| {
-            old_items.insert(item.to_string());
-        });
-
-        // 新しく増えたアイテム
-        // アイテムリストに追加
-        let add_items = new_items.difference(&old_items);
-        add_items.for_each(|item| {
-            self.list_items.insert(item.to_string());
-        });
-
-        // 消えたアイテム
-        // 両方のリストから削除
-        let del_items = old_items.difference(&new_items);
-        del_items.for_each(|item| {
-            self.list_items.remove(item);
-            self.selected_items.remove(item);
-        });
-
-        let filter = self.filter.clone();
-
-        self.update_filter(&filter);
-
-        let mut items: Vec<String> = self.selected_items.clone().into_iter().collect();
-        items.sort();
-
-        self.selected_widget
-            .update_widget_item(WidgetItem::Array(items));
+        self.update_widgets();
     }
 
-    fn update_filter(&mut self, filter: &str) {
-        self.filter = filter.to_string();
+    fn update_widgets(&mut self) {
+        self.list_widget.update_widget_item(WidgetItem::Array(
+            self.filter_items(&self.items.unselected_items()),
+        ));
+        self.selected_widget
+            .update_widget_item(WidgetItem::Array(self.items.selected_items()));
+    }
 
-        self.list_widget
-            .update_widget_item(WidgetItem::Array(self.filter_items(&self.list_items)));
+    fn toggle_select_unselect(&mut self) {
+        let list = self.focused_form();
+        let selected_key = list.state().selected().map(|i| list.items()[i].to_string());
+
+        if let Some(key) = selected_key {
+            self.items.toggle_select_unselect(&key);
+            self.update_widgets();
+        }
+    }
+
+    fn update_filter(&mut self, filter: impl Into<String>) {
+        self.filter = filter.into();
+
+        self.list_widget.update_widget_item(WidgetItem::Array(
+            self.filter_items(&self.items.unselected_items()),
+        ));
 
         let current_pos = self.list_widget.state().selected();
 
@@ -317,25 +373,21 @@ impl<'a> SelectForm<'a> {
         (pos, size)
     }
 
-    fn to_vec_selected_items(&self) -> Vec<String> {
-        let mut vec: Vec<String> = self.selected_items.clone().into_iter().collect();
-        vec.sort();
-        vec
-    }
-
-    fn selected_items(&self) -> &HashSet<String> {
-        &self.selected_items
+    fn selected_items(&self) -> Vec<String> {
+        self.items.selected_items()
     }
 
     fn select_item(&mut self, item: &str) {
         if let Some((i, _)) = self
-            .list_items
+            .list_widget
+            .items()
             .iter()
             .enumerate()
             .find(|(_, i)| item == i.as_str())
         {
-            self.list_widget.select_next(i);
+            self.list_widget.state_mut().select(Some(i));
             self.toggle_select_unselect();
+            self.list_widget.select_first();
         }
     }
 
@@ -462,73 +514,21 @@ impl<'a> MultipleSelect<'a> {
         self
     }
 
-    pub fn id(&self) -> &str {
-        &self.id
-    }
-
-    pub fn insert_char(&mut self, c: char) {
-        self.input_widget.insert_char(c);
-        self.selected_widget
-            .update_filter(self.input_widget.content());
-        self.selected_widget.focus(0);
-    }
-
-    pub fn remove_char(&mut self) {
-        self.input_widget.remove_char();
-        self.selected_widget
-            .update_filter(self.input_widget.content());
-        self.selected_widget.focus(0);
-    }
-
-    pub fn forward_cursor(&mut self) {
-        self.input_widget.forward_cursor();
-    }
-
-    pub fn back_cursor(&mut self) {
-        self.input_widget.back_cursor();
-    }
-
-    pub fn toggle_focus(&mut self) {
-        self.selected_widget.toggle_focus();
-    }
-
-    pub fn toggle_select_unselect(&mut self) {
-        self.selected_widget.toggle_select_unselect();
-    }
-
-    pub fn selected_items(&self) -> &HashSet<String> {
-        self.selected_widget.selected_items()
-    }
-
-    pub fn clear_filter(&mut self) {
+    fn clear_filter(&mut self) {
         self.input_widget.clear();
         self.selected_widget.update_filter("");
     }
 
-    pub fn remove_chars_before_cursor(&mut self) {
-        self.input_widget.remove_chars_before_cursor();
-        self.selected_widget
-            .update_filter(self.input_widget.content());
-        self.selected_widget.focus(0);
-    }
-
-    pub fn remove_chars_after_cursor(&mut self) {
-        self.input_widget.remove_chars_after_cursor();
-        self.selected_widget
-            .update_filter(self.input_widget.content());
-        self.selected_widget.focus(0);
-    }
-
-    pub fn move_cursor_top(&mut self) {
-        self.input_widget.move_cursor_top();
-    }
-
-    pub fn move_cursor_end(&mut self) {
-        self.input_widget.move_cursor_end();
+    pub fn selected_items(&self) -> Vec<String> {
+        self.selected_widget.selected_items()
     }
 
     pub fn select_item(&mut self, item: &str) {
         self.selected_widget.select_item(item);
+    }
+
+    pub fn toggle_select_unselect(&mut self) {
+        self.selected_widget.toggle_select_unselect();
     }
 }
 
@@ -561,9 +561,7 @@ impl WidgetTrait for MultipleSelect<'_> {
     fn append_widget_item(&mut self, _: WidgetItem) {}
 
     fn widget_item(&self) -> Option<WidgetItem> {
-        Some(WidgetItem::Array(
-            self.selected_widget.to_vec_selected_items(),
-        ))
+        Some(WidgetItem::Array(self.selected_widget.selected_items()))
     }
 
     fn update_chunk(&mut self, chunk: Rect) {
@@ -598,12 +596,13 @@ impl WidgetTrait for MultipleSelect<'_> {
         match self.input_widget.on_key_event(ev) {
             EventResult::Ignore => {
                 if let KeyCode::Tab | KeyCode::BackTab = key_event_to_code(ev) {
-                    self.toggle_focus();
+                    self.selected_widget.toggle_focus();
                 } else {
                     return self.selected_widget.on_key_event(ev);
                 }
             }
             _ => {
+                self.selected_widget.focus(0);
                 self.selected_widget
                     .update_filter(self.input_widget.content());
             }
@@ -627,21 +626,4 @@ impl WidgetTrait for MultipleSelect<'_> {
 #[inline]
 fn is_odd(num: u16) -> bool {
     num & 1 != 0
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use pretty_assertions::assert_eq;
-
-    #[test]
-    fn focus_toggle() {
-        let mut select = MultipleSelect::default();
-
-        select.toggle_focus();
-        assert_eq!(select.selected_widget.focus_id, 1);
-
-        select.toggle_focus();
-        assert_eq!(select.selected_widget.focus_id, 0);
-    }
 }
