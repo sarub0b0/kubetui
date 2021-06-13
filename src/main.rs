@@ -21,8 +21,7 @@ use tui_wrapper::{
         Terminal, TerminalOptions, Viewport,
     },
     widget::{
-        ListBuilder, MultipleSelectBuilder, SingleSelectBuilder, TableBuilder, TextBuilder, Widget,
-        WidgetTrait,
+        MultipleSelectBuilder, SingleSelectBuilder, TableBuilder, TextBuilder, Widget, WidgetTrait,
     },
     Tab, Window, WindowEvent,
 };
@@ -157,17 +156,28 @@ fn run(config: Config) {
     // Raw
     let tx_configs = tx_main.clone();
 
-    let configs_widget = ListBuilder::default()
+    let sn = selected_namespaces.clone();
+    let configs_widget = TableBuilder::default()
         .id(view_id::tab_configs_widget_configs)
         .title("Configs")
         .build()
-        .on_select(move |w, item| {
-            w.find_widget_mut(view_id::tab_configs_widget_raw_data)
-                .clear();
+        .on_select(move |w, v| {
+            w.widget_clear(view_id::tab_configs_widget_raw_data);
+
+            let (ns, kind, name) = if sn.borrow().len() == 1 {
+                (
+                    sn.borrow()[0].to_string(),
+                    v[0].to_string(),
+                    v[1].to_string(),
+                )
+            } else {
+                (v[0].to_string(), v[1].to_string(), v[2].to_string())
+            };
 
             tx_configs
-                .send(Event::Kube(Kube::ConfigRequest(item.to_string())))
+                .send(Event::Kube(Kube::ConfigRequest(ns, kind, name)))
                 .unwrap();
+
             EventResult::Window(WindowEvent::Continue)
         });
 

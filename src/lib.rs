@@ -67,21 +67,26 @@ pub fn update_contents(
     selected_namespace: &mut Vec<String>,
 ) {
     match ev {
-        Kube::Pod(info) => {
+        Kube::Pod(pods_table) => {
             let widget = window.find_widget_mut(view_id::tab_pods_widget_pods);
             let w = widget.as_mut_table();
 
-            if w.equal_header(info.header()) {
-                w.update_widget_item(WidgetItem::DoubleArray(info.rows().to_owned()));
+            if w.equal_header(pods_table.header()) {
+                w.update_widget_item(WidgetItem::DoubleArray(pods_table.rows().to_owned()));
             } else {
-                w.update_header_and_rows(info.header(), info.rows());
+                w.update_header_and_rows(pods_table.header(), pods_table.rows());
             }
         }
 
-        Kube::Configs(configs) => {
-            window
-                .find_widget_mut(view_id::tab_configs_widget_configs)
-                .update_widget_item(WidgetItem::Array(configs));
+        Kube::Configs(configs_table) => {
+            let widget = window.find_widget_mut(view_id::tab_configs_widget_configs);
+            let w = widget.as_mut_table();
+
+            if w.equal_header(configs_table.header()) {
+                w.update_widget_item(WidgetItem::DoubleArray(configs_table.rows().to_owned()));
+            } else {
+                w.update_header_and_rows(configs_table.header(), configs_table.rows());
+            }
         }
         Kube::LogStreamResponse(logs) => {
             window

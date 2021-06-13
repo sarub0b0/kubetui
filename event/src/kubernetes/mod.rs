@@ -97,8 +97,8 @@ pub enum Kube {
     LogStreamRequest(String, String),
     LogStreamResponse(Vec<String>),
     // ConfigMap & Secret
-    Configs(Vec<String>),
-    ConfigRequest(String),
+    Configs(KubeTable),
+    ConfigRequest(String, String, String), // namespace, kind, resource_name
     ConfigResponse(Vec<String>),
 }
 
@@ -249,10 +249,9 @@ async fn main_loop(
                         task::yield_now().await;
                     }
 
-                    Kube::ConfigRequest(config) => {
+                    Kube::ConfigRequest(ns, kind, name) => {
                         let client = args.client.clone();
-                        let ns = namespaces.read().await;
-                        let raw = get_config(client, &ns[0], &config).await;
+                        let raw = get_config(client, &ns, &kind, &name).await;
                         tx.send(Event::Kube(Kube::ConfigResponse(raw))).unwrap();
                     }
 

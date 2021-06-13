@@ -1,15 +1,15 @@
-use super::{Event, Kube, KubeArgs, Namespaces};
+use super::{
+    request::get_table_request, v1_table::*, Event, Kube, KubeArgs, KubeTable, Namespaces,
+};
 
 use std::{sync::Arc, time};
 
 use crossbeam::channel::Sender;
 
+use futures::future::join_all;
 use k8s_openapi::api::core::v1::{ConfigMap, Secret};
 
-use kube::{
-    api::{ListParams, Resource},
-    Api, Client,
-};
+use kube::{Api, Client};
 
 pub async fn configs_loop(tx: Sender<Event>, namespaces: Namespaces, args: Arc<KubeArgs>) {
     let mut interval = tokio::time::interval(time::Duration::from_secs(1));
@@ -17,50 +17,128 @@ pub async fn configs_loop(tx: Sender<Event>, namespaces: Namespaces, args: Arc<K
     loop {
         interval.tick().await;
 
-        let namespace = namespaces.read().await;
+        let namespaces = namespaces.read().await;
 
-        let ns = &namespace[0];
+        let mut table = KubeTable {
+            header: if namespaces.len() == 1 {
+                ["KIND", "NAME", "DATA", "AGE"]
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect()
+            } else {
+                ["NAMESPACE", "KIND", "NAME", "DATA", "AGE"]
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect()
+            },
+            ..Default::default()
+        };
 
-        let configmaps: Api<ConfigMap> = Api::namespaced(args.client.clone(), ns);
+        let jobs_configmap = join_all(namespaces.iter().map(|ns| {
+            configmap_per_namespace(&args.client, &args.server_url, ns, namespaces.len() != 1)
+        }));
 
-        let lp = ListParams::default();
+        let jobs_secret = join_all(namespaces.iter().map(|ns| {
+            secret_per_namespace(&args.client, &args.server_url, ns, namespaces.len() != 1)
+        }));
 
-        let configmap_list = configmaps.list(&lp).await.unwrap();
+        let mut data: Vec<Vec<String>> = jobs_configmap.await.into_iter().flatten().collect();
 
-        let mut ret = Vec::new();
+        data.append(&mut jobs_secret.await.into_iter().flatten().collect());
 
-        for cm in configmap_list {
-            ret.push(format!(
-                "C │ {}",
-                cm.meta().name.as_ref().unwrap_or(&String::default())
-            ));
-        }
+        table.update_rows(data);
 
-        let secrets: Api<Secret> = Api::namespaced(args.client.clone(), ns);
-
-        let lp = ListParams::default();
-
-        let secret_list = secrets.list(&lp).await.unwrap();
-
-        for secret in secret_list {
-            ret.push(format!(
-                "S │ {}",
-                secret.meta().name.as_ref().unwrap_or(&String::default())
-            ));
-        }
-
-        tx.send(Event::Kube(Kube::Configs(ret))).unwrap();
+        tx.send(Event::Kube(Kube::Configs(table))).unwrap();
     }
 }
 
-pub async fn get_config(client: Client, ns: &str, config: &str) -> Vec<String> {
-    let split: Vec<&str> = config.split(' ').collect();
+async fn configmap_per_namespace(
+    client: &Client,
+    server_url: &str,
+    ns: &str,
+    contain_ns: bool,
+) -> Vec<Vec<String>> {
+    let table: Result<Table, kube::Error> = client
+        .request(
+            get_table_request(
+                server_url,
+                &format!("api/v1/namespaces/{}/{}", ns, "configmaps"),
+            )
+            .unwrap(),
+        )
+        .await;
 
-    let ty = split[0];
-    let name = split[2];
+    match table {
+        Ok(t) => {
+            let indexes = t.find_indexes(&["Name", "Data", "Age"]);
 
-    match ty {
-        "C" => {
+            let mut ret = Vec::new();
+            for row in t.rows.iter() {
+                let mut cells: Vec<String> = vec![
+                    "ConfigMap".to_string(),
+                    row.cells[indexes[0]].to_string(),
+                    row.cells[indexes[1]].to_string(),
+                    row.cells[indexes[2]].to_string(),
+                ];
+
+                if contain_ns {
+                    cells.insert(0, ns.to_string());
+                }
+
+                ret.push(cells);
+            }
+            ret
+        }
+
+        Err(e) => return vec![vec![e.to_string()]],
+    }
+}
+
+async fn secret_per_namespace(
+    client: &Client,
+    server_url: &str,
+    ns: &str,
+    contain_ns: bool,
+) -> Vec<Vec<String>> {
+    let table: Result<Table, kube::Error> = client
+        .request(
+            get_table_request(
+                server_url,
+                &format!("api/v1/namespaces/{}/{}", ns, "secrets"),
+            )
+            .unwrap(),
+        )
+        .await;
+
+    match table {
+        Ok(t) => {
+            let indexes = t.find_indexes(&["Name", "Data", "Age"]);
+
+            let mut ret = Vec::new();
+            for row in t.rows.iter() {
+                let mut cells: Vec<String> = vec![
+                    "Secret".to_string(),
+                    row.cells[indexes[0]].to_string(),
+                    row.cells[indexes[1]].to_string(),
+                    row.cells[indexes[2]].to_string(),
+                ];
+
+                if contain_ns {
+                    cells.insert(0, ns.to_string());
+                }
+
+                ret.push(cells);
+            }
+            ret
+        }
+
+        Err(e) => return vec![vec![e.to_string()]],
+    }
+}
+
+pub async fn get_config(client: Client, ns: &str, kind: &str, name: &str) -> Vec<String> {
+    match kind {
+        "ConfigMap" => {
             let cms: Api<ConfigMap> = Api::namespaced(client, &ns);
             let cm = cms.get(name).await.unwrap();
             match cm.data {
@@ -68,7 +146,7 @@ pub async fn get_config(client: Client, ns: &str, config: &str) -> Vec<String> {
                 None => vec!["".to_string()],
             }
         }
-        "S" => {
+        "Secret" => {
             let secs: Api<Secret> = Api::namespaced(client, &ns);
             let sec = secs.get(name).await.unwrap();
             match sec.data {
