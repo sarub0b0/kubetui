@@ -1,6 +1,9 @@
 use crossbeam::channel::Receiver;
 
-use event::{kubernetes::Kube, Event};
+use event::{
+    kubernetes::{Kube, KubeTable},
+    Event,
+};
 
 use tui_wrapper::{
     event::{exec_to_window_event, EventResult},
@@ -59,6 +62,17 @@ pub fn window_action(window: &mut Window, rx: &Receiver<Event>) -> WindowEvent {
     WindowEvent::Continue
 }
 
+fn update_widget_item_for_table(window: &mut Window, id: &str, table: KubeTable) {
+    let widget = window.find_widget_mut(id);
+    let w = widget.as_mut_table();
+
+    if w.equal_header(table.header()) {
+        w.update_widget_item(WidgetItem::DoubleArray(table.rows().to_owned()));
+    } else {
+        w.update_header_and_rows(table.header(), table.rows());
+    }
+}
+
 pub fn update_contents(
     window: &mut Window,
     ev: Kube,
@@ -68,25 +82,15 @@ pub fn update_contents(
 ) {
     match ev {
         Kube::Pod(pods_table) => {
-            let widget = window.find_widget_mut(view_id::tab_pods_widget_pods);
-            let w = widget.as_mut_table();
-
-            if w.equal_header(pods_table.header()) {
-                w.update_widget_item(WidgetItem::DoubleArray(pods_table.rows().to_owned()));
-            } else {
-                w.update_header_and_rows(pods_table.header(), pods_table.rows());
-            }
+            update_widget_item_for_table(window, view_id::tab_pods_widget_pods, pods_table);
         }
 
         Kube::Configs(configs_table) => {
-            let widget = window.find_widget_mut(view_id::tab_configs_widget_configs);
-            let w = widget.as_mut_table();
-
-            if w.equal_header(configs_table.header()) {
-                w.update_widget_item(WidgetItem::DoubleArray(configs_table.rows().to_owned()));
-            } else {
-                w.update_header_and_rows(configs_table.header(), configs_table.rows());
-            }
+            update_widget_item_for_table(
+                window,
+                view_id::tab_configs_widget_configs,
+                configs_table,
+            );
         }
         Kube::LogStreamResponse(logs) => {
             window
