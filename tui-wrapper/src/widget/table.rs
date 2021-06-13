@@ -400,7 +400,11 @@ impl WidgetTrait for Table<'_> {
     }
 
     fn clear(&mut self) {
-        *self = Self::default();
+        self.state = TableState::default();
+        self.items = InnerItemBuilder::default()
+            .max_width(self.max_width())
+            .build();
+        self.row_bounds = Vec::default();
     }
 
     fn widget_item(&self) -> Option<WidgetItem> {
