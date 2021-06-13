@@ -29,6 +29,50 @@ use kube::{
     Client,
 };
 
+#[derive(Debug, Default)]
+pub struct KubeTable {
+    header: Vec<String>,
+    rows: Vec<Vec<String>>,
+}
+
+impl KubeTable {
+    pub fn header(&self) -> &Vec<String> {
+        &self.header
+    }
+
+    pub fn rows(&self) -> &Vec<Vec<String>> {
+        &self.rows
+    }
+
+    pub fn push_row(&mut self, row: impl Into<Vec<String>>) {
+        let row = row.into();
+
+        debug_assert!(
+            self.header.len() == row.len(),
+            "Mismatch header({}) != row({})",
+            self.header.len(),
+            row.len()
+        );
+
+        self.rows.push(row);
+    }
+
+    pub fn update_rows(&mut self, rows: Vec<Vec<String>>) {
+        if !rows.is_empty() {
+            for row in rows.iter() {
+                debug_assert!(
+                    self.header.len() == row.len(),
+                    "Mismatch header({}) != row({})",
+                    self.header.len(),
+                    row.len()
+                );
+            }
+        }
+
+        self.rows = rows;
+    }
+}
+
 pub enum Kube {
     // apis
     GetAPIsRequest,
@@ -46,16 +90,23 @@ pub enum Kube {
     // Namespace
     GetNamespacesRequest,
     GetNamespacesResponse(Vec<String>),
-    SetNamespace(String),
+    SetNamespaces(Vec<String>),
     // Pod Status
-    Pod(Vec<Vec<String>>),
+    Pod(KubeTable),
     // Pod Logs
-    LogStreamRequest(String),
+    LogStreamRequest(String, String),
     LogStreamResponse(Vec<String>),
     // ConfigMap & Secret
     Configs(Vec<String>),
     ConfigRequest(String),
     ConfigResponse(Vec<String>),
+}
+
+pub struct KubeArgs {
+    pub client: Client,
+    pub server_url: String,
+    pub current_context: String,
+    pub current_namespace: String,
 }
 
 pub struct Handlers(Vec<JoinHandle<()>>);
@@ -74,6 +125,9 @@ fn cluster_server_url(kubeconfig: &Kubeconfig, named_context: &NamedContext) -> 
     named_cluster.as_ref().unwrap().cluster.server.clone()
 }
 
+type Namespaces = Arc<RwLock<Vec<String>>>;
+type ApiResources = Arc<RwLock<Vec<String>>>;
+
 pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
     let rt = Runtime::new().unwrap();
 
@@ -86,57 +140,57 @@ pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
             .iter()
             .find(|n| n.name == current_context);
 
-        let namespace = Arc::new(RwLock::new(match named_context {
+        let current_namespace = match named_context {
             Some(nc) => nc
                 .context
                 .namespace
                 .clone()
                 .unwrap_or_else(|| "default".to_string()),
             None => "default".to_string(),
-        }));
+        };
 
-        let api_resources: Arc<RwLock<Vec<String>>> = Arc::new(RwLock::new(Vec::new()));
+        let api_resources: ApiResources = Arc::new(RwLock::new(Vec::new()));
 
         let server_url = cluster_server_url(&kubeconfig, named_context.as_ref().unwrap());
 
         let client = Client::try_default().await.unwrap();
 
+        let namespaces = Arc::new(RwLock::new(vec![current_namespace.to_string()]));
+
+        let args = Arc::new(KubeArgs {
+            client,
+            server_url,
+            current_context,
+            current_namespace,
+        });
+
         let main_loop = tokio::spawn(main_loop(
             rx,
             tx.clone(),
-            client.clone(),
-            Arc::clone(&namespace),
-            current_context,
+            Arc::clone(&namespaces),
             Arc::clone(&api_resources),
-            server_url.clone(),
+            args.clone(),
         ));
 
-        let pod_loop = tokio::spawn(pod_loop(
-            tx.clone(),
-            client.clone(),
-            Arc::clone(&namespace),
-            server_url.clone(),
-        ));
+        let pod_loop = tokio::spawn(pod_loop(tx.clone(), Arc::clone(&namespaces), args.clone()));
 
         let config_loop = tokio::spawn(configs_loop(
             tx.clone(),
-            client.clone(),
-            Arc::clone(&namespace),
+            Arc::clone(&namespaces),
+            args.clone(),
         ));
 
         let event_loop = tokio::spawn(event_loop(
             tx.clone(),
-            client.clone(),
-            Arc::clone(&namespace),
-            server_url.clone(),
+            Arc::clone(&namespaces),
+            args.clone(),
         ));
 
         let apis_loop = tokio::spawn(apis_loop(
             tx.clone(),
-            client.clone(),
-            server_url.clone(),
-            Arc::clone(&namespace),
+            Arc::clone(&namespaces),
             api_resources,
+            args.clone(),
         ));
 
         main_loop.await.unwrap();
@@ -150,24 +204,24 @@ pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
 async fn main_loop(
     rx: Receiver<Event>,
     tx: Sender<Event>,
-    client: Client,
-    namespace: Arc<RwLock<String>>,
-    current_context: String,
-    api_resources: Arc<RwLock<Vec<String>>>,
-    server_url: String,
+    namespaces: Namespaces,
+    api_resources: ApiResources,
+    args: Arc<KubeArgs>,
 ) {
     let mut log_stream_handler: Option<Handlers> = None;
+    let client = &args.client;
+    let server_url = &args.server_url;
+
     loop {
         let rx = rx.clone();
         let tx = tx.clone();
-        let client = client.clone();
 
         if let Ok(recv) = tokio::task::spawn_blocking(move || rx.recv()).await {
             match recv {
                 Ok(Event::Kube(ev)) => match ev {
-                    Kube::SetNamespace(ns) => {
+                    Kube::SetNamespaces(ns) => {
                         {
-                            let mut namespace = namespace.write().await;
+                            let mut namespace = namespaces.write().await;
                             *namespace = ns;
                         }
 
@@ -178,38 +232,39 @@ async fn main_loop(
                     }
 
                     Kube::GetNamespacesRequest => {
+                        let client = args.client.clone();
                         let res = namespace_list(client).await;
                         tx.send(Event::Kube(Kube::GetNamespacesResponse(res)))
                             .unwrap();
                     }
 
-                    Kube::LogStreamRequest(pod_name) => {
+                    Kube::LogStreamRequest(namespace, pod_name) => {
                         if let Some(handler) = log_stream_handler {
                             handler.abort();
                         }
 
-                        let ns = namespace.read().await;
-
-                        log_stream_handler = Some(log_stream(tx, client, &ns, &pod_name).await);
+                        let client = args.client.clone();
+                        log_stream_handler =
+                            Some(log_stream(tx, client, &namespace, &pod_name).await);
                         task::yield_now().await;
                     }
 
                     Kube::ConfigRequest(config) => {
-                        let ns = namespace.read().await;
-                        let raw = get_config(client, &ns, &config).await;
+                        let client = args.client.clone();
+                        let ns = namespaces.read().await;
+                        let raw = get_config(client, &ns[0], &config).await;
                         tx.send(Event::Kube(Kube::ConfigResponse(raw))).unwrap();
                     }
 
                     Kube::GetCurrentContextRequest => {
-                        let ns = namespace.read().await;
                         tx.send(Event::Kube(Kube::GetCurrentContextResponse(
-                            current_context.to_string(),
-                            ns.to_string(),
+                            args.current_context.to_string(),
+                            args.current_namespace.to_string(),
                         )))
                         .unwrap();
                     }
                     Kube::GetAPIsRequest => {
-                        let apis = apis_list(&client, &server_url).await;
+                        let apis = apis_list(&client, server_url).await;
 
                         tx.send(Event::Kube(Kube::GetAPIsResponse(apis))).unwrap();
                     }

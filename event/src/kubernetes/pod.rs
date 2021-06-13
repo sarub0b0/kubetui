@@ -1,14 +1,14 @@
-use super::request::get_table_request;
-use super::v1_table::*;
-use super::{Event, Kube};
+use super::{
+    request::get_table_request,
+    v1_table::*,
+    KubeArgs, KubeTable, Namespaces, {Event, Kube},
+};
 
-use std::sync::Arc;
-use std::time;
-
-use tokio::sync::RwLock;
+use std::{sync::Arc, time};
 
 use crossbeam::channel::Sender;
 
+use futures::future::join_all;
 use k8s_openapi::api::core::v1::{ContainerStateTerminated, Pod, PodStatus};
 
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
@@ -40,41 +40,73 @@ impl PodInfo {
     }
 }
 
-pub async fn pod_loop(
-    tx: Sender<Event>,
-    client: Client,
-    namespace: Arc<RwLock<String>>,
-    server_url: String,
-) {
+pub async fn pod_loop(tx: Sender<Event>, namespaces: Namespaces, args: Arc<KubeArgs>) {
     let mut interval = tokio::time::interval(time::Duration::from_secs(1));
 
     loop {
         interval.tick().await;
-        let namespace = namespace.read().await;
-        let pod_info = get_pod_info(client.clone(), &namespace, &server_url).await;
+        let namespaces = namespaces.read().await;
+
+        let pod_info = get_pod_info(&args.client, &namespaces, &args.server_url).await;
+
         tx.send(Event::Kube(Kube::Pod(pod_info))).unwrap();
     }
 }
 
-async fn get_pod_info(client: Client, namespace: &str, server_url: &str) -> Vec<Vec<String>> {
+async fn get_pod_info(client: &Client, namespaces: &[String], server_url: &str) -> KubeTable {
+    let mut table = KubeTable {
+        header: if namespaces.len() == 1 {
+            ["NAME", "READY", "STATUS", "AGE"]
+                .iter()
+                .map(ToString::to_string)
+                .collect()
+        } else {
+            ["NAMESPACE", "NAME", "READY", "STATUS", "AGE"]
+                .iter()
+                .map(ToString::to_string)
+                .collect()
+        },
+        ..Default::default()
+    };
+
+    let jobs = join_all(
+        namespaces
+            .iter()
+            .map(|ns| get_pods_per_namespace(client, server_url, ns, namespaces.len() != 1)),
+    )
+    .await;
+
+    table.update_rows(jobs.into_iter().flatten().collect());
+
+    table
+}
+
+async fn get_pods_per_namespace(
+    client: &Client,
+    server_url: &str,
+    ns: &str,
+    insert_ns: bool,
+) -> Vec<Vec<String>> {
     let table: Result<Table, kube::Error> = client
         .request(
-            get_table_request(
-                server_url,
-                &format!("api/v1/namespaces/{}/{}", namespace, "pods"),
-            )
-            .unwrap(),
+            get_table_request(server_url, &format!("api/v1/namespaces/{}/{}", ns, "pods")).unwrap(),
         )
         .await;
 
     let mut ret = Vec::new();
-
     match table {
         Ok(t) => {
             let indexes = t.find_indexes(&["Name", "Ready", "Status", "Age"]);
 
             for row in t.rows.iter() {
-                ret.push(indexes.iter().map(|i| row.cells[*i].to_string()).collect());
+                let mut cells: Vec<String> =
+                    indexes.iter().map(|i| row.cells[*i].to_string()).collect();
+
+                if insert_ns {
+                    cells.insert(0, ns.to_string())
+                }
+
+                ret.push(cells);
             }
         }
         Err(e) => return vec![vec![e.to_string()]],

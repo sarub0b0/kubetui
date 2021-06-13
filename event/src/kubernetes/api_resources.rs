@@ -6,11 +6,12 @@ use k8s_openapi::Resource;
 use kube::Client;
 use std::sync::Arc;
 use std::time;
-use tokio::sync::RwLock;
 
-use super::request::{get_request, get_table_request};
-use super::v1_table::*;
-use super::{Event, Kube};
+use super::{
+    request::{get_request, get_table_request},
+    {v1_table::*, ApiResources, KubeArgs, Namespaces},
+    {Event, Kube},
+};
 
 use futures::future::join_all;
 
@@ -230,10 +231,9 @@ pub async fn get_api_resources(
 
 pub async fn apis_loop(
     tx: Sender<Event>,
-    client: Client,
-    server_url: String,
-    namespace: Arc<RwLock<String>>,
-    api_resources: Arc<RwLock<Vec<String>>>,
+    namespace: Namespaces,
+    api_resources: ApiResources,
+    args: Arc<KubeArgs>,
 ) {
     let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
     loop {
@@ -245,7 +245,7 @@ pub async fn apis_loop(
             continue;
         }
 
-        let result = get_api_resources(&client, &server_url, &ns, &apis).await;
+        let result = get_api_resources(&args.client, &args.server_url, &ns[0], &apis).await;
 
         tx.send(Event::Kube(Kube::APIsResults(result))).unwrap();
     }

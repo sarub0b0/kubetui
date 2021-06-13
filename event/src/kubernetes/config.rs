@@ -1,9 +1,6 @@
-use super::{Event, Kube};
+use super::{Event, Kube, KubeArgs, Namespaces};
 
-use std::sync::Arc;
-use std::time;
-
-use tokio::sync::RwLock;
+use std::{sync::Arc, time};
 
 use crossbeam::channel::Sender;
 
@@ -14,15 +11,17 @@ use kube::{
     Api, Client,
 };
 
-pub async fn configs_loop(tx: Sender<Event>, client: Client, namespace: Arc<RwLock<String>>) {
+pub async fn configs_loop(tx: Sender<Event>, namespaces: Namespaces, args: Arc<KubeArgs>) {
     let mut interval = tokio::time::interval(time::Duration::from_secs(1));
 
     loop {
         interval.tick().await;
-        let client = client.clone();
-        let namespace = namespace.read().await;
 
-        let configmaps: Api<ConfigMap> = Api::namespaced(client.clone(), &namespace);
+        let namespace = namespaces.read().await;
+
+        let ns = &namespace[0];
+
+        let configmaps: Api<ConfigMap> = Api::namespaced(args.client.clone(), ns);
 
         let lp = ListParams::default();
 
@@ -37,7 +36,7 @@ pub async fn configs_loop(tx: Sender<Event>, client: Client, namespace: Arc<RwLo
             ));
         }
 
-        let secrets: Api<Secret> = Api::namespaced(client, &namespace);
+        let secrets: Api<Secret> = Api::namespaced(args.client.clone(), ns);
 
         let lp = ListParams::default();
 

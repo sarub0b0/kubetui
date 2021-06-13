@@ -4,7 +4,7 @@ use event::{kubernetes::Kube, Event};
 
 use tui_wrapper::{
     event::{exec_to_window_event, EventResult},
-    widget::{WidgetItem, WidgetTrait},
+    widget::{ComplexWidget, WidgetItem, WidgetTrait},
     Window, WindowEvent,
 };
 
@@ -30,20 +30,7 @@ pub mod view_id {
 
     generate_id!(subwin_ns);
     generate_id!(subwin_apis);
-}
-
-#[inline]
-fn update_widget_items(window: &mut Window, id: &str, items: WidgetItem) {
-    if let Some(w) = window.find_widget_mut(id) {
-        w.update_widget_item(items);
-    }
-}
-
-#[inline]
-fn append_widget_items(window: &mut Window, id: &str, items: WidgetItem) {
-    if let Some(w) = window.find_widget_mut(id) {
-        w.append_widget_item(items);
-    }
+    generate_id!(subwin_single_ns);
 }
 
 pub fn window_action(window: &mut Window, rx: &Receiver<Event>) -> WindowEvent {
@@ -75,66 +62,76 @@ pub fn window_action(window: &mut Window, rx: &Receiver<Event>) -> WindowEvent {
 pub fn update_contents(
     window: &mut Window,
     ev: Kube,
-    kube_context: &mut String,
-    kube_namespace: &mut String,
+    current_context: &mut String,
+    current_namespace: &mut String,
+    selected_namespace: &mut Vec<String>,
 ) {
     match ev {
         Kube::Pod(info) => {
-            update_widget_items(
-                window,
-                view_id::tab_pods_widget_pods,
-                WidgetItem::DoubleArray(info),
-            );
+            let widget = window.find_widget_mut(view_id::tab_pods_widget_pods);
+            let w = widget.as_mut_table();
+
+            if w.equal_header(info.header()) {
+                w.update_widget_item(WidgetItem::DoubleArray(info.rows().to_owned()));
+            } else {
+                w.update_header_and_rows(info.header(), info.rows());
+            }
         }
 
         Kube::Configs(configs) => {
-            update_widget_items(
-                window,
-                view_id::tab_configs_widget_configs,
-                WidgetItem::Array(configs),
-            );
+            window
+                .find_widget_mut(view_id::tab_configs_widget_configs)
+                .update_widget_item(WidgetItem::Array(configs));
         }
         Kube::LogStreamResponse(logs) => {
-            append_widget_items(
-                window,
-                view_id::tab_pods_widget_logs,
-                WidgetItem::Array(logs),
-            );
+            window
+                .find_widget_mut(view_id::tab_pods_widget_logs)
+                .append_widget_item(WidgetItem::Array(logs));
         }
 
         Kube::ConfigResponse(raw) => {
-            update_widget_items(
-                window,
-                view_id::tab_configs_widget_raw_data,
-                WidgetItem::Array(raw),
-            );
+            window
+                .find_widget_mut(view_id::tab_configs_widget_raw_data)
+                .update_widget_item(WidgetItem::Array(raw));
         }
 
         Kube::GetCurrentContextResponse(ctx, ns) => {
-            *kube_context = ctx;
-            // let mut cn = current_namespace.borrow_mut();
-            *kube_namespace = ns;
+            *current_context = ctx;
+            *current_namespace = ns.to_string();
+
+            selected_namespace.clear();
+            selected_namespace.push(ns);
         }
         Kube::Event(ev) => {
-            update_widget_items(
-                window,
-                view_id::tab_event_widget_event,
-                WidgetItem::Array(ev),
-            );
+            window
+                .find_widget_mut(view_id::tab_event_widget_event)
+                .update_widget_item(WidgetItem::Array(ev));
         }
         Kube::APIsResults(apis) => {
-            update_widget_items(
-                window,
-                view_id::tab_apis_widget_apis,
-                WidgetItem::Array(apis),
-            );
+            window
+                .find_widget_mut(view_id::tab_apis_widget_apis)
+                .update_widget_item(WidgetItem::Array(apis));
         }
         Kube::GetNamespacesResponse(ns) => {
-            update_widget_items(window, view_id::subwin_ns, WidgetItem::Array(ns));
+            window
+                .find_widget_mut(view_id::subwin_ns)
+                .update_widget_item(WidgetItem::Array(ns.to_vec()));
+            window
+                .find_widget_mut(view_id::subwin_single_ns)
+                .update_widget_item(WidgetItem::Array(ns));
+
+            let widget = window.find_widget_mut(view_id::subwin_ns);
+            if let ComplexWidget::MultipleSelect(widget) = widget.as_mut_complex() {
+                if widget.selected_items().is_empty() {
+                    widget.select_item(&current_namespace)
+                }
+            }
         }
 
         Kube::GetAPIsResponse(apis) => {
-            update_widget_items(window, view_id::subwin_apis, WidgetItem::Array(apis));
+            window
+                .find_widget_mut(view_id::subwin_apis)
+                .update_widget_item(WidgetItem::Array(apis));
         }
         _ => unreachable!(),
     }

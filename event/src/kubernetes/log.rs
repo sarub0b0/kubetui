@@ -2,8 +2,7 @@ use super::{Event, Kube};
 use crate::kubernetes::Handlers;
 
 use futures::{StreamExt, TryStreamExt};
-use tokio::sync::RwLock;
-use tokio::task::JoinHandle;
+use tokio::{sync::RwLock, task::JoinHandle};
 
 use std::{sync::Arc, time, vec};
 

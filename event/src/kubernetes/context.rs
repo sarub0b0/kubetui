@@ -1,5 +1,4 @@
-use super::Event;
-use super::Kube;
+use super::{Event, Kube};
 
 use crossbeam::channel::Sender;
 

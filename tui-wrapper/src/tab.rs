@@ -133,6 +133,26 @@ impl<'a> Tab<'a> {
             self.focused_widget_index = index;
         }
     }
+
+    pub fn find_widget(&self, id: &str) -> Option<&Widget<'a>> {
+        self.widgets.iter().find_map(|w| {
+            if w.widget.id() == id {
+                Some(&w.widget)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn find_widget_mut(&mut self, id: &str) -> Option<&mut Widget<'a>> {
+        self.widgets.iter_mut().find_map(|w| {
+            if w.widget.id() == id {
+                Some(&mut w.widget)
+            } else {
+                None
+            }
+        })
+    }
 }
 
 impl Tab<'_> {

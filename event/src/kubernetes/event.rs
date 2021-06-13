@@ -1,28 +1,22 @@
-use super::request::get_table_request;
-use super::v1_table::*;
-use super::{Event, Kube};
+use super::{
+    request::get_table_request,
+    v1_table::*,
+    KubeArgs, Namespaces, {Event, Kube},
+};
 
-use std::sync::Arc;
-use std::time;
-
-use tokio::sync::RwLock;
+use std::{sync::Arc, time};
 
 use crossbeam::channel::Sender;
 
 use kube::Client;
 
-pub async fn event_loop(
-    tx: Sender<Event>,
-    client: Client,
-    namespace: Arc<RwLock<String>>,
-    server_url: String,
-) {
+pub async fn event_loop(tx: Sender<Event>, namespaces: Namespaces, args: Arc<KubeArgs>) {
     let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
     loop {
         interval.tick().await;
-        let ns = namespace.read().await;
+        let ns = namespaces.read().await;
 
-        let event_list = get_event_list(client.clone(), &ns, &server_url).await;
+        let event_list = get_event_list(args.client.clone(), &ns[0], &args.server_url).await;
 
         tx.send(Event::Kube(Kube::Event(event_list))).unwrap();
     }

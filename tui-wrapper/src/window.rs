@@ -32,7 +32,7 @@ pub struct Window<'a> {
     chunk: Rect,
     status_target_id: Vec<(&'a str, &'a str)>,
     callbacks: Vec<(UserEvent, InnerCallback)>,
-    popup: Vec<Widget<'a>>,
+    popups: Vec<Widget<'a>>,
     open_popup_id: Option<String>,
 }
 
@@ -66,7 +66,7 @@ impl<'a> Window<'a> {
     }
 
     pub fn add_popup(&mut self, popup: impl Into<Vec<Widget<'a>>>) {
-        self.popup = popup.into();
+        self.popups = popup.into();
     }
 
     pub fn status_target_id(mut self, id: impl Into<Vec<(&'a str, &'a str)>>) -> Self {
@@ -83,7 +83,7 @@ impl<'a> Window<'a> {
             tab.update_chunk(chunks[window_layout_index::CONTENTS]);
         });
 
-        self.popup.iter_mut().for_each(|w| {
+        self.popups.iter_mut().for_each(|w| {
             w.update_chunk(util::default_focus_block().inner(child_window_chunk(80, 80, chunk)))
         })
     }
@@ -124,14 +124,6 @@ impl<'a> Window<'a> {
 
     pub fn opening_popup(&self) -> bool {
         self.open_popup_id.is_some()
-    }
-
-    pub fn popup(&self, id: &str) -> Option<&Widget<'a>> {
-        self.popup.iter().find(|w| w.id() == id)
-    }
-
-    pub fn popup_mut(&mut self, id: &str) -> Option<&mut Widget<'a>> {
-        self.popup.iter_mut().find(|w| w.id() == id)
     }
 }
 
@@ -187,38 +179,25 @@ impl<'a> Window<'a> {
 
 // Pane
 impl<'a> Window<'a> {
-    pub fn find_widget(&self, id: &str) -> Option<&Widget<'a>> {
-        for t in &self.tabs {
-            let w = t.as_ref_widgets().into_iter().find(|w| w.id() == id);
-            if w.is_some() {
-                return w;
-            }
-        }
-
-        self.popup(id)
-    }
-    pub fn find_widget_mut(&mut self, id: &str) -> Option<&mut Widget<'a>> {
-        if self.opening_popup() {
-            let w = self.popup.iter_mut().find(|w| w.id() == id);
-
-            if w.is_some() {
-                w
-            } else {
-                self.tabs
-                    .iter_mut()
-                    .find_map(|t| t.as_mut_widgets().into_iter().find(|w| w.id() == id))
-            }
+    pub fn find_widget(&self, id: &str) -> &Widget<'a> {
+        if let Some(w) = self.popups.iter().find(|w| w.id() == id) {
+            w
         } else {
-            let w = self
-                .tabs
-                .iter_mut()
-                .find_map(|t| t.as_mut_widgets().into_iter().find(|w| w.id() == id));
+            self.tabs
+                .iter()
+                .find_map(|t| t.find_widget(id))
+                .unwrap_or_else(|| panic!("Could not find widget id [{}]", id))
+        }
+    }
 
-            if w.is_some() {
-                w
-            } else {
-                self.popup.iter_mut().find(|w| w.id() == id)
-            }
+    pub fn find_widget_mut(&mut self, id: &str) -> &mut Widget<'a> {
+        if let Some(w) = self.popups.iter_mut().find(|w| w.id() == id) {
+            w
+        } else {
+            self.tabs
+                .iter_mut()
+                .find_map(|t| t.find_widget_mut(id))
+                .unwrap_or_else(|| panic!("Could not find widget id [{}]", id))
         }
     }
 
@@ -235,9 +214,7 @@ impl<'a> Window<'a> {
     }
 
     pub fn widget_clear(&mut self, id: &str) {
-        if let Some(w) = self.find_widget_mut(id) {
-            w.clear();
-        }
+        self.find_widget_mut(id).clear();
     }
 
     pub fn focus_widget(&mut self, id: &str) {
@@ -263,7 +240,7 @@ impl<'a> Window<'a> {
         self.render_status(f);
 
         if let Some(id) = &self.open_popup_id {
-            if let Some(popup) = self.popup.iter_mut().find(|p| p.id() == id) {
+            if let Some(popup) = self.popups.iter_mut().find(|p| p.id() == id) {
                 f.render_widget(Clear, child_window_chunk(80, 80, self.chunk));
                 popup.render(f, true);
             }
@@ -377,7 +354,7 @@ impl Window<'_> {
 
     pub fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
         if let Some(id) = &self.open_popup_id {
-            if let Some(popup) = self.popup.iter_mut().find(|w| w.id() == id) {
+            if let Some(popup) = self.popups.iter_mut().find(|w| w.id() == id) {
                 return popup.on_key_event(ev);
             }
         }
@@ -412,7 +389,7 @@ impl Window<'_> {
 
     pub fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         if let Some(id) = &self.open_popup_id {
-            if let Some(popup) = self.popup.iter_mut().find(|w| w.id() == id) {
+            if let Some(popup) = self.popups.iter_mut().find(|w| w.id() == id) {
                 return popup.on_mouse_event(ev);
             }
         }

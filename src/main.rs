@@ -1,5 +1,6 @@
 use clap::crate_name;
 use crossbeam::channel::{unbounded, Receiver, Sender};
+use event::UserEvent;
 use std::{cell::RefCell, io, panic, rc::Rc, thread, time};
 
 use clipboard_wrapper::ClipboardProvider;
@@ -8,7 +9,7 @@ use ::event::{input::*, kubernetes::*, tick::*, Event};
 use tui_wrapper::{
     crossterm::{
         cursor::Show,
-        event::{DisableMouseCapture, EnableMouseCapture, KeyCode},
+        event::{DisableMouseCapture, EnableMouseCapture, KeyCode, KeyEvent, KeyModifiers},
         execute,
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     },
@@ -89,8 +90,9 @@ fn run(config: Config) {
 
     let backend = CrosstermBackend::new(io::stdout());
 
-    let current_namespace = Rc::new(RefCell::new("None".to_string()));
-    let current_context = Rc::new(RefCell::new("None".to_string()));
+    let mut current_namespace = "None".to_string();
+    let mut current_context = "None".to_string();
+    let selected_namespaces = Rc::new(RefCell::new(vec!["None".to_string()]));
 
     let clipboard = match clipboard_wrapper::ClipboardContextWrapper::new() {
         Ok(cb) => Some(Rc::new(RefCell::new(cb))),
@@ -118,20 +120,22 @@ fn run(config: Config) {
     // Pods
     let tx_pods = tx_main.clone();
 
+    let sn = selected_namespaces.clone();
     let pods_widget = TableBuilder::default()
         .id(view_id::tab_pods_widget_pods)
         .title("Pods")
-        .header([
-            "NAME".to_string(),
-            "READY".to_string(),
-            "STATUS".to_string(),
-            "AGE".to_string(),
-        ])
         .build()
         .on_select(move |w, v| {
             w.widget_clear(view_id::tab_pods_widget_logs);
+
+            let (ns, pod_name) = if sn.borrow().len() == 1 {
+                (sn.borrow()[0].to_string(), v[0].to_string())
+            } else {
+                (v[0].to_string(), v[1].to_string())
+            };
+
             tx_pods
-                .send(Event::Kube(Kube::LogStreamRequest(v[0].to_string())))
+                .send(Event::Kube(Kube::LogStreamRequest(ns, pod_name)))
                 .unwrap();
 
             EventResult::Window(WindowEvent::Continue)
@@ -158,9 +162,9 @@ fn run(config: Config) {
         .title("Configs")
         .build()
         .on_select(move |w, item| {
-            if let Some(widget) = w.find_widget_mut(view_id::tab_configs_widget_raw_data) {
-                widget.clear();
-            }
+            w.find_widget_mut(view_id::tab_configs_widget_raw_data)
+                .clear();
+
             tx_configs
                 .send(Event::Kube(Kube::ConfigRequest(item.to_string())))
                 .unwrap();
@@ -239,19 +243,20 @@ fn run(config: Config) {
     ];
 
     let tx_ns = tx_main.clone();
-    let cn = current_namespace.clone();
-    let subwin_namespace = Widget::from(
+    let selected_ns = selected_namespaces.clone();
+    let subwin_single_ns = Widget::from(
         SingleSelectBuilder::default()
-            .id(view_id::subwin_ns)
+            .id(view_id::subwin_single_ns)
             .title("Namespace")
             .build()
-            .on_select(move |w: &mut Window, item: &String| {
+            .on_select(move |w: &mut Window, ns| {
+                let items = vec![ns.to_string()];
                 tx_ns
-                    .send(Event::Kube(Kube::SetNamespace(item.to_string())))
+                    .send(Event::Kube(Kube::SetNamespaces(items.clone())))
                     .unwrap();
 
-                let mut ns = cn.borrow_mut();
-                *ns = item.to_string();
+                let mut selected_ns = selected_ns.borrow_mut();
+                *selected_ns = items;
 
                 w.close_popup();
 
@@ -259,6 +264,47 @@ fn run(config: Config) {
                 w.widget_clear(view_id::tab_configs_widget_raw_data);
                 w.widget_clear(view_id::tab_event_widget_event);
                 w.widget_clear(view_id::tab_apis_widget_apis);
+
+                let widget = w.find_widget_mut(view_id::subwin_ns);
+                if let ComplexWidget::MultipleSelect(widget) = widget.as_mut_complex() {
+                    widget.unselect_all();
+
+                    widget.select_item(ns);
+                }
+
+                EventResult::Nop
+            }),
+    );
+
+    let tx_ns = tx_main.clone();
+    let ns = selected_namespaces.clone();
+    let subwin_ns = Widget::from(
+        MultipleSelectBuilder::default()
+            .id(view_id::subwin_ns)
+            .title("Namespace")
+            .build()
+            .on_select(move |w: &mut Window, _| {
+                let widget = w.find_widget_mut(view_id::subwin_ns);
+                if let ComplexWidget::MultipleSelect(widget) = widget.as_mut_complex() {
+                    widget.toggle_select_unselect();
+
+                    let mut items = widget.selected_items();
+                    if items.is_empty() {
+                        items = vec!["None".to_string()];
+                    }
+
+                    tx_ns
+                        .send(Event::Kube(Kube::SetNamespaces(items.clone())))
+                        .unwrap();
+
+                    let mut ns = ns.borrow_mut();
+                    *ns = items;
+
+                    w.widget_clear(view_id::tab_pods_widget_logs);
+                    w.widget_clear(view_id::tab_configs_widget_raw_data);
+                    w.widget_clear(view_id::tab_event_widget_event);
+                    w.widget_clear(view_id::tab_apis_widget_apis);
+                }
 
                 EventResult::Nop
             }),
@@ -271,19 +317,18 @@ fn run(config: Config) {
             .title("APIs")
             .build()
             .on_select(move |w, _| {
-                if let Some(widget) = w.find_widget_mut(view_id::subwin_apis) {
-                    if let ComplexWidget::MultipleSelect(widget) = widget.as_mut_complex() {
-                        widget.toggle_select_unselect();
+                let widget = w.find_widget_mut(view_id::subwin_apis);
+                if let ComplexWidget::MultipleSelect(widget) = widget.as_mut_complex() {
+                    widget.toggle_select_unselect();
 
-                        if let Some(item) = widget.widget_item() {
-                            tx_apis
-                                .send(Event::Kube(Kube::SetAPIsRequest(item.array())))
-                                .unwrap();
-                        }
+                    if let Some(item) = widget.widget_item() {
+                        tx_apis
+                            .send(Event::Kube(Kube::SetAPIsRequest(item.array())))
+                            .unwrap();
+                    }
 
-                        if widget.selected_items().is_empty() {
-                            w.widget_clear(view_id::tab_apis_widget_apis)
-                        }
+                    if widget.selected_items().is_empty() {
+                        w.widget_clear(view_id::tab_apis_widget_apis)
                     }
                 }
                 EventResult::Nop
@@ -298,9 +343,22 @@ fn run(config: Config) {
     ]);
 
     let tx_ns = tx_main.clone();
+    window.add_action(
+        UserEvent::Key(KeyEvent {
+            code: KeyCode::Char('N'),
+            modifiers: KeyModifiers::SHIFT,
+        }),
+        move |w| {
+            tx_ns.send(Event::Kube(Kube::GetNamespacesRequest)).unwrap();
+            w.open_popup(view_id::subwin_ns);
+            EventResult::Nop
+        },
+    );
+
+    let tx_ns = tx_main.clone();
     window.add_action('n', move |w| {
         tx_ns.send(Event::Kube(Kube::GetNamespacesRequest)).unwrap();
-        w.open_popup(view_id::subwin_ns);
+        w.open_popup(view_id::subwin_single_ns);
         EventResult::Nop
     });
 
@@ -315,7 +373,7 @@ fn run(config: Config) {
 
     window.add_action('q', fn_close);
     window.add_action(KeyCode::Esc, fn_close);
-    window.add_popup([subwin_namespace, subwin_apis]);
+    window.add_popup([subwin_ns, subwin_apis, subwin_single_ns]);
 
     terminal.clear().unwrap();
     window.update_chunks(terminal.size().unwrap());
@@ -326,7 +384,7 @@ fn run(config: Config) {
     loop {
         terminal
             .draw(|f| {
-                window.render(f, &current_context.borrow(), &current_namespace.borrow());
+                window.render(f, &current_context, &selected_namespaces.borrow());
             })
             .unwrap();
 
@@ -344,8 +402,9 @@ fn run(config: Config) {
                 update_contents(
                     &mut window,
                     ev,
-                    &mut current_context.borrow_mut(),
-                    &mut current_namespace.borrow_mut(),
+                    &mut current_context,
+                    &mut current_namespace,
+                    &mut selected_namespaces.borrow_mut(),
                 );
             }
         }
