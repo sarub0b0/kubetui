@@ -1,6 +1,4 @@
-use super::{
-    request::get_table_request, v1_table::*, Event, Kube, KubeArgs, KubeTable, Namespaces,
-};
+use super::{v1_table::*, Event, Kube, KubeArgs, KubeTable, Namespaces};
 
 use std::{sync::Arc, time};
 
@@ -33,13 +31,46 @@ pub async fn configs_loop(tx: Sender<Event>, namespaces: Namespaces, args: Arc<K
             },
             ..Default::default()
         };
+        let insert_ns = namespaces.len() != 1;
 
+        let create_cells = |row: &TableRow, indexes: &[usize]| {
+            vec![
+                "ConfigMap".to_string(),
+                row.cells[indexes[0]].to_string(),
+                row.cells[indexes[1]].to_string(),
+                row.cells[indexes[2]].to_string(),
+            ]
+        };
         let jobs_configmap = join_all(namespaces.iter().map(|ns| {
-            configmap_per_namespace(&args.client, &args.server_url, ns, namespaces.len() != 1)
+            get_resourse_per_namespace(
+                &args.client,
+                &args.server_url,
+                ns,
+                "configmaps",
+                insert_ns,
+                &["Name", "Data", "Age"],
+                create_cells,
+            )
         }));
 
+        let create_cells = |row: &TableRow, indexes: &[usize]| {
+            vec![
+                "Secret".to_string(),
+                row.cells[indexes[0]].to_string(),
+                row.cells[indexes[1]].to_string(),
+                row.cells[indexes[2]].to_string(),
+            ]
+        };
         let jobs_secret = join_all(namespaces.iter().map(|ns| {
-            secret_per_namespace(&args.client, &args.server_url, ns, namespaces.len() != 1)
+            get_resourse_per_namespace(
+                &args.client,
+                &args.server_url,
+                ns,
+                "secrets",
+                insert_ns,
+                &["Name", "Data", "Age"],
+                create_cells,
+            )
         }));
 
         let mut data: Vec<Vec<String>> = jobs_configmap.await.into_iter().flatten().collect();
@@ -49,90 +80,6 @@ pub async fn configs_loop(tx: Sender<Event>, namespaces: Namespaces, args: Arc<K
         table.update_rows(data);
 
         tx.send(Event::Kube(Kube::Configs(table))).unwrap();
-    }
-}
-
-async fn configmap_per_namespace(
-    client: &Client,
-    server_url: &str,
-    ns: &str,
-    contain_ns: bool,
-) -> Vec<Vec<String>> {
-    let table: Result<Table, kube::Error> = client
-        .request(
-            get_table_request(
-                server_url,
-                &format!("api/v1/namespaces/{}/{}", ns, "configmaps"),
-            )
-            .unwrap(),
-        )
-        .await;
-
-    match table {
-        Ok(t) => {
-            let indexes = t.find_indexes(&["Name", "Data", "Age"]);
-
-            let mut ret = Vec::new();
-            for row in t.rows.iter() {
-                let mut cells: Vec<String> = vec![
-                    "ConfigMap".to_string(),
-                    row.cells[indexes[0]].to_string(),
-                    row.cells[indexes[1]].to_string(),
-                    row.cells[indexes[2]].to_string(),
-                ];
-
-                if contain_ns {
-                    cells.insert(0, ns.to_string());
-                }
-
-                ret.push(cells);
-            }
-            ret
-        }
-
-        Err(e) => return vec![vec![e.to_string()]],
-    }
-}
-
-async fn secret_per_namespace(
-    client: &Client,
-    server_url: &str,
-    ns: &str,
-    contain_ns: bool,
-) -> Vec<Vec<String>> {
-    let table: Result<Table, kube::Error> = client
-        .request(
-            get_table_request(
-                server_url,
-                &format!("api/v1/namespaces/{}/{}", ns, "secrets"),
-            )
-            .unwrap(),
-        )
-        .await;
-
-    match table {
-        Ok(t) => {
-            let indexes = t.find_indexes(&["Name", "Data", "Age"]);
-
-            let mut ret = Vec::new();
-            for row in t.rows.iter() {
-                let mut cells: Vec<String> = vec![
-                    "Secret".to_string(),
-                    row.cells[indexes[0]].to_string(),
-                    row.cells[indexes[1]].to_string(),
-                    row.cells[indexes[2]].to_string(),
-                ];
-
-                if contain_ns {
-                    cells.insert(0, ns.to_string());
-                }
-
-                ret.push(cells);
-            }
-            ret
-        }
-
-        Err(e) => return vec![vec![e.to_string()]],
     }
 }
 

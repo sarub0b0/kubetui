@@ -1,11 +1,13 @@
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ListMeta;
 use k8s_openapi::apimachinery::pkg::runtime::RawExtension;
-use kube::api::TypeMeta;
+use kube::{api::TypeMeta, Client};
 use serde::Deserialize;
 
 use serde_json::Value as JsonValue;
 use std::cmp::Ordering;
 use std::cmp::{Ord, PartialOrd};
+
+use super::request::get_table_request;
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, Deserialize)]
 pub struct Value(JsonValue);
@@ -214,6 +216,44 @@ impl Table {
         });
 
         buf
+    }
+}
+
+pub async fn get_resourse_per_namespace<F>(
+    client: &Client,
+    server_url: &str,
+    ns: &str,
+    kind: &str,
+    insert_ns: bool,
+    target_values: &[&str],
+    create_cells: F,
+) -> Vec<Vec<String>>
+where
+    F: Fn(&TableRow, &[usize]) -> Vec<String>,
+{
+    let table: Result<Table, kube::Error> = client
+        .request(
+            get_table_request(server_url, &format!("api/v1/namespaces/{}/{}", ns, kind)).unwrap(),
+        )
+        .await;
+
+    match table {
+        Ok(t) => {
+            let indexes = t.find_indexes(target_values);
+
+            t.rows
+                .iter()
+                .map(|row| {
+                    let mut cells = (create_cells)(&row, &indexes);
+
+                    if insert_ns {
+                        cells.insert(0, ns.to_string())
+                    }
+                    cells
+                })
+                .collect()
+        }
+        Err(e) => vec![vec![e.to_string()]],
     }
 }
 

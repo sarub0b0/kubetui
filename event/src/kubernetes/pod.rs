@@ -1,5 +1,4 @@
 use super::{
-    request::get_table_request,
     v1_table::*,
     KubeArgs, KubeTable, Namespaces, {Event, Kube},
 };
@@ -69,50 +68,26 @@ async fn get_pod_info(client: &Client, namespaces: &[String], server_url: &str) 
         ..Default::default()
     };
 
-    let jobs = join_all(
-        namespaces
-            .iter()
-            .map(|ns| get_pods_per_namespace(client, server_url, ns, namespaces.len() != 1)),
-    )
+    let create_cells = |row: &TableRow, indexes: &[usize]| {
+        indexes.iter().map(|i| row.cells[*i].to_string()).collect()
+    };
+
+    let jobs = join_all(namespaces.iter().map(|ns| {
+        get_resourse_per_namespace(
+            client,
+            server_url,
+            ns,
+            "pods",
+            namespaces.len() != 1,
+            &["Name", "Ready", "Status", "Age"],
+            create_cells,
+        )
+    }))
     .await;
 
     table.update_rows(jobs.into_iter().flatten().collect());
 
     table
-}
-
-async fn get_pods_per_namespace(
-    client: &Client,
-    server_url: &str,
-    ns: &str,
-    insert_ns: bool,
-) -> Vec<Vec<String>> {
-    let table: Result<Table, kube::Error> = client
-        .request(
-            get_table_request(server_url, &format!("api/v1/namespaces/{}/{}", ns, "pods")).unwrap(),
-        )
-        .await;
-
-    let mut ret = Vec::new();
-    match table {
-        Ok(t) => {
-            let indexes = t.find_indexes(&["Name", "Ready", "Status", "Age"]);
-
-            for row in t.rows.iter() {
-                let mut cells: Vec<String> =
-                    indexes.iter().map(|i| row.cells[*i].to_string()).collect();
-
-                if insert_ns {
-                    cells.insert(0, ns.to_string())
-                }
-
-                ret.push(cells);
-            }
-        }
-        Err(e) => return vec![vec![e.to_string()]],
-    }
-
-    ret
 }
 
 // 参考：https://github.com/astefanutti/kubebox/blob/4ae0a2929a17c132a1ea61144e17b51f93eb602f/lib/kubernetes.js#L7
