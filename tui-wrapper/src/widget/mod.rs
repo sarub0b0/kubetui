@@ -90,7 +90,8 @@ pub enum Widget<'a> {
     List(Box<List<'a>>),
     Text(Box<Text<'a>>),
     Table(Box<Table<'a>>),
-    Complex(Box<ComplexWidget<'a>>),
+    SingleSelect(Box<SingleSelect<'a>>),
+    MultipleSelect(Box<MultipleSelect<'a>>),
 }
 
 impl<'a> From<List<'a>> for Widget<'a> {
@@ -111,21 +112,15 @@ impl<'a> From<Table<'a>> for Widget<'a> {
     }
 }
 
-impl<'a> From<ComplexWidget<'a>> for Widget<'a> {
-    fn from(w: ComplexWidget<'a>) -> Self {
-        Self::Complex(Box::new(w))
-    }
-}
-
 impl<'a> From<SingleSelect<'a>> for Widget<'a> {
     fn from(w: SingleSelect<'a>) -> Self {
-        Self::Complex(Box::new(ComplexWidget::from(w)))
+        Self::SingleSelect(Box::new(w))
     }
 }
 
 impl<'a> From<MultipleSelect<'a>> for Widget<'a> {
     fn from(w: MultipleSelect<'a>) -> Self {
-        Self::Complex(Box::new(ComplexWidget::from(w)))
+        Self::MultipleSelect(Box::new(w))
     }
 }
 
@@ -161,11 +156,19 @@ impl<'a> Widget<'a> {
         }
     }
 
-    pub fn as_complex(&self) -> &ComplexWidget {
-        if let Self::Complex(w) = self {
+    pub fn as_single_select(&self) -> &SingleSelect {
+        if let Self::SingleSelect(w) = self {
             w
         } else {
-            panic!("called as_complex() on {:?}", self)
+            panic!("called as_single_select() on {:?}", self)
+        }
+    }
+
+    pub fn as_multiple_select(&self) -> &MultipleSelect {
+        if let Self::MultipleSelect(w) = self {
+            w
+        } else {
+            panic!("called as_multiple_select() on {:?}", self)
         }
     }
 
@@ -194,11 +197,19 @@ impl<'a> Widget<'a> {
         }
     }
 
-    pub fn as_mut_complex(&mut self) -> &mut ComplexWidget<'a> {
-        if let Self::Complex(w) = self {
+    pub fn as_mut_single_select(&mut self) -> &mut SingleSelect<'a> {
+        if let Self::SingleSelect(w) = self {
             w
         } else {
-            panic!("called as_mut_complex() on {:?}", self)
+            panic!("called as_mut_single_select() on {:?}", self)
+        }
+    }
+
+    pub fn as_mut_multiple_select(&mut self) -> &mut MultipleSelect<'a> {
+        if let Self::MultipleSelect(w) = self {
+            w
+        } else {
+            panic!("called as_mut_multiple_select() on {:?}", self)
         }
     }
 }
@@ -209,7 +220,8 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.focusable(),
             Widget::Text(w) => w.focusable(),
             Widget::Table(w) => w.focusable(),
-            Widget::Complex(w) => w.focusable(),
+            Widget::SingleSelect(w) => w.focusable(),
+            Widget::MultipleSelect(w) => w.focusable(),
         }
     }
 
@@ -218,7 +230,8 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.select_next(index),
             Widget::Text(w) => w.select_next(index),
             Widget::Table(w) => w.select_next(index),
-            Widget::Complex(w) => w.select_next(index),
+            Widget::SingleSelect(w) => w.select_next(index),
+            Widget::MultipleSelect(w) => w.select_next(index),
         }
     }
 
@@ -227,7 +240,8 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.select_prev(index),
             Widget::Text(w) => w.select_prev(index),
             Widget::Table(w) => w.select_prev(index),
-            Widget::Complex(w) => w.select_prev(index),
+            Widget::SingleSelect(w) => w.select_prev(index),
+            Widget::MultipleSelect(w) => w.select_prev(index),
         }
     }
 
@@ -236,7 +250,8 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.select_first(),
             Widget::Text(w) => w.select_first(),
             Widget::Table(w) => w.select_first(),
-            Widget::Complex(w) => w.select_first(),
+            Widget::SingleSelect(w) => w.select_first(),
+            Widget::MultipleSelect(w) => w.select_first(),
         }
     }
 
@@ -245,7 +260,8 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.select_last(),
             Widget::Text(w) => w.select_last(),
             Widget::Table(w) => w.select_last(),
-            Widget::Complex(w) => w.select_last(),
+            Widget::SingleSelect(w) => w.select_last(),
+            Widget::MultipleSelect(w) => w.select_last(),
         }
     }
 
@@ -254,7 +270,8 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.update_widget_item(items),
             Widget::Text(w) => w.update_widget_item(items),
             Widget::Table(w) => w.update_widget_item(items),
-            Widget::Complex(w) => w.update_widget_item(items),
+            Widget::SingleSelect(w) => w.update_widget_item(items),
+            Widget::MultipleSelect(w) => w.update_widget_item(items),
         }
     }
 
@@ -263,7 +280,8 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.update_chunk(area),
             Widget::Text(w) => w.update_chunk(area),
             Widget::Table(w) => w.update_chunk(area),
-            Widget::Complex(w) => w.update_chunk(area),
+            Widget::SingleSelect(w) => w.update_chunk(area),
+            Widget::MultipleSelect(w) => w.update_chunk(area),
         }
     }
 
@@ -272,7 +290,8 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.clear(),
             Widget::Text(w) => w.clear(),
             Widget::Table(w) => w.clear(),
-            Widget::Complex(w) => w.clear(),
+            Widget::SingleSelect(w) => w.clear(),
+            Widget::MultipleSelect(w) => w.clear(),
         }
     }
 
@@ -281,7 +300,8 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.widget_item(),
             Widget::Text(w) => w.widget_item(),
             Widget::Table(w) => w.widget_item(),
-            Widget::Complex(w) => w.widget_item(),
+            Widget::SingleSelect(w) => w.widget_item(),
+            Widget::MultipleSelect(w) => w.widget_item(),
         }
     }
 
@@ -290,7 +310,8 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.append_widget_item(items),
             Widget::Text(w) => w.append_widget_item(items),
             Widget::Table(w) => w.append_widget_item(items),
-            Widget::Complex(w) => w.append_widget_item(items),
+            Widget::SingleSelect(w) => w.append_widget_item(items),
+            Widget::MultipleSelect(w) => w.append_widget_item(items),
         }
     }
 
@@ -299,7 +320,8 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.on_mouse_event(ev),
             Widget::Text(w) => w.on_mouse_event(ev),
             Widget::Table(w) => w.on_mouse_event(ev),
-            Widget::Complex(w) => w.on_mouse_event(ev),
+            Widget::SingleSelect(w) => w.on_mouse_event(ev),
+            Widget::MultipleSelect(w) => w.on_mouse_event(ev),
         }
     }
 
@@ -308,7 +330,8 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.on_key_event(ev),
             Widget::Text(w) => w.on_key_event(ev),
             Widget::Table(w) => w.on_key_event(ev),
-            Widget::Complex(w) => w.on_key_event(ev),
+            Widget::SingleSelect(w) => w.on_key_event(ev),
+            Widget::MultipleSelect(w) => w.on_key_event(ev),
         }
     }
 
@@ -317,7 +340,8 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.title(),
             Widget::Text(w) => w.title(),
             Widget::Table(w) => w.title(),
-            Widget::Complex(w) => w.title(),
+            Widget::SingleSelect(w) => w.title(),
+            Widget::MultipleSelect(w) => w.title(),
         }
     }
 
@@ -326,7 +350,8 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.chunk(),
             Widget::Text(w) => w.chunk(),
             Widget::Table(w) => w.chunk(),
-            Widget::Complex(w) => w.chunk(),
+            Widget::SingleSelect(w) => w.chunk(),
+            Widget::MultipleSelect(w) => w.chunk(),
         }
     }
 
@@ -335,7 +360,8 @@ impl WidgetTrait for Widget<'_> {
             Widget::List(w) => w.id(),
             Widget::Text(w) => w.id(),
             Widget::Table(w) => w.id(),
-            Widget::Complex(w) => w.id(),
+            Widget::SingleSelect(w) => w.id(),
+            Widget::MultipleSelect(w) => w.id(),
         }
     }
 }
@@ -353,7 +379,8 @@ impl RenderTrait for Widget<'_> {
             Widget::List(w) => w.render(f, focused),
             Widget::Text(w) => w.render(f, focused),
             Widget::Table(w) => w.render(f, focused),
-            Widget::Complex(w) => w.render(f, focused),
+            Widget::SingleSelect(w) => w.render(f, focused),
+            Widget::MultipleSelect(w) => w.render(f, focused),
         }
     }
 }

@@ -21,8 +21,8 @@ use tui_wrapper::{
         Terminal, TerminalOptions, Viewport,
     },
     widget::{
-        ComplexWidget, ListBuilder, MultipleSelectBuilder, SingleSelectBuilder, TableBuilder,
-        TextBuilder, Widget, WidgetTrait,
+        ListBuilder, MultipleSelectBuilder, SingleSelectBuilder, TableBuilder, TextBuilder, Widget,
+        WidgetTrait,
     },
     Tab, Window, WindowEvent,
 };
@@ -265,12 +265,13 @@ fn run(config: Config) {
                 w.widget_clear(view_id::tab_event_widget_event);
                 w.widget_clear(view_id::tab_apis_widget_apis);
 
-                let widget = w.find_widget_mut(view_id::subwin_ns);
-                if let ComplexWidget::MultipleSelect(widget) = widget.as_mut_complex() {
-                    widget.unselect_all();
+                let widget = w
+                    .find_widget_mut(view_id::subwin_ns)
+                    .as_mut_multiple_select();
 
-                    widget.select_item(ns);
-                }
+                widget.unselect_all();
+
+                widget.select_item(ns);
 
                 EventResult::Nop
             }),
@@ -284,27 +285,28 @@ fn run(config: Config) {
             .title("Namespace")
             .build()
             .on_select(move |w: &mut Window, _| {
-                let widget = w.find_widget_mut(view_id::subwin_ns);
-                if let ComplexWidget::MultipleSelect(widget) = widget.as_mut_complex() {
-                    widget.toggle_select_unselect();
+                let widget = w
+                    .find_widget_mut(view_id::subwin_ns)
+                    .as_mut_multiple_select();
 
-                    let mut items = widget.selected_items();
-                    if items.is_empty() {
-                        items = vec!["None".to_string()];
-                    }
+                widget.toggle_select_unselect();
 
-                    tx_ns
-                        .send(Event::Kube(Kube::SetNamespaces(items.clone())))
-                        .unwrap();
-
-                    let mut ns = ns.borrow_mut();
-                    *ns = items;
-
-                    w.widget_clear(view_id::tab_pods_widget_logs);
-                    w.widget_clear(view_id::tab_configs_widget_raw_data);
-                    w.widget_clear(view_id::tab_event_widget_event);
-                    w.widget_clear(view_id::tab_apis_widget_apis);
+                let mut items = widget.selected_items();
+                if items.is_empty() {
+                    items = vec!["None".to_string()];
                 }
+
+                tx_ns
+                    .send(Event::Kube(Kube::SetNamespaces(items.clone())))
+                    .unwrap();
+
+                let mut ns = ns.borrow_mut();
+                *ns = items;
+
+                w.widget_clear(view_id::tab_pods_widget_logs);
+                w.widget_clear(view_id::tab_configs_widget_raw_data);
+                w.widget_clear(view_id::tab_event_widget_event);
+                w.widget_clear(view_id::tab_apis_widget_apis);
 
                 EventResult::Nop
             }),
@@ -317,20 +319,22 @@ fn run(config: Config) {
             .title("APIs")
             .build()
             .on_select(move |w, _| {
-                let widget = w.find_widget_mut(view_id::subwin_apis);
-                if let ComplexWidget::MultipleSelect(widget) = widget.as_mut_complex() {
-                    widget.toggle_select_unselect();
+                let widget = w
+                    .find_widget_mut(view_id::subwin_apis)
+                    .as_mut_multiple_select();
 
-                    if let Some(item) = widget.widget_item() {
-                        tx_apis
-                            .send(Event::Kube(Kube::SetAPIsRequest(item.array())))
-                            .unwrap();
-                    }
+                widget.toggle_select_unselect();
 
-                    if widget.selected_items().is_empty() {
-                        w.widget_clear(view_id::tab_apis_widget_apis)
-                    }
+                if let Some(item) = widget.widget_item() {
+                    tx_apis
+                        .send(Event::Kube(Kube::SetAPIsRequest(item.array())))
+                        .unwrap();
                 }
+
+                if widget.selected_items().is_empty() {
+                    w.widget_clear(view_id::tab_apis_widget_apis)
+                }
+
                 EventResult::Nop
             }),
     );

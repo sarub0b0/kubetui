@@ -4,7 +4,7 @@ use event::{kubernetes::Kube, Event};
 
 use tui_wrapper::{
     event::{exec_to_window_event, EventResult},
-    widget::{ComplexWidget, WidgetItem, WidgetTrait},
+    widget::{WidgetItem, WidgetTrait},
     Window, WindowEvent,
 };
 
@@ -120,11 +120,12 @@ pub fn update_contents(
                 .find_widget_mut(view_id::subwin_single_ns)
                 .update_widget_item(WidgetItem::Array(ns));
 
-            let widget = window.find_widget_mut(view_id::subwin_ns);
-            if let ComplexWidget::MultipleSelect(widget) = widget.as_mut_complex() {
-                if widget.selected_items().is_empty() {
-                    widget.select_item(&current_namespace)
-                }
+            let widget = window
+                .find_widget_mut(view_id::subwin_ns)
+                .as_mut_multiple_select();
+
+            if widget.selected_items().is_empty() {
+                widget.select_item(&current_namespace)
             }
         }
 
