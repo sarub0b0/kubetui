@@ -72,13 +72,15 @@ async fn get_pod_info(client: &Client, namespaces: &[String], server_url: &str) 
         indexes.iter().map(|i| row.cells[*i].to_string()).collect()
     };
 
+    let insert_ns = insert_namespace_index(0, namespaces.len());
+
     let jobs = join_all(namespaces.iter().map(|ns| {
         get_resourse_per_namespace(
             client,
             server_url,
             ns,
             "pods",
-            namespaces.len() != 1,
+            insert_ns,
             &["Name", "Ready", "Status", "Age"],
             create_cells,
         )

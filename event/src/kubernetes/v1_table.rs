@@ -87,7 +87,7 @@ impl ToString for Value {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-struct Time {
+pub struct Time {
     hour: u64,
     minute: u64,
     second: u64,
@@ -98,7 +98,7 @@ impl Time {
     }
 }
 
-trait ToTime {
+pub trait ToTime {
     fn to_time(&self) -> Time;
 }
 
@@ -150,6 +150,7 @@ impl Table {
             .collect()
     }
 
+    #[allow(dead_code)]
     pub fn sort_rows_by_time(&mut self, time_index: usize) {
         self.rows
             .sort_by_key(|key| key.cells[time_index].to_string().to_time());
@@ -219,12 +220,21 @@ impl Table {
     }
 }
 
+#[allow(dead_code)]
+pub fn insert_namespace_index(index: usize, len: usize) -> Option<usize> {
+    if len != 1 {
+        Some(index)
+    } else {
+        None
+    }
+}
+
 pub async fn get_resourse_per_namespace<F>(
     client: &Client,
     server_url: &str,
     ns: &str,
     kind: &str,
-    insert_ns: bool,
+    insert_ns: Option<usize>,
     target_values: &[&str],
     create_cells: F,
 ) -> Vec<Vec<String>>
@@ -246,8 +256,8 @@ where
                 .map(|row| {
                     let mut cells = (create_cells)(&row, &indexes);
 
-                    if insert_ns {
-                        cells.insert(0, ns.to_string())
+                    if let Some(i) = insert_ns {
+                        cells.insert(i, ns.to_string())
                     }
                     cells
                 })

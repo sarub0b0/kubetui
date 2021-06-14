@@ -31,7 +31,7 @@ pub async fn configs_loop(tx: Sender<Event>, namespaces: Namespaces, args: Arc<K
             },
             ..Default::default()
         };
-        let insert_ns = namespaces.len() != 1;
+        let insert_ns = insert_namespace_index(0, namespaces.len());
 
         let create_cells = |row: &TableRow, indexes: &[usize]| {
             vec![
