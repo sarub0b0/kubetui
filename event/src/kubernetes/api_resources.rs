@@ -3,7 +3,7 @@ use k8s_openapi::apimachinery::pkg::apis::meta::v1::{
     APIGroupList, APIResource, APIResourceList, APIVersions, GroupVersionForDiscovery,
 };
 use k8s_openapi::Resource;
-use kube::Client;
+use kube::{Client, Result};
 use std::sync::Arc;
 use std::time;
 use tokio::time::Instant;
@@ -194,6 +194,7 @@ fn merge_tabels(fetch_data: Vec<FetchData>, insert_ns: bool) -> Table {
     let fetch_data = fetch_data;
 
     let mut base_table = fetch_data[0].table.clone();
+    let base_ns = &fetch_data[0].namespace;
 
     if insert_ns {
         let column_definitions = TableColumnDefinition {
@@ -202,26 +203,23 @@ fn merge_tabels(fetch_data: Vec<FetchData>, insert_ns: bool) -> Table {
         };
 
         base_table.column_definitions.insert(0, column_definitions);
+
+        base_table.rows.iter_mut().for_each(|row| {
+            row.cells
+                .insert(0, Value(JsonValue::String(base_ns.to_string())))
+        });
     }
 
     fetch_data.into_iter().skip(1).for_each(|mut d| {
         if insert_ns {
             let ns = d.namespace.to_string();
-            let mut rows = d
-                .table
-                .rows
-                .into_iter()
-                .map(|mut row| {
-                    row.cells
-                        .insert(0, Value(JsonValue::String(ns.to_string())));
-                    row
-                })
-                .collect();
-
-            base_table.rows.append(&mut rows);
-        } else {
-            base_table.rows.append(&mut d.table.rows);
+            d.table.rows.iter_mut().for_each(|row| {
+                row.cells
+                    .insert(0, Value(JsonValue::String(ns.to_string())));
+            });
         }
+
+        base_table.rows.append(&mut d.table.rows);
     });
 
     base_table
@@ -249,7 +247,7 @@ async fn fetch_table_per_namespace(
     server_url: &str,
     path: String,
     ns: &str,
-) -> Result<FetchData, kube::Error> {
+) -> Result<FetchData> {
     let table = client
         .request::<Table>(get_table_request(server_url, &path).unwrap())
         .await;
@@ -268,13 +266,14 @@ async fn get_table_namespaced_resource(
     client: &Client,
     server_url: &str,
     path: String,
+    kind: &str,
     namespaces: &[String],
 ) -> Table {
     let jobs = join_all(namespaces.iter().map(|ns| {
         fetch_table_per_namespace(
             client,
             server_url,
-            format!("{}/namespaces/{}/{}", path, ns, "pods"),
+            format!("{}/namespaces/{}/{}", path, ns, kind),
             ns,
         )
     }))
@@ -307,7 +306,14 @@ async fn get_api_resources(
     for api in apis {
         if let Some(info) = db.get(api) {
             let table = if info.api_resource.namespaced {
-                get_table_namespaced_resource(client, server_url, info.api_url(), namespaces).await
+                get_table_namespaced_resource(
+                    client,
+                    server_url,
+                    info.api_url(),
+                    &info.api_resource.name,
+                    namespaces,
+                )
+                .await
             } else {
                 get_table_cluster_resource(
                     client,
