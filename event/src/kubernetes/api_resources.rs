@@ -194,6 +194,7 @@ fn merge_tabels(fetch_data: Vec<FetchData>, insert_ns: bool) -> Table {
     let fetch_data = fetch_data;
 
     let mut base_table = fetch_data[0].table.clone();
+    let base_ns = &fetch_data[0].namespace;
 
     if insert_ns {
         let column_definitions = TableColumnDefinition {
@@ -202,26 +203,23 @@ fn merge_tabels(fetch_data: Vec<FetchData>, insert_ns: bool) -> Table {
         };
 
         base_table.column_definitions.insert(0, column_definitions);
+
+        base_table.rows.iter_mut().for_each(|row| {
+            row.cells
+                .insert(0, Value(JsonValue::String(base_ns.to_string())))
+        });
     }
 
     fetch_data.into_iter().skip(1).for_each(|mut d| {
         if insert_ns {
             let ns = d.namespace.to_string();
-            let mut rows = d
-                .table
-                .rows
-                .into_iter()
-                .map(|mut row| {
-                    row.cells
-                        .insert(0, Value(JsonValue::String(ns.to_string())));
-                    row
-                })
-                .collect();
-
-            base_table.rows.append(&mut rows);
-        } else {
-            base_table.rows.append(&mut d.table.rows);
+            d.table.rows.iter_mut().for_each(|row| {
+                row.cells
+                    .insert(0, Value(JsonValue::String(ns.to_string())));
+            });
         }
+
+        base_table.rows.append(&mut d.table.rows);
     });
 
     base_table
