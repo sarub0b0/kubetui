@@ -3,7 +3,7 @@ use k8s_openapi::apimachinery::pkg::apis::meta::v1::{
     APIGroupList, APIResource, APIResourceList, APIVersions, GroupVersionForDiscovery,
 };
 use k8s_openapi::Resource;
-use kube::Client;
+use kube::{Client, Result};
 use std::sync::Arc;
 use std::time;
 use tokio::time::Instant;
@@ -247,7 +247,7 @@ async fn fetch_table_per_namespace(
     server_url: &str,
     path: String,
     ns: &str,
-) -> Result<FetchData, kube::Error> {
+) -> Result<FetchData> {
     let table = client
         .request::<Table>(get_table_request(server_url, &path).unwrap())
         .await;
@@ -266,13 +266,14 @@ async fn get_table_namespaced_resource(
     client: &Client,
     server_url: &str,
     path: String,
+    kind: &str,
     namespaces: &[String],
 ) -> Table {
     let jobs = join_all(namespaces.iter().map(|ns| {
         fetch_table_per_namespace(
             client,
             server_url,
-            format!("{}/namespaces/{}/{}", path, ns, "pods"),
+            format!("{}/namespaces/{}/{}", path, ns, kind),
             ns,
         )
     }))
@@ -305,7 +306,14 @@ async fn get_api_resources(
     for api in apis {
         if let Some(info) = db.get(api) {
             let table = if info.api_resource.namespaced {
-                get_table_namespaced_resource(client, server_url, info.api_url(), namespaces).await
+                get_table_namespaced_resource(
+                    client,
+                    server_url,
+                    info.api_url(),
+                    &info.api_resource.name,
+                    namespaces,
+                )
+                .await
             } else {
                 get_table_cluster_resource(
                     client,
