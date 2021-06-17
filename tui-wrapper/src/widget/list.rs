@@ -47,10 +47,6 @@ mod inner_item {
             self.list_item = self.items.iter().cloned().map(ListItem::new).collect();
         }
 
-        pub fn raw_items(&self) -> &[String] {
-            &self.items
-        }
-
         pub fn widget_items(&self) -> &[ListItem<'a>] {
             &self.list_item
         }
