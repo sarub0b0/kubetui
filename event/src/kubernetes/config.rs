@@ -31,45 +31,52 @@ pub async fn configs_loop(tx: Sender<Event>, namespaces: Namespaces, args: Arc<K
             },
             ..Default::default()
         };
-        let insert_ns = insert_namespace_index(0, namespaces.len());
 
-        let create_cells = |row: &TableRow, indexes: &[usize]| {
-            vec![
-                "ConfigMap".to_string(),
-                row.cells[indexes[0]].to_string(),
-                row.cells[indexes[1]].to_string(),
-                row.cells[indexes[2]].to_string(),
-            ]
-        };
+        let insert_ns = insert_ns(&namespaces);
+
         let jobs_configmap = join_all(namespaces.iter().map(|ns| {
             get_resourse_per_namespace(
                 &args.client,
                 &args.server_url,
-                ns,
-                "configmaps",
-                insert_ns,
+                format!("api/v1/namespaces/{}/{}", ns, "configmaps"),
                 &["Name", "Data", "Age"],
-                create_cells,
+                move |row: &TableRow, indexes: &[usize]| {
+                    let mut cells = vec![
+                        "ConfigMap".to_string(),
+                        row.cells[indexes[0]].to_string(),
+                        row.cells[indexes[1]].to_string(),
+                        row.cells[indexes[2]].to_string(),
+                    ];
+
+                    if insert_ns {
+                        cells.insert(1, ns.to_string())
+                    }
+
+                    cells
+                },
             )
         }));
 
-        let create_cells = |row: &TableRow, indexes: &[usize]| {
-            vec![
-                "Secret".to_string(),
-                row.cells[indexes[0]].to_string(),
-                row.cells[indexes[1]].to_string(),
-                row.cells[indexes[2]].to_string(),
-            ]
-        };
         let jobs_secret = join_all(namespaces.iter().map(|ns| {
             get_resourse_per_namespace(
                 &args.client,
                 &args.server_url,
-                ns,
-                "secrets",
-                insert_ns,
+                format!("api/v1/namespaces/{}/{}", ns, "secrets"),
                 &["Name", "Data", "Age"],
-                create_cells,
+                move |row: &TableRow, indexes: &[usize]| {
+                    let mut cells = vec![
+                        "Secret".to_string(),
+                        row.cells[indexes[0]].to_string(),
+                        row.cells[indexes[1]].to_string(),
+                        row.cells[indexes[2]].to_string(),
+                    ];
+
+                    if insert_ns {
+                        cells.insert(1, ns.to_string())
+                    }
+
+                    cells
+                },
             )
         }));
 

@@ -25,22 +25,25 @@ pub async fn event_loop(tx: Sender<Event>, namespaces: Namespaces, args: Arc<Kub
 const TARGET_LEN: usize = 4;
 const TARGET: [&str; TARGET_LEN] = ["Last Seen", "Object", "Reason", "Message"];
 
-async fn get_event_table(client: &Client, server_url: &str, ns: &[String]) -> Vec<String> {
-    let create_cells = |row: &TableRow, indexes: &[usize]| {
-        indexes.iter().map(|i| row.cells[*i].to_string()).collect()
-    };
+async fn get_event_table(client: &Client, server_url: &str, namespaces: &[String]) -> Vec<String> {
+    let insert_ns = insert_ns(namespaces);
 
-    let insert_ns = insert_namespace_index(1, ns.len());
-
-    let jobs = join_all(ns.iter().map(|ns| {
+    let jobs = join_all(namespaces.iter().map(|ns| {
         get_resourse_per_namespace(
-            client,
-            server_url,
-            ns,
-            "events",
-            insert_ns,
+            &client,
+            &server_url,
+            format!("api/v1/namespaces/{}/{}", ns, "events"),
             &TARGET,
-            create_cells,
+            move |row: &TableRow, indexes: &[usize]| {
+                let mut cells: Vec<String> =
+                    indexes.iter().map(|i| row.cells[*i].to_string()).collect();
+
+                if insert_ns {
+                    cells.insert(1, ns.to_string())
+                }
+
+                cells
+            },
         )
     }));
 

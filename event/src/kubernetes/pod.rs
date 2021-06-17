@@ -68,21 +68,24 @@ async fn get_pod_info(client: &Client, namespaces: &[String], server_url: &str) 
         ..Default::default()
     };
 
-    let create_cells = |row: &TableRow, indexes: &[usize]| {
-        indexes.iter().map(|i| row.cells[*i].to_string()).collect()
-    };
-
-    let insert_ns = insert_namespace_index(0, namespaces.len());
+    let insert_ns = insert_ns(namespaces);
 
     let jobs = join_all(namespaces.iter().map(|ns| {
         get_resourse_per_namespace(
             client,
             server_url,
-            ns,
-            "pods",
-            insert_ns,
+            format!("api/v1/namespaces/{}/{}", ns, "pods"),
             &["Name", "Ready", "Status", "Age"],
-            create_cells,
+            move |row: &TableRow, indexes: &[usize]| {
+                let mut cells: Vec<String> =
+                    indexes.iter().map(|i| row.cells[*i].to_string()).collect();
+
+                if insert_ns {
+                    cells.insert(0, ns.to_string())
+                }
+
+                cells
+            },
         )
     }))
     .await;

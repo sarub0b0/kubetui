@@ -10,9 +10,9 @@ use std::cmp::{Ord, PartialOrd};
 use super::request::get_table_request;
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, Deserialize)]
-pub struct Value(JsonValue);
+pub struct Value(pub JsonValue);
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Table {
     #[serde(flatten)]
@@ -22,7 +22,7 @@ pub struct Table {
     pub rows: Vec<TableRow>,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TableColumnDefinition {
     pub name: String,
@@ -32,7 +32,7 @@ pub struct TableColumnDefinition {
     pub priority: i32,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TableRow {
     pub cells: Vec<Value>,
@@ -46,7 +46,7 @@ pub type ConditionStatus = String;
 #[allow(dead_code)]
 pub const ROW_COMPLETED: &str = "Completed";
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TableRowCondition {
     pub r#type: RowConditionType,
@@ -229,12 +229,14 @@ pub fn insert_namespace_index(index: usize, len: usize) -> Option<usize> {
     }
 }
 
+pub fn insert_ns(namespaces: &[String]) -> bool {
+    namespaces.len() != 1
+}
+
 pub async fn get_resourse_per_namespace<F>(
     client: &Client,
     server_url: &str,
-    ns: &str,
-    kind: &str,
-    insert_ns: Option<usize>,
+    path: String,
     target_values: &[&str],
     create_cells: F,
 ) -> Vec<Vec<String>>
@@ -242,9 +244,7 @@ where
     F: Fn(&TableRow, &[usize]) -> Vec<String>,
 {
     let table: Result<Table, kube::Error> = client
-        .request(
-            get_table_request(server_url, &format!("api/v1/namespaces/{}/{}", ns, kind)).unwrap(),
-        )
+        .request(get_table_request(server_url, &path).unwrap())
         .await;
 
     match table {
@@ -253,14 +253,7 @@ where
 
             t.rows
                 .iter()
-                .map(|row| {
-                    let mut cells = (create_cells)(&row, &indexes);
-
-                    if let Some(i) = insert_ns {
-                        cells.insert(i, ns.to_string())
-                    }
-                    cells
-                })
+                .map(|row| (create_cells)(&row, &indexes))
                 .collect()
         }
         Err(e) => vec![vec![e.to_string()]],
