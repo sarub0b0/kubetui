@@ -115,16 +115,12 @@ impl ListBuilder {
 }
 
 impl<'a> List<'a> {
+    pub fn items(&self) -> &Vec<String> {
+        self.items.items()
+    }
+
     pub fn state(&self) -> &ListState {
         &self.state
-    }
-
-    pub fn state_mut(&mut self) -> &mut ListState {
-        &mut self.state
-    }
-
-    pub fn items(&self) -> &[String] {
-        self.items.raw_items()
     }
 
     fn widget(&self, block: Block<'a>) -> widgets::List<'a> {
@@ -284,6 +280,17 @@ impl<'a> WidgetTrait for List<'a> {
     fn id(&self) -> &str {
         &self.id
     }
+
+    fn select_index(&mut self, index: usize) {
+        let i = if self.items.len() <= index {
+            self.items.len().saturating_sub(1)
+        } else {
+            index
+        };
+        self.state.select(Some(i));
+    }
+
+    fn append_widget_item(&mut self, _: WidgetItem) {}
 }
 
 impl<'a> List<'a> {

@@ -283,6 +283,10 @@ impl WidgetTrait for SingleSelect<'_> {
     fn chunk(&self) -> Rect {
         self.chunk
     }
+
+    fn select_index(&mut self, _: usize) {
+        todo!()
+    }
 }
 
 impl RenderTrait for SingleSelect<'_> {

@@ -392,7 +392,7 @@ impl<'a> SelectForm<'a> {
             .enumerate()
             .find(|(_, i)| item == i.as_str())
         {
-            self.list_widget.state_mut().select(Some(i));
+            self.list_widget.select_index(i);
             self.toggle_select_unselect();
             self.list_widget.select_first();
         }
@@ -645,6 +645,10 @@ impl WidgetTrait for MultipleSelect<'_> {
 
     fn chunk(&self) -> Rect {
         self.chunk
+    }
+
+    fn select_index(&mut self, _: usize) {
+        todo!()
     }
 }
 

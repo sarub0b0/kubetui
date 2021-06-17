@@ -62,30 +62,25 @@ impl WidgetItem {
 
 #[enum_dispatch]
 pub trait WidgetTrait {
+    // Getter
     fn id(&self) -> &str;
     fn title(&self) -> &str;
-
-    fn focusable(&self) -> bool {
-        false
-    }
+    fn focusable(&self) -> bool;
     fn chunk(&self) -> Rect;
-    fn select_next(&mut self, _: usize) {}
-    fn select_prev(&mut self, _: usize) {}
-    fn select_first(&mut self) {}
-    fn select_last(&mut self) {}
-    fn append_widget_item(&mut self, _: WidgetItem) {}
-    fn update_widget_item(&mut self, _: WidgetItem) {}
-    fn widget_item(&self) -> Option<WidgetItem> {
-        None
-    }
-    fn update_chunk(&mut self, _: Rect) {}
-    fn clear(&mut self) {}
-    fn on_mouse_event(&mut self, _: MouseEvent) -> EventResult {
-        EventResult::Ignore
-    }
-    fn on_key_event(&mut self, _: KeyEvent) -> EventResult {
-        EventResult::Ignore
-    }
+    fn widget_item(&self) -> Option<WidgetItem>;
+
+    // Setter
+    fn select_index(&mut self, _: usize);
+    fn select_next(&mut self, _: usize);
+    fn select_prev(&mut self, _: usize);
+    fn select_first(&mut self);
+    fn select_last(&mut self);
+    fn append_widget_item(&mut self, _: WidgetItem);
+    fn update_widget_item(&mut self, _: WidgetItem);
+    fn update_chunk(&mut self, _: Rect);
+    fn clear(&mut self);
+    fn on_mouse_event(&mut self, _: MouseEvent) -> EventResult;
+    fn on_key_event(&mut self, _: KeyEvent) -> EventResult;
 }
 
 #[enum_dispatch]

@@ -689,6 +689,10 @@ impl WidgetTrait for Text<'_> {
     fn id(&self) -> &str {
         &self.id
     }
+
+    fn select_index(&mut self, _: usize) {
+        todo!()
+    }
 }
 
 fn width_base_range_to_graphemes_range(

@@ -514,6 +514,10 @@ impl WidgetTrait for Table<'_> {
     fn id(&self) -> &str {
         &self.id
     }
+
+    fn select_index(&mut self, _: usize) {
+        todo!()
+    }
 }
 
 impl<'a> Table<'a> {
