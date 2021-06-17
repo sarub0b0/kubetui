@@ -16,6 +16,7 @@ crossterm = "0.19.0"
 derivative = "2.2"
 fuzzy-matcher = "0.3"
 chrono = "0.4"
+enum_dispatch = "0.3"
 
 clipboard-wrapper = { path = "../clipboard-wrapper" }
 event = { path = "../event" }
