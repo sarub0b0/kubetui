@@ -6,6 +6,7 @@ use k8s_openapi::Resource;
 use kube::Client;
 use std::sync::Arc;
 use std::time;
+use tokio::time::Instant;
 
 use super::{
     request::{get_request, get_table_request},
@@ -27,11 +28,31 @@ struct APIInfo {
     preferred_version: Option<bool>,
 }
 
+impl APIInfo {
+    fn api_url(&self) -> String {
+        if self.api_group.is_empty() {
+            format!("api/{}", self.api_group_version)
+        } else {
+            format!("apis/{}/{}", self.api_group, self.api_group_version)
+        }
+    }
+}
+
 #[derive(Debug)]
 struct GroupVersion {
     group: String,
     version: String,
     preferred_version: Option<bool>,
+}
+
+impl GroupVersion {
+    fn api_url(&self) -> String {
+        if self.group.is_empty() {
+            format!("api/{}", self.version)
+        } else {
+            format!("apis/{}/{}", self.group, self.version)
+        }
+    }
 }
 
 fn is_preferred_version(
@@ -115,19 +136,9 @@ async fn api_resource_list_to_api_info_list(
     server_url: &str,
     gv: &GroupVersion,
 ) -> Vec<APIInfo> {
-    let result = if gv.group.is_empty() {
-        client
-            .request::<APIResourceList>(
-                get_request(server_url, &format!("api/{}", gv.version)).unwrap(),
-            )
-            .await
-    } else {
-        client
-            .request::<APIResourceList>(
-                get_request(server_url, &format!("apis/{}/{}", gv.group, gv.version)).unwrap(),
-            )
-            .await
-    };
+    let result = client
+        .request::<APIResourceList>(get_request(server_url, &gv.api_url()).unwrap())
+        .await;
 
     if let Ok(list) = result {
         list.resources
@@ -216,6 +227,7 @@ fn merge_tabels(fetch_data: Vec<FetchData>, insert_ns: bool) -> Table {
     base_table
 }
 
+#[inline]
 fn header_by_api_info(info: &APIInfo) -> String {
     if info.api_group.is_empty() {
         format!("\x1b[90m[ {} ]\x1b[0m\n", info.api_resource.name)
@@ -238,10 +250,11 @@ async fn fetch_table_per_namespace(
     path: String,
     ns: &str,
 ) -> Result<FetchData, kube::Error> {
-    match client
+    let table = client
         .request::<Table>(get_table_request(server_url, &path).unwrap())
-        .await
-    {
+        .await;
+
+    match table {
         Ok(t) => Ok(FetchData {
             namespace: ns.to_string(),
             table: t,
@@ -250,57 +263,65 @@ async fn fetch_table_per_namespace(
     }
 }
 
-pub async fn get_api_resources(
+#[inline]
+async fn get_table_namespaced_resource(
+    client: &Client,
+    server_url: &str,
+    path: String,
+    namespaces: &[String],
+) -> Table {
+    let jobs = join_all(namespaces.iter().map(|ns| {
+        fetch_table_per_namespace(
+            client,
+            server_url,
+            format!("{}/namespaces/{}/{}", path, ns, "pods"),
+            ns,
+        )
+    }))
+    .await;
+
+    let result: Vec<Result<FetchData, kube::Error>> = jobs.into_iter().collect();
+
+    let result: Vec<FetchData> = result.into_iter().flat_map(|table| table.ok()).collect();
+
+    merge_tabels(result, insert_ns(namespaces))
+}
+
+#[inline]
+async fn get_table_cluster_resource(client: &Client, server_url: &str, path: String) -> Table {
+    client
+        .request::<Table>(get_table_request(server_url, &path).unwrap())
+        .await
+        .unwrap_or_default()
+}
+
+async fn get_api_resources(
     client: &Client,
     server_url: &str,
     namespaces: &[String],
     apis: &[String],
+    db: &HashMap<String, APIInfo>,
 ) -> Vec<String> {
-    let api_info_list = get_all_api_info(client, server_url).await;
-
-    let db = convert_api_database(&api_info_list);
-
     let mut ret = Vec::new();
+
     for api in apis {
         if let Some(info) = db.get(api) {
-            let mut path = if info.api_group.is_empty() {
-                format!("api/{}", info.api_group_version)
-            } else {
-                format!("apis/{}/{}", info.api_group, info.api_group_version)
-            };
-
             let table = if info.api_resource.namespaced {
-                let jobs = join_all(namespaces.iter().map(|ns| {
-                    fetch_table_per_namespace(
-                        client,
-                        server_url,
-                        format!("{}/namespaces/{}/{}", path, ns, "pods"),
-                        ns,
-                    )
-                }))
-                .await;
-
-                let result: Vec<Result<FetchData, kube::Error>> = jobs.into_iter().collect();
-
-                let result: Vec<FetchData> =
-                    result.into_iter().flat_map(|table| table.ok()).collect();
-
-                merge_tabels(result, insert_ns(namespaces))
+                get_table_namespaced_resource(client, server_url, info.api_url(), namespaces).await
             } else {
-                path += &format!("/{}", info.api_resource.name);
-                client
-                    .request::<Table>(get_table_request(server_url, &path).unwrap())
-                    .await
-                    .unwrap_or_default()
+                get_table_cluster_resource(
+                    client,
+                    server_url,
+                    format!("{}/{}", info.api_url(), info.api_resource.name),
+                )
+                .await
             };
 
             if table.rows.is_empty() {
                 continue;
             }
 
-            let buf = header_by_api_info(&info) + &table.to_print();
-
-            ret.push(buf);
+            ret.push(header_by_api_info(&info) + &table.to_print());
             ret.push("".to_string());
         }
     }
@@ -315,6 +336,14 @@ pub async fn apis_loop(
     args: Arc<KubeArgs>,
 ) {
     let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
+
+    let api_info_list = get_all_api_info(&args.client, &args.server_url).await;
+
+    let mut db = convert_api_database(&api_info_list);
+
+    let mut last_tick = Instant::now();
+    let tick_rate = time::Duration::from_secs(10);
+
     loop {
         interval.tick().await;
         let namespaces = namespace.read().await;
@@ -324,7 +353,16 @@ pub async fn apis_loop(
             continue;
         }
 
-        let result = get_api_resources(&args.client, &args.server_url, &namespaces, &apis).await;
+        if tick_rate < last_tick.elapsed() {
+            last_tick = Instant::now();
+
+            let api_info_list = get_all_api_info(&args.client, &args.server_url).await;
+
+            db = convert_api_database(&api_info_list);
+        }
+
+        let result =
+            get_api_resources(&args.client, &args.server_url, &namespaces, &apis, &db).await;
 
         tx.send(Event::Kube(Kube::APIsResults(result))).unwrap();
     }
