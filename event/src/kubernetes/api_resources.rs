@@ -14,6 +14,7 @@ use super::{
 };
 
 use futures::future::join_all;
+use serde_json::Value as JsonValue;
 
 use std::collections::{HashMap, HashSet};
 
@@ -174,10 +175,85 @@ fn convert_api_database(api_info_list: &[APIInfo]) -> HashMap<String, APIInfo> {
     db
 }
 
+fn merge_tabels(fetch_data: Vec<FetchData>, insert_ns: bool) -> Table {
+    if fetch_data.is_empty() {
+        return Table::default();
+    }
+
+    let fetch_data = fetch_data;
+
+    let mut base_table = fetch_data[0].table.clone();
+
+    if insert_ns {
+        let column_definitions = TableColumnDefinition {
+            name: "Namespace".to_string(),
+            ..Default::default()
+        };
+
+        base_table.column_definitions.insert(0, column_definitions);
+    }
+
+    fetch_data.into_iter().skip(1).for_each(|mut d| {
+        if insert_ns {
+            let ns = d.namespace.to_string();
+            let mut rows = d
+                .table
+                .rows
+                .into_iter()
+                .map(|mut row| {
+                    row.cells
+                        .insert(0, Value(JsonValue::String(ns.to_string())));
+                    row
+                })
+                .collect();
+
+            base_table.rows.append(&mut rows);
+        } else {
+            base_table.rows.append(&mut d.table.rows);
+        }
+    });
+
+    base_table
+}
+
+fn header_by_api_info(info: &APIInfo) -> String {
+    if info.api_group.is_empty() {
+        format!("\x1b[90m[ {} ]\x1b[0m\n", info.api_resource.name)
+    } else {
+        format!(
+            "\x1b[90m[ {}.{} ]\x1b[0m\n",
+            info.api_resource.name, info.api_group
+        )
+    }
+}
+
+struct FetchData {
+    namespace: String,
+    table: Table,
+}
+
+async fn fetch_table_per_namespace(
+    client: &Client,
+    server_url: &str,
+    path: String,
+    ns: &str,
+) -> Result<FetchData, kube::Error> {
+    match client
+        .request::<Table>(get_table_request(server_url, &path).unwrap())
+        .await
+    {
+        Ok(t) => Ok(FetchData {
+            namespace: ns.to_string(),
+            table: t,
+        }),
+        Err(e) => Err(e),
+    }
+}
+
 pub async fn get_api_resources(
     client: &Client,
     server_url: &str,
-    ns: &str,
+    namespaces: &[String],
     apis: &[String],
 ) -> Vec<String> {
     let api_info_list = get_all_api_info(client, server_url).await;
@@ -193,35 +269,38 @@ pub async fn get_api_resources(
                 format!("apis/{}/{}", info.api_group, info.api_group_version)
             };
 
-            if info.api_resource.namespaced {
-                path += &format!("/namespaces/{}/{}", ns, info.api_resource.name)
-            } else {
-                path += &format!("/{}", info.api_resource.name)
-            }
-
-            let result = client
-                .request::<Table>(get_table_request(server_url, &path).unwrap())
+            let table = if info.api_resource.namespaced {
+                let jobs = join_all(namespaces.iter().map(|ns| {
+                    fetch_table_per_namespace(
+                        client,
+                        server_url,
+                        format!("{}/namespaces/{}/{}", path, ns, "pods"),
+                        ns,
+                    )
+                }))
                 .await;
 
-            if let Ok(table) = result {
-                if table.rows.is_empty() {
-                    continue;
-                }
+                let result: Vec<Result<FetchData, kube::Error>> = jobs.into_iter().collect();
 
-                let mut buf = if info.api_group.is_empty() {
-                    format!("\x1b[90m[ {} ]\x1b[0m\n", info.api_resource.name)
-                } else {
-                    format!(
-                        "\x1b[90m[ {}.{} ]\x1b[0m\n",
-                        info.api_resource.name, info.api_group
-                    )
-                };
+                let result: Vec<FetchData> =
+                    result.into_iter().flat_map(|table| table.ok()).collect();
 
-                buf += &table.to_print();
+                merge_tabels(result, insert_ns(namespaces))
+            } else {
+                path += &format!("/{}", info.api_resource.name);
+                client
+                    .request::<Table>(get_table_request(server_url, &path).unwrap())
+                    .await
+                    .unwrap_or_default()
+            };
 
-                ret.push(buf)
+            if table.rows.is_empty() {
+                continue;
             }
 
+            let buf = header_by_api_info(&info) + &table.to_print();
+
+            ret.push(buf);
             ret.push("".to_string());
         }
     }
@@ -238,14 +317,14 @@ pub async fn apis_loop(
     let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
     loop {
         interval.tick().await;
-        let ns = namespace.read().await;
+        let namespaces = namespace.read().await;
         let apis = api_resources.read().await;
 
         if apis.is_empty() {
             continue;
         }
 
-        let result = get_api_resources(&args.client, &args.server_url, &ns[0], &apis).await;
+        let result = get_api_resources(&args.client, &args.server_url, &namespaces, &apis).await;
 
         tx.send(Event::Kube(Kube::APIsResults(result))).unwrap();
     }
