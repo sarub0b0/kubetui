@@ -131,6 +131,10 @@ async fn get_all_api_info(client: &Client, server_url: &str) -> Vec<APIInfo> {
     job.into_iter().flatten().collect()
 }
 
+fn can_get_request(api: &APIResource) -> bool {
+    api.verbs.contains(&"list".to_string())
+}
+
 async fn api_resource_list_to_api_info_list(
     client: &Client,
     server_url: &str,
@@ -143,7 +147,7 @@ async fn api_resource_list_to_api_info_list(
     if let Ok(list) = result {
         list.resources
             .iter()
-            .filter(|resource| !resource.name.contains('/'))
+            .filter(|resource| can_get_request(resource))
             .map(|resource| APIInfo {
                 api_group: gv.group.to_string(),
                 api_version: APIResourceList::API_VERSION.to_string(),
@@ -257,9 +261,6 @@ async fn fetch_table_per_namespace(
             namespace: ns.to_string(),
             table: t,
         }),
-        // TODO bindingsなど取得できないリソースを知りたい
-        // リクエストのエラー処理を行う。
-        // 出力結果の一部にエラー内容を入れるか、ポップアップ等を使ってエラーの原因をわかりやすくする
         Err(e) => Err(e),
     }
 }
