@@ -49,7 +49,7 @@ pub async fn configs_loop(tx: Sender<Event>, namespaces: Namespaces, args: Arc<K
                     ];
 
                     if insert_ns {
-                        cells.insert(1, ns.to_string())
+                        cells.insert(0, ns.to_string())
                     }
 
                     cells
@@ -72,7 +72,7 @@ pub async fn configs_loop(tx: Sender<Event>, namespaces: Namespaces, args: Arc<K
                     ];
 
                     if insert_ns {
-                        cells.insert(1, ns.to_string())
+                        cells.insert(0, ns.to_string())
                     }
 
                     cells
@@ -120,7 +120,7 @@ pub async fn get_config(client: Client, ns: &str, kind: &str, name: &str) -> Vec
             }
         }
         _ => {
-            unreachable!()
+            panic!("Invalid kind [{}]. Set kind ConfigMap or Secret", kind);
         }
     }
 }
