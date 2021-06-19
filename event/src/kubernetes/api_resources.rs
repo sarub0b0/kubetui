@@ -257,6 +257,9 @@ async fn fetch_table_per_namespace(
             namespace: ns.to_string(),
             table: t,
         }),
+        // TODO bindingsなど取得できないリソースを知りたい
+        // リクエストのエラー処理を行う。
+        // 出力結果の一部にエラー内容を入れるか、ポップアップ等を使ってエラーの原因をわかりやすくする
         Err(e) => Err(e),
     }
 }
