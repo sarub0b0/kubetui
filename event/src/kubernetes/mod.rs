@@ -29,6 +29,8 @@ use kube::{
     Client,
 };
 
+use kube::Result;
+
 #[derive(Debug, Default)]
 pub struct KubeTable {
     header: Vec<String>,
@@ -95,7 +97,7 @@ pub enum Kube {
     Pod(KubeTable),
     // Pod Logs
     LogStreamRequest(String, String),
-    LogStreamResponse(Vec<String>),
+    LogStreamResponse(Result<Vec<String>>),
     // ConfigMap & Secret
     Configs(KubeTable),
     ConfigRequest(String, String, String), // namespace, kind, resource_name

@@ -14,6 +14,8 @@ use kube::{api::LogParams, Api, Client, Result};
 
 use color::Color;
 
+type BufType = Arc<RwLock<Vec<String>>>;
+
 pub async fn log_stream(tx: Sender<Event>, client: Client, ns: &str, pod_name: &str) -> Handlers {
     let pod: Api<Pod> = Api::namespaced(client, ns);
     let lp = LogParams {
@@ -110,7 +112,7 @@ fn container_logs(
     pod: Api<Pod>,
     pod_name: &str,
     lp: LogParams,
-    buf: Arc<RwLock<Vec<String>>>,
+    buf: BufType,
     log_prefix: Option<String>,
 ) -> JoinHandle<()> {
     let pod_name = pod_name.to_owned();
@@ -130,7 +132,7 @@ fn container_logs(
 
         let mut buf = buf.write().await;
 
-        tx.send(Event::Kube(Kube::LogStreamResponse(buf.clone())))
+        tx.send(Event::Kube(Kube::LogStreamResponse(Ok(buf.clone()))))
             .unwrap();
 
         buf.clear();
@@ -141,14 +143,15 @@ fn container_log_stream(
     tx: Sender<Event>,
     pod: Api<Pod>,
     pod_name: &str,
-    mut lp: LogParams,
-    buf: Arc<RwLock<Vec<String>>>,
+    lp: LogParams,
+    buf: BufType,
     log_prefix: Option<String>,
 ) -> Vec<JoinHandle<()>> {
     let buf_handle = {
         let pod_name = pod_name.to_owned();
         let buf = buf.clone();
 
+        let tx_err = tx.clone();
         tokio::spawn(async move {
             let prefix = if let Some(p) = log_prefix {
                 p + " "
@@ -177,16 +180,12 @@ fn container_log_stream(
 
                 match stream {
                     Ok(()) => break,
-                    Err(err) => match err {
-                        kube::Error::HyperError(_) => {
-                            lp.tail_lines = Some(0);
-                        }
-                        _ => {
-                            let mut buf = buf.write().await;
-                            buf.push(msg::error(format!("log_stream ERR: {}", err)));
-                            break;
-                        }
-                    },
+                    Err(err) => {
+                        tx_err
+                            .send(Event::Kube(Kube::LogStreamResponse(Err(err))))
+                            .unwrap();
+                        break;
+                    }
                 }
             }
         })
@@ -199,7 +198,7 @@ fn container_log_stream(
                 interval.tick().await;
                 let mut buf = buf.write().await;
                 if !buf.is_empty() {
-                    tx.send(Event::Kube(Kube::LogStreamResponse(buf.clone())))
+                    tx.send(Event::Kube(Kube::LogStreamResponse(Ok(buf.clone()))))
                         .unwrap();
 
                     buf.clear();

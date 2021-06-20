@@ -7,6 +7,7 @@ mod util;
 
 use crate::kubernetes::Kube;
 use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+pub use kube as kube_rs;
 
 #[derive(PartialEq, Clone, Copy)]
 pub enum UserEvent {
