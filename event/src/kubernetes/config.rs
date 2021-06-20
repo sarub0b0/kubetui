@@ -12,7 +12,10 @@ use kube::{Api, Client};
 pub async fn configs_loop(tx: Sender<Event>, namespaces: Namespaces, args: Arc<KubeArgs>) {
     let mut interval = tokio::time::interval(time::Duration::from_secs(1));
 
-    loop {
+    while !args
+        .is_terminated
+        .load(std::sync::atomic::Ordering::Relaxed)
+    {
         interval.tick().await;
 
         let namespaces = namespaces.read().await;

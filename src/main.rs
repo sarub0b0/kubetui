@@ -1,7 +1,13 @@
 use clap::crate_name;
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use event::UserEvent;
-use std::{cell::RefCell, io, panic, rc::Rc, thread, time};
+use std::{
+    cell::RefCell,
+    io, panic,
+    rc::Rc,
+    sync::{atomic::AtomicBool, Arc},
+    thread, time,
+};
 
 use clipboard_wrapper::ClipboardProvider;
 
@@ -83,9 +89,24 @@ fn run(config: Config) {
     let tx_kube = tx_input.clone();
     let tx_tick = tx_input.clone();
 
-    thread::spawn(move || read_key(tx_input));
-    thread::spawn(move || kube_process(tx_kube, rx_kube));
-    thread::spawn(move || tick(tx_tick, time::Duration::from_millis(200)));
+    let is_terminated = Arc::new(AtomicBool::new(false));
+
+    let is_terminated_clone = is_terminated.clone();
+
+    let read_key_handler = thread::spawn(move || read_key(tx_input, is_terminated_clone));
+
+    let is_terminated_clone = is_terminated.clone();
+    let kube_process_handler =
+        thread::spawn(move || kube_process(tx_kube, rx_kube, is_terminated_clone));
+
+    let is_terminated_clone = is_terminated.clone();
+    let tick_handler = thread::spawn(move || {
+        tick(
+            tx_tick,
+            time::Duration::from_millis(200),
+            is_terminated_clone,
+        )
+    });
 
     let backend = CrosstermBackend::new(io::stdout());
 
@@ -423,6 +444,12 @@ fn run(config: Config) {
             }
         }
     }
+
+    is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
+
+    read_key_handler.join().unwrap();
+    kube_process_handler.join().unwrap();
+    tick_handler.join().unwrap();
 }
 
 fn configure() -> Config {
@@ -459,8 +486,41 @@ fn configure() -> Config {
     config
 }
 
+#[cfg(feature = "logging")]
+use log::LevelFilter;
+#[cfg(feature = "logging")]
+use log4rs::{
+    append::file::FileAppender,
+    config::{Appender, Config as LConfig, Root},
+    encode::pattern::PatternEncoder,
+};
+#[cfg(feature = "logging")]
+use std::env;
+#[cfg(feature = "logging")]
+use std::str::FromStr;
+
+#[cfg(feature = "logging")]
+fn logging() {
+    let level_filter = LevelFilter::from_str(&env::var("RUST_LOG").unwrap_or("info".to_string()))
+        .unwrap_or(LevelFilter::Info);
+
+    let logfile = FileAppender::builder()
+        .append(false)
+        .encoder(Box::new(PatternEncoder::new("{h({l})} - {m}\n")))
+        .build("log/output.log")
+        .unwrap();
+
+    let config = LConfig::builder()
+        .appender(Appender::builder().build("logfile", Box::new(logfile)))
+        .build(Root::builder().appender("logfile").build(level_filter))
+        .unwrap();
+
+    log4rs::init_config(config).unwrap();
+}
+
 fn main() {
-    let config = configure();
+    #[cfg(feature = "logging")]
+    logging();
 
     let default_hook = panic::take_hook();
 
@@ -472,6 +532,7 @@ fn main() {
         default_hook(info);
     }));
 
+    let config = configure();
     enable_raw_mode!();
 
     run(config);

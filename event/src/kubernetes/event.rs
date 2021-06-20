@@ -12,7 +12,10 @@ use kube::Client;
 
 pub async fn event_loop(tx: Sender<Event>, namespaces: Namespaces, args: Arc<KubeArgs>) {
     let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
-    loop {
+    while !args
+        .is_terminated
+        .load(std::sync::atomic::Ordering::Relaxed)
+    {
         interval.tick().await;
         let ns = namespaces.read().await;
 
