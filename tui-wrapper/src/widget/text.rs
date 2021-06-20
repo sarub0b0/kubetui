@@ -29,6 +29,8 @@ use crate::{
     Window,
 };
 
+const SCROLL_SIZE: usize = 10;
+
 mod inner_item {
     use super::super::{spans::generate_spans, wrap::*, WidgetItem};
     use tui::text::Spans;
@@ -633,10 +635,10 @@ impl WidgetTrait for Text<'_> {
             MouseEventKind::Up(_) => {}
             MouseEventKind::Moved => {}
             MouseEventKind::ScrollDown => {
-                self.select_next(3);
+                self.select_next(SCROLL_SIZE);
             }
             MouseEventKind::ScrollUp => {
-                self.select_prev(3);
+                self.select_prev(SCROLL_SIZE);
             }
         }
         EventResult::Nop
@@ -644,12 +646,20 @@ impl WidgetTrait for Text<'_> {
 
     fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
         match key_event_to_code(ev) {
-            KeyCode::Char('j') | KeyCode::Down | KeyCode::PageDown => {
+            KeyCode::Char('j') | KeyCode::Down => {
                 self.select_next(1);
             }
 
-            KeyCode::Char('k') | KeyCode::Up | KeyCode::PageUp => {
+            KeyCode::PageDown => {
+                self.select_next(SCROLL_SIZE);
+            }
+
+            KeyCode::Char('k') | KeyCode::Up => {
                 self.select_prev(1);
+            }
+
+            KeyCode::PageUp => {
+                self.select_prev(SCROLL_SIZE);
             }
 
             KeyCode::Char('G') | KeyCode::End => {
