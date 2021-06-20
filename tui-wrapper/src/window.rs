@@ -106,9 +106,16 @@ impl<'a> Window<'a> {
     }
 
     pub fn match_callback(&self, ev: UserEvent) -> Option<InnerCallback> {
-        self.callbacks
-            .iter()
-            .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb.clone()) } else { None })
+        self.callbacks.iter().find_map(|(cb_ev, cb)| {
+            #[cfg(feature = "logging")]
+            log::debug!("match_callback {:?} <=> {:?}", ev, cb_ev);
+
+            if *cb_ev == ev {
+                Some(cb.clone())
+            } else {
+                None
+            }
+        })
     }
 }
 

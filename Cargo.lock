@@ -1834,6 +1834,7 @@ dependencies = [
  "enum_dispatch",
  "event",
  "fuzzy-matcher",
+ "log",
  "pretty_assertions",
  "rayon",
  "tui",
