@@ -93,9 +93,19 @@ pub fn update_contents(
             );
         }
         Kube::LogStreamResponse(logs) => {
-            window
-                .find_widget_mut(view_id::tab_pods_widget_logs)
-                .append_widget_item(WidgetItem::Array(logs));
+            let widget = window.find_widget_mut(view_id::tab_pods_widget_logs);
+
+            match logs {
+                Ok(i) => {
+                    widget.append_widget_item(WidgetItem::Array(i));
+                }
+                Err(i) => {
+                    widget.append_widget_item(WidgetItem::Array(vec![format!(
+                        "\x1b[31m{}\x1b[39m",
+                        i
+                    )]));
+                }
+            }
         }
 
         Kube::ConfigResponse(raw) => {

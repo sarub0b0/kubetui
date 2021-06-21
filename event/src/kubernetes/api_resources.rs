@@ -354,7 +354,10 @@ pub async fn apis_loop(
     let mut last_tick = Instant::now();
     let tick_rate = time::Duration::from_secs(10);
 
-    loop {
+    while !args
+        .is_terminated
+        .load(std::sync::atomic::Ordering::Relaxed)
+    {
         interval.tick().await;
         let namespaces = namespace.read().await;
         let apis = api_resources.read().await;

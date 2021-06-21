@@ -8,14 +8,14 @@ mod request;
 mod v1_table;
 
 use self::event::event_loop;
+use self::log::log_stream;
 use super::Event;
 use api_resources::{apis_list, apis_loop};
 use config::{configs_loop, get_config};
 use context::namespace_list;
-use log::log_stream;
 use pod::pod_loop;
 
-use std::sync::Arc;
+use std::{panic, sync::atomic::AtomicBool, sync::Arc, time::Duration};
 
 use crossbeam::channel::{Receiver, Sender};
 use tokio::{
@@ -28,6 +28,8 @@ use kube::{
     config::{Kubeconfig, NamedContext},
     Client,
 };
+
+use kube::Result;
 
 #[derive(Debug, Default)]
 pub struct KubeTable {
@@ -95,7 +97,7 @@ pub enum Kube {
     Pod(KubeTable),
     // Pod Logs
     LogStreamRequest(String, String),
-    LogStreamResponse(Vec<String>),
+    LogStreamResponse(Result<Vec<String>>),
     // ConfigMap & Secret
     Configs(KubeTable),
     ConfigRequest(String, String, String), // namespace, kind, resource_name
@@ -107,6 +109,7 @@ pub struct KubeArgs {
     pub server_url: String,
     pub current_context: String,
     pub current_namespace: String,
+    pub is_terminated: Arc<AtomicBool>,
 }
 
 pub struct Handlers(Vec<JoinHandle<()>>);
@@ -128,7 +131,7 @@ fn cluster_server_url(kubeconfig: &Kubeconfig, named_context: &NamedContext) -> 
 type Namespaces = Arc<RwLock<Vec<String>>>;
 type ApiResources = Arc<RwLock<Vec<String>>>;
 
-pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
+pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>, is_terminated: Arc<AtomicBool>) {
     let rt = Runtime::new().unwrap();
 
     rt.block_on(async move {
@@ -162,6 +165,7 @@ pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
             server_url,
             current_context,
             current_namespace,
+            is_terminated,
         });
 
         let main_loop = tokio::spawn(main_loop(
@@ -199,6 +203,9 @@ pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>) {
         event_loop.await.unwrap();
         apis_loop.await.unwrap();
     });
+
+    #[cfg(feature = "logging")]
+    ::log::debug!("Terminated kube event");
 }
 
 async fn main_loop(
@@ -212,11 +219,16 @@ async fn main_loop(
     let client = &args.client;
     let server_url = &args.server_url;
 
-    loop {
+    while !args
+        .is_terminated
+        .load(std::sync::atomic::Ordering::Relaxed)
+    {
         let rx = rx.clone();
         let tx = tx.clone();
 
-        if let Ok(recv) = tokio::task::spawn_blocking(move || rx.recv()).await {
+        let task = tokio::task::spawn_blocking(move || rx.recv_timeout(Duration::from_secs(1)));
+
+        if let Ok(recv) = task.await {
             match recv {
                 Ok(Event::Kube(ev)) => match ev {
                     Kube::SetNamespaces(ns) => {
