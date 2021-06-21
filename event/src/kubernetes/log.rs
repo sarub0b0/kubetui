@@ -159,33 +159,30 @@ fn container_log_stream(
                 "".to_string()
             };
 
-            loop {
-                let pod_name_ref = &pod_name;
-                let pod_ref = &pod;
-                let prefix_ref = &prefix;
-                let lp_ref = &lp;
-                let buf_ref = &buf;
+            let pod_name_ref = &pod_name;
+            let pod_ref = &pod;
+            let prefix_ref = &prefix;
+            let lp_ref = &lp;
+            let buf_ref = &buf;
 
-                let stream: Result<(), kube::Error> = async move {
-                    let mut logs = pod_ref.log_stream(&pod_name_ref, &lp_ref).await?.boxed();
+            let stream: Result<(), kube::Error> = async move {
+                let mut logs = pod_ref.log_stream(&pod_name_ref, &lp_ref).await?.boxed();
 
-                    while let Some(line) = logs.try_next().await? {
-                        let mut buf = buf_ref.write().await;
-                        buf.push(format!("{}{}", prefix_ref, String::from_utf8_lossy(&line)));
-                    }
-
-                    Ok(())
+                while let Some(line) = logs.try_next().await? {
+                    let mut buf = buf_ref.write().await;
+                    buf.push(format!("{}{}", prefix_ref, String::from_utf8_lossy(&line)));
                 }
-                .await;
 
-                match stream {
-                    Ok(()) => break,
-                    Err(err) => {
-                        tx_err
-                            .send(Event::Kube(Kube::LogStreamResponse(Err(err))))
-                            .unwrap();
-                        break;
-                    }
+                Ok(())
+            }
+            .await;
+
+            match stream {
+                Ok(()) => {}
+                Err(err) => {
+                    tx_err
+                        .send(Event::Kube(Kube::LogStreamResponse(Err(err))))
+                        .unwrap();
                 }
             }
         })
