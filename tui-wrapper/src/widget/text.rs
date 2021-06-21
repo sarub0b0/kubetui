@@ -610,12 +610,10 @@ impl WidgetTrait for Text<'_> {
                                 content
                                     .into_iter()
                                     .map(|mut c| {
-                                        if c.width() == self.wrap_width() {
-                                            c
-                                        } else {
+                                        if c.width() != self.wrap_width() {
                                             c.push('\n');
-                                            c
                                         }
+                                        c
                                     })
                                     .collect::<Vec<String>>()
                                     .concat()
