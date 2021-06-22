@@ -93,7 +93,9 @@ async fn get_pod_info(client: &Client, namespaces: &[String], server_url: &str) 
     }))
     .await;
 
-    table.update_rows(jobs.into_iter().flatten().collect());
+    let ok_only: Vec<Vec<String>> = jobs.into_iter().filter_map(Result::ok).flatten().collect();
+
+    table.update_rows(ok_only);
 
     table
 }

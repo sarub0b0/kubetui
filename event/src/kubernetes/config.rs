@@ -83,11 +83,23 @@ pub async fn configs_loop(tx: Sender<Event>, namespaces: Namespaces, args: Arc<K
             )
         }));
 
-        let mut data: Vec<Vec<String>> = jobs_configmap.await.into_iter().flatten().collect();
+        let mut ok_only: Vec<Vec<String>> = jobs_configmap
+            .await
+            .into_iter()
+            .filter_map(Result::ok)
+            .flatten()
+            .collect();
 
-        data.append(&mut jobs_secret.await.into_iter().flatten().collect());
+        let mut ok_only_secrets = jobs_secret
+            .await
+            .into_iter()
+            .filter_map(Result::ok)
+            .flatten()
+            .collect();
 
-        table.update_rows(data);
+        ok_only.append(&mut ok_only_secrets);
+
+        table.update_rows(ok_only);
 
         tx.send(Event::Kube(Kube::Configs(table))).unwrap();
     }

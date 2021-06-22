@@ -1,6 +1,6 @@
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ListMeta;
 use k8s_openapi::apimachinery::pkg::runtime::RawExtension;
-use kube::{api::TypeMeta, Client};
+use kube::{api::TypeMeta, Client, Result};
 use serde::Deserialize;
 
 use serde_json::Value as JsonValue;
@@ -239,7 +239,7 @@ pub async fn get_resourse_per_namespace<F>(
     path: String,
     target_values: &[&str],
     create_cells: F,
-) -> Vec<Vec<String>>
+) -> Result<Vec<Vec<String>>>
 where
     F: Fn(&TableRow, &[usize]) -> Vec<String>,
 {
@@ -251,12 +251,12 @@ where
         Ok(t) => {
             let indexes = t.find_indexes(target_values);
 
-            t.rows
+            Ok(t.rows
                 .iter()
                 .map(|row| (create_cells)(&row, &indexes))
-                .collect()
+                .collect())
         }
-        Err(e) => vec![vec![e.to_string()]],
+        Err(e) => Err(e),
     }
 }
 

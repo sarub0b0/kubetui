@@ -50,11 +50,17 @@ async fn get_event_table(client: &Client, server_url: &str, namespaces: &[String
         )
     }));
 
-    let mut data: Vec<Vec<String>> = jobs.await.into_iter().flatten().collect();
+    let mut ok_only: Vec<Vec<String>> = jobs
+        .await
+        .into_iter()
+        .filter_map(Result::ok)
+        .flatten()
+        .collect();
 
-    data.sort_by_key(|row| row[0].to_time());
+    ok_only.sort_by_key(|row| row[0].to_time());
 
-    data.iter()
+    ok_only
+        .iter()
         .map(|v| {
             v.iter()
                 .enumerate()
