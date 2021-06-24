@@ -36,6 +36,13 @@ pub mod view_id {
     generate_id!(subwin_single_ns);
 }
 
+macro_rules! error_format {
+    ($fmt:literal, $($arg:tt)*) => {
+        format!(concat!("\x1b[31m", $fmt,"\x1b[39m"), $($arg)*)
+
+    };
+}
+
 pub fn window_action(window: &mut Window, rx: &Receiver<Event>) -> WindowEvent {
     match rx.recv().unwrap() {
         Event::User(ev) => match window.on_event(ev) {
@@ -73,6 +80,16 @@ fn update_widget_item_for_table(window: &mut Window, id: &str, table: KubeTable)
     }
 }
 
+fn update_widget_item_for_table_for_error(window: &mut Window, id: &str, content: String) {
+    let widget = window.find_widget_mut(id);
+    let w = widget.as_mut_table();
+
+    w.update_header_and_rows(
+        &["ERROR".to_string()],
+        &[vec![error_format!("{}", content)]],
+    );
+}
+
 pub fn update_contents(
     window: &mut Window,
     ev: Kube,
@@ -81,9 +98,19 @@ pub fn update_contents(
     selected_namespace: &mut Vec<String>,
 ) {
     match ev {
-        Kube::Pod(pods_table) => {
-            update_widget_item_for_table(window, view_id::tab_pods_widget_pods, pods_table);
-        }
+        Kube::Pod(pods_table) => match pods_table {
+            // TODO エラーの出力を確認する
+            Ok(table) => {
+                update_widget_item_for_table(window, view_id::tab_pods_widget_pods, table);
+            }
+            Err(e) => {
+                update_widget_item_for_table_for_error(
+                    window,
+                    view_id::tab_pods_widget_pods,
+                    e.to_string(),
+                );
+            }
+        },
 
         Kube::Configs(configs_table) => {
             update_widget_item_for_table(

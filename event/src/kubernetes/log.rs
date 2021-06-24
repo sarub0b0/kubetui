@@ -10,9 +10,11 @@ use crossbeam::channel::Sender;
 
 use k8s_openapi::api::core::v1::Pod;
 
-use kube::{api::LogParams, Api, Client, Result};
+use kube::{api::LogParams, Api, Client};
 
 use color::Color;
+
+use crate::error::{Error, Result};
 
 type BufType = Arc<RwLock<Vec<String>>>;
 
@@ -177,13 +179,10 @@ fn container_log_stream(
             }
             .await;
 
-            match stream {
-                Ok(()) => {}
-                Err(err) => {
-                    tx_err
-                        .send(Event::Kube(Kube::LogStreamResponse(Err(err))))
-                        .unwrap();
-                }
+            if let Err(err) = stream {
+                tx_err
+                    .send(Event::Kube(Kube::LogStreamResponse(Err(Error::from(err)))))
+                    .unwrap();
             }
         })
     };

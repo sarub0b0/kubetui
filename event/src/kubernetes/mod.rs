@@ -29,7 +29,7 @@ use kube::{
     Client,
 };
 
-use kube::Result;
+use crate::error::Result;
 
 #[derive(Debug, Default)]
 pub struct KubeTable {
@@ -94,7 +94,7 @@ pub enum Kube {
     GetNamespacesResponse(Vec<String>),
     SetNamespaces(Vec<String>),
     // Pod Status
-    Pod(KubeTable),
+    Pod(Result<KubeTable>),
     // Pod Logs
     LogStreamRequest(String, String),
     LogStreamResponse(Result<Vec<String>>),

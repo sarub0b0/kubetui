@@ -1,6 +1,6 @@
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ListMeta;
 use k8s_openapi::apimachinery::pkg::runtime::RawExtension;
-use kube::{api::TypeMeta, Client, Result};
+use kube::{api::TypeMeta, Client};
 use serde::Deserialize;
 
 use serde_json::Value as JsonValue;
@@ -8,6 +8,7 @@ use std::cmp::Ordering;
 use std::cmp::{Ord, PartialOrd};
 
 use super::request::get_table_request;
+use crate::error::Result;
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, Deserialize)]
 pub struct Value(pub JsonValue);

@@ -7,12 +7,14 @@ use std::{sync::Arc, time};
 
 use crossbeam::channel::Sender;
 
-use futures::future::join_all;
+use futures::future::try_join_all;
 use k8s_openapi::api::core::v1::{ContainerStateTerminated, Pod, PodStatus};
 
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 
 use kube::{api::Resource, Client};
+
+use super::Result;
 
 #[allow(dead_code)]
 pub struct PodInfo {
@@ -55,25 +57,14 @@ pub async fn pod_loop(tx: Sender<Event>, namespaces: Namespaces, args: Arc<KubeA
     }
 }
 
-async fn get_pod_info(client: &Client, namespaces: &[String], server_url: &str) -> KubeTable {
-    let mut table = KubeTable {
-        header: if namespaces.len() == 1 {
-            ["NAME", "READY", "STATUS", "AGE"]
-                .iter()
-                .map(ToString::to_string)
-                .collect()
-        } else {
-            ["NAMESPACE", "NAME", "READY", "STATUS", "AGE"]
-                .iter()
-                .map(ToString::to_string)
-                .collect()
-        },
-        ..Default::default()
-    };
-
+#[cfg(not(any(feature = "mock", feature = "mock-failed")))]
+async fn get_pods_per_namespace(
+    client: &Client,
+    server_url: &str,
+    namespaces: &[String],
+) -> Result<Vec<Vec<Vec<String>>>> {
     let insert_ns = insert_ns(namespaces);
-
-    let jobs = join_all(namespaces.iter().map(|ns| {
+    try_join_all(namespaces.iter().map(|ns| {
         get_resourse_per_namespace(
             client,
             server_url,
@@ -91,13 +82,101 @@ async fn get_pod_info(client: &Client, namespaces: &[String], server_url: &str) 
             },
         )
     }))
-    .await;
+    .await
+}
 
-    let ok_only: Vec<Vec<String>> = jobs.into_iter().filter_map(Result::ok).flatten().collect();
+#[cfg(feature = "mock")]
+async fn get_pods_per_namespace(
+    _: &Client,
+    _: &str,
+    namespaces: &[String],
+) -> Result<Vec<Vec<Vec<String>>>> {
+    if insert_ns(namespaces) {
+        let ret = namespaces
+            .iter()
+            .enumerate()
+            .map(|(i, ns)| {
+                vec![
+                    vec![
+                        ns.to_string(),
+                        "test-0".to_string(),
+                        "1/1".to_string(),
+                        "Running".to_string(),
+                        "10d".to_string(),
+                    ],
+                    vec![
+                        ns.to_string(),
+                        "test-1".to_string(),
+                        "2/2".to_string(),
+                        "Running".to_string(),
+                        "10d".to_string(),
+                    ],
+                ]
+            })
+            .collect();
+        Ok(ret)
+    } else {
+        Ok(vec![vec![
+            vec![
+                "mock-test-0".to_string(),
+                "1/1".to_string(),
+                "Running".to_string(),
+                "10d".to_string(),
+            ],
+            vec![
+                "mock-test-1".to_string(),
+                "1/1".to_string(),
+                "Running".to_string(),
+                "11d".to_string(),
+            ],
+            vec![
+                "mock-test-2".to_string(),
+                "1/1".to_string(),
+                "Running".to_string(),
+                "13d".to_string(),
+            ],
+        ]])
+    }
+}
+
+#[cfg(feature = "mock-failed")]
+async fn get_pods_per_namespace(
+    _: &Client,
+    _: &str,
+    _: &[String],
+) -> Result<Vec<Vec<Vec<String>>>> {
+    use crate::Error;
+
+    Err(Error::Mock("Mock get_pods_per_namespace failed"))
+}
+
+async fn get_pod_info(
+    client: &Client,
+    namespaces: &[String],
+    server_url: &str,
+) -> Result<KubeTable> {
+    let jobs = get_pods_per_namespace(client, server_url, namespaces).await;
+
+    let ok_only: Vec<Vec<String>> = jobs?.into_iter().flatten().collect();
+
+    let mut table = KubeTable {
+        header: if namespaces.len() == 1 {
+            ["NAME", "READY", "STATUS", "AGE"]
+                .iter()
+                .map(ToString::to_string)
+                .collect()
+        } else {
+            ["NAMESPACE", "NAME", "READY", "STATUS", "AGE"]
+                .iter()
+                .map(ToString::to_string)
+                .collect()
+        },
+        ..Default::default()
+    };
 
     table.update_rows(ok_only);
 
-    table
+    Ok(table)
 }
 
 // 参考：https://github.com/astefanutti/kubebox/blob/4ae0a2929a17c132a1ea61144e17b51f93eb602f/lib/kubernetes.js#L7
