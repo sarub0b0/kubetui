@@ -8,7 +8,6 @@ mod util;
 
 use self::kubernetes::Kube;
 use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
-use error::{Error, Result};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum UserEvent {

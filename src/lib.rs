@@ -99,7 +99,6 @@ pub fn update_contents(
 ) {
     match ev {
         Kube::Pod(pods_table) => match pods_table {
-            // TODO エラーの出力を確認する
             Ok(table) => {
                 update_widget_item_for_table(window, view_id::tab_pods_widget_pods, table);
             }

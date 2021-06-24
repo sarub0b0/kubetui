@@ -30,38 +30,70 @@ pub async fn log_stream(tx: Sender<Event>, client: Client, ns: &str, pod_name: &
 
     let mut container_handler = Vec::new();
 
-    if let Ok(init) = pod.get(&pod_name).await {
-        let status = init.status.unwrap();
-        let mut color = Color::new();
+    match pod.get(&pod_name).await {
+        Ok(init) => {
+            let status = init.status.unwrap();
+            let mut color = Color::new();
 
-        // initContainersのログ取得
-        // まだ実行中ならlog_stream, 何かしらで実行終わっていればlogs
-        if let Some(ref containers) = status.init_container_statuses {
-            for (i, c) in containers.iter().enumerate() {
-                let state = c.state.as_ref().unwrap();
+            // initContainersのログ取得
+            // まだ実行中ならlog_stream, 何かしらで実行終わっていればlogs
+            if let Some(ref containers) = status.init_container_statuses {
+                for (i, c) in containers.iter().enumerate() {
+                    let state = c.state.as_ref().unwrap();
 
-                let mut lp = lp.clone();
+                    let mut lp = lp.clone();
 
-                lp.container = Some(c.name.clone());
+                    lp.container = Some(c.name.clone());
 
-                let prefix = Some(format!(
-                    "\x1b[{}m[init-{}:{}]\x1b[39m",
-                    color.next().unwrap(),
-                    i,
-                    c.name
-                ));
+                    let prefix = Some(format!(
+                        "\x1b[{}m[init-{}:{}]\x1b[39m",
+                        color.next().unwrap(),
+                        i,
+                        c.name
+                    ));
 
-                if state.terminated.is_some() {
-                    let handler = container_logs(
-                        tx.clone(),
-                        pod.clone(),
-                        pod_name,
-                        lp,
-                        Arc::clone(&buf),
-                        prefix,
-                    );
-                    handler.await.unwrap();
-                } else {
+                    if state.terminated.is_some() {
+                        let handler = container_logs(
+                            tx.clone(),
+                            pod.clone(),
+                            pod_name,
+                            lp,
+                            Arc::clone(&buf),
+                            prefix,
+                        );
+                        handler.await.unwrap();
+                    } else {
+                        let mut handlers = container_log_stream(
+                            tx.clone(),
+                            pod.clone(),
+                            pod_name,
+                            lp,
+                            Arc::clone(&buf),
+                            prefix,
+                        );
+                        container_handler.append(&mut handlers);
+                    }
+                }
+            }
+
+            if let Some(containers) = status.container_statuses {
+                for c in &containers {
+                    let tx = tx.clone();
+
+                    let mut lp = lp.clone();
+                    lp.container = Some(c.name.clone());
+
+                    let prefix = if 1 < containers.len() || status.init_container_statuses.is_some()
+                    {
+                        Some(format!(
+                            "\x1b[{}m[{}]\x1b[39m",
+                            color.next().unwrap(),
+                            c.name
+                        ))
+                    } else {
+                        None
+                    };
+
                     let mut handlers = container_log_stream(
                         tx.clone(),
                         pod.clone(),
@@ -70,40 +102,14 @@ pub async fn log_stream(tx: Sender<Event>, client: Client, ns: &str, pod_name: &
                         Arc::clone(&buf),
                         prefix,
                     );
+
                     container_handler.append(&mut handlers);
                 }
             }
         }
-
-        if let Some(containers) = status.container_statuses {
-            for c in &containers {
-                let tx = tx.clone();
-
-                let mut lp = lp.clone();
-                lp.container = Some(c.name.clone());
-
-                let prefix = if 1 < containers.len() || status.init_container_statuses.is_some() {
-                    Some(format!(
-                        "\x1b[{}m[{}]\x1b[39m",
-                        color.next().unwrap(),
-                        c.name
-                    ))
-                } else {
-                    None
-                };
-
-                let mut handlers = container_log_stream(
-                    tx.clone(),
-                    pod.clone(),
-                    pod_name,
-                    lp,
-                    Arc::clone(&buf),
-                    prefix,
-                );
-
-                container_handler.append(&mut handlers);
-            }
-        }
+        Err(err) => tx
+            .send(Event::Kube(Kube::LogStreamResponse(Err(Error::Kube(err)))))
+            .unwrap(),
     }
 
     Handlers(container_handler)
@@ -141,6 +147,58 @@ fn container_logs(
     })
 }
 
+struct LogStreamArgs {
+    pod: Api<Pod>,
+    pod_name: String,
+    prefix: Option<String>,
+    lp: LogParams,
+}
+
+#[cfg(not(any(feature = "mock", feature = "mock-failed")))]
+async fn get_log_stream(buf: BufType, args: LogStreamArgs) -> Result<()> {
+    let LogStreamArgs {
+        pod,
+        pod_name,
+        prefix,
+        lp,
+    } = args;
+
+    let prefix = if let Some(p) = prefix {
+        p + " "
+    } else {
+        "".to_string()
+    };
+
+    let mut logs = pod.log_stream(&pod_name, &lp).await?.boxed();
+
+    while let Some(line) = logs.try_next().await? {
+        let mut buf = buf.write().await;
+        buf.push(format!("{}{}", prefix, String::from_utf8_lossy(&line)));
+    }
+
+    Ok(())
+}
+
+#[cfg(feature = "mock")]
+async fn get_log_stream(buf: BufType, _: LogStreamArgs) -> Result<()> {
+    async {
+        let stream = vec!["line 0", "line 1", "line 2", "line 3", "line 4"];
+
+        for s in stream {
+            let mut buf = buf.write().await;
+            buf.push(s.to_string());
+        }
+    }
+    .await;
+
+    Err(Error::Mock("get_log_stream failed"))
+}
+
+#[cfg(feature = "mock-failed")]
+async fn get_log_stream(buf: BufType, _: LogStreamArgs) -> Result<()> {
+    Err(Error::Mock("get_log_stream failed"))
+}
+
 fn container_log_stream(
     tx: Sender<Event>,
     pod: Api<Pod>,
@@ -155,33 +213,18 @@ fn container_log_stream(
 
         let tx_err = tx.clone();
         tokio::spawn(async move {
-            let prefix = if let Some(p) = log_prefix {
-                p + " "
-            } else {
-                "".to_string()
+            let args = LogStreamArgs {
+                pod,
+                pod_name,
+                lp,
+                prefix: log_prefix,
             };
 
-            let pod_name_ref = &pod_name;
-            let pod_ref = &pod;
-            let prefix_ref = &prefix;
-            let lp_ref = &lp;
-            let buf_ref = &buf;
-
-            let stream: Result<(), kube::Error> = async move {
-                let mut logs = pod_ref.log_stream(&pod_name_ref, &lp_ref).await?.boxed();
-
-                while let Some(line) = logs.try_next().await? {
-                    let mut buf = buf_ref.write().await;
-                    buf.push(format!("{}{}", prefix_ref, String::from_utf8_lossy(&line)));
-                }
-
-                Ok(())
-            }
-            .await;
+            let stream = get_log_stream(buf, args).await;
 
             if let Err(err) = stream {
                 tx_err
-                    .send(Event::Kube(Kube::LogStreamResponse(Err(Error::from(err)))))
+                    .send(Event::Kube(Kube::LogStreamResponse(Err(err))))
                     .unwrap();
             }
         })
