@@ -87,7 +87,8 @@ async fn fetch_configs(namespaces: &[String], args: &KubeArgs) -> Result<KubeTab
         ..Default::default()
     };
 
-    let jobs = try_join_all([
+    // TODO Github Actionsでrust 1.53.0が使えるようになったら配列に変更する
+    let jobs = try_join_all(vec![
         fetch_configs_per_namespace(client, server_url, namespaces, Configs::ConfigMap),
         fetch_configs_per_namespace(client, server_url, namespaces, Configs::Secret),
     ])
