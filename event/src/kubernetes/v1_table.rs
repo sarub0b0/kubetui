@@ -243,21 +243,17 @@ pub async fn get_resourse_per_namespace<F>(
 where
     F: Fn(&TableRow, &[usize]) -> Vec<String>,
 {
-    let table: Result<Table, kube::Error> = client
+    let table: Table = client
         .request(get_table_request(server_url, &path).unwrap())
-        .await;
+        .await?;
 
-    match table {
-        Ok(t) => {
-            let indexes = t.find_indexes(target_values);
+    let indexes = table.find_indexes(target_values);
 
-            Ok(t.rows
-                .iter()
-                .map(|row| (create_cells)(&row, &indexes))
-                .collect())
-        }
-        Err(e) => Err(e),
-    }
+    Ok(table
+        .rows
+        .iter()
+        .map(|row| (create_cells)(&row, &indexes))
+        .collect())
 }
 
 #[cfg(test)]
