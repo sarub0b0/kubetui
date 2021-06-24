@@ -1,6 +1,7 @@
 use crossbeam::channel::Receiver;
 
 use event::{
+    error::Result,
     kubernetes::{Kube, KubeTable},
     Event,
 };
@@ -69,26 +70,36 @@ pub fn window_action(window: &mut Window, rx: &Receiver<Event>) -> WindowEvent {
     WindowEvent::Continue
 }
 
-fn update_widget_item_for_table(window: &mut Window, id: &str, table: KubeTable) {
+fn update_widget_item_for_table(window: &mut Window, id: &str, table: Result<KubeTable>) {
     let widget = window.find_widget_mut(id);
     let w = widget.as_mut_table();
 
-    if w.equal_header(table.header()) {
-        w.update_widget_item(WidgetItem::DoubleArray(table.rows().to_owned()));
-    } else {
-        w.update_header_and_rows(table.header(), table.rows());
+    match table {
+        Ok(table) => {
+            if w.equal_header(table.header()) {
+                w.update_widget_item(WidgetItem::DoubleArray(table.rows().to_owned()));
+            } else {
+                w.update_header_and_rows(table.header(), table.rows());
+            }
+        }
+        Err(e) => {
+            w.update_header_and_rows(
+                &["ERROR".to_string()],
+                &[vec![error_format!("{}", e.to_string())]],
+            );
+        }
     }
 }
 
-fn update_widget_item_for_table_for_error(window: &mut Window, id: &str, content: String) {
-    let widget = window.find_widget_mut(id);
-    let w = widget.as_mut_table();
+// fn update_widget_item_for_table_for_error(window: &mut Window, id: &str, content: String) {
+//     let widget = window.find_widget_mut(id);
+//     let w = widget.as_mut_table();
 
-    w.update_header_and_rows(
-        &["ERROR".to_string()],
-        &[vec![error_format!("{}", content)]],
-    );
-}
+//     w.update_header_and_rows(
+//         &["ERROR".to_string()],
+//         &[vec![error_format!("{}", content)]],
+//     );
+// }
 
 pub fn update_contents(
     window: &mut Window,
@@ -98,18 +109,9 @@ pub fn update_contents(
     selected_namespace: &mut Vec<String>,
 ) {
     match ev {
-        Kube::Pod(pods_table) => match pods_table {
-            Ok(table) => {
-                update_widget_item_for_table(window, view_id::tab_pods_widget_pods, table);
-            }
-            Err(e) => {
-                update_widget_item_for_table_for_error(
-                    window,
-                    view_id::tab_pods_widget_pods,
-                    e.to_string(),
-                );
-            }
-        },
+        Kube::Pod(pods_table) => {
+            update_widget_item_for_table(window, view_id::tab_pods_widget_pods, pods_table);
+        }
 
         Kube::Configs(configs_table) => {
             update_widget_item_for_table(
@@ -118,6 +120,7 @@ pub fn update_contents(
                 configs_table,
             );
         }
+
         Kube::LogStreamResponse(logs) => {
             let widget = window.find_widget_mut(view_id::tab_pods_widget_logs);
 
@@ -126,18 +129,21 @@ pub fn update_contents(
                     widget.append_widget_item(WidgetItem::Array(i));
                 }
                 Err(i) => {
-                    widget.append_widget_item(WidgetItem::Array(vec![format!(
-                        "\x1b[31m{}\x1b[39m",
-                        i
-                    )]));
+                    widget.append_widget_item(WidgetItem::Array(vec![error_format!("{}", i)]));
                 }
             }
         }
 
         Kube::ConfigResponse(raw) => {
-            window
-                .find_widget_mut(view_id::tab_configs_widget_raw_data)
-                .update_widget_item(WidgetItem::Array(raw));
+            let widget = window.find_widget_mut(view_id::tab_configs_widget_raw_data);
+            match raw {
+                Ok(i) => {
+                    widget.update_widget_item(WidgetItem::Array(i));
+                }
+                Err(i) => {
+                    widget.update_widget_item(WidgetItem::Array(vec![error_format!("{}", i)]));
+                }
+            }
         }
 
         Kube::GetCurrentContextResponse(ctx, ns) => {

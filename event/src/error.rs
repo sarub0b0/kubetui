@@ -16,4 +16,6 @@ pub enum Error {
 pub enum Error {
     #[error(transparent)]
     Kube(#[from] kube::Error),
+    #[error("{0}")]
+    String(String),
 }

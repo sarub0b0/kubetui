@@ -186,13 +186,29 @@ fn run(config: Config) {
             w.widget_clear(view_id::tab_configs_widget_raw_data);
 
             let (ns, kind, name) = if sn.borrow().len() == 1 {
-                (
-                    sn.borrow()[0].to_string(),
-                    v[0].to_string(),
-                    v[1].to_string(),
-                )
+                if 2 <= v.len() {
+                    (
+                        sn.borrow()[0].to_string(),
+                        v[0].to_string(),
+                        v[1].to_string(),
+                    )
+                } else {
+                    (
+                        "Error".to_string(),
+                        "Error".to_string(),
+                        "Error".to_string(),
+                    )
+                }
             } else {
-                (v[0].to_string(), v[1].to_string(), v[2].to_string())
+                if 3 <= v.len() {
+                    (v[0].to_string(), v[1].to_string(), v[2].to_string())
+                } else {
+                    (
+                        "Error".to_string(),
+                        "Error".to_string(),
+                        "Error".to_string(),
+                    )
+                }
             };
 
             tx_configs

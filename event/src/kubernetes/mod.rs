@@ -99,9 +99,9 @@ pub enum Kube {
     LogStreamRequest(String, String),
     LogStreamResponse(Result<Vec<String>>),
     // ConfigMap & Secret
-    Configs(KubeTable),
+    Configs(Result<KubeTable>),
     ConfigRequest(String, String, String), // namespace, kind, resource_name
-    ConfigResponse(Vec<String>),
+    ConfigResponse(Result<Vec<String>>),
 }
 
 pub struct KubeArgs {
