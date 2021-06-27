@@ -4,7 +4,7 @@ use crate::kubernetes::Handlers;
 use futures::{StreamExt, TryStreamExt};
 use tokio::{sync::RwLock, task::JoinHandle};
 
-use std::{sync::Arc, time, vec};
+use std::{sync::Arc, time};
 
 use crossbeam::channel::Sender;
 
@@ -30,6 +30,7 @@ pub async fn log_stream(tx: Sender<Event>, client: Client, ns: &str, pod_name: &
 
     let mut container_handler = Vec::new();
 
+    let mut container_count = 0;
     match pod.get(&pod_name).await {
         Ok(init) => {
             let status = init.status.unwrap();
@@ -53,17 +54,10 @@ pub async fn log_stream(tx: Sender<Event>, client: Client, ns: &str, pod_name: &
                 ));
 
                 if state.terminated.is_some() {
-                    let handler = container_logs(
-                        tx.clone(),
-                        pod.clone(),
-                        pod_name,
-                        lp,
-                        Arc::clone(&buf),
-                        prefix,
-                    );
+                    let handler = container_logs(tx.clone(), pod.clone(), pod_name, lp, prefix);
                     handler.await.unwrap();
                 } else {
-                    let mut handlers = container_log_stream(
+                    let handlers = container_log_stream(
                         tx.clone(),
                         pod.clone(),
                         pod_name,
@@ -71,18 +65,23 @@ pub async fn log_stream(tx: Sender<Event>, client: Client, ns: &str, pod_name: &
                         Arc::clone(&buf),
                         prefix,
                     );
-                    container_handler.append(&mut handlers);
+                    container_handler.push(handlers);
                 }
             }
 
+            container_count += containers.len();
+
             let containers = status.container_statuses;
+
+            container_count += containers.len();
+
             for c in &containers {
                 let tx = tx.clone();
 
                 let mut lp = lp.clone();
                 lp.container = Some(c.name.clone());
 
-                let prefix = if 1 < containers.len() {
+                let prefix = if 1 < container_count {
                     Some(format!(
                         "\x1b[{}m[{}]\x1b[39m",
                         color.next().unwrap(),
@@ -92,7 +91,7 @@ pub async fn log_stream(tx: Sender<Event>, client: Client, ns: &str, pod_name: &
                     None
                 };
 
-                let mut handlers = container_log_stream(
+                let handlers = container_log_stream(
                     tx.clone(),
                     pod.clone(),
                     pod_name,
@@ -101,8 +100,12 @@ pub async fn log_stream(tx: Sender<Event>, client: Client, ns: &str, pod_name: &
                     prefix,
                 );
 
-                container_handler.append(&mut handlers);
+                container_handler.push(handlers);
             }
+
+            let handler = tokio::spawn(send_loop(tx, buf));
+
+            container_handler.push(handler);
         }
         Err(err) => tx
             .send(Event::Kube(Kube::LogStreamResponse(Err(Error::Kube(err)))))
@@ -112,15 +115,33 @@ pub async fn log_stream(tx: Sender<Event>, client: Client, ns: &str, pod_name: &
     Handlers(container_handler)
 }
 
+async fn send_loop(tx: Sender<Event>, buf: BufType) {
+    let mut interval = tokio::time::interval(time::Duration::from_millis(200));
+
+    loop {
+        interval.tick().await;
+        let rbuf = buf.read().await;
+
+        if !rbuf.is_empty() {
+            tx.send(Event::Kube(Kube::LogStreamResponse(Ok(rbuf.clone()))))
+                .unwrap();
+
+            let mut wbuf = buf.write().await;
+
+            wbuf.clear();
+        }
+    }
+}
+
 fn container_logs(
     tx: Sender<Event>,
     pod: Api<Pod>,
     pod_name: &str,
     lp: LogParams,
-    buf: BufType,
     log_prefix: Option<String>,
 ) -> JoinHandle<()> {
-    let pod_name = pod_name.to_owned();
+    let pod_name = pod_name.to_string();
+
     tokio::spawn(async move {
         let prefix = if let Some(p) = log_prefix {
             p + " "
@@ -130,17 +151,14 @@ fn container_logs(
 
         let logs = pod.logs(&pod_name, &lp).await.unwrap();
 
+        let mut buf = Vec::new();
+
         for line in logs.lines() {
-            let mut buf = buf.write().await;
             buf.push(format!("{}{}", prefix, line));
         }
 
-        let mut buf = buf.write().await;
-
-        tx.send(Event::Kube(Kube::LogStreamResponse(Ok(buf.clone()))))
+        tx.send(Event::Kube(Kube::LogStreamResponse(Ok(buf))))
             .unwrap();
-
-        buf.clear();
     })
 }
 
@@ -171,8 +189,17 @@ async fn get_log_stream(buf: BufType, args: LogStreamArgs) -> Result<()> {
     while let Some(line) = logs.try_next().await? {
         let mut buf = buf.write().await;
         buf.push(format!("{}{}", prefix, String::from_utf8_lossy(&line)));
+
+        #[cfg(feature = "logging")]
+        ::log::info!(
+            "log_stream {}: {}",
+            pod_name,
+            String::from_utf8_lossy(&line)
+        );
     }
 
+    #[cfg(feature = "logging")]
+    ::log::info!("log_stream finished {}", pod_name);
     Ok(())
 }
 
@@ -203,47 +230,23 @@ fn container_log_stream(
     lp: LogParams,
     buf: BufType,
     log_prefix: Option<String>,
-) -> Vec<JoinHandle<()>> {
-    let buf_handle = {
-        let pod_name = pod_name.to_owned();
-        let buf = buf.clone();
+) -> JoinHandle<()> {
+    let pod_name = pod_name.into();
+    tokio::spawn(async move {
+        let args = LogStreamArgs {
+            pod,
+            pod_name,
+            lp,
+            prefix: log_prefix,
+        };
 
-        let tx_err = tx.clone();
-        tokio::spawn(async move {
-            let args = LogStreamArgs {
-                pod,
-                pod_name,
-                lp,
-                prefix: log_prefix,
-            };
+        let stream = get_log_stream(buf, args).await;
 
-            let stream = get_log_stream(buf, args).await;
-
-            if let Err(err) = stream {
-                tx_err
-                    .send(Event::Kube(Kube::LogStreamResponse(Err(err))))
-                    .unwrap();
-            }
-        })
-    };
-
-    let send_handle = {
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(time::Duration::from_millis(200));
-            loop {
-                interval.tick().await;
-                let mut buf = buf.write().await;
-                if !buf.is_empty() {
-                    tx.send(Event::Kube(Kube::LogStreamResponse(Ok(buf.clone()))))
-                        .unwrap();
-
-                    buf.clear();
-                }
-            }
-        })
-    };
-
-    vec![buf_handle, send_handle]
+        if let Err(err) = stream {
+            tx.send(Event::Kube(Kube::LogStreamResponse(Err(err))))
+                .unwrap();
+        }
+    })
 }
 
 #[allow(dead_code)]
