@@ -3,6 +3,7 @@ use k8s_openapi::apimachinery::pkg::runtime::RawExtension;
 use kube::{api::TypeMeta, Client};
 use serde::Deserialize;
 
+use serde::Deserializer;
 use serde_json::Value as JsonValue;
 use std::cmp::Ordering;
 use std::cmp::{Ord, PartialOrd};
@@ -13,6 +14,10 @@ use crate::error::Result;
 #[derive(Default, Clone, Debug, Eq, PartialEq, Deserialize)]
 pub struct Value(pub JsonValue);
 
+// TODO Tableデータ構造にデコードできないAPIが存在する
+// - nodes.metrics.k8s.io
+// - pods.metrics.k8s.io
+
 #[derive(Default, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Table {
@@ -20,7 +25,16 @@ pub struct Table {
     pub type_meta: TypeMeta,
     pub list_meta: Option<ListMeta>,
     pub column_definitions: Vec<TableColumnDefinition>,
+    #[serde(deserialize_with = "deserialize_unwrap_or_default")]
     pub rows: Vec<TableRow>,
+}
+
+fn deserialize_unwrap_or_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    T: Default + Deserialize<'de>,
+    D: Deserializer<'de>,
+{
+    Ok(Option::deserialize(deserializer)?.unwrap_or_default())
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]

@@ -13,6 +13,9 @@ pub fn get_table_request(server_url: &str, path: &str) -> Result<http::Request<V
         .headers_mut()
         .insert(ACCEPT, HeaderValue::from_static(TABLE_REQUEST_HEADER));
 
+    #[cfg(feature = "logging")]
+    ::log::debug!("HTTP request {:?}", request);
+
     Ok(request)
 }
 
@@ -24,6 +27,9 @@ pub fn get_request(server_url: &str, path: &str) -> Result<http::Request<Vec<u8>
     request
         .headers_mut()
         .insert(ACCEPT, HeaderValue::from_static("application/json"));
+
+    #[cfg(feature = "logging")]
+    ::log::debug!("HTTP request {:?}", request);
 
     Ok(request)
 }
