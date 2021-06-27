@@ -199,16 +199,14 @@ fn run(config: Config) {
                         "Error".to_string(),
                     )
                 }
+            } else if 3 <= v.len() {
+                (v[0].to_string(), v[1].to_string(), v[2].to_string())
             } else {
-                if 3 <= v.len() {
-                    (v[0].to_string(), v[1].to_string(), v[2].to_string())
-                } else {
-                    (
-                        "Error".to_string(),
-                        "Error".to_string(),
-                        "Error".to_string(),
-                    )
-                }
+                (
+                    "Error".to_string(),
+                    "Error".to_string(),
+                    "Error".to_string(),
+                )
             };
 
             tx_configs
