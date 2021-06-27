@@ -127,10 +127,7 @@ mod parse_test {
 
     #[test]
     fn escape_only() {
-        assert_eq!(
-            "\x1b".ansi_parse().next(),
-            Some(Text::new("\x1b", AnsiEscapeSequence::Escape))
-        );
+        assert_eq!("\x1b".ansi_parse().next(), None);
     }
 
     #[test]
