@@ -41,7 +41,11 @@ impl PodInfo {
     }
 }
 
-pub async fn pod_loop(tx: Sender<Event>, namespaces: Namespaces, args: Arc<KubeArgs>) {
+pub async fn pod_loop(
+    tx: Sender<Event>,
+    namespaces: Namespaces,
+    args: Arc<KubeArgs>,
+) -> Result<()> {
     let mut interval = tokio::time::interval(time::Duration::from_secs(1));
 
     while !args
@@ -55,6 +59,7 @@ pub async fn pod_loop(tx: Sender<Event>, namespaces: Namespaces, args: Arc<KubeA
 
         tx.send(Event::Kube(Kube::Pod(pod_info))).unwrap();
     }
+    Ok(())
 }
 
 #[cfg(not(any(feature = "mock", feature = "mock-failed")))]

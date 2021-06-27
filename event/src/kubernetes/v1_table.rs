@@ -245,7 +245,7 @@ where
     F: Fn(&TableRow, &[usize]) -> Vec<String>,
 {
     let table: Table = client
-        .request(get_table_request(server_url, &path).unwrap())
+        .request(get_table_request(server_url, &path)?)
         .await?;
 
     let indexes = table.find_indexes(target_values);

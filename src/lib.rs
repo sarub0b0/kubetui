@@ -91,6 +91,18 @@ fn update_widget_item_for_table(window: &mut Window, id: &str, table: Result<Kub
     }
 }
 
+fn update_widget_item_for_vec(window: &mut Window, id: &str, vec: Result<Vec<String>>) {
+    let widget = window.find_widget_mut(id);
+    match vec {
+        Ok(i) => {
+            widget.update_widget_item(WidgetItem::Array(i));
+        }
+        Err(i) => {
+            widget.update_widget_item(WidgetItem::Array(vec![error_format!("{}", i)]));
+        }
+    }
+}
+
 // fn update_widget_item_for_table_for_error(window: &mut Window, id: &str, content: String) {
 //     let widget = window.find_widget_mut(id);
 //     let w = widget.as_mut_table();
@@ -135,15 +147,7 @@ pub fn update_contents(
         }
 
         Kube::ConfigResponse(raw) => {
-            let widget = window.find_widget_mut(view_id::tab_configs_widget_raw_data);
-            match raw {
-                Ok(i) => {
-                    widget.update_widget_item(WidgetItem::Array(i));
-                }
-                Err(i) => {
-                    widget.update_widget_item(WidgetItem::Array(vec![error_format!("{}", i)]));
-                }
-            }
+            update_widget_item_for_vec(window, view_id::tab_configs_widget_raw_data, raw);
         }
 
         Kube::GetCurrentContextResponse(ctx, ns) => {
@@ -153,16 +157,15 @@ pub fn update_contents(
             selected_namespace.clear();
             selected_namespace.push(ns);
         }
+
         Kube::Event(ev) => {
-            window
-                .find_widget_mut(view_id::tab_event_widget_event)
-                .update_widget_item(WidgetItem::Array(ev));
+            update_widget_item_for_vec(window, view_id::tab_event_widget_event, ev);
         }
+
         Kube::APIsResults(apis) => {
-            window
-                .find_widget_mut(view_id::tab_apis_widget_apis)
-                .update_widget_item(WidgetItem::Array(apis));
+            update_widget_item_for_vec(window, view_id::tab_apis_widget_apis, apis);
         }
+
         Kube::GetNamespacesResponse(ns) => {
             window
                 .find_widget_mut(view_id::subwin_ns)
@@ -181,9 +184,7 @@ pub fn update_contents(
         }
 
         Kube::GetAPIsResponse(apis) => {
-            window
-                .find_widget_mut(view_id::subwin_apis)
-                .update_widget_item(WidgetItem::Array(apis));
+            update_widget_item_for_vec(window, view_id::subwin_apis, apis);
         }
         _ => unreachable!(),
     }

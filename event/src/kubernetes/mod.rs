@@ -13,6 +13,7 @@ use super::Event;
 use api_resources::{apis_list, apis_loop};
 use config::{configs_loop, get_config};
 use context::namespace_list;
+use futures::future::join_all;
 use pod::pod_loop;
 
 use std::{panic, sync::atomic::AtomicBool, sync::Arc, time::Duration};
@@ -29,7 +30,9 @@ use kube::{
     Client,
 };
 
-use crate::error::Result;
+use crate::error::{Error, Result};
+
+pub use kube;
 
 #[derive(Debug, Default)]
 pub struct KubeTable {
@@ -78,9 +81,9 @@ impl KubeTable {
 pub enum Kube {
     // apis
     GetAPIsRequest,
-    GetAPIsResponse(Vec<String>),
+    GetAPIsResponse(Result<Vec<String>>),
     SetAPIsRequest(Vec<String>),
-    APIsResults(Vec<String>),
+    APIsResults(Result<Vec<String>>),
     // Context
     GetContextsRequest,
     GetContextsResponse(Vec<String>),
@@ -88,7 +91,7 @@ pub enum Kube {
     GetCurrentContextRequest,
     GetCurrentContextResponse(String, String), // current_context, namespace
     // Event
-    Event(Vec<String>),
+    Event(Result<Vec<String>>),
     // Namespace
     GetNamespacesRequest,
     GetNamespacesResponse(Vec<String>),
@@ -120,92 +123,115 @@ impl Handlers {
     }
 }
 
-fn cluster_server_url(kubeconfig: &Kubeconfig, named_context: &NamedContext) -> String {
+fn cluster_server_url(kubeconfig: &Kubeconfig, named_context: &NamedContext) -> Result<String> {
     let cluster_name = named_context.context.cluster.clone();
 
     let named_cluster = kubeconfig.clusters.iter().find(|n| n.name == cluster_name);
 
-    named_cluster.as_ref().unwrap().cluster.server.clone()
+    Ok(named_cluster
+        .cloned()
+        .ok_or_else(|| Error::Raw("Failed to get cluster server URL".into()))?
+        .cluster
+        .server)
 }
 
 type Namespaces = Arc<RwLock<Vec<String>>>;
 type ApiResources = Arc<RwLock<Vec<String>>>;
 
-pub fn kube_process(tx: Sender<Event>, rx: Receiver<Event>, is_terminated: Arc<AtomicBool>) {
-    let rt = Runtime::new().unwrap();
+async fn inner_kube_process(
+    tx: Sender<Event>,
+    rx: Receiver<Event>,
+    is_terminated: Arc<AtomicBool>,
+) -> Result<()> {
+    let kubeconfig = Kubeconfig::read()?;
 
-    rt.block_on(async move {
-        let kubeconfig = Kubeconfig::read().unwrap();
-        let current_context = kubeconfig.current_context.clone().unwrap();
+    let current_context = kubeconfig
+        .current_context
+        .clone()
+        .ok_or_else(|| Error::Raw("Cannot get current context".into()))?;
 
-        let named_context = kubeconfig
-            .contexts
-            .iter()
-            .find(|n| n.name == current_context);
+    let named_context = kubeconfig
+        .contexts
+        .iter()
+        .find(|n| n.name == current_context)
+        .ok_or_else(|| Error::Raw("Cannot get contexts".into()))?;
 
-        let current_namespace = match named_context {
-            Some(nc) => nc
-                .context
-                .namespace
-                .clone()
-                .unwrap_or_else(|| "default".to_string()),
-            None => "default".to_string(),
-        };
+    let current_namespace = named_context
+        .context
+        .namespace
+        .clone()
+        .ok_or_else(|| Error::Raw("Cannot get current namespace".into()))?;
 
-        let api_resources: ApiResources = Arc::new(RwLock::new(Vec::new()));
+    let api_resources: ApiResources = Arc::new(RwLock::new(Vec::new()));
 
-        let server_url = cluster_server_url(&kubeconfig, named_context.as_ref().unwrap());
+    let server_url = cluster_server_url(&kubeconfig, &named_context)?;
 
-        let client = Client::try_default().await.unwrap();
+    let client = Client::try_default().await?;
 
-        let namespaces = Arc::new(RwLock::new(vec![current_namespace.to_string()]));
+    let namespaces = Arc::new(RwLock::new(vec![current_namespace.to_string()]));
 
-        let args = Arc::new(KubeArgs {
-            client,
-            server_url,
-            current_context,
-            current_namespace,
-            is_terminated,
-        });
-
-        let main_loop = tokio::spawn(main_loop(
-            rx,
-            tx.clone(),
-            Arc::clone(&namespaces),
-            Arc::clone(&api_resources),
-            args.clone(),
-        ));
-
-        let pod_loop = tokio::spawn(pod_loop(tx.clone(), Arc::clone(&namespaces), args.clone()));
-
-        let config_loop = tokio::spawn(configs_loop(
-            tx.clone(),
-            Arc::clone(&namespaces),
-            args.clone(),
-        ));
-
-        let event_loop = tokio::spawn(event_loop(
-            tx.clone(),
-            Arc::clone(&namespaces),
-            args.clone(),
-        ));
-
-        let apis_loop = tokio::spawn(apis_loop(
-            tx.clone(),
-            Arc::clone(&namespaces),
-            api_resources,
-            args.clone(),
-        ));
-
-        main_loop.await.unwrap();
-        pod_loop.await.unwrap();
-        config_loop.await.unwrap();
-        event_loop.await.unwrap();
-        apis_loop.await.unwrap();
+    let args = Arc::new(KubeArgs {
+        client,
+        server_url,
+        current_context,
+        current_namespace,
+        is_terminated,
     });
+
+    let main_loop = tokio::spawn(main_loop(
+        rx,
+        tx.clone(),
+        Arc::clone(&namespaces),
+        Arc::clone(&api_resources),
+        args.clone(),
+    ));
+
+    let pod_loop = tokio::spawn(pod_loop(tx.clone(), Arc::clone(&namespaces), args.clone()));
+
+    let config_loop = tokio::spawn(configs_loop(
+        tx.clone(),
+        Arc::clone(&namespaces),
+        args.clone(),
+    ));
+
+    let event_loop = tokio::spawn(event_loop(
+        tx.clone(),
+        Arc::clone(&namespaces),
+        args.clone(),
+    ));
+
+    let apis_loop = tokio::spawn(apis_loop(
+        tx.clone(),
+        Arc::clone(&namespaces),
+        api_resources,
+        args.clone(),
+    ));
+
+    join_all(vec![
+        main_loop,
+        pod_loop,
+        config_loop,
+        event_loop,
+        apis_loop,
+    ])
+    .await;
+
+    Ok(())
+}
+
+pub fn kube_process(
+    tx: Sender<Event>,
+    rx: Receiver<Event>,
+    is_terminated: Arc<AtomicBool>,
+) -> Result<()> {
+    let rt = Runtime::new()?;
+
+    rt.block_on(inner_kube_process(tx, rx, is_terminated))?;
 
     #[cfg(feature = "logging")]
     ::log::debug!("Terminated kube event");
+
+    Ok(())
 }
 
 async fn main_loop(
@@ -214,7 +240,7 @@ async fn main_loop(
     namespaces: Namespaces,
     api_resources: ApiResources,
     args: Arc<KubeArgs>,
-) {
+) -> Result<()> {
     let mut log_stream_handler: Option<Handlers> = None;
     let client = &args.client;
     let server_url = &args.server_url;
@@ -290,4 +316,6 @@ async fn main_loop(
             }
         }
     }
+
+    Ok(())
 }

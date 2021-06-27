@@ -3,7 +3,7 @@ use k8s_openapi::apimachinery::pkg::apis::meta::v1::{
     APIGroupList, APIResource, APIResourceList, APIVersions, GroupVersionForDiscovery,
 };
 use k8s_openapi::Resource;
-use kube::{Client, Result};
+use kube::Client;
 use std::sync::Arc;
 use std::time;
 use tokio::time::Instant;
@@ -14,10 +14,12 @@ use super::{
     {Event, Kube},
 };
 
-use futures::future::join_all;
+use futures::future::try_join_all;
 use serde_json::Value as JsonValue;
 
 use std::collections::{HashMap, HashSet};
+
+use crate::error::Result;
 
 #[derive(Debug, Clone)]
 struct APIInfo {
@@ -62,8 +64,8 @@ fn is_preferred_version(
     preferred_version.as_ref().map(|gv| gv.version == version)
 }
 
-pub async fn apis_list(client: &Client, server_url: &str) -> Vec<String> {
-    let api_info_list = get_all_api_info(client, server_url).await;
+pub async fn apis_list(client: &Client, server_url: &str) -> Result<Vec<String>> {
+    let api_info_list = get_all_api_info(client, server_url).await?;
 
     let set: HashSet<String> = api_info_list
         .iter()
@@ -79,15 +81,14 @@ pub async fn apis_list(client: &Client, server_url: &str) -> Vec<String> {
     let mut ret: Vec<String> = set.into_iter().collect();
     ret.sort();
 
-    ret
+    Ok(ret)
 }
 
-async fn get_all_api_info(client: &Client, server_url: &str) -> Vec<APIInfo> {
+async fn get_all_api_info(client: &Client, server_url: &str) -> Result<Vec<APIInfo>> {
     let mut group_versions = Vec::new();
 
-    let result: Result<APIVersions, kube::Error> = client
-        .request(get_request(server_url, "api").unwrap())
-        .await;
+    let result: Result<APIVersions, kube::Error> =
+        client.request(get_request(server_url, "api")?).await;
 
     if let Ok(api_versions) = result.as_ref() {
         api_versions.versions.iter().for_each(|v| {
@@ -99,9 +100,8 @@ async fn get_all_api_info(client: &Client, server_url: &str) -> Vec<APIInfo> {
         });
     }
 
-    let result: Result<APIGroupList, kube::Error> = client
-        .request(get_request(server_url, "apis").unwrap())
-        .await;
+    let result: Result<APIGroupList, kube::Error> =
+        client.request(get_request(server_url, "apis")?).await;
 
     if let Ok(api_group_list) = result.as_ref() {
         api_group_list.groups.iter().for_each(|group| {
@@ -121,14 +121,14 @@ async fn get_all_api_info(client: &Client, server_url: &str) -> Vec<APIInfo> {
     //      /api/v*
     //      /apis/group/version
 
-    let job = join_all(
+    let job = try_join_all(
         group_versions
             .iter()
             .map(|gv| api_resource_list_to_api_info_list(&client, server_url, gv)),
     )
-    .await;
+    .await?;
 
-    job.into_iter().flatten().collect()
+    Ok(job.into_iter().flatten().collect())
 }
 
 fn can_get_request(api: &APIResource) -> bool {
@@ -139,26 +139,23 @@ async fn api_resource_list_to_api_info_list(
     client: &Client,
     server_url: &str,
     gv: &GroupVersion,
-) -> Vec<APIInfo> {
+) -> Result<Vec<APIInfo>> {
     let result = client
-        .request::<APIResourceList>(get_request(server_url, &gv.api_url()).unwrap())
-        .await;
+        .request::<APIResourceList>(get_request(server_url, &gv.api_url())?)
+        .await?;
 
-    if let Ok(list) = result {
-        list.resources
-            .iter()
-            .filter(|resource| can_get_request(resource))
-            .map(|resource| APIInfo {
-                api_group: gv.group.to_string(),
-                api_version: APIResourceList::API_VERSION.to_string(),
-                api_group_version: gv.version.to_string(),
-                api_resource: resource.clone(),
-                preferred_version: gv.preferred_version,
-            })
-            .collect()
-    } else {
-        Vec::new()
-    }
+    Ok(result
+        .resources
+        .iter()
+        .filter(|resource| can_get_request(resource))
+        .map(|resource| APIInfo {
+            api_group: gv.group.to_string(),
+            api_version: APIResourceList::API_VERSION.to_string(),
+            api_group_version: gv.version.to_string(),
+            api_resource: resource.clone(),
+            preferred_version: gv.preferred_version,
+        })
+        .collect())
 }
 
 fn convert_api_database(api_info_list: &[APIInfo]) -> HashMap<String, APIInfo> {
@@ -253,16 +250,13 @@ async fn fetch_table_per_namespace(
     ns: &str,
 ) -> Result<FetchData> {
     let table = client
-        .request::<Table>(get_table_request(server_url, &path).unwrap())
-        .await;
+        .request::<Table>(get_table_request(server_url, &path)?)
+        .await?;
 
-    match table {
-        Ok(t) => Ok(FetchData {
-            namespace: ns.to_string(),
-            table: t,
-        }),
-        Err(e) => Err(e),
-    }
+    Ok(FetchData {
+        namespace: ns.to_string(),
+        table,
+    })
 }
 
 #[inline]
@@ -272,8 +266,8 @@ async fn get_table_namespaced_resource(
     path: String,
     kind: &str,
     namespaces: &[String],
-) -> Table {
-    let jobs = join_all(namespaces.iter().map(|ns| {
+) -> Result<Table> {
+    let jobs = try_join_all(namespaces.iter().map(|ns| {
         fetch_table_per_namespace(
             client,
             server_url,
@@ -281,21 +275,22 @@ async fn get_table_namespaced_resource(
             ns,
         )
     }))
-    .await;
+    .await?;
 
-    let result: Vec<Result<FetchData, kube::Error>> = jobs.into_iter().collect();
+    let result: Vec<FetchData> = jobs.into_iter().collect();
 
-    let result: Vec<FetchData> = result.into_iter().flat_map(|table| table.ok()).collect();
-
-    merge_tabels(result, insert_ns(namespaces))
+    Ok(merge_tabels(result, insert_ns(namespaces)))
 }
 
 #[inline]
-async fn get_table_cluster_resource(client: &Client, server_url: &str, path: String) -> Table {
-    client
-        .request::<Table>(get_table_request(server_url, &path).unwrap())
-        .await
-        .unwrap_or_default()
+async fn get_table_cluster_resource(
+    client: &Client,
+    server_url: &str,
+    path: String,
+) -> Result<Table> {
+    Ok(client
+        .request::<Table>(get_table_request(server_url, &path)?)
+        .await?)
 }
 
 async fn get_api_resources(
@@ -304,7 +299,7 @@ async fn get_api_resources(
     namespaces: &[String],
     apis: &[String],
     db: &HashMap<String, APIInfo>,
-) -> Vec<String> {
+) -> Result<Vec<String>> {
     let mut ret = Vec::new();
 
     for api in apis {
@@ -325,7 +320,7 @@ async fn get_api_resources(
                     format!("{}/{}", info.api_url(), info.api_resource.name),
                 )
                 .await
-            };
+            }?;
 
             if table.rows.is_empty() {
                 continue;
@@ -336,7 +331,7 @@ async fn get_api_resources(
         }
     }
 
-    ret
+    Ok(ret)
 }
 
 pub async fn apis_loop(
@@ -344,10 +339,10 @@ pub async fn apis_loop(
     namespace: Namespaces,
     api_resources: ApiResources,
     args: Arc<KubeArgs>,
-) {
+) -> Result<()> {
     let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
 
-    let api_info_list = get_all_api_info(&args.client, &args.server_url).await;
+    let api_info_list = get_all_api_info(&args.client, &args.server_url).await?;
 
     let mut db = convert_api_database(&api_info_list);
 
@@ -369,7 +364,7 @@ pub async fn apis_loop(
         if tick_rate < last_tick.elapsed() {
             last_tick = Instant::now();
 
-            let api_info_list = get_all_api_info(&args.client, &args.server_url).await;
+            let api_info_list = get_all_api_info(&args.client, &args.server_url).await?;
 
             db = convert_api_database(&api_info_list);
         }
@@ -379,4 +374,6 @@ pub async fn apis_loop(
 
         tx.send(Event::Kube(Kube::APIsResults(result))).unwrap();
     }
+
+    Ok(())
 }

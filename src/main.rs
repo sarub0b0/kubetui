@@ -11,7 +11,8 @@ use std::{
 
 use clipboard_wrapper::ClipboardProvider;
 
-use ::event::{input::*, kubernetes::*, tick::*, Event};
+use ::event::{error::Result, input::*, kubernetes::*, tick::*, Event};
+
 use tui_wrapper::{
     crossterm::{
         cursor::Show,
@@ -83,7 +84,7 @@ macro_rules! disable_raw_mode {
     };
 }
 
-fn run(config: Config) {
+fn run(config: Config) -> Result<()> {
     let (tx_input, rx_main): (Sender<Event>, Receiver<Event>) = unbounded();
     let (tx_main, rx_kube): (Sender<Event>, Receiver<Event>) = unbounded();
     let tx_kube = tx_input.clone();
@@ -128,14 +129,13 @@ fn run(config: Config) {
     // オプションを使用する。
     //
     // UNSTABLE CODE
-    let chunk = backend.size().unwrap();
+    let chunk = backend.size()?;
     let mut terminal = Terminal::with_options(
         backend,
         TerminalOptions {
             viewport: Viewport::fixed(chunk),
         },
-    )
-    .unwrap();
+    )?;
 
     // Pods
     let tx_pods = tx_main.clone();
@@ -424,18 +424,16 @@ fn run(config: Config) {
     window.add_action(KeyCode::Esc, fn_close);
     window.add_popup([subwin_ns, subwin_apis, subwin_single_ns]);
 
-    terminal.clear().unwrap();
-    window.update_chunks(terminal.size().unwrap());
+    terminal.clear()?;
+    window.update_chunks(terminal.size()?);
     tx_main
         .send(Event::Kube(Kube::GetCurrentContextRequest))
         .unwrap();
 
     loop {
-        terminal
-            .draw(|f| {
-                window.render(f, &current_context, &selected_namespaces.borrow());
-            })
-            .unwrap();
+        terminal.draw(|f| {
+            window.render(f, &current_context, &selected_namespaces.borrow());
+        })?;
 
         match window_action(&mut window, &rx_main) {
             WindowEvent::Continue => {}
@@ -444,7 +442,7 @@ fn run(config: Config) {
             }
             WindowEvent::ResizeWindow(w, h) => {
                 let chunk = Rect::new(0, 0, w, h);
-                terminal.resize(chunk).unwrap();
+                terminal.resize(chunk)?;
                 window.update_chunks(chunk);
             }
             WindowEvent::UpdateContents(ev) => {
@@ -462,8 +460,14 @@ fn run(config: Config) {
     is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
 
     read_key_handler.join().unwrap();
-    kube_process_handler.join().unwrap();
+
+    kube_process_handler
+        .join()
+        .unwrap_or_else(|e| *e.downcast().unwrap())?;
+
     tick_handler.join().unwrap();
+
+    Ok(())
 }
 
 fn configure() -> Config {
@@ -532,7 +536,7 @@ fn logging() {
     log4rs::init_config(config).unwrap();
 }
 
-fn main() {
+fn main() -> Result<()> {
     #[cfg(feature = "logging")]
     logging();
 
@@ -549,7 +553,9 @@ fn main() {
     let config = configure();
     enable_raw_mode!();
 
-    run(config);
+    run(config)?;
 
     disable_raw_mode!();
+
+    Ok(())
 }

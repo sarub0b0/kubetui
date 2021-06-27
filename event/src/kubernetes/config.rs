@@ -99,7 +99,11 @@ async fn fetch_configs(namespaces: &[String], args: &KubeArgs) -> Result<KubeTab
     Ok(table)
 }
 
-pub async fn configs_loop(tx: Sender<Event>, namespaces: Namespaces, args: Arc<KubeArgs>) {
+pub async fn configs_loop(
+    tx: Sender<Event>,
+    namespaces: Namespaces,
+    args: Arc<KubeArgs>,
+) -> Result<()> {
     let mut interval = tokio::time::interval(time::Duration::from_secs(1));
 
     while !args
@@ -114,6 +118,7 @@ pub async fn configs_loop(tx: Sender<Event>, namespaces: Namespaces, args: Arc<K
 
         tx.send(Event::Kube(Kube::Configs(table))).unwrap();
     }
+    Ok(())
 }
 
 pub async fn get_config(client: Client, ns: &str, kind: &str, name: &str) -> Result<Vec<String>> {
@@ -145,7 +150,7 @@ pub async fn get_config(client: Client, ns: &str, kind: &str, name: &str) -> Res
                 None => vec!["".to_string()],
             })
         }
-        _ => Err(Error::String(format!(
+        _ => Err(Error::Raw(format!(
             "Invalid kind [{}]. Set kind ConfigMap or Secret",
             kind
         ))),

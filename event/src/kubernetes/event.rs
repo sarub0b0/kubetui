@@ -6,11 +6,17 @@ use super::{
 use std::{sync::Arc, time};
 
 use crossbeam::channel::Sender;
-use futures::future::join_all;
+use futures::future::try_join_all;
 
 use kube::Client;
 
-pub async fn event_loop(tx: Sender<Event>, namespaces: Namespaces, args: Arc<KubeArgs>) {
+use crate::error::Result;
+
+pub async fn event_loop(
+    tx: Sender<Event>,
+    namespaces: Namespaces,
+    args: Arc<KubeArgs>,
+) -> Result<()> {
     let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
     while !args
         .is_terminated
@@ -23,15 +29,21 @@ pub async fn event_loop(tx: Sender<Event>, namespaces: Namespaces, args: Arc<Kub
 
         tx.send(Event::Kube(Kube::Event(event_list))).unwrap();
     }
+
+    Ok(())
 }
 
 const TARGET_LEN: usize = 4;
 const TARGET: [&str; TARGET_LEN] = ["Last Seen", "Object", "Reason", "Message"];
 
-async fn get_event_table(client: &Client, server_url: &str, namespaces: &[String]) -> Vec<String> {
+async fn get_event_table(
+    client: &Client,
+    server_url: &str,
+    namespaces: &[String],
+) -> Result<Vec<String>> {
     let insert_ns = insert_ns(namespaces);
 
-    let jobs = join_all(namespaces.iter().map(|ns| {
+    let jobs = try_join_all(namespaces.iter().map(|ns| {
         get_resourse_per_namespace(
             &client,
             &server_url,
@@ -48,18 +60,14 @@ async fn get_event_table(client: &Client, server_url: &str, namespaces: &[String
                 cells
             },
         )
-    }));
+    }))
+    .await?;
 
-    let mut ok_only: Vec<Vec<String>> = jobs
-        .await
-        .into_iter()
-        .filter_map(Result::ok)
-        .flatten()
-        .collect();
+    let mut ok_only: Vec<Vec<String>> = jobs.into_iter().flatten().collect();
 
     ok_only.sort_by_key(|row| row[0].to_time());
 
-    ok_only
+    Ok(ok_only
         .iter()
         .map(|v| {
             v.iter()
@@ -73,5 +81,5 @@ async fn get_event_table(client: &Client, server_url: &str, namespaces: &[String
                     s
                 })
         })
-        .collect()
+        .collect())
 }
