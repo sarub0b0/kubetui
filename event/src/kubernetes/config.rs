@@ -126,29 +126,29 @@ pub async fn get_config(client: Client, ns: &str, kind: &str, name: &str) -> Res
         "ConfigMap" => {
             let cms: Api<ConfigMap> = Api::namespaced(client, &ns);
             let cm = cms.get(name).await?;
-            Ok(match cm.data {
-                Some(data) => data.iter().map(|(k, v)| format!("{}: {}", k, v)).collect(),
-                None => vec!["".to_string()],
-            })
+            Ok(cm
+                .data
+                .iter()
+                .map(|(k, v)| format!("{}: {}", k, v))
+                .collect())
         }
         "Secret" => {
             let secs: Api<Secret> = Api::namespaced(client, &ns);
             let sec = secs.get(name).await?;
-            Ok(match sec.data {
-                Some(data) => data
-                    .iter()
-                    .map(|(k, v)| {
-                        let decode = if let Ok(b) = std::str::from_utf8(&v.0) {
-                            b
-                        } else {
-                            unsafe { std::str::from_utf8_unchecked(&v.0) }
-                        };
 
-                        format!("{}: {}", k, decode)
-                    })
-                    .collect(),
-                None => vec!["".to_string()],
-            })
+            Ok(sec
+                .data
+                .iter()
+                .map(|(k, v)| {
+                    let decode = if let Ok(b) = std::str::from_utf8(&v.0) {
+                        b
+                    } else {
+                        unsafe { std::str::from_utf8_unchecked(&v.0) }
+                    };
+
+                    format!("{}: {}", k, decode)
+                })
+                .collect())
         }
         _ => Err(Error::Raw(format!(
             "Invalid kind [{}]. Set kind ConfigMap or Secret",

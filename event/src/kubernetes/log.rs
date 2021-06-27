@@ -37,63 +37,32 @@ pub async fn log_stream(tx: Sender<Event>, client: Client, ns: &str, pod_name: &
 
             // initContainersのログ取得
             // まだ実行中ならlog_stream, 何かしらで実行終わっていればlogs
-            if let Some(ref containers) = status.init_container_statuses {
-                for (i, c) in containers.iter().enumerate() {
-                    let state = c.state.as_ref().unwrap();
+            let containers = status.init_container_statuses;
+            for (i, c) in containers.iter().enumerate() {
+                let state = c.state.as_ref().unwrap();
 
-                    let mut lp = lp.clone();
+                let mut lp = lp.clone();
 
-                    lp.container = Some(c.name.clone());
+                lp.container = Some(c.name.clone());
 
-                    let prefix = Some(format!(
-                        "\x1b[{}m[init-{}:{}]\x1b[39m",
-                        color.next().unwrap(),
-                        i,
-                        c.name
-                    ));
+                let prefix = Some(format!(
+                    "\x1b[{}m[init-{}:{}]\x1b[39m",
+                    color.next().unwrap(),
+                    i,
+                    c.name
+                ));
 
-                    if state.terminated.is_some() {
-                        let handler = container_logs(
-                            tx.clone(),
-                            pod.clone(),
-                            pod_name,
-                            lp,
-                            Arc::clone(&buf),
-                            prefix,
-                        );
-                        handler.await.unwrap();
-                    } else {
-                        let mut handlers = container_log_stream(
-                            tx.clone(),
-                            pod.clone(),
-                            pod_name,
-                            lp,
-                            Arc::clone(&buf),
-                            prefix,
-                        );
-                        container_handler.append(&mut handlers);
-                    }
-                }
-            }
-
-            if let Some(containers) = status.container_statuses {
-                for c in &containers {
-                    let tx = tx.clone();
-
-                    let mut lp = lp.clone();
-                    lp.container = Some(c.name.clone());
-
-                    let prefix = if 1 < containers.len() || status.init_container_statuses.is_some()
-                    {
-                        Some(format!(
-                            "\x1b[{}m[{}]\x1b[39m",
-                            color.next().unwrap(),
-                            c.name
-                        ))
-                    } else {
-                        None
-                    };
-
+                if state.terminated.is_some() {
+                    let handler = container_logs(
+                        tx.clone(),
+                        pod.clone(),
+                        pod_name,
+                        lp,
+                        Arc::clone(&buf),
+                        prefix,
+                    );
+                    handler.await.unwrap();
+                } else {
                     let mut handlers = container_log_stream(
                         tx.clone(),
                         pod.clone(),
@@ -102,9 +71,37 @@ pub async fn log_stream(tx: Sender<Event>, client: Client, ns: &str, pod_name: &
                         Arc::clone(&buf),
                         prefix,
                     );
-
                     container_handler.append(&mut handlers);
                 }
+            }
+
+            let containers = status.container_statuses;
+            for c in &containers {
+                let tx = tx.clone();
+
+                let mut lp = lp.clone();
+                lp.container = Some(c.name.clone());
+
+                let prefix = if 1 < containers.len() {
+                    Some(format!(
+                        "\x1b[{}m[{}]\x1b[39m",
+                        color.next().unwrap(),
+                        c.name
+                    ))
+                } else {
+                    None
+                };
+
+                let mut handlers = container_log_stream(
+                    tx.clone(),
+                    pod.clone(),
+                    pod_name,
+                    lp,
+                    Arc::clone(&buf),
+                    prefix,
+                );
+
+                container_handler.append(&mut handlers);
             }
         }
         Err(err) => tx

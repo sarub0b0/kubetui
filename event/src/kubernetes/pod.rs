@@ -215,91 +215,89 @@ pub fn get_status(pod: Pod) -> String {
 
     let mut initializing = false;
 
-    if let Some(cs) = &status.init_container_statuses {
-        let find_terminated = cs.iter().enumerate().find(|(_, c)| {
-            let state = c.state.clone().unwrap();
-            let terminated = state.terminated;
+    let cs = &status.init_container_statuses;
 
-            !is_terminated_container(&terminated)
-        });
+    let find_terminated = cs.iter().enumerate().find(|(_, c)| {
+        let state = c.state.clone().unwrap();
+        let terminated = state.terminated;
 
-        if let Some((i, c)) = find_terminated {
-            let state = c.state.clone().unwrap();
-            let (terminated, waiting) = (state.terminated, state.waiting);
+        !is_terminated_container(&terminated)
+    });
 
-            initializing = true;
+    if let Some((i, c)) = find_terminated {
+        let state = c.state.clone().unwrap();
+        let (terminated, waiting) = (state.terminated, state.waiting);
 
-            phase = match terminated {
-                Some(terminated) => match terminated.reason {
-                    Some(reason) => format!("Init:{}", reason),
-                    None => {
-                        if let Some(s) = &terminated.signal {
-                            format!("Init:Signal:{}", s)
-                        } else {
-                            format!("Init:ExitCode:{}", terminated.exit_code)
-                        }
-                    }
-                },
+        initializing = true;
+
+        phase = match terminated {
+            Some(terminated) => match terminated.reason {
+                Some(reason) => format!("Init:{}", reason),
                 None => {
-                    if let Some(waiting) = waiting {
-                        if let Some(reason) = &waiting.reason {
-                            if reason != "PodInitializing" {
-                                return format!("Init:{}", reason);
-                            }
+                    if let Some(s) = &terminated.signal {
+                        format!("Init:Signal:{}", s)
+                    } else {
+                        format!("Init:ExitCode:{}", terminated.exit_code)
+                    }
+                }
+            },
+            None => {
+                if let Some(waiting) = waiting {
+                    if let Some(reason) = &waiting.reason {
+                        if reason != "PodInitializing" {
+                            return format!("Init:{}", reason);
                         }
                     }
-                    format!("Init:{}/{}", i, cs.len())
                 }
-            };
-        }
+                format!("Init:{}/{}", i, cs.len())
+            }
+        };
     }
 
     if !initializing {
         let mut has_running = false;
 
-        if let Some(cs) = &status.container_statuses {
-            cs.iter().for_each(|c| {
-                let state = c.state.clone().unwrap();
+        let cs = &status.container_statuses;
+        cs.iter().for_each(|c| {
+            let state = c.state.clone().unwrap();
 
-                let (running, terminated, waiting) =
-                    (state.running, state.terminated, state.waiting);
+            let (running, terminated, waiting) = (state.running, state.terminated, state.waiting);
 
-                let mut signal = None;
-                let mut exit_code = 0;
+            let mut signal = None;
+            let mut exit_code = 0;
 
-                if let Some(terminated) = &terminated {
-                    signal = terminated.signal;
-                    exit_code = terminated.exit_code;
+            if let Some(terminated) = &terminated {
+                signal = terminated.signal;
+                exit_code = terminated.exit_code;
+            }
+
+            match &terminated {
+                Some(terminated) => {
+                    if let Some(reason) = &terminated.reason {
+                        phase = reason.clone();
+                    };
                 }
-
-                match &terminated {
-                    Some(terminated) => {
-                        if let Some(reason) = &terminated.reason {
-                            phase = reason.clone();
+                None => match &waiting {
+                    Some(waiting) => {
+                        phase = match &waiting.reason {
+                            Some(reason) => reason.clone(),
+                            None => {
+                                if let Some(signal) = signal {
+                                    format!("Signal:{}", signal)
+                                } else {
+                                    format!("ExitCode:{}", exit_code)
+                                }
+                            }
                         };
                     }
-                    None => match &waiting {
-                        Some(waiting) => {
-                            phase = match &waiting.reason {
-                                Some(reason) => reason.clone(),
-                                None => {
-                                    if let Some(signal) = signal {
-                                        format!("Signal:{}", signal)
-                                    } else {
-                                        format!("ExitCode:{}", exit_code)
-                                    }
-                                }
-                            };
+                    None => {
+                        if running.is_some() && c.ready {
+                            has_running = true;
                         }
-                        None => {
-                            if running.is_some() && c.ready {
-                                has_running = true;
-                            }
-                        }
-                    },
-                }
-            })
-        }
+                    }
+                },
+            }
+        });
 
         if phase == "Completed" && has_running {
             phase = "Running".to_string();
