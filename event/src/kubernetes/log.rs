@@ -54,7 +54,15 @@ pub async fn log_stream(tx: Sender<Event>, client: Client, ns: &str, pod_name: &
                 ));
 
                 if state.terminated.is_some() {
-                    let handler = container_logs(tx.clone(), pod.clone(), pod_name, lp, prefix);
+                    let handler = container_logs(
+                        tx.clone(),
+                        Arc::clone(&buf),
+                        pod.clone(),
+                        pod_name,
+                        lp,
+                        prefix,
+                    );
+
                     handler.await.unwrap();
                 } else {
                     let handlers = container_log_stream(
@@ -65,6 +73,7 @@ pub async fn log_stream(tx: Sender<Event>, client: Client, ns: &str, pod_name: &
                         Arc::clone(&buf),
                         prefix,
                     );
+
                     container_handler.push(handlers);
                 }
             }
@@ -79,6 +88,7 @@ pub async fn log_stream(tx: Sender<Event>, client: Client, ns: &str, pod_name: &
                 let tx = tx.clone();
 
                 let mut lp = lp.clone();
+
                 lp.container = Some(c.name.clone());
 
                 let prefix = if 1 < container_count {
@@ -120,21 +130,23 @@ async fn send_loop(tx: Sender<Event>, buf: BufType) {
 
     loop {
         interval.tick().await;
-        let rbuf = buf.read().await;
+        let mut buf = buf.write().await;
 
-        if !rbuf.is_empty() {
-            tx.send(Event::Kube(Kube::LogStreamResponse(Ok(rbuf.clone()))))
+        if !buf.is_empty() {
+            #[cfg(feature = "logging")]
+            ::log::debug!("log_stream Send log stream {}", buf.len());
+
+            tx.send(Event::Kube(Kube::LogStreamResponse(Ok(buf.clone()))))
                 .unwrap();
 
-            let mut wbuf = buf.write().await;
-
-            wbuf.clear();
+            buf.clear();
         }
     }
 }
 
 fn container_logs(
     tx: Sender<Event>,
+    buf: BufType,
     pod: Api<Pod>,
     pod_name: &str,
     lp: LogParams,
@@ -151,14 +163,17 @@ fn container_logs(
 
         let logs = pod.logs(&pod_name, &lp).await.unwrap();
 
-        let mut buf = Vec::new();
-
         for line in logs.lines() {
-            buf.push(format!("{}{}", prefix, line));
+            let mut wbuf = buf.write().await;
+            wbuf.push(format!("{}{}", prefix, line));
         }
 
-        tx.send(Event::Kube(Kube::LogStreamResponse(Ok(buf))))
+        let mut wbuf = buf.write().await;
+
+        tx.send(Event::Kube(Kube::LogStreamResponse(Ok(wbuf.clone()))))
             .unwrap();
+
+        wbuf.clear();
     })
 }
 
@@ -191,7 +206,7 @@ async fn get_log_stream(buf: BufType, args: LogStreamArgs) -> Result<()> {
         buf.push(format!("{}{}", prefix, String::from_utf8_lossy(&line)));
 
         #[cfg(feature = "logging")]
-        ::log::info!(
+        ::log::debug!(
             "log_stream {}: {}",
             pod_name,
             String::from_utf8_lossy(&line)
