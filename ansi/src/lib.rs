@@ -29,6 +29,7 @@ pub enum AnsiEscapeSequence {
     CursorHide,
     SetMode(u8),
     ResetMode(u8),
+    NotSupported,
 }
 
 #[derive(Debug, PartialEq)]
@@ -91,7 +92,7 @@ impl<'a> Iterator for TextIterator<'a> {
                             let end = text.len() - ret.0.len();
                             Some(Text::new(&text[..end], ret.1))
                         }
-                        Err(_) => Some(Text::new("\x1b", Escape)),
+                        Err(_) => None,
                     }
                 } else {
                     let ret = &text[..pos];
@@ -186,5 +187,16 @@ mod parse_test {
         assert_eq!(iter.next(), Some(Text::new("\x1b[1A", CursorUp(1))));
         assert_eq!(iter.next(), Some(Text::new("text", Chars)));
         assert_eq!(iter.next(), Some(Text::new("\x1b[1B", CursorDown(1))));
+    }
+
+    mod not_support {
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn unknown() {
+            let mut iter = "\x1b]6;1;bg;green;brightness;26\x07".ansi_parse();
+            assert_eq!(iter.next(), None);
+        }
     }
 }
