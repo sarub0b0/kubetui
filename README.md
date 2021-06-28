@@ -15,6 +15,7 @@ FLAGS:
     -V, --version    Prints version information
 
 OPTIONS:
-    -s, --split-mode <direction>    Window split mode [default: vertical]  [possible values: vertical, v, horizontal, h]
+    -s, --split-mode <direction>
+            Window split mode [default: vertical]
+            [possible values: vertical, v, horizontal, h]
 ```
-
