@@ -121,51 +121,46 @@ impl<'a> InnerItem<'a> {
             return;
         }
 
-        let mut margin = 0;
+        let mut need_margin = false;
 
         self.widget_rows = self
             .rows
             .iter()
             .map(|row| {
-                let cells: Vec<(Cell, usize)> = row
+                let mut row_height = 1;
+
+                let cells: Vec<Cell> = row
                     .iter()
                     .cloned()
                     .enumerate()
                     .map(|(i, cell)| {
                         let wrapped = wrap_line(&cell, self.digits[i]);
 
-                        let mut height = 1;
-                        if height < wrapped.len() {
-                            height = wrapped.len();
-                            margin = 1;
+                        let wrapped_len = wrapped.len();
+                        if row_height < wrapped_len {
+                            need_margin = true;
+
+                            row_height = wrapped_len;
                         }
 
-                        (Cell::from(generate_spans_line(&wrapped)), height)
+                        Cell::from(generate_spans_line(&wrapped))
                     })
                     .collect();
 
-                let height = if let Some((_, h)) = cells.iter().max_by_key(|(_, h)| h) {
-                    *h
-                } else {
-                    1
-                };
-
-                let cells = cells.into_iter().map(|(c, _)| c);
-
                 InnerRow {
-                    row: Row::new(cells).height(height as u16),
-                    height,
+                    row: Row::new(cells).height(row_height as u16),
+                    height: row_height,
                 }
             })
             .collect();
 
-        if margin == 1 {
+        if need_margin {
             self.widget_rows = self
                 .widget_rows
                 .iter()
                 .cloned()
                 .map(|r| InnerRow {
-                    row: r.row.bottom_margin(margin),
+                    row: r.row.bottom_margin(1),
                     ..r
                 })
                 .collect();
@@ -204,7 +199,7 @@ impl<'a> InnerItem<'a> {
             + (COLUMN_SPACING as usize * self.digits.len().saturating_sub(1));
 
         if self.max_width < sum_width {
-            let index_of_long_digits = self
+            let index_of_longest_digits = self
                 .digits
                 .iter()
                 .enumerate()
@@ -217,7 +212,7 @@ impl<'a> InnerItem<'a> {
                 .iter()
                 .enumerate()
                 .filter_map(|(i, w)| {
-                    if i == index_of_long_digits {
+                    if i == index_of_longest_digits {
                         None
                     } else {
                         Some(w)
@@ -225,7 +220,7 @@ impl<'a> InnerItem<'a> {
                 })
                 .sum();
 
-            self.digits[index_of_long_digits] = self.max_width.saturating_sub(
+            self.digits[index_of_longest_digits] = self.max_width.saturating_sub(
                 (COLUMN_SPACING as usize * self.digits.len().saturating_sub(1)) + sum_width,
             );
         }
@@ -431,8 +426,9 @@ impl WidgetTrait for Table<'_> {
 
         match ev.kind {
             MouseEventKind::Down(MouseButton::Left) => {
-                let offset = self.state.offset();
-                let offset_bound = self.row_bounds[offset];
+                let offset_index = self.state.offset();
+                let offset_bound = self.row_bounds[offset_index];
+                let offset_row = offset_bound.0;
 
                 let header_margin = if self.items.header.is_empty() {
                     0
@@ -441,16 +437,26 @@ impl WidgetTrait for Table<'_> {
                 };
 
                 if let Some((index, _)) =
-                    self.row_bounds[offset..].iter().enumerate().find(|(_, b)| {
-                        let b = (
-                            b.0 - offset_bound.0 + header_margin,
-                            b.1 - offset_bound.1 + header_margin,
-                        );
+                    self.row_bounds[offset_index..]
+                        .iter()
+                        .enumerate()
+                        .find(|(_, b)| {
+                            let b = (
+                                b.0.saturating_sub(offset_row) + header_margin,
+                                b.1.saturating_sub(offset_row) + header_margin,
+                            );
 
-                        b.0 <= row && row <= b.1
-                    })
+                            #[cfg(feature = "logging")]
+                            log::debug!(
+                                "table::on_mouse_event Mouse {:?}, row_bounds {:?} ",
+                                ev,
+                                b
+                            );
+
+                            b.0 <= row && row <= b.1
+                        })
                 {
-                    self.state.select(Some(index + offset));
+                    self.state.select(Some(index + offset_index));
                     return EventResult::Callback(self.on_select_callback());
                 }
             }
