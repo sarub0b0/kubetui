@@ -57,7 +57,7 @@ Popup window (exist input form)
 | <kbd>ESC</kbd>                                                       | Close the window, or terminate the app (when the popup is not opening) |
 | Input form                                                           |                                                                        |
 | <kbd>Home</kbd>                                                      | Move the cursor to the start                                           |
-| <kbd>End></kbd>                                                      | Move the cursor to the end                                             |
+| <kbd>End</kbd>                                                       | Move the cursor to the end                                             |
 | <kbd>Ctrl+w</kbd>                                                    | Delete the text from the cursor position to the start                  |
 | <kbd>Ctrl+k</kbd>                                                    | Delete the text from the cursor position to the end                    |
 | <kbd>Left</kbd>, <kbd>Right</kbd>                                    | Move the cursor to a (back, forward) character                         |
