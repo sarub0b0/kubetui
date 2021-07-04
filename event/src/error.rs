@@ -11,6 +11,10 @@ pub enum Error {
     Mock(&'static str),
     #[error("kubeError: {0}")]
     Kube(#[from] kube::Error),
+    #[error("{0}")]
+    Raw(String),
+    #[error(transparent)]
+    IO(#[from] std::io::Error),
 }
 
 #[cfg(not(any(feature = "mock", feature = "mock-failed")))]

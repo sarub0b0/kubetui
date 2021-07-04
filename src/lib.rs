@@ -83,10 +83,7 @@ fn update_widget_item_for_table(window: &mut Window, id: &str, table: Result<Kub
             }
         }
         Err(e) => {
-            w.update_header_and_rows(
-                &["ERROR".to_string()],
-                &[vec![error_format!("{}", e.to_string())]],
-            );
+            w.update_header_and_rows(&["ERROR".to_string()], &[vec![error_format!("{}", e)]]);
         }
     }
 }
@@ -102,16 +99,6 @@ fn update_widget_item_for_vec(window: &mut Window, id: &str, vec: Result<Vec<Str
         }
     }
 }
-
-// fn update_widget_item_for_table_for_error(window: &mut Window, id: &str, content: String) {
-//     let widget = window.find_widget_mut(id);
-//     let w = widget.as_mut_table();
-
-//     w.update_header_and_rows(
-//         &["ERROR".to_string()],
-//         &[vec![error_format!("{}", content)]],
-//     );
-// }
 
 pub fn update_contents(
     window: &mut Window,

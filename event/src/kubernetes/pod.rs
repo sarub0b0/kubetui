@@ -14,7 +14,7 @@ use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 
 use kube::{api::Resource, Client};
 
-use super::Result;
+use crate::error::Result;
 
 #[allow(dead_code)]
 pub struct PodInfo {
@@ -150,8 +150,7 @@ async fn get_pods_per_namespace(
     _: &str,
     _: &[String],
 ) -> Result<Vec<Vec<Vec<String>>>> {
-    use crate::Error;
-
+    use crate::error::Error;
     Err(Error::Mock("Mock get_pods_per_namespace failed"))
 }
 
