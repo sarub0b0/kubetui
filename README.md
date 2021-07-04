@@ -2,14 +2,9 @@
 
 <!-- ## Features -->
 
-
 ## Command Option
 
 ```sh
-kubetui 0.4.1
-kosay <ekr59uv25@gmail.com>
-
-
 USAGE:
     kubetui [OPTIONS]
 
@@ -46,7 +41,6 @@ View control
 | <kbd>g</kbd>                                                                                         | Go to the first item / Go to the top of the view   |
 | <kbd>G</kbd>                                                                                         | Go to the last item / Go to the bottom of the view |
 
-
 Popup window (exist input form)
 
 | Key                                                                  | Description                                                            |
@@ -76,4 +70,3 @@ Popup window (exist input form)
 | <kbd>Ctrl+a</kbd>                       | <kbd>Home</kbd>   |
 | <kbd>Ctrl+e</kbd>                       | <kbd>End</kbd>    |
 | <kbd>Ctrl+[</kbd>                       | <kbd>Esc</kbd>    |
-
