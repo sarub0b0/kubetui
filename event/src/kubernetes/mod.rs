@@ -3,6 +3,7 @@ mod config;
 mod context;
 mod event;
 mod log;
+mod metric_type;
 mod pod;
 mod request;
 mod v1_table;

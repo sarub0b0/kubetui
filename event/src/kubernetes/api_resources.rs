@@ -19,6 +19,7 @@ use serde_json::Value as JsonValue;
 
 use std::collections::{HashMap, HashSet};
 
+use super::metric_type::*;
 use crate::error::Result;
 
 #[derive(Debug, Clone)]
@@ -238,6 +239,30 @@ fn header_by_api_info(info: &APIInfo) -> String {
     }
 }
 
+async fn try_fetch_table(client: &Client, server_url: &str, path: String) -> Result<Table> {
+    let table = client
+        .request::<Table>(get_table_request(server_url, &path)?)
+        .await;
+
+    if let Ok(t) = table {
+        return Ok(t);
+    }
+
+    let table = client
+        .request::<NodeMetricsList>(get_table_request(server_url, &path)?)
+        .await;
+
+    if let Ok(t) = table {
+        return Ok(t.into());
+    }
+
+    let table = client
+        .request::<PodMetricsList>(get_table_request(server_url, &path)?)
+        .await?;
+
+    Ok(table.into())
+}
+
 struct FetchData {
     namespace: String,
     table: Table,
@@ -249,9 +274,7 @@ async fn fetch_table_per_namespace(
     path: String,
     ns: &str,
 ) -> Result<FetchData> {
-    let table = client
-        .request::<Table>(get_table_request(server_url, &path)?)
-        .await?;
+    let table = try_fetch_table(client, server_url, path).await?;
 
     Ok(FetchData {
         namespace: ns.to_string(),
@@ -288,9 +311,7 @@ async fn get_table_cluster_resource(
     server_url: &str,
     path: String,
 ) -> Result<Table> {
-    Ok(client
-        .request::<Table>(get_table_request(server_url, &path)?)
-        .await?)
+    Ok(try_fetch_table(client, server_url, path).await?)
 }
 
 async fn get_api_resources(

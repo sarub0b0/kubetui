@@ -14,16 +14,12 @@ use crate::error::Result;
 #[derive(Default, Clone, Debug, Eq, PartialEq, Deserialize)]
 pub struct Value(pub JsonValue);
 
-// TODO Tableデータ構造にデコードできないAPIが存在する
-// - nodes.metrics.k8s.io
-// - pods.metrics.k8s.io
-
 #[derive(Default, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Table {
     #[serde(flatten)]
-    pub type_meta: TypeMeta,
-    pub list_meta: Option<ListMeta>,
+    pub type_meta: Option<TypeMeta>,
+    pub metadata: Option<ListMeta>,
     pub column_definitions: Vec<TableColumnDefinition>,
     #[serde(deserialize_with = "deserialize_unwrap_or_default")]
     pub rows: Vec<TableRow>,
@@ -235,6 +231,48 @@ impl Table {
     }
 }
 
+use super::metric_type::{NodeMetricsList, PodMetricsList};
+
+impl From<NodeMetricsList> for Table {
+    fn from(list: NodeMetricsList) -> Self {
+        Table {
+            column_definitions: vec![TableColumnDefinition {
+                name: "Name".into(),
+                ..Default::default()
+            }],
+            rows: list
+                .names()
+                .into_iter()
+                .map(|name| TableRow {
+                    cells: vec![Value(JsonValue::String(name))],
+                    ..Default::default()
+                })
+                .collect(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<PodMetricsList> for Table {
+    fn from(list: PodMetricsList) -> Self {
+        Table {
+            column_definitions: vec![TableColumnDefinition {
+                name: "Name".into(),
+                ..Default::default()
+            }],
+            rows: list
+                .names()
+                .into_iter()
+                .map(|name| TableRow {
+                    cells: vec![Value(JsonValue::String(name))],
+                    ..Default::default()
+                })
+                .collect(),
+            ..Default::default()
+        }
+    }
+}
+
 #[allow(dead_code)]
 pub fn insert_namespace_index(index: usize, len: usize) -> Option<usize> {
     if len != 1 {
@@ -282,7 +320,7 @@ mod tests {
         fn indexes_just() {
             let table = Table {
                 type_meta: Default::default(),
-                list_meta: None,
+                metadata: Default::default(),
                 column_definitions: vec![
                     TableColumnDefinition {
                         name: "A".to_string(),
