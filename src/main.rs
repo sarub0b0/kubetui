@@ -551,11 +551,12 @@ fn main() -> Result<()> {
     }));
 
     let config = configure();
+
     enable_raw_mode!();
 
-    run(config)?;
+    let result = run(config);
 
     disable_raw_mode!();
 
-    Ok(())
+    result
 }
