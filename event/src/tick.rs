@@ -10,6 +10,11 @@ use tokio::runtime::Runtime;
 use tokio::time;
 
 pub fn tick(tx: Sender<Event>, rate: time::Duration, is_terminated: Arc<AtomicBool>) {
+    let is_terminated_clone = is_terminated.clone();
+    panic_set_hook!({
+        is_terminated_clone.store(true, std::sync::atomic::Ordering::Relaxed);
+    });
+
     let rt = Runtime::new().unwrap();
 
     rt.block_on(async move {

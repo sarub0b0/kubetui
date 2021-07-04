@@ -6,14 +6,18 @@ use std::{
     time::Duration,
 };
 
-use super::Event;
-use crate::UserEvent;
+use super::*;
 
 use crossbeam::channel::Sender;
 
 use crossterm::event::{poll, read, Event as CEvent};
 
 pub fn read_key(tx: Sender<Event>, is_terminated: Arc<AtomicBool>) {
+    let is_terminated_clone = is_terminated.clone();
+    panic_set_hook!({
+        is_terminated_clone.store(true, std::sync::atomic::Ordering::Relaxed);
+    });
+
     while !is_terminated.load(Ordering::Relaxed) {
         if let Ok(true) = poll(Duration::from_secs(1)) {
             if let Ok(ev) = read() {

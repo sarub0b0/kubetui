@@ -31,7 +31,10 @@ use kube::{
     Client,
 };
 
-use crate::error::{Error, Result};
+use crate::{
+    error::{Error, Result},
+    panic_set_hook,
+};
 
 pub use kube;
 
@@ -225,6 +228,11 @@ pub fn kube_process(
     rx: Receiver<Event>,
     is_terminated: Arc<AtomicBool>,
 ) -> Result<()> {
+    let is_terminated_clone = is_terminated.clone();
+    panic_set_hook!({
+        is_terminated_clone.store(true, std::sync::atomic::Ordering::Relaxed);
+    });
+
     let rt = Runtime::new()?;
 
     rt.block_on(inner_kube_process(tx, rx, is_terminated))?;

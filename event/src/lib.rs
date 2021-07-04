@@ -37,3 +37,17 @@ pub enum Event {
     User(UserEvent),
     Tick,
 }
+
+use std::panic;
+#[macro_export]
+macro_rules! panic_set_hook {
+    ($t:tt) => {
+        let default_hook = panic::take_hook();
+
+        panic::set_hook(Box::new(move |info| {
+            $t;
+
+            default_hook(info);
+        }));
+    };
+}
