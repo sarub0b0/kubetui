@@ -1,5 +1,6 @@
 # kubetui
 
+![](screenshots/example.png)
 <!-- ## Features -->
 
 ## Command Option
@@ -70,3 +71,36 @@ Popup window (exist input form)
 | <kbd>Ctrl+a</kbd>                       | <kbd>Home</kbd>   |
 | <kbd>Ctrl+e</kbd>                       | <kbd>End</kbd>    |
 | <kbd>Ctrl+[</kbd>                       | <kbd>Esc</kbd>    |
+
+## Screenshots
+
+### Watch Resources
+
+pods list / log
+
+![](screenshots/pods-log.png)
+
+ConfigMap / Secret
+
+![](screenshots/configs.png)
+
+Events
+
+![](screenshots/events.png)
+
+APIs
+
+![](screenshots/apis.png)
+
+
+### Select Items
+
+Select namespaces
+
+![](screenshots/select-namespace.png)
+
+![](screenshots/select-multiple-namespaces.png)
+
+Select apis
+
+![](screenshots/select-apis.png)
