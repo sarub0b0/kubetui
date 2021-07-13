@@ -13,7 +13,7 @@ Kubernetes resource watching tool
 - Specific resources watching
 - Namespace multiple selections
 - Support unix like key bindings
-
+- Support mouse event
 
 ## Command Option
 
@@ -107,9 +107,11 @@ APIs
 
 ### Select Items
 
-Select namespaces
+Select namespaces (single)
 
 ![](screenshots/select-namespace.png)
+
+Select namespaces (multiple)
 
 ![](screenshots/select-multiple-namespaces.png)
 
