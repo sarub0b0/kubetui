@@ -1,7 +1,19 @@
 # kubetui
 
+Kubernetes resource watching tool
+
 ![](screenshots/example.png)
-<!-- ## Features -->
+
+
+## Features
+
+- Pods list and container logs watching
+- ConfigMap and secret watching, and data decoding
+- Events watching
+- Specific resources watching
+- Namespace multiple selections
+- Support unix like key bindings
+
 
 ## Command Option
 
