@@ -329,10 +329,7 @@ impl<'a> Window<'a> {
 }
 
 fn datetime() -> Span<'static> {
-    Span::raw(format!(
-        " {}",
-        Local::now().format("%Y年%m月%d日 %H時%M分%S秒")
-    ))
+    Span::raw(format!(" {}", Local::now().format("%F %T %z")))
 }
 
 pub enum WindowEvent {
