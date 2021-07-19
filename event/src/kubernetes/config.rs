@@ -9,7 +9,7 @@ use k8s_openapi::api::core::v1::{ConfigMap, Secret};
 
 use kube::{Api, Client};
 
-use crate::error::{Error, Result};
+use crate::error::{anyhow, Error, Result};
 
 #[derive(Clone, Copy)]
 enum Configs {
@@ -149,9 +149,9 @@ pub async fn get_config(client: Client, ns: &str, kind: &str, name: &str) -> Res
                 })
                 .collect())
         }
-        _ => Err(Error::Raw(format!(
+        _ => Err(anyhow!(Error::Raw(format!(
             "Invalid kind [{}]. Set kind ConfigMap or Secret",
             kind
-        ))),
+        )))),
     }
 }

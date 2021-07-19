@@ -14,7 +14,7 @@ use kube::{api::LogParams, Api, Client};
 
 use color::Color;
 
-use crate::error::{Error, Result};
+use crate::error::{anyhow, Error, Result};
 
 type BufType = Arc<RwLock<Vec<String>>>;
 
@@ -118,7 +118,9 @@ pub async fn log_stream(tx: Sender<Event>, client: Client, ns: &str, pod_name: &
             container_handler.push(handler);
         }
         Err(err) => tx
-            .send(Event::Kube(Kube::LogStreamResponse(Err(Error::Kube(err)))))
+            .send(Event::Kube(Kube::LogStreamResponse(Err(anyhow!(
+                Error::Kube(err)
+            )))))
             .unwrap(),
     }
 
@@ -235,7 +237,7 @@ async fn get_log_stream(buf: BufType, _: LogStreamArgs) -> Result<()> {
 
 #[cfg(feature = "mock-failed")]
 async fn get_log_stream(buf: BufType, _: LogStreamArgs) -> Result<()> {
-    Err(Error::Mock("get_log_stream failed"))
+    Err(anyhow!(Error::Mock("get_log_stream failed")))
 }
 
 fn container_log_stream(

@@ -150,8 +150,8 @@ async fn get_pods_per_namespace(
     _: &str,
     _: &[String],
 ) -> Result<Vec<Vec<Vec<String>>>> {
-    use crate::error::Error;
-    Err(Error::Mock("Mock get_pods_per_namespace failed"))
+    use crate::error::{anyhow, Error};
+    Err(anyhow!(Error::Mock("Mock get_pods_per_namespace failed")))
 }
 
 async fn get_pod_info(
