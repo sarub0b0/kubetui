@@ -48,7 +48,7 @@ pub async fn log_stream(tx: Sender<Event>, client: Client, ns: &str, pod_name: &
 
                 let prefix = Some(format!(
                     "\x1b[{}m[init-{}:{}]\x1b[39m",
-                    color.next().unwrap(),
+                    color.next_color(),
                     i,
                     c.name
                 ));
@@ -92,11 +92,7 @@ pub async fn log_stream(tx: Sender<Event>, client: Client, ns: &str, pod_name: &
                 lp.container = Some(c.name.clone());
 
                 let prefix = if 1 < container_count {
-                    Some(format!(
-                        "\x1b[{}m[{}]\x1b[39m",
-                        color.next().unwrap(),
-                        c.name
-                    ))
+                    Some(format!("\x1b[{}m[{}]\x1b[39m", color.next_color(), c.name))
                 } else {
                     None
                 };
@@ -307,17 +303,13 @@ mod color {
         pub fn new() -> Self {
             Self { index: 0 }
         }
-    }
 
-    impl Iterator for Color {
-        type Item = u8;
-
-        fn next(&mut self) -> Option<Self::Item> {
+        pub fn next_color(&mut self) -> u8 {
             if COLOR.len() <= self.index {
                 self.index = 0;
             }
             self.index += 1;
-            Some(COLOR[self.index - 1])
+            COLOR[self.index - 1]
         }
     }
 
@@ -328,37 +320,37 @@ mod color {
         #[test]
         fn color_default() {
             let mut color = Color::new();
-            assert_eq!(color.next().unwrap(), 32)
+            assert_eq!(color.next_color(), 32)
         }
 
         #[test]
         fn color_next_1() {
             let mut color = Color::new();
-            color.next();
-            assert_eq!(color.next().unwrap(), 33)
+            color.next_color();
+            assert_eq!(color.next_color(), 33)
         }
 
         #[test]
         fn color_next_last() {
             let mut color = Color::new();
-            color.next();
-            color.next();
-            color.next();
-            color.next();
-            color.next();
-            assert_eq!(color.next().unwrap(), 37)
+            color.next_color();
+            color.next_color();
+            color.next_color();
+            color.next_color();
+            color.next_color();
+            assert_eq!(color.next_color(), 37)
         }
 
         #[test]
         fn color_next_loop() {
             let mut color = Color::new();
-            color.next();
-            color.next();
-            color.next();
-            color.next();
-            color.next();
-            color.next();
-            assert_eq!(color.next().unwrap(), 32)
+            color.next_color();
+            color.next_color();
+            color.next_color();
+            color.next_color();
+            color.next_color();
+            color.next_color();
+            assert_eq!(color.next_color(), 32)
         }
     }
 }
