@@ -12,7 +12,7 @@ mock = []
 mock-failed = [ "hyper" ]
 
 [dependencies]
-crossterm = "0.19"
+crossterm = "0.21"
 kube = "0.57"
 kube-runtime = "0.57"
 k8s-openapi = { version = "0.12", default-features = false, features = ["v1_20"] }
