@@ -26,4 +26,12 @@ pub enum Error {
     Raw(String),
     #[error(transparent)]
     IO(#[from] std::io::Error),
+    #[error(transparent)]
+    Pod(#[from] PodError),
+}
+
+#[derive(Debug, TError)]
+pub enum PodError {
+    #[error("ContainerExitCodeNotZero: {0}")]
+    ContainerExitCodeNotZero(String, Vec<String>),
 }

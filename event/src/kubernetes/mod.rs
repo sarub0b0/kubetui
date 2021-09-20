@@ -119,7 +119,7 @@ pub struct KubeArgs {
     pub is_terminated: Arc<AtomicBool>,
 }
 
-pub struct Handlers(Vec<JoinHandle<()>>);
+pub struct Handlers(Vec<JoinHandle<Result<()>>>);
 
 impl Handlers {
     fn abort(&self) {

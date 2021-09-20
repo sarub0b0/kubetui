@@ -10,6 +10,7 @@ edition = "2018"
 logging = [ "log" ]
 mock = []
 mock-failed = [ "hyper" ]
+new-log-stream = []
 
 [dependencies]
 crossterm = "0.19"
