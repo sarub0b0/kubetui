@@ -123,7 +123,7 @@ impl ToTime for str {
             }
         }
 
-        let (s, hour) = parse(&self, 'h');
+        let (s, hour) = parse(self, 'h');
         let (s, minute) = parse(s, 'm');
         let (_s, second) = parse(s, 's');
 
@@ -286,7 +286,7 @@ pub fn insert_ns(namespaces: &[String]) -> bool {
     namespaces.len() != 1
 }
 
-pub async fn get_resourse_per_namespace<F>(
+pub async fn get_resource_per_namespace<F>(
     client: &Client,
     server_url: &str,
     path: String,
@@ -305,7 +305,7 @@ where
     Ok(table
         .rows
         .iter()
-        .map(|row| (create_cells)(&row, &indexes))
+        .map(|row| (create_cells)(row, &indexes))
         .collect())
 }
 

@@ -166,7 +166,7 @@ pub fn update_contents(
                 .as_mut_multiple_select();
 
             if widget.selected_items().is_empty() {
-                widget.select_item(&current_namespace)
+                widget.select_item(current_namespace)
             }
         }
 

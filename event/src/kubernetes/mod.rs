@@ -168,7 +168,7 @@ async fn inner_kube_process(
 
     let api_resources: ApiResources = Arc::new(RwLock::new(Vec::new()));
 
-    let server_url = cluster_server_url(&kubeconfig, &named_context)?;
+    let server_url = cluster_server_url(&kubeconfig, named_context)?;
 
     let client = Client::try_default().await?;
 
@@ -310,7 +310,7 @@ async fn main_loop(
                         .unwrap();
                     }
                     Kube::GetAPIsRequest => {
-                        let apis = apis_list(&client, server_url).await;
+                        let apis = apis_list(client, server_url).await;
 
                         tx.send(Event::Kube(Kube::GetAPIsResponse(apis))).unwrap();
                     }

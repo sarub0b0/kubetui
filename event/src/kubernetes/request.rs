@@ -22,7 +22,7 @@ pub fn get_table_request(server_url: &str, path: &str) -> Result<http::Request<V
 pub fn get_request(server_url: &str, path: &str) -> Result<http::Request<Vec<u8>>> {
     let request = Request::new(server_url);
 
-    let mut request = request.get(&path)?;
+    let mut request = request.get(path)?;
 
     request
         .headers_mut()

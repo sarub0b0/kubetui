@@ -39,9 +39,9 @@ async fn fetch_configs_per_namespace(
     namespaces: &[String],
     ty: Configs,
 ) -> Result<Vec<Vec<String>>> {
-    let insert_ns = insert_ns(&namespaces);
+    let insert_ns = insert_ns(namespaces);
     let jobs = try_join_all(namespaces.iter().map(|ns| {
-        get_resourse_per_namespace(
+        get_resource_per_namespace(
             client,
             server_url,
             format!("api/v1/namespaces/{}/{}", ns, ty.kind()),
@@ -123,7 +123,7 @@ pub async fn configs_loop(
 pub async fn get_config(client: Client, ns: &str, kind: &str, name: &str) -> Result<Vec<String>> {
     match kind {
         "ConfigMap" => {
-            let cms: Api<ConfigMap> = Api::namespaced(client, &ns);
+            let cms: Api<ConfigMap> = Api::namespaced(client, ns);
             let cm = cms.get(name).await?;
             Ok(cm
                 .data
@@ -132,7 +132,7 @@ pub async fn get_config(client: Client, ns: &str, kind: &str, name: &str) -> Res
                 .collect())
         }
         "Secret" => {
-            let secs: Api<Secret> = Api::namespaced(client, &ns);
+            let secs: Api<Secret> = Api::namespaced(client, ns);
             let sec = secs.get(name).await?;
 
             Ok(sec

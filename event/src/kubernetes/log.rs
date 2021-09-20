@@ -597,6 +597,7 @@ enum ContainerType {
     Container,
 }
 
+#[allow(dead_code)]
 enum ContainerStateType {
     Terminated,
     Running,
@@ -691,7 +692,7 @@ fn is_terminated(status: &ContainerStatus) -> (bool, Option<ContainerState>) {
         }
     }
 
-    return (false, None);
+    (false, None)
 }
 
 #[cfg(not(any(feature = "mock", feature = "mock-failed")))]

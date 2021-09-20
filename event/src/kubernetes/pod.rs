@@ -70,7 +70,7 @@ async fn get_pods_per_namespace(
 ) -> Result<Vec<Vec<Vec<String>>>> {
     let insert_ns = insert_ns(namespaces);
     try_join_all(namespaces.iter().map(|ns| {
-        get_resourse_per_namespace(
+        get_resource_per_namespace(
             client,
             server_url,
             format!("api/v1/namespaces/{}/{}", ns, "pods"),
