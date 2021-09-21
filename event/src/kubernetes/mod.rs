@@ -119,6 +119,7 @@ pub struct KubeArgs {
     pub is_terminated: Arc<AtomicBool>,
 }
 
+#[derive(Default, Debug)]
 pub struct Handlers(Vec<JoinHandle<Result<()>>>);
 
 impl Handlers {
