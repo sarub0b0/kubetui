@@ -6,7 +6,7 @@ use tokio::{sync::RwLock, task};
 
 use std::{sync::Arc, time};
 
-use crossbeam::channel::Sender;
+use crossbeam::{channel::Sender, epoch::Pointable};
 
 use k8s_openapi::{
     api::core::v1::{ContainerState, ContainerStatus, Event as v1Event, Pod},
@@ -807,6 +807,191 @@ mod msg {
     #[inline]
     pub fn error(fmt: impl Into<String>) -> String {
         format!("{}{}{}", ERR, fmt.into(), DEFAULT_COLOR)
+    }
+}
+
+pub struct LogWorkerBuilder {
+    tx: Sender<Event>,
+    client: Client,
+    ns: String,
+    pod_name: String,
+}
+
+impl LogWorkerBuilder {
+    fn build(tx: Sender<Event>, client: Client, ns: String, pod_name: String) -> LogWorker {
+        LogWorker {
+            tx,
+            client,
+            ns: ns.into(),
+            pod_name: pod_name.into(),
+            message_buffer: Default::default(),
+            pod: Default::default(),
+        }
+    }
+}
+
+pub struct LogWorker {
+    tx: Sender<Event>,
+    client: Client,
+    ns: String,
+    pod_name: String,
+    message_buffer: Arc<RwLock<Vec<String>>>,
+    pod: Arc<RwLock<Pod>>,
+}
+
+impl LogWorker {
+    pub fn run(&self) -> Handlers {
+        let send_message_handler = tokio::spawn(self.send_message());
+        let watch_pod_status_handler = tokio::spawn(self.watch_pod_status());
+        let fetch_log_stream_handler = tokio::spawn(self.fetch_log_stream());
+
+        Handlers(vec![
+            send_message_handler,
+            watch_pod_status_handler,
+            fetch_log_stream_handler,
+        ])
+    }
+}
+
+impl LogWorker {
+    fn watch_pod_status(&self) -> impl futures::Future<Output = Result<()>> {
+        let client = self.client.clone();
+        let ns = self.ns.clone();
+        let pod_name = self.pod_name.clone();
+        let pod = self.pod.clone();
+
+        async move {
+            let pod_api: Api<Pod> = Api::namespaced(client, &ns);
+
+            let lp = ListParams::default()
+                .fields(&format!("metadata.name={}", pod_name))
+                .timeout(180);
+
+            let mut watch = pod_api.watch(&lp, "0").await?.boxed();
+
+            while let Some(status) = watch.try_next().await? {
+                match status {
+                    WatchEvent::Added(p) | WatchEvent::Modified(p) | WatchEvent::Deleted(p) => {
+                        let mut pod = pod.write().await;
+                        *pod = p;
+                    }
+                    WatchEvent::Bookmark(_) => {}
+                    WatchEvent::Error(err) => return Err(anyhow!(err)),
+                }
+            }
+
+            Ok(())
+        }
+    }
+
+    fn send_message(&self) -> impl futures::Future<Output = Result<()>> {
+        let buf = self.message_buffer.clone();
+        let tx = self.tx.clone();
+
+        async move {
+            let mut interval = tokio::time::interval(time::Duration::from_millis(200));
+
+            loop {
+                interval.tick().await;
+                let mut buf = buf.write().await;
+
+                if !buf.is_empty() {
+                    #[cfg(feature = "logging")]
+                    ::log::debug!("log_stream Send log stream {}", buf.len());
+
+                    tx.send(Event::Kube(Kube::LogStreamResponse(Ok(buf.clone()))))?;
+
+                    buf.clear();
+                }
+            }
+        }
+    }
+
+    fn fetch_log_stream(&self) -> impl futures::Future<Output = Result<()>> {
+        let tx = self.tx.clone();
+        let client = self.client.clone();
+        let pod = self.pod.clone();
+        let ns = self.ns.clone();
+        let pod_name = self.pod_name.clone();
+        let buf = self.message_buffer.clone();
+
+        async move {
+            let pod_api: Api<Pod> = Api::namespaced(client.clone(), &ns);
+
+            match pod_api.get(&pod_name).await {
+                Ok(p) => {
+                    {
+                        let mut pod = pod.write().await;
+                        *pod = p.clone();
+                    }
+
+                    let pod_status = p.status.as_ref().unwrap();
+
+                    // initContainers phase
+                    let mut container_count = pod_status.init_container_statuses.len();
+
+                    let mut color = Color::new();
+
+                    let ret = phase_init_container_log(
+                        client.clone(),
+                        &pod_api,
+                        &pod_name,
+                        pod.clone(),
+                        &mut color,
+                        buf.clone(),
+                    )
+                    .await;
+
+                    #[cfg(feature = "logging")]
+                    ::log::info!("log_stream: phase_init_container_log done");
+
+                    if let Err(err) = ret {
+                        if let Some(PodError::ContainerExitCodeNotZero(_name, msg)) =
+                            err.downcast_ref::<PodError>()
+                        {
+                            tx.send(Event::Kube(Kube::LogStreamResponse(Ok(msg.to_vec()))))?;
+                        }
+
+                        return Err(err);
+                    }
+
+                    // containers phase
+                    container_count += pod_status.container_statuses.len();
+
+                    let ret = phase_container_log(
+                        tx.clone(),
+                        client.clone(),
+                        &pod_api,
+                        &pod_name,
+                        pod.clone(),
+                        &mut color,
+                        buf.clone(),
+                        container_count,
+                    )
+                    .await?;
+
+                    #[cfg(feature = "logging")]
+                    ::log::info!("log_stream: phase_container_log done");
+
+                    for r in ret {
+                        if let Err(e) = r {
+                            if let Some(PodError::ContainerExitCodeNotZero(_name, e)) =
+                                e.downcast_ref::<PodError>()
+                            {
+                                tx.send(Event::Kube(Kube::LogStreamResponse(Ok(e.to_vec()))))?;
+                            }
+
+                            return Err(e);
+                        }
+                    }
+                }
+                Err(err) => tx.send(Event::Kube(Kube::LogStreamResponse(Err(anyhow!(
+                    Error::Kube(err)
+                )))))?,
+            }
+
+            Ok(())
+        }
     }
 }
 
