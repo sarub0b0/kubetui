@@ -125,29 +125,32 @@ pub async fn get_config(client: Client, ns: &str, kind: &str, name: &str) -> Res
         "ConfigMap" => {
             let cms: Api<ConfigMap> = Api::namespaced(client, ns);
             let cm = cms.get(name).await?;
-            Ok(cm
-                .data
-                .iter()
-                .map(|(k, v)| format!("{}: {}", k, v))
-                .collect())
+            if let Some(data) = cm.data {
+                Ok(data.iter().map(|(k, v)| format!("{}: {}", k, v)).collect())
+            } else {
+                Err(anyhow!(Error::NoneParameter("configmap.data")))
+            }
         }
         "Secret" => {
             let secs: Api<Secret> = Api::namespaced(client, ns);
             let sec = secs.get(name).await?;
 
-            Ok(sec
-                .data
-                .iter()
-                .map(|(k, v)| {
-                    let decode = if let Ok(b) = std::str::from_utf8(&v.0) {
-                        b
-                    } else {
-                        unsafe { std::str::from_utf8_unchecked(&v.0) }
-                    };
+            if let Some(data) = sec.data {
+                Ok(data
+                    .iter()
+                    .map(|(k, v)| {
+                        let decode = if let Ok(b) = std::str::from_utf8(&v.0) {
+                            b
+                        } else {
+                            unsafe { std::str::from_utf8_unchecked(&v.0) }
+                        };
 
-                    format!("{}: {}", k, decode)
-                })
-                .collect())
+                        format!("{}: {}", k, decode)
+                    })
+                    .collect())
+            } else {
+                Err(anyhow!(Error::NoneParameter("secret.data")))
+            }
         }
         _ => Err(anyhow!(Error::Raw(format!(
             "Invalid kind [{}]. Set kind ConfigMap or Secret",

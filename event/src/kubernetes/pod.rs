@@ -8,11 +8,8 @@ use std::{sync::Arc, time};
 use crossbeam::channel::Sender;
 
 use futures::future::try_join_all;
-use k8s_openapi::api::core::v1::{ContainerStateTerminated, Pod, PodStatus};
 
-use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
-
-use kube::{api::Resource, Client};
+use kube::Client;
 
 use crate::error::Result;
 
@@ -184,133 +181,133 @@ async fn get_pod_info(
 }
 
 // 参考：https://github.com/astefanutti/kubebox/blob/4ae0a2929a17c132a1ea61144e17b51f93eb602f/lib/kubernetes.js#L7
-#[allow(dead_code)]
-pub fn get_status(pod: Pod) -> String {
-    let status: PodStatus;
-    let meta: &ObjectMeta = pod.meta();
+// #[allow(dead_code)]
+// pub fn get_status(pod: Pod) -> String {
+//     let status: PodStatus;
+//     let meta: &ObjectMeta = pod.meta();
 
-    match &pod.status {
-        Some(s) => {
-            status = s.clone();
-        }
-        None => return "".to_string(),
-    }
+//     match &pod.status {
+//         Some(s) => {
+//             status = s.clone();
+//         }
+//         None => return "".to_string(),
+//     }
 
-    if meta.deletion_timestamp.is_some() {
-        return "Terminating".to_string();
-    }
+//     if meta.deletion_timestamp.is_some() {
+//         return "Terminating".to_string();
+//     }
 
-    if let Some(reason) = &status.reason {
-        if reason == "Evicted" {
-            return "Evicted".to_string();
-        }
-    }
+//     if let Some(reason) = &status.reason {
+//         if reason == "Evicted" {
+//             return "Evicted".to_string();
+//         }
+//     }
 
-    let mut phase = status
-        .phase
-        .clone()
-        .or_else(|| status.reason.clone())
-        .unwrap();
+//     let mut phase = status
+//         .phase
+//         .clone()
+//         .or_else(|| status.reason.clone())
+//         .unwrap();
 
-    let mut initializing = false;
+//     let mut initializing = false;
 
-    let cs = &status.init_container_statuses;
+//     let cs = &status.init_container_statuses;
 
-    let find_terminated = cs.iter().enumerate().find(|(_, c)| {
-        let state = c.state.clone().unwrap();
-        let terminated = state.terminated;
+//     let find_terminated = cs.iter().enumerate().find(|(_, c)| {
+//         let state = c.state.clone().unwrap();
+//         let terminated = state.terminated;
 
-        !is_terminated_container(&terminated)
-    });
+//         !is_terminated_container(&terminated)
+//     });
 
-    if let Some((i, c)) = find_terminated {
-        let state = c.state.clone().unwrap();
-        let (terminated, waiting) = (state.terminated, state.waiting);
+//     if let Some((i, c)) = find_terminated {
+//         let state = c.state.clone().unwrap();
+//         let (terminated, waiting) = (state.terminated, state.waiting);
 
-        initializing = true;
+//         initializing = true;
 
-        phase = match terminated {
-            Some(terminated) => match terminated.reason {
-                Some(reason) => format!("Init:{}", reason),
-                None => {
-                    if let Some(s) = &terminated.signal {
-                        format!("Init:Signal:{}", s)
-                    } else {
-                        format!("Init:ExitCode:{}", terminated.exit_code)
-                    }
-                }
-            },
-            None => {
-                if let Some(waiting) = waiting {
-                    if let Some(reason) = &waiting.reason {
-                        if reason != "PodInitializing" {
-                            return format!("Init:{}", reason);
-                        }
-                    }
-                }
-                format!("Init:{}/{}", i, cs.len())
-            }
-        };
-    }
+//         phase = match terminated {
+//             Some(terminated) => match terminated.reason {
+//                 Some(reason) => format!("Init:{}", reason),
+//                 None => {
+//                     if let Some(s) = &terminated.signal {
+//                         format!("Init:Signal:{}", s)
+//                     } else {
+//                         format!("Init:ExitCode:{}", terminated.exit_code)
+//                     }
+//                 }
+//             },
+//             None => {
+//                 if let Some(waiting) = waiting {
+//                     if let Some(reason) = &waiting.reason {
+//                         if reason != "PodInitializing" {
+//                             return format!("Init:{}", reason);
+//                         }
+//                     }
+//                 }
+//                 format!("Init:{}/{}", i, cs.len())
+//             }
+//         };
+//     }
 
-    if !initializing {
-        let mut has_running = false;
+//     if !initializing {
+//         let mut has_running = false;
 
-        let cs = &status.container_statuses;
-        cs.iter().for_each(|c| {
-            let state = c.state.clone().unwrap();
+//         let cs = &status.container_statuses;
+//         cs.iter().for_each(|c| {
+//             let state = c.state.clone().unwrap();
 
-            let (running, terminated, waiting) = (state.running, state.terminated, state.waiting);
+//             let (running, terminated, waiting) = (state.running, state.terminated, state.waiting);
 
-            let mut signal = None;
-            let mut exit_code = 0;
+//             let mut signal = None;
+//             let mut exit_code = 0;
 
-            if let Some(terminated) = &terminated {
-                signal = terminated.signal;
-                exit_code = terminated.exit_code;
-            }
+//             if let Some(terminated) = &terminated {
+//                 signal = terminated.signal;
+//                 exit_code = terminated.exit_code;
+//             }
 
-            match &terminated {
-                Some(terminated) => {
-                    if let Some(reason) = &terminated.reason {
-                        phase = reason.clone();
-                    };
-                }
-                None => match &waiting {
-                    Some(waiting) => {
-                        phase = match &waiting.reason {
-                            Some(reason) => reason.clone(),
-                            None => {
-                                if let Some(signal) = signal {
-                                    format!("Signal:{}", signal)
-                                } else {
-                                    format!("ExitCode:{}", exit_code)
-                                }
-                            }
-                        };
-                    }
-                    None => {
-                        if running.is_some() && c.ready {
-                            has_running = true;
-                        }
-                    }
-                },
-            }
-        });
+//             match &terminated {
+//                 Some(terminated) => {
+//                     if let Some(reason) = &terminated.reason {
+//                         phase = reason.clone();
+//                     };
+//                 }
+//                 None => match &waiting {
+//                     Some(waiting) => {
+//                         phase = match &waiting.reason {
+//                             Some(reason) => reason.clone(),
+//                             None => {
+//                                 if let Some(signal) = signal {
+//                                     format!("Signal:{}", signal)
+//                                 } else {
+//                                     format!("ExitCode:{}", exit_code)
+//                                 }
+//                             }
+//                         };
+//                     }
+//                     None => {
+//                         if running.is_some() && c.ready {
+//                             has_running = true;
+//                         }
+//                     }
+//                 },
+//             }
+//         });
 
-        if phase == "Completed" && has_running {
-            phase = "Running".to_string();
-        }
-    }
+//         if phase == "Completed" && has_running {
+//             phase = "Running".to_string();
+//         }
+//     }
 
-    phase
-}
+//     phase
+// }
 
-fn is_terminated_container(terminated: &Option<ContainerStateTerminated>) -> bool {
-    if let Some(terminated) = terminated {
-        if terminated.exit_code == 0 {
-            return true;
-        }
-    }
-    false
-}
+// fn is_terminated_container(terminated: &Option<ContainerStateTerminated>) -> bool {
+//     if let Some(terminated) = terminated {
+//         if terminated.exit_code == 0 {
+//             return true;
+//         }
+//     }
+//     false
+// }
