@@ -1,6 +1,7 @@
 use super::{Event, Kube};
 use crate::{error::PodError, kubernetes::Handlers};
 
+use chrono::Local;
 use futures::{future::try_join_all, StreamExt, TryStreamExt};
 use tokio::{sync::RwLock, task::JoinHandle};
 
@@ -8,8 +9,9 @@ use std::{sync::Arc, time};
 
 use crossbeam::channel::Sender;
 
-use k8s_openapi::api::core::v1::{
-    Container, ContainerState, ContainerStatus, Event as v1Event, Pod,
+use k8s_openapi::{
+    api::core::v1::{Container, ContainerState, ContainerStatus, Event as v1Event, Pod},
+    apimachinery::pkg::apis::meta::v1::Time,
 };
 
 use kube::{
@@ -127,13 +129,13 @@ async fn wait_container_log(
     }
 }
 
-fn is_terminated(status: &ContainerStatus) -> (bool, Option<ContainerState>) {
+fn is_terminated(status: &ContainerStatus) -> bool {
     if let Some(last_state) = &status.last_state {
         if let Some(state) = &status.state {
             if let Some(waiting) = &state.waiting {
                 if let Some(reason) = &waiting.reason {
                     if reason == "CrashLoopBackOff" {
-                        return (true, Some(last_state.clone()));
+                        return true;
                     }
                 }
             }
@@ -141,7 +143,7 @@ fn is_terminated(status: &ContainerStatus) -> (bool, Option<ContainerState>) {
 
         if let Some(terminated) = &last_state.terminated {
             if terminated.exit_code != 0 {
-                return (true, Some(last_state.clone()));
+                return true;
             }
         }
     }
@@ -149,12 +151,12 @@ fn is_terminated(status: &ContainerStatus) -> (bool, Option<ContainerState>) {
     if let Some(state) = &status.state {
         if let Some(terminated) = &state.terminated {
             if terminated.exit_code != 0 {
-                return (true, Some(state.clone()));
+                return true;
             }
         }
     }
 
-    (false, None)
+    false
 }
 
 pub struct LogWorkerBuilder {
@@ -445,20 +447,20 @@ impl FetchLogStreamWorker {
             let status = &statuses[i];
 
             // exit_code を確認
-            if let (true, Some(state)) = is_terminated(status) {
+            if is_terminated(status) {
                 let container = pod.spec.as_ref().map(|spec| &spec.init_containers[i]);
 
                 let mut selector = format!(
-                    "involvedObject.name={},involvedObject.namespace={},involvedObject.fieldPath=spec.containers{{{}}}",
-                    self.pod_name, self.ns, status.name
-                );
+                        "involvedObject.name={},involvedObject.namespace={},involvedObject.fieldPath=spec.containers{{{}}}",
+                        self.pod_name, self.ns, status.name
+                    );
 
                 if let Some(uid) = &pod.metadata.uid {
                     selector += &format!(",involvedObject.uid={}", uid);
                 }
 
                 let msg = self
-                    .terminated_description(container, &state, status, &selector)
+                    .terminated_description(container, status, &selector)
                     .await?;
 
                 self.tx
@@ -539,7 +541,7 @@ impl FetchLogStreamWorker {
                 let status = &statuses[i];
 
                 // // exit_code を確認
-                if let (true, Some(state)) = is_terminated(status) {
+                if is_terminated(status) {
                     let container = pod.spec.as_ref().map(|spec| &spec.containers[i]);
 
                     let mut selector = format!(
@@ -552,7 +554,7 @@ impl FetchLogStreamWorker {
                     }
 
                     let msg = worker
-                        .terminated_description(container, &state, status, &selector)
+                        .terminated_description(container, status, &selector)
                         .await?;
 
                     tx.send(Event::Kube(Kube::LogStreamResponse(Err(anyhow!(
@@ -577,12 +579,98 @@ impl FetchLogStreamWorker {
     async fn terminated_description(
         &self,
         container: Option<&Container>,
-        state: &ContainerState,
         status: &ContainerStatus,
         selector: &String,
     ) -> Result<String> {
+        fn time_to_string(time: &Time) -> String {
+            time.0
+                .with_timezone(&Local)
+                .format("%a, %d %b %Y %T %z")
+                .to_string()
+        }
+
+        fn container_info(buf: &mut Vec<String>, container: Option<&Container>) {
+            if let Some(c) = container {
+                if let Some(image) = &c.image {
+                    buf.push(format!("  Image:       {}", image));
+                }
+
+                buf.push("  Command:".into());
+
+                for command in &c.command {
+                    buf.push(format!("    {}", command));
+                }
+
+                buf.push("  Args:".into());
+
+                for arg in &c.args {
+                    buf.push(format!("    {}", arg));
+                }
+            }
+        }
+        fn container_status(buf: &mut Vec<String>, status: &ContainerStatus) {
+            fn terminated(buf: &mut Vec<String>, state: &ContainerState, state_type: &str) {
+                if let Some(terminated) = &state.terminated {
+                    buf.push(state_type.into());
+
+                    buf.push(format!("    Exit Code: {}", terminated.exit_code));
+
+                    if let Some(message) = &terminated.message {
+                        buf.push(format!("    Message:   {}", message));
+                    }
+
+                    if let Some(reason) = &terminated.reason {
+                        buf.push(format!("    Reason:    {}", reason));
+                    }
+
+                    if let Some(started_at) = &terminated.started_at {
+                        buf.push(format!("    Started:   {}", time_to_string(started_at)));
+                    }
+
+                    if let Some(finished_at) = &terminated.finished_at {
+                        buf.push(format!("    Finished:  {}", time_to_string(finished_at)));
+                    }
+                }
+            }
+
+            fn waiting(buf: &mut Vec<String>, state: &ContainerState, state_type: &str) {
+                if let Some(waiting) = &state.waiting {
+                    buf.push(state_type.into());
+
+                    // if let Some(message) = &waiting.message {
+                    //     buf.push(format!("    Message:   {}", message));
+                    // }
+
+                    if let Some(reason) = &waiting.reason {
+                        buf.push(format!("    Reason:    {}", reason));
+                    }
+                }
+            }
+
+            fn running(buf: &mut Vec<String>, state: &ContainerState, state_type: &str) {
+                if let Some(running) = &state.running {
+                    buf.push(state_type.into());
+
+                    if let Some(started_at) = &running.started_at {
+                        buf.push(format!("    Started:   {}", time_to_string(started_at)));
+                    }
+                }
+            }
+
+            if let Some(state) = &status.state {
+                terminated(buf, state, "  State:       Terminated");
+                waiting(buf, state, "  State:       Waiting");
+                running(buf, state, "  State:       Running");
+            }
+
+            if let Some(last_state) = &status.last_state {
+                terminated(buf, last_state, "  Last State:  Terminated");
+                waiting(buf, last_state, "  Last State:  Waiting");
+                running(buf, last_state, "  Last State:  Running");
+            }
+        }
+
         let mut msg = Vec::new();
-        // terminatedはある前提
 
         let title = format!(" Error {} ", status.name);
         let msg_header = format!("\n\x1b[31m{:=^1$}\x1b[39m\n", title, 30);
@@ -591,25 +679,9 @@ impl FetchLogStreamWorker {
         msg.push(msg_header);
 
         msg.push("Info:".into());
-        if let Some(terminated) = &state.terminated {
-            msg.push(format!("  ExitCode: {}", terminated.exit_code));
 
-            if let Some(message) = &terminated.message {
-                msg.push(format!("  Message: {}", message));
-            }
-
-            if let Some(reason) = &terminated.reason {
-                msg.push(format!("  Reason: {}", reason));
-            }
-        }
-
-        if let Some(c) = container {
-            if let Some(image) = &c.image {
-                msg.push(format!("  Image: {}", image));
-            }
-            msg.push(format!("  Command: {:?}", c.command));
-            msg.push(format!("  Args: {:?}", c.args));
-        }
+        container_info(&mut msg, container);
+        container_status(&mut msg, status);
 
         let event: Api<v1Event> = Api::namespaced(self.client.clone(), &self.ns);
         let lp = ListParams::default().fields(&selector);
