@@ -9,10 +9,6 @@ mod request;
 mod v1_table;
 
 use self::event::event_loop;
-
-#[allow(unused_imports)]
-use self::log::log_stream;
-
 use super::Event;
 use api_resources::{apis_list, apis_loop};
 use config::{configs_loop, get_config};

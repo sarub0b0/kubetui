@@ -26,7 +26,7 @@ tui-wrapper = { path = "./tui-wrapper" }
 log4rs = { version = "1", optional = true }
 log = { version = "0.4", optional = true }
 
-event = { path = "./event", features = [ "new-log-stream"] }
+event = { path = "./event" }
 ansi = { path = "./ansi" }
 
 
