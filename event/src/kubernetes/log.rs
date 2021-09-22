@@ -2,14 +2,18 @@ use super::{Event, Kube};
 use crate::{error::PodError, kubernetes::Handlers};
 
 use futures::{future::try_join_all, StreamExt, TryStreamExt};
-use tokio::{sync::RwLock, task};
+use tokio::{
+    sync::RwLock,
+    task::{self, JoinHandle},
+};
 
 use std::{sync::Arc, time};
 
-use crossbeam::{channel::Sender, epoch::Pointable};
+use crossbeam::channel::Sender;
 
 use k8s_openapi::{
-    api::core::v1::{ContainerState, ContainerStatus, Event as v1Event, Pod},
+    api::core::v1::{Container, ContainerState, ContainerStatus, Event as v1Event, Pod},
+    apimachinery::pkg::apis::meta::v1::ObjectMeta,
     Metadata,
 };
 
@@ -23,6 +27,35 @@ use color::Color;
 use crate::error::{anyhow, Error, Result};
 
 type BufType = Arc<RwLock<Vec<String>>>;
+type PodType = Arc<RwLock<Pod>>;
+
+#[allow(dead_code)]
+fn write_error(tx: &Sender<Event>, e: Error) -> Result<()> {
+    #[cfg(feature = "logging")]
+    ::log::error!("[log] {}", e.to_string());
+
+    tx.send(Event::Kube(Kube::LogStreamResponse(Err(anyhow!(e)))))?;
+
+    Ok(())
+}
+
+fn container_statuses(pod: &Pod) -> Result<&[ContainerStatus]> {
+    if let Some(status) = &pod.status {
+        Ok(&status.container_statuses)
+    } else {
+        Err(anyhow!(Error::Raw("container_statuses is None".into())))
+    }
+}
+
+fn init_container_statuses(pod: &Pod) -> Result<&[ContainerStatus]> {
+    if let Some(status) = &pod.status {
+        Ok(&status.init_container_statuses)
+    } else {
+        Err(anyhow!(Error::Raw(
+            "init_container_statuses is None".into()
+        )))
+    }
+}
 
 #[cfg(not(feature = "new-log-stream"))]
 async fn fetch_init_container_log(
@@ -173,8 +206,7 @@ pub async fn log_stream(tx: Sender<Event>, client: Client, ns: &str, pod_name: &
     Handlers(container_handler)
 }
 
-type PodType = Arc<RwLock<Pod>>;
-
+#[allow(dead_code)]
 async fn watch_pod_status(
     client: Client,
     ns: String,
@@ -203,6 +235,7 @@ async fn watch_pod_status(
     Ok(())
 }
 
+#[allow(dead_code)]
 #[cfg(feature = "new-log-stream")]
 pub async fn log_stream(
     tx: Sender<Event>,
@@ -306,6 +339,7 @@ pub async fn log_stream(
     Handlers(vec![handler, send_handler, watch_handler])
 }
 
+#[allow(dead_code)]
 async fn phase_init_container_log(
     client: Client,
     pod_api: &Api<Pod>,
@@ -339,7 +373,7 @@ async fn phase_init_container_log(
 
         // Terminated || Runningになるまで待機する
         wait_container_log(
-            shared_pod.clone(),
+            &shared_pod,
             i,
             ContainerType::InitContainer,
             ContainerStateType::Or,
@@ -360,7 +394,7 @@ async fn phase_init_container_log(
 
         // Terminated
         wait_container_log(
-            shared_pod.clone(),
+            &shared_pod,
             i,
             ContainerType::InitContainer,
             ContainerStateType::Terminated,
@@ -434,6 +468,7 @@ async fn phase_init_container_log(
     Ok(())
 }
 
+#[allow(dead_code, clippy::too_many_arguments)]
 async fn phase_container_log(
     tx: Sender<Event>,
     client: Client,
@@ -478,7 +513,7 @@ async fn phase_container_log(
         let handle = task::spawn(async move {
             // Terminated || Runningになるまで待機する
             wait_container_log(
-                shared_pod.clone(),
+                &shared_pod,
                 i,
                 ContainerType::Container,
                 ContainerStateType::Or,
@@ -489,7 +524,7 @@ async fn phase_container_log(
 
             // Terminated
             wait_container_log(
-                shared_pod.clone(),
+                &shared_pod,
                 i,
                 ContainerType::Container,
                 ContainerStateType::Terminated,
@@ -567,6 +602,7 @@ async fn phase_container_log(
     Ok(try_join_all(container_handler).await?)
 }
 
+#[allow(dead_code)]
 async fn send_buffer(tx: Sender<Event>, buf: BufType) -> Result<()> {
     let mut interval = tokio::time::interval(time::Duration::from_millis(200));
 
@@ -605,7 +641,7 @@ enum ContainerStateType {
 }
 
 async fn wait_container_log(
-    pod: PodType,
+    pod: &PodType,
     container_index: usize,
     container_type: ContainerType,
     container_state_type: ContainerStateType,
@@ -695,6 +731,53 @@ fn is_terminated(status: &ContainerStatus) -> (bool, Option<ContainerState>) {
     (false, None)
 }
 
+#[derive(Clone)]
+struct FetchLogStream {
+    buf: BufType,
+    pod_api: Api<Pod>,
+    pod_name: String,
+    prefix: Option<String>,
+    log_params: LogParams,
+    container_name: String,
+}
+
+#[async_trait]
+impl Worker for FetchLogStream {
+    async fn run(&self) -> Result<()> {
+        let lp = LogParams {
+            follow: true,
+            container: Some(self.container_name.to_string()),
+            ..Default::default()
+        };
+
+        let prefix = if let Some(p) = &self.prefix { &p } else { "" };
+
+        let mut logs = self.pod_api.log_stream(&self.pod_name, &lp).await?.boxed();
+
+        while let Some(line) = logs.try_next().await? {
+            let mut buf = self.buf.write().await;
+            buf.push(format!("{} {}", prefix, String::from_utf8_lossy(&line)));
+
+            #[cfg(feature = "logging")]
+            ::log::debug!(
+                "follow_container_log_stream {}: {}",
+                self.pod_name,
+                String::from_utf8_lossy(&line)
+            );
+        }
+
+        #[cfg(feature = "logging")]
+        ::log::info!(
+            "follow_container_log_stream finished {}:{}",
+            self.pod_name,
+            self.container_name
+        );
+
+        Ok(())
+    }
+}
+
+#[allow(dead_code)]
 #[cfg(not(any(feature = "mock", feature = "mock-failed")))]
 async fn follow_container_log_stream(buf: BufType, args: LogStreamArgs) -> Result<()> {
     let LogStreamArgs {
@@ -818,180 +901,494 @@ pub struct LogWorkerBuilder {
 }
 
 impl LogWorkerBuilder {
-    fn build(tx: Sender<Event>, client: Client, ns: String, pod_name: String) -> LogWorker {
-        LogWorker {
+    pub fn new(
+        tx: Sender<Event>,
+        client: Client,
+        ns: impl Into<String>,
+        pod_name: impl Into<String>,
+    ) -> Self {
+        Self {
             tx,
             client,
             ns: ns.into(),
             pod_name: pod_name.into(),
+        }
+    }
+
+    pub fn build(self) -> LogWorker {
+        LogWorker {
+            tx: self.tx,
+            client: self.client,
+            ns: self.ns,
+            pod_name: self.pod_name,
             message_buffer: Default::default(),
             pod: Default::default(),
         }
     }
 }
 
+use async_trait::async_trait;
+#[async_trait]
+trait Worker {
+    async fn run(&self) -> Result<()>;
+
+    fn spawn(&self) -> JoinHandle<Result<()>>
+    where
+        Self: Clone + Send + Sync + 'static,
+    {
+        let worker = self.clone();
+        tokio::spawn(async move { worker.run().await })
+    }
+}
+
+#[derive(Clone)]
 pub struct LogWorker {
     tx: Sender<Event>,
     client: Client,
     ns: String,
     pod_name: String,
-    message_buffer: Arc<RwLock<Vec<String>>>,
-    pod: Arc<RwLock<Pod>>,
+    message_buffer: BufType,
+    pod: PodType,
+}
+
+#[derive(Clone)]
+struct WatchPodStatusWorker {
+    client: Client,
+    ns: String,
+    pod_name: String,
+    pod: PodType,
+}
+
+#[derive(Clone)]
+struct SendMessageWorker {
+    buf: BufType,
+    tx: Sender<Event>,
+}
+
+#[derive(Clone)]
+struct FetchLogStreamWorker {
+    tx: Sender<Event>,
+    client: Client,
+    ns: String,
+    pod_name: String,
+    pod: PodType,
+    pod_api: Api<Pod>,
+    buf: BufType,
 }
 
 impl LogWorker {
-    pub fn run(&self) -> Handlers {
-        let send_message_handler = tokio::spawn(self.send_message());
-        let watch_pod_status_handler = tokio::spawn(self.watch_pod_status());
-        let fetch_log_stream_handler = tokio::spawn(self.fetch_log_stream());
+    fn to_watch_pod_status_worker(&self) -> WatchPodStatusWorker {
+        WatchPodStatusWorker {
+            client: self.client.clone(),
+            ns: self.ns.clone(),
+            pod_name: self.pod_name.clone(),
+            pod: self.pod.clone(),
+        }
+    }
 
-        Handlers(vec![
-            send_message_handler,
-            watch_pod_status_handler,
-            fetch_log_stream_handler,
-        ])
+    fn to_send_message_worker(&self) -> SendMessageWorker {
+        SendMessageWorker {
+            buf: self.message_buffer.clone(),
+            tx: self.tx.clone(),
+        }
+    }
+
+    fn to_fetch_log_stream_worker(&self) -> FetchLogStreamWorker {
+        let pod_api = Api::namespaced(self.client.clone(), &self.ns);
+        FetchLogStreamWorker {
+            client: self.client.clone(),
+            ns: self.ns.clone(),
+            pod_name: self.pod_name.clone(),
+            pod_api,
+            pod: self.pod.clone(),
+            buf: self.message_buffer.clone(),
+            tx: self.tx.clone(),
+        }
     }
 }
 
-impl LogWorker {
-    fn watch_pod_status(&self) -> impl futures::Future<Output = Result<()>> {
-        let client = self.client.clone();
-        let ns = self.ns.clone();
-        let pod_name = self.pod_name.clone();
-        let pod = self.pod.clone();
+#[async_trait]
+impl Worker for WatchPodStatusWorker {
+    async fn run(&self) -> Result<()> {
+        let pod_api: Api<Pod> = Api::namespaced(self.client.clone(), &self.ns);
 
-        async move {
-            let pod_api: Api<Pod> = Api::namespaced(client, &ns);
+        let lp = ListParams::default()
+            .fields(&format!("metadata.name={}", self.pod_name))
+            .timeout(180);
 
-            let lp = ListParams::default()
-                .fields(&format!("metadata.name={}", pod_name))
-                .timeout(180);
+        let mut watch = pod_api.watch(&lp, "0").await?.boxed();
 
-            let mut watch = pod_api.watch(&lp, "0").await?.boxed();
-
-            while let Some(status) = watch.try_next().await? {
-                match status {
-                    WatchEvent::Added(p) | WatchEvent::Modified(p) | WatchEvent::Deleted(p) => {
-                        let mut pod = pod.write().await;
-                        *pod = p;
-                    }
-                    WatchEvent::Bookmark(_) => {}
-                    WatchEvent::Error(err) => return Err(anyhow!(err)),
+        while let Some(status) = watch.try_next().await? {
+            match status {
+                WatchEvent::Added(p) | WatchEvent::Modified(p) | WatchEvent::Deleted(p) => {
+                    let mut pod = self.pod.write().await;
+                    *pod = p;
                 }
+                WatchEvent::Bookmark(_) => {}
+                WatchEvent::Error(err) => return Err(anyhow!(err)),
             }
-
-            Ok(())
         }
+
+        Ok(())
     }
+}
 
-    fn send_message(&self) -> impl futures::Future<Output = Result<()>> {
-        let buf = self.message_buffer.clone();
-        let tx = self.tx.clone();
+#[async_trait]
+impl Worker for SendMessageWorker {
+    async fn run(&self) -> Result<()> {
+        let mut interval = tokio::time::interval(time::Duration::from_millis(200));
 
-        async move {
-            let mut interval = tokio::time::interval(time::Duration::from_millis(200));
+        loop {
+            interval.tick().await;
+            let mut buf = self.buf.write().await;
 
-            loop {
-                interval.tick().await;
-                let mut buf = buf.write().await;
+            if !buf.is_empty() {
+                #[cfg(feature = "logging")]
+                ::log::debug!("log_stream Send log stream {}", buf.len());
 
-                if !buf.is_empty() {
-                    #[cfg(feature = "logging")]
-                    ::log::debug!("log_stream Send log stream {}", buf.len());
+                self.tx
+                    .send(Event::Kube(Kube::LogStreamResponse(Ok(buf.clone()))))?;
 
-                    tx.send(Event::Kube(Kube::LogStreamResponse(Ok(buf.clone()))))?;
-
-                    buf.clear();
-                }
+                buf.clear();
             }
         }
     }
+}
 
-    fn fetch_log_stream(&self) -> impl futures::Future<Output = Result<()>> {
-        let tx = self.tx.clone();
-        let client = self.client.clone();
-        let pod = self.pod.clone();
-        let ns = self.ns.clone();
-        let pod_name = self.pod_name.clone();
-        let buf = self.message_buffer.clone();
+#[async_trait]
+impl Worker for FetchLogStreamWorker {
+    async fn run(&self) -> Result<()> {
+        self.inner_run().await
+    }
+}
 
-        async move {
-            let pod_api: Api<Pod> = Api::namespaced(client.clone(), &ns);
+impl FetchLogStreamWorker {
+    async fn inner_run(&self) -> Result<()> {
+        let pod_api: Api<Pod> = Api::namespaced(self.client.clone(), &self.ns);
 
-            match pod_api.get(&pod_name).await {
-                Ok(p) => {
-                    {
-                        let mut pod = pod.write().await;
-                        *pod = p.clone();
-                    }
+        match pod_api.get(&self.pod_name).await {
+            Ok(p) => self.fetch_log_stream(p).await?,
+            Err(err) => self
+                .tx
+                .send(Event::Kube(Kube::LogStreamResponse(Err(anyhow!(
+                    Error::Kube(err)
+                )))))?,
+        }
 
-                    let pod_status = p.status.as_ref().unwrap();
+        Ok(())
+    }
 
-                    // initContainers phase
-                    let mut container_count = pod_status.init_container_statuses.len();
+    async fn fetch_log_stream(&self, pod: Pod) -> Result<()> {
+        // watchワーカーが更新できていないことがあるため、最新のデータをここで設定する
+        {
+            let mut p = self.pod.write().await;
+            *p = pod;
+        }
 
-                    let mut color = Color::new();
+        let mut color = Color::new();
 
-                    let ret = phase_init_container_log(
-                        client.clone(),
-                        &pod_api,
-                        &pod_name,
-                        pod.clone(),
-                        &mut color,
-                        buf.clone(),
-                    )
-                    .await;
+        // initContainers phase
+        self.phase_init_container_log(&mut color).await?;
 
-                    #[cfg(feature = "logging")]
-                    ::log::info!("log_stream: phase_init_container_log done");
+        #[cfg(feature = "logging")]
+        ::log::info!("log_stream: phase_init_container_log done");
 
-                    if let Err(err) = ret {
-                        if let Some(PodError::ContainerExitCodeNotZero(_name, msg)) =
-                            err.downcast_ref::<PodError>()
-                        {
-                            tx.send(Event::Kube(Kube::LogStreamResponse(Ok(msg.to_vec()))))?;
-                        }
+        // containers phase
+        let pod = self.pod.read().await;
+        let pod_status = pod.status.as_ref().unwrap();
+        let mut container_count = pod_status.init_container_statuses.len();
+        container_count += pod_status.container_statuses.len();
 
-                        return Err(err);
-                    }
+        let ret = self
+            .phase_container_log(&mut color, container_count)
+            .await?;
 
-                    // containers phase
-                    container_count += pod_status.container_statuses.len();
+        #[cfg(feature = "logging")]
+        ::log::info!("log_stream: phase_container_log done");
 
-                    let ret = phase_container_log(
-                        tx.clone(),
-                        client.clone(),
-                        &pod_api,
-                        &pod_name,
-                        pod.clone(),
-                        &mut color,
-                        buf.clone(),
-                        container_count,
+        for r in ret {
+            r?
+        }
+
+        Ok(())
+    }
+
+    async fn phase_init_container_log(&self, color: &mut Color) -> Result<()> {
+        let pod = self.pod.read().await.clone();
+        let containers = init_container_statuses(&pod)?;
+
+        for (i, c) in containers.iter().enumerate() {
+            let mut log_params = LogParams {
+                follow: true,
+                ..Default::default()
+            };
+
+            let container_name = c.name.clone();
+
+            log_params.container = Some(container_name.clone());
+
+            // TODO initContainersの数が2以上ならプレフィックスに数字をいれる
+            let prefix = Some(format!(
+                "\x1b[{}m[init-{}:{}]\x1b[39m",
+                color.next_color(),
+                i,
+                c.name
+            ));
+
+            // Terminated || Runningになるまで待機する
+            wait_container_log(
+                &self.pod,
+                i,
+                ContainerType::InitContainer,
+                ContainerStateType::Or,
+            )
+            .await;
+
+            // ログとってくる
+            let fetch_log_stream = FetchLogStream {
+                buf: self.buf.clone(),
+                pod_api: self.pod_api.clone(),
+                pod_name: self.pod_name.clone(),
+                prefix,
+                log_params,
+                container_name: container_name.clone(),
+            };
+
+            fetch_log_stream.run().await?;
+
+            // Terminated
+            wait_container_log(
+                &self.pod,
+                i,
+                ContainerType::InitContainer,
+                ContainerStateType::Terminated,
+            )
+            .await;
+
+            // pod status取得
+            let pod = self.pod.read().await;
+            let statuses = init_container_statuses(&pod)?;
+            let status = &statuses[i];
+            let metadata = &pod.metadata;
+
+            // exit_code を確認
+            if let (true, Some(state)) = is_terminated(status) {
+                let container = pod.spec.as_ref().map(|spec| &spec.init_containers[i]);
+
+                let msg = self
+                    .terminated_description(
+                        container,
+                        metadata,
+                        &state,
+                        status,
+                        ContainerType::InitContainer,
                     )
                     .await?;
 
-                    #[cfg(feature = "logging")]
-                    ::log::info!("log_stream: phase_container_log done");
+                self.tx
+                    .send(Event::Kube(Kube::LogStreamResponse(Err(anyhow!(
+                        Error::Raw(msg),
+                    )))))?;
 
-                    for r in ret {
-                        if let Err(e) = r {
-                            if let Some(PodError::ContainerExitCodeNotZero(_name, e)) =
-                                e.downcast_ref::<PodError>()
-                            {
-                                tx.send(Event::Kube(Kube::LogStreamResponse(Ok(e.to_vec()))))?;
-                            }
+                return Err(anyhow!(PodError::ContainerExitCodeNotZero(
+                    container_name,
+                    vec![]
+                )));
+            }
+        }
+        Ok(())
+    }
 
-                            return Err(e);
-                        }
-                    }
+    async fn phase_container_log(
+        &self,
+        color: &mut Color,
+        container_count: usize,
+    ) -> Result<Vec<Result<()>>>
+    where
+        Self: Clone + Send + Sync + 'static,
+    {
+        let mut container_handler = Vec::new();
+
+        let pod = self.pod.read().await;
+        let containers = container_statuses(&pod)?;
+
+        for (i, c) in containers.iter().enumerate() {
+            let mut lp = LogParams {
+                follow: true,
+                ..Default::default()
+            };
+
+            let container_name = c.name.clone();
+
+            lp.container = Some(c.name.clone());
+
+            let prefix = if 1 < container_count {
+                Some(format!("\x1b[{}m[{}]\x1b[39m", color.next_color(), c.name))
+            } else {
+                None
+            };
+
+            let fetch_log_stream = FetchLogStream {
+                buf: self.buf.clone(),
+                pod_api: self.pod_api.clone(),
+                pod_name: self.pod_name.clone(),
+                prefix,
+                log_params: lp,
+                container_name: container_name.clone(),
+            };
+
+            let worker = self.clone();
+
+            let handle = tokio::spawn(async move {
+                let pod = worker.pod.clone();
+                let tx = &worker.tx;
+                // // Terminated || Runningになるまで待機する
+                wait_container_log(&pod, i, ContainerType::Container, ContainerStateType::Or).await;
+
+                // // ログとってくる
+                fetch_log_stream.run().await?;
+
+                // // Terminated
+                wait_container_log(
+                    &pod,
+                    i,
+                    ContainerType::Container,
+                    ContainerStateType::Terminated,
+                )
+                .await;
+
+                // // pod status取得
+                let pod = pod.read().await;
+                let statuses = container_statuses(&pod)?;
+                let status = &statuses[i];
+                let metadata = &pod.metadata;
+
+                // // exit_code を確認
+                if let (true, Some(state)) = is_terminated(status) {
+                    let container = pod.spec.as_ref().map(|spec| &spec.containers[i]);
+
+                    let msg = worker
+                        .terminated_description(
+                            container,
+                            metadata,
+                            &state,
+                            status,
+                            ContainerType::Container,
+                        )
+                        .await?;
+
+                    tx.send(Event::Kube(Kube::LogStreamResponse(Err(anyhow!(
+                        Error::Raw(msg),
+                    )))))?;
+
+                    Err(anyhow!(PodError::ContainerExitCodeNotZero(
+                        container_name,
+                        vec![]
+                    )))
+                } else {
+                    Ok(())
                 }
-                Err(err) => tx.send(Event::Kube(Kube::LogStreamResponse(Err(anyhow!(
-                    Error::Kube(err)
-                )))))?,
+            });
+
+            container_handler.push(handle);
+        }
+
+        Ok(try_join_all(container_handler).await?)
+    }
+
+    // TODO initContainersとcontainersの分岐がややこしいから整理したい
+    async fn terminated_description(
+        &self,
+        container: Option<&Container>,
+        metadata: &ObjectMeta,
+        state: &ContainerState,
+        status: &ContainerStatus,
+        ty: ContainerType,
+    ) -> Result<String> {
+        let mut msg = Vec::new();
+        // terminatedはある前提
+
+        let title = format!(" Error {} ", status.name);
+        let msg_header = format!("\n\x1b[31m{:=^1$}\x1b[39m\n", title, 30);
+        let msg_footer = format!("\n\x1b[31m{}\n\x1b[39m", "=".repeat(30));
+
+        msg.push(msg_header);
+
+        msg.push("Info:".into());
+        if let Some(terminated) = &state.terminated {
+            msg.push(format!("  ExitCode: {}", terminated.exit_code));
+
+            if let Some(message) = &terminated.message {
+                msg.push(format!("  Message: {}", message));
             }
 
-            Ok(())
+            if let Some(reason) = &terminated.reason {
+                msg.push(format!("  Reason: {}", reason));
+            }
         }
+
+        if let Some(c) = container {
+            if let Some(image) = &c.image {
+                msg.push(format!("  Image: {}", image));
+            }
+            msg.push(format!("  Command: {:?}", c.command));
+            msg.push(format!("  Args: {:?}", c.args));
+        }
+
+        let event: Api<v1Event> = Api::namespaced(self.client.clone(), &self.ns);
+
+        let mut request_params = format!(
+            "involvedObject.name={},involvedObject.namespace={}",
+            self.pod_name, self.ns
+        );
+
+        match ty {
+            ContainerType::InitContainer => {
+                request_params += &format!(
+                    ",involvedObject.fieldPath=spec.initContainers{{{}}}",
+                    status.name
+                );
+            }
+            ContainerType::Container => {
+                request_params += &format!(
+                    ",involvedObject.fieldPath=spec.containers{{{}}}",
+                    status.name
+                );
+            }
+        }
+
+        if let Some(uid) = &metadata.uid {
+            request_params += &(",involvedObject.uid=".to_string() + uid);
+        }
+
+        let lp = ListParams::default().fields(&request_params);
+
+        let event_result = event.list(&lp).await?;
+
+        msg.push("Event:".into());
+
+        event_result.iter().for_each(|e| {
+            #[cfg(feature = "logging")]
+            ::log::debug!("phase_container_log event {:?}", e);
+
+            if let Some(m) = &e.message {
+                msg.push(format!("  {}", m));
+            }
+        });
+
+        msg.push(msg_footer);
+
+        Ok(msg.join("\n"))
+    }
+}
+
+impl LogWorker {
+    pub fn spawn(&self) -> Handlers {
+        Handlers(vec![
+            self.to_send_message_worker().spawn(),
+            self.to_watch_pod_status_worker().spawn(),
+            self.to_fetch_log_stream_worker().spawn(),
+        ])
     }
 }
 

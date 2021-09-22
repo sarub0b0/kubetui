@@ -9,7 +9,10 @@ mod request;
 mod v1_table;
 
 use self::event::event_loop;
+
+#[allow(unused_imports)]
 use self::log::log_stream;
+
 use super::Event;
 use api_resources::{apis_list, apis_loop};
 use config::{configs_loop, get_config};
@@ -33,6 +36,7 @@ use kube::{
 
 use crate::{
     error::{Error, Result},
+    kubernetes::log::LogWorkerBuilder,
     panic_set_hook,
 };
 
@@ -292,8 +296,16 @@ async fn main_loop(
                         }
 
                         let client = args.client.clone();
-                        log_stream_handler =
-                            Some(log_stream(tx, client, &namespace, &pod_name).await);
+
+                        // log_stream_handler =
+                        //     Some(log_stream(tx, client, &namespace, &pod_name).await);
+
+                        log_stream_handler = Some(
+                            LogWorkerBuilder::new(tx, client, namespace, pod_name)
+                                .build()
+                                .spawn(),
+                        );
+
                         task::yield_now().await;
                     }
 
