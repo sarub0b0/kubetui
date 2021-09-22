@@ -750,13 +750,17 @@ impl Worker for FetchLogStream {
             ..Default::default()
         };
 
-        let prefix = if let Some(p) = &self.prefix { &p } else { "" };
+        let prefix = if let Some(p) = &self.prefix {
+            p.to_owned() + " "
+        } else {
+            "".to_string()
+        };
 
         let mut logs = self.pod_api.log_stream(&self.pod_name, &lp).await?.boxed();
 
         while let Some(line) = logs.try_next().await? {
             let mut buf = self.buf.write().await;
-            buf.push(format!("{} {}", prefix, String::from_utf8_lossy(&line)));
+            buf.push(format!("{}{}", prefix, String::from_utf8_lossy(&line)));
 
             #[cfg(feature = "logging")]
             ::log::debug!(
