@@ -1121,6 +1121,8 @@ impl FetchLogStreamWorker {
         let pod = self.pod.read().await.clone();
         let containers = init_container_statuses(&pod)?;
 
+        let containers_len = containers.len();
+
         for (i, c) in containers.iter().enumerate() {
             let mut log_params = LogParams {
                 follow: true,
@@ -1131,13 +1133,20 @@ impl FetchLogStreamWorker {
 
             log_params.container = Some(container_name.clone());
 
-            // TODO initContainersの数が2以上ならプレフィックスに数字をいれる
-            let prefix = Some(format!(
-                "\x1b[{}m[init-{}:{}]\x1b[39m",
-                color.next_color(),
-                i,
-                c.name
-            ));
+            let prefix = if 1 < containers_len {
+                Some(format!(
+                    "\x1b[{}m[init-{}:{}]\x1b[39m",
+                    color.next_color(),
+                    i,
+                    c.name
+                ))
+            } else {
+                Some(format!(
+                    "\x1b[{}m[init:{}]\x1b[39m",
+                    color.next_color(),
+                    c.name
+                ))
+            };
 
             // Terminated || Runningになるまで待機する
             wait_container_log(
