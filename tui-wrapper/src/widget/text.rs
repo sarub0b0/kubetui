@@ -88,7 +88,7 @@ mod inner_item {
 
             self.items.append(&mut item);
 
-            self.spans.append(&mut generate_spans(&&wrapped));
+            self.spans.append(&mut generate_spans(&wrapped));
         }
     }
 }
@@ -743,21 +743,24 @@ fn highlight_content_partial(src: Spans, (start, end): (usize, usize)) -> (Spans
     let content: Vec<&str> = content.graphemes(true).collect();
 
     let mut start_index = 0;
-    let mut sum_width = 0;
-    let spans: Vec<Span> = src
+    let mut sum_width_0 = 0;
+    let mut sum_width_1 = 0;
+    let mut end_index = 0;
+    let mut spans: Vec<Span> = src
         .0
         .into_iter()
         .enumerate()
         .flat_map(|(i, span)| {
             let width = span.width();
-            let ret = if sum_width <= start && start < sum_width + width {
-                if sum_width != start {
-                    let (s, e) = width_base_range_to_graphemes_range(&content, (sum_width, start));
+            let ret = if sum_width_0 <= start && start < sum_width_0 + width {
+                if sum_width_0 != start {
+                    let (s, e) =
+                        width_base_range_to_graphemes_range(&content, (sum_width_0, start));
 
                     let first = content[s..e].concat();
 
                     let (s, e) =
-                        width_base_range_to_graphemes_range(&content, (start, sum_width + width));
+                        width_base_range_to_graphemes_range(&content, (start, sum_width_0 + width));
 
                     let second = content[s..e].concat();
 
@@ -775,26 +778,20 @@ fn highlight_content_partial(src: Spans, (start, end): (usize, usize)) -> (Spans
                 vec![span]
             };
 
-            sum_width += width;
+            sum_width_0 += width;
 
             ret
         })
-        .collect();
-
-    let mut end_index = 0;
-    let mut sum_width = 0;
-    let mut spans: Vec<Span> = spans
-        .into_iter()
         .enumerate()
         .flat_map(|(i, span)| {
             let width = span.width();
-            let ret = if sum_width < end && end <= sum_width + width {
-                if sum_width + width != end {
-                    let (s, e) = width_base_range_to_graphemes_range(&content, (sum_width, end));
+            let ret = if sum_width_1 < end && end <= sum_width_1 + width {
+                if sum_width_1 + width != end {
+                    let (s, e) = width_base_range_to_graphemes_range(&content, (sum_width_1, end));
                     let first = content[s..e].concat();
 
                     let (s, e) =
-                        width_base_range_to_graphemes_range(&content, (end, sum_width + width));
+                        width_base_range_to_graphemes_range(&content, (end, sum_width_1 + width));
                     let second = content[s..e].concat();
 
                     end_index = i;
@@ -810,7 +807,7 @@ fn highlight_content_partial(src: Spans, (start, end): (usize, usize)) -> (Spans
                 vec![span]
             };
 
-            sum_width += width;
+            sum_width_1 += width;
 
             ret
         })

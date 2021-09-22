@@ -70,7 +70,7 @@ async fn get_pods_per_namespace(
 ) -> Result<Vec<Vec<Vec<String>>>> {
     let insert_ns = insert_ns(namespaces);
     try_join_all(namespaces.iter().map(|ns| {
-        get_resourse_per_namespace(
+        get_resource_per_namespace(
             client,
             server_url,
             format!("api/v1/namespaces/{}/{}", ns, "pods"),
@@ -150,8 +150,8 @@ async fn get_pods_per_namespace(
     _: &str,
     _: &[String],
 ) -> Result<Vec<Vec<Vec<String>>>> {
-    use crate::error::Error;
-    Err(Error::Mock("Mock get_pods_per_namespace failed"))
+    use crate::error::{anyhow, Error};
+    Err(anyhow!(Error::Mock("Mock get_pods_per_namespace failed")))
 }
 
 async fn get_pod_info(
