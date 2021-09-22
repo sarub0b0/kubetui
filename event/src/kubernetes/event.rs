@@ -44,9 +44,9 @@ async fn get_event_table(
     let insert_ns = insert_ns(namespaces);
 
     let jobs = try_join_all(namespaces.iter().map(|ns| {
-        get_resourse_per_namespace(
-            &client,
-            &server_url,
+        get_resource_per_namespace(
+            client,
+            server_url,
             format!("api/v1/namespaces/{}/{}", ns, "events"),
             &TARGET,
             move |row: &TableRow, indexes: &[usize]| {

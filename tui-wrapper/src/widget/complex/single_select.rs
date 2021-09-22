@@ -44,7 +44,7 @@ impl<'a> SelectForm<'a> {
             .iter()
             .filter_map(|item| {
                 self.matcher
-                    .fuzzy_match(&item, &self.filter)
+                    .fuzzy_match(item, &self.filter)
                     .map(|_| item.to_string())
             })
             .collect();
