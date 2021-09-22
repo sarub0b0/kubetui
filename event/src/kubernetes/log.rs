@@ -8,9 +8,8 @@ use std::{sync::Arc, time};
 
 use crossbeam::channel::Sender;
 
-use k8s_openapi::{
-    api::core::v1::{Container, ContainerState, ContainerStatus, Event as v1Event, Pod},
-    apimachinery::pkg::apis::meta::v1::ObjectMeta,
+use k8s_openapi::api::core::v1::{
+    Container, ContainerState, ContainerStatus, Event as v1Event, Pod,
 };
 
 use kube::{
@@ -444,20 +443,22 @@ impl FetchLogStreamWorker {
             let pod = self.pod.read().await;
             let statuses = init_container_statuses(&pod)?;
             let status = &statuses[i];
-            let metadata = &pod.metadata;
 
             // exit_code を確認
             if let (true, Some(state)) = is_terminated(status) {
                 let container = pod.spec.as_ref().map(|spec| &spec.init_containers[i]);
 
+                let mut selector = format!(
+                    "involvedObject.name={},involvedObject.namespace={},involvedObject.fieldPath=spec.containers{{{}}}",
+                    self.pod_name, self.ns, status.name
+                );
+
+                if let Some(uid) = &pod.metadata.uid {
+                    selector += &format!(",involvedObject.uid={}", uid);
+                }
+
                 let msg = self
-                    .terminated_description(
-                        container,
-                        metadata,
-                        &state,
-                        status,
-                        ContainerType::InitContainer,
-                    )
+                    .terminated_description(container, &state, status, &selector)
                     .await?;
 
                 self.tx
@@ -536,20 +537,22 @@ impl FetchLogStreamWorker {
                 let pod = pod.read().await;
                 let statuses = container_statuses(&pod)?;
                 let status = &statuses[i];
-                let metadata = &pod.metadata;
 
                 // // exit_code を確認
                 if let (true, Some(state)) = is_terminated(status) {
                     let container = pod.spec.as_ref().map(|spec| &spec.containers[i]);
 
+                    let mut selector = format!(
+                        "involvedObject.name={},involvedObject.namespace={},involvedObject.fieldPath=spec.containers{{{}}}",
+                        worker.pod_name, worker.ns ,status.name
+                    );
+
+                    if let Some(uid) = &pod.metadata.uid {
+                        selector += &format!(",involvedObject.uid={}", uid);
+                    }
+
                     let msg = worker
-                        .terminated_description(
-                            container,
-                            metadata,
-                            &state,
-                            status,
-                            ContainerType::Container,
-                        )
+                        .terminated_description(container, &state, status, &selector)
                         .await?;
 
                     tx.send(Event::Kube(Kube::LogStreamResponse(Err(anyhow!(
@@ -571,14 +574,12 @@ impl FetchLogStreamWorker {
         Ok(try_join_all(container_handler).await?)
     }
 
-    // TODO initContainersとcontainersの分岐がややこしいから整理したい
     async fn terminated_description(
         &self,
         container: Option<&Container>,
-        metadata: &ObjectMeta,
         state: &ContainerState,
         status: &ContainerStatus,
-        ty: ContainerType,
+        selector: &String,
     ) -> Result<String> {
         let mut msg = Vec::new();
         // terminatedはある前提
@@ -611,32 +612,7 @@ impl FetchLogStreamWorker {
         }
 
         let event: Api<v1Event> = Api::namespaced(self.client.clone(), &self.ns);
-
-        let mut request_params = format!(
-            "involvedObject.name={},involvedObject.namespace={}",
-            self.pod_name, self.ns
-        );
-
-        match ty {
-            ContainerType::InitContainer => {
-                request_params += &format!(
-                    ",involvedObject.fieldPath=spec.initContainers{{{}}}",
-                    status.name
-                );
-            }
-            ContainerType::Container => {
-                request_params += &format!(
-                    ",involvedObject.fieldPath=spec.containers{{{}}}",
-                    status.name
-                );
-            }
-        }
-
-        if let Some(uid) = &metadata.uid {
-            request_params += &(",involvedObject.uid=".to_string() + uid);
-        }
-
-        let lp = ListParams::default().fields(&request_params);
+        let lp = ListParams::default().fields(&selector);
 
         let event_result = event.list(&lp).await?;
 
