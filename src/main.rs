@@ -519,8 +519,9 @@ use std::str::FromStr;
 
 #[cfg(feature = "logging")]
 fn logging() {
-    let level_filter = LevelFilter::from_str(&env::var("RUST_LOG").unwrap_or("info".to_string()))
-        .unwrap_or(LevelFilter::Info);
+    let level_filter =
+        LevelFilter::from_str(&env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string()))
+            .unwrap_or(LevelFilter::Info);
 
     let logfile = FileAppender::builder()
         .append(false)

@@ -10,9 +10,10 @@ edition = "2018"
 logging = [ "log" ]
 mock = []
 mock-failed = [ "hyper" ]
+new-log-stream = []
 
 [dependencies]
-crossterm = "0.19"
+crossterm = "0.21"
 kube = "0.60"
 kube-runtime = "0.60"
 k8s-openapi = { version = "0.13", default-features = false, features = ["v1_20"] }
@@ -28,6 +29,9 @@ serde = { version = "1.0", features = ["derive"] }
 log = { version = "0.4", optional = true }
 hyper = { version = "0.14", optional = true }
 thiserror = "1"
+anyhow = "1"
+
+async-trait = "0.1"
 
 [dev-dependencies]
 pretty_assertions = "0.7"

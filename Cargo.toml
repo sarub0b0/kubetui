@@ -8,9 +8,11 @@ edition = "2018"
 members = [ "tui-wrapper", "event", "ansi", "clipboard-wrapper" ]
 
 [features]
+default = [ "logging" ]
 logging = [ "log", "log4rs", "event/logging", "tui-wrapper/logging" ]
 mock = [ "event/mock" ]
 mock-failed = [ "event/mock-failed" ]
+new-log-stream = [ "event/new-log-stream" ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

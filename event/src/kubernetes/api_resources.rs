@@ -125,7 +125,7 @@ async fn get_all_api_info(client: &Client, server_url: &str) -> Result<Vec<APIIn
     let job = try_join_all(
         group_versions
             .iter()
-            .map(|gv| api_resource_list_to_api_info_list(&client, server_url, gv)),
+            .map(|gv| api_resource_list_to_api_info_list(client, server_url, gv)),
     )
     .await?;
 
@@ -347,7 +347,7 @@ async fn get_api_resources(
                 continue;
             }
 
-            ret.push(header_by_api_info(&info) + &table.to_print());
+            ret.push(header_by_api_info(info) + &table.to_print());
             ret.push("".to_string());
         }
     }
