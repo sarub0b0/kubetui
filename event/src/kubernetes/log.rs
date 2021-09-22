@@ -1100,12 +1100,9 @@ impl FetchLogStreamWorker {
         // containers phase
         let pod = self.pod.read().await;
         let pod_status = pod.status.as_ref().unwrap();
-        let mut container_count = pod_status.init_container_statuses.len();
-        container_count += pod_status.container_statuses.len();
+        let enable_prefix = !pod_status.init_container_statuses.is_empty();
 
-        let ret = self
-            .phase_container_log(&mut color, container_count)
-            .await?;
+        let ret = self.phase_container_log(&mut color, enable_prefix).await?;
 
         #[cfg(feature = "logging")]
         ::log::info!("log_stream: phase_container_log done");
@@ -1215,7 +1212,7 @@ impl FetchLogStreamWorker {
     async fn phase_container_log(
         &self,
         color: &mut Color,
-        container_count: usize,
+        enable_prefix: bool,
     ) -> Result<Vec<Result<()>>>
     where
         Self: Clone + Send + Sync + 'static,
@@ -1235,7 +1232,7 @@ impl FetchLogStreamWorker {
 
             lp.container = Some(c.name.clone());
 
-            let prefix = if 1 < container_count {
+            let prefix = if enable_prefix {
                 Some(format!("\x1b[{}m[{}]\x1b[39m", color.next_color(), c.name))
             } else {
                 None
