@@ -71,61 +71,76 @@ async fn wait_container_log(
     container_index: usize,
     container_type: ContainerType,
     container_state_type: ContainerStateType,
-) {
+) -> Result<()> {
     let mut interval = tokio::time::interval(time::Duration::from_millis(200));
     loop {
         interval.tick().await;
 
         let pod = pod.read().await;
-        let pod_status = pod.status.as_ref().unwrap();
 
         let statuses = match container_type {
-            ContainerType::InitContainer => pod_status.init_container_statuses.as_ref(),
-            ContainerType::Container => pod_status.container_statuses.as_ref(),
-        }
-        .unwrap();
+            ContainerType::InitContainer => init_container_statuses(&pod)?,
+            ContainerType::Container => container_statuses(&pod)?,
+        };
 
-        let state = statuses[container_index].state.as_ref().unwrap();
-        let last_state = statuses[container_index].last_state.as_ref();
+        let state = if let Some(statuses) = statuses {
+            statuses[container_index].state.as_ref()
+        } else {
+            None
+        };
+
+        let last_state = if let Some(statuses) = statuses {
+            statuses[container_index].last_state.as_ref()
+        } else {
+            None
+        };
 
         match container_state_type {
             ContainerStateType::Terminated => {
                 if let Some(state) = last_state {
                     if state.terminated.is_some() {
-                        return;
+                        break;
                     }
                 }
 
-                if state.terminated.is_some() {
-                    return;
+                if let Some(state) = state {
+                    if state.terminated.is_some() {
+                        break;
+                    }
                 }
             }
 
             ContainerStateType::Running => {
-                if state.running.is_some() {
-                    return;
+                if let Some(state) = state {
+                    if state.running.is_some() {
+                        break;
+                    }
                 }
             }
 
             ContainerStateType::Or => {
-                if let Some(waiting) = &state.waiting {
-                    if let Some(reason) = &waiting.reason {
-                        if reason == "PodInitializing" {
-                            continue;
-                        }
+                if let Some(state) = state {
+                    if let Some(waiting) = &state.waiting {
+                        if let Some(reason) = &waiting.reason {
+                            if reason == "PodInitializing" {
+                                continue;
+                            }
 
-                        if reason == "CrashLoopBackOff" {
-                            return;
+                            if reason == "CrashLoopBackOff" {
+                                break;
+                            }
                         }
                     }
-                }
 
-                if state.waiting.is_none() {
-                    return;
+                    if state.waiting.is_none() {
+                        break;
+                    }
                 }
             }
         }
     }
+
+    Ok(())
 }
 
 fn is_terminated(status: &ContainerStatus) -> bool {
@@ -364,12 +379,16 @@ impl FetchLogStreamWorker {
 
         // containers phase
         let pod = self.pod.read().await;
-        let pod_status = pod.status.as_ref().unwrap();
-        let enable_prefix = if let Some(statuses) = &pod_status.init_container_statuses {
-            if statuses.is_empty() {
-                false
+
+        let enable_prefix = if let Some(status) = &pod.status {
+            if let Some(statuses) = &status.init_container_statuses {
+                if statuses.is_empty() {
+                    false
+                } else {
+                    true
+                }
             } else {
-                true
+                false
             }
         } else {
             false
@@ -425,7 +444,7 @@ impl FetchLogStreamWorker {
                     ContainerType::InitContainer,
                     ContainerStateType::Or,
                 )
-                .await;
+                .await?;
 
                 // ログとってくる
                 let fetch_log_stream = FetchLogStream {
@@ -446,42 +465,49 @@ impl FetchLogStreamWorker {
                     ContainerType::InitContainer,
                     ContainerStateType::Terminated,
                 )
-                .await;
+                .await?;
 
                 // pod status取得
                 let pod = self.pod.read().await;
-                let statuses = init_container_statuses(&pod)?.unwrap();
-                let status = &statuses[i];
 
-                // exit_code を確認
-                if is_terminated(status) {
-                    let container = pod
-                        .spec
-                        .as_ref()
-                        .map(|spec| &spec.init_containers.as_ref().unwrap()[i]);
+                if let Some(statuses) = init_container_statuses(&pod)? {
+                    let status = &statuses[i];
 
-                    let mut selector = format!(
+                    // exit_code を確認
+                    if is_terminated(status) {
+                        let container = if let Some(spec) = &pod.spec {
+                            if let Some(containers) = &spec.init_containers {
+                                Some(&containers[i])
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        };
+
+                        let mut selector = format!(
                         "involvedObject.name={},involvedObject.namespace={},involvedObject.fieldPath=spec.containers{{{}}}",
                         self.pod_name, self.ns, status.name
                     );
 
-                    if let Some(uid) = &pod.metadata.uid {
-                        selector += &format!(",involvedObject.uid={}", uid);
+                        if let Some(uid) = &pod.metadata.uid {
+                            selector += &format!(",involvedObject.uid={}", uid);
+                        }
+
+                        let msg = self
+                            .terminated_description(container, status, &selector)
+                            .await?;
+
+                        self.tx
+                            .send(Event::Kube(Kube::LogStreamResponse(Err(anyhow!(
+                                Error::Raw(msg),
+                            )))))?;
+
+                        return Err(anyhow!(PodError::ContainerExitCodeNotZero(
+                            container_name,
+                            vec![]
+                        )));
                     }
-
-                    let msg = self
-                        .terminated_description(container, status, &selector)
-                        .await?;
-
-                    self.tx
-                        .send(Event::Kube(Kube::LogStreamResponse(Err(anyhow!(
-                            Error::Raw(msg),
-                        )))))?;
-
-                    return Err(anyhow!(PodError::ContainerExitCodeNotZero(
-                        container_name,
-                        vec![]
-                    )));
                 }
             }
         }
@@ -533,7 +559,7 @@ impl FetchLogStreamWorker {
                     let tx = &worker.tx;
                     // // Terminated || Runningになるまで待機する
                     wait_container_log(&pod, i, ContainerType::Container, ContainerStateType::Or)
-                        .await;
+                        .await?;
 
                     // // ログとってくる
                     fetch_log_stream.run().await?;
@@ -545,41 +571,42 @@ impl FetchLogStreamWorker {
                         ContainerType::Container,
                         ContainerStateType::Terminated,
                     )
-                    .await;
+                    .await?;
 
                     // // pod status取得
                     let pod = pod.read().await;
-                    let statuses = container_statuses(&pod)?.unwrap();
-                    let status = &statuses[i];
 
-                    // // exit_code を確認
-                    if is_terminated(status) {
-                        let container = pod.spec.as_ref().map(|spec| &spec.containers[i]);
+                    if let Some(statuses) = container_statuses(&pod)? {
+                        let status = &statuses[i];
 
-                        let mut selector = format!(
+                        // // exit_code を確認
+                        if is_terminated(status) {
+                            let container = pod.spec.as_ref().map(|spec| &spec.containers[i]);
+
+                            let mut selector = format!(
                         "involvedObject.name={},involvedObject.namespace={},involvedObject.fieldPath=spec.containers{{{}}}",
                         worker.pod_name, worker.ns ,status.name
                     );
 
-                        if let Some(uid) = &pod.metadata.uid {
-                            selector += &format!(",involvedObject.uid={}", uid);
+                            if let Some(uid) = &pod.metadata.uid {
+                                selector += &format!(",involvedObject.uid={}", uid);
+                            }
+
+                            let msg = worker
+                                .terminated_description(container, status, &selector)
+                                .await?;
+
+                            tx.send(Event::Kube(Kube::LogStreamResponse(Err(anyhow!(
+                                Error::Raw(msg),
+                            )))))?;
+
+                            return Err(anyhow!(PodError::ContainerExitCodeNotZero(
+                                container_name,
+                                vec![]
+                            )));
                         }
-
-                        let msg = worker
-                            .terminated_description(container, status, &selector)
-                            .await?;
-
-                        tx.send(Event::Kube(Kube::LogStreamResponse(Err(anyhow!(
-                            Error::Raw(msg),
-                        )))))?;
-
-                        Err(anyhow!(PodError::ContainerExitCodeNotZero(
-                            container_name,
-                            vec![]
-                        )))
-                    } else {
-                        Ok(())
                     }
+                    Ok(())
                 });
 
                 container_handler.push(handle);
