@@ -188,7 +188,7 @@ fn convert_api_database(api_info_list: &[APIInfo]) -> HashMap<String, APIInfo> {
     db
 }
 
-fn merge_tabels(fetch_data: Vec<FetchData>, insert_ns: bool) -> Table {
+fn merge_tables(fetch_data: Vec<FetchData>, insert_ns: bool) -> Table {
     if fetch_data.is_empty() {
         return Table::default();
     }
@@ -302,7 +302,7 @@ async fn get_table_namespaced_resource(
 
     let result: Vec<FetchData> = jobs.into_iter().collect();
 
-    Ok(merge_tabels(result, insert_ns(namespaces)))
+    Ok(merge_tables(result, insert_ns(namespaces)))
 }
 
 #[inline]
