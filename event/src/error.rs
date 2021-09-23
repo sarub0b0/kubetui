@@ -28,6 +28,8 @@ pub enum Error {
     IO(#[from] std::io::Error),
     #[error(transparent)]
     Pod(#[from] PodError),
+    #[error("NoneParameter: {0}")]
+    NoneParameter(&'static str),
 }
 
 #[derive(Debug, TError)]

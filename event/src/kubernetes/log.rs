@@ -36,21 +36,19 @@ fn write_error(tx: &Sender<Event>, e: Error) -> Result<()> {
     Ok(())
 }
 
-fn container_statuses(pod: &Pod) -> Result<&[ContainerStatus]> {
+fn container_statuses(pod: &Pod) -> Result<Option<&Vec<ContainerStatus>>> {
     if let Some(status) = &pod.status {
-        Ok(&status.container_statuses)
+        Ok(status.container_statuses.as_ref())
     } else {
-        Err(anyhow!(Error::Raw("container_statuses is None".into())))
+        Err(anyhow!(Error::Raw("PodStatus is None".into())))
     }
 }
 
-fn init_container_statuses(pod: &Pod) -> Result<&[ContainerStatus]> {
+fn init_container_statuses(pod: &Pod) -> Result<Option<&Vec<ContainerStatus>>> {
     if let Some(status) = &pod.status {
-        Ok(&status.init_container_statuses)
+        Ok(status.init_container_statuses.as_ref())
     } else {
-        Err(anyhow!(Error::Raw(
-            "init_container_statuses is None".into()
-        )))
+        Err(anyhow!(Error::Raw("PodStatus is None".into())))
     }
 }
 
@@ -73,60 +71,76 @@ async fn wait_container_log(
     container_index: usize,
     container_type: ContainerType,
     container_state_type: ContainerStateType,
-) {
+) -> Result<()> {
     let mut interval = tokio::time::interval(time::Duration::from_millis(200));
     loop {
         interval.tick().await;
 
         let pod = pod.read().await;
-        let pod_status = pod.status.as_ref().unwrap();
 
         let statuses = match container_type {
-            ContainerType::InitContainer => &pod_status.init_container_statuses,
-            ContainerType::Container => &pod_status.container_statuses,
+            ContainerType::InitContainer => init_container_statuses(&pod)?,
+            ContainerType::Container => container_statuses(&pod)?,
         };
 
-        let state = statuses[container_index].state.as_ref().unwrap();
-        let last_state = statuses[container_index].last_state.as_ref();
+        let state = if let Some(statuses) = statuses {
+            statuses[container_index].state.as_ref()
+        } else {
+            None
+        };
+
+        let last_state = if let Some(statuses) = statuses {
+            statuses[container_index].last_state.as_ref()
+        } else {
+            None
+        };
 
         match container_state_type {
             ContainerStateType::Terminated => {
                 if let Some(state) = last_state {
                     if state.terminated.is_some() {
-                        return;
+                        break;
                     }
                 }
 
-                if state.terminated.is_some() {
-                    return;
+                if let Some(state) = state {
+                    if state.terminated.is_some() {
+                        break;
+                    }
                 }
             }
 
             ContainerStateType::Running => {
-                if state.running.is_some() {
-                    return;
+                if let Some(state) = state {
+                    if state.running.is_some() {
+                        break;
+                    }
                 }
             }
 
             ContainerStateType::Or => {
-                if let Some(waiting) = &state.waiting {
-                    if let Some(reason) = &waiting.reason {
-                        if reason == "PodInitializing" {
-                            continue;
-                        }
+                if let Some(state) = state {
+                    if let Some(waiting) = &state.waiting {
+                        if let Some(reason) = &waiting.reason {
+                            if reason == "PodInitializing" {
+                                continue;
+                            }
 
-                        if reason == "CrashLoopBackOff" {
-                            return;
+                            if reason == "CrashLoopBackOff" {
+                                break;
+                            }
                         }
                     }
-                }
 
-                if state.waiting.is_none() {
-                    return;
+                    if state.waiting.is_none() {
+                        break;
+                    }
                 }
             }
         }
     }
+
+    Ok(())
 }
 
 fn is_terminated(status: &ContainerStatus) -> bool {
@@ -365,8 +379,16 @@ impl FetchLogStreamWorker {
 
         // containers phase
         let pod = self.pod.read().await;
-        let pod_status = pod.status.as_ref().unwrap();
-        let enable_prefix = !pod_status.init_container_statuses.is_empty();
+
+        let enable_prefix = if let Some(status) = &pod.status {
+            if let Some(statuses) = &status.init_container_statuses {
+                !statuses.is_empty()
+            } else {
+                false
+            }
+        } else {
+            false
+        };
 
         let ret = self.phase_container_log(&mut color, enable_prefix).await?;
 
@@ -382,96 +404,103 @@ impl FetchLogStreamWorker {
 
     async fn phase_init_container_log(&self, color: &mut Color) -> Result<()> {
         let pod = self.pod.read().await.clone();
-        let containers = init_container_statuses(&pod)?;
 
-        let containers_len = containers.len();
+        if let Some(containers) = init_container_statuses(&pod)? {
+            let containers_len = containers.len();
 
-        for (i, c) in containers.iter().enumerate() {
-            let mut log_params = LogParams {
-                follow: true,
-                ..Default::default()
-            };
+            for (i, c) in containers.iter().enumerate() {
+                let mut log_params = LogParams {
+                    follow: true,
+                    ..Default::default()
+                };
 
-            let container_name = c.name.clone();
+                let container_name = c.name.clone();
 
-            log_params.container = Some(container_name.clone());
+                log_params.container = Some(container_name.clone());
 
-            let prefix = if 1 < containers_len {
-                Some(format!(
-                    "\x1b[{}m[init-{}:{}]\x1b[39m",
-                    color.next_color(),
+                let prefix = if 1 < containers_len {
+                    Some(format!(
+                        "\x1b[{}m[init-{}:{}]\x1b[39m",
+                        color.next_color(),
+                        i,
+                        c.name
+                    ))
+                } else {
+                    Some(format!(
+                        "\x1b[{}m[init:{}]\x1b[39m",
+                        color.next_color(),
+                        c.name
+                    ))
+                };
+
+                // Terminated || Runningになるまで待機する
+                wait_container_log(
+                    &self.pod,
                     i,
-                    c.name
-                ))
-            } else {
-                Some(format!(
-                    "\x1b[{}m[init:{}]\x1b[39m",
-                    color.next_color(),
-                    c.name
-                ))
-            };
+                    ContainerType::InitContainer,
+                    ContainerStateType::Or,
+                )
+                .await?;
 
-            // Terminated || Runningになるまで待機する
-            wait_container_log(
-                &self.pod,
-                i,
-                ContainerType::InitContainer,
-                ContainerStateType::Or,
-            )
-            .await;
+                // ログとってくる
+                let fetch_log_stream = FetchLogStream {
+                    buf: self.buf.clone(),
+                    pod_api: self.pod_api.clone(),
+                    pod_name: self.pod_name.clone(),
+                    prefix,
+                    log_params,
+                    container_name: container_name.clone(),
+                };
 
-            // ログとってくる
-            let fetch_log_stream = FetchLogStream {
-                buf: self.buf.clone(),
-                pod_api: self.pod_api.clone(),
-                pod_name: self.pod_name.clone(),
-                prefix,
-                log_params,
-                container_name: container_name.clone(),
-            };
+                fetch_log_stream.run().await?;
 
-            fetch_log_stream.run().await?;
+                // Terminated
+                wait_container_log(
+                    &self.pod,
+                    i,
+                    ContainerType::InitContainer,
+                    ContainerStateType::Terminated,
+                )
+                .await?;
 
-            // Terminated
-            wait_container_log(
-                &self.pod,
-                i,
-                ContainerType::InitContainer,
-                ContainerStateType::Terminated,
-            )
-            .await;
+                // pod status取得
+                let pod = self.pod.read().await;
 
-            // pod status取得
-            let pod = self.pod.read().await;
-            let statuses = init_container_statuses(&pod)?;
-            let status = &statuses[i];
+                if let Some(statuses) = init_container_statuses(&pod)? {
+                    let status = &statuses[i];
 
-            // exit_code を確認
-            if is_terminated(status) {
-                let container = pod.spec.as_ref().map(|spec| &spec.init_containers[i]);
+                    // exit_code を確認
+                    if is_terminated(status) {
+                        let container = if let Some(spec) = &pod.spec {
+                            spec.init_containers.as_ref().map(|c| &c[i])
+                        } else {
+                            None
+                        };
 
-                let mut selector = format!(
+                        let mut selector = format!(
                         "involvedObject.name={},involvedObject.namespace={},involvedObject.fieldPath=spec.containers{{{}}}",
                         self.pod_name, self.ns, status.name
                     );
 
-                if let Some(uid) = &pod.metadata.uid {
-                    selector += &format!(",involvedObject.uid={}", uid);
+                        if let Some(uid) = &pod.metadata.uid {
+                            selector += &format!(",involvedObject.uid={}", uid);
+                        }
+
+                        let msg = self
+                            .terminated_description(container, status, &selector)
+                            .await?;
+
+                        self.tx
+                            .send(Event::Kube(Kube::LogStreamResponse(Err(anyhow!(
+                                Error::Raw(msg),
+                            )))))?;
+
+                        return Err(anyhow!(PodError::ContainerExitCodeNotZero(
+                            container_name,
+                            vec![]
+                        )));
+                    }
                 }
-
-                let msg = self
-                    .terminated_description(container, status, &selector)
-                    .await?;
-
-                self.tx
-                    .send(Event::Kube(Kube::LogStreamResponse(Err(anyhow!(
-                        Error::Raw(msg),
-                    )))))?;
-
-                return Err(anyhow!(PodError::ContainerExitCodeNotZero(
-                    container_name,
-                    vec![]
-                )));
             }
         }
         Ok(())
@@ -488,89 +517,92 @@ impl FetchLogStreamWorker {
         let mut container_handler = Vec::new();
 
         let pod = self.pod.read().await;
-        let containers = container_statuses(&pod)?;
 
-        for (i, c) in containers.iter().enumerate() {
-            let mut lp = LogParams {
-                follow: true,
-                ..Default::default()
-            };
+        if let Some(containers) = container_statuses(&pod)? {
+            for (i, c) in containers.iter().enumerate() {
+                let mut lp = LogParams {
+                    follow: true,
+                    ..Default::default()
+                };
 
-            let container_name = c.name.clone();
+                let container_name = c.name.clone();
 
-            lp.container = Some(c.name.clone());
+                lp.container = Some(c.name.clone());
 
-            let prefix = if enable_prefix {
-                Some(format!("\x1b[{}m[{}]\x1b[39m", color.next_color(), c.name))
-            } else {
-                None
-            };
+                let prefix = if enable_prefix {
+                    Some(format!("\x1b[{}m[{}]\x1b[39m", color.next_color(), c.name))
+                } else {
+                    None
+                };
 
-            let fetch_log_stream = FetchLogStream {
-                buf: self.buf.clone(),
-                pod_api: self.pod_api.clone(),
-                pod_name: self.pod_name.clone(),
-                prefix,
-                log_params: lp,
-                container_name: container_name.clone(),
-            };
+                let fetch_log_stream = FetchLogStream {
+                    buf: self.buf.clone(),
+                    pod_api: self.pod_api.clone(),
+                    pod_name: self.pod_name.clone(),
+                    prefix,
+                    log_params: lp,
+                    container_name: container_name.clone(),
+                };
 
-            let worker = self.clone();
+                let worker = self.clone();
 
-            let handle = tokio::spawn(async move {
-                let pod = worker.pod.clone();
-                let tx = &worker.tx;
-                // // Terminated || Runningになるまで待機する
-                wait_container_log(&pod, i, ContainerType::Container, ContainerStateType::Or).await;
+                let handle = tokio::spawn(async move {
+                    let pod = worker.pod.clone();
+                    let tx = &worker.tx;
+                    // // Terminated || Runningになるまで待機する
+                    wait_container_log(&pod, i, ContainerType::Container, ContainerStateType::Or)
+                        .await?;
 
-                // // ログとってくる
-                fetch_log_stream.run().await?;
+                    // // ログとってくる
+                    fetch_log_stream.run().await?;
 
-                // // Terminated
-                wait_container_log(
-                    &pod,
-                    i,
-                    ContainerType::Container,
-                    ContainerStateType::Terminated,
-                )
-                .await;
+                    // // Terminated
+                    wait_container_log(
+                        &pod,
+                        i,
+                        ContainerType::Container,
+                        ContainerStateType::Terminated,
+                    )
+                    .await?;
 
-                // // pod status取得
-                let pod = pod.read().await;
-                let statuses = container_statuses(&pod)?;
-                let status = &statuses[i];
+                    // // pod status取得
+                    let pod = pod.read().await;
 
-                // // exit_code を確認
-                if is_terminated(status) {
-                    let container = pod.spec.as_ref().map(|spec| &spec.containers[i]);
+                    if let Some(statuses) = container_statuses(&pod)? {
+                        let status = &statuses[i];
 
-                    let mut selector = format!(
+                        // // exit_code を確認
+                        if is_terminated(status) {
+                            let container = pod.spec.as_ref().map(|spec| &spec.containers[i]);
+
+                            let mut selector = format!(
                         "involvedObject.name={},involvedObject.namespace={},involvedObject.fieldPath=spec.containers{{{}}}",
                         worker.pod_name, worker.ns ,status.name
                     );
 
-                    if let Some(uid) = &pod.metadata.uid {
-                        selector += &format!(",involvedObject.uid={}", uid);
+                            if let Some(uid) = &pod.metadata.uid {
+                                selector += &format!(",involvedObject.uid={}", uid);
+                            }
+
+                            let msg = worker
+                                .terminated_description(container, status, &selector)
+                                .await?;
+
+                            tx.send(Event::Kube(Kube::LogStreamResponse(Err(anyhow!(
+                                Error::Raw(msg),
+                            )))))?;
+
+                            return Err(anyhow!(PodError::ContainerExitCodeNotZero(
+                                container_name,
+                                vec![]
+                            )));
+                        }
                     }
-
-                    let msg = worker
-                        .terminated_description(container, status, &selector)
-                        .await?;
-
-                    tx.send(Event::Kube(Kube::LogStreamResponse(Err(anyhow!(
-                        Error::Raw(msg),
-                    )))))?;
-
-                    Err(anyhow!(PodError::ContainerExitCodeNotZero(
-                        container_name,
-                        vec![]
-                    )))
-                } else {
                     Ok(())
-                }
-            });
+                });
 
-            container_handler.push(handle);
+                container_handler.push(handle);
+            }
         }
 
         Ok(try_join_all(container_handler).await?)
@@ -580,7 +612,7 @@ impl FetchLogStreamWorker {
         &self,
         container: Option<&Container>,
         status: &ContainerStatus,
-        selector: &String,
+        selector: &str,
     ) -> Result<String> {
         fn time_to_string(time: &Time) -> String {
             time.0
@@ -595,16 +627,20 @@ impl FetchLogStreamWorker {
                     buf.push(format!("  Image:       {}", image));
                 }
 
-                buf.push("  Command:".into());
+                if let Some(command) = &c.command {
+                    buf.push("  Command:".into());
 
-                for command in &c.command {
-                    buf.push(format!("    {}", command));
+                    for cmd in command {
+                        buf.push(format!("    {}", cmd));
+                    }
                 }
 
-                buf.push("  Args:".into());
+                if let Some(args) = &c.args {
+                    buf.push("  Args:".into());
 
-                for arg in &c.args {
-                    buf.push(format!("    {}", arg));
+                    for arg in args {
+                        buf.push(format!("    {}", arg));
+                    }
                 }
             }
         }
@@ -684,7 +720,7 @@ impl FetchLogStreamWorker {
         container_status(&mut msg, status);
 
         let event: Api<v1Event> = Api::namespaced(self.client.clone(), &self.ns);
-        let lp = ListParams::default().fields(&selector);
+        let lp = ListParams::default().fields(selector);
 
         let event_result = event.list(&lp).await?;
 
