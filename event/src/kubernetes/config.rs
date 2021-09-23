@@ -115,7 +115,7 @@ pub async fn configs_loop(
 
         let table = fetch_configs(&namespaces, &args).await;
 
-        tx.send(Event::Kube(Kube::Configs(table))).unwrap();
+        tx.send(Event::Kube(Kube::Configs(table)))?;
     }
     Ok(())
 }
