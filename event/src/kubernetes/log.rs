@@ -382,11 +382,7 @@ impl FetchLogStreamWorker {
 
         let enable_prefix = if let Some(status) = &pod.status {
             if let Some(statuses) = &status.init_container_statuses {
-                if statuses.is_empty() {
-                    false
-                } else {
-                    true
-                }
+                !statuses.is_empty()
             } else {
                 false
             }
@@ -476,11 +472,7 @@ impl FetchLogStreamWorker {
                     // exit_code を確認
                     if is_terminated(status) {
                         let container = if let Some(spec) = &pod.spec {
-                            if let Some(containers) = &spec.init_containers {
-                                Some(&containers[i])
-                            } else {
-                                None
-                            }
+                            spec.init_containers.as_ref().map(|c| &c[i])
                         } else {
                             None
                         };
@@ -620,7 +612,7 @@ impl FetchLogStreamWorker {
         &self,
         container: Option<&Container>,
         status: &ContainerStatus,
-        selector: &String,
+        selector: &str,
     ) -> Result<String> {
         fn time_to_string(time: &Time) -> String {
             time.0
@@ -728,7 +720,7 @@ impl FetchLogStreamWorker {
         container_status(&mut msg, status);
 
         let event: Api<v1Event> = Api::namespaced(self.client.clone(), &self.ns);
-        let lp = ListParams::default().fields(&selector);
+        let lp = ListParams::default().fields(selector);
 
         let event_result = event.list(&lp).await?;
 
