@@ -1,36 +1,55 @@
 use super::{
     v1_table::*,
-    KubeArgs, Namespaces, WorkerResult, {Event, Kube},
+    worker::{KubeClient, PollWorker, Worker},
+    WorkerResult, {Event, Kube},
 };
 
-use std::{sync::Arc, time};
+use std::time;
 
-use crossbeam::channel::Sender;
 use futures::future::try_join_all;
 
+use async_trait::async_trait;
 use kube::Client;
 
 use crate::error::Result;
 
-pub async fn event_loop(
-    tx: Sender<Event>,
-    namespaces: Namespaces,
-    args: Arc<KubeArgs>,
-) -> Result<WorkerResult> {
-    let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
-    while !args
-        .is_terminated
-        .load(std::sync::atomic::Ordering::Relaxed)
-    {
-        interval.tick().await;
-        let ns = namespaces.read().await;
+#[derive(Clone)]
+pub struct EventPollWorker {
+    inner: PollWorker,
+}
 
-        let event_list = get_event_table(&args.client, &args.server_url, &ns).await;
-
-        tx.send(Event::Kube(Kube::Event(event_list))).unwrap();
+impl EventPollWorker {
+    pub fn new(inner: PollWorker) -> Self {
+        Self { inner }
     }
+}
 
-    Ok(WorkerResult::Terminated)
+#[async_trait]
+impl Worker for EventPollWorker {
+    type Output = Result<WorkerResult>;
+    async fn run(&self) -> Self::Output {
+        let Self {
+            inner:
+                PollWorker {
+                    is_terminated,
+                    tx,
+                    namespaces,
+                    kube_client: KubeClient { client, server_url },
+                },
+        } = self;
+
+        let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
+        while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
+            interval.tick().await;
+            let ns = namespaces.read().await;
+
+            let event_list = get_event_table(client, server_url, &ns).await;
+
+            tx.send(Event::Kube(Kube::Event(event_list))).unwrap();
+        }
+
+        Ok(WorkerResult::Terminated)
+    }
 }
 
 const TARGET_LEN: usize = 4;

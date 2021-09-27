@@ -1,17 +1,18 @@
 use super::{
     v1_table::*,
-    KubeArgs, KubeTable, Namespaces, WorkerResult, {Event, Kube},
+    worker::{KubeClient, PollWorker, Worker},
+    KubeTable, WorkerResult, {Event, Kube},
 };
 
-use std::{sync::Arc, time};
+use crate::error::Result;
 
-use crossbeam::channel::Sender;
+use async_trait::async_trait;
 
 use futures::future::try_join_all;
 
 use kube::Client;
 
-use crate::error::Result;
+use std::time;
 
 #[allow(dead_code)]
 pub struct PodInfo {
@@ -38,25 +39,44 @@ impl PodInfo {
     }
 }
 
-pub async fn pod_loop(
-    tx: Sender<Event>,
-    namespaces: Namespaces,
-    args: Arc<KubeArgs>,
-) -> Result<WorkerResult> {
-    let mut interval = tokio::time::interval(time::Duration::from_secs(1));
+#[derive(Clone)]
+pub struct PodPollWorker {
+    inner: PollWorker,
+}
 
-    while !args
-        .is_terminated
-        .load(std::sync::atomic::Ordering::Relaxed)
-    {
-        interval.tick().await;
-        let namespaces = namespaces.read().await;
-
-        let pod_info = get_pod_info(&args.client, &namespaces, &args.server_url).await;
-
-        tx.send(Event::Kube(Kube::Pod(pod_info))).unwrap();
+impl PodPollWorker {
+    pub fn new(inner: PollWorker) -> Self {
+        Self { inner }
     }
-    Ok(WorkerResult::Terminated)
+}
+
+#[async_trait]
+impl Worker for PodPollWorker {
+    type Output = Result<WorkerResult>;
+
+    async fn run(&self) -> Self::Output {
+        let mut interval = tokio::time::interval(time::Duration::from_secs(1));
+
+        let Self {
+            inner:
+                PollWorker {
+                    is_terminated,
+                    tx,
+                    namespaces,
+                    kube_client: KubeClient { client, server_url },
+                },
+        } = self;
+
+        while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
+            interval.tick().await;
+            let namespaces = namespaces.read().await;
+
+            let pod_info = get_pod_info(client, &namespaces, server_url).await;
+
+            tx.send(Event::Kube(Kube::Pod(pod_info))).unwrap();
+        }
+        Ok(WorkerResult::Terminated)
+    }
 }
 
 #[cfg(not(any(feature = "mock", feature = "mock-failed")))]

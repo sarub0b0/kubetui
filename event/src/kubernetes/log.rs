@@ -1,4 +1,4 @@
-use super::{Event, JobWorker, Kube};
+use super::{Event, Kube, Worker};
 use crate::{error::PodError, kubernetes::Handlers};
 
 use async_trait::async_trait;
@@ -283,7 +283,7 @@ impl LogWorker {
 }
 
 #[async_trait]
-impl JobWorker for WatchPodStatusWorker {
+impl Worker for WatchPodStatusWorker {
     type Output = Result<()>;
     async fn run(&self) -> Self::Output {
         let pod_api: Api<Pod> = Api::namespaced(self.client.clone(), &self.ns);
@@ -310,7 +310,7 @@ impl JobWorker for WatchPodStatusWorker {
 }
 
 #[async_trait]
-impl JobWorker for SendMessageWorker {
+impl Worker for SendMessageWorker {
     type Output = Result<()>;
     async fn run(&self) -> Self::Output {
         let mut interval = tokio::time::interval(time::Duration::from_millis(200));
@@ -333,7 +333,7 @@ impl JobWorker for SendMessageWorker {
 }
 
 #[async_trait]
-impl JobWorker for FetchLogStreamWorker {
+impl Worker for FetchLogStreamWorker {
     type Output = Result<()>;
     async fn run(&self) -> Self::Output {
         let pod_api: Api<Pod> = Api::namespaced(self.client.clone(), &self.ns);
@@ -742,7 +742,7 @@ struct FetchLogStream {
 }
 
 #[async_trait]
-impl JobWorker for FetchLogStream {
+impl Worker for FetchLogStream {
     type Output = Result<()>;
 
     #[cfg(not(any(feature = "mock", feature = "mock-failed")))]

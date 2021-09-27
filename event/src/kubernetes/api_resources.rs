@@ -1,26 +1,93 @@
-use crossbeam::channel::Sender;
+use super::{
+    request::{get_request, get_table_request},
+    worker::{KubeClient, PollWorker, Worker},
+    {v1_table::*, ApiResources},
+    {Event, Kube},
+};
+
+use super::{metric_type::*, WorkerResult};
+use crate::error::Result;
+
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{
     APIGroupList, APIResource, APIResourceList, APIVersions, GroupVersionForDiscovery,
 };
 use k8s_openapi::Resource;
 use kube::Client;
-use std::sync::Arc;
+
 use std::time;
 use tokio::time::Instant;
-
-use super::{
-    request::{get_request, get_table_request},
-    {v1_table::*, ApiResources, KubeArgs, Namespaces},
-    {Event, Kube},
-};
 
 use futures::future::try_join_all;
 use serde_json::Value as JsonValue;
 
+use async_trait::async_trait;
 use std::collections::{HashMap, HashSet};
 
-use super::{metric_type::*, WorkerResult};
-use crate::error::Result;
+#[derive(Clone)]
+pub struct ApiPollWorker {
+    inner: PollWorker,
+    api_resources: ApiResources,
+}
+
+impl ApiPollWorker {
+    pub fn new(inner: PollWorker, api_resources: ApiResources) -> Self {
+        Self {
+            inner,
+            api_resources,
+        }
+    }
+}
+
+#[async_trait]
+impl Worker for ApiPollWorker {
+    type Output = Result<WorkerResult>;
+
+    async fn run(&self) -> Self::Output {
+        let Self {
+            inner:
+                PollWorker {
+                    is_terminated,
+                    tx,
+                    namespaces,
+                    kube_client: KubeClient { client, server_url },
+                },
+            api_resources,
+        } = self;
+
+        let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
+
+        let api_info_list = get_all_api_info(client, server_url).await?;
+
+        let mut db = convert_api_database(&api_info_list);
+
+        let mut last_tick = Instant::now();
+        let tick_rate = time::Duration::from_secs(10);
+
+        while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
+            interval.tick().await;
+            let namespaces = namespaces.read().await;
+            let apis = api_resources.read().await;
+
+            if apis.is_empty() {
+                continue;
+            }
+
+            if tick_rate < last_tick.elapsed() {
+                last_tick = Instant::now();
+
+                let api_info_list = get_all_api_info(client, server_url).await?;
+
+                db = convert_api_database(&api_info_list);
+            }
+
+            let result = get_api_resources(client, server_url, &namespaces, &apis, &db).await;
+
+            tx.send(Event::Kube(Kube::APIsResults(result))).unwrap();
+        }
+
+        Ok(WorkerResult::Terminated)
+    }
+}
 
 #[derive(Debug, Clone)]
 struct APIInfo {
@@ -353,48 +420,4 @@ async fn get_api_resources(
     }
 
     Ok(ret)
-}
-
-pub async fn apis_loop(
-    tx: Sender<Event>,
-    namespace: Namespaces,
-    api_resources: ApiResources,
-    args: Arc<KubeArgs>,
-) -> Result<WorkerResult> {
-    let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
-
-    let api_info_list = get_all_api_info(&args.client, &args.server_url).await?;
-
-    let mut db = convert_api_database(&api_info_list);
-
-    let mut last_tick = Instant::now();
-    let tick_rate = time::Duration::from_secs(10);
-
-    while !args
-        .is_terminated
-        .load(std::sync::atomic::Ordering::Relaxed)
-    {
-        interval.tick().await;
-        let namespaces = namespace.read().await;
-        let apis = api_resources.read().await;
-
-        if apis.is_empty() {
-            continue;
-        }
-
-        if tick_rate < last_tick.elapsed() {
-            last_tick = Instant::now();
-
-            let api_info_list = get_all_api_info(&args.client, &args.server_url).await?;
-
-            db = convert_api_database(&api_info_list);
-        }
-
-        let result =
-            get_api_resources(&args.client, &args.server_url, &namespaces, &apis, &db).await;
-
-        tx.send(Event::Kube(Kube::APIsResults(result))).unwrap();
-    }
-
-    Ok(WorkerResult::Terminated)
 }

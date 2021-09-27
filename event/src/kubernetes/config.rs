@@ -1,15 +1,60 @@
-use super::{v1_table::*, Event, Kube, KubeArgs, KubeTable, Namespaces, WorkerResult};
+use super::{
+    v1_table::*,
+    worker::{KubeClient, PollWorker, Worker},
+    Event, Kube, KubeTable, WorkerResult,
+};
 
-use std::{sync::Arc, time};
-
-use crossbeam::channel::Sender;
+use std::time;
 
 use futures::future::try_join_all;
 use k8s_openapi::api::core::v1::{ConfigMap, Secret};
 
 use kube::{Api, Client};
 
+use async_trait::async_trait;
+
 use crate::error::{anyhow, Error, Result};
+
+#[derive(Clone)]
+pub struct ConfigsPollWorker {
+    inner: PollWorker,
+}
+
+impl ConfigsPollWorker {
+    pub fn new(inner: PollWorker) -> Self {
+        Self { inner }
+    }
+}
+
+#[async_trait]
+impl Worker for ConfigsPollWorker {
+    type Output = Result<WorkerResult>;
+
+    async fn run(&self) -> Self::Output {
+        let mut interval = tokio::time::interval(time::Duration::from_secs(1));
+
+        let Self {
+            inner:
+                PollWorker {
+                    is_terminated,
+                    tx,
+                    namespaces,
+                    kube_client: KubeClient { client, server_url },
+                },
+        } = self;
+
+        while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
+            interval.tick().await;
+
+            let namespaces = namespaces.read().await;
+
+            let table = fetch_configs(client, server_url, &namespaces).await;
+
+            tx.send(Event::Kube(Kube::Configs(table)))?;
+        }
+        Ok(WorkerResult::Terminated)
+    }
+}
 
 #[derive(Clone, Copy)]
 enum Configs {
@@ -67,11 +112,11 @@ async fn fetch_configs_per_namespace(
     Ok(jobs.into_iter().flatten().collect())
 }
 
-async fn fetch_configs(namespaces: &[String], args: &KubeArgs) -> Result<KubeTable> {
-    let KubeArgs {
-        client, server_url, ..
-    } = args;
-
+async fn fetch_configs(
+    client: &Client,
+    server_url: &str,
+    namespaces: &[String],
+) -> Result<KubeTable> {
     let mut table = KubeTable {
         header: if namespaces.len() == 1 {
             ["KIND", "NAME", "DATA", "AGE"]
@@ -96,28 +141,6 @@ async fn fetch_configs(namespaces: &[String], args: &KubeArgs) -> Result<KubeTab
     table.update_rows(jobs.into_iter().flatten().collect());
 
     Ok(table)
-}
-
-pub async fn configs_loop(
-    tx: Sender<Event>,
-    namespaces: Namespaces,
-    args: Arc<KubeArgs>,
-) -> Result<WorkerResult> {
-    let mut interval = tokio::time::interval(time::Duration::from_secs(1));
-
-    while !args
-        .is_terminated
-        .load(std::sync::atomic::Ordering::Relaxed)
-    {
-        interval.tick().await;
-
-        let namespaces = namespaces.read().await;
-
-        let table = fetch_configs(&namespaces, &args).await;
-
-        tx.send(Event::Kube(Kube::Configs(table)))?;
-    }
-    Ok(WorkerResult::Terminated)
 }
 
 pub async fn get_config(client: Client, ns: &str, kind: &str, name: &str) -> Result<Vec<String>> {

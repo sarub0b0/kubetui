@@ -6,14 +6,14 @@ mod metric_type;
 mod pod;
 mod request;
 mod v1_table;
+mod worker;
 
-use self::event::event_loop;
 use super::Event;
-use api_resources::{apis_list, apis_loop};
-use config::{configs_loop, get_config};
+use api_resources::apis_list;
+use config::get_config;
 use futures::future::select_all;
 use k8s_openapi::api::core::v1::Namespace;
-use pod::pod_loop;
+use worker::Worker;
 
 use std::{convert::TryFrom, panic, sync::atomic::AtomicBool, sync::Arc, time::Duration};
 
@@ -34,7 +34,14 @@ use kube::{
 
 use crate::{
     error::{Error, Result},
-    kubernetes::log::LogWorkerBuilder,
+    kubernetes::{
+        api_resources::ApiPollWorker,
+        config::ConfigsPollWorker,
+        event::EventPollWorker,
+        log::LogWorkerBuilder,
+        pod::PodPollWorker,
+        worker::{KubeClient, PollWorker},
+    },
     panic_set_hook,
 };
 
@@ -113,16 +120,6 @@ pub enum Kube {
     ConfigResponse(Result<Vec<String>>),
 }
 
-#[derive(Clone)]
-pub struct KubeArgs {
-    pub client: Client,
-    pub server_url: String,
-    pub current_context: String,
-    pub current_namespace: String,
-    pub contexts: Vec<NamedContext>,
-    pub is_terminated: Arc<AtomicBool>,
-}
-
 #[derive(Default, Debug)]
 pub struct Handlers(Vec<JoinHandle<Result<()>>>);
 
@@ -144,9 +141,10 @@ fn cluster_server_url(kubeconfig: &Kubeconfig, named_context: &NamedContext) -> 
         .server)
 }
 
-type Namespaces = Arc<RwLock<Vec<String>>>;
-type ApiResources = Arc<RwLock<Vec<String>>>;
+pub type Namespaces = Arc<RwLock<Vec<String>>>;
+pub type ApiResources = Arc<RwLock<Vec<String>>>;
 
+#[derive(Clone)]
 pub enum WorkerResult {
     ChangedContext(String),
     Terminated,
@@ -158,8 +156,6 @@ async fn inner_kube_process(
     is_terminated: Arc<AtomicBool>,
 ) -> Result<()> {
     let kubeconfig = Kubeconfig::read()?;
-
-    let is_terminated_clone = is_terminated.clone();
 
     let mut context: Option<String> = None;
 
@@ -224,45 +220,33 @@ async fn inner_kube_process(
             current_namespace.to_string(),
         )))?;
 
-        let args = Arc::new(KubeArgs {
-            client,
-            server_url,
-            current_context,
-            current_namespace,
+        let poll_worker = PollWorker {
+            namespaces: namespaces.clone(),
+            tx: tx.clone(),
+            is_terminated: is_terminated.clone(),
+            kube_client: KubeClient { client, server_url },
+        };
+
+        let main_handler = MainWorker {
+            inner: poll_worker.clone(),
+            api_resources: api_resources.clone(),
+            rx: rx.clone(),
             contexts: kubeconfig.contexts.clone(),
-            is_terminated: is_terminated_clone.clone(),
-        });
+        }
+        .spawn();
 
-        let main_loop = tokio::spawn(main_loop(
-            rx.clone(),
-            tx.clone(),
-            Arc::clone(&namespaces),
-            Arc::clone(&api_resources),
-            args.clone(),
-        ));
+        let pod_handler = PodPollWorker::new(poll_worker.clone()).spawn();
+        let config_handler = ConfigsPollWorker::new(poll_worker.clone()).spawn();
+        let event_handler = EventPollWorker::new(poll_worker.clone()).spawn();
+        let apis_handler = ApiPollWorker::new(poll_worker.clone(), api_resources).spawn();
 
-        let pod_loop = tokio::spawn(pod_loop(tx.clone(), Arc::clone(&namespaces), args.clone()));
-
-        let config_loop = tokio::spawn(configs_loop(
-            tx.clone(),
-            Arc::clone(&namespaces),
-            args.clone(),
-        ));
-
-        let event_loop = tokio::spawn(event_loop(
-            tx.clone(),
-            Arc::clone(&namespaces),
-            args.clone(),
-        ));
-
-        let apis_loop = tokio::spawn(apis_loop(
-            tx.clone(),
-            Arc::clone(&namespaces),
-            api_resources,
-            args.clone(),
-        ));
-
-        let mut handlers = vec![main_loop, pod_loop, config_loop, event_loop, apis_loop];
+        let mut handlers = vec![
+            main_handler,
+            pod_handler,
+            config_handler,
+            event_handler,
+            apis_handler,
+        ];
 
         fn abort<T>(handlers: &[JoinHandle<T>]) {
             for h in handlers {
@@ -326,120 +310,120 @@ async fn namespace_list(client: Client) -> Vec<String> {
     ns_list.iter().map(|ns| ns.name()).collect()
 }
 
-async fn main_loop(
-    rx: Receiver<Event>,
-    tx: Sender<Event>,
-    namespaces: Namespaces,
+#[derive(Clone)]
+struct MainWorker {
+    inner: PollWorker,
     api_resources: ApiResources,
-    args: Arc<KubeArgs>,
-) -> Result<WorkerResult> {
-    let mut log_stream_handler: Option<Handlers> = None;
-    let client = &args.client;
-    let server_url = &args.server_url;
+    rx: Receiver<Event>,
+    contexts: Vec<NamedContext>,
+}
 
-    while !args
-        .is_terminated
-        .load(std::sync::atomic::Ordering::Relaxed)
-    {
-        let rx = rx.clone();
-        let tx = tx.clone();
-
-        let task = tokio::task::spawn_blocking(move || rx.recv_timeout(Duration::from_secs(1)));
-
-        if let Ok(recv) = task.await {
-            match recv {
-                Ok(Event::Kube(ev)) => match ev {
-                    Kube::SetNamespaces(ns) => {
-                        {
-                            let mut namespace = namespaces.write().await;
-                            *namespace = ns;
-                        }
-
-                        if let Some(handler) = log_stream_handler {
-                            handler.abort();
-                            log_stream_handler = None;
-                        }
-                    }
-
-                    Kube::GetNamespacesRequest => {
-                        let client = args.client.clone();
-                        let res = namespace_list(client).await;
-                        tx.send(Event::Kube(Kube::GetNamespacesResponse(res)))?;
-                    }
-
-                    Kube::LogStreamRequest(namespace, pod_name) => {
-                        if let Some(handler) = log_stream_handler {
-                            handler.abort();
-                        }
-
-                        let client = args.client.clone();
-
-                        log_stream_handler = Some(
-                            LogWorkerBuilder::new(tx, client, namespace, pod_name)
-                                .build()
-                                .spawn(),
-                        );
-
-                        task::yield_now().await;
-                    }
-
-                    Kube::ConfigRequest(ns, kind, name) => {
-                        let client = args.client.clone();
-                        let raw = get_config(client, &ns, &kind, &name).await;
-                        tx.send(Event::Kube(Kube::ConfigResponse(raw)))?;
-                    }
-
-                    Kube::GetCurrentContextRequest => {
-                        tx.send(Event::Kube(Kube::GetCurrentContextResponse(
-                            args.current_context.to_string(),
-                            args.current_namespace.to_string(),
-                        )))?;
-                    }
-
-                    Kube::GetAPIsRequest => {
-                        let apis = apis_list(client, server_url).await;
-
-                        tx.send(Event::Kube(Kube::GetAPIsResponse(apis)))?;
-                    }
-
-                    Kube::SetAPIsRequest(apis) => {
-                        let mut api_resources = api_resources.write().await;
-                        *api_resources = apis;
-                    }
-
-                    Kube::GetContextsRequest => {
-                        let contexts = args.contexts.iter().cloned().map(|ctx| ctx.name).collect();
-                        let contexts = Ok(contexts);
-
-                        tx.send(Event::Kube(Kube::GetContextsResponse(contexts)))?
-                    }
-
-                    Kube::SetContext(ctx) => {
-                        return Ok(WorkerResult::ChangedContext(ctx));
-                    }
-                    _ => unreachable!(),
-                },
-                Ok(_) => unreachable!(),
-                Err(_) => {}
-            }
-        }
-    }
-
-    Ok(WorkerResult::Terminated)
+#[derive(Clone)]
+struct MainWorkerArgs {
+    api_resources: ApiResources,
+    rx: Receiver<Event>,
+    contexts: Vec<NamedContext>,
 }
 
 #[async_trait]
-trait JobWorker {
-    type Output;
+impl Worker for MainWorker {
+    type Output = Result<WorkerResult>;
 
-    async fn run(&self) -> Self::Output;
+    async fn run(&self) -> Self::Output {
+        let mut log_stream_handler: Option<Handlers> = None;
 
-    fn spawn(&self) -> JoinHandle<Self::Output>
-    where
-        Self: Clone + Send + Sync + 'static,
-        Self::Output: Send,
-    {
-        let worker = self.clone();
-        tokio::spawn(async move { worker.run().await })
+        let MainWorker {
+            inner: poll_worker,
+            api_resources,
+            rx,
+            contexts,
+        } = self;
+
+        let PollWorker {
+            namespaces,
+            tx,
+            is_terminated,
+            kube_client: KubeClient { client, server_url },
+        } = poll_worker;
+
+        while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
+            let rx = rx.clone();
+            let tx = tx.clone();
+
+            let task = tokio::task::spawn_blocking(move || rx.recv_timeout(Duration::from_secs(1)));
+
+            if let Ok(recv) = task.await {
+                match recv {
+                    Ok(Event::Kube(ev)) => match ev {
+                        Kube::SetNamespaces(ns) => {
+                            {
+                                let mut namespace = namespaces.write().await;
+                                *namespace = ns;
+                            }
+
+                            if let Some(handler) = log_stream_handler {
+                                handler.abort();
+                                log_stream_handler = None;
+                            }
+                        }
+
+                        Kube::GetNamespacesRequest => {
+                            let client = client.clone();
+                            let res = namespace_list(client).await;
+                            tx.send(Event::Kube(Kube::GetNamespacesResponse(res)))?;
+                        }
+
+                        Kube::LogStreamRequest(namespace, pod_name) => {
+                            if let Some(handler) = log_stream_handler {
+                                handler.abort();
+                            }
+
+                            let client = client.clone();
+
+                            log_stream_handler = Some(
+                                LogWorkerBuilder::new(tx, client, namespace, pod_name)
+                                    .build()
+                                    .spawn(),
+                            );
+
+                            task::yield_now().await;
+                        }
+
+                        Kube::ConfigRequest(ns, kind, name) => {
+                            let client = client.clone();
+                            let raw = get_config(client, &ns, &kind, &name).await;
+                            tx.send(Event::Kube(Kube::ConfigResponse(raw)))?;
+                        }
+
+                        Kube::GetAPIsRequest => {
+                            let apis = apis_list(client, server_url).await;
+
+                            tx.send(Event::Kube(Kube::GetAPIsResponse(apis)))?;
+                        }
+
+                        Kube::SetAPIsRequest(apis) => {
+                            let mut api_resources = api_resources.write().await;
+                            *api_resources = apis;
+                        }
+
+                        Kube::GetContextsRequest => {
+                            let contexts = contexts.iter().cloned().map(|ctx| ctx.name).collect();
+                            let contexts = Ok(contexts);
+
+                            tx.send(Event::Kube(Kube::GetContextsResponse(contexts)))?
+                        }
+
+                        Kube::SetContext(ctx) => {
+                            return Ok(WorkerResult::ChangedContext(ctx));
+                        }
+                        _ => unreachable!(),
+                    },
+                    Ok(_) => unreachable!(),
+                    Err(_) => {}
+                }
+            }
+        }
+
+        Ok(WorkerResult::Terminated)
     }
 }
