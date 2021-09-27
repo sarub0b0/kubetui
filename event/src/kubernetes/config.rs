@@ -1,7 +1,7 @@
 use super::{
     v1_table::*,
-    worker::{KubeClient, PollWorker, Worker},
-    Event, Kube, KubeTable, WorkerResult,
+    worker::{PollWorker, Worker},
+    Event, Kube, KubeClient, KubeTable, WorkerResult,
 };
 
 use std::time;
@@ -9,7 +9,7 @@ use std::time;
 use futures::future::try_join_all;
 use k8s_openapi::api::core::v1::{ConfigMap, Secret};
 
-use kube::{Api, Client};
+use kube::Api;
 
 use async_trait::async_trait;
 
@@ -39,7 +39,7 @@ impl Worker for ConfigsPollWorker {
                     is_terminated,
                     tx,
                     namespaces,
-                    kube_client: KubeClient { client, server_url },
+                    kube_client,
                 },
         } = self;
 
@@ -48,7 +48,7 @@ impl Worker for ConfigsPollWorker {
 
             let namespaces = namespaces.read().await;
 
-            let table = fetch_configs(client, server_url, &namespaces).await;
+            let table = fetch_configs(kube_client, &namespaces).await;
 
             tx.send(Event::Kube(Kube::Configs(table)))?;
         }
@@ -79,8 +79,7 @@ impl Configs {
 }
 
 async fn fetch_configs_per_namespace(
-    client: &Client,
-    server_url: &str,
+    client: &KubeClient,
     namespaces: &[String],
     ty: Configs,
 ) -> Result<Vec<Vec<String>>> {
@@ -88,7 +87,6 @@ async fn fetch_configs_per_namespace(
     let jobs = try_join_all(namespaces.iter().map(|ns| {
         get_resource_per_namespace(
             client,
-            server_url,
             format!("api/v1/namespaces/{}/{}", ns, ty.kind()),
             &["Name", "Data", "Age"],
             move |row: &TableRow, indexes: &[usize]| {
@@ -112,11 +110,7 @@ async fn fetch_configs_per_namespace(
     Ok(jobs.into_iter().flatten().collect())
 }
 
-async fn fetch_configs(
-    client: &Client,
-    server_url: &str,
-    namespaces: &[String],
-) -> Result<KubeTable> {
+async fn fetch_configs(client: &KubeClient, namespaces: &[String]) -> Result<KubeTable> {
     let mut table = KubeTable {
         header: if namespaces.len() == 1 {
             ["KIND", "NAME", "DATA", "AGE"]
@@ -133,8 +127,8 @@ async fn fetch_configs(
     };
 
     let jobs = try_join_all([
-        fetch_configs_per_namespace(client, server_url, namespaces, Configs::ConfigMap),
-        fetch_configs_per_namespace(client, server_url, namespaces, Configs::Secret),
+        fetch_configs_per_namespace(client, namespaces, Configs::ConfigMap),
+        fetch_configs_per_namespace(client, namespaces, Configs::Secret),
     ])
     .await?;
 
@@ -143,10 +137,15 @@ async fn fetch_configs(
     Ok(table)
 }
 
-pub async fn get_config(client: Client, ns: &str, kind: &str, name: &str) -> Result<Vec<String>> {
+pub async fn get_config(
+    client: KubeClient,
+    ns: &str,
+    kind: &str,
+    name: &str,
+) -> Result<Vec<String>> {
     match kind {
         "ConfigMap" => {
-            let cms: Api<ConfigMap> = Api::namespaced(client, ns);
+            let cms: Api<ConfigMap> = Api::namespaced(client.client_clone(), ns);
             let cm = cms.get(name).await?;
             if let Some(data) = cm.data {
                 Ok(data.iter().map(|(k, v)| format!("{}: {}", k, v)).collect())
@@ -155,7 +154,7 @@ pub async fn get_config(client: Client, ns: &str, kind: &str, name: &str) -> Res
             }
         }
         "Secret" => {
-            let secs: Api<Secret> = Api::namespaced(client, ns);
+            let secs: Api<Secret> = Api::namespaced(client.client_clone(), ns);
             let sec = secs.get(name).await?;
 
             if let Some(data) = sec.data {

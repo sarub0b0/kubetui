@@ -1,7 +1,7 @@
 use super::{
     v1_table::*,
-    worker::{KubeClient, PollWorker, Worker},
-    WorkerResult, {Event, Kube},
+    worker::{PollWorker, Worker},
+    KubeClient, WorkerResult, {Event, Kube},
 };
 
 use std::time;
@@ -9,7 +9,6 @@ use std::time;
 use futures::future::try_join_all;
 
 use async_trait::async_trait;
-use kube::Client;
 
 use crate::error::Result;
 
@@ -34,7 +33,7 @@ impl Worker for EventPollWorker {
                     is_terminated,
                     tx,
                     namespaces,
-                    kube_client: KubeClient { client, server_url },
+                    kube_client,
                 },
         } = self;
 
@@ -43,7 +42,7 @@ impl Worker for EventPollWorker {
             interval.tick().await;
             let ns = namespaces.read().await;
 
-            let event_list = get_event_table(client, server_url, &ns).await;
+            let event_list = get_event_table(kube_client, &ns).await;
 
             tx.send(Event::Kube(Kube::Event(event_list))).unwrap();
         }
@@ -55,17 +54,12 @@ impl Worker for EventPollWorker {
 const TARGET_LEN: usize = 4;
 const TARGET: [&str; TARGET_LEN] = ["Last Seen", "Object", "Reason", "Message"];
 
-async fn get_event_table(
-    client: &Client,
-    server_url: &str,
-    namespaces: &[String],
-) -> Result<Vec<String>> {
+async fn get_event_table(client: &KubeClient, namespaces: &[String]) -> Result<Vec<String>> {
     let insert_ns = insert_ns(namespaces);
 
     let jobs = try_join_all(namespaces.iter().map(|ns| {
         get_resource_per_namespace(
             client,
-            server_url,
             format!("api/v1/namespaces/{}/{}", ns, "events"),
             &TARGET,
             move |row: &TableRow, indexes: &[usize]| {

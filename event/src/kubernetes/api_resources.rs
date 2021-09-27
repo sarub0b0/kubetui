@@ -1,6 +1,6 @@
 use super::{
-    request::{get_request, get_table_request},
-    worker::{KubeClient, PollWorker, Worker},
+    worker::{PollWorker, Worker},
+    KubeClient,
     {v1_table::*, ApiResources},
     {Event, Kube},
 };
@@ -12,7 +12,6 @@ use k8s_openapi::apimachinery::pkg::apis::meta::v1::{
     APIGroupList, APIResource, APIResourceList, APIVersions, GroupVersionForDiscovery,
 };
 use k8s_openapi::Resource;
-use kube::Client;
 
 use std::time;
 use tokio::time::Instant;
@@ -49,14 +48,14 @@ impl Worker for ApiPollWorker {
                     is_terminated,
                     tx,
                     namespaces,
-                    kube_client: KubeClient { client, server_url },
+                    kube_client,
                 },
             api_resources,
         } = self;
 
         let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
 
-        let api_info_list = get_all_api_info(client, server_url).await?;
+        let api_info_list = get_all_api_info(kube_client).await?;
 
         let mut db = convert_api_database(&api_info_list);
 
@@ -75,12 +74,12 @@ impl Worker for ApiPollWorker {
             if tick_rate < last_tick.elapsed() {
                 last_tick = Instant::now();
 
-                let api_info_list = get_all_api_info(client, server_url).await?;
+                let api_info_list = get_all_api_info(kube_client).await?;
 
                 db = convert_api_database(&api_info_list);
             }
 
-            let result = get_api_resources(client, server_url, &namespaces, &apis, &db).await;
+            let result = get_api_resources(kube_client, &namespaces, &apis, &db).await;
 
             tx.send(Event::Kube(Kube::APIsResults(result))).unwrap();
         }
@@ -132,8 +131,8 @@ fn is_preferred_version(
     preferred_version.as_ref().map(|gv| gv.version == version)
 }
 
-pub async fn apis_list(client: &Client, server_url: &str) -> Result<Vec<String>> {
-    let api_info_list = get_all_api_info(client, server_url).await?;
+pub async fn apis_list(client: KubeClient) -> Result<Vec<String>> {
+    let api_info_list = get_all_api_info(&client).await?;
 
     let set: HashSet<String> = api_info_list
         .iter()
@@ -152,36 +151,30 @@ pub async fn apis_list(client: &Client, server_url: &str) -> Result<Vec<String>>
     Ok(ret)
 }
 
-async fn get_all_api_info(client: &Client, server_url: &str) -> Result<Vec<APIInfo>> {
+async fn get_all_api_info(client: &KubeClient) -> Result<Vec<APIInfo>> {
     let mut group_versions = Vec::new();
 
-    let result: Result<APIVersions, kube::Error> =
-        client.request(get_request(server_url, "api")?).await;
+    let api_versions: APIVersions = client.request("api").await?;
 
-    if let Ok(api_versions) = result.as_ref() {
-        api_versions.versions.iter().for_each(|v| {
+    api_versions.versions.iter().for_each(|v| {
+        group_versions.push(GroupVersion {
+            group: String::default(),
+            version: v.to_string(),
+            preferred_version: None,
+        })
+    });
+
+    let api_group_list: APIGroupList = client.request("apis").await?;
+
+    api_group_list.groups.iter().for_each(|group| {
+        group.versions.iter().for_each(|gv| {
             group_versions.push(GroupVersion {
-                group: String::default(),
-                version: v.to_string(),
-                preferred_version: None,
+                group: group.name.to_string(),
+                version: gv.version.to_string(),
+                preferred_version: is_preferred_version(&gv.version, &group.preferred_version),
             })
-        });
-    }
-
-    let result: Result<APIGroupList, kube::Error> =
-        client.request(get_request(server_url, "apis")?).await;
-
-    if let Ok(api_group_list) = result.as_ref() {
-        api_group_list.groups.iter().for_each(|group| {
-            group.versions.iter().for_each(|gv| {
-                group_versions.push(GroupVersion {
-                    group: group.name.to_string(),
-                    version: gv.version.to_string(),
-                    preferred_version: is_preferred_version(&gv.version, &group.preferred_version),
-                })
-            })
-        });
-    }
+        })
+    });
 
     // APIResourceListを取得
     //      /api/v1
@@ -192,7 +185,7 @@ async fn get_all_api_info(client: &Client, server_url: &str) -> Result<Vec<APIIn
     let job = try_join_all(
         group_versions
             .iter()
-            .map(|gv| api_resource_list_to_api_info_list(client, server_url, gv)),
+            .map(|gv| api_resource_list_to_api_info_list(client, gv)),
     )
     .await?;
 
@@ -204,13 +197,10 @@ fn can_get_request(api: &APIResource) -> bool {
 }
 
 async fn api_resource_list_to_api_info_list(
-    client: &Client,
-    server_url: &str,
+    client: &KubeClient,
     gv: &GroupVersion,
 ) -> Result<Vec<APIInfo>> {
-    let result = client
-        .request::<APIResourceList>(get_request(server_url, &gv.api_url())?)
-        .await?;
+    let result = client.request::<APIResourceList>(&gv.api_url()).await?;
 
     Ok(result
         .resources
@@ -306,26 +296,20 @@ fn header_by_api_info(info: &APIInfo) -> String {
     }
 }
 
-async fn try_fetch_table(client: &Client, server_url: &str, path: String) -> Result<Table> {
-    let table = client
-        .request::<Table>(get_table_request(server_url, &path)?)
-        .await;
+async fn try_fetch_table(client: &KubeClient, path: &str) -> Result<Table> {
+    let table = client.table_request::<Table>(path).await;
 
     if let Ok(t) = table {
         return Ok(t);
     }
 
-    let table = client
-        .request::<NodeMetricsList>(get_table_request(server_url, &path)?)
-        .await;
+    let table = client.table_request::<NodeMetricsList>(path).await;
 
     if let Ok(t) = table {
         return Ok(t.into());
     }
 
-    let table = client
-        .request::<PodMetricsList>(get_table_request(server_url, &path)?)
-        .await?;
+    let table = client.table_request::<PodMetricsList>(path).await?;
 
     Ok(table.into())
 }
@@ -336,12 +320,11 @@ struct FetchData {
 }
 
 async fn fetch_table_per_namespace(
-    client: &Client,
-    server_url: &str,
+    client: &KubeClient,
     path: String,
     ns: &str,
 ) -> Result<FetchData> {
-    let table = try_fetch_table(client, server_url, path).await?;
+    let table = try_fetch_table(client, &path).await?;
 
     Ok(FetchData {
         namespace: ns.to_string(),
@@ -351,19 +334,14 @@ async fn fetch_table_per_namespace(
 
 #[inline]
 async fn get_table_namespaced_resource(
-    client: &Client,
-    server_url: &str,
+    client: &KubeClient,
     path: String,
     kind: &str,
     namespaces: &[String],
 ) -> Result<Table> {
     let jobs = try_join_all(namespaces.iter().map(|ns| {
-        fetch_table_per_namespace(
-            client,
-            server_url,
-            format!("{}/namespaces/{}/{}", path, ns, kind),
-            ns,
-        )
+        let path = format!("{}/namespaces/{}/{}", path, ns, kind);
+        fetch_table_per_namespace(client, path, ns)
     }))
     .await?;
 
@@ -373,17 +351,12 @@ async fn get_table_namespaced_resource(
 }
 
 #[inline]
-async fn get_table_cluster_resource(
-    client: &Client,
-    server_url: &str,
-    path: String,
-) -> Result<Table> {
-    Ok(try_fetch_table(client, server_url, path).await?)
+async fn get_table_cluster_resource(client: &KubeClient, path: &str) -> Result<Table> {
+    Ok(try_fetch_table(client, path).await?)
 }
 
 async fn get_api_resources(
-    client: &Client,
-    server_url: &str,
+    client: &KubeClient,
     namespaces: &[String],
     apis: &[String],
     db: &HashMap<String, APIInfo>,
@@ -395,7 +368,6 @@ async fn get_api_resources(
             let table = if info.api_resource.namespaced {
                 get_table_namespaced_resource(
                     client,
-                    server_url,
                     info.api_url(),
                     &info.api_resource.name,
                     namespaces,
@@ -404,8 +376,7 @@ async fn get_api_resources(
             } else {
                 get_table_cluster_resource(
                     client,
-                    server_url,
-                    format!("{}/{}", info.api_url(), info.api_resource.name),
+                    &format!("{}/{}", info.api_url(), info.api_resource.name),
                 )
                 .await
             }?;

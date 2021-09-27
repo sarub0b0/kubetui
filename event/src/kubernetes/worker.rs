@@ -3,18 +3,11 @@ use std::sync::{atomic::AtomicBool, Arc};
 use async_trait::async_trait;
 
 use crossbeam::channel::Sender;
-use kube::Client;
 use tokio::task::JoinHandle;
 
 use crate::Event;
 
-use super::Namespaces;
-
-#[derive(Clone)]
-pub struct KubeClient {
-    pub client: Client,
-    pub server_url: String,
-}
+use super::{KubeClient, Namespaces};
 
 #[async_trait]
 pub trait Worker {

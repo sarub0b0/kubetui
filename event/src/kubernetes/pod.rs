@@ -1,7 +1,7 @@
 use super::{
     v1_table::*,
-    worker::{KubeClient, PollWorker, Worker},
-    KubeTable, WorkerResult, {Event, Kube},
+    worker::{PollWorker, Worker},
+    KubeClient, KubeTable, WorkerResult, {Event, Kube},
 };
 
 use crate::error::Result;
@@ -9,8 +9,6 @@ use crate::error::Result;
 use async_trait::async_trait;
 
 use futures::future::try_join_all;
-
-use kube::Client;
 
 use std::time;
 
@@ -63,7 +61,7 @@ impl Worker for PodPollWorker {
                     is_terminated,
                     tx,
                     namespaces,
-                    kube_client: KubeClient { client, server_url },
+                    kube_client,
                 },
         } = self;
 
@@ -71,7 +69,7 @@ impl Worker for PodPollWorker {
             interval.tick().await;
             let namespaces = namespaces.read().await;
 
-            let pod_info = get_pod_info(client, &namespaces, server_url).await;
+            let pod_info = get_pod_info(kube_client, &namespaces).await;
 
             tx.send(Event::Kube(Kube::Pod(pod_info))).unwrap();
         }
@@ -81,15 +79,13 @@ impl Worker for PodPollWorker {
 
 #[cfg(not(any(feature = "mock", feature = "mock-failed")))]
 async fn get_pods_per_namespace(
-    client: &Client,
-    server_url: &str,
+    client: &KubeClient,
     namespaces: &[String],
 ) -> Result<Vec<Vec<Vec<String>>>> {
     let insert_ns = insert_ns(namespaces);
     try_join_all(namespaces.iter().map(|ns| {
         get_resource_per_namespace(
             client,
-            server_url,
             format!("api/v1/namespaces/{}/{}", ns, "pods"),
             &["Name", "Ready", "Status", "Age"],
             move |row: &TableRow, indexes: &[usize]| {
@@ -171,12 +167,8 @@ async fn get_pods_per_namespace(
     Err(anyhow!(Error::Mock("Mock get_pods_per_namespace failed")))
 }
 
-async fn get_pod_info(
-    client: &Client,
-    namespaces: &[String],
-    server_url: &str,
-) -> Result<KubeTable> {
-    let jobs = get_pods_per_namespace(client, server_url, namespaces).await;
+async fn get_pod_info(client: &KubeClient, namespaces: &[String]) -> Result<KubeTable> {
+    let jobs = get_pods_per_namespace(client, namespaces).await;
 
     let ok_only: Vec<Vec<String>> = jobs?.into_iter().flatten().collect();
 

@@ -1,15 +1,16 @@
 mod api_resources;
+mod client;
 mod config;
 mod event;
 mod log;
 mod metric_type;
 mod pod;
-mod request;
 mod v1_table;
 mod worker;
 
 use super::Event;
 use api_resources::apis_list;
+use client::KubeClient;
 use config::get_config;
 use futures::future::select_all;
 use k8s_openapi::api::core::v1::Namespace;
@@ -35,12 +36,8 @@ use kube::{
 use crate::{
     error::{Error, Result},
     kubernetes::{
-        api_resources::ApiPollWorker,
-        config::ConfigsPollWorker,
-        event::EventPollWorker,
-        log::LogWorkerBuilder,
-        pod::PodPollWorker,
-        worker::{KubeClient, PollWorker},
+        api_resources::ApiPollWorker, config::ConfigsPollWorker, event::EventPollWorker,
+        log::LogWorkerBuilder, pod::PodPollWorker, worker::PollWorker,
     },
     panic_set_hook,
 };
@@ -160,57 +157,64 @@ async fn inner_kube_process(
     let mut context: Option<String> = None;
 
     while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
-        let (client, server_url, current_namespace, current_context) =
-            if let Some(context) = &context {
-                let named_context = kubeconfig
-                    .contexts
-                    .iter()
-                    .find(|n| n.name == *context)
-                    .ok_or_else(|| Error::Raw("Cannot get contexts".into()))?;
+        let (kube_client, current_namespace, current_context) = if let Some(context) = &context {
+            let named_context = kubeconfig
+                .contexts
+                .iter()
+                .find(|n| n.name == *context)
+                .ok_or_else(|| Error::Raw("Cannot get contexts".into()))?;
 
-                let current_namespace = named_context
-                    .context
-                    .namespace
-                    .clone()
-                    .ok_or_else(|| Error::Raw("Cannot get current namespace".into()))?;
+            let current_namespace = named_context
+                .context
+                .namespace
+                .clone()
+                .ok_or_else(|| Error::Raw("Cannot get current namespace".into()))?;
 
-                let options = KubeConfigOptions {
-                    context: Some(named_context.name.to_string()),
-                    cluster: Some(named_context.context.cluster.to_string()),
-                    user: Some(named_context.context.user.to_string()),
-                };
-
-                let config = Config::from_custom_kubeconfig(kubeconfig.clone(), &options).await?;
-
-                let client = Client::try_from(config)?;
-
-                let server_url = cluster_server_url(&kubeconfig, named_context)?;
-
-                (client, server_url, current_namespace, context.to_string())
-            } else {
-                let current_context = kubeconfig
-                    .current_context
-                    .clone()
-                    .ok_or_else(|| Error::Raw("Cannot get current context".into()))?;
-
-                let named_context = kubeconfig
-                    .contexts
-                    .iter()
-                    .find(|n| n.name == current_context)
-                    .ok_or_else(|| Error::Raw("Cannot get contexts".into()))?;
-
-                let current_namespace = named_context
-                    .context
-                    .namespace
-                    .clone()
-                    .ok_or_else(|| Error::Raw("Cannot get current namespace".into()))?;
-
-                let server_url = cluster_server_url(&kubeconfig, named_context)?;
-
-                let client = Client::try_default().await?;
-
-                (client, server_url, current_namespace, current_context)
+            let options = KubeConfigOptions {
+                context: Some(named_context.name.to_string()),
+                cluster: Some(named_context.context.cluster.to_string()),
+                user: Some(named_context.context.user.to_string()),
             };
+
+            let config = Config::from_custom_kubeconfig(kubeconfig.clone(), &options).await?;
+
+            let client = Client::try_from(config)?;
+
+            let server_url = cluster_server_url(&kubeconfig, named_context)?;
+
+            (
+                KubeClient::new(client, server_url),
+                current_namespace,
+                context.to_string(),
+            )
+        } else {
+            let current_context = kubeconfig
+                .current_context
+                .clone()
+                .ok_or_else(|| Error::Raw("Cannot get current context".into()))?;
+
+            let named_context = kubeconfig
+                .contexts
+                .iter()
+                .find(|n| n.name == current_context)
+                .ok_or_else(|| Error::Raw("Cannot get contexts".into()))?;
+
+            let current_namespace = named_context
+                .context
+                .namespace
+                .clone()
+                .ok_or_else(|| Error::Raw("Cannot get current namespace".into()))?;
+
+            let server_url = cluster_server_url(&kubeconfig, named_context)?;
+
+            let client = Client::try_default().await?;
+
+            (
+                KubeClient::new(client, server_url),
+                current_namespace,
+                current_context,
+            )
+        };
 
         let namespaces = Arc::new(RwLock::new(vec![current_namespace.to_string()]));
         let api_resources: ApiResources = Default::default();
@@ -224,7 +228,7 @@ async fn inner_kube_process(
             namespaces: namespaces.clone(),
             tx: tx.clone(),
             is_terminated: is_terminated.clone(),
-            kube_client: KubeClient { client, server_url },
+            kube_client,
         };
 
         let main_handler = MainWorker {
@@ -302,8 +306,8 @@ pub fn kube_process(
     Ok(())
 }
 
-async fn namespace_list(client: Client) -> Vec<String> {
-    let namespaces: Api<Namespace> = Api::all(client);
+async fn namespace_list(client: KubeClient) -> Vec<String> {
+    let namespaces: Api<Namespace> = Api::all(client.client_clone());
     let lp = ListParams::default();
     let ns_list = namespaces.list(&lp).await.unwrap();
 
@@ -343,7 +347,7 @@ impl Worker for MainWorker {
             namespaces,
             tx,
             is_terminated,
-            kube_client: KubeClient { client, server_url },
+            kube_client,
         } = poll_worker;
 
         while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
@@ -368,8 +372,7 @@ impl Worker for MainWorker {
                         }
 
                         Kube::GetNamespacesRequest => {
-                            let client = client.clone();
-                            let res = namespace_list(client).await;
+                            let res = namespace_list(kube_client.clone()).await;
                             tx.send(Event::Kube(Kube::GetNamespacesResponse(res)))?;
                         }
 
@@ -378,10 +381,8 @@ impl Worker for MainWorker {
                                 handler.abort();
                             }
 
-                            let client = client.clone();
-
                             log_stream_handler = Some(
-                                LogWorkerBuilder::new(tx, client, namespace, pod_name)
+                                LogWorkerBuilder::new(tx, kube_client.clone(), namespace, pod_name)
                                     .build()
                                     .spawn(),
                             );
@@ -390,13 +391,12 @@ impl Worker for MainWorker {
                         }
 
                         Kube::ConfigRequest(ns, kind, name) => {
-                            let client = client.clone();
-                            let raw = get_config(client, &ns, &kind, &name).await;
+                            let raw = get_config(kube_client.clone(), &ns, &kind, &name).await;
                             tx.send(Event::Kube(Kube::ConfigResponse(raw)))?;
                         }
 
                         Kube::GetAPIsRequest => {
-                            let apis = apis_list(client, server_url).await;
+                            let apis = apis_list(kube_client.clone()).await;
 
                             tx.send(Event::Kube(Kube::GetAPIsResponse(apis)))?;
                         }

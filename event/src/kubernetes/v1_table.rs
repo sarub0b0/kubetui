@@ -1,6 +1,6 @@
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ListMeta;
 use k8s_openapi::apimachinery::pkg::runtime::RawExtension;
-use kube::{api::TypeMeta, Client};
+use kube::api::TypeMeta;
 use serde::Deserialize;
 
 use serde::Deserializer;
@@ -8,7 +8,8 @@ use serde_json::Value as JsonValue;
 use std::cmp::Ordering;
 use std::cmp::{Ord, PartialOrd};
 
-use super::request::get_table_request;
+use super::client::KubeClient;
+
 use crate::error::Result;
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, Deserialize)]
@@ -287,8 +288,7 @@ pub fn insert_ns(namespaces: &[String]) -> bool {
 }
 
 pub async fn get_resource_per_namespace<F>(
-    client: &Client,
-    server_url: &str,
+    client: &KubeClient,
     path: String,
     target_values: &[&str],
     create_cells: F,
@@ -296,9 +296,7 @@ pub async fn get_resource_per_namespace<F>(
 where
     F: Fn(&TableRow, &[usize]) -> Vec<String>,
 {
-    let table: Table = client
-        .request(get_table_request(server_url, &path)?)
-        .await?;
+    let table: Table = client.table_request(&path).await?;
 
     let indexes = table.find_indexes(target_values);
 

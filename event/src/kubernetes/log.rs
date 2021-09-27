@@ -1,4 +1,4 @@
-use super::{Event, Kube, Worker};
+use super::{client::KubeClient, Event, Kube, Worker};
 use crate::{error::PodError, kubernetes::Handlers};
 
 use async_trait::async_trait;
@@ -17,7 +17,7 @@ use k8s_openapi::{
 
 use kube::{
     api::{ListParams, LogParams, WatchEvent},
-    Api, Client,
+    Api,
 };
 
 use color::Color;
@@ -176,7 +176,7 @@ fn is_terminated(status: &ContainerStatus) -> bool {
 
 pub struct LogWorkerBuilder {
     tx: Sender<Event>,
-    client: Client,
+    client: KubeClient,
     ns: String,
     pod_name: String,
 }
@@ -184,7 +184,7 @@ pub struct LogWorkerBuilder {
 impl LogWorkerBuilder {
     pub fn new(
         tx: Sender<Event>,
-        client: Client,
+        client: KubeClient,
         ns: impl Into<String>,
         pod_name: impl Into<String>,
     ) -> Self {
@@ -211,7 +211,7 @@ impl LogWorkerBuilder {
 #[derive(Clone)]
 pub struct LogWorker {
     tx: Sender<Event>,
-    client: Client,
+    client: KubeClient,
     ns: String,
     pod_name: String,
     message_buffer: BufType,
@@ -220,7 +220,7 @@ pub struct LogWorker {
 
 #[derive(Clone)]
 struct WatchPodStatusWorker {
-    client: Client,
+    client: KubeClient,
     ns: String,
     pod_name: String,
     pod: PodType,
@@ -235,7 +235,7 @@ struct SendMessageWorker {
 #[derive(Clone)]
 struct FetchLogStreamWorker {
     tx: Sender<Event>,
-    client: Client,
+    client: KubeClient,
     ns: String,
     pod_name: String,
     pod: PodType,
@@ -269,7 +269,7 @@ impl LogWorker {
     }
 
     fn to_fetch_log_stream_worker(&self) -> FetchLogStreamWorker {
-        let pod_api = Api::namespaced(self.client.clone(), &self.ns);
+        let pod_api = Api::namespaced(self.client.client_clone(), &self.ns);
         FetchLogStreamWorker {
             client: self.client.clone(),
             ns: self.ns.clone(),
@@ -286,7 +286,7 @@ impl LogWorker {
 impl Worker for WatchPodStatusWorker {
     type Output = Result<()>;
     async fn run(&self) -> Self::Output {
-        let pod_api: Api<Pod> = Api::namespaced(self.client.clone(), &self.ns);
+        let pod_api: Api<Pod> = Api::namespaced(self.client.client_clone(), &self.ns);
 
         let lp = ListParams::default()
             .fields(&format!("metadata.name={}", self.pod_name))
@@ -336,7 +336,7 @@ impl Worker for SendMessageWorker {
 impl Worker for FetchLogStreamWorker {
     type Output = Result<()>;
     async fn run(&self) -> Self::Output {
-        let pod_api: Api<Pod> = Api::namespaced(self.client.clone(), &self.ns);
+        let pod_api: Api<Pod> = Api::namespaced(self.client.client_clone(), &self.ns);
 
         match pod_api.get(&self.pod_name).await {
             Ok(p) => self.fetch_log_stream(p).await?,
@@ -709,7 +709,7 @@ impl FetchLogStreamWorker {
         container_info(&mut msg, container);
         container_status(&mut msg, status);
 
-        let event: Api<v1Event> = Api::namespaced(self.client.clone(), &self.ns);
+        let event: Api<v1Event> = Api::namespaced(self.client.client_clone(), &self.ns);
         let lp = ListParams::default().fields(selector);
 
         let event_result = event.list(&lp).await?;
