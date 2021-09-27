@@ -13,11 +13,10 @@ use super::Event;
 use api_resources::{apis_list, apis_loop};
 use config::{configs_loop, get_config};
 use context::namespace_list;
-use futures::future::join_all;
 use futures::future::select_all;
 use pod::pod_loop;
 
-use std::{panic, sync::atomic::AtomicBool, sync::Arc, time::Duration};
+use std::{convert::TryFrom, panic, sync::atomic::AtomicBool, sync::Arc, time::Duration};
 
 use crossbeam::channel::{Receiver, Sender};
 use tokio::{
@@ -27,13 +26,13 @@ use tokio::{
 };
 
 use kube::{
-    config::{Kubeconfig, NamedContext},
+    config::{Config, KubeConfigOptions, Kubeconfig, NamedContext},
     Client,
 };
 
 use crate::{
     error::{Error, Result},
-    kubernetes::log::LogWorkerBuilder,
+    kubernetes::{context::context_list, log::LogWorkerBuilder},
     panic_set_hook,
 };
 
@@ -91,7 +90,7 @@ pub enum Kube {
     APIsResults(Result<Vec<String>>),
     // Context
     GetContextsRequest,
-    GetContextsResponse(Vec<String>),
+    GetContextsResponse(Result<Vec<String>>),
     SetContext(String),
     GetCurrentContextRequest,
     GetCurrentContextResponse(String, String), // current_context, namespace
@@ -118,6 +117,7 @@ pub struct KubeArgs {
     pub server_url: String,
     pub current_context: String,
     pub current_namespace: String,
+    pub contexts: Vec<NamedContext>,
     pub is_terminated: Arc<AtomicBool>,
 }
 
@@ -146,7 +146,7 @@ type Namespaces = Arc<RwLock<Vec<String>>>;
 type ApiResources = Arc<RwLock<Vec<String>>>;
 
 pub enum WorkerResult {
-    ChangedContext,
+    ChangedContext(String),
     Terminated,
 }
 
@@ -159,36 +159,75 @@ async fn inner_kube_process(
 
     let is_terminated_clone = is_terminated.clone();
 
+    let mut context: Option<String> = None;
+
     while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
-        let current_context = kubeconfig
-            .current_context
-            .clone()
-            .ok_or_else(|| Error::Raw("Cannot get current context".into()))?;
+        let (client, server_url, current_namespace, current_context) =
+            if let Some(context) = &context {
+                let named_context = kubeconfig
+                    .contexts
+                    .iter()
+                    .find(|n| n.name == *context)
+                    .ok_or_else(|| Error::Raw("Cannot get contexts".into()))?;
 
-        let named_context = kubeconfig
-            .contexts
-            .iter()
-            .find(|n| n.name == current_context)
-            .ok_or_else(|| Error::Raw("Cannot get contexts".into()))?;
+                let current_namespace = named_context
+                    .context
+                    .namespace
+                    .clone()
+                    .ok_or_else(|| Error::Raw("Cannot get current namespace".into()))?;
 
-        let current_namespace = named_context
-            .context
-            .namespace
-            .clone()
-            .ok_or_else(|| Error::Raw("Cannot get current namespace".into()))?;
+                let options = KubeConfigOptions {
+                    context: Some(named_context.name.to_string()),
+                    cluster: Some(named_context.context.cluster.to_string()),
+                    user: Some(named_context.context.user.to_string()),
+                };
 
-        let server_url = cluster_server_url(&kubeconfig, named_context)?;
+                let config = Config::from_custom_kubeconfig(kubeconfig.clone(), &options).await?;
 
-        let client = Client::try_default().await?;
+                let client = Client::try_from(config)?;
+
+                let server_url = cluster_server_url(&kubeconfig, named_context)?;
+
+                (client, server_url, current_namespace, context.to_string())
+            } else {
+                let current_context = kubeconfig
+                    .current_context
+                    .clone()
+                    .ok_or_else(|| Error::Raw("Cannot get current context".into()))?;
+
+                let named_context = kubeconfig
+                    .contexts
+                    .iter()
+                    .find(|n| n.name == current_context)
+                    .ok_or_else(|| Error::Raw("Cannot get contexts".into()))?;
+
+                let current_namespace = named_context
+                    .context
+                    .namespace
+                    .clone()
+                    .ok_or_else(|| Error::Raw("Cannot get current namespace".into()))?;
+
+                let server_url = cluster_server_url(&kubeconfig, named_context)?;
+
+                let client = Client::try_default().await?;
+
+                (client, server_url, current_namespace, current_context)
+            };
 
         let namespaces = Arc::new(RwLock::new(vec![current_namespace.to_string()]));
         let api_resources: ApiResources = Default::default();
+
+        tx.send(Event::Kube(Kube::GetCurrentContextResponse(
+            current_context.to_string(),
+            current_namespace.to_string(),
+        )))?;
 
         let args = Arc::new(KubeArgs {
             client,
             server_url,
             current_context,
             current_namespace,
+            contexts: kubeconfig.contexts.clone(),
             is_terminated: is_terminated_clone.clone(),
         });
 
@@ -237,8 +276,10 @@ async fn inner_kube_process(
             match ret {
                 Ok(h) => match h {
                     Ok(result) => match result {
-                        WorkerResult::ChangedContext => {
+                        WorkerResult::ChangedContext(ctx) => {
                             abort(&handlers);
+
+                            context = Some(ctx);
                         }
                         WorkerResult::Terminated => {}
                     },
@@ -344,14 +385,27 @@ async fn main_loop(
                             args.current_namespace.to_string(),
                         )))?;
                     }
+
                     Kube::GetAPIsRequest => {
                         let apis = apis_list(client, server_url).await;
 
                         tx.send(Event::Kube(Kube::GetAPIsResponse(apis)))?;
                     }
+
                     Kube::SetAPIsRequest(apis) => {
                         let mut api_resources = api_resources.write().await;
                         *api_resources = apis;
+                    }
+
+                    Kube::GetContextsRequest => {
+                        let contexts = args.contexts.iter().cloned().map(|ctx| ctx.name).collect();
+                        let contexts = Ok(contexts);
+
+                        tx.send(Event::Kube(Kube::GetContextsResponse(contexts)))?
+                    }
+
+                    Kube::SetContext(ctx) => {
+                        return Ok(WorkerResult::ChangedContext(ctx));
                     }
                     _ => unreachable!(),
                 },

@@ -112,8 +112,8 @@ fn run(config: Config) -> Result<()> {
     let backend = CrosstermBackend::new(io::stdout());
 
     let mut current_namespace = "None".to_string();
-    let mut current_context = "None".to_string();
     let selected_namespaces = Rc::new(RefCell::new(vec!["None".to_string()]));
+    let current_context = Rc::new(RefCell::new("None".to_string()));
 
     let clipboard = match clipboard_wrapper::ClipboardContextWrapper::new() {
         Ok(cb) => Some(Rc::new(RefCell::new(cb))),
@@ -287,6 +287,45 @@ fn run(config: Config) -> Result<()> {
         Tab::new(view_id::tab_apis, "4:APIs", [WidgetData::new(apis_widget)]),
     ];
 
+    let tx_ctx = tx_main.clone();
+    let current_ctx = current_context.clone();
+    let selected_ns = selected_namespaces.clone();
+    let subwin_ctx = Widget::from(
+        SingleSelectBuilder::default()
+            .id(view_id::subwin_ctx)
+            .title("Context")
+            .build()
+            .on_select(move |w: &mut Window, ctx| {
+                let item = ctx.to_string();
+
+                tx_ctx
+                    .send(Event::Kube(Kube::SetContext(item.to_string())))
+                    .unwrap();
+
+                let mut ctx = current_ctx.borrow_mut();
+                *ctx = item;
+
+                let mut ns = selected_ns.borrow_mut();
+                *ns = vec!["None".to_string()];
+
+                w.close_popup();
+
+                w.widget_clear(view_id::tab_pods_widget_logs);
+                w.widget_clear(view_id::tab_configs_widget_raw_data);
+                w.widget_clear(view_id::tab_event_widget_event);
+                w.widget_clear(view_id::tab_apis_widget_apis);
+
+                let widget = w
+                    .find_widget_mut(view_id::subwin_ns)
+                    .as_mut_multiple_select();
+
+                // TODO 洗濯しているNSのお掃除
+                widget.unselect_all();
+
+                EventResult::Nop
+            }),
+    );
+
     let tx_ns = tx_main.clone();
     let selected_ns = selected_namespaces.clone();
     let subwin_single_ns = Widget::from(
@@ -420,19 +459,23 @@ fn run(config: Config) -> Result<()> {
         }
     };
 
+    let tx_ctx = tx_main.clone();
+    window.add_action('c', move |w| {
+        tx_ctx.send(Event::Kube(Kube::GetContextsRequest)).unwrap();
+        w.open_popup(view_id::subwin_ctx);
+        EventResult::Nop
+    });
+
     window.add_action('q', fn_close);
     window.add_action(KeyCode::Esc, fn_close);
-    window.add_popup([subwin_ns, subwin_apis, subwin_single_ns]);
+    window.add_popup([subwin_ns, subwin_apis, subwin_single_ns, subwin_ctx]);
 
     terminal.clear()?;
     window.update_chunks(terminal.size()?);
-    tx_main
-        .send(Event::Kube(Kube::GetCurrentContextRequest))
-        .unwrap();
 
     loop {
         terminal.draw(|f| {
-            window.render(f, &current_context, &selected_namespaces.borrow());
+            window.render(f, &current_context.borrow(), &selected_namespaces.borrow());
         })?;
 
         match window_action(&mut window, &rx_main) {
@@ -449,7 +492,7 @@ fn run(config: Config) -> Result<()> {
                 update_contents(
                     &mut window,
                     ev,
-                    &mut current_context,
+                    &mut current_context.borrow_mut(),
                     &mut current_namespace,
                     &mut selected_namespaces.borrow_mut(),
                 );
