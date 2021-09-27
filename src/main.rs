@@ -365,7 +365,7 @@ fn run(config: Config) -> Result<()> {
 
     // TODO: 画面サイズ変更時にクラッシュする問題の解決
     //
-    // Terminal::new()の場合は、teminal.draw実行時にautoresizeを実行してバッファを更新する。
+    // Terminal::new()の場合は、terminal.draw実行時にautoresizeを実行してバッファを更新する。
     // そのため、リサイズイベント時に使用したサイズとterminal.draw実行時のサイズに差がでで
     // クラッシュすることがある。
     // 応急処置として、ドキュメントにはUNSTABLEとあるがdraw実行時のautoresizeを無効にする
