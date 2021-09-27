@@ -1,6 +1,5 @@
 mod api_resources;
 mod config;
-mod context;
 mod event;
 mod log;
 mod metric_type;
@@ -12,8 +11,8 @@ use self::event::event_loop;
 use super::Event;
 use api_resources::{apis_list, apis_loop};
 use config::{configs_loop, get_config};
-use context::namespace_list;
 use futures::future::select_all;
+use k8s_openapi::api::core::v1::Namespace;
 use pod::pod_loop;
 
 use std::{convert::TryFrom, panic, sync::atomic::AtomicBool, sync::Arc, time::Duration};
@@ -26,13 +25,14 @@ use tokio::{
 };
 
 use kube::{
+    api::ListParams,
     config::{Config, KubeConfigOptions, Kubeconfig, NamedContext},
-    Client,
+    Api, Client, ResourceExt,
 };
 
 use crate::{
     error::{Error, Result},
-    kubernetes::{context::context_list, log::LogWorkerBuilder},
+    kubernetes::log::LogWorkerBuilder,
     panic_set_hook,
 };
 
@@ -314,6 +314,14 @@ pub fn kube_process(
     ::log::debug!("Terminated kube event");
 
     Ok(())
+}
+
+async fn namespace_list(client: Client) -> Vec<String> {
+    let namespaces: Api<Namespace> = Api::all(client);
+    let lp = ListParams::default();
+    let ns_list = namespaces.list(&lp).await.unwrap();
+
+    ns_list.iter().map(|ns| ns.name()).collect()
 }
 
 async fn main_loop(
