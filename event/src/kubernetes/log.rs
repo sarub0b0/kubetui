@@ -28,7 +28,7 @@ type PodType = Arc<RwLock<Pod>>;
 
 #[allow(dead_code)]
 fn write_error(tx: &Sender<Event>, e: Error) -> Result<()> {
-    #[cfg(feature = "logging")]
+    // #[cfg(feature = "logging")]
     ::log::error!("[log] {}", e.to_string());
 
     tx.send(Event::Kube(Kube::LogStreamResponse(Err(anyhow!(e)))))?;

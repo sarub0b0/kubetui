@@ -1,4 +1,4 @@
-use super::{v1_table::*, Event, Kube, KubeArgs, KubeTable, Namespaces};
+use super::{v1_table::*, Event, Kube, KubeArgs, KubeTable, Namespaces, WorkerResult};
 
 use std::{sync::Arc, time};
 
@@ -102,7 +102,7 @@ pub async fn configs_loop(
     tx: Sender<Event>,
     namespaces: Namespaces,
     args: Arc<KubeArgs>,
-) -> Result<()> {
+) -> Result<WorkerResult> {
     let mut interval = tokio::time::interval(time::Duration::from_secs(1));
 
     while !args
@@ -117,7 +117,7 @@ pub async fn configs_loop(
 
         tx.send(Event::Kube(Kube::Configs(table)))?;
     }
-    Ok(())
+    Ok(WorkerResult::Terminated)
 }
 
 pub async fn get_config(client: Client, ns: &str, kind: &str, name: &str) -> Result<Vec<String>> {

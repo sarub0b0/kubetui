@@ -19,7 +19,7 @@ use serde_json::Value as JsonValue;
 
 use std::collections::{HashMap, HashSet};
 
-use super::metric_type::*;
+use super::{metric_type::*, WorkerResult};
 use crate::error::Result;
 
 #[derive(Debug, Clone)]
@@ -360,7 +360,7 @@ pub async fn apis_loop(
     namespace: Namespaces,
     api_resources: ApiResources,
     args: Arc<KubeArgs>,
-) -> Result<()> {
+) -> Result<WorkerResult> {
     let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
 
     let api_info_list = get_all_api_info(&args.client, &args.server_url).await?;
@@ -396,5 +396,5 @@ pub async fn apis_loop(
         tx.send(Event::Kube(Kube::APIsResults(result))).unwrap();
     }
 
-    Ok(())
+    Ok(WorkerResult::Terminated)
 }

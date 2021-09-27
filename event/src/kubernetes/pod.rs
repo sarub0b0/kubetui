@@ -1,6 +1,6 @@
 use super::{
     v1_table::*,
-    KubeArgs, KubeTable, Namespaces, {Event, Kube},
+    KubeArgs, KubeTable, Namespaces, WorkerResult, {Event, Kube},
 };
 
 use std::{sync::Arc, time};
@@ -42,7 +42,7 @@ pub async fn pod_loop(
     tx: Sender<Event>,
     namespaces: Namespaces,
     args: Arc<KubeArgs>,
-) -> Result<()> {
+) -> Result<WorkerResult> {
     let mut interval = tokio::time::interval(time::Duration::from_secs(1));
 
     while !args
@@ -56,7 +56,7 @@ pub async fn pod_loop(
 
         tx.send(Event::Kube(Kube::Pod(pod_info))).unwrap();
     }
-    Ok(())
+    Ok(WorkerResult::Terminated)
 }
 
 #[cfg(not(any(feature = "mock", feature = "mock-failed")))]

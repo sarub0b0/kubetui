@@ -14,6 +14,7 @@ use api_resources::{apis_list, apis_loop};
 use config::{configs_loop, get_config};
 use context::namespace_list;
 use futures::future::join_all;
+use futures::future::select_all;
 use pod::pod_loop;
 
 use std::{panic, sync::atomic::AtomicBool, sync::Arc, time::Duration};
@@ -111,6 +112,7 @@ pub enum Kube {
     ConfigResponse(Result<Vec<String>>),
 }
 
+#[derive(Clone)]
 pub struct KubeArgs {
     pub client: Client,
     pub server_url: String,
@@ -143,6 +145,11 @@ fn cluster_server_url(kubeconfig: &Kubeconfig, named_context: &NamedContext) -> 
 type Namespaces = Arc<RwLock<Vec<String>>>;
 type ApiResources = Arc<RwLock<Vec<String>>>;
 
+pub enum WorkerResult {
+    ChangedContext,
+    Terminated,
+}
+
 async fn inner_kube_process(
     tx: Sender<Event>,
     rx: Receiver<Event>,
@@ -150,76 +157,100 @@ async fn inner_kube_process(
 ) -> Result<()> {
     let kubeconfig = Kubeconfig::read()?;
 
-    let current_context = kubeconfig
-        .current_context
-        .clone()
-        .ok_or_else(|| Error::Raw("Cannot get current context".into()))?;
+    let is_terminated_clone = is_terminated.clone();
 
-    let named_context = kubeconfig
-        .contexts
-        .iter()
-        .find(|n| n.name == current_context)
-        .ok_or_else(|| Error::Raw("Cannot get contexts".into()))?;
+    while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
+        let current_context = kubeconfig
+            .current_context
+            .clone()
+            .ok_or_else(|| Error::Raw("Cannot get current context".into()))?;
 
-    let current_namespace = named_context
-        .context
-        .namespace
-        .clone()
-        .ok_or_else(|| Error::Raw("Cannot get current namespace".into()))?;
+        let named_context = kubeconfig
+            .contexts
+            .iter()
+            .find(|n| n.name == current_context)
+            .ok_or_else(|| Error::Raw("Cannot get contexts".into()))?;
 
-    let api_resources: ApiResources = Arc::new(RwLock::new(Vec::new()));
+        let current_namespace = named_context
+            .context
+            .namespace
+            .clone()
+            .ok_or_else(|| Error::Raw("Cannot get current namespace".into()))?;
 
-    let server_url = cluster_server_url(&kubeconfig, named_context)?;
+        let server_url = cluster_server_url(&kubeconfig, named_context)?;
 
-    let client = Client::try_default().await?;
+        let client = Client::try_default().await?;
 
-    let namespaces = Arc::new(RwLock::new(vec![current_namespace.to_string()]));
+        let namespaces = Arc::new(RwLock::new(vec![current_namespace.to_string()]));
+        let api_resources: ApiResources = Default::default();
 
-    let args = Arc::new(KubeArgs {
-        client,
-        server_url,
-        current_context,
-        current_namespace,
-        is_terminated,
-    });
+        let args = Arc::new(KubeArgs {
+            client,
+            server_url,
+            current_context,
+            current_namespace,
+            is_terminated: is_terminated_clone.clone(),
+        });
 
-    let main_loop = tokio::spawn(main_loop(
-        rx,
-        tx.clone(),
-        Arc::clone(&namespaces),
-        Arc::clone(&api_resources),
-        args.clone(),
-    ));
+        let main_loop = tokio::spawn(main_loop(
+            rx.clone(),
+            tx.clone(),
+            Arc::clone(&namespaces),
+            Arc::clone(&api_resources),
+            args.clone(),
+        ));
 
-    let pod_loop = tokio::spawn(pod_loop(tx.clone(), Arc::clone(&namespaces), args.clone()));
+        let pod_loop = tokio::spawn(pod_loop(tx.clone(), Arc::clone(&namespaces), args.clone()));
 
-    let config_loop = tokio::spawn(configs_loop(
-        tx.clone(),
-        Arc::clone(&namespaces),
-        args.clone(),
-    ));
+        let config_loop = tokio::spawn(configs_loop(
+            tx.clone(),
+            Arc::clone(&namespaces),
+            args.clone(),
+        ));
 
-    let event_loop = tokio::spawn(event_loop(
-        tx.clone(),
-        Arc::clone(&namespaces),
-        args.clone(),
-    ));
+        let event_loop = tokio::spawn(event_loop(
+            tx.clone(),
+            Arc::clone(&namespaces),
+            args.clone(),
+        ));
 
-    let apis_loop = tokio::spawn(apis_loop(
-        tx.clone(),
-        Arc::clone(&namespaces),
-        api_resources,
-        args.clone(),
-    ));
+        let apis_loop = tokio::spawn(apis_loop(
+            tx.clone(),
+            Arc::clone(&namespaces),
+            api_resources,
+            args.clone(),
+        ));
 
-    join_all(vec![
-        main_loop,
-        pod_loop,
-        config_loop,
-        event_loop,
-        apis_loop,
-    ])
-    .await;
+        let mut handlers = vec![main_loop, pod_loop, config_loop, event_loop, apis_loop];
+
+        fn abort<T>(handlers: &[JoinHandle<T>]) {
+            for h in handlers {
+                h.abort()
+            }
+        }
+
+        while !handlers.is_empty() {
+            let (ret, _, vec) = select_all(handlers).await;
+
+            handlers = vec;
+
+            match ret {
+                Ok(h) => match h {
+                    Ok(result) => match result {
+                        WorkerResult::ChangedContext => {
+                            abort(&handlers);
+                        }
+                        WorkerResult::Terminated => {}
+                    },
+                    Err(_) => tx.send(Event::Error(Error::Raw("KubeProcess Error".to_string())))?,
+                },
+                Err(_) => {
+                    abort(&handlers);
+                    tx.send(Event::Error(Error::Raw("KubeProcess Error".to_string())))?;
+                }
+            }
+        }
+    }
 
     Ok(())
 }
@@ -250,7 +281,7 @@ async fn main_loop(
     namespaces: Namespaces,
     api_resources: ApiResources,
     args: Arc<KubeArgs>,
-) -> Result<()> {
+) -> Result<WorkerResult> {
     let mut log_stream_handler: Option<Handlers> = None;
     let client = &args.client;
     let server_url = &args.server_url;
@@ -282,8 +313,7 @@ async fn main_loop(
                     Kube::GetNamespacesRequest => {
                         let client = args.client.clone();
                         let res = namespace_list(client).await;
-                        tx.send(Event::Kube(Kube::GetNamespacesResponse(res)))
-                            .unwrap();
+                        tx.send(Event::Kube(Kube::GetNamespacesResponse(res)))?;
                     }
 
                     Kube::LogStreamRequest(namespace, pod_name) => {
@@ -292,9 +322,6 @@ async fn main_loop(
                         }
 
                         let client = args.client.clone();
-
-                        // log_stream_handler =
-                        //     Some(log_stream(tx, client, &namespace, &pod_name).await);
 
                         log_stream_handler = Some(
                             LogWorkerBuilder::new(tx, client, namespace, pod_name)
@@ -308,20 +335,19 @@ async fn main_loop(
                     Kube::ConfigRequest(ns, kind, name) => {
                         let client = args.client.clone();
                         let raw = get_config(client, &ns, &kind, &name).await;
-                        tx.send(Event::Kube(Kube::ConfigResponse(raw))).unwrap();
+                        tx.send(Event::Kube(Kube::ConfigResponse(raw)))?;
                     }
 
                     Kube::GetCurrentContextRequest => {
                         tx.send(Event::Kube(Kube::GetCurrentContextResponse(
                             args.current_context.to_string(),
                             args.current_namespace.to_string(),
-                        )))
-                        .unwrap();
+                        )))?;
                     }
                     Kube::GetAPIsRequest => {
                         let apis = apis_list(client, server_url).await;
 
-                        tx.send(Event::Kube(Kube::GetAPIsResponse(apis))).unwrap();
+                        tx.send(Event::Kube(Kube::GetAPIsResponse(apis)))?;
                     }
                     Kube::SetAPIsRequest(apis) => {
                         let mut api_resources = api_resources.write().await;
@@ -335,5 +361,5 @@ async fn main_loop(
         }
     }
 
-    Ok(())
+    Ok(WorkerResult::Terminated)
 }

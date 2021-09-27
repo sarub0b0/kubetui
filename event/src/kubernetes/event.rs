@@ -1,6 +1,6 @@
 use super::{
     v1_table::*,
-    KubeArgs, Namespaces, {Event, Kube},
+    KubeArgs, Namespaces, WorkerResult, {Event, Kube},
 };
 
 use std::{sync::Arc, time};
@@ -16,7 +16,7 @@ pub async fn event_loop(
     tx: Sender<Event>,
     namespaces: Namespaces,
     args: Arc<KubeArgs>,
-) -> Result<()> {
+) -> Result<WorkerResult> {
     let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
     while !args
         .is_terminated
@@ -30,7 +30,7 @@ pub async fn event_loop(
         tx.send(Event::Kube(Kube::Event(event_list))).unwrap();
     }
 
-    Ok(())
+    Ok(WorkerResult::Terminated)
 }
 
 const TARGET_LEN: usize = 4;

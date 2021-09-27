@@ -66,6 +66,7 @@ pub fn window_action(window: &mut Window, rx: &Receiver<Event>) -> WindowEvent {
 
         Event::Tick => {}
         Event::Kube(k) => return WindowEvent::UpdateContents(k),
+        Event::Error(_) => {}
     }
     WindowEvent::Continue
 }
