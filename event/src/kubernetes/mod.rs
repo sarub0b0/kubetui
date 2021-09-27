@@ -24,6 +24,8 @@ use tokio::{
     task::{self, JoinHandle},
 };
 
+use async_trait::async_trait;
+
 use kube::{
     api::ListParams,
     config::{Config, KubeConfigOptions, Kubeconfig, NamedContext},
@@ -424,4 +426,20 @@ async fn main_loop(
     }
 
     Ok(WorkerResult::Terminated)
+}
+
+#[async_trait]
+trait JobWorker {
+    type Output;
+
+    async fn run(&self) -> Self::Output;
+
+    fn spawn(&self) -> JoinHandle<Self::Output>
+    where
+        Self: Clone + Send + Sync + 'static,
+        Self::Output: Send,
+    {
+        let worker = self.clone();
+        tokio::spawn(async move { worker.run().await })
+    }
 }

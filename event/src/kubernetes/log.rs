@@ -1,9 +1,10 @@
-use super::{Event, Kube};
+use super::{Event, JobWorker, Kube};
 use crate::{error::PodError, kubernetes::Handlers};
 
+use async_trait::async_trait;
 use chrono::Local;
 use futures::{future::try_join_all, StreamExt, TryStreamExt};
-use tokio::{sync::RwLock, task::JoinHandle};
+use tokio::sync::RwLock;
 
 use std::{sync::Arc, time};
 
@@ -207,20 +208,6 @@ impl LogWorkerBuilder {
     }
 }
 
-use async_trait::async_trait;
-#[async_trait]
-trait Worker {
-    async fn run(&self) -> Result<()>;
-
-    fn spawn(&self) -> JoinHandle<Result<()>>
-    where
-        Self: Clone + Send + Sync + 'static,
-    {
-        let worker = self.clone();
-        tokio::spawn(async move { worker.run().await })
-    }
-}
-
 #[derive(Clone)]
 pub struct LogWorker {
     tx: Sender<Event>,
@@ -296,8 +283,9 @@ impl LogWorker {
 }
 
 #[async_trait]
-impl Worker for WatchPodStatusWorker {
-    async fn run(&self) -> Result<()> {
+impl JobWorker for WatchPodStatusWorker {
+    type Output = Result<()>;
+    async fn run(&self) -> Self::Output {
         let pod_api: Api<Pod> = Api::namespaced(self.client.clone(), &self.ns);
 
         let lp = ListParams::default()
@@ -322,8 +310,9 @@ impl Worker for WatchPodStatusWorker {
 }
 
 #[async_trait]
-impl Worker for SendMessageWorker {
-    async fn run(&self) -> Result<()> {
+impl JobWorker for SendMessageWorker {
+    type Output = Result<()>;
+    async fn run(&self) -> Self::Output {
         let mut interval = tokio::time::interval(time::Duration::from_millis(200));
 
         loop {
@@ -344,8 +333,9 @@ impl Worker for SendMessageWorker {
 }
 
 #[async_trait]
-impl Worker for FetchLogStreamWorker {
-    async fn run(&self) -> Result<()> {
+impl JobWorker for FetchLogStreamWorker {
+    type Output = Result<()>;
+    async fn run(&self) -> Self::Output {
         let pod_api: Api<Pod> = Api::namespaced(self.client.clone(), &self.ns);
 
         match pod_api.get(&self.pod_name).await {
@@ -752,9 +742,11 @@ struct FetchLogStream {
 }
 
 #[async_trait]
-impl Worker for FetchLogStream {
+impl JobWorker for FetchLogStream {
+    type Output = Result<()>;
+
     #[cfg(not(any(feature = "mock", feature = "mock-failed")))]
-    async fn run(&self) -> Result<()> {
+    async fn run(&self) -> Self::Output {
         let lp = LogParams {
             follow: true,
             container: Some(self.container_name.to_string()),
@@ -792,7 +784,7 @@ impl Worker for FetchLogStream {
     }
 
     #[cfg(feature = "mock")]
-    async fn run(&self) -> Result<()> {
+    async fn run(&self) -> Self::Output {
         async {
             let stream = vec!["line 0", "line 1", "line 2", "line 3", "line 4"];
 
@@ -807,7 +799,7 @@ impl Worker for FetchLogStream {
     }
 
     #[cfg(feature = "mock-failed")]
-    async fn run(&self) -> Result<()> {
+    async fn run(&self) -> Self::Output {
         Err(anyhow!(Error::Mock("follow_container_log_stream failed")))
     }
 }
