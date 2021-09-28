@@ -320,6 +320,54 @@ fn init_subwin_apis(tx: Sender<Event>) -> MultipleSelect<'static> {
         .build()
 }
 
+#[inline]
+fn init_yaml() -> Text<'static> {
+    Text::builder()
+        .id(view_id::tab_yaml)
+        .widget_config(&WidgetConfig::builder().title("Yaml").build())
+        .build()
+}
+
+#[inline]
+fn init_subwin_yaml_kind(tx: Sender<Event>) -> SingleSelect<'static> {
+    SingleSelect::builder()
+        .id(view_id::subwin_yaml_kind)
+        .widget_config(&WidgetConfig::builder().title("Kind").build())
+        .on_select(move |w, v| {
+            #[cfg(feature = "logging")]
+            ::log::info!("[subwin_yaml_kind] Select Item: {}", v);
+
+            w.close_popup();
+
+            tx.send(Event::Kube(Kube::YamlResourceRequest(v.to_string())))
+                .unwrap();
+
+            w.open_popup(view_id::subwin_yaml_name);
+
+            EventResult::Nop
+        })
+        .build()
+}
+
+#[inline]
+fn init_subwin_yaml_name(tx: Sender<Event>) -> SingleSelect<'static> {
+    SingleSelect::builder()
+        .id(view_id::subwin_yaml_name)
+        .widget_config(&WidgetConfig::builder().title("Name").build())
+        .on_select(move |w, v| {
+            #[cfg(feature = "logging")]
+            ::log::info!("[subwin_yaml_name] Select Item: {}", v);
+
+            w.close_popup();
+
+            tx.send(Event::Kube(Kube::YamlRawRequest(v.to_string())))
+                .unwrap();
+
+            EventResult::Nop
+        })
+        .build()
+}
+
 fn init_window(
     split_mode: Direction,
     tx: Sender<Event>,
@@ -364,6 +412,22 @@ fn init_window(
         .action('f', open_subwin)
         .build();
 
+    // Yaml
+    let tx_yaml = tx_main.clone();
+    let open_subwin = move |w: &mut Window| {
+        tx_yaml.send(Event::Kube(Kube::YamlAPIsRequest)).unwrap();
+        w.open_popup(view_id::subwin_yaml_kind);
+        EventResult::Nop
+    };
+
+    let yaml_widget = Text::builder()
+        .id(view_id::tab_yaml)
+        .widget_config(&WidgetConfig::builder().title("Yaml").build())
+        .action('a', open_subwin.clone())
+        .action('/', open_subwin.clone())
+        .action('f', open_subwin)
+        .build();
+
     // [Sub Window] Context
     let subwin_ctx = Widget::from(init_subwin_ctx(tx.clone(), context, namespaces.clone()));
 
@@ -375,6 +439,11 @@ fn init_window(
 
     // [Sub Window] Api
     let subwin_apis = Widget::from(init_subwin_apis(tx.clone()));
+
+    // [Sub Window] Yaml 1
+    let subwin_yaml_kind = Widget::from(init_subwin_yaml_kind(tx_main.clone()));
+    // [Sub Window] Yaml 2
+    let subwin_yaml_name = Widget::from(init_subwin_yaml_name(tx_main.clone()));
 
     // Init Window
     let tabs = [
@@ -410,6 +479,7 @@ fn init_window(
             [WidgetData::new(event_widget)],
         ),
         Tab::new(view_id::tab_apis, "4:APIs", [WidgetData::new(apis_widget)]),
+        Tab::new(view_id::tab_yaml, "5:Yaml", [WidgetData::new(yaml_widget)]),
     ];
 
     let mut window = Window::new(tabs).status_target_id([
@@ -464,7 +534,14 @@ fn init_window(
 
     window.add_action('q', fn_close);
     window.add_action(KeyCode::Esc, fn_close);
-    window.add_popup([subwin_multi_ns, subwin_apis, subwin_single_ns, subwin_ctx]);
+    window.add_popup([
+        subwin_multi_ns,
+        subwin_apis,
+        subwin_single_ns,
+        subwin_ctx,
+        subwin_yaml_kind,
+        subwin_yaml_name,
+    ]);
 
     window
 }

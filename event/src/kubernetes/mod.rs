@@ -120,6 +120,13 @@ pub enum Kube {
     Configs(Result<KubeTable>),
     ConfigRequest(String, String, String), // namespace, kind, resource_name
     ConfigResponse(Result<Vec<String>>),
+    // Yaml
+    YamlAPIsRequest,
+    YamlAPIsResponse(Result<Vec<String>>), // kind, name
+    YamlResourceRequest(String),
+    YamlResourceResponse(Result<Vec<String>>), // kind, name
+    YamlRawRequest(String),                    // kind, name
+    YamlRawResponse(Result<Vec<String>>),      // yaml
 }
 
 #[derive(Default, Debug)]
@@ -511,6 +518,36 @@ impl Worker for MainWorker {
 
                         Kube::SetContext(ctx) => {
                             return Ok(WorkerResult::ChangedContext(ctx));
+                        }
+
+                        Kube::YamlAPIsRequest => {
+                            tx.send(Event::Kube(Kube::YamlAPIsResponse(Ok(vec![
+                                "a".to_string(),
+                                "b".to_string(),
+                                "c".to_string(),
+                                "d".to_string(),
+                                "e".to_string(),
+                            ]))))?
+                        }
+                        Kube::YamlResourceRequest(req) => {
+                            tx.send(Event::Kube(Kube::YamlResourceResponse(Ok(vec![
+                                "a".to_string(),
+                                "b".to_string(),
+                                "c".to_string(),
+                                "d".to_string(),
+                                "e".to_string(),
+                                req,
+                            ]))))?
+                        }
+                        Kube::YamlRawRequest(req) => {
+                            tx.send(Event::Kube(Kube::YamlRawResponse(Ok(vec![
+                                "a".to_string(),
+                                "b".to_string(),
+                                "c".to_string(),
+                                "d".to_string(),
+                                "e".to_string(),
+                                req,
+                            ]))))?
                         }
                         _ => unreachable!(),
                     },
