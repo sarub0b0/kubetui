@@ -11,6 +11,7 @@ Kubernetes resource watching tool
 - Events watching
 - Specific resources watching
 - Namespace multiple selections
+- Context selection
 - Support unix like key bindings
 - Support mouse event
 
