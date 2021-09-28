@@ -4,7 +4,6 @@ Kubernetes resource watching tool
 
 ![](screenshots/example.png)
 
-
 ## Features
 
 - Pods list and container logs watching
@@ -12,6 +11,7 @@ Kubernetes resource watching tool
 - Events watching
 - Specific resources watching
 - Namespace multiple selections
+- Context selection
 - Support unix like key bindings
 - Support mouse event
 
@@ -38,6 +38,7 @@ General
 | Key                                  | Description                                                             |
 | ------------------------------------ | ----------------------------------------------------------------------- |
 | <kbd>n</kbd>                         | Open the popup for selecting the namespace                              |
+| <kbd>c</kbd>                         | Open the popup for selecting the context                              |
 | <kbd>Shift+n</kbd>                   | Open the popup for selecting multiple namespaces                        |
 | <kbd>f</kbd>, <kbd>/</kbd>           | Open the popup for selecting multiple api-resources (**only APIs tab**) |
 | <kbd>Tab</kbd>, <kbd>Shift+Tab</kbd> | Change the focus of view within the active tab                          |
@@ -103,7 +104,6 @@ Events
 APIs
 
 ![](screenshots/apis.png)
-
 
 ### Select Items
 

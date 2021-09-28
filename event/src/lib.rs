@@ -36,6 +36,7 @@ pub enum Event {
     Kube(Kube),
     User(UserEvent),
     Tick,
+    Error(error::Error),
 }
 
 use std::panic;
@@ -51,3 +52,11 @@ macro_rules! panic_set_hook {
         }));
     };
 }
+
+// #[macro_export]
+// macro_rules! log {
+//     ($($arg:tt)+) => {
+//         #[cfg(feature = "logging")]
+//         ::log::error!($($arg)+);
+//     };
+// }

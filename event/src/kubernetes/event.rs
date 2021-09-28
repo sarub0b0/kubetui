@@ -1,52 +1,65 @@
 use super::{
     v1_table::*,
-    KubeArgs, Namespaces, {Event, Kube},
+    worker::{PollWorker, Worker},
+    KubeClient, WorkerResult, {Event, Kube},
 };
 
-use std::{sync::Arc, time};
+use std::time;
 
-use crossbeam::channel::Sender;
 use futures::future::try_join_all;
 
-use kube::Client;
+use async_trait::async_trait;
 
 use crate::error::Result;
 
-pub async fn event_loop(
-    tx: Sender<Event>,
-    namespaces: Namespaces,
-    args: Arc<KubeArgs>,
-) -> Result<()> {
-    let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
-    while !args
-        .is_terminated
-        .load(std::sync::atomic::Ordering::Relaxed)
-    {
-        interval.tick().await;
-        let ns = namespaces.read().await;
+#[derive(Clone)]
+pub struct EventPollWorker {
+    inner: PollWorker,
+}
 
-        let event_list = get_event_table(&args.client, &args.server_url, &ns).await;
-
-        tx.send(Event::Kube(Kube::Event(event_list))).unwrap();
+impl EventPollWorker {
+    pub fn new(inner: PollWorker) -> Self {
+        Self { inner }
     }
+}
 
-    Ok(())
+#[async_trait]
+impl Worker for EventPollWorker {
+    type Output = Result<WorkerResult>;
+    async fn run(&self) -> Self::Output {
+        let Self {
+            inner:
+                PollWorker {
+                    is_terminated,
+                    tx,
+                    namespaces,
+                    kube_client,
+                },
+        } = self;
+
+        let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
+        while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
+            interval.tick().await;
+            let ns = namespaces.read().await;
+
+            let event_list = get_event_table(kube_client, &ns).await;
+
+            tx.send(Event::Kube(Kube::Event(event_list))).unwrap();
+        }
+
+        Ok(WorkerResult::Terminated)
+    }
 }
 
 const TARGET_LEN: usize = 4;
 const TARGET: [&str; TARGET_LEN] = ["Last Seen", "Object", "Reason", "Message"];
 
-async fn get_event_table(
-    client: &Client,
-    server_url: &str,
-    namespaces: &[String],
-) -> Result<Vec<String>> {
+async fn get_event_table(client: &KubeClient, namespaces: &[String]) -> Result<Vec<String>> {
     let insert_ns = insert_ns(namespaces);
 
     let jobs = try_join_all(namespaces.iter().map(|ns| {
         get_resource_per_namespace(
             client,
-            server_url,
             format!("api/v1/namespaces/{}/{}", ns, "events"),
             &TARGET,
             move |row: &TableRow, indexes: &[usize]| {

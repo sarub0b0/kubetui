@@ -32,6 +32,7 @@ pub mod view_id {
     generate_id!(tab_apis);
     generate_id!(tab_apis_widget_apis);
 
+    generate_id!(subwin_ctx);
     generate_id!(subwin_ns);
     generate_id!(subwin_apis);
     generate_id!(subwin_single_ns);
@@ -66,6 +67,7 @@ pub fn window_action(window: &mut Window, rx: &Receiver<Event>) -> WindowEvent {
 
         Event::Tick => {}
         Event::Kube(k) => return WindowEvent::UpdateContents(k),
+        Event::Error(_) => {}
     }
     WindowEvent::Continue
 }
@@ -172,6 +174,10 @@ pub fn update_contents(
 
         Kube::GetAPIsResponse(apis) => {
             update_widget_item_for_vec(window, view_id::subwin_apis, apis);
+        }
+
+        Kube::GetContextsResponse(ctxs) => {
+            update_widget_item_for_vec(window, view_id::subwin_ctx, ctxs);
         }
         _ => unreachable!(),
     }

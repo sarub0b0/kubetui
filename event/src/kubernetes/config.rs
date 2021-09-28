@@ -1,15 +1,60 @@
-use super::{v1_table::*, Event, Kube, KubeArgs, KubeTable, Namespaces};
+use super::{
+    v1_table::*,
+    worker::{PollWorker, Worker},
+    Event, Kube, KubeClient, KubeTable, WorkerResult,
+};
 
-use std::{sync::Arc, time};
-
-use crossbeam::channel::Sender;
+use std::time;
 
 use futures::future::try_join_all;
 use k8s_openapi::api::core::v1::{ConfigMap, Secret};
 
-use kube::{Api, Client};
+use kube::Api;
+
+use async_trait::async_trait;
 
 use crate::error::{anyhow, Error, Result};
+
+#[derive(Clone)]
+pub struct ConfigsPollWorker {
+    inner: PollWorker,
+}
+
+impl ConfigsPollWorker {
+    pub fn new(inner: PollWorker) -> Self {
+        Self { inner }
+    }
+}
+
+#[async_trait]
+impl Worker for ConfigsPollWorker {
+    type Output = Result<WorkerResult>;
+
+    async fn run(&self) -> Self::Output {
+        let mut interval = tokio::time::interval(time::Duration::from_secs(1));
+
+        let Self {
+            inner:
+                PollWorker {
+                    is_terminated,
+                    tx,
+                    namespaces,
+                    kube_client,
+                },
+        } = self;
+
+        while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
+            interval.tick().await;
+
+            let namespaces = namespaces.read().await;
+
+            let table = fetch_configs(kube_client, &namespaces).await;
+
+            tx.send(Event::Kube(Kube::Configs(table)))?;
+        }
+        Ok(WorkerResult::Terminated)
+    }
+}
 
 #[derive(Clone, Copy)]
 enum Configs {
@@ -34,8 +79,7 @@ impl Configs {
 }
 
 async fn fetch_configs_per_namespace(
-    client: &Client,
-    server_url: &str,
+    client: &KubeClient,
     namespaces: &[String],
     ty: Configs,
 ) -> Result<Vec<Vec<String>>> {
@@ -43,7 +87,6 @@ async fn fetch_configs_per_namespace(
     let jobs = try_join_all(namespaces.iter().map(|ns| {
         get_resource_per_namespace(
             client,
-            server_url,
             format!("api/v1/namespaces/{}/{}", ns, ty.kind()),
             &["Name", "Data", "Age"],
             move |row: &TableRow, indexes: &[usize]| {
@@ -67,11 +110,7 @@ async fn fetch_configs_per_namespace(
     Ok(jobs.into_iter().flatten().collect())
 }
 
-async fn fetch_configs(namespaces: &[String], args: &KubeArgs) -> Result<KubeTable> {
-    let KubeArgs {
-        client, server_url, ..
-    } = args;
-
+async fn fetch_configs(client: &KubeClient, namespaces: &[String]) -> Result<KubeTable> {
     let mut table = KubeTable {
         header: if namespaces.len() == 1 {
             ["KIND", "NAME", "DATA", "AGE"]
@@ -88,8 +127,8 @@ async fn fetch_configs(namespaces: &[String], args: &KubeArgs) -> Result<KubeTab
     };
 
     let jobs = try_join_all([
-        fetch_configs_per_namespace(client, server_url, namespaces, Configs::ConfigMap),
-        fetch_configs_per_namespace(client, server_url, namespaces, Configs::Secret),
+        fetch_configs_per_namespace(client, namespaces, Configs::ConfigMap),
+        fetch_configs_per_namespace(client, namespaces, Configs::Secret),
     ])
     .await?;
 
@@ -98,32 +137,15 @@ async fn fetch_configs(namespaces: &[String], args: &KubeArgs) -> Result<KubeTab
     Ok(table)
 }
 
-pub async fn configs_loop(
-    tx: Sender<Event>,
-    namespaces: Namespaces,
-    args: Arc<KubeArgs>,
-) -> Result<()> {
-    let mut interval = tokio::time::interval(time::Duration::from_secs(1));
-
-    while !args
-        .is_terminated
-        .load(std::sync::atomic::Ordering::Relaxed)
-    {
-        interval.tick().await;
-
-        let namespaces = namespaces.read().await;
-
-        let table = fetch_configs(&namespaces, &args).await;
-
-        tx.send(Event::Kube(Kube::Configs(table)))?;
-    }
-    Ok(())
-}
-
-pub async fn get_config(client: Client, ns: &str, kind: &str, name: &str) -> Result<Vec<String>> {
+pub async fn get_config(
+    client: KubeClient,
+    ns: &str,
+    kind: &str,
+    name: &str,
+) -> Result<Vec<String>> {
     match kind {
         "ConfigMap" => {
-            let cms: Api<ConfigMap> = Api::namespaced(client, ns);
+            let cms: Api<ConfigMap> = Api::namespaced(client.client_clone(), ns);
             let cm = cms.get(name).await?;
             if let Some(data) = cm.data {
                 Ok(data.iter().map(|(k, v)| format!("{}: {}", k, v)).collect())
@@ -132,7 +154,7 @@ pub async fn get_config(client: Client, ns: &str, kind: &str, name: &str) -> Res
             }
         }
         "Secret" => {
-            let secs: Api<Secret> = Api::namespaced(client, ns);
+            let secs: Api<Secret> = Api::namespaced(client.client_clone(), ns);
             let sec = secs.get(name).await?;
 
             if let Some(data) = sec.data {
