@@ -388,7 +388,7 @@ fn run(config: Config) -> Result<()> {
 
     // Raw
     let configs_widget = init_configs(tx_main.clone(), selected_namespaces.clone());
-    let raw_data_widget = init_configs_raw(clipboard.clone());
+    let raw_data_widget = init_configs_raw(clipboard);
 
     // Event
     let event_widget = TextBuilder::default()
@@ -513,7 +513,7 @@ fn run(config: Config) -> Result<()> {
         }
     };
 
-    let tx_clone = tx_main.clone();
+    let tx_clone = tx_main;
     window.add_action('c', move |w| {
         tx_clone
             .send(Event::Kube(Kube::GetContextsRequest))
