@@ -34,7 +34,7 @@ use kube::{
 };
 
 use crate::{
-    error::{Error, Result},
+    error::{anyhow, Error, Result},
     kubernetes::{
         api_resources::ApiPollWorker, config::ConfigsPollWorker, event::EventPollWorker,
         log::LogWorkerBuilder, pod::PodPollWorker, worker::PollWorker,
@@ -138,6 +138,24 @@ fn cluster_server_url(kubeconfig: &Kubeconfig, named_context: &NamedContext) -> 
         .server)
 }
 
+async fn current_namespace(client: KubeClient, named_context: &NamedContext) -> Result<String> {
+    if let Some(ns) = &named_context.context.namespace {
+        Ok(ns.to_string())
+    } else {
+        let namespaces = namespace_list(client).await;
+
+        if namespaces.iter().find(|&ns| ns == "default").is_some() {
+            Ok("default".to_string())
+        } else if !namespaces.is_empty() {
+            Ok(namespaces[0].to_string())
+        } else {
+            Err(anyhow!(Error::Raw(
+                "Cannot get current namespace, namespaces".to_string()
+            )))
+        }
+    }
+}
+
 pub type Namespaces = Arc<RwLock<Vec<String>>>;
 pub type ApiResources = Arc<RwLock<Vec<String>>>;
 
@@ -164,12 +182,6 @@ async fn inner_kube_process(
                 .find(|n| n.name == *context)
                 .ok_or_else(|| Error::Raw("Cannot get contexts".into()))?;
 
-            let current_namespace = named_context
-                .context
-                .namespace
-                .clone()
-                .ok_or_else(|| Error::Raw("Cannot get current namespace".into()))?;
-
             let options = KubeConfigOptions {
                 context: Some(named_context.name.to_string()),
                 cluster: Some(named_context.context.cluster.to_string()),
@@ -182,11 +194,10 @@ async fn inner_kube_process(
 
             let server_url = cluster_server_url(&kubeconfig, named_context)?;
 
-            (
-                KubeClient::new(client, server_url),
-                current_namespace,
-                context.to_string(),
-            )
+            let kube_client = KubeClient::new(client, server_url);
+
+            let current_namespace = current_namespace(kube_client.clone(), named_context).await?;
+            (kube_client, current_namespace, context.to_string())
         } else {
             let current_context = kubeconfig
                 .current_context
@@ -199,21 +210,15 @@ async fn inner_kube_process(
                 .find(|n| n.name == current_context)
                 .ok_or_else(|| Error::Raw("Cannot get contexts".into()))?;
 
-            let current_namespace = named_context
-                .context
-                .namespace
-                .clone()
-                .ok_or_else(|| Error::Raw("Cannot get current namespace".into()))?;
-
             let server_url = cluster_server_url(&kubeconfig, named_context)?;
 
             let client = Client::try_default().await?;
 
-            (
-                KubeClient::new(client, server_url),
-                current_namespace,
-                current_context,
-            )
+            let kube_client = KubeClient::new(client, server_url);
+
+            let current_namespace = current_namespace(kube_client.clone(), named_context).await?;
+
+            (kube_client, current_namespace, current_context)
         };
 
         let namespaces = Arc::new(RwLock::new(vec![current_namespace.to_string()]));
@@ -298,7 +303,9 @@ pub fn kube_process(
 
     let rt = Runtime::new()?;
 
-    rt.block_on(inner_kube_process(tx, rx, is_terminated))?;
+    if let Err(e) = rt.block_on(inner_kube_process(tx, rx, is_terminated)) {
+        panic!("{}", e);
+    }
 
     #[cfg(feature = "logging")]
     ::log::debug!("Terminated kube event");
