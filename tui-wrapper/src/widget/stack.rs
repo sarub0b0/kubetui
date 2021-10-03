@@ -4,7 +4,6 @@ use super::{EventResult, RenderTrait, Widget, WidgetItem, WidgetTrait};
 
 use crossterm::event::{KeyEvent, MouseEvent};
 use event::UserEvent;
-use rayon::collections::binary_heap::Iter;
 
 use crate::event::InnerCallback;
 
@@ -25,7 +24,7 @@ pub struct Stack<'a> {
 }
 
 impl<'a> Stack<'a> {
-    fn push(&mut self, w: Widget<'a>) {
+    fn push_widget(&mut self, w: Widget<'a>) {
         self.widgets.push(w);
     }
 
@@ -190,7 +189,7 @@ mod tests {
 
             let mut w = Stack::default();
 
-            w.push(Widget::Text(Text::default()));
+            w.push_widget(Widget::Text(Text::default()));
 
             w.update_chunk(base_chunk);
 
@@ -217,10 +216,10 @@ mod tests {
 
             let mut w = Stack::default();
 
-            w.push(Widget::Text(Text::default()));
-            w.push(Widget::Text(Text::default()));
-            w.push(Widget::Text(Text::default()));
-            w.push(Widget::Text(Text::default()));
+            w.push_widget(Widget::Text(Text::default()));
+            w.push_widget(Widget::Text(Text::default()));
+            w.push_widget(Widget::Text(Text::default()));
+            w.push_widget(Widget::Text(Text::default()));
 
             w.update_chunk(base_chunk);
 
@@ -247,11 +246,11 @@ mod tests {
 
             let mut w = Stack::default();
 
-            w.push(Widget::Text(Text::default()));
-            w.push(Widget::Text(Text::default()));
-            w.push(Widget::Text(Text::default()));
-            w.push(Widget::Text(Text::default()));
-            w.push(Widget::Text(Text::default()));
+            w.push_widget(Widget::Text(Text::default()));
+            w.push_widget(Widget::Text(Text::default()));
+            w.push_widget(Widget::Text(Text::default()));
+            w.push_widget(Widget::Text(Text::default()));
+            w.push_widget(Widget::Text(Text::default()));
 
             w.update_chunk(base_chunk);
 
