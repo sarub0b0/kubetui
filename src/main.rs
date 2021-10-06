@@ -37,9 +37,11 @@ extern crate kubetui;
 use kubetui::{
     action::{update_contents, view_id, window_action},
     config::{configure, Config},
-    log::logging,
     Context, Namespace,
 };
+
+#[cfg(feature = "logging")]
+use kubetui::log::logging;
 
 macro_rules! enable_raw_mode {
     () => {
@@ -558,6 +560,7 @@ fn run(config: Config) -> Result<()> {
 }
 
 fn main() -> Result<()> {
+    #[cfg(feature = "logging")]
     logging();
 
     let default_hook = panic::take_hook();

@@ -8,7 +8,7 @@ edition = "2018"
 members = [ "tui-wrapper", "event", "ansi", "clipboard-wrapper" ]
 
 [features]
-default = [ "logging" ]
+default = []
 logging = [ "log", "log4rs", "event/logging", "tui-wrapper/logging" ]
 mock = [ "event/mock" ]
 mock-failed = [ "event/mock-failed" ]
