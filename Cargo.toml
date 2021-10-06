@@ -5,7 +5,7 @@ authors = ["kosay <ekr59uv25@gmail.com>"]
 edition = "2018"
 
 [workspace]
-members = [ "tui-wrapper", "event", "ansi", "clipboard-wrapper" ]
+members = [ "tui-wrapper", "event", "ansi", "clipboard-wrapper" , "workspace-hack" ]
 
 [features]
 default = []
@@ -28,5 +28,6 @@ log = { version = "0.4", optional = true }
 
 event = { path = "./event" }
 ansi = { path = "./ansi" }
+workspace-hack = { path = "workspace-hack"}
 
 

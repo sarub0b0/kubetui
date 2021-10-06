@@ -10,3 +10,4 @@ edition = "2018"
 clipboard = "0.5"
 base64 = "0.13"
 wsl = "0.1"
+workspace-hack = { path = "../workspace-hack"}

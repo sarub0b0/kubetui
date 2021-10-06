@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 nom = "7.0.0"
+workspace-hack = { path = "../workspace-hack"}
 
 [dev-dependencies]
 pretty_assertions = "1.0.0"

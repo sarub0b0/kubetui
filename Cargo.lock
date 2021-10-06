@@ -17,6 +17,7 @@ version = "0.1.0"
 dependencies = [
  "nom",
  "pretty_assertions",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -177,6 +178,7 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "clipboard",
+ "workspace-hack",
  "wsl",
 ]
 
@@ -415,6 +417,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -812,6 +815,7 @@ dependencies = [
  "log4rs",
  "tokio",
  "tui-wrapper",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -1816,6 +1820,7 @@ dependencies = [
  "tui",
  "unicode-segmentation",
  "unicode-width",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -1909,6 +1914,24 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
+
+[[package]]
+name = "workspace-hack"
+version = "0.1.0"
+dependencies = [
+ "crossbeam-channel",
+ "crossbeam-deque",
+ "crossbeam-utils",
+ "log",
+ "memchr",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "regex-syntax",
+ "serde",
+ "syn",
+ "winapi",
+]
 
 [[package]]
 name = "wsl"
