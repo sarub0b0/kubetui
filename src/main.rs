@@ -38,6 +38,7 @@ use kubetui::{
     action::{update_contents, view_id, window_action},
     config::{configure, Config},
     log::logging,
+    Context, Namespace,
 };
 
 macro_rules! enable_raw_mode {
@@ -61,7 +62,7 @@ macro_rules! disable_raw_mode {
 }
 
 #[inline]
-fn init_pod(tx: Sender<Event>, selected_namespaces: Rc<RefCell<Vec<String>>>) -> Table<'static> {
+fn init_pod(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'static> {
     TableBuilder::default()
         .id(view_id::tab_pods_widget_pods)
         .title("Pods")
@@ -69,11 +70,8 @@ fn init_pod(tx: Sender<Event>, selected_namespaces: Rc<RefCell<Vec<String>>>) ->
         .on_select(move |w, v| {
             w.widget_clear(view_id::tab_pods_widget_logs);
 
-            let (ns, pod_name) = if selected_namespaces.borrow().len() == 1 {
-                (
-                    selected_namespaces.borrow()[0].to_string(),
-                    v[0].to_string(),
-                )
+            let (ns, pod_name) = if namespace.borrow().selected.len() == 1 {
+                (namespace.borrow().selected[0].to_string(), v[0].to_string())
             } else {
                 (v[0].to_string(), v[1].to_string())
             };
@@ -102,10 +100,7 @@ fn init_log(clipboard: Option<Rc<RefCell<ClipboardContextWrapper>>>) -> Text<'st
 }
 
 #[inline]
-fn init_configs(
-    tx: Sender<Event>,
-    selected_namespaces: Rc<RefCell<Vec<String>>>,
-) -> Table<'static> {
+fn init_configs(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'static> {
     TableBuilder::default()
         .id(view_id::tab_configs_widget_configs)
         .title("Configs")
@@ -113,10 +108,10 @@ fn init_configs(
         .on_select(move |w, v| {
             w.widget_clear(view_id::tab_configs_widget_raw_data);
 
-            let (ns, kind, name) = if selected_namespaces.borrow().len() == 1 {
+            let (ns, kind, name) = if namespace.borrow().selected.len() == 1 {
                 if 2 <= v.len() {
                     (
-                        selected_namespaces.borrow()[0].to_string(),
+                        namespace.borrow().selected[0].to_string(),
                         v[0].to_string(),
                         v[1].to_string(),
                     )
@@ -162,8 +157,8 @@ fn init_configs_raw(clipboard: Option<Rc<RefCell<ClipboardContextWrapper>>>) -> 
 #[inline]
 fn init_subwin_ctx(
     tx: Sender<Event>,
-    context: Rc<RefCell<String>>,
-    namespace: Rc<RefCell<Vec<String>>>,
+    context: Rc<RefCell<Context>>,
+    namespace: Rc<RefCell<Namespace>>,
 ) -> SingleSelect<'static> {
     SingleSelectBuilder::default()
         .id(view_id::subwin_ctx)
@@ -176,10 +171,10 @@ fn init_subwin_ctx(
                 .unwrap();
 
             let mut ctx = context.borrow_mut();
-            *ctx = item;
+            ctx.update(item);
 
             let mut ns = namespace.borrow_mut();
-            *ns = vec!["None".to_string()];
+            ns.selected = vec!["None".to_string()];
 
             w.close_popup();
 
@@ -207,7 +202,7 @@ fn init_subwin_ctx(
 #[inline]
 fn init_subwin_single_ns(
     tx: Sender<Event>,
-    namespace: Rc<RefCell<Vec<String>>>,
+    namespace: Rc<RefCell<Namespace>>,
 ) -> SingleSelect<'static> {
     SingleSelectBuilder::default()
         .id(view_id::subwin_single_ns)
@@ -219,7 +214,7 @@ fn init_subwin_single_ns(
                 .unwrap();
 
             let mut ns = namespace.borrow_mut();
-            *ns = items;
+            ns.selected = items;
 
             w.close_popup();
 
@@ -243,7 +238,7 @@ fn init_subwin_single_ns(
 #[inline]
 fn init_subwin_multiple_ns(
     tx: Sender<Event>,
-    namespace: Rc<RefCell<Vec<String>>>,
+    namespace: Rc<RefCell<Namespace>>,
 ) -> MultipleSelect<'static> {
     MultipleSelectBuilder::default()
         .id(view_id::subwin_ns)
@@ -265,7 +260,7 @@ fn init_subwin_multiple_ns(
                 .unwrap();
 
             let mut ns = namespace.borrow_mut();
-            *ns = items;
+            ns.selected = items;
 
             w.widget_clear(view_id::tab_pods_widget_logs);
             w.widget_clear(view_id::tab_configs_widget_raw_data);
@@ -305,8 +300,8 @@ fn init_subwin_apis(tx: Sender<Event>) -> MultipleSelect<'static> {
 fn init_window(
     split_mode: Direction,
     tx: Sender<Event>,
-    context: Rc<RefCell<String>>,
-    namespaces: Rc<RefCell<Vec<String>>>,
+    context: Rc<RefCell<Context>>,
+    namespaces: Rc<RefCell<Namespace>>,
 ) -> Window<'static> {
     let clipboard = match clipboard_wrapper::ClipboardContextWrapper::new() {
         Ok(cb) => Some(Rc::new(RefCell::new(cb))),
@@ -483,9 +478,8 @@ fn run(config: Config) -> Result<()> {
 
     let backend = CrosstermBackend::new(io::stdout());
 
-    let mut current_namespace = "None".to_string();
-    let selected_namespaces = Rc::new(RefCell::new(vec!["None".to_string()]));
-    let current_context = Rc::new(RefCell::new("None".to_string()));
+    let namespace = Rc::new(RefCell::new(Namespace::new()));
+    let context = Rc::new(RefCell::new(Context::new()));
 
     // TODO: 画面サイズ変更時にクラッシュする問題の解決
     //
@@ -507,8 +501,8 @@ fn run(config: Config) -> Result<()> {
     let mut window = init_window(
         config.split_mode(),
         tx_main,
-        current_context.clone(),
-        selected_namespaces.clone(),
+        context.clone(),
+        namespace.clone(),
     );
 
     terminal.clear()?;
@@ -516,7 +510,7 @@ fn run(config: Config) -> Result<()> {
 
     loop {
         terminal.draw(|f| {
-            window.render(f, &current_context.borrow(), &selected_namespaces.borrow());
+            window.render(f, context.borrow(), namespace.borrow());
         })?;
 
         match window_action(&mut window, &rx_main) {
@@ -533,9 +527,8 @@ fn run(config: Config) -> Result<()> {
                 update_contents(
                     &mut window,
                     ev,
-                    &mut current_context.borrow_mut(),
-                    &mut current_namespace,
-                    &mut selected_namespaces.borrow_mut(),
+                    &mut context.borrow_mut(),
+                    &mut namespace.borrow_mut(),
                 );
             }
         }

@@ -12,6 +12,8 @@ use tui_wrapper::{
     Window, WindowEvent,
 };
 
+use crate::{Context, Namespace};
+
 pub mod view_id {
 
     #![allow(non_upper_case_globals)]
@@ -105,9 +107,8 @@ fn update_widget_item_for_vec(window: &mut Window, id: &str, vec: Result<Vec<Str
 pub fn update_contents(
     window: &mut Window,
     ev: Kube,
-    current_context: &mut String,
-    current_namespace: &mut String,
-    selected_namespace: &mut Vec<String>,
+    context: &mut Context,
+    namespace: &mut Namespace,
 ) {
     match ev {
         Kube::Pod(pods_table) => {
@@ -140,11 +141,9 @@ pub fn update_contents(
         }
 
         Kube::GetCurrentContextResponse(ctx, ns) => {
-            *current_context = ctx;
-            *current_namespace = ns.to_string();
-
-            selected_namespace.clear();
-            selected_namespace.push(ns);
+            context.update(ctx);
+            namespace.default = ns.to_string();
+            namespace.selected = vec![ns.to_string()];
         }
 
         Kube::Event(ev) => {
@@ -168,7 +167,7 @@ pub fn update_contents(
                 .as_mut_multiple_select();
 
             if widget.selected_items().is_empty() {
-                widget.select_item(current_namespace)
+                widget.select_item(&namespace.default)
             }
         }
 
@@ -178,6 +177,11 @@ pub fn update_contents(
 
         Kube::GetContextsResponse(ctxs) => {
             update_widget_item_for_vec(window, view_id::subwin_ctx, ctxs);
+        }
+
+        Kube::RestoreNamespaces(default, selected) => {
+            namespace.default = default;
+            namespace.selected = selected;
         }
         _ => unreachable!(),
     }

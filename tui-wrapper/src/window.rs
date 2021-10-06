@@ -235,12 +235,12 @@ impl<'a> Window<'a> {
     pub fn render<B: Backend>(
         &mut self,
         f: &mut Frame<B>,
-        current_context: &str,
-        current_namespaces: &[String],
+        context: impl ToString,
+        namespaces: impl ToString,
     ) {
         self.render_tab(f);
 
-        self.render_context(f, current_context, current_namespaces);
+        self.render_context(f, context, namespaces);
 
         self.focused_tab_mut().render(f);
 
@@ -258,27 +258,19 @@ impl<'a> Window<'a> {
         f.render_widget(self.widget(), self.tab_chunk());
     }
 
-    fn render_context<B: Backend>(&mut self, f: &mut Frame<B>, ctx: &str, ns: &[String]) {
+    fn render_context<B: Backend>(
+        &mut self,
+        f: &mut Frame<B>,
+        ctx: impl ToString,
+        ns: impl ToString,
+    ) {
         let block = Block::default().style(Style::default());
 
-        let spans_ctx = Spans::from(format!("ctx: {}", ctx));
-        let mut spans_ns = vec![Span::raw("ns: ")];
-        spans_ns.extend(
-            ns.iter()
-                .enumerate()
-                .map(|(i, ns)| {
-                    let mut s = String::default();
-                    if i != 0 {
-                        s += ", ";
-                    }
-
-                    s += ns;
-
-                    Span::raw(s)
-                })
-                .collect::<Vec<Span>>(),
-        );
-        let paragraph = Paragraph::new(vec![spans_ctx, Spans::from(spans_ns)]).block(block);
+        let paragraph = Paragraph::new(vec![
+            Spans::from(format!("ctx: {}", ctx.to_string())),
+            Spans::from(format!("ns: {}", ns.to_string())),
+        ])
+        .block(block);
 
         f.render_widget(paragraph, self.chunks()[CONTEXT]);
     }
