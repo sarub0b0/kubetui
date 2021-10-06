@@ -604,7 +604,7 @@ mod tests {
         }
 
         #[test]
-        fn log_stream_request_param_multiple_namespace() {
+        fn log_stream_request_param_multiple_namespaces() {
             let value = vec![
                 "ns-1".to_string(),
                 "name".to_string(),
