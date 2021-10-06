@@ -3,8 +3,16 @@ name: Test
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - README.md
+      - CHANGELOG.md
+      - LICENSE
   pull_request:
     branches: [main]
+    paths-ignore:
+      - README.md
+      - CHANGELOG.md
+      - LICENSE
 
 env:
   CARGO_TERM_COLOR: always
