@@ -149,7 +149,7 @@ async fn current_namespace(client: KubeClient, named_context: &NamedContext) -> 
     } else {
         let namespaces = namespace_list(client).await;
 
-        if namespaces.iter().find(|&ns| ns == "default").is_some() {
+        if namespaces.iter().any(|ns| ns == "default") {
             Ok("default".to_string())
         } else if !namespaces.is_empty() {
             Ok(namespaces[0].to_string())

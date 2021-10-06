@@ -343,17 +343,13 @@ fn init_window(
     apis_widget.add_action('f', open_subwin);
 
     // [Sub Window] Context
-    let subwin_ctx = Widget::from(init_subwin_ctx(
-        tx.clone(),
-        context.clone(),
-        namespaces.clone(),
-    ));
+    let subwin_ctx = Widget::from(init_subwin_ctx(tx.clone(), context, namespaces.clone()));
 
     // [Sub Window] Namespace (Single Select)
     let subwin_single_ns = Widget::from(init_subwin_single_ns(tx.clone(), namespaces.clone()));
 
     // [Sub Window] Namespace (Multiple Select)
-    let subwin_multi_ns = Widget::from(init_subwin_multiple_ns(tx.clone(), namespaces.clone()));
+    let subwin_multi_ns = Widget::from(init_subwin_multiple_ns(tx.clone(), namespaces));
 
     // [Sub Window] Api
     let subwin_apis = Widget::from(init_subwin_apis(tx.clone()));
@@ -383,7 +379,7 @@ fn init_window(
         )
         .layout(
             Layout::default()
-                .direction(split_mode.clone())
+                .direction(split_mode)
                 .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()),
         ),
         Tab::new(

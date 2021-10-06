@@ -143,7 +143,7 @@ pub fn update_contents(
         Kube::GetCurrentContextResponse(ctx, ns) => {
             context.update(ctx);
             namespace.default = ns.to_string();
-            namespace.selected = vec![ns.to_string()];
+            namespace.selected = vec![ns];
         }
 
         Kube::Event(ev) => {
