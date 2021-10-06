@@ -105,6 +105,36 @@ fn init_log(clipboard: Option<Rc<RefCell<ClipboardContextWrapper>>>) -> Text<'st
     .build()
 }
 
+fn config_request_param(value: &[String], namespace: &[String]) -> (String, String, String) {
+    if namespace.len() == 1 {
+        if 2 <= value.len() {
+            (
+                namespace[0].to_string(),
+                value[0].to_string(),
+                value[1].to_string(),
+            )
+        } else {
+            (
+                "Error".to_string(),
+                "Error".to_string(),
+                "Error".to_string(),
+            )
+        }
+    } else if 3 <= value.len() {
+        (
+            value[0].to_string(),
+            value[1].to_string(),
+            value[2].to_string(),
+        )
+    } else {
+        (
+            "Error".to_string(),
+            "Error".to_string(),
+            "Error".to_string(),
+        )
+    }
+}
+
 #[inline]
 fn init_configs(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'static> {
     TableBuilder::default()
@@ -114,29 +144,7 @@ fn init_configs(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'
         .on_select(move |w, v| {
             w.widget_clear(view_id::tab_configs_widget_raw_data);
 
-            let (ns, kind, name) = if namespace.borrow().selected.len() == 1 {
-                if 2 <= v.len() {
-                    (
-                        namespace.borrow().selected[0].to_string(),
-                        v[0].to_string(),
-                        v[1].to_string(),
-                    )
-                } else {
-                    (
-                        "Error".to_string(),
-                        "Error".to_string(),
-                        "Error".to_string(),
-                    )
-                }
-            } else if 3 <= v.len() {
-                (v[0].to_string(), v[1].to_string(), v[2].to_string())
-            } else {
-                (
-                    "Error".to_string(),
-                    "Error".to_string(),
-                    "Error".to_string(),
-                )
-            };
+            let (ns, kind, name) = config_request_param(v, &namespace.borrow().selected);
 
             tx.send(Event::Kube(Kube::ConfigRequest(ns, kind, name)))
                 .unwrap();
@@ -579,6 +587,7 @@ mod tests {
 
     mod pod {
         use super::*;
+
         #[test]
         fn log_stream_request_param_single_namespace() {
             let value = vec![
@@ -608,6 +617,47 @@ mod tests {
             let actual = log_stream_request_param(&value, &namespace);
 
             assert_eq!(("ns-1".to_string(), "name".to_string()), actual)
+        }
+    }
+
+    mod configs {
+        use super::*;
+
+        #[test]
+        fn config_request_param_single_namespace() {
+            let value = vec![
+                "kind".to_string(),
+                "name".to_string(),
+                "data".to_string(),
+                "age".to_string(),
+            ];
+
+            let namespace = vec!["ns".to_string()];
+
+            let actual = config_request_param(&value, &namespace);
+
+            assert_eq!(
+                ("ns".to_string(), "kind".to_string(), "name".to_string()),
+                actual
+            )
+        }
+
+        #[test]
+        fn config_request_param_multiple_namespaces() {
+            let value = vec![
+                "ns-1".to_string(),
+                "kind".to_string(),
+                "name".to_string(),
+                "data".to_string(),
+                "age".to_string(),
+            ];
+            let namespace = vec!["ns-0".to_string(), "ns-1".to_string()];
+            let actual = config_request_param(&value, &namespace);
+
+            assert_eq!(
+                ("ns-1".to_string(), "kind".to_string(), "name".to_string()),
+                actual
+            )
         }
     }
 }
