@@ -24,8 +24,8 @@ serde = { version = "1.0.130", features = ["derive", "serde_derive", "std"] }
 
 [build-dependencies]
 proc-macro2 = { version = "1.0.29", features = ["proc-macro"] }
-quote = { version = "1.0.9", features = ["proc-macro"] }
-syn = { version = "1.0.76", features = ["clone-impls", "derive", "extra-traits", "full", "parsing", "printing", "proc-macro", "quote", "visit", "visit-mut"] }
+quote = { version = "1.0.10", features = ["proc-macro"] }
+syn = { version = "1.0.80", features = ["clone-impls", "derive", "extra-traits", "full", "parsing", "printing", "proc-macro", "quote", "visit", "visit-mut"] }
 
 [target.x86_64-unknown-linux-gnu.dependencies]
 
