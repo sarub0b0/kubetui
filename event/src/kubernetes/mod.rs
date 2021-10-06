@@ -16,7 +16,10 @@ use futures::future::select_all;
 use k8s_openapi::api::core::v1::Namespace;
 use worker::Worker;
 
-use std::{convert::TryFrom, panic, sync::atomic::AtomicBool, sync::Arc, time::Duration};
+use std::{
+    collections::HashMap, convert::TryFrom, panic, sync::atomic::AtomicBool, sync::Arc,
+    time::Duration,
+};
 
 use crossbeam::channel::{Receiver, Sender};
 use tokio::{
@@ -100,6 +103,8 @@ pub enum Kube {
     SetContext(String),
     GetCurrentContextRequest,
     GetCurrentContextResponse(String, String), // current_context, namespace
+    // Context Restore
+    RestoreNamespaces(String, Vec<String>), // default_namespace, selected_namespaces
     // Event
     Event(Result<Vec<String>>),
     // Namespace
@@ -144,7 +149,7 @@ async fn current_namespace(client: KubeClient, named_context: &NamedContext) -> 
     } else {
         let namespaces = namespace_list(client).await;
 
-        if namespaces.iter().find(|&ns| ns == "default").is_some() {
+        if namespaces.iter().any(|ns| ns == "default") {
             Ok("default".to_string())
         } else if !namespaces.is_empty() {
             Ok(namespaces[0].to_string())
@@ -156,13 +161,34 @@ async fn current_namespace(client: KubeClient, named_context: &NamedContext) -> 
     }
 }
 
-pub type Namespaces = Arc<RwLock<Vec<String>>>;
-pub type ApiResources = Arc<RwLock<Vec<String>>>;
+pub(super) type Namespaces = Arc<RwLock<Vec<String>>>;
+pub(super) type ApiResources = Arc<RwLock<Vec<String>>>;
 
 #[derive(Clone)]
 pub enum WorkerResult {
     ChangedContext(String),
     Terminated,
+}
+
+#[derive(Debug, Default)]
+struct KubeState {
+    default_namespace: String,
+    selected_namespaces: Vec<String>, // selected
+    api_resources: Vec<String>,
+}
+
+impl KubeState {
+    fn new(
+        default_namespace: impl Into<String>,
+        namespaces: impl Into<Vec<String>>,
+        api_resources: impl Into<Vec<String>>,
+    ) -> Self {
+        Self {
+            default_namespace: default_namespace.into(),
+            selected_namespaces: namespaces.into(),
+            api_resources: api_resources.into(),
+        }
+    }
 }
 
 async fn inner_kube_process(
@@ -173,6 +199,8 @@ async fn inner_kube_process(
     let kubeconfig = Kubeconfig::read()?;
 
     let mut context: Option<String> = None;
+
+    let mut kube_state: HashMap<String, KubeState> = HashMap::new();
 
     while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
         let (kube_client, current_namespace, current_context) = if let Some(context) = &context {
@@ -221,16 +249,43 @@ async fn inner_kube_process(
             (kube_client, current_namespace, current_context)
         };
 
-        let namespaces = Arc::new(RwLock::new(vec![current_namespace.to_string()]));
-        let api_resources: ApiResources = Default::default();
+        // Restore
+        let (current_namespace, namespaces, api_resources) =
+            if let Some(state) = kube_state.get(&current_context) {
+                let KubeState {
+                    default_namespace,
+                    selected_namespaces: namespaces,
+                    api_resources,
+                } = state;
 
-        tx.send(Event::Kube(Kube::GetCurrentContextResponse(
-            current_context.to_string(),
-            current_namespace.to_string(),
-        )))?;
+                tx.send(Event::Kube(Kube::RestoreNamespaces(
+                    default_namespace.to_string(),
+                    namespaces.to_owned(),
+                )))?;
+
+                (
+                    default_namespace.to_string(),
+                    namespaces.to_owned(),
+                    api_resources.to_owned(),
+                )
+            } else {
+                tx.send(Event::Kube(Kube::GetCurrentContextResponse(
+                    current_context.to_string(),
+                    current_namespace.to_string(),
+                )))?;
+
+                (
+                    current_namespace.to_string(),
+                    vec![current_namespace],
+                    Default::default(),
+                )
+            };
+
+        let shared_namespaces = Arc::new(RwLock::new(namespaces.clone()));
+        let shared_api_resources = Arc::new(RwLock::new(api_resources.clone()));
 
         let poll_worker = PollWorker {
-            namespaces: namespaces.clone(),
+            namespaces: shared_namespaces.clone(),
             tx: tx.clone(),
             is_terminated: is_terminated.clone(),
             kube_client,
@@ -238,7 +293,7 @@ async fn inner_kube_process(
 
         let main_handler = MainWorker {
             inner: poll_worker.clone(),
-            api_resources: api_resources.clone(),
+            api_resources: shared_api_resources.clone(),
             rx: rx.clone(),
             contexts: kubeconfig.contexts.clone(),
         }
@@ -247,7 +302,8 @@ async fn inner_kube_process(
         let pod_handler = PodPollWorker::new(poll_worker.clone()).spawn();
         let config_handler = ConfigsPollWorker::new(poll_worker.clone()).spawn();
         let event_handler = EventPollWorker::new(poll_worker.clone()).spawn();
-        let apis_handler = ApiPollWorker::new(poll_worker.clone(), api_resources).spawn();
+        let apis_handler =
+            ApiPollWorker::new(poll_worker.clone(), shared_api_resources.clone()).spawn();
 
         let mut handlers = vec![
             main_handler,
@@ -275,6 +331,18 @@ async fn inner_kube_process(
                             abort(&handlers);
 
                             context = Some(ctx);
+
+                            let namespaces = shared_namespaces.read().await;
+                            let api_resources = shared_api_resources.read().await;
+
+                            kube_state.insert(
+                                current_context.to_string(),
+                                KubeState::new(
+                                    current_namespace.to_string(),
+                                    namespaces.to_vec(),
+                                    api_resources.to_vec(),
+                                ),
+                            );
                         }
                         WorkerResult::Terminated => {}
                     },

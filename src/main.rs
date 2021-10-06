@@ -1,4 +1,3 @@
-use clap::crate_name;
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use event::UserEvent;
 use std::{
@@ -34,36 +33,13 @@ use tui_wrapper::{
     Tab, Window, WindowEvent,
 };
 
-use clap::{crate_authors, crate_description, crate_version, App, Arg};
-
 extern crate kubetui;
-use kubetui::*;
-
-#[derive(Debug)]
-enum DirectionWrapper {
-    Horizontal,
-    Vertical,
-}
-
-impl Default for DirectionWrapper {
-    fn default() -> Self {
-        Self::Vertical
-    }
-}
-
-#[derive(Debug, Default)]
-struct Config {
-    split_mode: DirectionWrapper,
-}
-
-impl Config {
-    fn split_mode(&self) -> Direction {
-        match self.split_mode {
-            DirectionWrapper::Vertical => Direction::Vertical,
-            DirectionWrapper::Horizontal => Direction::Horizontal,
-        }
-    }
-}
+use kubetui::{
+    action::{update_contents, view_id, window_action},
+    config::{configure, Config},
+    log::logging,
+    Context, Namespace,
+};
 
 macro_rules! enable_raw_mode {
     () => {
@@ -85,8 +61,16 @@ macro_rules! disable_raw_mode {
     };
 }
 
+fn log_stream_request_param(value: &[String], namespace: &[String]) -> (String, String) {
+    if namespace.len() == 1 {
+        (namespace[0].to_string(), value[0].to_string())
+    } else {
+        (value[0].to_string(), value[1].to_string())
+    }
+}
+
 #[inline]
-fn init_pod(tx: Sender<Event>, selected_namespaces: Rc<RefCell<Vec<String>>>) -> Table<'static> {
+fn init_pod(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'static> {
     TableBuilder::default()
         .id(view_id::tab_pods_widget_pods)
         .title("Pods")
@@ -94,14 +78,9 @@ fn init_pod(tx: Sender<Event>, selected_namespaces: Rc<RefCell<Vec<String>>>) ->
         .on_select(move |w, v| {
             w.widget_clear(view_id::tab_pods_widget_logs);
 
-            let (ns, pod_name) = if selected_namespaces.borrow().len() == 1 {
-                (
-                    selected_namespaces.borrow()[0].to_string(),
-                    v[0].to_string(),
-                )
-            } else {
-                (v[0].to_string(), v[1].to_string())
-            };
+            let selected = &namespace.borrow().selected;
+
+            let (ns, pod_name) = log_stream_request_param(v, selected);
 
             tx.send(Event::Kube(Kube::LogStreamRequest(ns, pod_name)))
                 .unwrap();
@@ -127,10 +106,7 @@ fn init_log(clipboard: Option<Rc<RefCell<ClipboardContextWrapper>>>) -> Text<'st
 }
 
 #[inline]
-fn init_configs(
-    tx: Sender<Event>,
-    selected_namespaces: Rc<RefCell<Vec<String>>>,
-) -> Table<'static> {
+fn init_configs(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'static> {
     TableBuilder::default()
         .id(view_id::tab_configs_widget_configs)
         .title("Configs")
@@ -138,10 +114,10 @@ fn init_configs(
         .on_select(move |w, v| {
             w.widget_clear(view_id::tab_configs_widget_raw_data);
 
-            let (ns, kind, name) = if selected_namespaces.borrow().len() == 1 {
+            let (ns, kind, name) = if namespace.borrow().selected.len() == 1 {
                 if 2 <= v.len() {
                     (
-                        selected_namespaces.borrow()[0].to_string(),
+                        namespace.borrow().selected[0].to_string(),
                         v[0].to_string(),
                         v[1].to_string(),
                     )
@@ -187,8 +163,8 @@ fn init_configs_raw(clipboard: Option<Rc<RefCell<ClipboardContextWrapper>>>) -> 
 #[inline]
 fn init_subwin_ctx(
     tx: Sender<Event>,
-    context: Rc<RefCell<String>>,
-    namespace: Rc<RefCell<Vec<String>>>,
+    context: Rc<RefCell<Context>>,
+    namespace: Rc<RefCell<Namespace>>,
 ) -> SingleSelect<'static> {
     SingleSelectBuilder::default()
         .id(view_id::subwin_ctx)
@@ -201,10 +177,10 @@ fn init_subwin_ctx(
                 .unwrap();
 
             let mut ctx = context.borrow_mut();
-            *ctx = item;
+            ctx.update(item);
 
             let mut ns = namespace.borrow_mut();
-            *ns = vec!["None".to_string()];
+            ns.selected = vec!["None".to_string()];
 
             w.close_popup();
 
@@ -232,7 +208,7 @@ fn init_subwin_ctx(
 #[inline]
 fn init_subwin_single_ns(
     tx: Sender<Event>,
-    namespace: Rc<RefCell<Vec<String>>>,
+    namespace: Rc<RefCell<Namespace>>,
 ) -> SingleSelect<'static> {
     SingleSelectBuilder::default()
         .id(view_id::subwin_single_ns)
@@ -244,7 +220,7 @@ fn init_subwin_single_ns(
                 .unwrap();
 
             let mut ns = namespace.borrow_mut();
-            *ns = items;
+            ns.selected = items;
 
             w.close_popup();
 
@@ -268,7 +244,7 @@ fn init_subwin_single_ns(
 #[inline]
 fn init_subwin_multiple_ns(
     tx: Sender<Event>,
-    namespace: Rc<RefCell<Vec<String>>>,
+    namespace: Rc<RefCell<Namespace>>,
 ) -> MultipleSelect<'static> {
     MultipleSelectBuilder::default()
         .id(view_id::subwin_ns)
@@ -290,7 +266,7 @@ fn init_subwin_multiple_ns(
                 .unwrap();
 
             let mut ns = namespace.borrow_mut();
-            *ns = items;
+            ns.selected = items;
 
             w.widget_clear(view_id::tab_pods_widget_logs);
             w.widget_clear(view_id::tab_configs_widget_raw_data);
@@ -327,6 +303,156 @@ fn init_subwin_apis(tx: Sender<Event>) -> MultipleSelect<'static> {
         })
 }
 
+fn init_window(
+    split_mode: Direction,
+    tx: Sender<Event>,
+    context: Rc<RefCell<Context>>,
+    namespaces: Rc<RefCell<Namespace>>,
+) -> Window<'static> {
+    let clipboard = match clipboard_wrapper::ClipboardContextWrapper::new() {
+        Ok(cb) => Some(Rc::new(RefCell::new(cb))),
+        Err(_) => None,
+    };
+
+    // Pods
+    let pods_widget = init_pod(tx.clone(), namespaces.clone());
+
+    // Logs
+    let logs_widget = init_log(clipboard.clone());
+
+    // Raw
+    let configs_widget = init_configs(tx.clone(), namespaces.clone());
+    let raw_data_widget = init_configs_raw(clipboard);
+
+    // Event
+    let event_widget = TextBuilder::default()
+        .id(view_id::tab_event_widget_event)
+        .title("Event")
+        .wrap()
+        .follow()
+        .build();
+
+    // APIs
+    let mut apis_widget = TextBuilder::default()
+        .id(view_id::tab_apis_widget_apis)
+        .title("APIs")
+        .build();
+
+    let tx_apis = tx.clone();
+    let open_subwin = move |w: &mut Window| {
+        tx_apis.send(Event::Kube(Kube::GetAPIsRequest)).unwrap();
+        w.open_popup(view_id::subwin_apis);
+        EventResult::Nop
+    };
+
+    apis_widget.add_action('/', open_subwin.clone());
+    apis_widget.add_action('f', open_subwin);
+
+    // [Sub Window] Context
+    let subwin_ctx = Widget::from(init_subwin_ctx(tx.clone(), context, namespaces.clone()));
+
+    // [Sub Window] Namespace (Single Select)
+    let subwin_single_ns = Widget::from(init_subwin_single_ns(tx.clone(), namespaces.clone()));
+
+    // [Sub Window] Namespace (Multiple Select)
+    let subwin_multi_ns = Widget::from(init_subwin_multiple_ns(tx.clone(), namespaces));
+
+    // [Sub Window] Api
+    let subwin_apis = Widget::from(init_subwin_apis(tx.clone()));
+
+    // Init Window
+    let tabs = [
+        Tab::new(
+            view_id::tab_pods,
+            "1:Pods",
+            [
+                WidgetData::new(pods_widget).chunk_index(0),
+                WidgetData::new(logs_widget).chunk_index(1),
+            ],
+        )
+        .layout(
+            Layout::default()
+                .direction(split_mode.clone())
+                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()),
+        ),
+        Tab::new(
+            view_id::tab_configs,
+            "2:Configs",
+            [
+                WidgetData::new(configs_widget).chunk_index(0),
+                WidgetData::new(raw_data_widget).chunk_index(1),
+            ],
+        )
+        .layout(
+            Layout::default()
+                .direction(split_mode)
+                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()),
+        ),
+        Tab::new(
+            view_id::tab_event,
+            "3:Event",
+            [WidgetData::new(event_widget)],
+        ),
+        Tab::new(view_id::tab_apis, "4:APIs", [WidgetData::new(apis_widget)]),
+    ];
+
+    let mut window = Window::new(tabs).status_target_id([
+        (view_id::tab_pods, view_id::tab_pods_widget_logs),
+        (view_id::tab_configs, view_id::tab_configs_widget_raw_data),
+        (view_id::tab_event, view_id::tab_event_widget_event),
+        (view_id::tab_apis, view_id::tab_apis_widget_apis),
+    ]);
+
+    // Configure Action
+    let tx_clone = tx.clone();
+    window.add_action(
+        UserEvent::Key(KeyEvent {
+            code: KeyCode::Char('N'),
+            modifiers: KeyModifiers::SHIFT,
+        }),
+        move |w| {
+            tx_clone
+                .send(Event::Kube(Kube::GetNamespacesRequest))
+                .unwrap();
+            w.open_popup(view_id::subwin_ns);
+            EventResult::Nop
+        },
+    );
+
+    let tx_clone = tx.clone();
+    window.add_action('n', move |w| {
+        tx_clone
+            .send(Event::Kube(Kube::GetNamespacesRequest))
+            .unwrap();
+        w.open_popup(view_id::subwin_single_ns);
+        EventResult::Nop
+    });
+
+    let fn_close = |w: &mut Window| {
+        if w.opening_popup() {
+            w.close_popup();
+            EventResult::Nop
+        } else {
+            EventResult::Window(WindowEvent::CloseWindow)
+        }
+    };
+
+    let tx_clone = tx;
+    window.add_action('c', move |w| {
+        tx_clone
+            .send(Event::Kube(Kube::GetContextsRequest))
+            .unwrap();
+        w.open_popup(view_id::subwin_ctx);
+        EventResult::Nop
+    });
+
+    window.add_action('q', fn_close);
+    window.add_action(KeyCode::Esc, fn_close);
+    window.add_popup([subwin_multi_ns, subwin_apis, subwin_single_ns, subwin_ctx]);
+
+    window
+}
+
 fn run(config: Config) -> Result<()> {
     let (tx_input, rx_main): (Sender<Event>, Receiver<Event>) = unbounded();
     let (tx_main, rx_kube): (Sender<Event>, Receiver<Event>) = unbounded();
@@ -354,14 +480,8 @@ fn run(config: Config) -> Result<()> {
 
     let backend = CrosstermBackend::new(io::stdout());
 
-    let mut current_namespace = "None".to_string();
-    let selected_namespaces = Rc::new(RefCell::new(vec!["None".to_string()]));
-    let current_context = Rc::new(RefCell::new("None".to_string()));
-
-    let clipboard = match clipboard_wrapper::ClipboardContextWrapper::new() {
-        Ok(cb) => Some(Rc::new(RefCell::new(cb))),
-        Err(_) => None,
-    };
+    let namespace = Rc::new(RefCell::new(Namespace::new()));
+    let context = Rc::new(RefCell::new(Context::new()));
 
     // TODO: 画面サイズ変更時にクラッシュする問題の解決
     //
@@ -380,158 +500,19 @@ fn run(config: Config) -> Result<()> {
         },
     )?;
 
-    // Pods
-    let pods_widget = init_pod(tx_main.clone(), selected_namespaces.clone());
-
-    // Logs
-    let logs_widget = init_log(clipboard.clone());
-
-    // Raw
-    let configs_widget = init_configs(tx_main.clone(), selected_namespaces.clone());
-    let raw_data_widget = init_configs_raw(clipboard);
-
-    // Event
-    let event_widget = TextBuilder::default()
-        .id(view_id::tab_event_widget_event)
-        .title("Event")
-        .wrap()
-        .follow()
-        .build();
-
-    // APIs
-    let mut apis_widget = TextBuilder::default()
-        .id(view_id::tab_apis_widget_apis)
-        .title("APIs")
-        .build();
-
-    let tx_apis = tx_main.clone();
-    let open_subwin = move |w: &mut Window| {
-        tx_apis.send(Event::Kube(Kube::GetAPIsRequest)).unwrap();
-        w.open_popup(view_id::subwin_apis);
-        EventResult::Nop
-    };
-
-    apis_widget.add_action('/', open_subwin.clone());
-    apis_widget.add_action('f', open_subwin);
-
-    // [Sub Window] Context
-    let subwin_ctx = Widget::from(init_subwin_ctx(
-        tx_main.clone(),
-        current_context.clone(),
-        selected_namespaces.clone(),
-    ));
-
-    // [Sub Window] Namespace (Single Select)
-    let subwin_single_ns = Widget::from(init_subwin_single_ns(
-        tx_main.clone(),
-        selected_namespaces.clone(),
-    ));
-
-    // [Sub Window] Namespace (Multiple Select)
-    let subwin_multi_ns = Widget::from(init_subwin_multiple_ns(
-        tx_main.clone(),
-        selected_namespaces.clone(),
-    ));
-
-    // [Sub Window] Api
-    let subwin_apis = Widget::from(init_subwin_apis(tx_main.clone()));
-
-    // Init Window
-    let tabs = [
-        Tab::new(
-            view_id::tab_pods,
-            "1:Pods",
-            [
-                WidgetData::new(pods_widget).chunk_index(0),
-                WidgetData::new(logs_widget).chunk_index(1),
-            ],
-        )
-        .layout(
-            Layout::default()
-                .direction(config.split_mode())
-                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()),
-        ),
-        Tab::new(
-            view_id::tab_configs,
-            "2:Configs",
-            [
-                WidgetData::new(configs_widget).chunk_index(0),
-                WidgetData::new(raw_data_widget).chunk_index(1),
-            ],
-        )
-        .layout(
-            Layout::default()
-                .direction(config.split_mode())
-                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()),
-        ),
-        Tab::new(
-            view_id::tab_event,
-            "3:Event",
-            [WidgetData::new(event_widget)],
-        ),
-        Tab::new(view_id::tab_apis, "4:APIs", [WidgetData::new(apis_widget)]),
-    ];
-
-    let mut window = Window::new(tabs).status_target_id([
-        (view_id::tab_pods, view_id::tab_pods_widget_logs),
-        (view_id::tab_configs, view_id::tab_configs_widget_raw_data),
-        (view_id::tab_event, view_id::tab_event_widget_event),
-        (view_id::tab_apis, view_id::tab_apis_widget_apis),
-    ]);
-
-    // Configure Action
-    let tx_clone = tx_main.clone();
-    window.add_action(
-        UserEvent::Key(KeyEvent {
-            code: KeyCode::Char('N'),
-            modifiers: KeyModifiers::SHIFT,
-        }),
-        move |w| {
-            tx_clone
-                .send(Event::Kube(Kube::GetNamespacesRequest))
-                .unwrap();
-            w.open_popup(view_id::subwin_ns);
-            EventResult::Nop
-        },
+    let mut window = init_window(
+        config.split_mode(),
+        tx_main,
+        context.clone(),
+        namespace.clone(),
     );
-
-    let tx_clone = tx_main.clone();
-    window.add_action('n', move |w| {
-        tx_clone
-            .send(Event::Kube(Kube::GetNamespacesRequest))
-            .unwrap();
-        w.open_popup(view_id::subwin_single_ns);
-        EventResult::Nop
-    });
-
-    let fn_close = |w: &mut Window| {
-        if w.opening_popup() {
-            w.close_popup();
-            EventResult::Nop
-        } else {
-            EventResult::Window(WindowEvent::CloseWindow)
-        }
-    };
-
-    let tx_clone = tx_main;
-    window.add_action('c', move |w| {
-        tx_clone
-            .send(Event::Kube(Kube::GetContextsRequest))
-            .unwrap();
-        w.open_popup(view_id::subwin_ctx);
-        EventResult::Nop
-    });
-
-    window.add_action('q', fn_close);
-    window.add_action(KeyCode::Esc, fn_close);
-    window.add_popup([subwin_multi_ns, subwin_apis, subwin_single_ns, subwin_ctx]);
 
     terminal.clear()?;
     window.update_chunks(terminal.size()?);
 
     loop {
         terminal.draw(|f| {
-            window.render(f, &current_context.borrow(), &selected_namespaces.borrow());
+            window.render(f, context.borrow(), namespace.borrow());
         })?;
 
         match window_action(&mut window, &rx_main) {
@@ -548,9 +529,8 @@ fn run(config: Config) -> Result<()> {
                 update_contents(
                     &mut window,
                     ev,
-                    &mut current_context.borrow_mut(),
-                    &mut current_namespace,
-                    &mut selected_namespaces.borrow_mut(),
+                    &mut context.borrow_mut(),
+                    &mut namespace.borrow_mut(),
                 );
             }
         }
@@ -569,75 +549,7 @@ fn run(config: Config) -> Result<()> {
     Ok(())
 }
 
-fn configure() -> Config {
-    let app = App::new(crate_name!())
-        .author(crate_authors!())
-        .version(crate_version!())
-        .about(crate_description!())
-        .arg(
-            Arg::with_name("split-mode")
-                .short("s")
-                .long("split-mode")
-                .help("Window split mode")
-                .value_name("direction")
-                .default_value("vertical")
-                .possible_values(&["vertical", "v", "horizontal", "h"])
-                .takes_value(true),
-        )
-        .get_matches();
-
-    let mut config = Config::default();
-
-    if let Some(d) = app.value_of("split-mode") {
-        match d {
-            "vertical" | "v" => {
-                config.split_mode = DirectionWrapper::Vertical;
-            }
-            "horizontal" | "h" => {
-                config.split_mode = DirectionWrapper::Horizontal;
-            }
-            _ => {}
-        }
-    }
-
-    config
-}
-
-#[cfg(feature = "logging")]
-use log::LevelFilter;
-#[cfg(feature = "logging")]
-use log4rs::{
-    append::file::FileAppender,
-    config::{Appender, Config as LConfig, Root},
-    encode::pattern::PatternEncoder,
-};
-#[cfg(feature = "logging")]
-use std::env;
-#[cfg(feature = "logging")]
-use std::str::FromStr;
-
-#[cfg(feature = "logging")]
-fn logging() {
-    let level_filter =
-        LevelFilter::from_str(&env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string()))
-            .unwrap_or(LevelFilter::Info);
-
-    let logfile = FileAppender::builder()
-        .append(false)
-        .encoder(Box::new(PatternEncoder::new("{h({l})} - {m}\n")))
-        .build("log/output.log")
-        .unwrap();
-
-    let config = LConfig::builder()
-        .appender(Appender::builder().build("logfile", Box::new(logfile)))
-        .build(Root::builder().appender("logfile").build(level_filter))
-        .unwrap();
-
-    log4rs::init_config(config).unwrap();
-}
-
 fn main() -> Result<()> {
-    #[cfg(feature = "logging")]
     logging();
 
     let default_hook = panic::take_hook();
@@ -659,4 +571,43 @@ fn main() -> Result<()> {
     disable_raw_mode!();
 
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod pod {
+        use super::*;
+        #[test]
+        fn log_stream_request_param_single_namespace() {
+            let value = vec![
+                "name".to_string(),
+                "ready".to_string(),
+                "status".to_string(),
+                "age".to_string(),
+            ];
+            let namespace = vec!["ns".to_string()];
+
+            let actual = log_stream_request_param(&value, &namespace);
+
+            assert_eq!(("ns".to_string(), "name".to_string()), actual)
+        }
+
+        #[test]
+        fn log_stream_request_param_multiple_namespace() {
+            let value = vec![
+                "ns-1".to_string(),
+                "name".to_string(),
+                "ready".to_string(),
+                "status".to_string(),
+                "age".to_string(),
+            ];
+            let namespace = vec!["ns-0".to_string(), "ns-1".to_string()];
+
+            let actual = log_stream_request_param(&value, &namespace);
+
+            assert_eq!(("ns-1".to_string(), "name".to_string()), actual)
+        }
+    }
 }

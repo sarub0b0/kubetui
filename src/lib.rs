@@ -1,184 +1,75 @@
-use crossbeam::channel::Receiver;
+use std::fmt::Display;
 
-use event::{
-    error::Result,
-    kubernetes::{Kube, KubeTable},
-    Event,
-};
+pub mod action;
 
-use tui_wrapper::{
-    event::{exec_to_window_event, EventResult},
-    widget::{WidgetItem, WidgetTrait},
-    Window, WindowEvent,
-};
+pub mod config;
 
-pub mod view_id {
+#[cfg(feature = "logging")]
+pub mod log;
 
-    #![allow(non_upper_case_globals)]
-    macro_rules! generate_id {
-        ($id:ident) => {
-            pub const $id: &str = stringify!($id);
-        };
+#[derive(Debug, Default)]
+pub struct Context(pub String);
+
+impl Context {
+    pub fn new() -> Self {
+        Self("None".to_string())
     }
 
-    generate_id!(tab_pods);
-    generate_id!(tab_pods_widget_pods);
-    generate_id!(tab_pods_widget_logs);
-    generate_id!(tab_configs);
-    generate_id!(tab_configs_widget_configs);
-    generate_id!(tab_configs_widget_raw_data);
-    generate_id!(tab_event);
-    generate_id!(tab_event_widget_event);
-    generate_id!(tab_apis);
-    generate_id!(tab_apis_widget_apis);
-
-    generate_id!(subwin_ctx);
-    generate_id!(subwin_ns);
-    generate_id!(subwin_apis);
-    generate_id!(subwin_single_ns);
-}
-
-macro_rules! error_format {
-    ($fmt:literal, $($arg:tt)*) => {
-        format!(concat!("\x1b[31m", $fmt,"\x1b[39m"), $($arg)*)
-
-    };
-}
-
-pub fn window_action(window: &mut Window, rx: &Receiver<Event>) -> WindowEvent {
-    match rx.recv().unwrap() {
-        Event::User(ev) => match window.on_event(ev) {
-            EventResult::Nop => {}
-
-            EventResult::Ignore => {
-                if let Some(cb) = window.match_callback(ev) {
-                    if let EventResult::Window(ev) = (cb)(window) {
-                        return ev;
-                    }
-                }
-            }
-            ev @ EventResult::Callback(_) => {
-                return exec_to_window_event(ev, window);
-            }
-            EventResult::Window(ev) => {
-                return ev;
-            }
-        },
-
-        Event::Tick => {}
-        Event::Kube(k) => return WindowEvent::UpdateContents(k),
-        Event::Error(_) => {}
+    pub fn update(&mut self, ctx: impl Into<String>) {
+        self.0 = ctx.into();
     }
-    WindowEvent::Continue
 }
 
-fn update_widget_item_for_table(window: &mut Window, id: &str, table: Result<KubeTable>) {
-    let widget = window.find_widget_mut(id);
-    let w = widget.as_mut_table();
+impl Display for Context {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
-    match table {
-        Ok(table) => {
-            if w.equal_header(table.header()) {
-                w.update_widget_item(WidgetItem::DoubleArray(table.rows().to_owned()));
-            } else {
-                w.update_header_and_rows(table.header(), table.rows());
-            }
-        }
-        Err(e) => {
-            w.update_header_and_rows(&["ERROR".to_string()], &[vec![error_format!("{}", e)]]);
+#[derive(Debug, Default)]
+pub struct Namespace {
+    pub default: String,
+    pub selected: Vec<String>,
+}
+
+impl Namespace {
+    pub fn new() -> Self {
+        Self {
+            default: "None".to_string(),
+            selected: vec!["None".to_string()],
         }
     }
 }
 
-fn update_widget_item_for_vec(window: &mut Window, id: &str, vec: Result<Vec<String>>) {
-    let widget = window.find_widget_mut(id);
-    match vec {
-        Ok(i) => {
-            widget.update_widget_item(WidgetItem::Array(i));
-        }
-        Err(i) => {
-            widget.update_widget_item(WidgetItem::Array(vec![error_format!("{}", i)]));
-        }
+impl Display for Namespace {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.selected.join(", "))
     }
 }
 
-pub fn update_contents(
-    window: &mut Window,
-    ev: Kube,
-    current_context: &mut String,
-    current_namespace: &mut String,
-    selected_namespace: &mut Vec<String>,
-) {
-    match ev {
-        Kube::Pod(pods_table) => {
-            update_widget_item_for_table(window, view_id::tab_pods_widget_pods, pods_table);
-        }
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-        Kube::Configs(configs_table) => {
-            update_widget_item_for_table(
-                window,
-                view_id::tab_configs_widget_configs,
-                configs_table,
-            );
-        }
+    #[test]
+    fn namespace_display() {
+        let mut ns = Namespace::new();
 
-        Kube::LogStreamResponse(logs) => {
-            let widget = window.find_widget_mut(view_id::tab_pods_widget_logs);
+        ns.selected = vec![
+            "a".to_string(),
+            "b".to_string(),
+            "c".to_string(),
+            "d".to_string(),
+            "e".to_string(),
+        ];
 
-            match logs {
-                Ok(i) => {
-                    widget.append_widget_item(WidgetItem::Array(i));
-                }
-                Err(i) => {
-                    widget.append_widget_item(WidgetItem::Array(vec![error_format!("{}", i)]));
-                }
-            }
-        }
+        assert_eq!("a, b, c, d, e".to_string(), ns.to_string())
+    }
 
-        Kube::ConfigResponse(raw) => {
-            update_widget_item_for_vec(window, view_id::tab_configs_widget_raw_data, raw);
-        }
+    #[test]
+    fn context_display() {
+        let ctx = Context::new();
 
-        Kube::GetCurrentContextResponse(ctx, ns) => {
-            *current_context = ctx;
-            *current_namespace = ns.to_string();
-
-            selected_namespace.clear();
-            selected_namespace.push(ns);
-        }
-
-        Kube::Event(ev) => {
-            update_widget_item_for_vec(window, view_id::tab_event_widget_event, ev);
-        }
-
-        Kube::APIsResults(apis) => {
-            update_widget_item_for_vec(window, view_id::tab_apis_widget_apis, apis);
-        }
-
-        Kube::GetNamespacesResponse(ns) => {
-            window
-                .find_widget_mut(view_id::subwin_ns)
-                .update_widget_item(WidgetItem::Array(ns.to_vec()));
-            window
-                .find_widget_mut(view_id::subwin_single_ns)
-                .update_widget_item(WidgetItem::Array(ns));
-
-            let widget = window
-                .find_widget_mut(view_id::subwin_ns)
-                .as_mut_multiple_select();
-
-            if widget.selected_items().is_empty() {
-                widget.select_item(current_namespace)
-            }
-        }
-
-        Kube::GetAPIsResponse(apis) => {
-            update_widget_item_for_vec(window, view_id::subwin_apis, apis);
-        }
-
-        Kube::GetContextsResponse(ctxs) => {
-            update_widget_item_for_vec(window, view_id::subwin_ctx, ctxs);
-        }
-        _ => unreachable!(),
+        assert_eq!("None".to_string(), ctx.to_string())
     }
 }
