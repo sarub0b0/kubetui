@@ -18,7 +18,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
 
     steps:
@@ -27,9 +27,6 @@ jobs:
       - name: Install Packages
         run: |
           sudo apt-get install libssl-dev libxcb-shape0-dev libxcb-xfixes0-dev xorg-dev
-
-      - name: Build
-        run: cargo build
 
       - name: Run tests
         run: cargo test --all
