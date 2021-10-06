@@ -61,6 +61,14 @@ macro_rules! disable_raw_mode {
     };
 }
 
+fn log_stream_request_param(value: &[String], namespace: &[String]) -> (String, String) {
+    if namespace.len() == 1 {
+        (namespace[0].to_string(), value[0].to_string())
+    } else {
+        (value[0].to_string(), value[1].to_string())
+    }
+}
+
 #[inline]
 fn init_pod(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'static> {
     TableBuilder::default()
@@ -70,11 +78,9 @@ fn init_pod(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'stat
         .on_select(move |w, v| {
             w.widget_clear(view_id::tab_pods_widget_logs);
 
-            let (ns, pod_name) = if namespace.borrow().selected.len() == 1 {
-                (namespace.borrow().selected[0].to_string(), v[0].to_string())
-            } else {
-                (v[0].to_string(), v[1].to_string())
-            };
+            let selected = &namespace.borrow().selected;
+
+            let (ns, pod_name) = log_stream_request_param(v, selected);
 
             tx.send(Event::Kube(Kube::LogStreamRequest(ns, pod_name)))
                 .unwrap();
@@ -565,4 +571,43 @@ fn main() -> Result<()> {
     disable_raw_mode!();
 
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod pod {
+        use super::*;
+        #[test]
+        fn log_stream_request_param_single_namespace() {
+            let value = vec![
+                "name".to_string(),
+                "ready".to_string(),
+                "status".to_string(),
+                "age".to_string(),
+            ];
+            let namespace = vec!["ns".to_string()];
+
+            let actual = log_stream_request_param(&value, &namespace);
+
+            assert_eq!(("ns".to_string(), "name".to_string()), actual)
+        }
+
+        #[test]
+        fn log_stream_request_param_multiple_namespace() {
+            let value = vec![
+                "ns-1".to_string(),
+                "name".to_string(),
+                "ready".to_string(),
+                "status".to_string(),
+                "age".to_string(),
+            ];
+            let namespace = vec!["ns-0".to_string(), "ns-1".to_string()];
+
+            let actual = log_stream_request_param(&value, &namespace);
+
+            assert_eq!(("ns-1".to_string(), "name".to_string()), actual)
+        }
+    }
 }
