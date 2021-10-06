@@ -1,8 +1,8 @@
 # Changelog
 
-## [Unreleased](https://github.com/sarub0b0/kubetui/tree/HEAD)
+## [v0.5.0](https://github.com/sarub0b0/kubetui/tree/v0.5.0) (2021-10-06)
 
-[Full Changelog](https://github.com/sarub0b0/kubetui/compare/v0.4.4...HEAD)
+[Full Changelog](https://github.com/sarub0b0/kubetui/compare/v0.4.4...v0.5.0)
 
 **Implemented enhancements:**
 
@@ -127,7 +127,29 @@
 
 ## [v0.1.0](https://github.com/sarub0b0/kubetui/tree/v0.1.0) (2021-05-16)
 
-[Full Changelog](https://github.com/sarub0b0/kubetui/compare/d39f48c66deade9aee37680bcafb236752e06fc2...v0.1.0)
+[Full Changelog](https://github.com/sarub0b0/kubetui/compare/0.1.6...v0.1.0)
+
+**Closed issues:**
+
+- windows環境でビルドが通るようにActions修正 [\#58](https://github.com/sarub0b0/kubetui/issues/58)
+- 複数アイテム選択コンポーネントでCtrl-k,wを追加する [\#55](https://github.com/sarub0b0/kubetui/issues/55)
+- アイテム選択時にフィルターを初期化しないようにする [\#54](https://github.com/sarub0b0/kubetui/issues/54)
+
+## [0.1.6](https://github.com/sarub0b0/kubetui/tree/0.1.6) (2021-05-15)
+
+[Full Changelog](https://github.com/sarub0b0/kubetui/compare/0.1.4...0.1.6)
+
+## [0.1.4](https://github.com/sarub0b0/kubetui/tree/0.1.4) (2021-05-14)
+
+[Full Changelog](https://github.com/sarub0b0/kubetui/compare/0.1.3...0.1.4)
+
+**Closed issues:**
+
+- イベントタブをfollowにする [\#56](https://github.com/sarub0b0/kubetui/issues/56)
+
+## [0.1.3](https://github.com/sarub0b0/kubetui/tree/0.1.3) (2021-05-14)
+
+[Full Changelog](https://github.com/sarub0b0/kubetui/compare/d39f48c66deade9aee37680bcafb236752e06fc2...0.1.3)
 
 **Fixed bugs:**
 
@@ -136,10 +158,6 @@
 
 **Closed issues:**
 
-- windows環境でビルドが通るようにActions修正 [\#58](https://github.com/sarub0b0/kubetui/issues/58)
-- イベントタブをfollowにする [\#56](https://github.com/sarub0b0/kubetui/issues/56)
-- 複数アイテム選択コンポーネントでCtrl-k,wを追加する [\#55](https://github.com/sarub0b0/kubetui/issues/55)
-- アイテム選択時にフィルターを初期化しないようにする [\#54](https://github.com/sarub0b0/kubetui/issues/54)
 - multiple-selectのItemsとSelectedの方向を変えられるようにする [\#53](https://github.com/sarub0b0/kubetui/issues/53)
 - APIsタブでいくつかのカラムが表示されない問題を修正 [\#52](https://github.com/sarub0b0/kubetui/issues/52)
 - APIsをapi-groupでソートする [\#50](https://github.com/sarub0b0/kubetui/issues/50)
