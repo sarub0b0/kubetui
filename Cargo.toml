@@ -1,6 +1,6 @@
 [package]
 name = "kubetui"
-version = "0.5.0"
+version = "0.5.1"
 authors = ["kosay <ekr59uv25@gmail.com>"]
 edition = "2018"
 
