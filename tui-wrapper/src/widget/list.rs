@@ -11,7 +11,7 @@ use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKin
 
 use tui::widgets::{self, Block, ListState};
 
-use super::{RenderTrait, WidgetItem, WidgetTrait};
+use super::{render_title, RenderTrait, WidgetItem, WidgetTrait};
 use crate::{
     event::{Callback, EventResult},
     key_event_to_code,
@@ -67,6 +67,7 @@ use inner_item::InnerItem;
 pub struct List<'a> {
     id: String,
     title: String,
+    append_title: Option<String>,
     items: InnerItem<'a>,
     state: ListState,
     chunk: Rect,
@@ -191,7 +192,9 @@ impl<'a> WidgetTrait for List<'a> {
         self.inner_chunk = default_focus_block().inner(chunk);
     }
 
-    fn clear(&mut self) {}
+    fn clear(&mut self) {
+        self.append_title = None;
+    }
 
     fn widget_item(&self) -> Option<WidgetItem> {
         self.state
@@ -291,6 +294,10 @@ impl<'a> WidgetTrait for List<'a> {
     fn update_title(&mut self, title: impl Into<String>) {
         self.title = title.into();
     }
+
+    fn update_append_title(&mut self, append: impl Into<String>) {
+        self.append_title = Some(append.into());
+    }
 }
 
 impl<'a> List<'a> {
@@ -318,7 +325,7 @@ impl<'a> List<'a> {
 
 impl RenderTrait for List<'_> {
     fn render<B: Backend>(&mut self, f: &mut Frame<B>, selected: bool) {
-        let title = self.title.to_string();
+        let title = render_title(&self.title, &self.append_title);
         f.render_stateful_widget(
             self.widget(focus_block(&title, selected)),
             self.chunk,

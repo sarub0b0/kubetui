@@ -19,8 +19,8 @@ use tui::{
 
 use unicode_width::UnicodeWidthStr;
 
-use super::spans::generate_spans_line;
 use super::wrap::wrap_line;
+use super::{render_title, spans::generate_spans_line};
 use super::{RenderTrait, WidgetItem, WidgetTrait};
 
 const COLUMN_SPACING: u16 = 3;
@@ -279,6 +279,7 @@ impl TableBuilder {
 pub struct Table<'a> {
     id: String,
     title: String,
+    append_title: Option<String>,
     chunk_index: usize,
     items: InnerItem<'a>,
     state: TableState,
@@ -400,6 +401,8 @@ impl WidgetTrait for Table<'_> {
             .max_width(self.max_width())
             .build();
         self.row_bounds = Vec::default();
+
+        self.append_title = None;
     }
 
     fn widget_item(&self) -> Option<WidgetItem> {
@@ -528,6 +531,10 @@ impl WidgetTrait for Table<'_> {
     fn update_title(&mut self, title: impl Into<String>) {
         self.title = title.into();
     }
+
+    fn update_append_title(&mut self, append: impl Into<String>) {
+        self.append_title = Some(append.into());
+    }
 }
 
 impl<'a> Table<'a> {
@@ -558,7 +565,7 @@ impl RenderTrait for Table<'_> {
     where
         B: Backend,
     {
-        let title = self.title().to_string();
+        let title = render_title(&self.title, &self.append_title);
 
         let constraints = constraints(&self.items.digits);
 

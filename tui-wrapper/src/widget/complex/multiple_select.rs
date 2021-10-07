@@ -654,6 +654,10 @@ impl WidgetTrait for MultipleSelect<'_> {
     fn update_title(&mut self, title: impl Into<String>) {
         self.title = title.into();
     }
+
+    fn update_append_title(&mut self, _: impl Into<String>) {
+        unimplemented!()
+    }
 }
 
 #[inline]

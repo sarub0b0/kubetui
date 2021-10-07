@@ -82,6 +82,10 @@ pub trait WidgetTrait {
     fn on_mouse_event(&mut self, _: MouseEvent) -> EventResult;
     fn on_key_event(&mut self, _: KeyEvent) -> EventResult;
     fn update_title(&mut self, _: impl Into<String>);
+    /// Widget append title
+    /// Render widget title -> format!("{}: {}", title, append_title)
+    /// When clear, append_title clear.
+    fn update_append_title(&mut self, _: impl Into<String>);
 }
 
 #[enum_dispatch]
@@ -180,6 +184,14 @@ impl<'a> Widget<'a> {
         } else {
             panic!("called as_mut_multiple_select() on {:?}", self)
         }
+    }
+}
+
+pub(super) fn render_title(title: &str, append: &Option<String>) -> String {
+    if let Some(append) = append {
+        format!("{}: {}", title, append)
+    } else {
+        title.to_string()
     }
 }
 

@@ -19,7 +19,7 @@ use clipboard_wrapper::{ClipboardContextWrapper, ClipboardProvider};
 use event::UserEvent;
 
 use super::{
-    RenderTrait, {WidgetItem, WidgetTrait},
+    render_title, RenderTrait, {WidgetItem, WidgetTrait},
 };
 
 use crate::{
@@ -302,6 +302,7 @@ use inner_item::InnerItem;
 pub struct Text<'a> {
     id: String,
     title: String,
+    append_title: Option<String>,
     items: InnerItem<'a>,
     chunk_index: usize,
     state: TextState,
@@ -497,6 +498,7 @@ impl WidgetTrait for Text<'_> {
         self.state = TextState::default();
         self.row_size = 0;
         self.items.update_max_width(self.wrap_width());
+        self.append_title = None;
     }
 
     fn widget_item(&self) -> Option<WidgetItem> {
@@ -705,6 +707,10 @@ impl WidgetTrait for Text<'_> {
     fn update_title(&mut self, title: impl Into<String>) {
         self.title = title.into();
     }
+
+    fn update_append_title(&mut self, append: impl Into<String>) {
+        self.append_title = Some(append.into());
+    }
 }
 
 fn width_base_range_to_graphemes_range(
@@ -832,9 +838,11 @@ impl RenderTrait for Text<'_> {
     {
         let (start, end) = self.view_range();
 
+        let title = render_title(&self.title, &self.append_title);
+
         let mut widget = Paragraph::new(self.items.spans()[start..end].to_vec())
             .style(Style::default())
-            .block(focus_block(self.title(), selected));
+            .block(focus_block(&title, selected));
 
         if !self.wrap {
             widget = widget.scroll((0, self.state.selected_horizontal() as u16));

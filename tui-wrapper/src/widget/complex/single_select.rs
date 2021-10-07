@@ -291,6 +291,10 @@ impl WidgetTrait for SingleSelect<'_> {
     fn update_title(&mut self, title: impl Into<String>) {
         self.title = title.into();
     }
+
+    fn update_append_title(&mut self, _: impl Into<String>) {
+        unimplemented!()
+    }
 }
 
 impl RenderTrait for SingleSelect<'_> {
