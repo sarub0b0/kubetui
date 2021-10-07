@@ -701,6 +701,10 @@ impl WidgetTrait for Text<'_> {
     fn select_index(&mut self, _: usize) {
         todo!()
     }
+
+    fn update_title(&mut self, title: impl Into<String>) {
+        self.title = title.into();
+    }
 }
 
 fn width_base_range_to_graphemes_range(

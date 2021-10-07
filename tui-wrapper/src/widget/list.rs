@@ -287,6 +287,10 @@ impl<'a> WidgetTrait for List<'a> {
     }
 
     fn append_widget_item(&mut self, _: WidgetItem) {}
+
+    fn update_title(&mut self, title: impl Into<String>) {
+        self.title = title.into();
+    }
 }
 
 impl<'a> List<'a> {

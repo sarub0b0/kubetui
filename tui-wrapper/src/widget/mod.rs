@@ -81,6 +81,7 @@ pub trait WidgetTrait {
     fn clear(&mut self);
     fn on_mouse_event(&mut self, _: MouseEvent) -> EventResult;
     fn on_key_event(&mut self, _: KeyEvent) -> EventResult;
+    fn update_title(&mut self, _: impl Into<String>);
 }
 
 #[enum_dispatch]

@@ -650,6 +650,10 @@ impl WidgetTrait for MultipleSelect<'_> {
     fn select_index(&mut self, _: usize) {
         todo!()
     }
+
+    fn update_title(&mut self, title: impl Into<String>) {
+        self.title = title.into();
+    }
 }
 
 #[inline]
