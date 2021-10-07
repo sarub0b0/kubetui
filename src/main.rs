@@ -84,6 +84,9 @@ fn init_pod(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'stat
 
             let (ns, pod_name) = log_stream_request_param(v, selected);
 
+            w.find_widget_mut(view_id::tab_pods_widget_logs)
+                .update_append_title(&pod_name);
+
             tx.send(Event::Kube(Kube::LogStreamRequest(ns, pod_name)))
                 .unwrap();
 
@@ -147,6 +150,9 @@ fn init_configs(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'
             w.widget_clear(view_id::tab_configs_widget_raw_data);
 
             let (ns, kind, name) = config_request_param(v, &namespace.borrow().selected);
+
+            w.find_widget_mut(view_id::tab_configs_widget_raw_data)
+                .update_append_title(&name);
 
             tx.send(Event::Kube(Kube::ConfigRequest(ns, kind, name)))
                 .unwrap();
