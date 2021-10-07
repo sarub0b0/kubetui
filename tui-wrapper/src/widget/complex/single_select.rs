@@ -373,4 +373,20 @@ mod tests {
 
         assert_eq!(res, vec!["abb", "abc"])
     }
+
+    mod widget_trait {
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn update_title() {
+            let mut w = SingleSelectBuilder::default()
+                .title("single-select")
+                .build();
+            assert_eq!("single-select", w.title());
+
+            w.update_title("single-select update");
+            assert_eq!("single-select update", w.title());
+        }
+    }
 }

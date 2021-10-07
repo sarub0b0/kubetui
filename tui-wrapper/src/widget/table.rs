@@ -583,3 +583,22 @@ fn constraints(digits: &[usize]) -> Vec<Constraint> {
         .map(|d| Constraint::Length(*d as u16))
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod widget_trait {
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn update_title() {
+            let mut w = TableBuilder::default().title("table").build();
+            assert_eq!("table", w.title());
+
+            w.update_title("table update");
+            assert_eq!("table update", w.title());
+        }
+    }
+}

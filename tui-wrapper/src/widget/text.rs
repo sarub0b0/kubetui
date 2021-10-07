@@ -1139,4 +1139,18 @@ mod tests {
             );
         }
     }
+
+    mod widget_trait {
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn update_title() {
+            let mut w = TextBuilder::default().title("text").build();
+            assert_eq!("text", w.title());
+
+            w.update_title("text update");
+            assert_eq!("text update", w.title());
+        }
+    }
 }

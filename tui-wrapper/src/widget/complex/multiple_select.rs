@@ -660,3 +660,24 @@ impl WidgetTrait for MultipleSelect<'_> {
 fn is_odd(num: u16) -> bool {
     num & 1 != 0
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod widget_trait {
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn update_title() {
+            let mut w = MultipleSelectBuilder::default()
+                .title("multiple-select")
+                .build();
+            assert_eq!("multiple-select", w.title());
+
+            w.update_title("multiple-select update");
+            assert_eq!("multiple-select update", w.title());
+        }
+    }
+}
