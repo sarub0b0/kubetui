@@ -287,6 +287,10 @@ impl<'a> WidgetTrait for List<'a> {
     }
 
     fn append_widget_item(&mut self, _: WidgetItem) {}
+
+    fn update_title(&mut self, title: impl Into<String>) {
+        self.title = title.into();
+    }
 }
 
 impl<'a> List<'a> {
@@ -425,5 +429,19 @@ mod tests {
 
         list.select_prev(4);
         assert_eq!(list.state.selected().unwrap(), 0);
+    }
+
+    mod widget_trait {
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn update_title() {
+            let mut w = ListBuilder::default().title("list").build();
+            assert_eq!("list", w.title());
+
+            w.update_title("list update");
+            assert_eq!("list update", w.title());
+        }
     }
 }

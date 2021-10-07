@@ -287,6 +287,10 @@ impl WidgetTrait for SingleSelect<'_> {
     fn select_index(&mut self, _: usize) {
         todo!()
     }
+
+    fn update_title(&mut self, title: impl Into<String>) {
+        self.title = title.into();
+    }
 }
 
 impl RenderTrait for SingleSelect<'_> {
@@ -368,5 +372,21 @@ mod tests {
         let res = select_form.list_widget.items().clone();
 
         assert_eq!(res, vec!["abb", "abc"])
+    }
+
+    mod widget_trait {
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn update_title() {
+            let mut w = SingleSelectBuilder::default()
+                .title("single-select")
+                .build();
+            assert_eq!("single-select", w.title());
+
+            w.update_title("single-select update");
+            assert_eq!("single-select update", w.title());
+        }
     }
 }

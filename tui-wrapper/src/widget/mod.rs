@@ -81,6 +81,7 @@ pub trait WidgetTrait {
     fn clear(&mut self);
     fn on_mouse_event(&mut self, _: MouseEvent) -> EventResult;
     fn on_key_event(&mut self, _: KeyEvent) -> EventResult;
+    fn update_title(&mut self, _: impl Into<String>);
 }
 
 #[enum_dispatch]
@@ -178,6 +179,34 @@ impl<'a> Widget<'a> {
             w
         } else {
             panic!("called as_mut_multiple_select() on {:?}", self)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod update_title {
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn list() {
+            let mut w: Widget = ListBuilder::default().title("list").build().into();
+            assert_eq!("list", w.title());
+
+            w.update_title("list update");
+            assert_eq!("list update", w.title());
+        }
+
+        #[test]
+        fn table() {
+            let mut w: Widget = TableBuilder::default().title("table").build().into();
+            assert_eq!("table", w.title());
+
+            w.update_title("table update");
+            assert_eq!("table update", w.title());
         }
     }
 }

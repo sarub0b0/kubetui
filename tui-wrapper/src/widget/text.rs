@@ -701,6 +701,10 @@ impl WidgetTrait for Text<'_> {
     fn select_index(&mut self, _: usize) {
         todo!()
     }
+
+    fn update_title(&mut self, title: impl Into<String>) {
+        self.title = title.into();
+    }
 }
 
 fn width_base_range_to_graphemes_range(
@@ -1133,6 +1137,20 @@ mod tests {
                     ),
                 ])
             );
+        }
+    }
+
+    mod widget_trait {
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn update_title() {
+            let mut w = TextBuilder::default().title("text").build();
+            assert_eq!("text", w.title());
+
+            w.update_title("text update");
+            assert_eq!("text update", w.title());
         }
     }
 }
