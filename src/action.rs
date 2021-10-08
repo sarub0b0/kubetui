@@ -33,11 +33,16 @@ pub mod view_id {
     generate_id!(tab_event_widget_event);
     generate_id!(tab_apis);
     generate_id!(tab_apis_widget_apis);
+    generate_id!(tab_yaml);
+    generate_id!(tab_yaml_widget_yaml);
 
     generate_id!(subwin_ctx);
     generate_id!(subwin_ns);
     generate_id!(subwin_apis);
     generate_id!(subwin_single_ns);
+
+    generate_id!(subwin_yaml_name);
+    generate_id!(subwin_yaml_kind);
 }
 
 macro_rules! error_format {
@@ -183,6 +188,23 @@ pub fn update_contents(
             namespace.default = default;
             namespace.selected = selected;
         }
+
+        Kube::GetContextsResponse(ctxs) => {
+            update_widget_item_for_vec(window, view_id::subwin_ctx, ctxs);
+        }
+
+        Kube::YamlAPIsResponse(apis) => {
+            update_widget_item_for_vec(window, view_id::subwin_yaml_kind, apis);
+        }
+
+        Kube::YamlResourceResponse(resources) => {
+            update_widget_item_for_vec(window, view_id::subwin_yaml_name, resources);
+        }
+
+        Kube::YamlRawResponse(yaml) => {
+            update_widget_item_for_vec(window, view_id::tab_yaml_widget_yaml, yaml);
+        }
+
         _ => unreachable!(),
     }
 }

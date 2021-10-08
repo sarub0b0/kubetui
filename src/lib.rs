@@ -70,25 +70,6 @@ mod tests {
     fn context_display() {
         let ctx = Context::new();
 
-<<<<<<< HEAD
         assert_eq!("None".to_string(), ctx.to_string())
-=======
-        Kube::GetContextsResponse(ctxs) => {
-            update_widget_item_for_vec(window, view_id::subwin_ctx, ctxs);
-        }
-
-        Kube::YamlAPIsResponse(apis) => {
-            update_widget_item_for_vec(window, view_id::subwin_yaml_kind, apis);
-        }
-
-        Kube::YamlResourceResponse(resources) => {
-            update_widget_item_for_vec(window, view_id::subwin_yaml_name, resources);
-        }
-
-        Kube::YamlRawResponse(yaml) => {
-            update_widget_item_for_vec(window, view_id::tab_yaml, yaml);
-        }
-        _ => unreachable!(),
->>>>>>> poc(show-yaml): yamlを表示するためのベース実装。kind選択、リソース選択、yaml取得・表示まで
     }
 }
