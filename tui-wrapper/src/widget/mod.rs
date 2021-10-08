@@ -189,7 +189,7 @@ impl<'a> Widget<'a> {
 
 pub(super) fn render_title(title: &str, append: &Option<String>) -> String {
     if let Some(append) = append {
-        format!("{}: {}", title, append)
+        format!("{}{}", title, append)
     } else {
         title.to_string()
     }
