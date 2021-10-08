@@ -14,5 +14,5 @@ e2e-test: build re-deploy
 .PHONY: e2e-test
 
 re-deploy:
-	-kubectl delete -f example/
-	-kubectl apply -f example/
+	-kubectl delete -f examples/manifests
+	-kubectl apply -f examples/manifests
