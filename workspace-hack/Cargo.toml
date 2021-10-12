@@ -23,7 +23,7 @@ regex-syntax = { version = "0.6.25", features = ["unicode", "unicode-age", "unic
 serde = { version = "1.0.130", features = ["derive", "serde_derive", "std"] }
 
 [build-dependencies]
-proc-macro2 = { version = "1.0.29", features = ["proc-macro"] }
+proc-macro2 = { version = "1.0.30", features = ["proc-macro"] }
 quote = { version = "1.0.10", features = ["proc-macro"] }
 syn = { version = "1.0.80", features = ["clone-impls", "derive", "extra-traits", "full", "parsing", "printing", "proc-macro", "quote", "visit", "visit-mut"] }
 
