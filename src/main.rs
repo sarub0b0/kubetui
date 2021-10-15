@@ -27,8 +27,8 @@ use tui_wrapper::{
         Terminal, TerminalOptions, Viewport,
     },
     widget::{
-        MultipleSelect, MultipleSelectBuilder, SingleSelect, SingleSelectBuilder, Table,
-        TableBuilder, Text, Widget, WidgetTrait,
+        MultipleSelect, MultipleSelectBuilder, SingleSelect, SingleSelectBuilder, Table, Text,
+        Widget, WidgetTrait,
     },
     Tab, Window, WindowEvent,
 };
@@ -73,10 +73,9 @@ fn log_stream_request_param(value: &[String], namespace: &[String]) -> (String, 
 
 #[inline]
 fn init_pod(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'static> {
-    TableBuilder::default()
+    Table::builder()
         .id(view_id::tab_pods_widget_pods)
         .title("Pods")
-        .build()
         .on_select(move |w, v| {
             w.widget_clear(view_id::tab_pods_widget_logs);
 
@@ -92,6 +91,7 @@ fn init_pod(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'stat
 
             EventResult::Window(WindowEvent::Continue)
         })
+        .build()
 }
 
 #[inline]
@@ -142,10 +142,9 @@ fn config_request_param(value: &[String], namespace: &[String]) -> (String, Stri
 
 #[inline]
 fn init_configs(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'static> {
-    TableBuilder::default()
+    Table::builder()
         .id(view_id::tab_configs_widget_configs)
         .title("Configs")
-        .build()
         .on_select(move |w, v| {
             w.widget_clear(view_id::tab_configs_widget_raw_data);
 
@@ -159,6 +158,7 @@ fn init_configs(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'
 
             EventResult::Window(WindowEvent::Continue)
         })
+        .build()
 }
 
 #[inline]

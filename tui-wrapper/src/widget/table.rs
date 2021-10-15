@@ -92,6 +92,10 @@ struct InnerItem<'a> {
 }
 
 impl<'a> InnerItem<'a> {
+    fn builder() -> InnerItemBuilder {
+        InnerItemBuilder::default()
+    }
+
     fn len(&self) -> usize {
         self.rows.len()
     }
@@ -227,12 +231,15 @@ impl<'a> InnerItem<'a> {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Derivative)]
+#[derivative(Debug, Default)]
 pub struct TableBuilder {
     id: String,
     title: String,
     header: Vec<String>,
     items: Vec<Vec<String>>,
+    #[derivative(Debug = "ignore")]
+    on_select: Option<InnerCallback>,
 }
 
 impl TableBuilder {
@@ -256,14 +263,23 @@ impl TableBuilder {
         self
     }
 
+    pub fn on_select<F>(mut self, cb: F) -> Self
+    where
+        F: Fn(&mut Window, &[String]) -> EventResult + 'static,
+    {
+        self.on_select = Some(Rc::new(cb));
+        self
+    }
+
     pub fn build(self) -> Table<'static> {
         let mut table = Table {
             id: self.id,
             title: self.title,
+            on_select: self.on_select,
             ..Default::default()
         };
 
-        table.items = InnerItemBuilder::default()
+        table.items = InnerItem::builder()
             .header(self.header)
             .rows(self.items)
             .build();
@@ -291,6 +307,10 @@ pub struct Table<'a> {
 }
 
 impl<'a> Table<'a> {
+    pub fn builder() -> TableBuilder {
+        TableBuilder::default()
+    }
+
     pub fn items(&self) -> &[Vec<String>] {
         &self.items.rows
     }
@@ -308,7 +328,7 @@ impl<'a> Table<'a> {
     }
 
     pub fn update_header_and_rows(&mut self, header: &[String], rows: &[Vec<String>]) {
-        self.items = InnerItemBuilder::default()
+        self.items = InnerItem::builder()
             .header(header)
             .rows(rows)
             .max_width(self.max_width())
@@ -397,9 +417,7 @@ impl WidgetTrait for Table<'_> {
 
     fn clear(&mut self) {
         self.state = TableState::default();
-        self.items = InnerItemBuilder::default()
-            .max_width(self.max_width())
-            .build();
+        self.items = InnerItem::builder().max_width(self.max_width()).build();
         self.row_bounds = Vec::default();
 
         self.append_title = None;
@@ -538,14 +556,6 @@ impl WidgetTrait for Table<'_> {
 }
 
 impl<'a> Table<'a> {
-    pub fn on_select<F>(mut self, cb: F) -> Self
-    where
-        F: Fn(&mut Window, &[String]) -> EventResult + 'static,
-    {
-        self.on_select = Some(Rc::new(cb));
-        self
-    }
-
     fn on_select_callback(&self) -> Option<Callback> {
         self.on_select.clone().and_then(|cb| {
             self.selected_item()
@@ -601,7 +611,7 @@ mod tests {
 
         #[test]
         fn update_title() {
-            let mut w = TableBuilder::default().title("table").build();
+            let mut w = Table::builder().title("table").build();
             assert_eq!("table", w.title());
 
             w.update_title("table update");
