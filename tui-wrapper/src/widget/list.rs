@@ -151,8 +151,47 @@ impl<'a> List<'a> {
 }
 
 impl<'a> WidgetTrait for List<'a> {
+    fn id(&self) -> &str {
+        &self.id
+    }
+
+    fn title(&self) -> &str {
+        &self.title
+    }
+
+    fn title_mut(&mut self) -> &mut String {
+        &mut self.title
+    }
+
+    fn append_title(&self) -> &Option<String> {
+        &self.append_title
+    }
+
+    fn append_title_mut(&mut self) -> &mut Option<String> {
+        &mut self.append_title
+    }
+
     fn focusable(&self) -> bool {
         true
+    }
+
+    fn widget_item(&self) -> Option<WidgetItem> {
+        self.state
+            .selected()
+            .map(|i| WidgetItem::Single(self.items.items()[i].clone()))
+    }
+
+    fn chunk(&self) -> Rect {
+        self.chunk
+    }
+
+    fn select_index(&mut self, index: usize) {
+        let i = if self.items.len() <= index {
+            self.items.len().saturating_sub(1)
+        } else {
+            index
+        };
+        self.state.select(Some(i));
     }
 
     fn select_next(&mut self, index: usize) {
@@ -188,6 +227,10 @@ impl<'a> WidgetTrait for List<'a> {
         }
     }
 
+    fn append_widget_item(&mut self, _: WidgetItem) {
+        unimplemented!()
+    }
+
     fn update_widget_item(&mut self, items: WidgetItem) {
         let old_len = self.items.len();
 
@@ -209,19 +252,8 @@ impl<'a> WidgetTrait for List<'a> {
         }
     }
 
-    fn update_chunk(&mut self, chunk: Rect) {
-        self.chunk = chunk;
-        self.inner_chunk = default_focus_block().inner(chunk);
-    }
-
-    fn clear(&mut self) {
-        self.append_title = None;
-    }
-
-    fn widget_item(&self) -> Option<WidgetItem> {
-        self.state
-            .selected()
-            .map(|i| WidgetItem::Single(self.items.items()[i].clone()))
+    fn update_append_title(&mut self, append: impl Into<String>) {
+        self.append_title = Some(append.into());
     }
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
@@ -290,35 +322,13 @@ impl<'a> WidgetTrait for List<'a> {
         EventResult::Nop
     }
 
-    fn title(&self) -> &str {
-        &self.title
+    fn update_chunk(&mut self, chunk: Rect) {
+        self.chunk = chunk;
+        self.inner_chunk = default_focus_block().inner(chunk);
     }
 
-    fn chunk(&self) -> Rect {
-        self.chunk
-    }
-
-    fn id(&self) -> &str {
-        &self.id
-    }
-
-    fn select_index(&mut self, index: usize) {
-        let i = if self.items.len() <= index {
-            self.items.len().saturating_sub(1)
-        } else {
-            index
-        };
-        self.state.select(Some(i));
-    }
-
-    fn append_widget_item(&mut self, _: WidgetItem) {}
-
-    fn update_title(&mut self, title: impl Into<String>) {
-        self.title = title.into();
-    }
-
-    fn update_append_title(&mut self, append: impl Into<String>) {
-        self.append_title = Some(append.into());
+    fn clear(&mut self) {
+        self.append_title = None;
     }
 }
 
@@ -450,19 +460,5 @@ mod tests {
 
         list.select_prev(4);
         assert_eq!(list.state.selected().unwrap(), 0);
-    }
-
-    mod widget_trait {
-        use super::*;
-        use pretty_assertions::assert_eq;
-
-        #[test]
-        fn update_title() {
-            let mut w = List::builder().title("list").build();
-            assert_eq!("list", w.title());
-
-            w.update_title("list update");
-            assert_eq!("list update", w.title());
-        }
     }
 }

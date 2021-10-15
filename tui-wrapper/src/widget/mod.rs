@@ -65,9 +65,12 @@ pub trait WidgetTrait {
     // Getter
     fn id(&self) -> &str;
     fn title(&self) -> &str;
+    fn title_mut(&mut self) -> &mut String;
+    fn append_title(&self) -> &Option<String>;
+    fn append_title_mut(&mut self) -> &mut Option<String>;
     fn focusable(&self) -> bool;
-    fn chunk(&self) -> Rect;
     fn widget_item(&self) -> Option<WidgetItem>;
+    fn chunk(&self) -> Rect;
 
     // Setter
     fn select_index(&mut self, _: usize);
@@ -75,17 +78,20 @@ pub trait WidgetTrait {
     fn select_prev(&mut self, _: usize);
     fn select_first(&mut self);
     fn select_last(&mut self);
+    // Modify Widget Item
     fn append_widget_item(&mut self, _: WidgetItem);
     fn update_widget_item(&mut self, _: WidgetItem);
-    fn update_chunk(&mut self, _: Rect);
-    fn clear(&mut self);
+    // Widget append title
+    // Render widget title -> format!("{}: {}", title, append_title)
+    // When clear, append_title clear.
+    fn update_append_title(&mut self, _: impl Into<String>);
+
     fn on_mouse_event(&mut self, _: MouseEvent) -> EventResult;
     fn on_key_event(&mut self, _: KeyEvent) -> EventResult;
-    fn update_title(&mut self, _: impl Into<String>);
-    /// Widget append title
-    /// Render widget title -> format!("{}: {}", title, append_title)
-    /// When clear, append_title clear.
-    fn update_append_title(&mut self, _: impl Into<String>);
+
+    fn update_chunk(&mut self, _: Rect);
+    // コンテンツの初期化
+    fn clear(&mut self);
 }
 
 #[enum_dispatch]
@@ -192,33 +198,5 @@ pub(super) fn render_title(title: &str, append: &Option<String>) -> String {
         format!("{}{}", title, append)
     } else {
         title.to_string()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    mod update_title {
-        use super::*;
-        use pretty_assertions::assert_eq;
-
-        #[test]
-        fn list() {
-            let mut w: Widget = ListBuilder::default().title("list").build().into();
-            assert_eq!("list", w.title());
-
-            w.update_title("list update");
-            assert_eq!("list update", w.title());
-        }
-
-        #[test]
-        fn table() {
-            let mut w: Widget = TableBuilder::default().title("table").build().into();
-            assert_eq!("table", w.title());
-
-            w.update_title("table update");
-            assert_eq!("table update", w.title());
-        }
     }
 }

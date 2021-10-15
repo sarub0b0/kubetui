@@ -451,8 +451,41 @@ impl Text<'_> {
 }
 
 impl WidgetTrait for Text<'_> {
+    fn id(&self) -> &str {
+        &self.id
+    }
+
+    fn title(&self) -> &str {
+        &self.title
+    }
+
+    fn title_mut(&mut self) -> &mut String {
+        &mut self.title
+    }
+
+    fn append_title(&self) -> &Option<String> {
+        &self.append_title
+    }
+
+    fn append_title_mut(&mut self) -> &mut Option<String> {
+        &mut self.append_title
+    }
+
     fn focusable(&self) -> bool {
         true
+    }
+
+    fn widget_item(&self) -> Option<WidgetItem> {
+        let index = self.state.selected_vertical() as usize;
+        Some(WidgetItem::Single(self.items.items()[index].clone()))
+    }
+
+    fn chunk(&self) -> Rect {
+        self.chunk
+    }
+
+    fn select_index(&mut self, _: usize) {
+        todo!()
     }
 
     fn select_next(&mut self, index: usize) {
@@ -480,40 +513,6 @@ impl WidgetTrait for Text<'_> {
         self.state.select_vertical(self.row_size);
     }
 
-    fn update_widget_item(&mut self, items: WidgetItem) {
-        let is_bottom = self.is_bottom();
-
-        self.items.update_item(items);
-        self.update_rows_size();
-
-        self.update_select(is_bottom);
-    }
-
-    fn update_chunk(&mut self, chunk: Rect) {
-        self.chunk = chunk;
-        self.inner_chunk = default_focus_block().inner(chunk);
-
-        let is_bottom = self.is_bottom();
-
-        self.items.update_max_width(self.wrap_width());
-        self.update_rows_size();
-
-        self.update_select(is_bottom);
-    }
-
-    fn clear(&mut self) {
-        self.items = Default::default();
-        self.state = TextState::default();
-        self.row_size = 0;
-        self.items.update_max_width(self.wrap_width());
-        self.append_title = None;
-    }
-
-    fn widget_item(&self) -> Option<WidgetItem> {
-        let index = self.state.selected_vertical() as usize;
-        Some(WidgetItem::Single(self.items.items()[index].clone()))
-    }
-
     fn append_widget_item(&mut self, items: WidgetItem) {
         let is_bottom = self.is_bottom();
 
@@ -524,6 +523,19 @@ impl WidgetTrait for Text<'_> {
         if self.follow && is_bottom {
             self.select_last()
         }
+    }
+
+    fn update_widget_item(&mut self, items: WidgetItem) {
+        let is_bottom = self.is_bottom();
+
+        self.items.update_item(items);
+        self.update_rows_size();
+
+        self.update_select(is_bottom);
+    }
+
+    fn update_append_title(&mut self, append: impl Into<String>) {
+        self.append_title = Some(append.into());
     }
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
@@ -696,28 +708,24 @@ impl WidgetTrait for Text<'_> {
         EventResult::Nop
     }
 
-    fn title(&self) -> &str {
-        &self.title
+    fn update_chunk(&mut self, chunk: Rect) {
+        self.chunk = chunk;
+        self.inner_chunk = default_focus_block().inner(chunk);
+
+        let is_bottom = self.is_bottom();
+
+        self.items.update_max_width(self.wrap_width());
+        self.update_rows_size();
+
+        self.update_select(is_bottom);
     }
 
-    fn chunk(&self) -> Rect {
-        self.chunk
-    }
-
-    fn id(&self) -> &str {
-        &self.id
-    }
-
-    fn select_index(&mut self, _: usize) {
-        todo!()
-    }
-
-    fn update_title(&mut self, title: impl Into<String>) {
-        self.title = title.into();
-    }
-
-    fn update_append_title(&mut self, append: impl Into<String>) {
-        self.append_title = Some(append.into());
+    fn clear(&mut self) {
+        self.items = Default::default();
+        self.state = TextState::default();
+        self.row_size = 0;
+        self.items.update_max_width(self.wrap_width());
+        self.append_title = None;
     }
 }
 
@@ -1153,20 +1161,6 @@ mod tests {
                     ),
                 ])
             );
-        }
-    }
-
-    mod widget_trait {
-        use super::*;
-        use pretty_assertions::assert_eq;
-
-        #[test]
-        fn update_title() {
-            let mut w = TextBuilder::default().title("text").build();
-            assert_eq!("text", w.title());
-
-            w.update_title("text update");
-            assert_eq!("text update", w.title());
         }
     }
 }

@@ -584,8 +584,40 @@ impl<'a> MultipleSelect<'a> {
 }
 
 impl WidgetTrait for MultipleSelect<'_> {
+    fn id(&self) -> &str {
+        &self.id
+    }
+
+    fn title(&self) -> &str {
+        &self.title
+    }
+
+    fn title_mut(&mut self) -> &mut String {
+        &mut self.title
+    }
+
+    fn append_title(&self) -> &Option<String> {
+        unimplemented!()
+    }
+
+    fn append_title_mut(&mut self) -> &mut Option<String> {
+        unimplemented!()
+    }
+
     fn focusable(&self) -> bool {
         true
+    }
+
+    fn widget_item(&self) -> Option<WidgetItem> {
+        Some(WidgetItem::Array(self.selected_widget.selected_items()))
+    }
+
+    fn chunk(&self) -> Rect {
+        self.chunk
+    }
+
+    fn select_index(&mut self, _: usize) {
+        unimplemented!()
     }
 
     fn select_next(&mut self, i: usize) {
@@ -604,30 +636,18 @@ impl WidgetTrait for MultipleSelect<'_> {
         self.selected_widget.select_last()
     }
 
+    fn append_widget_item(&mut self, _: WidgetItem) {
+        unimplemented!()
+    }
+
     fn update_widget_item(&mut self, items: WidgetItem) {
         self.clear_filter();
         self.selected_widget.update_widget_item(items);
     }
 
-    fn append_widget_item(&mut self, _: WidgetItem) {}
-
-    fn widget_item(&self) -> Option<WidgetItem> {
-        Some(WidgetItem::Array(self.selected_widget.selected_items()))
+    fn update_append_title(&mut self, _: impl Into<String>) {
+        unimplemented!()
     }
-
-    fn update_chunk(&mut self, chunk: Rect) {
-        self.chunk = chunk;
-
-        let inner_chunks = self.layout.split(default_focus_block().inner(self.chunk));
-
-        self.input_widget
-            .update_chunk(inner_chunks[LAYOUT_INDEX_FOR_INPUT_FORM]);
-
-        self.selected_widget
-            .update_chunk(inner_chunks[LAYOUT_INDEX_FOR_SELECT_FORM]);
-    }
-
-    fn clear(&mut self) {}
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         let pos = (ev.column, ev.row);
@@ -661,27 +681,19 @@ impl WidgetTrait for MultipleSelect<'_> {
         EventResult::Nop
     }
 
-    fn id(&self) -> &str {
-        &self.id
+    fn update_chunk(&mut self, chunk: Rect) {
+        self.chunk = chunk;
+
+        let inner_chunks = self.layout.split(default_focus_block().inner(self.chunk));
+
+        self.input_widget
+            .update_chunk(inner_chunks[LAYOUT_INDEX_FOR_INPUT_FORM]);
+
+        self.selected_widget
+            .update_chunk(inner_chunks[LAYOUT_INDEX_FOR_SELECT_FORM]);
     }
 
-    fn title(&self) -> &str {
-        &self.title
-    }
-
-    fn chunk(&self) -> Rect {
-        self.chunk
-    }
-
-    fn select_index(&mut self, _: usize) {
-        todo!()
-    }
-
-    fn update_title(&mut self, title: impl Into<String>) {
-        self.title = title.into();
-    }
-
-    fn update_append_title(&mut self, _: impl Into<String>) {
+    fn clear(&mut self) {
         unimplemented!()
     }
 }
@@ -689,23 +701,4 @@ impl WidgetTrait for MultipleSelect<'_> {
 #[inline]
 fn is_odd(num: u16) -> bool {
     num & 1 != 0
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    mod widget_trait {
-        use super::*;
-        use pretty_assertions::assert_eq;
-
-        #[test]
-        fn update_title() {
-            let mut w = MultipleSelect::builder().title("multiple-select").build();
-            assert_eq!("multiple-select", w.title());
-
-            w.update_title("multiple-select update");
-            assert_eq!("multiple-select update", w.title());
-        }
-    }
 }

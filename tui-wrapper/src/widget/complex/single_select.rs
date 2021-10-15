@@ -187,8 +187,40 @@ impl<'a> SingleSelect<'a> {
 }
 
 impl WidgetTrait for SingleSelect<'_> {
+    fn id(&self) -> &str {
+        &self.id
+    }
+
+    fn title(&self) -> &str {
+        &self.title
+    }
+
+    fn title_mut(&mut self) -> &mut String {
+        &mut self.title
+    }
+
+    fn append_title(&self) -> &Option<String> {
+        unimplemented!()
+    }
+
+    fn append_title_mut(&mut self) -> &mut Option<String> {
+        unimplemented!()
+    }
+
     fn focusable(&self) -> bool {
         true
+    }
+
+    fn widget_item(&self) -> Option<WidgetItem> {
+        self.selected_widget.widget_item()
+    }
+
+    fn chunk(&self) -> Rect {
+        self.chunk
+    }
+
+    fn select_index(&mut self, _: usize) {
+        todo!()
     }
 
     fn select_next(&mut self, i: usize) {
@@ -207,31 +239,17 @@ impl WidgetTrait for SingleSelect<'_> {
         self.selected_widget.list_widget.select_last()
     }
 
+    fn append_widget_item(&mut self, _: WidgetItem) {}
+
     fn update_widget_item(&mut self, items: WidgetItem) {
         self.input_widget.clear();
         self.selected_widget.update_filter("");
         self.selected_widget.update_widget_item(items);
     }
 
-    fn append_widget_item(&mut self, _: WidgetItem) {}
-
-    fn widget_item(&self) -> Option<WidgetItem> {
-        self.selected_widget.widget_item()
+    fn update_append_title(&mut self, _: impl Into<String>) {
+        unimplemented!()
     }
-
-    fn update_chunk(&mut self, chunk: Rect) {
-        self.chunk = chunk;
-
-        let inner_chunks = self.layout.split(default_focus_block().inner(self.chunk));
-
-        self.input_widget
-            .update_chunk(inner_chunks[LAYOUT_INDEX_FOR_INPUT_FORM]);
-
-        self.selected_widget
-            .update_chunk(inner_chunks[LAYOUT_INDEX_FOR_SELECT_FORM]);
-    }
-
-    fn clear(&mut self) {}
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         let pos = (ev.column, ev.row);
@@ -261,27 +279,19 @@ impl WidgetTrait for SingleSelect<'_> {
         EventResult::Nop
     }
 
-    fn id(&self) -> &str {
-        &self.id
+    fn update_chunk(&mut self, chunk: Rect) {
+        self.chunk = chunk;
+
+        let inner_chunks = self.layout.split(default_focus_block().inner(self.chunk));
+
+        self.input_widget
+            .update_chunk(inner_chunks[LAYOUT_INDEX_FOR_INPUT_FORM]);
+
+        self.selected_widget
+            .update_chunk(inner_chunks[LAYOUT_INDEX_FOR_SELECT_FORM]);
     }
 
-    fn title(&self) -> &str {
-        &self.title
-    }
-
-    fn chunk(&self) -> Rect {
-        self.chunk
-    }
-
-    fn select_index(&mut self, _: usize) {
-        todo!()
-    }
-
-    fn update_title(&mut self, title: impl Into<String>) {
-        self.title = title.into();
-    }
-
-    fn update_append_title(&mut self, _: impl Into<String>) {
+    fn clear(&mut self) {
         unimplemented!()
     }
 }
@@ -395,19 +405,5 @@ mod tests {
         let res = select_form.list_widget.items().clone();
 
         assert_eq!(res, vec!["abb", "abc"])
-    }
-
-    mod widget_trait {
-        use super::*;
-        use pretty_assertions::assert_eq;
-
-        #[test]
-        fn update_title() {
-            let mut w = SingleSelect::builder().title("single-select").build();
-            assert_eq!("single-select", w.title());
-
-            w.update_title("single-select update");
-            assert_eq!("single-select update", w.title());
-        }
     }
 }

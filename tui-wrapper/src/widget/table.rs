@@ -353,8 +353,42 @@ impl<'a> Table<'a> {
 }
 
 impl WidgetTrait for Table<'_> {
+    fn id(&self) -> &str {
+        &self.id
+    }
+
+    fn title(&self) -> &str {
+        &self.title
+    }
+
+    fn title_mut(&mut self) -> &mut String {
+        &mut self.title
+    }
+
+    fn append_title(&self) -> &Option<String> {
+        &self.append_title
+    }
+
+    fn append_title_mut(&mut self) -> &mut Option<String> {
+        &mut self.append_title
+    }
+
     fn focusable(&self) -> bool {
         true
+    }
+
+    fn widget_item(&self) -> Option<WidgetItem> {
+        self.state
+            .selected()
+            .map(|i| WidgetItem::Array(self.items.rows[i].clone()))
+    }
+
+    fn chunk(&self) -> Rect {
+        self.chunk
+    }
+
+    fn select_index(&mut self, _: usize) {
+        todo!()
     }
 
     fn select_next(&mut self, index: usize) {
@@ -390,6 +424,10 @@ impl WidgetTrait for Table<'_> {
         }
     }
 
+    fn append_widget_item(&mut self, _: WidgetItem) {
+        unimplemented!()
+    }
+
     fn update_widget_item(&mut self, items: WidgetItem) {
         self.items.update_item(items);
 
@@ -406,30 +444,9 @@ impl WidgetTrait for Table<'_> {
         self.update_row_bounds();
     }
 
-    fn update_chunk(&mut self, chunk: Rect) {
-        self.chunk = chunk;
-        self.inner_chunk = default_focus_block().inner(chunk);
-
-        self.items.update_rows(self.max_width());
-
-        self.update_row_bounds();
+    fn update_append_title(&mut self, append: impl Into<String>) {
+        self.append_title = Some(append.into());
     }
-
-    fn clear(&mut self) {
-        self.state = TableState::default();
-        self.items = InnerItem::builder().max_width(self.max_width()).build();
-        self.row_bounds = Vec::default();
-
-        self.append_title = None;
-    }
-
-    fn widget_item(&self) -> Option<WidgetItem> {
-        self.state
-            .selected()
-            .map(|i| WidgetItem::Array(self.items.rows[i].clone()))
-    }
-
-    fn append_widget_item(&mut self, _: WidgetItem) {}
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         if self.items.is_empty() {
@@ -530,28 +547,21 @@ impl WidgetTrait for Table<'_> {
         EventResult::Nop
     }
 
-    fn title(&self) -> &str {
-        &self.title
+    fn update_chunk(&mut self, chunk: Rect) {
+        self.chunk = chunk;
+        self.inner_chunk = default_focus_block().inner(chunk);
+
+        self.items.update_rows(self.max_width());
+
+        self.update_row_bounds();
     }
 
-    fn chunk(&self) -> Rect {
-        self.chunk
-    }
+    fn clear(&mut self) {
+        self.state = TableState::default();
+        self.items = InnerItem::builder().max_width(self.max_width()).build();
+        self.row_bounds = Vec::default();
 
-    fn id(&self) -> &str {
-        &self.id
-    }
-
-    fn select_index(&mut self, _: usize) {
-        todo!()
-    }
-
-    fn update_title(&mut self, title: impl Into<String>) {
-        self.title = title.into();
-    }
-
-    fn update_append_title(&mut self, append: impl Into<String>) {
-        self.append_title = Some(append.into());
+        self.append_title = None;
     }
 }
 
@@ -599,23 +609,4 @@ fn constraints(digits: &[usize]) -> Vec<Constraint> {
         .iter()
         .map(|d| Constraint::Length(*d as u16))
         .collect()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    mod widget_trait {
-        use super::*;
-        use pretty_assertions::assert_eq;
-
-        #[test]
-        fn update_title() {
-            let mut w = Table::builder().title("table").build();
-            assert_eq!("table", w.title());
-
-            w.update_title("table update");
-            assert_eq!("table update", w.title());
-        }
-    }
 }
