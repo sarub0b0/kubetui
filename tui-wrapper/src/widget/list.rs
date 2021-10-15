@@ -76,11 +76,14 @@ pub struct List<'a> {
     on_select: Option<Rc<dyn Fn(&mut Window, &String) -> EventResult>>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Derivative)]
+#[derivative(Debug, Default)]
 pub struct ListBuilder {
     id: String,
     title: String,
     items: Vec<String>,
+    #[derivative(Debug = "ignore")]
+    on_select: Option<Rc<dyn Fn(&mut Window, &String) -> EventResult>>,
 }
 
 impl ListBuilder {
@@ -99,10 +102,19 @@ impl ListBuilder {
         self
     }
 
+    pub fn on_select<F>(mut self, cb: F) -> Self
+    where
+        F: Fn(&mut Window, &String) -> EventResult + 'static,
+    {
+        self.on_select = Some(Rc::new(cb));
+        self
+    }
+
     pub fn build(self) -> List<'static> {
         let mut list = List {
             id: self.id,
             title: self.title,
+            on_select: self.on_select,
             ..Default::default()
         };
 
@@ -112,12 +124,22 @@ impl ListBuilder {
 }
 
 impl<'a> List<'a> {
+    pub fn builder() -> ListBuilder {
+        ListBuilder::default()
+    }
+
     pub fn items(&self) -> &Vec<String> {
         self.items.items()
     }
 
     pub fn state(&self) -> &ListState {
         &self.state
+    }
+
+    pub fn on_select_mut(
+        &mut self,
+    ) -> &mut Option<Rc<dyn Fn(&mut Window, &String) -> EventResult>> {
+        &mut self.on_select
     }
 
     fn widget(&self, block: Block<'a>) -> widgets::List<'a> {
@@ -301,14 +323,6 @@ impl<'a> WidgetTrait for List<'a> {
 }
 
 impl<'a> List<'a> {
-    pub fn on_select<F>(mut self, cb: F) -> Self
-    where
-        F: Fn(&mut Window, &String) -> EventResult + 'static,
-    {
-        self.on_select = Some(Rc::new(cb));
-        self
-    }
-
     fn on_select_callback(&self) -> Option<Callback> {
         self.on_select.clone().and_then(|cb| {
             self.selected_item()
@@ -444,7 +458,7 @@ mod tests {
 
         #[test]
         fn update_title() {
-            let mut w = ListBuilder::default().title("list").build();
+            let mut w = List::builder().title("list").build();
             assert_eq!("list", w.title());
 
             w.update_title("list update");

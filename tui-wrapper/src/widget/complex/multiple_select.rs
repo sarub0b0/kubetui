@@ -429,10 +429,15 @@ impl<'a> SelectForm<'a> {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Derivative)]
+#[derivative(Debug, Default)]
 pub struct MultipleSelectBuilder {
     id: String,
     title: String,
+    #[derivative(Debug = "ignore")]
+    on_select_list: Option<Box<dyn Fn(&mut Window, &String) -> EventResult>>,
+    #[derivative(Debug = "ignore")]
+    on_select_selected: Option<Box<dyn Fn(&mut Window, &String) -> EventResult>>,
 }
 
 impl MultipleSelectBuilder {
@@ -446,6 +451,16 @@ impl MultipleSelectBuilder {
         self
     }
 
+    pub fn on_select<F>(mut self, cb: F) -> Self
+    where
+        F: Fn(&mut Window, &String) -> EventResult + 'static,
+        F: Clone,
+    {
+        self.on_select_list = Some(Box::new(cb.clone()));
+        self.on_select_selected = Some(Box::new(cb));
+        self
+    }
+
     pub fn build(self) -> MultipleSelect<'static> {
         let layout = Layout::default()
             .direction(Direction::Vertical)
@@ -455,9 +470,25 @@ impl MultipleSelectBuilder {
                 Constraint::Min(3),
             ]);
 
+        let list_widget = if let Some(on_select) = self.on_select_list {
+            List::builder().on_select(on_select)
+        } else {
+            List::builder()
+        }
+        .title("Items")
+        .build();
+
+        let selected_widget = if let Some(on_select) = self.on_select_selected {
+            List::builder().on_select(on_select)
+        } else {
+            List::builder()
+        }
+        .title("Selected")
+        .build();
+
         let selected_widget = SelectForm {
-            list_widget: ListBuilder::default().title("Items").build(),
-            selected_widget: ListBuilder::default().title("Selected").build(),
+            list_widget,
+            selected_widget,
             ..Default::default()
         };
 
@@ -522,13 +553,8 @@ impl RenderTrait for MultipleSelect<'_> {
 // |         |         |
 // ---------------------
 impl<'a> MultipleSelect<'a> {
-    pub fn on_select<F>(mut self, f: F) -> Self
-    where
-        F: Fn(&mut Window, &String) -> EventResult + 'static + Clone,
-    {
-        self.selected_widget.list_widget = self.selected_widget.list_widget.on_select(f.clone());
-        self.selected_widget.selected_widget = self.selected_widget.selected_widget.on_select(f);
-        self
+    pub fn builder() -> MultipleSelectBuilder {
+        MultipleSelectBuilder::default()
     }
 
     fn clear_filter(&mut self) {
@@ -675,9 +701,7 @@ mod tests {
 
         #[test]
         fn update_title() {
-            let mut w = MultipleSelectBuilder::default()
-                .title("multiple-select")
-                .build();
+            let mut w = MultipleSelect::builder().title("multiple-select").build();
             assert_eq!("multiple-select", w.title());
 
             w.update_title("multiple-select update");

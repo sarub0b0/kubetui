@@ -123,6 +123,10 @@ pub struct SingleSelect<'a> {
 }
 
 impl<'a> SingleSelect<'a> {
+    pub fn builder() -> SingleSelectBuilder {
+        SingleSelectBuilder::default()
+    }
+
     pub fn id(&self) -> &str {
         &self.id
     }
@@ -179,21 +183,6 @@ impl<'a> SingleSelect<'a> {
         self.callbacks
             .iter()
             .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb.clone()) } else { None })
-    }
-
-    pub fn add_action<F, E: Into<UserEvent>>(&mut self, ev: E, cb: F)
-    where
-        F: Fn(&mut Window) -> EventResult + 'static,
-    {
-        self.callbacks.push((ev.into(), Rc::new(cb)));
-    }
-
-    pub fn on_select<F>(mut self, f: F) -> Self
-    where
-        F: Fn(&mut Window, &String) -> EventResult + 'static,
-    {
-        self.selected_widget.list_widget = self.selected_widget.list_widget.on_select(f);
-        self
     }
 }
 
@@ -315,10 +304,15 @@ impl RenderTrait for SingleSelect<'_> {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Derivative)]
+#[derivative(Debug, Default)]
 pub struct SingleSelectBuilder {
     id: String,
     title: String,
+    #[derivative(Debug = "ignore")]
+    actions: Vec<(UserEvent, InnerCallback)>,
+    #[derivative(Debug = "ignore")]
+    on_select: Option<Box<dyn Fn(&mut Window, &String) -> EventResult>>,
 }
 
 impl SingleSelectBuilder {
@@ -332,6 +326,22 @@ impl SingleSelectBuilder {
         self
     }
 
+    pub fn action<F, E: Into<UserEvent>>(mut self, ev: E, cb: F) -> Self
+    where
+        F: Fn(&mut Window) -> EventResult + 'static,
+    {
+        self.actions.push((ev.into(), Rc::new(cb)));
+        self
+    }
+
+    pub fn on_select<F>(mut self, f: F) -> Self
+    where
+        F: Fn(&mut Window, &String) -> EventResult + 'static,
+    {
+        self.on_select = Some(Box::new(f));
+        self
+    }
+
     pub fn build(self) -> SingleSelect<'static> {
         let layout = Layout::default()
             .direction(Direction::Vertical)
@@ -341,8 +351,16 @@ impl SingleSelectBuilder {
                 Constraint::Min(3),
             ]);
 
+        let list_widget = if let Some(on_select) = self.on_select {
+            List::builder().on_select(on_select)
+        } else {
+            List::builder()
+        }
+        .title("Items")
+        .build();
+
         let selected_widget = SelectForm {
-            list_widget: ListBuilder::default().title("Items").build(),
+            list_widget,
             ..Default::default()
         };
 
@@ -351,6 +369,7 @@ impl SingleSelectBuilder {
             title: self.title,
             layout,
             selected_widget,
+            callbacks: self.actions,
             ..Default::default()
         }
     }
@@ -384,9 +403,7 @@ mod tests {
 
         #[test]
         fn update_title() {
-            let mut w = SingleSelectBuilder::default()
-                .title("single-select")
-                .build();
+            let mut w = SingleSelect::builder().title("single-select").build();
             assert_eq!("single-select", w.title());
 
             w.update_title("single-select update");

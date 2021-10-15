@@ -26,10 +26,7 @@ use tui_wrapper::{
         layout::{Constraint, Direction, Layout, Rect},
         Terminal, TerminalOptions, Viewport,
     },
-    widget::{
-        MultipleSelect, MultipleSelectBuilder, SingleSelect, SingleSelectBuilder, Table, Text,
-        Widget, WidgetTrait,
-    },
+    widget::{MultipleSelect, SingleSelect, Table, Text, Widget, WidgetTrait},
     Tab, Window, WindowEvent,
 };
 
@@ -182,10 +179,9 @@ fn init_subwin_ctx(
     context: Rc<RefCell<Context>>,
     namespace: Rc<RefCell<Namespace>>,
 ) -> SingleSelect<'static> {
-    SingleSelectBuilder::default()
+    SingleSelect::builder()
         .id(view_id::subwin_ctx)
         .title("Context")
-        .build()
         .on_select(move |w: &mut Window, v| {
             let item = v.to_string();
 
@@ -219,6 +215,7 @@ fn init_subwin_ctx(
 
             EventResult::Nop
         })
+        .build()
 }
 
 #[inline]
@@ -226,10 +223,9 @@ fn init_subwin_single_ns(
     tx: Sender<Event>,
     namespace: Rc<RefCell<Namespace>>,
 ) -> SingleSelect<'static> {
-    SingleSelectBuilder::default()
+    SingleSelect::builder()
         .id(view_id::subwin_single_ns)
         .title("Namespace")
-        .build()
         .on_select(move |w: &mut Window, v| {
             let items = vec![v.to_string()];
             tx.send(Event::Kube(Kube::SetNamespaces(items.clone())))
@@ -255,6 +251,7 @@ fn init_subwin_single_ns(
 
             EventResult::Nop
         })
+        .build()
 }
 
 #[inline]
@@ -262,10 +259,9 @@ fn init_subwin_multiple_ns(
     tx: Sender<Event>,
     namespace: Rc<RefCell<Namespace>>,
 ) -> MultipleSelect<'static> {
-    MultipleSelectBuilder::default()
+    MultipleSelect::builder()
         .id(view_id::subwin_ns)
         .title("Namespace")
-        .build()
         .on_select(move |w: &mut Window, _| {
             let widget = w
                 .find_widget_mut(view_id::subwin_ns)
@@ -291,14 +287,14 @@ fn init_subwin_multiple_ns(
 
             EventResult::Nop
         })
+        .build()
 }
 
 #[inline]
 fn init_subwin_apis(tx: Sender<Event>) -> MultipleSelect<'static> {
-    MultipleSelectBuilder::default()
+    MultipleSelect::builder()
         .id(view_id::subwin_apis)
         .title("APIs")
-        .build()
         .on_select(move |w, _| {
             let widget = w
                 .find_widget_mut(view_id::subwin_apis)
@@ -317,6 +313,7 @@ fn init_subwin_apis(tx: Sender<Event>) -> MultipleSelect<'static> {
 
             EventResult::Nop
         })
+        .build()
 }
 
 fn init_window(
