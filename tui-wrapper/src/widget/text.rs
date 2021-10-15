@@ -245,6 +245,8 @@ pub struct TextBuilder {
     follow: bool,
     #[derivative(Debug = "ignore")]
     clipboard: Option<Rc<RefCell<ClipboardContextWrapper>>>,
+    #[derivative(Debug = "ignore")]
+    actions: Vec<(UserEvent, InnerCallback)>,
 }
 
 impl TextBuilder {
@@ -278,6 +280,14 @@ impl TextBuilder {
         self
     }
 
+    pub fn action<F, E: Into<UserEvent>>(mut self, ev: E, cb: F) -> Self
+    where
+        F: Fn(&mut Window) -> EventResult + 'static,
+    {
+        self.actions.push((ev.into(), Rc::new(cb)));
+        self
+    }
+
     pub fn build(self) -> Text<'static> {
         let mut text = Text {
             id: self.id,
@@ -285,6 +295,7 @@ impl TextBuilder {
             wrap: self.wrap,
             follow: self.follow,
             clipboard: self.clipboard,
+            actions: self.actions,
             ..Default::default()
         };
 
@@ -315,7 +326,7 @@ pub struct Text<'a> {
     #[derivative(Debug = "ignore")]
     clipboard: Option<Rc<RefCell<ClipboardContextWrapper>>>,
     #[derivative(Debug = "ignore")]
-    callbacks: Vec<(UserEvent, InnerCallback)>,
+    actions: Vec<(UserEvent, InnerCallback)>,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -354,6 +365,10 @@ impl TextState {
 }
 
 impl Text<'_> {
+    pub fn builder() -> TextBuilder {
+        TextBuilder::default()
+    }
+
     pub fn state(&self) -> &TextState {
         &self.state
     }
@@ -370,15 +385,8 @@ impl Text<'_> {
         ))
     }
 
-    pub fn add_action<F, E: Into<UserEvent>>(&mut self, ev: E, cb: F)
-    where
-        F: Fn(&mut Window) -> EventResult + 'static,
-    {
-        self.callbacks.push((ev.into(), Rc::new(cb)));
-    }
-
     fn match_action(&self, ev: UserEvent) -> Option<InnerCallback> {
-        self.callbacks
+        self.actions
             .iter()
             .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb.clone()) } else { None })
     }

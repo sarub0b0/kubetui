@@ -28,7 +28,7 @@ use tui_wrapper::{
     },
     widget::{
         MultipleSelect, MultipleSelectBuilder, SingleSelect, SingleSelectBuilder, Table,
-        TableBuilder, Text, TextBuilder, Widget, WidgetTrait,
+        TableBuilder, Text, Widget, WidgetTrait,
     },
     Tab, Window, WindowEvent,
 };
@@ -96,7 +96,7 @@ fn init_pod(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'stat
 
 #[inline]
 fn init_log(clipboard: Option<Rc<RefCell<ClipboardContextWrapper>>>) -> Text<'static> {
-    let logs_builder = TextBuilder::default()
+    let logs_builder = Text::builder()
         .id(view_id::tab_pods_widget_logs)
         .title("Logs")
         .wrap()
@@ -163,7 +163,7 @@ fn init_configs(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'
 
 #[inline]
 fn init_configs_raw(clipboard: Option<Rc<RefCell<ClipboardContextWrapper>>>) -> Text<'static> {
-    let raw_data_builder = TextBuilder::default()
+    let raw_data_builder = Text::builder()
         .id(view_id::tab_configs_widget_raw_data)
         .title("Raw Data")
         .wrap();
@@ -341,7 +341,7 @@ fn init_window(
     let raw_data_widget = init_configs_raw(clipboard);
 
     // Event
-    let event_widget = TextBuilder::default()
+    let event_widget = Text::builder()
         .id(view_id::tab_event_widget_event)
         .title("Event")
         .wrap()
@@ -349,11 +349,6 @@ fn init_window(
         .build();
 
     // APIs
-    let mut apis_widget = TextBuilder::default()
-        .id(view_id::tab_apis_widget_apis)
-        .title("APIs")
-        .build();
-
     let tx_apis = tx.clone();
     let open_subwin = move |w: &mut Window| {
         tx_apis.send(Event::Kube(Kube::GetAPIsRequest)).unwrap();
@@ -361,8 +356,12 @@ fn init_window(
         EventResult::Nop
     };
 
-    apis_widget.add_action('/', open_subwin.clone());
-    apis_widget.add_action('f', open_subwin);
+    let apis_widget = Text::builder()
+        .id(view_id::tab_apis_widget_apis)
+        .title("APIs")
+        .action('/', open_subwin.clone())
+        .action('f', open_subwin)
+        .build();
 
     // [Sub Window] Context
     let subwin_ctx = Widget::from(init_subwin_ctx(tx.clone(), context, namespaces.clone()));
