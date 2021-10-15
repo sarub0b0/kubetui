@@ -19,7 +19,7 @@ use clipboard_wrapper::{ClipboardContextWrapper, ClipboardProvider};
 use event::UserEvent;
 
 use super::{
-    render_title, RenderTrait, {WidgetItem, WidgetTrait},
+    render_title, RenderTrait, {Item, WidgetTrait},
 };
 
 use crate::{
@@ -32,7 +32,7 @@ use crate::{
 const SCROLL_SIZE: usize = 10;
 
 mod inner_item {
-    use super::super::{spans::generate_spans, wrap::*, WidgetItem};
+    use super::super::{spans::generate_spans, wrap::*, Item};
     use tui::text::Spans;
 
     #[derive(Debug, Default)]
@@ -69,7 +69,7 @@ mod inner_item {
             self.update_spans();
         }
 
-        pub fn update_item(&mut self, item: WidgetItem) {
+        pub fn update_item(&mut self, item: Item) {
             self.items = item.array();
 
             self.update_spans();
@@ -81,7 +81,7 @@ mod inner_item {
             self.spans = generate_spans(&lines);
         }
 
-        pub fn append_widget_item(&mut self, item: WidgetItem) {
+        pub fn append_widget_item(&mut self, item: Item) {
             let mut item = item.array();
 
             let wrapped = wrap(&item, self.max_width);
@@ -299,7 +299,7 @@ impl TextBuilder {
             ..Default::default()
         };
 
-        text.update_widget_item(WidgetItem::Array(self.items));
+        text.update_widget_item(Item::Array(self.items));
         text.items.update_max_width(text.wrap_width());
         text
     }
@@ -475,9 +475,9 @@ impl WidgetTrait for Text<'_> {
         true
     }
 
-    fn widget_item(&self) -> Option<WidgetItem> {
+    fn widget_item(&self) -> Option<Item> {
         let index = self.state.selected_vertical() as usize;
-        Some(WidgetItem::Single(self.items.items()[index].clone()))
+        Some(Item::Single(self.items.items()[index].clone()))
     }
 
     fn chunk(&self) -> Rect {
@@ -513,7 +513,7 @@ impl WidgetTrait for Text<'_> {
         self.state.select_vertical(self.row_size);
     }
 
-    fn append_widget_item(&mut self, items: WidgetItem) {
+    fn append_widget_item(&mut self, items: Item) {
         let is_bottom = self.is_bottom();
 
         self.items.append_widget_item(items);
@@ -525,7 +525,7 @@ impl WidgetTrait for Text<'_> {
         }
     }
 
-    fn update_widget_item(&mut self, items: WidgetItem) {
+    fn update_widget_item(&mut self, items: Item) {
         let is_bottom = self.is_bottom();
 
         self.items.update_item(items);
@@ -879,7 +879,7 @@ mod tests {
 
         let mut text = TextBuilder::default().build();
 
-        text.update_widget_item(WidgetItem::Array(data));
+        text.update_widget_item(Item::Array(data));
 
         assert_eq!(text.items.spans().len(), 20)
     }
@@ -892,7 +892,7 @@ mod tests {
 
         text.update_chunk(Rect::new(0, 0, 4, 12));
 
-        text.update_widget_item(WidgetItem::Array(data));
+        text.update_widget_item(Item::Array(data));
 
         assert_eq!(text.items.spans().len(), 40)
     }
@@ -904,7 +904,7 @@ mod tests {
         let mut text = TextBuilder::default().wrap().follow().build();
 
         text.update_chunk(Rect::new(0, 0, 2, 10));
-        text.append_widget_item(WidgetItem::Array(data));
+        text.append_widget_item(Item::Array(data));
 
         assert!(text.is_bottom())
     }

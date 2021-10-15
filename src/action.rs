@@ -8,7 +8,7 @@ use event::{
 
 use tui_wrapper::{
     event::{exec_to_window_event, EventResult},
-    widget::{WidgetItem, WidgetTrait},
+    widget::{Item, WidgetTrait},
     Window, WindowEvent,
 };
 
@@ -81,7 +81,7 @@ fn update_widget_item_for_table(window: &mut Window, id: &str, table: Result<Kub
     match table {
         Ok(table) => {
             if w.equal_header(table.header()) {
-                w.update_widget_item(WidgetItem::DoubleArray(table.rows().to_owned()));
+                w.update_widget_item(Item::DoubleArray(table.rows().to_owned()));
             } else {
                 w.update_header_and_rows(table.header(), table.rows());
             }
@@ -96,10 +96,10 @@ fn update_widget_item_for_vec(window: &mut Window, id: &str, vec: Result<Vec<Str
     let widget = window.find_widget_mut(id);
     match vec {
         Ok(i) => {
-            widget.update_widget_item(WidgetItem::Array(i));
+            widget.update_widget_item(Item::Array(i));
         }
         Err(i) => {
-            widget.update_widget_item(WidgetItem::Array(vec![error_format!("{}", i)]));
+            widget.update_widget_item(Item::Array(vec![error_format!("{}", i)]));
         }
     }
 }
@@ -128,10 +128,10 @@ pub fn update_contents(
 
             match logs {
                 Ok(i) => {
-                    widget.append_widget_item(WidgetItem::Array(i));
+                    widget.append_widget_item(Item::Array(i));
                 }
                 Err(i) => {
-                    widget.append_widget_item(WidgetItem::Array(vec![error_format!("{}", i)]));
+                    widget.append_widget_item(Item::Array(vec![error_format!("{}", i)]));
                 }
             }
         }
@@ -157,10 +157,10 @@ pub fn update_contents(
         Kube::GetNamespacesResponse(ns) => {
             window
                 .find_widget_mut(view_id::subwin_ns)
-                .update_widget_item(WidgetItem::Array(ns.to_vec()));
+                .update_widget_item(Item::Array(ns.to_vec()));
             window
                 .find_widget_mut(view_id::subwin_single_ns)
-                .update_widget_item(WidgetItem::Array(ns));
+                .update_widget_item(Item::Array(ns));
 
             let widget = window
                 .find_widget_mut(view_id::subwin_ns)

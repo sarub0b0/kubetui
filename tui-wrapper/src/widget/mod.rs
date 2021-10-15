@@ -20,13 +20,13 @@ use super::event::EventResult;
 use enum_dispatch::enum_dispatch;
 
 #[derive(Debug, Clone)]
-pub enum WidgetItem {
+pub enum Item {
     Single(String),
     Array(Vec<String>),
     DoubleArray(Vec<Vec<String>>),
 }
 
-impl WidgetItem {
+impl Item {
     pub fn single(self) -> String {
         if let Self::Single(v) = self {
             v
@@ -69,7 +69,7 @@ pub trait WidgetTrait {
     fn append_title(&self) -> &Option<String>;
     fn append_title_mut(&mut self) -> &mut Option<String>;
     fn focusable(&self) -> bool;
-    fn widget_item(&self) -> Option<WidgetItem>;
+    fn widget_item(&self) -> Option<Item>;
     fn chunk(&self) -> Rect;
 
     // Setter
@@ -79,8 +79,8 @@ pub trait WidgetTrait {
     fn select_first(&mut self);
     fn select_last(&mut self);
     // Modify Widget Item
-    fn append_widget_item(&mut self, _: WidgetItem);
-    fn update_widget_item(&mut self, _: WidgetItem);
+    fn append_widget_item(&mut self, _: Item);
+    fn update_widget_item(&mut self, _: Item);
     // Widget append title
     // Render widget title -> format!("{}: {}", title, append_title)
     // When clear, append_title clear.

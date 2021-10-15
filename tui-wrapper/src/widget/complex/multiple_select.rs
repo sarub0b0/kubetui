@@ -328,18 +328,18 @@ impl<'a> SelectForm<'a> {
         self.focus_id = id;
     }
 
-    fn update_widget_item(&mut self, items: WidgetItem) {
+    fn update_widget_item(&mut self, items: Item) {
         self.items.update_items(items.as_array());
 
         self.update_widgets();
     }
 
     fn update_widgets(&mut self) {
-        self.list_widget.update_widget_item(WidgetItem::Array(
+        self.list_widget.update_widget_item(Item::Array(
             self.filter_items(&self.items.unselected_items()),
         ));
         self.selected_widget
-            .update_widget_item(WidgetItem::Array(self.items.selected_items()));
+            .update_widget_item(Item::Array(self.items.selected_items()));
     }
 
     fn toggle_select_unselect(&mut self) {
@@ -355,7 +355,7 @@ impl<'a> SelectForm<'a> {
     fn update_filter(&mut self, filter: impl Into<String>) {
         self.filter = filter.into();
 
-        self.list_widget.update_widget_item(WidgetItem::Array(
+        self.list_widget.update_widget_item(Item::Array(
             self.filter_items(&self.items.unselected_items()),
         ));
 
@@ -608,8 +608,8 @@ impl WidgetTrait for MultipleSelect<'_> {
         true
     }
 
-    fn widget_item(&self) -> Option<WidgetItem> {
-        Some(WidgetItem::Array(self.selected_widget.selected_items()))
+    fn widget_item(&self) -> Option<Item> {
+        Some(Item::Array(self.selected_widget.selected_items()))
     }
 
     fn chunk(&self) -> Rect {
@@ -636,11 +636,11 @@ impl WidgetTrait for MultipleSelect<'_> {
         self.selected_widget.select_last()
     }
 
-    fn append_widget_item(&mut self, _: WidgetItem) {
+    fn append_widget_item(&mut self, _: Item) {
         unimplemented!()
     }
 
-    fn update_widget_item(&mut self, items: WidgetItem) {
+    fn update_widget_item(&mut self, items: Item) {
         self.clear_filter();
         self.selected_widget.update_widget_item(items);
     }

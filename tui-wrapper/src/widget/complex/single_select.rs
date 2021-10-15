@@ -57,7 +57,7 @@ impl<'a> SelectForm<'a> {
         self.list_widget.update_chunk(chunk);
     }
 
-    fn update_widget_item(&mut self, items: WidgetItem) {
+    fn update_widget_item(&mut self, items: Item) {
         self.list_items = items.clone().array();
         self.list_widget.update_widget_item(items);
 
@@ -65,14 +65,14 @@ impl<'a> SelectForm<'a> {
         self.update_filter(&filter);
     }
 
-    fn widget_item(&self) -> Option<WidgetItem> {
+    fn widget_item(&self) -> Option<Item> {
         self.list_widget.widget_item()
     }
 
     fn update_filter(&mut self, filter: &str) {
         self.filter = filter.to_string();
         self.list_widget
-            .update_widget_item(WidgetItem::Array(self.filter_items(&self.list_items)));
+            .update_widget_item(Item::Array(self.filter_items(&self.list_items)));
 
         let current_pos = self.list_widget.state().selected();
 
@@ -211,7 +211,7 @@ impl WidgetTrait for SingleSelect<'_> {
         true
     }
 
-    fn widget_item(&self) -> Option<WidgetItem> {
+    fn widget_item(&self) -> Option<Item> {
         self.selected_widget.widget_item()
     }
 
@@ -239,9 +239,9 @@ impl WidgetTrait for SingleSelect<'_> {
         self.selected_widget.list_widget.select_last()
     }
 
-    fn append_widget_item(&mut self, _: WidgetItem) {}
+    fn append_widget_item(&mut self, _: Item) {}
 
-    fn update_widget_item(&mut self, items: WidgetItem) {
+    fn update_widget_item(&mut self, items: Item) {
         self.input_widget.clear();
         self.selected_widget.update_filter("");
         self.selected_widget.update_widget_item(items);
@@ -394,7 +394,7 @@ mod tests {
     fn filter() {
         let mut select_form = SelectForm::default();
 
-        select_form.update_widget_item(WidgetItem::Array(vec![
+        select_form.update_widget_item(Item::Array(vec![
             "abb".to_string(),
             "abc".to_string(),
             "hoge".to_string(),

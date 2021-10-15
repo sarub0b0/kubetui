@@ -21,7 +21,7 @@ use unicode_width::UnicodeWidthStr;
 
 use super::wrap::wrap_line;
 use super::{render_title, spans::generate_spans_line};
-use super::{RenderTrait, WidgetItem, WidgetTrait};
+use super::{Item, RenderTrait, WidgetTrait};
 
 const COLUMN_SPACING: u16 = 3;
 const HIGHLIGHT_SYMBOL: &str = " ";
@@ -104,7 +104,7 @@ impl<'a> InnerItem<'a> {
         self.rows.is_empty()
     }
 
-    fn update_item(&mut self, item: WidgetItem) {
+    fn update_item(&mut self, item: Item) {
         self.rows = item.double_array();
         self.inner_update_rows();
     }
@@ -334,7 +334,7 @@ impl<'a> Table<'a> {
             .max_width(self.max_width())
             .build();
 
-        self.update_widget_item(WidgetItem::DoubleArray(rows.to_vec()));
+        self.update_widget_item(Item::DoubleArray(rows.to_vec()));
     }
 
     fn update_row_bounds(&mut self) {
@@ -377,10 +377,10 @@ impl WidgetTrait for Table<'_> {
         true
     }
 
-    fn widget_item(&self) -> Option<WidgetItem> {
+    fn widget_item(&self) -> Option<Item> {
         self.state
             .selected()
-            .map(|i| WidgetItem::Array(self.items.rows[i].clone()))
+            .map(|i| Item::Array(self.items.rows[i].clone()))
     }
 
     fn chunk(&self) -> Rect {
@@ -424,11 +424,11 @@ impl WidgetTrait for Table<'_> {
         }
     }
 
-    fn append_widget_item(&mut self, _: WidgetItem) {
+    fn append_widget_item(&mut self, _: Item) {
         unimplemented!()
     }
 
-    fn update_widget_item(&mut self, items: WidgetItem) {
+    fn update_widget_item(&mut self, items: Item) {
         self.items.update_item(items);
 
         match self.items.len() {
