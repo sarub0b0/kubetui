@@ -4,11 +4,10 @@ use crate::{
     tui::{
         backend::Backend,
         layout::{Constraint, Direction, Layout, Rect},
-        text::Span,
         widgets::Paragraph,
         Frame,
     },
-    util::{contains, default_focus_block, focus_block, focus_title_style},
+    util::{contains, default_focus_block},
     widget::*,
 };
 
@@ -112,7 +111,7 @@ const LAYOUT_INDEX_FOR_SELECT_FORM: usize = 2;
 #[derivative(Debug, Default)]
 pub struct SingleSelect<'a> {
     id: String,
-    title: String,
+    widget_config: WidgetConfig,
     chunk_index: usize,
     input_widget: InputForm<'a>,
     selected_widget: SelectForm<'a>,
@@ -191,22 +190,6 @@ impl WidgetTrait for SingleSelect<'_> {
         &self.id
     }
 
-    fn title(&self) -> &str {
-        &self.title
-    }
-
-    fn title_mut(&mut self) -> &mut String {
-        &mut self.title
-    }
-
-    fn append_title(&self) -> &Option<String> {
-        unimplemented!()
-    }
-
-    fn append_title_mut(&mut self) -> &mut Option<String> {
-        unimplemented!()
-    }
-
     fn focusable(&self) -> bool {
         true
     }
@@ -245,10 +228,6 @@ impl WidgetTrait for SingleSelect<'_> {
         self.input_widget.clear();
         self.selected_widget.update_filter("");
         self.selected_widget.update_widget_item(items);
-    }
-
-    fn update_append_title(&mut self, _: impl Into<String>) {
-        unimplemented!()
     }
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
@@ -292,7 +271,16 @@ impl WidgetTrait for SingleSelect<'_> {
     }
 
     fn clear(&mut self) {
+        *(self.widget_config.append_title_mut()) = None;
         unimplemented!()
+    }
+
+    fn widget_config(&self) -> &WidgetConfig {
+        &self.widget_config
+    }
+
+    fn widget_config_mut(&mut self) -> &mut WidgetConfig {
+        &mut self.widget_config
     }
 }
 
@@ -302,10 +290,8 @@ impl RenderTrait for SingleSelect<'_> {
         B: Backend,
     {
         f.render_widget(
-            focus_block("", selected).title(Span::styled(
-                format!(" {} ", self.title()),
-                focus_title_style(selected),
-            )),
+            self.widget_config
+                .render_block(self.focusable() && selected),
             self.chunk,
         );
         self.input_widget.render(f);
@@ -318,7 +304,7 @@ impl RenderTrait for SingleSelect<'_> {
 #[derivative(Debug, Default)]
 pub struct SingleSelectBuilder {
     id: String,
-    title: String,
+    widget_config: WidgetConfig,
     #[derivative(Debug = "ignore")]
     actions: Vec<(UserEvent, InnerCallback)>,
     #[derivative(Debug = "ignore")]
@@ -331,8 +317,8 @@ impl SingleSelectBuilder {
         self
     }
 
-    pub fn title(mut self, title: impl Into<String>) -> Self {
-        self.title = title.into();
+    pub fn widget_config(mut self, widget_config: &WidgetConfig) -> Self {
+        self.widget_config = widget_config.clone();
         self
     }
 
@@ -366,7 +352,7 @@ impl SingleSelectBuilder {
         } else {
             List::builder()
         }
-        .title("Items")
+        .widget_config(&WidgetConfig::builder().title("Items").build())
         .build();
 
         let selected_widget = SelectForm {
@@ -376,7 +362,7 @@ impl SingleSelectBuilder {
 
         SingleSelect {
             id: self.id,
-            title: self.title,
+            widget_config: self.widget_config,
             layout,
             selected_widget,
             callbacks: self.actions,

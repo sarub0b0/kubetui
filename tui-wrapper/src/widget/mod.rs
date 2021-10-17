@@ -3,6 +3,7 @@ mod spans;
 mod wrap;
 
 pub mod complex;
+pub mod config;
 pub mod list;
 pub mod table;
 pub mod text;
@@ -14,6 +15,8 @@ pub use text::*;
 
 use crossterm::event::{KeyEvent, MouseEvent};
 use tui::{backend::Backend, layout::Rect, Frame};
+
+use self::config::WidgetConfig;
 
 use super::event::EventResult;
 
@@ -64,10 +67,8 @@ impl Item {
 pub trait WidgetTrait {
     // Getter
     fn id(&self) -> &str;
-    fn title(&self) -> &str;
-    fn title_mut(&mut self) -> &mut String;
-    fn append_title(&self) -> &Option<String>;
-    fn append_title_mut(&mut self) -> &mut Option<String>;
+    fn widget_config(&self) -> &WidgetConfig;
+    fn widget_config_mut(&mut self) -> &mut WidgetConfig;
     fn focusable(&self) -> bool;
     fn widget_item(&self) -> Option<Item>;
     fn chunk(&self) -> Rect;
@@ -84,7 +85,6 @@ pub trait WidgetTrait {
     // Widget append title
     // Render widget title -> format!("{}: {}", title, append_title)
     // When clear, append_title clear.
-    fn update_append_title(&mut self, _: impl Into<String>);
 
     fn on_mouse_event(&mut self, _: MouseEvent) -> EventResult;
     fn on_key_event(&mut self, _: KeyEvent) -> EventResult;
@@ -190,13 +190,5 @@ impl<'a> Widget<'a> {
         } else {
             panic!("called as_mut_multiple_select() on {:?}", self)
         }
-    }
-}
-
-pub(super) fn render_title(title: &str, append: &Option<String>) -> String {
-    if let Some(append) = append {
-        format!("{}{}", title, append)
-    } else {
-        title.to_string()
     }
 }

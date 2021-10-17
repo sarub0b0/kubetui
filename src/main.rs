@@ -26,7 +26,9 @@ use tui_wrapper::{
         layout::{Constraint, Direction, Layout, Rect},
         Terminal, TerminalOptions, Viewport,
     },
-    widget::{MultipleSelect, SingleSelect, Table, Text, Widget, WidgetTrait},
+    widget::{
+        config::WidgetConfig, MultipleSelect, SingleSelect, Table, Text, Widget, WidgetTrait,
+    },
     Tab, Window, WindowEvent,
 };
 
@@ -72,7 +74,7 @@ fn log_stream_request_param(value: &[String], namespace: &[String]) -> (String, 
 fn init_pod(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'static> {
     Table::builder()
         .id(view_id::tab_pods_widget_pods)
-        .title("Pods")
+        .widget_config(&WidgetConfig::builder().title("Pods").build())
         .on_select(move |w, v| {
             w.widget_clear(view_id::tab_pods_widget_logs);
 
@@ -80,8 +82,9 @@ fn init_pod(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'stat
 
             let (ns, pod_name) = log_stream_request_param(v, selected);
 
-            w.find_widget_mut(view_id::tab_pods_widget_logs)
-                .update_append_title(format!(": {}", pod_name));
+            *(w.find_widget_mut(view_id::tab_pods_widget_logs)
+                .widget_config_mut()
+                .append_title_mut()) = Some((&pod_name).into());
 
             tx.send(Event::Kube(Kube::LogStreamRequest(ns, pod_name)))
                 .unwrap();
@@ -95,7 +98,7 @@ fn init_pod(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'stat
 fn init_log(clipboard: Option<Rc<RefCell<ClipboardContextWrapper>>>) -> Text<'static> {
     let logs_builder = Text::builder()
         .id(view_id::tab_pods_widget_logs)
-        .title("Logs")
+        .widget_config(&WidgetConfig::builder().title("Pods").build())
         .wrap()
         .follow();
 
@@ -141,14 +144,15 @@ fn config_request_param(value: &[String], namespace: &[String]) -> (String, Stri
 fn init_configs(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'static> {
     Table::builder()
         .id(view_id::tab_configs_widget_configs)
-        .title("Configs")
+        .widget_config(&WidgetConfig::builder().title("Configs").build())
         .on_select(move |w, v| {
             w.widget_clear(view_id::tab_configs_widget_raw_data);
 
             let (ns, kind, name) = config_request_param(v, &namespace.borrow().selected);
 
-            w.find_widget_mut(view_id::tab_configs_widget_raw_data)
-                .update_append_title(format!(": {}", name));
+            *(w.find_widget_mut(view_id::tab_configs_widget_raw_data)
+                .widget_config_mut()
+                .append_title_mut()) = Some((&name).into());
 
             tx.send(Event::Kube(Kube::ConfigRequest(ns, kind, name)))
                 .unwrap();
@@ -162,7 +166,7 @@ fn init_configs(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'
 fn init_configs_raw(clipboard: Option<Rc<RefCell<ClipboardContextWrapper>>>) -> Text<'static> {
     let raw_data_builder = Text::builder()
         .id(view_id::tab_configs_widget_raw_data)
-        .title("Raw Data")
+        .widget_config(&WidgetConfig::builder().title("Raw Data").build())
         .wrap();
 
     if let Some(cb) = clipboard {
@@ -181,7 +185,7 @@ fn init_subwin_ctx(
 ) -> SingleSelect<'static> {
     SingleSelect::builder()
         .id(view_id::subwin_ctx)
-        .title("Context")
+        .widget_config(&WidgetConfig::builder().title("Context").build())
         .on_select(move |w: &mut Window, v| {
             let item = v.to_string();
 
@@ -225,7 +229,7 @@ fn init_subwin_single_ns(
 ) -> SingleSelect<'static> {
     SingleSelect::builder()
         .id(view_id::subwin_single_ns)
-        .title("Namespace")
+        .widget_config(&WidgetConfig::builder().title("Namespace").build())
         .on_select(move |w: &mut Window, v| {
             let items = vec![v.to_string()];
             tx.send(Event::Kube(Kube::SetNamespaces(items.clone())))
@@ -261,7 +265,7 @@ fn init_subwin_multiple_ns(
 ) -> MultipleSelect<'static> {
     MultipleSelect::builder()
         .id(view_id::subwin_ns)
-        .title("Namespace")
+        .widget_config(&WidgetConfig::builder().title("Namespace").build())
         .on_select(move |w: &mut Window, _| {
             let widget = w
                 .find_widget_mut(view_id::subwin_ns)
@@ -294,7 +298,7 @@ fn init_subwin_multiple_ns(
 fn init_subwin_apis(tx: Sender<Event>) -> MultipleSelect<'static> {
     MultipleSelect::builder()
         .id(view_id::subwin_apis)
-        .title("APIs")
+        .widget_config(&WidgetConfig::builder().title("APIs").build())
         .on_select(move |w, _| {
             let widget = w
                 .find_widget_mut(view_id::subwin_apis)
@@ -340,7 +344,7 @@ fn init_window(
     // Event
     let event_widget = Text::builder()
         .id(view_id::tab_event_widget_event)
-        .title("Event")
+        .widget_config(&WidgetConfig::builder().title("Event").build())
         .wrap()
         .follow()
         .build();
@@ -355,7 +359,7 @@ fn init_window(
 
     let apis_widget = Text::builder()
         .id(view_id::tab_apis_widget_apis)
-        .title("APIs")
+        .widget_config(&WidgetConfig::builder().title("APIs").build())
         .action('/', open_subwin.clone())
         .action('f', open_subwin)
         .build();

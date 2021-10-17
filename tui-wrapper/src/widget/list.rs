@@ -11,11 +11,11 @@ use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKin
 
 use tui::widgets::{self, Block, ListState};
 
-use super::{render_title, Item, RenderTrait, WidgetTrait};
+use super::{config::WidgetConfig, Item, RenderTrait, WidgetTrait};
 use crate::{
     event::{Callback, EventResult},
     key_event_to_code,
-    util::{default_focus_block, focus_block},
+    util::default_focus_block,
     Window,
 };
 
@@ -66,8 +66,7 @@ use inner_item::InnerItem;
 #[derivative(Debug, Default)]
 pub struct List<'a> {
     id: String,
-    title: String,
-    append_title: Option<String>,
+    widget_config: WidgetConfig,
     items: InnerItem<'a>,
     state: ListState,
     chunk: Rect,
@@ -80,7 +79,7 @@ pub struct List<'a> {
 #[derivative(Debug, Default)]
 pub struct ListBuilder {
     id: String,
-    title: String,
+    widget_config: WidgetConfig,
     items: Vec<String>,
     #[derivative(Debug = "ignore")]
     on_select: Option<Rc<dyn Fn(&mut Window, &String) -> EventResult>>,
@@ -92,8 +91,8 @@ impl ListBuilder {
         self
     }
 
-    pub fn title(mut self, title: impl Into<String>) -> Self {
-        self.title = title.into();
+    pub fn widget_config(mut self, widget_config: &WidgetConfig) -> Self {
+        self.widget_config = widget_config.clone();
         self
     }
 
@@ -113,7 +112,7 @@ impl ListBuilder {
     pub fn build(self) -> List<'static> {
         let mut list = List {
             id: self.id,
-            title: self.title,
+            widget_config: self.widget_config,
             on_select: self.on_select,
             ..Default::default()
         };
@@ -153,22 +152,6 @@ impl<'a> List<'a> {
 impl<'a> WidgetTrait for List<'a> {
     fn id(&self) -> &str {
         &self.id
-    }
-
-    fn title(&self) -> &str {
-        &self.title
-    }
-
-    fn title_mut(&mut self) -> &mut String {
-        &mut self.title
-    }
-
-    fn append_title(&self) -> &Option<String> {
-        &self.append_title
-    }
-
-    fn append_title_mut(&mut self) -> &mut Option<String> {
-        &mut self.append_title
     }
 
     fn focusable(&self) -> bool {
@@ -252,10 +235,6 @@ impl<'a> WidgetTrait for List<'a> {
         }
     }
 
-    fn update_append_title(&mut self, append: impl Into<String>) {
-        self.append_title = Some(append.into());
-    }
-
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         if self.items.is_empty() {
             return EventResult::Nop;
@@ -328,7 +307,16 @@ impl<'a> WidgetTrait for List<'a> {
     }
 
     fn clear(&mut self) {
-        self.append_title = None;
+        *(self.widget_config.append_title_mut()) = None;
+        unimplemented!()
+    }
+
+    fn widget_config(&self) -> &WidgetConfig {
+        &self.widget_config
+    }
+
+    fn widget_config_mut(&mut self) -> &mut WidgetConfig {
+        &mut self.widget_config
     }
 }
 
@@ -349,9 +337,11 @@ impl<'a> List<'a> {
 
 impl RenderTrait for List<'_> {
     fn render<B: Backend>(&mut self, f: &mut Frame<B>, selected: bool) {
-        let title = render_title(&self.title, &self.append_title);
         f.render_stateful_widget(
-            self.widget(focus_block(&title, selected)),
+            self.widget(
+                self.widget_config
+                    .render_block(self.focusable() && selected),
+            ),
             self.chunk,
             &mut self.state,
         );

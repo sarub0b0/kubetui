@@ -1,7 +1,7 @@
 use crate::{
     event::{Callback, EventResult},
     key_event_to_code,
-    util::{default_focus_block, focus_block},
+    util::default_focus_block,
     Window,
 };
 
@@ -19,8 +19,8 @@ use tui::{
 
 use unicode_width::UnicodeWidthStr;
 
-use super::wrap::wrap_line;
-use super::{render_title, spans::generate_spans_line};
+use super::spans::generate_spans_line;
+use super::{config::WidgetConfig, wrap::wrap_line};
 use super::{Item, RenderTrait, WidgetTrait};
 
 const COLUMN_SPACING: u16 = 3;
@@ -235,7 +235,7 @@ impl<'a> InnerItem<'a> {
 #[derivative(Debug, Default)]
 pub struct TableBuilder {
     id: String,
-    title: String,
+    widget_config: WidgetConfig,
     header: Vec<String>,
     items: Vec<Vec<String>>,
     #[derivative(Debug = "ignore")]
@@ -248,8 +248,8 @@ impl TableBuilder {
         self
     }
 
-    pub fn title(mut self, title: impl Into<String>) -> Self {
-        self.title = title.into();
+    pub fn widget_config(mut self, widget_config: &WidgetConfig) -> Self {
+        self.widget_config = widget_config.clone();
         self
     }
 
@@ -274,7 +274,7 @@ impl TableBuilder {
     pub fn build(self) -> Table<'static> {
         let mut table = Table {
             id: self.id,
-            title: self.title,
+            widget_config: self.widget_config,
             on_select: self.on_select,
             ..Default::default()
         };
@@ -294,8 +294,7 @@ impl TableBuilder {
 #[derivative(Debug, Default)]
 pub struct Table<'a> {
     id: String,
-    title: String,
-    append_title: Option<String>,
+    widget_config: WidgetConfig,
     chunk_index: usize,
     items: InnerItem<'a>,
     state: TableState,
@@ -355,22 +354,6 @@ impl<'a> Table<'a> {
 impl WidgetTrait for Table<'_> {
     fn id(&self) -> &str {
         &self.id
-    }
-
-    fn title(&self) -> &str {
-        &self.title
-    }
-
-    fn title_mut(&mut self) -> &mut String {
-        &mut self.title
-    }
-
-    fn append_title(&self) -> &Option<String> {
-        &self.append_title
-    }
-
-    fn append_title_mut(&mut self) -> &mut Option<String> {
-        &mut self.append_title
     }
 
     fn focusable(&self) -> bool {
@@ -442,10 +425,6 @@ impl WidgetTrait for Table<'_> {
         }
 
         self.update_row_bounds();
-    }
-
-    fn update_append_title(&mut self, append: impl Into<String>) {
-        self.append_title = Some(append.into());
     }
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
@@ -561,7 +540,15 @@ impl WidgetTrait for Table<'_> {
         self.items = InnerItem::builder().max_width(self.max_width()).build();
         self.row_bounds = Vec::default();
 
-        self.append_title = None;
+        *(self.widget_config.append_title_mut()) = None;
+    }
+
+    fn widget_config(&self) -> &WidgetConfig {
+        &self.widget_config
+    }
+
+    fn widget_config_mut(&mut self) -> &mut WidgetConfig {
+        &mut self.widget_config
     }
 }
 
@@ -585,12 +572,14 @@ impl RenderTrait for Table<'_> {
     where
         B: Backend,
     {
-        let title = render_title(&self.title, &self.append_title);
+        let block = self
+            .widget_config
+            .render_block(self.focusable() && selected);
 
         let constraints = constraints(&self.items.digits);
 
         let mut widget = TTable::new(self.items.widget_rows.iter().cloned().map(|row| row.row))
-            .block(focus_block(&title, selected))
+            .block(block)
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
             .highlight_symbol(HIGHLIGHT_SYMBOL)
             .column_spacing(COLUMN_SPACING)

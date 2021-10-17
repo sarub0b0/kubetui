@@ -9,9 +9,7 @@ use crate::{
         widgets::{Block, Paragraph},
         Frame,
     },
-    util::{
-        contains, default_focus_block, focus_block, focus_title_style, key_event_to_code, mouse_pos,
-    },
+    util::{contains, default_focus_block, key_event_to_code, mouse_pos},
     widget::*,
     Window,
 };
@@ -433,7 +431,7 @@ impl<'a> SelectForm<'a> {
 #[derivative(Debug, Default)]
 pub struct MultipleSelectBuilder {
     id: String,
-    title: String,
+    widget_config: WidgetConfig,
     #[derivative(Debug = "ignore")]
     on_select_list: Option<Box<dyn Fn(&mut Window, &String) -> EventResult>>,
     #[derivative(Debug = "ignore")]
@@ -446,8 +444,8 @@ impl MultipleSelectBuilder {
         self
     }
 
-    pub fn title(mut self, title: impl Into<String>) -> Self {
-        self.title = title.into();
+    pub fn widget_config(mut self, widget_config: &WidgetConfig) -> Self {
+        self.widget_config = widget_config.clone();
         self
     }
 
@@ -475,7 +473,7 @@ impl MultipleSelectBuilder {
         } else {
             List::builder()
         }
-        .title("Items")
+        .widget_config(&WidgetConfig::builder().title("Items").build())
         .build();
 
         let selected_widget = if let Some(on_select) = self.on_select_selected {
@@ -483,7 +481,7 @@ impl MultipleSelectBuilder {
         } else {
             List::builder()
         }
-        .title("Selected")
+        .widget_config(&WidgetConfig::builder().title("Selected").build())
         .build();
 
         let selected_widget = SelectForm {
@@ -494,7 +492,7 @@ impl MultipleSelectBuilder {
 
         MultipleSelect {
             id: self.id,
-            title: self.title,
+            widget_config: self.widget_config,
             layout,
             selected_widget,
             ..Default::default()
@@ -510,7 +508,7 @@ const LAYOUT_INDEX_FOR_SELECT_FORM: usize = 2;
 #[derivative(Debug, Default)]
 pub struct MultipleSelect<'a> {
     id: String,
-    title: String,
+    widget_config: WidgetConfig,
     chunk_index: usize,
     input_widget: InputForm<'a>,
     selected_widget: SelectForm<'a>,
@@ -520,17 +518,13 @@ pub struct MultipleSelect<'a> {
 
 impl RenderTrait for MultipleSelect<'_> {
     fn render<B: Backend>(&mut self, f: &mut Frame<B>, selected: bool) {
-        let title = self.title.to_string();
-        let block = focus_block(&title, selected);
+        let block = self
+            .widget_config
+            .render_block(self.focusable() && selected);
+
         let inner_chunk = block.inner(self.chunk);
 
-        f.render_widget(
-            block.title(Span::styled(
-                format!(" {} ", self.title()),
-                focus_title_style(selected),
-            )),
-            self.chunk,
-        );
+        f.render_widget(block, self.chunk);
 
         self.input_widget.render(f);
 
@@ -588,22 +582,6 @@ impl WidgetTrait for MultipleSelect<'_> {
         &self.id
     }
 
-    fn title(&self) -> &str {
-        &self.title
-    }
-
-    fn title_mut(&mut self) -> &mut String {
-        &mut self.title
-    }
-
-    fn append_title(&self) -> &Option<String> {
-        unimplemented!()
-    }
-
-    fn append_title_mut(&mut self) -> &mut Option<String> {
-        unimplemented!()
-    }
-
     fn focusable(&self) -> bool {
         true
     }
@@ -643,10 +621,6 @@ impl WidgetTrait for MultipleSelect<'_> {
     fn update_widget_item(&mut self, items: Item) {
         self.clear_filter();
         self.selected_widget.update_widget_item(items);
-    }
-
-    fn update_append_title(&mut self, _: impl Into<String>) {
-        unimplemented!()
     }
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
@@ -694,7 +668,17 @@ impl WidgetTrait for MultipleSelect<'_> {
     }
 
     fn clear(&mut self) {
+        *(self.widget_config.append_title_mut()) = None;
+
         unimplemented!()
+    }
+
+    fn widget_config(&self) -> &WidgetConfig {
+        &self.widget_config
+    }
+
+    fn widget_config_mut(&mut self) -> &mut WidgetConfig {
+        &mut self.widget_config
     }
 }
 

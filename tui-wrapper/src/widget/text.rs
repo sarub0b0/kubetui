@@ -19,13 +19,14 @@ use clipboard_wrapper::{ClipboardContextWrapper, ClipboardProvider};
 use event::UserEvent;
 
 use super::{
-    render_title, RenderTrait, {Item, WidgetTrait},
+    config::WidgetConfig,
+    RenderTrait, {Item, WidgetTrait},
 };
 
 use crate::{
     event::{Callback, EventResult, InnerCallback},
     key_event_to_code,
-    util::{default_focus_block, focus_block},
+    util::default_focus_block,
     Window,
 };
 
@@ -239,7 +240,7 @@ mod highlight_content {
 #[derivative(Debug, Default)]
 pub struct TextBuilder {
     id: String,
-    title: String,
+    widget_config: WidgetConfig,
     items: Vec<String>,
     wrap: bool,
     follow: bool,
@@ -255,8 +256,8 @@ impl TextBuilder {
         self
     }
 
-    pub fn title(mut self, title: impl Into<String>) -> Self {
-        self.title = title.into();
+    pub fn widget_config(mut self, widget_config: &WidgetConfig) -> Self {
+        self.widget_config = widget_config.clone();
         self
     }
 
@@ -291,7 +292,7 @@ impl TextBuilder {
     pub fn build(self) -> Text<'static> {
         let mut text = Text {
             id: self.id,
-            title: self.title,
+            widget_config: self.widget_config,
             wrap: self.wrap,
             follow: self.follow,
             clipboard: self.clipboard,
@@ -312,6 +313,7 @@ use inner_item::InnerItem;
 #[derivative(Debug, Default)]
 pub struct Text<'a> {
     id: String,
+    widget_config: WidgetConfig,
     title: String,
     append_title: Option<String>,
     items: InnerItem<'a>,
@@ -455,22 +457,6 @@ impl WidgetTrait for Text<'_> {
         &self.id
     }
 
-    fn title(&self) -> &str {
-        &self.title
-    }
-
-    fn title_mut(&mut self) -> &mut String {
-        &mut self.title
-    }
-
-    fn append_title(&self) -> &Option<String> {
-        &self.append_title
-    }
-
-    fn append_title_mut(&mut self) -> &mut Option<String> {
-        &mut self.append_title
-    }
-
     fn focusable(&self) -> bool {
         true
     }
@@ -532,10 +518,6 @@ impl WidgetTrait for Text<'_> {
         self.update_rows_size();
 
         self.update_select(is_bottom);
-    }
-
-    fn update_append_title(&mut self, append: impl Into<String>) {
-        self.append_title = Some(append.into());
     }
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
@@ -726,6 +708,16 @@ impl WidgetTrait for Text<'_> {
         self.row_size = 0;
         self.items.update_max_width(self.wrap_width());
         self.append_title = None;
+
+        *(self.widget_config.append_title_mut()) = None;
+    }
+
+    fn widget_config(&self) -> &WidgetConfig {
+        &self.widget_config
+    }
+
+    fn widget_config_mut(&mut self) -> &mut WidgetConfig {
+        &mut self.widget_config
     }
 }
 
@@ -854,11 +846,13 @@ impl RenderTrait for Text<'_> {
     {
         let (start, end) = self.view_range();
 
-        let title = render_title(&self.title, &self.append_title);
+        let block = self
+            .widget_config
+            .render_block(self.focusable() && selected);
 
         let mut widget = Paragraph::new(self.items.spans()[start..end].to_vec())
             .style(Style::default())
-            .block(focus_block(&title, selected));
+            .block(block);
 
         if !self.wrap {
             widget = widget.scroll((0, self.state.selected_horizontal() as u16));

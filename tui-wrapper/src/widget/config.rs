@@ -191,6 +191,12 @@ impl From<String> for Title {
     }
 }
 
+impl From<&String> for Title {
+    fn from(title: &String) -> Self {
+        Self::Raw(title.to_string())
+    }
+}
+
 impl From<Span<'static>> for Title {
     fn from(title: Span<'static>) -> Self {
         Self::Spans(title.into())
