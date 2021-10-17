@@ -205,7 +205,7 @@ impl From<Span<'static>> for Title {
 
 impl From<Spans<'static>> for Title {
     fn from(title: Spans<'static>) -> Self {
-        Self::Spans(title.into())
+        Self::Spans(title)
     }
 }
 

@@ -182,7 +182,7 @@ async fn kube_worker_builder(
 
         let client = Client::try_from(config)?;
 
-        let server_url = cluster_server_url(&kubeconfig, named_context)?;
+        let server_url = cluster_server_url(kubeconfig, named_context)?;
 
         let kube_client = KubeClient::new(client, server_url);
 
@@ -200,7 +200,7 @@ async fn kube_worker_builder(
             .find(|n| n.name == current_context)
             .ok_or_else(|| Error::Raw("Cannot get contexts".into()))?;
 
-        let server_url = cluster_server_url(&kubeconfig, named_context)?;
+        let server_url = cluster_server_url(kubeconfig, named_context)?;
 
         let client = Client::try_default().await?;
 
