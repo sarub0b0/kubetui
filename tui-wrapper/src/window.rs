@@ -84,7 +84,12 @@ impl<'a> Window<'a> {
         });
 
         self.popups.iter_mut().for_each(|w| {
-            w.update_chunk(util::default_focus_block().inner(child_window_chunk(80, 80, chunk)))
+            let chunk = w
+                .widget_config()
+                .block()
+                .inner(child_window_chunk(80, 80, chunk));
+
+            w.update_chunk(chunk)
         })
     }
 

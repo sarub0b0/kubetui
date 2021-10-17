@@ -9,7 +9,7 @@ use crate::{
         widgets::{Block, Paragraph},
         Frame,
     },
-    util::{contains, default_focus_block, key_event_to_code, mouse_pos},
+    util::{contains, key_event_to_code, mouse_pos},
     widget::*,
     Window,
 };
@@ -514,6 +514,7 @@ pub struct MultipleSelect<'a> {
     selected_widget: SelectForm<'a>,
     layout: Layout,
     chunk: Rect,
+    inner_chunks: Vec<Rect>,
 }
 
 impl RenderTrait for MultipleSelect<'_> {
@@ -626,7 +627,7 @@ impl WidgetTrait for MultipleSelect<'_> {
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         let pos = (ev.column, ev.row);
 
-        let chunks = self.layout.split(default_focus_block().inner(self.chunk));
+        let chunks = &self.inner_chunks;
 
         if contains(chunks[LAYOUT_INDEX_FOR_INPUT_FORM], pos) {
             self.input_widget.on_mouse_event(ev)
@@ -658,13 +659,13 @@ impl WidgetTrait for MultipleSelect<'_> {
     fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
 
-        let inner_chunks = self.layout.split(default_focus_block().inner(self.chunk));
+        self.inner_chunks = self.layout.split(self.widget_config.block().inner(chunk));
 
         self.input_widget
-            .update_chunk(inner_chunks[LAYOUT_INDEX_FOR_INPUT_FORM]);
+            .update_chunk(self.inner_chunks[LAYOUT_INDEX_FOR_INPUT_FORM]);
 
         self.selected_widget
-            .update_chunk(inner_chunks[LAYOUT_INDEX_FOR_SELECT_FORM]);
+            .update_chunk(self.inner_chunks[LAYOUT_INDEX_FOR_SELECT_FORM]);
     }
 
     fn clear(&mut self) {

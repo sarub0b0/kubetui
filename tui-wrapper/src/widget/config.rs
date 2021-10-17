@@ -79,7 +79,7 @@ impl WidgetConfig {
     ///
     /// Focus:     ─ + Title ───  (BOLD)
     /// Not focus: ─── Title ───  (DarkGray: title is Raw)
-    pub fn render_block(&self, focused: bool) -> Block {
+    pub fn render_block(&self, focused: bool) -> Block<'static> {
         self.render_block_(focused)
             .title(self.render_title_(focused))
     }
@@ -108,7 +108,7 @@ impl WidgetConfig {
         &mut self.append_title
     }
 
-    fn render_title_(&self, focused: bool) -> Vec<Span> {
+    fn render_title_(&self, focused: bool) -> Vec<Span<'static>> {
         let mut title = self.title.spans().0;
 
         if let Some(append) = &self.append_title {
@@ -140,7 +140,7 @@ impl WidgetConfig {
         title
     }
 
-    fn render_block_(&self, focused: bool) -> Block {
+    fn render_block_(&self, focused: bool) -> Block<'static> {
         if self.focusable {
             if focused {
                 self.block.clone().title_offset(1)

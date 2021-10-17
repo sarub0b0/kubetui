@@ -14,9 +14,7 @@ use tui::widgets::{self, Block, ListState};
 use super::{config::WidgetConfig, Item, RenderTrait, WidgetTrait};
 use crate::{
     event::{Callback, EventResult},
-    key_event_to_code,
-    util::default_focus_block,
-    Window,
+    key_event_to_code, Window,
 };
 
 use derivative::*;
@@ -303,7 +301,7 @@ impl<'a> WidgetTrait for List<'a> {
 
     fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
-        self.inner_chunk = default_focus_block().inner(chunk);
+        self.inner_chunk = self.widget_config.block().inner(chunk);
     }
 
     fn clear(&mut self) {

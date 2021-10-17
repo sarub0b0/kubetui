@@ -10,7 +10,7 @@ use tui::{
     Frame,
 };
 
-use crate::{crossterm::event::MouseEvent, event::EventResult, key_event_to_code, util, widget::*};
+use crate::{crossterm::event::MouseEvent, event::EventResult, key_event_to_code, widget::*};
 
 #[derive(Debug)]
 enum Mode {
@@ -80,17 +80,34 @@ impl Default for Cursor {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct InputForm<'a> {
     content: String,
     cursor: Cursor,
     widget: Text<'a>,
     chunk: Rect,
+    widget_config: WidgetConfig,
+}
+
+impl Default for InputForm<'_> {
+    fn default() -> Self {
+        Self {
+            content: Default::default(),
+            cursor: Default::default(),
+            widget: Default::default(),
+            chunk: Default::default(),
+            widget_config: WidgetConfig::builder()
+                .title("Filter")
+                .build(),
+        }
+    }
 }
 
 impl<'a> InputForm<'a> {
-    fn block() -> Block<'a> {
-        util::focus_block("", false).title(Span::styled("Filter", Style::reset()))
+    fn block(&self) -> Block<'static> {
+        self.widget_config
+            .render_block(false)
+            .title_offset(1)
     }
 
     pub fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
@@ -98,7 +115,7 @@ impl<'a> InputForm<'a> {
 
         let spans = Self::render_content(self.content.as_str(), &self.cursor);
 
-        let widget = Paragraph::new(spans).block(Self::block());
+        let widget = Paragraph::new(spans).block(self.block());
 
         f.render_widget(widget, self.chunk);
     }
@@ -128,7 +145,7 @@ impl<'a> InputForm<'a> {
 
     pub fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
-        self.widget.update_chunk(Self::block().inner(chunk));
+        self.widget.update_chunk(self.block().inner(chunk));
     }
 
     pub fn insert_char(&mut self, c: char) {

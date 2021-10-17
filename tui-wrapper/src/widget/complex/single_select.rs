@@ -7,7 +7,7 @@ use crate::{
         widgets::Paragraph,
         Frame,
     },
-    util::{contains, default_focus_block},
+    util::contains,
     widget::*,
 };
 
@@ -117,6 +117,7 @@ pub struct SingleSelect<'a> {
     selected_widget: SelectForm<'a>,
     layout: Layout,
     chunk: Rect,
+    inner_chunks: Vec<Rect>,
     #[derivative(Debug = "ignore")]
     callbacks: Vec<(UserEvent, InnerCallback)>,
 }
@@ -134,7 +135,7 @@ impl<'a> SingleSelect<'a> {
         let status = self.selected_widget.status();
         f.render_widget(
             Paragraph::new(format!("[{}/{}]", status.0, status.1)),
-            self.layout.split(default_focus_block().inner(self.chunk))[LAYOUT_INDEX_FOR_STATUS],
+            self.inner_chunks[LAYOUT_INDEX_FOR_STATUS],
         );
     }
 
@@ -233,7 +234,7 @@ impl WidgetTrait for SingleSelect<'_> {
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         let pos = (ev.column, ev.row);
 
-        let chunks = self.layout.split(default_focus_block().inner(self.chunk));
+        let chunks = &self.inner_chunks;
 
         if contains(chunks[LAYOUT_INDEX_FOR_INPUT_FORM], pos) {
             self.input_widget.on_mouse_event(ev)
@@ -261,13 +262,15 @@ impl WidgetTrait for SingleSelect<'_> {
     fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
 
-        let inner_chunks = self.layout.split(default_focus_block().inner(self.chunk));
+        let inner_chunk = self.widget_config.block().inner(chunk);
+
+        self.inner_chunks = self.layout.split(inner_chunk);
 
         self.input_widget
-            .update_chunk(inner_chunks[LAYOUT_INDEX_FOR_INPUT_FORM]);
+            .update_chunk(self.inner_chunks[LAYOUT_INDEX_FOR_INPUT_FORM]);
 
         self.selected_widget
-            .update_chunk(inner_chunks[LAYOUT_INDEX_FOR_SELECT_FORM]);
+            .update_chunk(self.inner_chunks[LAYOUT_INDEX_FOR_SELECT_FORM]);
     }
 
     fn clear(&mut self) {
