@@ -5,7 +5,6 @@ mod wrap;
 pub mod complex;
 pub mod config;
 pub mod list;
-pub mod stack;
 pub mod table;
 pub mod text;
 
