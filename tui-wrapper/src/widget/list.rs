@@ -305,8 +305,9 @@ impl<'a> WidgetTrait for List<'a> {
     }
 
     fn clear(&mut self) {
+        self.items = Default::default();
+        self.state = Default::default();
         *(self.widget_config.append_title_mut()) = None;
-        unimplemented!()
     }
 
     fn widget_config(&self) -> &WidgetConfig {
