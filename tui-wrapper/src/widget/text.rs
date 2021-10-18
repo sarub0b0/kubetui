@@ -312,8 +312,6 @@ use inner_item::InnerItem;
 pub struct Text<'a> {
     id: String,
     widget_config: WidgetConfig,
-    title: String,
-    append_title: Option<String>,
     items: InnerItem<'a>,
     chunk_index: usize,
     state: TextState,
@@ -705,7 +703,6 @@ impl WidgetTrait for Text<'_> {
         self.state = TextState::default();
         self.row_size = 0;
         self.items.update_max_width(self.wrap_width());
-        self.append_title = None;
 
         *(self.widget_config.append_title_mut()) = None;
     }
