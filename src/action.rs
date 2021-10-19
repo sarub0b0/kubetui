@@ -189,10 +189,6 @@ pub fn update_contents(
             namespace.selected = selected;
         }
 
-        Kube::GetContextsResponse(ctxs) => {
-            update_widget_item_for_vec(window, view_id::subwin_ctx, ctxs);
-        }
-
         Kube::YamlAPIsResponse(apis) => {
             update_widget_item_for_vec(window, view_id::subwin_yaml_kind, apis);
         }
