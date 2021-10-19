@@ -169,16 +169,11 @@ impl WidgetTrait for Stack<'_> {
     }
 
     fn update_chunk(&mut self, chunk: Rect) {
-        // for w in self.widgets.iter_mut() {
-        //     w.update_chunk(chunk);
-        // }
-
-        // let center_index = if self.widgets.len() % 2 == 0 {
-        //     (self.widgets.len() / 2).saturating_sub(1)
-        // } else {
-        //     self.widgets.len() / 2
-        // };
-        let center_index = self.widgets.len() / 2;
+        let center_index = if self.widgets.len() % 2 == 0 {
+            (self.widgets.len() / 2).saturating_sub(1)
+        } else {
+            self.widgets.len() / 2
+        };
 
         for (i, w) in self.widgets.iter_mut().enumerate() {
             let delta = (center_index as i16 - i as i16).unsigned_abs();
@@ -290,12 +285,12 @@ mod tests {
 
             w.update_chunk(base_chunk);
 
-            assert_eq!(Rect::new(54, 48, 50, 50), w.widgets[5].chunk());
-            assert_eq!(Rect::new(52, 49, 50, 50), w.widgets[4].chunk());
-            assert_eq!(Rect::new(50, 50, 50, 50), w.widgets[3].chunk()); // center
-            assert_eq!(Rect::new(48, 51, 50, 50), w.widgets[2].chunk());
-            assert_eq!(Rect::new(46, 52, 50, 50), w.widgets[1].chunk());
-            assert_eq!(Rect::new(44, 53, 50, 50), w.widgets[0].chunk());
+            assert_eq!(Rect::new(56, 47, 50, 50), w.widgets[5].chunk());
+            assert_eq!(Rect::new(54, 48, 50, 50), w.widgets[4].chunk());
+            assert_eq!(Rect::new(52, 49, 50, 50), w.widgets[3].chunk());
+            assert_eq!(Rect::new(50, 50, 50, 50), w.widgets[2].chunk()); // center
+            assert_eq!(Rect::new(48, 51, 50, 50), w.widgets[1].chunk());
+            assert_eq!(Rect::new(46, 52, 50, 50), w.widgets[0].chunk());
         }
 
         #[test]
@@ -339,6 +334,22 @@ mod tests {
         };
         use tui::{backend::TestBackend, buffer::Buffer, layout::Rect, Terminal};
 
+        fn setup_list_widgets(n: usize) -> Vec<Widget<'static>> {
+            (0..n)
+                .map(|i| {
+                    List::builder()
+                        .widget_config(
+                            &WidgetConfig::builder()
+                                .title(format!("List-{}", i))
+                                .disable_focus()
+                                .build(),
+                        )
+                        .build()
+                        .into()
+                })
+                .collect()
+        }
+
         #[test]
         fn chunk_position_odd_widgets() {
             let backend = TestBackend::new(46, 20);
@@ -348,63 +359,7 @@ mod tests {
 
             let base_chunk = child_window_chunk(50, 50, terminal_chunk);
 
-            let mut w = Stack::builder()
-                .widget(
-                    List::builder()
-                        .widget_config(
-                            &WidgetConfig::builder()
-                                .title("List-0")
-                                .disable_focus()
-                                .build(),
-                        )
-                        .build()
-                        .into(),
-                )
-                .widget(
-                    List::builder()
-                        .widget_config(
-                            &WidgetConfig::builder()
-                                .title("List-1")
-                                .disable_focus()
-                                .build(),
-                        )
-                        .build()
-                        .into(),
-                )
-                .widget(
-                    List::builder()
-                        .widget_config(
-                            &WidgetConfig::builder()
-                                .title("List-2")
-                                .disable_focus()
-                                .build(),
-                        )
-                        .build()
-                        .into(),
-                )
-                .widget(
-                    List::builder()
-                        .widget_config(
-                            &WidgetConfig::builder()
-                                .title("List-3")
-                                .disable_focus()
-                                .build(),
-                        )
-                        .build()
-                        .into(),
-                )
-                .widget(
-                    List::builder()
-                        .widget_config(
-                            &WidgetConfig::builder()
-                                .title("List-4")
-                                .disable_focus()
-                                .build(),
-                        )
-                        .build()
-                        .into(),
-                )
-                .build();
+            let mut w = Stack::builder().widgets(setup_list_widgets(5)).build();
 
             w.update_chunk(base_chunk);
 
@@ -440,27 +395,48 @@ mod tests {
             terminal.backend().assert_buffer(&expected)
         }
 
-        // #[test]
-        // fn sample() {
-        //     let backend = TestBackend::new(30, 10);
-        //     let mut terminal = Terminal::new(backend).unwrap();
+        #[test]
+        fn chunk_position_even_widgets() {
+            let backend = TestBackend::new(46, 20);
+            let mut terminal = Terminal::new(backend).unwrap();
 
-        //     terminal.draw(|f| {}).unwrap();
+            let terminal_chunk = Rect::new(0, 0, 46, 20);
 
-        //     let expected = Buffer::with_lines::<&'static str>(vec![
-        //         "                    ",
-        //         "                    ",
-        //         "                    ",
-        //         "                    ",
-        //         "                    ",
-        //         "                    ",
-        //         "                    ",
-        //         "                    ",
-        //         "                    ",
-        //         "                    ",
-        //     ]);
+            let base_chunk = child_window_chunk(50, 50, terminal_chunk);
 
-        //     terminal.backend().assert_buffer(&expected)
-        // }
+            let mut w = Stack::builder().widgets(setup_list_widgets(4)).build();
+            w.update_chunk(base_chunk);
+
+            terminal
+                .draw(|f| {
+                    w.render(f, true);
+                })
+                .unwrap();
+
+            let expected = Buffer::with_lines::<&'static str>(vec![
+                "                                              ",
+                "                                              ",
+                "                                              ",
+                "               ┌─── List-3 ──────────┐        ",
+                "             ┌─── List-2 ──────────┐ │        ",
+                "           ┌─── List-1 ──────────┐ │ │        ",
+                "         ┌─── List-0 ──────────┐ │ │ │        ",
+                "         │                     │ │ │ │        ",
+                "         │                     │ │ │ │        ",
+                "         │                     │ │ │ │        ",
+                "         │                     │ │ │ │        ",
+                "         │                     │ │ │ │        ",
+                "         │                     │ │ │─┘        ",
+                "         │                     │ │─┘          ",
+                "         │                     │─┘            ",
+                "         └─────────────────────┘              ",
+                "                                              ",
+                "                                              ",
+                "                                              ",
+                "                                              ",
+            ]);
+
+            terminal.backend().assert_buffer(&expected)
+        }
     }
 }
