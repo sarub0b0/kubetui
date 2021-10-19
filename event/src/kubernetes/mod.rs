@@ -125,7 +125,7 @@ pub enum Kube {
     YamlAPIsResponse(Result<Vec<String>>), // kind, name
     YamlResourceRequest(String),
     YamlResourceResponse(Result<Vec<String>>), // kind, name
-    YamlRawRequest(String),                    // kind, name
+    YamlRawRequest(String, String),            // kind, name
     YamlRawResponse(Result<Vec<String>>),      // yaml
 }
 
@@ -521,14 +521,10 @@ impl Worker for MainWorker {
                         }
 
                         Kube::YamlAPIsRequest => {
-                            tx.send(Event::Kube(Kube::YamlAPIsResponse(Ok(vec![
-                                "a".to_string(),
-                                "b".to_string(),
-                                "c".to_string(),
-                                "d".to_string(),
-                                "e".to_string(),
-                            ]))))?
+                            let apis = apis_list(kube_client.clone()).await;
+                            tx.send(Event::Kube(Kube::YamlAPIsResponse(apis)))?
                         }
+
                         Kube::YamlResourceRequest(req) => {
                             tx.send(Event::Kube(Kube::YamlResourceResponse(Ok(vec![
                                 "a".to_string(),
@@ -539,14 +535,10 @@ impl Worker for MainWorker {
                                 req,
                             ]))))?
                         }
-                        Kube::YamlRawRequest(req) => {
+                        Kube::YamlRawRequest(kind, name) => {
                             tx.send(Event::Kube(Kube::YamlRawResponse(Ok(vec![
-                                "a".to_string(),
-                                "b".to_string(),
-                                "c".to_string(),
-                                "d".to_string(),
-                                "e".to_string(),
-                                req,
+                                kind.to_string(),
+                                name.to_string(),
                             ]))))?
                         }
                         _ => unreachable!(),

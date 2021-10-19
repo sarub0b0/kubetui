@@ -328,8 +328,9 @@ fn init_yaml() -> Text<'static> {
         .build()
 }
 
+type YamlState = Rc<RefCell<(String, String)>>;
 #[inline]
-fn init_subwin_yaml_kind(tx: Sender<Event>) -> SingleSelect<'static> {
+fn init_subwin_yaml_kind(tx: Sender<Event>, state: YamlState) -> SingleSelect<'static> {
     SingleSelect::builder()
         .id(view_id::subwin_yaml_kind)
         .widget_config(&WidgetConfig::builder().title("Kind").build())
@@ -338,6 +339,9 @@ fn init_subwin_yaml_kind(tx: Sender<Event>) -> SingleSelect<'static> {
             ::log::info!("[subwin_yaml_kind] Select Item: {}", v);
 
             w.close_popup();
+
+            let mut state = state.borrow_mut();
+            state.0 = v.to_string();
 
             tx.send(Event::Kube(Kube::YamlResourceRequest(v.to_string())))
                 .unwrap();
@@ -350,7 +354,7 @@ fn init_subwin_yaml_kind(tx: Sender<Event>) -> SingleSelect<'static> {
 }
 
 #[inline]
-fn init_subwin_yaml_name(tx: Sender<Event>) -> SingleSelect<'static> {
+fn init_subwin_yaml_name(tx: Sender<Event>, state: YamlState) -> SingleSelect<'static> {
     SingleSelect::builder()
         .id(view_id::subwin_yaml_name)
         .widget_config(&WidgetConfig::builder().title("Name").build())
@@ -360,8 +364,14 @@ fn init_subwin_yaml_name(tx: Sender<Event>) -> SingleSelect<'static> {
 
             w.close_popup();
 
-            tx.send(Event::Kube(Kube::YamlRawRequest(v.to_string())))
-                .unwrap();
+            let mut state = state.borrow_mut();
+            state.1 = v.to_string();
+
+            tx.send(Event::Kube(Kube::YamlRawRequest(
+                state.0.to_string(),
+                state.1.to_string(),
+            )))
+            .unwrap();
 
             EventResult::Nop
         })
@@ -413,17 +423,21 @@ fn init_window(
         .build();
 
     // Yaml
-    let tx_yaml = tx_main.clone();
+    let yaml_state = Rc::new(RefCell::new((String::default(), String::default())));
+    let tx_yaml = tx.clone();
+    let state = yaml_state.clone();
     let open_subwin = move |w: &mut Window| {
+        let mut state = state.borrow_mut();
+        *state = (String::default(), String::default());
+
         tx_yaml.send(Event::Kube(Kube::YamlAPIsRequest)).unwrap();
         w.open_popup(view_id::subwin_yaml_kind);
         EventResult::Nop
     };
 
     let yaml_widget = Text::builder()
-        .id(view_id::tab_yaml)
+        .id(view_id::tab_yaml_widget_yaml)
         .widget_config(&WidgetConfig::builder().title("Yaml").build())
-        .action('a', open_subwin.clone())
         .action('/', open_subwin.clone())
         .action('f', open_subwin)
         .build();
@@ -441,9 +455,10 @@ fn init_window(
     let subwin_apis = Widget::from(init_subwin_apis(tx.clone()));
 
     // [Sub Window] Yaml 1
-    let subwin_yaml_kind = Widget::from(init_subwin_yaml_kind(tx_main.clone()));
+    let subwin_yaml_kind = Widget::from(init_subwin_yaml_kind(tx.clone(), yaml_state.clone()));
+
     // [Sub Window] Yaml 2
-    let subwin_yaml_name = Widget::from(init_subwin_yaml_name(tx_main.clone()));
+    let subwin_yaml_name = Widget::from(init_subwin_yaml_name(tx.clone(), yaml_state.clone()));
 
     // Init Window
     let tabs = [
