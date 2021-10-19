@@ -261,8 +261,8 @@ mod tests {
         #[test]
         fn chunk_position_even_widgets() {
             // "        ┌─ T3 ─┐ ",
-            // "      ┌─ T2 ─┐ │ ", T2 = center
-            // "    ┌─ T1 ─┐ │ │ ",
+            // "      ┌─ T2 ─┐ │ ",
+            // "    ┌─ T1 ─┐ │ │ ", T1 = center
             // "  ┌─ T0 ─┐ │ │ │ ",
             // "  │      │ │ │ │ ",
             // "  │      │ │ │ │ ",
