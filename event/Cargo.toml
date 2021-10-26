@@ -14,8 +14,8 @@ new-log-stream = []
 
 [dependencies]
 crossterm = "0.22"
-kube = "0.61"
-kube-runtime = "0.61"
+kube = "0.63"
+kube-runtime = "0.63"
 k8s-openapi = { version = "0.13", default-features = false, features = ["v1_20"] }
 futures = "0.3"
 bytes = "1"
