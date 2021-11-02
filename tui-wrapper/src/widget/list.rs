@@ -24,6 +24,92 @@ mod inner_item {
     use super::Item;
     use tui::widgets::ListItem;
 
+    #[cfg(feature = "dynamic_item")]
+    mod item {
+        use tui::{text::Text, widgets::ListItem};
+
+        // TODO ウィジェットのアイテムをジェネリクス化する方法を検証中
+        #[derive(Debug, Default)]
+        pub struct InnerItem<'a, Item: Into<Text<'a>> + Clone> {
+            item: Vec<Item>,
+            list: Vec<ListItem<'a>>,
+        }
+
+        impl<'a, Item> InnerItem<'a, Item>
+        where
+            Item: Into<Text<'a>> + Clone,
+        {
+            pub fn new(item: Vec<Item>) -> Self {
+                Self {
+                    item: item.to_vec(),
+                    list: item.clone().into_iter().map(ListItem::new).collect(),
+                }
+            }
+
+            pub fn items(&self) -> &Vec<Item> {
+                &self.item
+            }
+
+            pub fn as_items(&self) -> &[Item] {
+                &self.item
+            }
+
+            #[allow(dead_code)]
+            pub fn list_item(&self) -> &Vec<ListItem> {
+                &self.list
+            }
+
+            pub fn as_widget_items(&self) -> &[ListItem<'a>] {
+                &self.list
+            }
+
+            pub fn update_item(&mut self, item: &[Item]) {
+                self.item = item.to_vec();
+
+                self.list = self.item.clone().into_iter().map(ListItem::new).collect();
+            }
+
+            pub fn len(&self) -> usize {
+                self.item.len()
+            }
+
+            pub fn is_empty(&self) -> bool {
+                self.item.is_empty()
+            }
+        }
+
+        #[cfg(test)]
+        mod tests {
+            use tui::text::Spans;
+
+            use super::*;
+
+            #[test]
+            fn initialize() {
+                #[derive(Clone, Default)]
+                struct Item(&'static str, &'static str);
+
+                impl<'a> Into<Text<'a>> for Item {
+                    fn into(self) -> Text<'a> {
+                        let text = format!("{} {}", self.0, self.1);
+                        Text::from(text)
+                    }
+                }
+
+                let item = vec![
+                    Item("hoge", "hoge"),
+                    Item("hoge", "hoge"),
+                    Item("hoge", "hoge"),
+                    Item("hoge", "hoge"),
+                ];
+
+                let inner = InnerItem::new(item);
+
+                assert_eq!(4, inner.len());
+            }
+        }
+    }
+
     #[derive(Debug, Default)]
     pub struct InnerItem<'a> {
         items: Vec<String>,
