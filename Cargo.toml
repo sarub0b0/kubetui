@@ -2,7 +2,7 @@
 name = "kubetui"
 version = "0.5.1"
 authors = ["kosay <ekr59uv25@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [workspace]
 members = [ "tui-wrapper", "event", "ansi", "clipboard-wrapper" , "workspace-hack" ]
