@@ -189,6 +189,16 @@ pub fn update_contents(
             namespace.selected = selected;
         }
 
+        Kube::RestoreAPIs(apis) => {
+            let w = window
+                .find_widget_mut(view_id::subwin_apis)
+                .as_mut_multiple_select();
+
+            for api in apis {
+                w.select_item(&api);
+            }
+        }
+
         Kube::YamlAPIsResponse(apis) => {
             update_widget_item_for_vec(window, view_id::subwin_yaml_kind, apis);
         }

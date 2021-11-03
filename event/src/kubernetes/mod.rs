@@ -102,6 +102,7 @@ pub enum Kube {
     GetAPIsResponse(Result<Vec<String>>),
     SetAPIsRequest(Vec<String>),
     APIsResults(Result<Vec<String>>),
+    RestoreAPIs(Vec<String>),
     // Context
     GetContextsRequest,
     GetContextsResponse(Result<Vec<String>>),
@@ -273,6 +274,8 @@ fn restore_state(
             default_namespace.to_string(),
             namespaces.to_owned(),
         )))?;
+
+        tx.send(Event::Kube(Kube::RestoreAPIs(api_resources.to_vec())))?;
 
         (
             default_namespace.to_string(),
