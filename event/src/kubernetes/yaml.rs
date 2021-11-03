@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use futures::future::try_join_all;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ListMeta, ObjectMeta};
 use serde::Deserialize;
 
@@ -47,6 +48,16 @@ fn join_namespace_and_name(data: &HashMap<String, Vec<String>>) -> Vec<String> {
     list
 }
 
+async fn fetch_resource_list_single_namespace_for_multiple_namespaces(
+    client: &KubeClient,
+    ns: &str,
+    api: &APIInfo,
+    request: &str,
+) -> Result<(String, Vec<String>)> {
+    let item = fetch_resource_list_single_namespace(client, ns, api, request).await?;
+    Ok((ns.to_string(), item))
+}
+
 async fn fetch_resource_list_multiple_namespaces(
     client: &KubeClient,
     namespaces: &[String],
@@ -55,10 +66,13 @@ async fn fetch_resource_list_multiple_namespaces(
 ) -> Result<Vec<String>> {
     let mut data = HashMap::new();
 
-    for ns in namespaces {
-        let item = fetch_resource_list_single_namespace(client, ns, api, request).await?;
+    let jobs = try_join_all(namespaces.iter().map(|ns| {
+        fetch_resource_list_single_namespace_for_multiple_namespaces(client, ns, api, request)
+    }))
+    .await?;
 
-        data.insert(ns.to_string(), item);
+    for (ns, item) in jobs {
+        data.insert(ns, item);
     }
 
     let result = join_namespace_and_name(&data);
