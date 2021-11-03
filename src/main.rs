@@ -463,11 +463,7 @@ fn init_window(
     let subwin_yaml_kind = Widget::from(init_subwin_yaml_kind(tx.clone(), yaml_state.clone()));
 
     // [Sub Window] Yaml 2
-    let subwin_yaml_name = Widget::from(init_subwin_yaml_name(
-        tx.clone(),
-        yaml_state.clone(),
-        namespaces,
-    ));
+    let subwin_yaml_name = Widget::from(init_subwin_yaml_name(tx.clone(), yaml_state, namespaces));
 
     // Init Window
     let tabs = [

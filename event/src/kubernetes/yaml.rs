@@ -194,7 +194,7 @@ pub async fn fetch_resource_yaml(
 }
 
 fn convert_json_to_yaml_string_vec(json: &str) -> Result<Vec<String>> {
-    let yaml_data: serde_yaml::Value = serde_json::from_str(&json)?;
+    let yaml_data: serde_yaml::Value = serde_json::from_str(json)?;
 
     let yaml_string = serde_yaml::to_string(&yaml_data)?
         .lines()
