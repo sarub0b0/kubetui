@@ -1,5 +1,6 @@
 # kubetui
 
+[![Release](https://img.shields.io/github/v/release/sarub0b0/kubetui)]()
 [![Test](https://github.com/sarub0b0/kubetui/actions/workflows/test.yml/badge.svg)](https://github.com/sarub0b0/kubetui/actions/workflows/test.yml)
 
 Kubernetes resource watching tool
