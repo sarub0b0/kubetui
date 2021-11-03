@@ -7,9 +7,14 @@ mod metric_type;
 mod pod;
 mod v1_table;
 mod worker;
+mod yaml;
+
+use self::{
+    api_resources::{apis_list_from_api_database, ApiDatabase},
+    yaml::{fetch_resource_list, fetch_resource_yaml},
+};
 
 use super::Event;
-use api_resources::apis_list;
 use client::KubeClient;
 use config::get_config;
 use futures::future::select_all;
@@ -125,7 +130,7 @@ pub enum Kube {
     YamlAPIsResponse(Result<Vec<String>>), // kind, name
     YamlResourceRequest(String),
     YamlResourceResponse(Result<Vec<String>>), // kind, name
-    YamlRawRequest(String, String),            // kind, name
+    YamlRawRequest(String, String, String),    // kind, name, namespace
     YamlRawResponse(Result<Vec<String>>),      // yaml
 }
 
@@ -311,6 +316,7 @@ async fn inner_kube_process(
 
         let shared_namespaces = Arc::new(RwLock::new(namespaces.clone()));
         let shared_api_resources = Arc::new(RwLock::new(api_resources.clone()));
+        let shared_api_database = Arc::new(RwLock::new(HashMap::new()));
 
         let poll_worker = PollWorker {
             namespaces: shared_namespaces.clone(),
@@ -321,17 +327,22 @@ async fn inner_kube_process(
 
         let main_handler = MainWorker {
             inner: poll_worker.clone(),
-            api_resources: shared_api_resources.clone(),
             rx: rx.clone(),
             contexts: kubeconfig.contexts.clone(),
+            api_resources: shared_api_resources.clone(),
+            api_database: shared_api_database.clone(),
         }
         .spawn();
 
         let pod_handler = PodPollWorker::new(poll_worker.clone()).spawn();
         let config_handler = ConfigsPollWorker::new(poll_worker.clone()).spawn();
         let event_handler = EventPollWorker::new(poll_worker.clone()).spawn();
-        let apis_handler =
-            ApiPollWorker::new(poll_worker.clone(), shared_api_resources.clone()).spawn();
+        let apis_handler = ApiPollWorker::new(
+            poll_worker.clone(),
+            shared_api_resources.clone(),
+            shared_api_database,
+        )
+        .spawn();
 
         let mut handlers = vec![
             main_handler,
@@ -420,9 +431,10 @@ async fn namespace_list(client: KubeClient) -> Vec<String> {
 #[derive(Clone)]
 struct MainWorker {
     inner: PollWorker,
-    api_resources: ApiResources,
     rx: Receiver<Event>,
     contexts: Vec<NamedContext>,
+    api_resources: ApiResources,
+    api_database: ApiDatabase,
 }
 
 #[derive(Clone)]
@@ -441,9 +453,10 @@ impl Worker for MainWorker {
 
         let MainWorker {
             inner: poll_worker,
-            api_resources,
             rx,
             contexts,
+            api_resources,
+            api_database,
         } = self;
 
         let PollWorker {
@@ -499,9 +512,9 @@ impl Worker for MainWorker {
                         }
 
                         Kube::GetAPIsRequest => {
-                            let apis = apis_list(kube_client.clone()).await;
-
-                            tx.send(Event::Kube(Kube::GetAPIsResponse(apis)))?;
+                            let db = api_database.read().await;
+                            let apis = apis_list_from_api_database(&db);
+                            tx.send(Event::Kube(Kube::GetAPIsResponse(Ok(apis))))?;
                         }
 
                         Kube::SetAPIsRequest(apis) => {
@@ -521,25 +534,25 @@ impl Worker for MainWorker {
                         }
 
                         Kube::YamlAPIsRequest => {
-                            let apis = apis_list(kube_client.clone()).await;
-                            tx.send(Event::Kube(Kube::YamlAPIsResponse(apis)))?
+                            let db = api_database.read().await;
+                            let apis = apis_list_from_api_database(&db);
+
+                            tx.send(Event::Kube(Kube::YamlAPIsResponse(Ok(apis))))?
                         }
 
                         Kube::YamlResourceRequest(req) => {
-                            tx.send(Event::Kube(Kube::YamlResourceResponse(Ok(vec![
-                                "a".to_string(),
-                                "b".to_string(),
-                                "c".to_string(),
-                                "d".to_string(),
-                                "e".to_string(),
-                                req,
-                            ]))))?
+                            let db = api_database.read().await;
+                            let ns = namespaces.read().await;
+
+                            let list = fetch_resource_list(kube_client, &ns, &db, &req).await;
+
+                            tx.send(Event::Kube(Kube::YamlResourceResponse(list)))?
                         }
-                        Kube::YamlRawRequest(kind, name) => {
-                            tx.send(Event::Kube(Kube::YamlRawResponse(Ok(vec![
-                                kind.to_string(),
-                                name.to_string(),
-                            ]))))?
+                        Kube::YamlRawRequest(kind, name, ns) => {
+                            let db = api_database.read().await;
+                            let yaml = fetch_resource_yaml(kube_client, &db, kind, name, ns).await;
+
+                            tx.send(Event::Kube(Kube::YamlRawResponse(yaml)))?
                         }
                         _ => unreachable!(),
                     },

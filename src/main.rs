@@ -354,7 +354,11 @@ fn init_subwin_yaml_kind(tx: Sender<Event>, state: YamlState) -> SingleSelect<'s
 }
 
 #[inline]
-fn init_subwin_yaml_name(tx: Sender<Event>, state: YamlState) -> SingleSelect<'static> {
+fn init_subwin_yaml_name(
+    tx: Sender<Event>,
+    state: YamlState,
+    namespace: Rc<RefCell<Namespace>>,
+) -> SingleSelect<'static> {
     SingleSelect::builder()
         .id(view_id::subwin_yaml_name)
         .widget_config(&WidgetConfig::builder().title("Name").build())
@@ -367,9 +371,12 @@ fn init_subwin_yaml_name(tx: Sender<Event>, state: YamlState) -> SingleSelect<'s
             let mut state = state.borrow_mut();
             state.1 = v.to_string();
 
+            let ns = &namespace.borrow().selected;
+
             tx.send(Event::Kube(Kube::YamlRawRequest(
                 state.0.to_string(),
                 state.1.to_string(),
+                ns[0].to_string(),
             )))
             .unwrap();
 
@@ -449,7 +456,7 @@ fn init_window(
     let subwin_single_ns = Widget::from(init_subwin_single_ns(tx.clone(), namespaces.clone()));
 
     // [Sub Window] Namespace (Multiple Select)
-    let subwin_multi_ns = Widget::from(init_subwin_multiple_ns(tx.clone(), namespaces));
+    let subwin_multi_ns = Widget::from(init_subwin_multiple_ns(tx.clone(), namespaces.clone()));
 
     // [Sub Window] Api
     let subwin_apis = Widget::from(init_subwin_apis(tx.clone()));
@@ -458,7 +465,11 @@ fn init_window(
     let subwin_yaml_kind = Widget::from(init_subwin_yaml_kind(tx.clone(), yaml_state.clone()));
 
     // [Sub Window] Yaml 2
-    let subwin_yaml_name = Widget::from(init_subwin_yaml_name(tx.clone(), yaml_state.clone()));
+    let subwin_yaml_name = Widget::from(init_subwin_yaml_name(
+        tx.clone(),
+        yaml_state.clone(),
+        namespaces,
+    ));
 
     // Init Window
     let tabs = [

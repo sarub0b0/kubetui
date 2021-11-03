@@ -13,26 +13,31 @@ use k8s_openapi::apimachinery::pkg::apis::meta::v1::{
 };
 use k8s_openapi::Resource;
 
-use std::time;
-use tokio::time::Instant;
+use std::{sync::Arc, time};
+use tokio::{sync::RwLock, time::Instant};
 
 use futures::future::try_join_all;
 use serde_json::Value as JsonValue;
 
 use async_trait::async_trait;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+
+pub type ApiDatabase = Arc<RwLock<InnerApiDatabase>>;
+pub type InnerApiDatabase = HashMap<String, APIInfo>;
 
 #[derive(Clone)]
 pub struct ApiPollWorker {
     inner: PollWorker,
     api_resources: ApiResources,
+    api_database: ApiDatabase,
 }
 
 impl ApiPollWorker {
-    pub fn new(inner: PollWorker, api_resources: ApiResources) -> Self {
+    pub fn new(inner: PollWorker, api_resources: ApiResources, api_database: ApiDatabase) -> Self {
         Self {
             inner,
             api_resources,
+            api_database,
         }
     }
 }
@@ -51,13 +56,16 @@ impl Worker for ApiPollWorker {
                     kube_client,
                 },
             api_resources,
+            api_database,
         } = self;
 
+        {
+            let mut db = api_database.write().await;
+
+            *db = fetch_api_database(kube_client).await?;
+        }
+
         let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
-
-        let api_info_list = get_all_api_info(kube_client).await?;
-
-        let mut db = convert_api_database(&api_info_list);
 
         let mut last_tick = Instant::now();
         let tick_rate = time::Duration::from_secs(10);
@@ -74,11 +82,12 @@ impl Worker for ApiPollWorker {
             if tick_rate < last_tick.elapsed() {
                 last_tick = Instant::now();
 
-                let api_info_list = get_all_api_info(kube_client).await?;
+                let mut db = api_database.write().await;
 
-                db = convert_api_database(&api_info_list);
+                *db = fetch_api_database(kube_client).await?;
             }
 
+            let db = api_database.read().await;
             let result = get_api_resources(kube_client, &namespaces, &apis, &db).await;
 
             tx.send(Event::Kube(Kube::APIsResults(result))).unwrap();
@@ -89,16 +98,16 @@ impl Worker for ApiPollWorker {
 }
 
 #[derive(Debug, Clone)]
-struct APIInfo {
-    api_version: String,
-    api_group: String,
-    api_group_version: String,
-    api_resource: APIResource,
-    preferred_version: Option<bool>,
+pub struct APIInfo {
+    pub api_version: String,
+    pub api_group: String,
+    pub api_group_version: String,
+    pub api_resource: APIResource,
+    pub preferred_version: Option<bool>,
 }
 
 impl APIInfo {
-    fn api_url(&self) -> String {
+    pub fn api_url(&self) -> String {
         if self.api_group.is_empty() {
             format!("api/{}", self.api_group_version)
         } else {
@@ -129,26 +138,6 @@ fn is_preferred_version(
     preferred_version: &Option<GroupVersionForDiscovery>,
 ) -> Option<bool> {
     preferred_version.as_ref().map(|gv| gv.version == version)
-}
-
-pub async fn apis_list(client: KubeClient) -> Result<Vec<String>> {
-    let api_info_list = get_all_api_info(&client).await?;
-
-    let set: HashSet<String> = api_info_list
-        .iter()
-        .map(|api_info| {
-            if api_info.api_group.is_empty() {
-                api_info.api_resource.name.to_string()
-            } else {
-                format!("{}.{}", api_info.api_resource.name, api_info.api_group)
-            }
-        })
-        .collect();
-
-    let mut ret: Vec<String> = set.into_iter().collect();
-    ret.sort();
-
-    Ok(ret)
 }
 
 async fn get_all_api_info(client: &KubeClient) -> Result<Vec<APIInfo>> {
@@ -216,7 +205,20 @@ async fn api_resource_list_to_api_info_list(
         .collect())
 }
 
-fn convert_api_database(api_info_list: &[APIInfo]) -> HashMap<String, APIInfo> {
+pub async fn fetch_api_database(client: &KubeClient) -> Result<InnerApiDatabase> {
+    let api_info_list = get_all_api_info(client).await?;
+    Ok(convert_api_database(&api_info_list))
+}
+
+pub fn apis_list_from_api_database(db: &InnerApiDatabase) -> Vec<String> {
+    let mut ret: Vec<String> = db.iter().map(|(k, _)| k.to_string()).collect();
+
+    ret.sort();
+
+    ret
+}
+
+fn convert_api_database(api_info_list: &[APIInfo]) -> InnerApiDatabase {
     let mut db: HashMap<String, APIInfo> = HashMap::new();
 
     for info in api_info_list {
@@ -359,7 +361,7 @@ async fn get_api_resources(
     client: &KubeClient,
     namespaces: &[String],
     apis: &[String],
-    db: &HashMap<String, APIInfo>,
+    db: &InnerApiDatabase,
 ) -> Result<Vec<String>> {
     let mut ret = Vec::new();
 
