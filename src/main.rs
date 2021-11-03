@@ -320,14 +320,6 @@ fn init_subwin_apis(tx: Sender<Event>) -> MultipleSelect<'static> {
         .build()
 }
 
-#[inline]
-fn init_yaml() -> Text<'static> {
-    Text::builder()
-        .id(view_id::tab_yaml)
-        .widget_config(&WidgetConfig::builder().title("Yaml").build())
-        .build()
-}
-
 type YamlState = Rc<RefCell<(String, String)>>;
 #[inline]
 fn init_subwin_yaml_kind(tx: Sender<Event>, state: YamlState) -> SingleSelect<'static> {
@@ -368,17 +360,22 @@ fn init_subwin_yaml_name(
 
             w.close_popup();
 
-            let mut state = state.borrow_mut();
-            state.1 = v.to_string();
-
             let ns = &namespace.borrow().selected;
 
-            tx.send(Event::Kube(Kube::YamlRawRequest(
-                state.0.to_string(),
-                state.1.to_string(),
-                ns[0].to_string(),
-            )))
-            .unwrap();
+            let value: Vec<&str> = v.split_whitespace().collect();
+
+            let (name, ns) = if value.len() == 1 {
+                (value[0].to_string(), ns[0].to_string())
+            } else {
+                (value[1].to_string(), value[0].to_string())
+            };
+
+            let state = state.borrow();
+
+            let kind = state.0.to_string();
+
+            tx.send(Event::Kube(Kube::YamlRawRequest(kind, name, ns)))
+                .unwrap();
 
             EventResult::Nop
         })
@@ -447,6 +444,7 @@ fn init_window(
         .widget_config(&WidgetConfig::builder().title("Yaml").build())
         .action('/', open_subwin.clone())
         .action('f', open_subwin)
+        .wrap()
         .build();
 
     // [Sub Window] Context
