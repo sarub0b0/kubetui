@@ -188,10 +188,17 @@ pub async fn fetch_resource_yaml(
     ::log::debug!("Fetch Resource yaml {}", res);
 
     // yaml dataに変換
-    let yaml_data: serde_yaml::Value = serde_json::from_str(&res)?;
+    let yaml = convert_json_to_yaml_string_vec(&res)?;
 
-    let yaml_string: Vec<String> = serde_yaml::to_string(&yaml_data)?
+    Ok(yaml)
+}
+
+fn convert_json_to_yaml_string_vec(json: &str) -> Result<Vec<String>> {
+    let yaml_data: serde_yaml::Value = serde_json::from_str(&json)?;
+
+    let yaml_string = serde_yaml::to_string(&yaml_data)?
         .lines()
+        .skip(1)
         .map(ToString::to_string)
         .collect();
 
@@ -248,6 +255,32 @@ mod tests {
                 "ns-000  item-2".to_string(),
             ],
             actual
+        )
+    }
+
+    #[test]
+    fn json文字列からyaml文字列に変換() {
+        let json = r#"
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "name": "nginx-deployment",
+                "namespace": "default"
+            }
+        }"#;
+
+        let yaml = convert_json_to_yaml_string_vec(json).unwrap();
+
+        assert_eq!(
+            vec![
+                "apiVersion: v1".to_string(),
+                "kind: Pod".to_string(),
+                "metadata:".to_string(),
+                "  name: nginx-deployment".to_string(),
+                "  namespace: default".to_string(),
+            ],
+            yaml
         )
     }
 }
