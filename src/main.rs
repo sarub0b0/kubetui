@@ -502,6 +502,7 @@ fn init_window(
         (view_id::tab_configs, view_id::tab_configs_widget_raw_data),
         (view_id::tab_event, view_id::tab_event_widget_event),
         (view_id::tab_apis, view_id::tab_apis_widget_apis),
+        (view_id::tab_yaml, view_id::tab_yaml_widget_yaml),
     ]);
 
     // Configure Action
