@@ -79,4 +79,21 @@ impl KubeClient {
 
         ret.map_err(|e| anyhow!(Error::Kube(e)))
     }
+
+    pub async fn request_text(&self, path: &str) -> Result<String> {
+        let request = Request::new(&self.server_url);
+
+        let mut request = request.get(path)?;
+
+        request
+            .headers_mut()
+            .insert(ACCEPT, HeaderValue::from_str("application/json")?);
+
+        #[cfg(feature = "logging")]
+        ::log::debug!("HTTP request {:?}", request);
+
+        let ret = self.client.request_text(request).await;
+
+        ret.map_err(|e| anyhow!(Error::Kube(e)))
+    }
 }
