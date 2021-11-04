@@ -18,15 +18,14 @@ spec:
             - sh
             - -c
           args:
-            - "sleep 10 && echo hoge && exit 0"
+            - "for i in `seq 0 10`; do echo $i; sleep 2; done && exit 0"
         - name: init-1
           image: alpine
           command:
             - sh
             - -c
           args:
-            - "sleep 10 && echo hoge && exit 0"
-
+            - "for i in `seq 0 10`; do echo $i; sleep 2; done && exit 0"
       containers:
         - name: app
           image: alpine
@@ -34,4 +33,4 @@ spec:
             - sh
             - -c
           args:
-            - "sleep 10 && echo hoge && exit 0"
+            - "while true; do date; sleep 1; done && exit 0"
