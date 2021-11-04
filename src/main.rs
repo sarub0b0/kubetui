@@ -98,7 +98,7 @@ fn init_pod(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'stat
 fn init_log(clipboard: Option<Rc<RefCell<ClipboardContextWrapper>>>) -> Text<'static> {
     let logs_builder = Text::builder()
         .id(view_id::tab_pods_widget_logs)
-        .widget_config(&WidgetConfig::builder().title("Pods").build())
+        .widget_config(&WidgetConfig::builder().title("Logs").build())
         .wrap()
         .follow();
 
