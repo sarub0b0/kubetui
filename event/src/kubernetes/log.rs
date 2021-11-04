@@ -37,7 +37,7 @@ fn write_error(tx: &Sender<Event>, e: Error) -> Result<()> {
     Ok(())
 }
 
-fn container_statuses(pod: &Pod) -> Result<Option<&Vec<ContainerStatus>>> {
+fn as_ref_container_statuses(pod: &Pod) -> Result<Option<&Vec<ContainerStatus>>> {
     if let Some(status) = &pod.status {
         Ok(status.container_statuses.as_ref())
     } else {
@@ -45,7 +45,7 @@ fn container_statuses(pod: &Pod) -> Result<Option<&Vec<ContainerStatus>>> {
     }
 }
 
-fn init_container_statuses(pod: &Pod) -> Result<Option<&Vec<ContainerStatus>>> {
+fn as_ref_init_container_statuses(pod: &Pod) -> Result<Option<&Vec<ContainerStatus>>> {
     if let Some(status) = &pod.status {
         Ok(status.init_container_statuses.as_ref())
     } else {
@@ -77,11 +77,17 @@ async fn wait_container_log(
     loop {
         interval.tick().await;
 
+        #[cfg(feature = "logging")]
+        ::log::debug!("log_stream: phase_container_log wait_container_log pod read await");
+
         let pod = pod.read().await;
 
+        #[cfg(feature = "logging")]
+        ::log::debug!("log_stream: phase_container_log wait_container_log pod read done");
+
         let statuses = match container_type {
-            ContainerType::InitContainer => init_container_statuses(&pod)?,
-            ContainerType::Container => container_statuses(&pod)?,
+            ContainerType::InitContainer => as_ref_init_container_statuses(&pod)?,
+            ContainerType::Container => as_ref_container_statuses(&pod)?,
         };
 
         let state = if let Some(statuses) = statuses {
@@ -95,6 +101,12 @@ async fn wait_container_log(
         } else {
             None
         };
+
+        #[cfg(feature = "logging")]
+        ::log::debug!(
+            "log_stream: phase_container_log wait_container_log {:?}",
+            state
+        );
 
         match container_state_type {
             ContainerStateType::Terminated => {
@@ -131,9 +143,7 @@ async fn wait_container_log(
                                 break;
                             }
                         }
-                    }
-
-                    if state.waiting.is_none() {
+                    } else {
                         break;
                     }
                 }
@@ -353,6 +363,9 @@ impl Worker for FetchLogStreamWorker {
 
 impl FetchLogStreamWorker {
     async fn fetch_log_stream(&self, pod: Pod) -> Result<()> {
+        #[cfg(feature = "logging")]
+        let pod_name = pod.metadata.name.clone();
+
         // watchワーカーが更新できていないことがあるため、最新のデータをここで設定する
         {
             let mut p = self.pod.write().await;
@@ -361,29 +374,37 @@ impl FetchLogStreamWorker {
 
         let mut color = Color::new();
 
+        #[cfg(feature = "logging")]
+        ::log::info!("log_stream: phase_init_container_log start {:?}", pod_name);
+
         // initContainers phase
         self.phase_init_container_log(&mut color).await?;
 
         #[cfg(feature = "logging")]
-        ::log::info!("log_stream: phase_init_container_log done");
+        ::log::info!("log_stream: phase_init_container_log done {:?}", pod_name);
 
         // containers phase
-        let pod = self.pod.read().await;
+        let enable_prefix = {
+            let pod = self.pod.read().await;
 
-        let enable_prefix = if let Some(status) = &pod.status {
-            if let Some(statuses) = &status.init_container_statuses {
-                !statuses.is_empty()
+            if let Some(status) = &pod.status {
+                if let Some(statuses) = &status.init_container_statuses {
+                    !statuses.is_empty()
+                } else {
+                    false
+                }
             } else {
                 false
             }
-        } else {
-            false
         };
+
+        #[cfg(feature = "logging")]
+        ::log::info!("log_stream: phase_container_log start {:?}", pod_name);
 
         let ret = self.phase_container_log(&mut color, enable_prefix).await?;
 
         #[cfg(feature = "logging")]
-        ::log::info!("log_stream: phase_container_log done");
+        ::log::info!("log_stream: phase_container_log done {:?}", pod_name);
 
         for r in ret {
             r?
@@ -395,7 +416,7 @@ impl FetchLogStreamWorker {
     async fn phase_init_container_log(&self, color: &mut Color) -> Result<()> {
         let pod = self.pod.read().await.clone();
 
-        if let Some(containers) = init_container_statuses(&pod)? {
+        if let Some(containers) = as_ref_init_container_statuses(&pod)? {
             let containers_len = containers.len();
 
             for (i, c) in containers.iter().enumerate() {
@@ -456,7 +477,7 @@ impl FetchLogStreamWorker {
                 // pod status取得
                 let pod = self.pod.read().await;
 
-                if let Some(statuses) = init_container_statuses(&pod)? {
+                if let Some(statuses) = as_ref_init_container_statuses(&pod)? {
                     let status = &statuses[i];
 
                     // exit_code を確認
@@ -506,9 +527,9 @@ impl FetchLogStreamWorker {
     {
         let mut container_handler = Vec::new();
 
-        let pod = self.pod.read().await;
+        let pod = self.pod.read().await.clone();
 
-        if let Some(containers) = container_statuses(&pod)? {
+        if let Some(containers) = as_ref_container_statuses(&pod)? {
             for (i, c) in containers.iter().enumerate() {
                 let mut lp = LogParams {
                     follow: true,
@@ -537,18 +558,35 @@ impl FetchLogStreamWorker {
                 let worker = self.clone();
 
                 let handle = tokio::spawn(async move {
-                    let pod = worker.pod.clone();
                     let tx = &worker.tx;
+
+                    #[cfg(feature = "logging")]
+                    ::log::debug!(
+                        "log_stream: phase_container_log wait_container_log {}",
+                        container_name
+                    );
+
                     // // Terminated || Runningになるまで待機する
-                    wait_container_log(&pod, i, ContainerType::Container, ContainerStateType::Or)
-                        .await?;
+                    wait_container_log(
+                        &worker.pod,
+                        i,
+                        ContainerType::Container,
+                        ContainerStateType::Or,
+                    )
+                    .await?;
+
+                    #[cfg(feature = "logging")]
+                    ::log::debug!(
+                        "log_stream: phase_container_log fetch_log_stream run {}",
+                        container_name
+                    );
 
                     // // ログとってくる
                     fetch_log_stream.run().await?;
 
                     // // Terminated
                     wait_container_log(
-                        &pod,
+                        &worker.pod,
                         i,
                         ContainerType::Container,
                         ContainerStateType::Terminated,
@@ -556,9 +594,9 @@ impl FetchLogStreamWorker {
                     .await?;
 
                     // // pod status取得
-                    let pod = pod.read().await;
+                    let pod = worker.pod.read().await;
 
-                    if let Some(statuses) = container_statuses(&pod)? {
+                    if let Some(statuses) = as_ref_container_statuses(&pod)? {
                         let status = &statuses[i];
 
                         // // exit_code を確認
