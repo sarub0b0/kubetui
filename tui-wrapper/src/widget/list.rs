@@ -165,6 +165,7 @@ pub struct ListBuilder {
     id: String,
     widget_config: WidgetConfig,
     items: Vec<String>,
+    state: ListState,
     #[derivative(Debug = "ignore")]
     on_select: Option<Rc<dyn Fn(&mut Window, &String) -> EventResult>>,
 }
@@ -182,6 +183,7 @@ impl ListBuilder {
 
     pub fn items(mut self, items: impl Into<Vec<String>>) -> Self {
         self.items = items.into();
+        self.state.select(Some(0));
         self
     }
 
@@ -198,6 +200,7 @@ impl ListBuilder {
             id: self.id,
             widget_config: self.widget_config,
             on_select: self.on_select,
+            state: self.state,
             ..Default::default()
         };
 
@@ -304,15 +307,14 @@ impl<'a> WidgetTrait for List<'a> {
         self.items.update_item(items);
 
         match self.items.len() {
-            0 => self.state.select(None),
+            0 => self.state = Default::default(),
             new_len if new_len < old_len => {
-                let i = self.state.selected();
-                if i == Some(old_len - 1) {
+                if new_len <= self.state.selected().unwrap_or(0) {
                     self.state.select(Some(new_len - 1));
                 }
             }
             _ => {
-                if self.state.selected() == None {
+                if self.state.selected().is_none() {
                     self.state.select(Some(0))
                 }
             }
@@ -535,5 +537,38 @@ mod tests {
 
         list.select_prev(4);
         assert_eq!(list.state.selected().unwrap(), 0);
+    }
+
+    #[allow(non_snake_case)]
+    #[test]
+    fn アイテムが減少しかつWidget内に収まるとき全アイテムを表示して一番したのアイテムを選択する() {
+        let chunk = Rect::new(0, 0, 10, 5);
+        let mut list = List::default();
+        list.update_widget_item(Item::Array(vec![
+            "Item-0".to_string(),
+            "Item-1".to_string(),
+            "Item-2".to_string(),
+            "Item-3".to_string(),
+            "Item-4".to_string(),
+            "Item-5".to_string(),
+            "Item-6".to_string(),
+            "Item-7".to_string(),
+            "Item-8".to_string(),
+            "Item-9".to_string(),
+        ]));
+
+        list.update_chunk(chunk);
+
+        list.select_last();
+
+        assert_eq!(list.state.selected().unwrap(), 9);
+
+        list.update_widget_item(Item::Array(vec![
+            "Item-0".to_string(),
+            "Item-1".to_string(),
+            "Item-2".to_string(),
+        ]));
+
+        assert_eq!((list.state.offset(), list.state.selected()), (0, Some(2)))
     }
 }

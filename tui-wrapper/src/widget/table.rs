@@ -236,6 +236,7 @@ pub struct TableBuilder {
     widget_config: WidgetConfig,
     header: Vec<String>,
     items: Vec<Vec<String>>,
+    state: TableState,
     #[derivative(Debug = "ignore")]
     on_select: Option<InnerCallback>,
 }
@@ -253,6 +254,7 @@ impl TableBuilder {
 
     pub fn items(mut self, items: impl Into<Vec<Vec<String>>>) -> Self {
         self.items = items.into();
+        self.state.select(Some(0));
         self
     }
 
@@ -274,6 +276,7 @@ impl TableBuilder {
             id: self.id,
             widget_config: self.widget_config,
             on_select: self.on_select,
+            state: self.state,
             ..Default::default()
         };
 
@@ -409,15 +412,43 @@ impl WidgetTrait for Table<'_> {
         unimplemented!()
     }
 
+    /// Widgetのアイテム更新と更新時にスクロールの制御を行う
+    ///
+    /// # Arguments
+    /// * `items` - 更新するアイテム
+    ///
     fn update_widget_item(&mut self, items: Item) {
+        let old_len = self.items.len();
+
         self.items.update_item(items);
 
         match self.items.len() {
-            0 => self.state.select(None),
-            len if len < self.items.len() => self.state.select(Some(len - 1)),
+            // アイテムがなくなったとき
+            0 => self.state = Default::default(),
+
+            // アイテムが減った場合
+            new_len if new_len < old_len => {
+                // 選択中アイテムインデックスよりもアイテムが減少したとき一番下のアイテムを選択する
+                if new_len <= self.state.selected().unwrap_or(0) {
+                    self.state.select(Some(new_len - 1));
+                }
+
+                #[cfg(feature = "scroll-improve")]
+                // 選択中アイテムのみ表示されたら、スクロールして選択中アイテムを一番下に表示する
+                if let Some(select) = self.state.selected() {
+                    // Headerとスペース分を引く
+                    if select.saturating_sub(self.state.offset().saturating_sub(2)) <= 1 {
+                        self.state.update_offset(
+                            new_len.saturating_sub(self.inner_chunk.height as usize),
+                        );
+                    }
+                }
+            }
+
+            // アイテムが増えた場合
             _ => {
-                if self.state.selected() == None {
-                    self.state.select(Some(0))
+                if self.state.selected().is_none() {
+                    self.state.select(Some(0));
                 }
             }
         }
@@ -521,6 +552,13 @@ impl WidgetTrait for Table<'_> {
             }
         }
 
+        #[cfg(feature = "logging")]
+        log::debug!(
+            "table::state selected {:?}, offset {} ",
+            self.state.selected(),
+            self.state.offset()
+        );
+
         EventResult::Nop
     }
 
@@ -596,4 +634,259 @@ fn constraints(digits: &[usize]) -> Vec<Constraint> {
         .iter()
         .map(|d| Constraint::Length(*d as u16))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use tui::{backend::TestBackend, Terminal};
+
+    use super::*;
+
+    mod 選択アイテムの切り替え {
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn 初期値は1つ目のアイテムを選択() {
+            let table = Table::builder()
+                .items([
+                    vec!["Item-0".to_string(), "Item-0".to_string()],
+                    vec!["Item-1".to_string(), "Item-1".to_string()],
+                    vec!["Item-2".to_string(), "Item-2".to_string()],
+                    vec!["Item-3".to_string(), "Item-3".to_string()],
+                    vec!["Item-4".to_string(), "Item-4".to_string()],
+                ])
+                .build();
+
+            assert_eq!(table.state.selected(), Some(0))
+        }
+
+        #[test]
+        fn 次のアイテムを選択_1() {
+            let mut table = Table::builder()
+                .items([
+                    vec!["Item-0".to_string(), "Item-0".to_string()],
+                    vec!["Item-1".to_string(), "Item-1".to_string()],
+                    vec!["Item-2".to_string(), "Item-2".to_string()],
+                    vec!["Item-3".to_string(), "Item-3".to_string()],
+                    vec!["Item-4".to_string(), "Item-4".to_string()],
+                ])
+                .build();
+
+            table.select_next(1);
+
+            assert_eq!(table.state.selected(), Some(1))
+        }
+
+        #[test]
+        fn 次のアイテムを選択_3() {
+            let mut table = Table::builder()
+                .items([
+                    vec!["Item-0".to_string(), "Item-0".to_string()],
+                    vec!["Item-1".to_string(), "Item-1".to_string()],
+                    vec!["Item-2".to_string(), "Item-2".to_string()],
+                    vec!["Item-3".to_string(), "Item-3".to_string()],
+                    vec!["Item-4".to_string(), "Item-4".to_string()],
+                ])
+                .build();
+
+            table.select_next(3);
+
+            assert_eq!(table.state.selected(), Some(3))
+        }
+    }
+
+    struct TestData {
+        terminal: Terminal<TestBackend>,
+        table: Table<'static>,
+    }
+
+    mod アイテム変更時のアイテム選択位置とスクロール調整 {
+        use super::*;
+
+        fn setup() -> TestData {
+            let backend = TestBackend::new(22, 7);
+            let mut terminal = Terminal::new(backend).unwrap();
+
+            let mut table = Table::builder()
+                .header(["A".to_string(), "B".to_string()])
+                .items([
+                    vec!["Item-0".to_string(), "Item-0".to_string()],
+                    vec!["Item-1".to_string(), "Item-1".to_string()],
+                    vec!["Item-2".to_string(), "Item-2".to_string()],
+                    vec!["Item-3".to_string(), "Item-3".to_string()],
+                    vec!["Item-4".to_string(), "Item-4".to_string()],
+                    vec!["Item-5".to_string(), "Item-5".to_string()],
+                    vec!["Item-6".to_string(), "Item-6".to_string()],
+                    vec!["Item-7".to_string(), "Item-7".to_string()],
+                    vec!["Item-8".to_string(), "Item-8".to_string()],
+                    vec!["Item-9".to_string(), "Item-9".to_string()],
+                ])
+                .build();
+
+            let chunk = Rect::new(0, 0, 22, 7);
+            table.update_chunk(chunk);
+
+            terminal
+                .draw(|f| {
+                    table.render(f, true);
+                })
+                .unwrap();
+
+            TestData { terminal, table }
+        }
+
+        mod アイテム増加時 {
+            use super::*;
+            use pretty_assertions::assert_eq;
+
+            #[test]
+            fn アイテムが空の時に追加されると1つ目のアイテムを選択する() {
+                let chunk = Rect::new(0, 0, 10, 5);
+                let mut table = Table::default();
+                table.update_chunk(chunk);
+
+                assert_eq!((table.state.selected(), table.state.offset()), (None, 0));
+
+                table.update_widget_item(Item::DoubleArray(vec![
+                    vec!["Item-0".to_string(), "Item-0".to_string()],
+                    vec!["Item-1".to_string(), "Item-1".to_string()],
+                    vec!["Item-2".to_string(), "Item-2".to_string()],
+                ]));
+
+                assert_eq!((table.state.selected(), table.state.offset()), (Some(0), 0));
+            }
+
+            #[test]
+            fn アイテムが空でないときに追加されても選択位置とオフセットは変化しない() {
+                let TestData {
+                    mut table,
+                    mut terminal,
+                } = setup();
+
+                table.select_next(5);
+
+                terminal
+                    .draw(|f| {
+                        table.render(f, true);
+                    })
+                    .unwrap();
+
+                assert_eq!((table.state.selected(), table.state.offset()), (Some(5), 3));
+
+                table.update_widget_item(Item::DoubleArray(vec![
+                    vec!["Item-0".to_string(), "Item-0".to_string()],
+                    vec!["Item-1".to_string(), "Item-1".to_string()],
+                    vec!["Item-2".to_string(), "Item-2".to_string()],
+                    vec!["Item-3".to_string(), "Item-3".to_string()],
+                    vec!["Item-4".to_string(), "Item-4".to_string()],
+                    vec!["Item-5".to_string(), "Item-5".to_string()],
+                    vec!["Item-6".to_string(), "Item-6".to_string()],
+                    vec!["Item-7".to_string(), "Item-7".to_string()],
+                    vec!["Item-8".to_string(), "Item-8".to_string()],
+                    vec!["Item-9".to_string(), "Item-9".to_string()],
+                    // 増加分
+                    vec!["Item-10".to_string(), "Item-10".to_string()],
+                    vec!["Item-11".to_string(), "Item-11".to_string()],
+                    vec!["Item-12".to_string(), "Item-12".to_string()],
+                ]));
+
+                terminal
+                    .draw(|f| {
+                        table.render(f, true);
+                    })
+                    .unwrap();
+
+                assert_eq!((table.state.selected(), table.state.offset()), (Some(5), 3));
+            }
+        }
+
+        mod アイテム減少時 {
+            use super::*;
+            use pretty_assertions::assert_eq;
+
+            #[cfg(feature = "scroll-improve")]
+            #[test]
+            fn チャンク内に収まるとき全アイテムを表示して一番下のアイテムを選択する() {
+                let TestData {
+                    mut table,
+                    mut terminal,
+                } = setup();
+
+                table.select_last();
+
+                terminal
+                    .draw(|f| {
+                        table.render(f, false);
+                    })
+                    .unwrap();
+
+                assert_eq!((table.state.selected(), table.state.offset()), (Some(9), 7));
+
+                table.update_widget_item(Item::DoubleArray(vec![
+                    vec!["Item-0".to_string(), "Item-0".to_string()],
+                    vec!["Item-1".to_string(), "Item-1".to_string()],
+                    vec!["Item-2".to_string(), "Item-2".to_string()],
+                ]));
+
+                terminal
+                    .draw(|f| {
+                        table.render(f, false);
+                    })
+                    .unwrap();
+
+                assert_eq!((table.state.selected(), table.state.offset()), (Some(2), 0));
+            }
+
+            #[test]
+            fn 選択中アイテムインデックスよりもアイテム数が減少したとき一番下のアイテムを選択する()
+            {
+                let TestData {
+                    mut table,
+                    mut terminal,
+                } = setup();
+
+                table.select_next(8);
+
+                terminal
+                    .draw(|f| {
+                        table.render(f, false);
+                    })
+                    .unwrap();
+
+                assert_eq!((table.state.selected(), table.state.offset()), (Some(8), 6));
+
+                table.update_widget_item(Item::DoubleArray(vec![
+                    vec!["Item-0".to_string(), "Item-0".to_string()],
+                    vec!["Item-1".to_string(), "Item-1".to_string()],
+                    vec!["Item-2".to_string(), "Item-2".to_string()],
+                ]));
+
+                terminal
+                    .draw(|f| {
+                        table.render(f, false);
+                    })
+                    .unwrap();
+
+                assert_eq!((table.state.selected(), table.state.offset()), (Some(2), 2));
+            }
+        }
+
+        mod アイテム削除時 {
+            use super::*;
+            use pretty_assertions::assert_eq;
+
+            #[test]
+            fn デフォルトが設定される() {
+                let TestData {
+                    mut table,
+                    terminal: _,
+                } = setup();
+
+                table.update_widget_item(Item::DoubleArray(Vec::new()));
+
+                assert_eq!((table.state.selected(), table.state.offset()), (None, 0));
+            }
+        }
+    }
 }
