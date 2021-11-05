@@ -1,0 +1,139 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-0
+data:
+  key: "0"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-1
+data:
+  key: "1"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-2
+data:
+  key: "2"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-3
+data:
+  key: "3"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-4
+data:
+  key: "4"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-5
+data:
+  key: "5"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-6
+data:
+  key: "6"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-7
+data:
+  key: "7"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-8
+data:
+  key: "8"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-9
+data:
+  key: "9"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-10
+data:
+  key: "10"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-11
+data:
+  key: "11"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-12
+data:
+  key: "12"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-13
+data:
+  key: "13"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-14
+data:
+  key: "14"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-15
+data:
+  key: "15"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-16
+data:
+  key: "16"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-17
+data:
+  key: "17"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-18
+data:
+  key: "18"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-19
+data:
+  key: "19"
