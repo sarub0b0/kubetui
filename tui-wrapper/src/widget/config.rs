@@ -1,3 +1,5 @@
+use std::{borrow::Cow, fmt::Display};
+
 use tui::{
     style::{Color, Modifier, Style},
     text::{Span, Spans},
@@ -109,6 +111,10 @@ impl WidgetConfig {
     }
 
     fn render_title_(&self, focused: bool) -> Vec<Span<'static>> {
+        if self.title.to_string() == "" {
+            return Vec::new();
+        }
+
         let mut title = self.title.spans().0;
 
         if let Some(append) = &self.append_title {
@@ -169,6 +175,26 @@ impl Title {
             Title::Raw(title) => Spans::from(title.to_string()),
             Title::Spans(title) => title.clone(),
             Title::Span(title) => Spans::from(title.clone()),
+        }
+    }
+}
+
+impl Display for Title {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Title::Raw(title) => write!(f, "{}", title),
+            Title::Spans(title) => write!(
+                f,
+                "{}",
+                title
+                    .0
+                    .iter()
+                    .cloned()
+                    .map(|span| span.content)
+                    .collect::<Vec<Cow<str>>>()
+                    .concat()
+            ),
+            Title::Span(title) => write!(f, "{}", title.content),
         }
     }
 }
