@@ -14,7 +14,6 @@ pub struct WidgetConfigBuilder(WidgetConfig);
 pub struct WidgetConfig {
     title: Title,
     append_title: Option<Title>,
-    divider: Span<'static>,
     block: Block<'static>,
     focusable: bool,
 }
@@ -30,7 +29,6 @@ impl Default for WidgetConfig {
         Self {
             title: Default::default(),
             append_title: Default::default(),
-            divider: Span::raw(": "),
             block: Block::default()
                 .border_type(BorderType::Plain)
                 .borders(Borders::ALL),
@@ -48,11 +46,6 @@ impl WidgetConfigBuilder {
 
     pub fn append_title(mut self, append: impl Into<Title>) -> Self {
         self.0.append_title = Some(append.into());
-        self
-    }
-
-    pub fn divider(mut self, divider: impl Into<Span<'static>>) -> Self {
-        self.0.divider = divider.into();
         self
     }
 
@@ -81,9 +74,8 @@ impl WidgetConfig {
     ///
     /// Focus:     ─ + Title ───  (BOLD)
     /// Not focus: ─── Title ───  (DarkGray: title is Raw)
-    pub fn render_block(&self, focused: bool) -> Block<'static> {
-        self.render_block_(focused)
-            .title(self.render_title_(focused))
+    pub fn render_block_with_title(&self, focused: bool) -> Block<'static> {
+        self.render_block(focused).title(self.render_title(focused))
     }
 
     pub fn block(&self) -> &Block {
@@ -110,7 +102,7 @@ impl WidgetConfig {
         &mut self.append_title
     }
 
-    fn render_title_(&self, focused: bool) -> Vec<Span<'static>> {
+    pub fn render_title(&self, focused: bool) -> Vec<Span<'static>> {
         if self.title.to_string() == "" {
             return Vec::new();
         }
@@ -118,8 +110,6 @@ impl WidgetConfig {
         let mut title = self.title.spans().0;
 
         if let Some(append) = &self.append_title {
-            title.push(self.divider.clone());
-
             title.append(&mut append.spans().0);
         }
 
@@ -146,7 +136,7 @@ impl WidgetConfig {
         title
     }
 
-    fn render_block_(&self, focused: bool) -> Block<'static> {
+    pub fn render_block(&self, focused: bool) -> Block<'static> {
         if self.focusable {
             if focused {
                 self.block.clone().title_offset(1)
@@ -248,7 +238,7 @@ mod tests {
             .disable_focus()
             .build();
 
-        let title = wc.render_title_(false);
+        let title = wc.render_title(false);
 
         assert_eq!(
             vec![Span::raw(" "), Span::raw("Title"), Span::raw(" "),],
@@ -260,18 +250,17 @@ mod tests {
     fn render_title_with_append() {
         let wc = WidgetConfig::builder()
             .title("Title")
-            .append_title("append")
+            .append_title(" append")
             .disable_focus()
             .build();
 
-        let title = wc.render_title_(false);
+        let title = wc.render_title(false);
 
         assert_eq!(
             vec![
                 Span::raw(" "),
                 Span::raw("Title"),
-                Span::raw(": "),
-                Span::raw("append"),
+                Span::raw(" append"),
                 Span::raw(" "),
             ],
             title

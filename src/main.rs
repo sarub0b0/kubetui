@@ -24,6 +24,7 @@ use tui_wrapper::{
     tui::{
         backend::{Backend, CrosstermBackend},
         layout::{Constraint, Direction, Layout, Rect},
+        text::Span,
         Terminal, TerminalOptions, Viewport,
     },
     widget::{
@@ -75,6 +76,20 @@ fn init_pod(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'stat
     Table::builder()
         .id(view_id::tab_pods_widget_pods)
         .widget_config(&WidgetConfig::builder().title("Pods").build())
+        .block_injection(|table: &Table, selected: bool| {
+            let index = if let Some(index) = table.state().selected() {
+                index + 1
+            } else {
+                0
+            };
+
+            let mut config = table.widget_config().clone();
+
+            *config.append_title_mut() =
+                Some(format!(" [{}/{}]", index, table.items().len()).into());
+
+            config.render_block_with_title(table.focusable() && selected)
+        })
         .on_select(move |w, v| {
             w.widget_clear(view_id::tab_pods_widget_logs);
 
@@ -84,7 +99,7 @@ fn init_pod(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'stat
 
             *(w.find_widget_mut(view_id::tab_pods_widget_logs)
                 .widget_config_mut()
-                .append_title_mut()) = Some((&pod_name).into());
+                .append_title_mut()) = Some((format!(" : {}", pod_name)).into());
 
             tx.send(Event::Kube(Kube::LogStreamRequest(ns, pod_name)))
                 .unwrap();
@@ -145,6 +160,20 @@ fn init_configs(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'
     Table::builder()
         .id(view_id::tab_configs_widget_configs)
         .widget_config(&WidgetConfig::builder().title("Configs").build())
+        .block_injection(|table: &Table, selected: bool| {
+            let index = if let Some(index) = table.state().selected() {
+                index + 1
+            } else {
+                0
+            };
+
+            let mut config = table.widget_config().clone();
+
+            *config.append_title_mut() =
+                Some(format!(" [{}/{}]", index, table.items().len()).into());
+
+            config.render_block_with_title(table.focusable() && selected)
+        })
         .on_select(move |w, v| {
             w.widget_clear(view_id::tab_configs_widget_raw_data);
 
@@ -152,7 +181,7 @@ fn init_configs(tx: Sender<Event>, namespace: Rc<RefCell<Namespace>>) -> Table<'
 
             *(w.find_widget_mut(view_id::tab_configs_widget_raw_data)
                 .widget_config_mut()
-                .append_title_mut()) = Some((&name).into());
+                .append_title_mut()) = Some((format!(" : {}", name)).into());
 
             tx.send(Event::Kube(Kube::ConfigRequest(ns, kind, name)))
                 .unwrap();

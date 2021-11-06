@@ -7,7 +7,7 @@ use tui::{
     layout::Rect,
     style::{Modifier, Style},
     text::{Span, Spans},
-    widgets::Paragraph,
+    widgets::{Block, Paragraph},
     Frame,
 };
 
@@ -234,6 +234,8 @@ mod highlight_content {
     }
 }
 
+type RenderBlockInjection = Rc<dyn Fn(&Text, bool) -> Block<'static>>;
+
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
 pub struct TextBuilder {
@@ -246,6 +248,8 @@ pub struct TextBuilder {
     clipboard: Option<Rc<RefCell<ClipboardContextWrapper>>>,
     #[derivative(Debug = "ignore")]
     actions: Vec<(UserEvent, InnerCallback)>,
+    #[derivative(Debug = "ignore")]
+    block_injection: Option<RenderBlockInjection>,
 }
 
 impl TextBuilder {
@@ -287,6 +291,14 @@ impl TextBuilder {
         self
     }
 
+    pub fn block_injection<F>(mut self, block_injection: F) -> Self
+    where
+        F: Fn(&Text, bool) -> Block<'static> + 'static,
+    {
+        self.block_injection = Some(Rc::new(block_injection));
+        self
+    }
+
     pub fn build(self) -> Text<'static> {
         let mut text = Text {
             id: self.id,
@@ -295,6 +307,7 @@ impl TextBuilder {
             follow: self.follow,
             clipboard: self.clipboard,
             actions: self.actions,
+            block_injection: self.block_injection,
             ..Default::default()
         };
 
@@ -325,6 +338,8 @@ pub struct Text<'a> {
     clipboard: Option<Rc<RefCell<ClipboardContextWrapper>>>,
     #[derivative(Debug = "ignore")]
     actions: Vec<(UserEvent, InnerCallback)>,
+    #[derivative(Debug = "ignore")]
+    block_injection: Option<RenderBlockInjection>,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -841,9 +856,12 @@ impl RenderTrait for Text<'_> {
     {
         let (start, end) = self.view_range();
 
-        let block = self
-            .widget_config
-            .render_block(self.focusable() && selected);
+        let block = if let Some(block_injection) = &self.block_injection {
+            (block_injection)(&*self, selected)
+        } else {
+            self.widget_config
+                .render_block_with_title(self.focusable() && selected)
+        };
 
         let mut widget = Paragraph::new(self.items.spans()[start..end].to_vec())
             .style(Style::default())

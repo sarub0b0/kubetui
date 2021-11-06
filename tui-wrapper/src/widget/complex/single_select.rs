@@ -13,6 +13,7 @@ use crate::{
 
 use derivative::*;
 use std::rc::Rc;
+use tui::widgets::Block;
 
 use event::UserEvent;
 use fuzzy_matcher::skim::SkimMatcherV2;
@@ -107,6 +108,9 @@ const LAYOUT_INDEX_FOR_INPUT_FORM: usize = 0;
 const LAYOUT_INDEX_FOR_STATUS: usize = 1;
 const LAYOUT_INDEX_FOR_SELECT_FORM: usize = 2;
 
+type RenderBlockInjection = Rc<dyn Fn(&SingleSelect, bool) -> Block<'static>>;
+type RenderBlockInjectionForList = Box<dyn Fn(&List, bool) -> Block<'static>>;
+
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
 pub struct SingleSelect<'a> {
@@ -120,6 +124,8 @@ pub struct SingleSelect<'a> {
     inner_chunks: Vec<Rect>,
     #[derivative(Debug = "ignore")]
     callbacks: Vec<(UserEvent, InnerCallback)>,
+    #[derivative(Debug = "ignore")]
+    block_injection: Option<RenderBlockInjection>,
 }
 
 impl<'a> SingleSelect<'a> {
@@ -292,11 +298,14 @@ impl RenderTrait for SingleSelect<'_> {
     where
         B: Backend,
     {
-        f.render_widget(
+        let block = if let Some(block_injection) = &self.block_injection {
+            (block_injection)(&*self, selected)
+        } else {
             self.widget_config
-                .render_block(self.focusable() && selected),
-            self.chunk,
-        );
+                .render_block_with_title(self.focusable() && selected)
+        };
+
+        f.render_widget(block, self.chunk);
         self.input_widget.render(f);
         self.render_status(f);
         self.selected_widget.render(f);
@@ -312,6 +321,10 @@ pub struct SingleSelectBuilder {
     actions: Vec<(UserEvent, InnerCallback)>,
     #[derivative(Debug = "ignore")]
     on_select: Option<Box<dyn Fn(&mut Window, &String) -> EventResult>>,
+    #[derivative(Debug = "ignore")]
+    block_injection: Option<RenderBlockInjection>,
+    #[derivative(Debug = "ignore")]
+    block_injection_for_list: Option<RenderBlockInjectionForList>,
 }
 
 impl SingleSelectBuilder {
@@ -341,6 +354,22 @@ impl SingleSelectBuilder {
         self
     }
 
+    pub fn block_injection<F>(mut self, block_injection: F) -> Self
+    where
+        F: Fn(&SingleSelect, bool) -> Block<'static> + 'static,
+    {
+        self.block_injection = Some(Rc::new(block_injection));
+        self
+    }
+
+    pub fn block_injection_for_list<F>(mut self, block_injection: F) -> Self
+    where
+        F: Fn(&List, bool) -> Block<'static> + 'static,
+    {
+        self.block_injection_for_list = Some(Box::new(block_injection));
+        self
+    }
+
     pub fn build(self) -> SingleSelect<'static> {
         let layout = Layout::default()
             .direction(Direction::Vertical)
@@ -350,16 +379,19 @@ impl SingleSelectBuilder {
                 Constraint::Min(3),
             ]);
 
-        let list_widget = if let Some(on_select) = self.on_select {
+        let mut list_widget_builder = if let Some(on_select) = self.on_select {
             List::builder().on_select(on_select)
         } else {
             List::builder()
         }
-        .widget_config(&WidgetConfig::builder().title("Items").build())
-        .build();
+        .widget_config(&WidgetConfig::builder().title("Items").build());
+
+        if let Some(block_injection) = self.block_injection_for_list {
+            list_widget_builder = list_widget_builder.block_injection(block_injection);
+        }
 
         let selected_widget = SelectForm {
-            list_widget,
+            list_widget: list_widget_builder.build(),
             ..Default::default()
         };
 
@@ -369,6 +401,7 @@ impl SingleSelectBuilder {
             layout,
             selected_widget,
             callbacks: self.actions,
+            block_injection: self.block_injection,
             ..Default::default()
         }
     }

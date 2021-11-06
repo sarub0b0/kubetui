@@ -11,7 +11,7 @@ use tui::{
     backend::Backend,
     layout::{Constraint, Rect},
     style::{Color, Modifier, Style},
-    widgets::{Cell, Row, Table as TTable, TableState},
+    widgets::{Block, Cell, Row, Table as TTable, TableState},
     Frame,
 };
 
@@ -26,6 +26,7 @@ const HIGHLIGHT_SYMBOL: &str = " ";
 const ROW_START_INDEX: usize = 2;
 
 type InnerCallback = Rc<dyn Fn(&mut Window, &[String]) -> EventResult>;
+type RenderBlockInjection = Rc<dyn Fn(&Table, bool) -> Block<'static>>;
 
 #[derive(Debug, Default)]
 struct InnerItemBuilder {
@@ -234,11 +235,14 @@ impl<'a> InnerItem<'a> {
 pub struct TableBuilder {
     id: String,
     widget_config: WidgetConfig,
+    show_status: bool,
     header: Vec<String>,
     items: Vec<Vec<String>>,
     state: TableState,
     #[derivative(Debug = "ignore")]
     on_select: Option<InnerCallback>,
+    #[derivative(Debug = "ignore")]
+    block_injection: Option<RenderBlockInjection>,
 }
 
 impl TableBuilder {
@@ -271,12 +275,27 @@ impl TableBuilder {
         self
     }
 
+    pub fn block_injection<F>(mut self, block_injection: F) -> Self
+    where
+        F: Fn(&Table, bool) -> Block<'static> + 'static,
+    {
+        self.block_injection = Some(Rc::new(block_injection));
+        self
+    }
+
+    pub fn show_status(mut self) -> Self {
+        self.show_status = true;
+        self
+    }
+
     pub fn build(self) -> Table<'static> {
         let mut table = Table {
             id: self.id,
             widget_config: self.widget_config,
             on_select: self.on_select,
             state: self.state,
+            show_status: self.show_status,
+            block_injection: self.block_injection,
             ..Default::default()
         };
 
@@ -296,6 +315,7 @@ impl TableBuilder {
 pub struct Table<'a> {
     id: String,
     widget_config: WidgetConfig,
+    show_status: bool,
     chunk_index: usize,
     items: InnerItem<'a>,
     state: TableState,
@@ -304,6 +324,8 @@ pub struct Table<'a> {
     row_bounds: Vec<(usize, usize)>,
     #[derivative(Debug = "ignore")]
     on_select: Option<InnerCallback>,
+    #[derivative(Debug = "ignore")]
+    block_injection: Option<RenderBlockInjection>,
 }
 
 impl<'a> Table<'a> {
@@ -608,9 +630,12 @@ impl RenderTrait for Table<'_> {
     where
         B: Backend,
     {
-        let block = self
-            .widget_config
-            .render_block(self.focusable() && selected);
+        let block = if let Some(block_injection) = &self.block_injection {
+            (block_injection)(&*self, selected)
+        } else {
+            self.widget_config
+                .render_block_with_title(self.focusable() && selected)
+        };
 
         let constraints = constraints(&self.items.digits);
 

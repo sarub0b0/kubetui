@@ -103,7 +103,9 @@ impl Default for InputForm<'_> {
 
 impl<'a> InputForm<'a> {
     fn block(&self) -> Block<'static> {
-        self.widget_config.render_block(false).title_offset(1)
+        self.widget_config
+            .render_block_with_title(false)
+            .title_offset(1)
     }
 
     pub fn render<B: Backend>(&mut self, f: &mut Frame<B>) {

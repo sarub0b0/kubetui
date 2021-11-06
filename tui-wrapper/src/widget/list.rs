@@ -145,6 +145,8 @@ mod inner_item {
     }
 }
 
+type RenderBlockInjection = Rc<dyn Fn(&List, bool) -> Block<'static>>;
+
 use inner_item::InnerItem;
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
@@ -157,6 +159,8 @@ pub struct List<'a> {
     inner_chunk: Rect,
     #[derivative(Debug = "ignore")]
     on_select: Option<Rc<dyn Fn(&mut Window, &String) -> EventResult>>,
+    #[derivative(Debug = "ignore")]
+    block_injection: Option<RenderBlockInjection>,
 }
 
 #[derive(Derivative)]
@@ -168,6 +172,8 @@ pub struct ListBuilder {
     state: ListState,
     #[derivative(Debug = "ignore")]
     on_select: Option<Rc<dyn Fn(&mut Window, &String) -> EventResult>>,
+    #[derivative(Debug = "ignore")]
+    block_injection: Option<RenderBlockInjection>,
 }
 
 impl ListBuilder {
@@ -195,12 +201,21 @@ impl ListBuilder {
         self
     }
 
+    pub fn block_injection<F>(mut self, block_injection: F) -> Self
+    where
+        F: Fn(&List, bool) -> Block<'static> + 'static,
+    {
+        self.block_injection = Some(Rc::new(block_injection));
+        self
+    }
+
     pub fn build(self) -> List<'static> {
         let mut list = List {
             id: self.id,
             widget_config: self.widget_config,
             on_select: self.on_select,
             state: self.state,
+            block_injection: self.block_injection,
             ..Default::default()
         };
 
@@ -424,14 +439,14 @@ impl<'a> List<'a> {
 
 impl RenderTrait for List<'_> {
     fn render<B: Backend>(&mut self, f: &mut Frame<B>, selected: bool) {
-        f.render_stateful_widget(
-            self.widget(
-                self.widget_config
-                    .render_block(self.focusable() && selected),
-            ),
-            self.chunk,
-            &mut self.state,
-        );
+        let block = if let Some(block_injection) = &self.block_injection {
+            (block_injection)(&*self, selected)
+        } else {
+            self.widget_config
+                .render_block_with_title(self.focusable() && selected)
+        };
+
+        f.render_stateful_widget(self.widget(block), self.chunk, &mut self.state);
     }
 }
 

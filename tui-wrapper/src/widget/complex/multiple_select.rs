@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::{
     crossterm::event::{KeyCode, KeyEvent, MouseEvent},
     event::EventResult,
@@ -427,6 +429,9 @@ impl<'a> SelectForm<'a> {
     }
 }
 
+type RenderBlockInjection = Rc<dyn Fn(&MultipleSelect, bool) -> Block<'static>>;
+type RenderBlockInjectionForList = Box<dyn Fn(&List, bool) -> Block<'static>>;
+
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
 pub struct MultipleSelectBuilder {
@@ -436,6 +441,12 @@ pub struct MultipleSelectBuilder {
     on_select_list: Option<Box<dyn Fn(&mut Window, &String) -> EventResult>>,
     #[derivative(Debug = "ignore")]
     on_select_selected: Option<Box<dyn Fn(&mut Window, &String) -> EventResult>>,
+    #[derivative(Debug = "ignore")]
+    block_injection: Option<RenderBlockInjection>,
+    #[derivative(Debug = "ignore")]
+    block_injection_for_list: Option<RenderBlockInjectionForList>,
+    #[derivative(Debug = "ignore")]
+    block_injection_for_selected: Option<RenderBlockInjectionForList>,
 }
 
 impl MultipleSelectBuilder {
@@ -459,6 +470,30 @@ impl MultipleSelectBuilder {
         self
     }
 
+    pub fn block_injection<F>(mut self, block_injection: F) -> Self
+    where
+        F: Fn(&MultipleSelect, bool) -> Block<'static> + 'static,
+    {
+        self.block_injection = Some(Rc::new(block_injection));
+        self
+    }
+
+    pub fn block_injection_for_list<F>(mut self, block_injection: F) -> Self
+    where
+        F: Fn(&List, bool) -> Block<'static> + 'static,
+    {
+        self.block_injection_for_list = Some(Box::new(block_injection));
+        self
+    }
+
+    pub fn block_injection_for_selected<F>(mut self, block_injection: F) -> Self
+    where
+        F: Fn(&List, bool) -> Block<'static> + 'static,
+    {
+        self.block_injection_for_selected = Some(Box::new(block_injection));
+        self
+    }
+
     pub fn build(self) -> MultipleSelect<'static> {
         let layout = Layout::default()
             .direction(Direction::Vertical)
@@ -468,25 +503,31 @@ impl MultipleSelectBuilder {
                 Constraint::Min(3),
             ]);
 
-        let list_widget = if let Some(on_select) = self.on_select_list {
+        let mut list_widget_builder = if let Some(on_select) = self.on_select_list {
             List::builder().on_select(on_select)
         } else {
             List::builder()
         }
-        .widget_config(&WidgetConfig::builder().title("Items").build())
-        .build();
+        .widget_config(&WidgetConfig::builder().title("Items").build());
 
-        let selected_widget = if let Some(on_select) = self.on_select_selected {
+        if let Some(block_injection) = self.block_injection_for_list {
+            list_widget_builder = list_widget_builder.block_injection(block_injection);
+        }
+
+        let mut selected_widget_builder = if let Some(on_select) = self.on_select_selected {
             List::builder().on_select(on_select)
         } else {
             List::builder()
         }
-        .widget_config(&WidgetConfig::builder().title("Selected").build())
-        .build();
+        .widget_config(&WidgetConfig::builder().title("Selected").build());
+
+        if let Some(block_injection) = self.block_injection_for_selected {
+            selected_widget_builder = selected_widget_builder.block_injection(block_injection);
+        }
 
         let selected_widget = SelectForm {
-            list_widget,
-            selected_widget,
+            list_widget: list_widget_builder.build(),
+            selected_widget: selected_widget_builder.build(),
             ..Default::default()
         };
 
@@ -495,6 +536,7 @@ impl MultipleSelectBuilder {
             widget_config: self.widget_config,
             layout,
             selected_widget,
+            block_injection: self.block_injection,
             ..Default::default()
         }
     }
@@ -515,13 +557,18 @@ pub struct MultipleSelect<'a> {
     layout: Layout,
     chunk: Rect,
     inner_chunks: Vec<Rect>,
+    #[derivative(Debug = "ignore")]
+    block_injection: Option<RenderBlockInjection>,
 }
 
 impl RenderTrait for MultipleSelect<'_> {
     fn render<B: Backend>(&mut self, f: &mut Frame<B>, selected: bool) {
-        let block = self
-            .widget_config
-            .render_block(self.focusable() && selected);
+        let block = if let Some(block_injection) = &self.block_injection {
+            (block_injection)(&*self, selected)
+        } else {
+            self.widget_config
+                .render_block_with_title(self.focusable() && selected)
+        };
 
         let inner_chunk = block.inner(self.chunk);
 
