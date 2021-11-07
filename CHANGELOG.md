@@ -1,8 +1,8 @@
 # Changelog
 
-## [Unreleased](https://github.com/sarub0b0/kubetui/tree/HEAD)
+## [v0.6.0](https://github.com/sarub0b0/kubetui/tree/v0.6.0) (2021-11-07)
 
-[Full Changelog](https://github.com/sarub0b0/kubetui/compare/v0.5.1...HEAD)
+[Full Changelog](https://github.com/sarub0b0/kubetui/compare/v0.5.1...v0.6.0)
 
 **Closed issues:**
 
