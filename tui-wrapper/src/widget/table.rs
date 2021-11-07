@@ -574,13 +574,6 @@ impl WidgetTrait for Table<'_> {
             }
         }
 
-        #[cfg(feature = "logging")]
-        log::debug!(
-            "table::state selected {:?}, offset {} ",
-            self.state.selected(),
-            self.state.offset()
-        );
-
         EventResult::Nop
     }
 
@@ -651,6 +644,13 @@ impl RenderTrait for Table<'_> {
         }
 
         f.render_stateful_widget(widget, self.chunk, &mut self.state);
+
+        #[cfg(feature = "logging")]
+        log::debug!(
+            "table::state selected {:?}, offset {} ",
+            self.state.selected(),
+            self.state.offset()
+        );
     }
 }
 
