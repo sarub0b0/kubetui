@@ -1,10 +1,40 @@
 # Changelog
 
+## [Unreleased](https://github.com/sarub0b0/kubetui/tree/HEAD)
+
+[Full Changelog](https://github.com/sarub0b0/kubetui/compare/v0.5.1...HEAD)
+
+**Closed issues:**
+
+- Podのログ取得で対象のコンテナが切り替わるときにログが取得できない問題がある [\#113](https://github.com/sarub0b0/kubetui/issues/113)
+- context切り替え後に選択中のAPIsがリストアされない問題を修正 [\#109](https://github.com/sarub0b0/kubetui/issues/109)
+- LogsとRaw Dataのタイトルに選択しているアイテム名を付け足す [\#101](https://github.com/sarub0b0/kubetui/issues/101)
+- widgetのタイトル更新APIを実装する [\#95](https://github.com/sarub0b0/kubetui/issues/95)
+- 選択したリソース情報をyamlで表示（pod, apis） [\#76](https://github.com/sarub0b0/kubetui/issues/76)
+
+**Merged pull requests:**
+
+- fix\(deps\): update rust crate nom to 7.1.0 [\#114](https://github.com/sarub0b0/kubetui/pull/114) ([sarub0b0](https://github.com/sarub0b0))
+- yaml表示機能 [\#110](https://github.com/sarub0b0/kubetui/pull/110) ([sarub0b0](https://github.com/sarub0b0))
+- chore\(deps\): update all dependencies [\#108](https://github.com/sarub0b0/kubetui/pull/108) ([sarub0b0](https://github.com/sarub0b0))
+- chore\(deps\): update rust crate proc-macro2 to 1.0.31 [\#107](https://github.com/sarub0b0/kubetui/pull/107) ([sarub0b0](https://github.com/sarub0b0))
+- fix\(deps\): update rust crate crossterm to v0.22.1 [\#105](https://github.com/sarub0b0/kubetui/pull/105) ([sarub0b0](https://github.com/sarub0b0))
+- chore\(deps\): update rust crate proc-macro2 to 1.0.30 [\#103](https://github.com/sarub0b0/kubetui/pull/103) ([sarub0b0](https://github.com/sarub0b0))
+- fix\(deps\): update kube-rs \(kube, kube-runtime, k8s-openapi\) to 0.61 [\#102](https://github.com/sarub0b0/kubetui/pull/102) ([sarub0b0](https://github.com/sarub0b0))
+- widgetのタイトル更新関数を実装 [\#100](https://github.com/sarub0b0/kubetui/pull/100) ([sarub0b0](https://github.com/sarub0b0))
+- fix\(deps\): update rust crate regex to 1.5.4 [\#99](https://github.com/sarub0b0/kubetui/pull/99) ([sarub0b0](https://github.com/sarub0b0))
+- fix\(deps\): update rust crate memchr to 2.4.1 [\#98](https://github.com/sarub0b0/kubetui/pull/98) ([sarub0b0](https://github.com/sarub0b0))
+- chore\(deps\): update all dependencies [\#97](https://github.com/sarub0b0/kubetui/pull/97) ([sarub0b0](https://github.com/sarub0b0))
+
+## [v0.5.1](https://github.com/sarub0b0/kubetui/tree/v0.5.1) (2021-10-06)
+
+[Full Changelog](https://github.com/sarub0b0/kubetui/compare/v0.5.0...v0.5.1)
+
 ## [v0.5.0](https://github.com/sarub0b0/kubetui/tree/v0.5.0) (2021-10-06)
 
 [Full Changelog](https://github.com/sarub0b0/kubetui/compare/v0.4.4...v0.5.0)
 
-**Implemented enhancements:**
+**Closed issues:**
 
 - 選択中のnamespaceやapiの状態を保持する機能を実装（contextを戻した時に以前の状態を作りたい） [\#94](https://github.com/sarub0b0/kubetui/issues/94)
 - クラスタ切り替え機能 [\#78](https://github.com/sarub0b0/kubetui/issues/78)
@@ -39,13 +69,13 @@
 
 [Full Changelog](https://github.com/sarub0b0/kubetui/compare/v0.4.1...v0.4.2)
 
-**Implemented enhancements:**
-
-- k8sにAPIをたたくスレッドでエラーがでたときにviewにエラー内容を出力できるようにする [\#63](https://github.com/sarub0b0/kubetui/issues/63)
-
 **Fixed bugs:**
 
 - マウスでテーブルウィジェットのアイテム選択が正しく行われない問題を修正 [\#72](https://github.com/sarub0b0/kubetui/issues/72)
+
+**Closed issues:**
+
+- k8sにAPIをたたくスレッドでエラーがでたときにviewにエラー内容を出力できるようにする [\#63](https://github.com/sarub0b0/kubetui/issues/63)
 
 **Merged pull requests:**
 
@@ -67,12 +97,9 @@
 
 [Full Changelog](https://github.com/sarub0b0/kubetui/compare/v0.3.2...v0.3.3)
 
-**Implemented enhancements:**
-
-- コマンド引数で分割の方向を切り替えられるようにする [\#70](https://github.com/sarub0b0/kubetui/issues/70)
-
 **Closed issues:**
 
+- コマンド引数で分割の方向を切り替えられるようにする [\#70](https://github.com/sarub0b0/kubetui/issues/70)
 - レイアウトが崩れる問題を修正 [\#57](https://github.com/sarub0b0/kubetui/issues/57)
 
 ## [v0.3.2](https://github.com/sarub0b0/kubetui/tree/v0.3.2) (2021-06-10)
@@ -87,7 +114,7 @@
 
 [Full Changelog](https://github.com/sarub0b0/kubetui/compare/v0.3.0-alpha...v0.3.0)
 
-**Implemented enhancements:**
+**Closed issues:**
 
 - Homeキーで一番上, Endキーで一番下に移動できるようにする [\#68](https://github.com/sarub0b0/kubetui/issues/68)
 - マウスイベントに対応 [\#65](https://github.com/sarub0b0/kubetui/issues/65)
@@ -112,18 +139,15 @@
 
 [Full Changelog](https://github.com/sarub0b0/kubetui/compare/v0.1.0...v0.2.0)
 
-**Implemented enhancements:**
-
-- HOME, ENDキー対応 [\#62](https://github.com/sarub0b0/kubetui/issues/62)
-- 色に関する制御文字の対応範囲を広げる（22とか） [\#60](https://github.com/sarub0b0/kubetui/issues/60)
-
 **Fixed bugs:**
 
 - 画面サイズ変更時クラッシュする問題の解決 [\#37](https://github.com/sarub0b0/kubetui/issues/37)
 
 **Closed issues:**
 
+- HOME, ENDキー対応 [\#62](https://github.com/sarub0b0/kubetui/issues/62)
 - ターミナルの背景が白だとペインタイトルの文字色が白で読めない [\#61](https://github.com/sarub0b0/kubetui/issues/61)
+- 色に関する制御文字の対応範囲を広げる（22とか） [\#60](https://github.com/sarub0b0/kubetui/issues/60)
 
 ## [v0.1.0](https://github.com/sarub0b0/kubetui/tree/v0.1.0) (2021-05-16)
 
