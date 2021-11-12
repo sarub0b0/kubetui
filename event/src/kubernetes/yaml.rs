@@ -52,9 +52,9 @@ async fn fetch_resource_list_single_namespace_for_multiple_namespaces(
     client: &KubeClient,
     ns: &str,
     api: &APIInfo,
-    request: &str,
+    kind: &str,
 ) -> Result<(String, Vec<String>)> {
-    let item = fetch_resource_list_single_namespace(client, ns, api, request).await?;
+    let item = fetch_resource_list_single_namespace(client, ns, api, kind).await?;
     Ok((ns.to_string(), item))
 }
 
@@ -62,12 +62,12 @@ async fn fetch_resource_list_multiple_namespaces(
     client: &KubeClient,
     namespaces: &[String],
     api: &APIInfo,
-    request: &str,
+    kind: &str,
 ) -> Result<Vec<String>> {
     let mut data = HashMap::new();
 
     let jobs = try_join_all(namespaces.iter().map(|ns| {
-        fetch_resource_list_single_namespace_for_multiple_namespaces(client, ns, api, request)
+        fetch_resource_list_single_namespace_for_multiple_namespaces(client, ns, api, kind)
     }))
     .await?;
 
@@ -84,9 +84,9 @@ async fn fetch_resource_list_single_namespace(
     client: &KubeClient,
     ns: &str,
     api: &APIInfo,
-    request: &str,
+    kind: &str,
 ) -> Result<Vec<String>> {
-    let path = format!("{}/namespaces/{}/{}", api.api_url(), ns, request);
+    let path = format!("{}/namespaces/{}/{}", api.api_url(), ns, kind);
 
     let res: List = client.request(&path).await?;
 
@@ -105,9 +105,9 @@ async fn fetch_resource_list_single_namespace(
 async fn fetch_resource_list_not_namespaced(
     client: &KubeClient,
     api: &APIInfo,
-    request: &str,
+    kind: &str,
 ) -> Result<Vec<String>> {
-    let path = format!("{}/{}", api.api_url(), request);
+    let path = format!("{}/{}", api.api_url(), kind);
 
     let res: List = client.request(&path).await?;
 
@@ -131,39 +131,34 @@ async fn fetch_resource_list_not_namespaced(
 /// ネームスペースが２つ以上のとき
 ///   ネームスペースを頭につけたリソース一覧を返す
 ///
-///
-///
 pub async fn fetch_resource_list(
     client: &KubeClient,
     namespaces: &[String],
     api_database: &InnerApiDatabase,
-    request: &str,
+    kind: &str,
 ) -> Result<Vec<String>> {
     let api = api_database
-        .get(request)
-        .ok_or_else(|| Error::Raw(format!("Can't get {} from API Database", request)))?;
+        .get(kind)
+        .ok_or_else(|| Error::Raw(format!("Can't get {} from API Database", kind)))?;
 
+    #[cfg(feature = "logging")]
+    ::log::info!("[fetch_resource_list] Select APIInfo: {:#?}", api);
+
+    let kind = &api.api_resource.name;
     let list = if api.api_resource.namespaced {
         if namespaces.len() == 1 {
-            fetch_resource_list_single_namespace(client, &namespaces[0], api, request).await
+            fetch_resource_list_single_namespace(client, &namespaces[0], api, kind).await
         } else {
-            fetch_resource_list_multiple_namespaces(client, namespaces, api, request).await
+            fetch_resource_list_multiple_namespaces(client, namespaces, api, kind).await
         }
     } else {
-        fetch_resource_list_not_namespaced(client, api, request).await
+        fetch_resource_list_not_namespaced(client, api, kind).await
     };
 
     list
 }
 
 /// 選択されているリソースのyamlを取得する
-///
-/// namespaced が false のとき
-///
-/// namespaced が true のとき
-///
-///
-///
 pub async fn fetch_resource_yaml(
     client: &KubeClient,
     api_database: &InnerApiDatabase,
@@ -176,6 +171,7 @@ pub async fn fetch_resource_yaml(
         .ok_or_else(|| Error::Raw(format!("Can't get {} from API Database", kind)))?;
 
     // json string data
+    let kind = &api.api_resource.name;
     let path = if api.api_resource.namespaced {
         format!("{}/namespaces/{}/{}/{}", api.api_url(), ns, kind, name)
     } else {
