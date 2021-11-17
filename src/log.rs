@@ -12,10 +12,12 @@ pub fn logging() {
         LevelFilter::from_str(&env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string()))
             .unwrap_or(LevelFilter::Info);
 
+    let log_path = env::var("LOG_PATH").unwrap_or_else(|_| "output.log".to_string());
+
     let logfile = FileAppender::builder()
         .append(false)
         .encoder(Box::new(PatternEncoder::new("{h({l})} - {m}\n")))
-        .build("log/output.log")
+        .build(log_path)
         .unwrap();
 
     let config = LConfig::builder()
