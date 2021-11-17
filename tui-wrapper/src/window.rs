@@ -1,12 +1,11 @@
-use chrono::Local;
 use std::rc::Rc;
 
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use tui::{
     backend::Backend,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
-    text::{Span, Spans},
+    text::Spans,
     widgets::{Block, Clear, Paragraph, Tabs},
     Frame,
 };
@@ -40,7 +39,6 @@ pub mod window_layout_index {
     pub const TAB: usize = 0;
     pub const CONTEXT: usize = 2;
     pub const CONTENTS: usize = 3;
-    pub const STATUSBAR: usize = 4;
 }
 
 // Window
@@ -57,7 +55,6 @@ impl<'a> Window<'a> {
                         Constraint::Length(1),
                         Constraint::Length(2),
                         Constraint::Min(1),
-                        Constraint::Length(1),
                     ]
                     .as_ref(),
                 ),
@@ -249,8 +246,6 @@ impl<'a> Window<'a> {
 
         self.focused_tab_mut().render(f);
 
-        self.render_status(f);
-
         if let Some(id) = &self.open_popup_id {
             if let Some(popup) = self.popups.iter_mut().find(|p| p.id() == id) {
                 f.render_widget(Clear, child_window_chunk(80, 80, self.chunk));
@@ -279,54 +274,6 @@ impl<'a> Window<'a> {
 
         f.render_widget(paragraph, self.chunks()[CONTEXT]);
     }
-
-    fn render_status<B: Backend>(&mut self, f: &mut Frame<B>) {
-        let scroll_status_spans = self.scroll_status();
-        let datetime_spans = Spans::from(datetime());
-
-        let chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Length(datetime_spans.width() as u16),
-                Constraint::Length(scroll_status_spans.width() as u16),
-            ])
-            .split(self.chunks()[STATUSBAR]);
-
-        f.render_widget(
-            Paragraph::new(datetime_spans).block(Block::default().style(Style::default())),
-            chunks[0],
-        );
-
-        f.render_widget(
-            Paragraph::new(scroll_status_spans)
-                .block(Block::default().style(Style::default()))
-                .alignment(Alignment::Right),
-            chunks[1],
-        );
-    }
-
-    fn scroll_status(&self) -> Spans {
-        if let Some(id) = self
-            .status_target_id
-            .iter()
-            .find(|id| id.0 == self.focused_tab_id())
-        {
-            if let Some(w) = self
-                .focused_tab()
-                .as_ref_widgets()
-                .iter()
-                .find(|w| w.id() == id.1)
-            {
-                return w.as_text().status();
-            }
-        }
-
-        Spans::default()
-    }
-}
-
-fn datetime() -> Span<'static> {
-    Span::raw(format!(" {}", Local::now().format("%F %T %z")))
 }
 
 pub enum WindowEvent {
