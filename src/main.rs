@@ -114,7 +114,16 @@ fn init_log(clipboard: Option<Rc<RefCell<ClipboardContextWrapper>>>) -> Text<'st
         .id(view_id::tab_pods_widget_logs)
         .widget_config(&WidgetConfig::builder().title("Logs").build())
         .wrap()
-        .follow();
+        .follow()
+        .block_injection(|text: &Text, selected: bool| {
+            let (index, _) = text.state().selected();
+
+            let mut config = text.widget_config().clone();
+
+            *config.title_mut() = format!("Logs [{}/{}]", index, text.rows_size()).into();
+
+            config.render_block_with_title(text.focusable() && selected)
+        });
 
     if let Some(cb) = &clipboard {
         logs_builder.clipboard(cb.clone())
@@ -195,7 +204,16 @@ fn init_configs_raw(clipboard: Option<Rc<RefCell<ClipboardContextWrapper>>>) -> 
     let raw_data_builder = Text::builder()
         .id(view_id::tab_configs_widget_raw_data)
         .widget_config(&WidgetConfig::builder().title("Raw Data").build())
-        .wrap();
+        .wrap()
+        .block_injection(|text: &Text, selected: bool| {
+            let (index, _) = text.state().selected();
+
+            let mut config = text.widget_config().clone();
+
+            *config.title_mut() = format!("Raw Data [{}/{}]", index, text.rows_size()).into();
+
+            config.render_block_with_title(text.focusable() && selected)
+        });
 
     if let Some(cb) = clipboard {
         raw_data_builder.clipboard(cb)
@@ -437,6 +455,15 @@ fn init_window(
         .widget_config(&WidgetConfig::builder().title("Event").build())
         .wrap()
         .follow()
+        .block_injection(|text: &Text, selected: bool| {
+            let (index, _) = text.state().selected();
+
+            let mut config = text.widget_config().clone();
+
+            *config.append_title_mut() = Some(format!(" [{}/{}]", index, text.rows_size()).into());
+
+            config.render_block_with_title(text.focusable() && selected)
+        })
         .build();
 
     // APIs
@@ -450,6 +477,15 @@ fn init_window(
     let apis_widget = Text::builder()
         .id(view_id::tab_apis_widget_apis)
         .widget_config(&WidgetConfig::builder().title("APIs").build())
+        .block_injection(|text: &Text, selected: bool| {
+            let (index, _) = text.state().selected();
+
+            let mut config = text.widget_config().clone();
+
+            *config.append_title_mut() = Some(format!(" [{}/{}]", index, text.rows_size()).into());
+
+            config.render_block_with_title(text.focusable() && selected)
+        })
         .action('/', open_subwin.clone())
         .action('f', open_subwin)
         .build();
@@ -470,6 +506,15 @@ fn init_window(
     let yaml_widget = Text::builder()
         .id(view_id::tab_yaml_widget_yaml)
         .widget_config(&WidgetConfig::builder().title("Yaml").build())
+        .block_injection(|text: &Text, selected: bool| {
+            let (index, _) = text.state().selected();
+
+            let mut config = text.widget_config().clone();
+
+            *config.append_title_mut() = Some(format!(" [{}/{}]", index, text.rows_size()).into());
+
+            config.render_block_with_title(text.focusable() && selected)
+        })
         .action('/', open_subwin.clone())
         .action('f', open_subwin)
         .wrap()
