@@ -349,30 +349,28 @@ pub struct TextState {
 }
 
 impl TextState {
-    fn select_vertical(&mut self, index: u64) {
+    pub fn select_vertical(&mut self, index: u64) {
         self.scroll_vertical = index;
     }
 
-    fn select_horizontal(&mut self, index: u64) {
+    pub fn select_horizontal(&mut self, index: u64) {
         self.scroll_horizontal = index;
     }
 
-    fn selected_vertical(&self) -> u64 {
+    pub fn selected_vertical(&self) -> u64 {
         self.scroll_vertical
     }
 
-    fn selected_horizontal(&self) -> u64 {
+    pub fn selected_horizontal(&self) -> u64 {
         self.scroll_horizontal
     }
 
-    #[allow(dead_code)]
-    fn select(&mut self, index: (u64, u64)) {
+    pub fn select(&mut self, index: (u64, u64)) {
         self.scroll_vertical = index.0;
         self.scroll_horizontal = index.1;
     }
 
-    #[allow(dead_code)]
-    fn selected(&self) -> (u64, u64) {
+    pub fn selected(&self) -> (u64, u64) {
         (self.scroll_vertical, self.scroll_horizontal)
     }
 }
@@ -388,6 +386,10 @@ impl Text<'_> {
 
     pub fn items(&self) -> &[String] {
         self.items.items()
+    }
+
+    pub fn rows_size(&self) -> u64 {
+        self.row_size
     }
 
     pub fn status(&self) -> Spans {
