@@ -383,11 +383,13 @@ async fn get_api_resources(
                 .await
             }?;
 
-            if table.rows.is_empty() {
-                continue;
-            }
+            let data = if table.rows.is_empty() {
+                header_by_api_info(info)
+            } else {
+                header_by_api_info(info) + &table.to_print()
+            };
 
-            ret.push(header_by_api_info(info) + &table.to_print());
+            ret.push(data);
             ret.push("".to_string());
         }
     }
