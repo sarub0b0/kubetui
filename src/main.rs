@@ -575,13 +575,7 @@ fn init_window(
         Tab::new(view_id::tab_yaml, "5:Yaml", [WidgetData::new(yaml_widget)]),
     ];
 
-    let mut window = Window::new(tabs).status_target_id([
-        (view_id::tab_pods, view_id::tab_pods_widget_logs),
-        (view_id::tab_configs, view_id::tab_configs_widget_raw_data),
-        (view_id::tab_event, view_id::tab_event_widget_event),
-        (view_id::tab_apis, view_id::tab_apis_widget_apis),
-        (view_id::tab_yaml, view_id::tab_yaml_widget_yaml),
-    ]);
+    let mut window = Window::new(tabs);
 
     // Configure Action
     let tx_clone = tx.clone();

@@ -29,7 +29,6 @@ pub struct Window<'a> {
     focused_tab_index: usize,
     layout: Layout,
     chunk: Rect,
-    status_target_id: Vec<(&'a str, &'a str)>,
     callbacks: Vec<(UserEvent, InnerCallback)>,
     popups: Vec<Widget<'a>>,
     open_popup_id: Option<String>,
@@ -64,11 +63,6 @@ impl<'a> Window<'a> {
 
     pub fn add_popup(&mut self, popup: impl Into<Vec<Widget<'a>>>) {
         self.popups = popup.into();
-    }
-
-    pub fn status_target_id(mut self, id: impl Into<Vec<(&'a str, &'a str)>>) -> Self {
-        self.status_target_id = id.into();
-        self
     }
 
     pub fn update_chunks(&mut self, chunk: Rect) {
