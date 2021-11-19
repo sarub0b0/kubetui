@@ -23,6 +23,8 @@ use super::{
 
 use ::event::UserEvent;
 
+type HeaderCallback = Rc<dyn Fn() -> Paragraph<'static>>;
+
 #[derive(Default)]
 pub struct Window<'a> {
     tabs: Vec<Tab<'a>>,
@@ -32,37 +34,104 @@ pub struct Window<'a> {
     callbacks: Vec<(UserEvent, InnerCallback)>,
     popups: Vec<Widget<'a>>,
     open_popup_id: Option<String>,
+    header: Option<HeaderCallback>,
+    layout_index: WindowLayoutIndex,
 }
 
-pub mod window_layout_index {
-    pub const TAB: usize = 0;
-    pub const CONTEXT: usize = 2;
-    pub const CONTENTS: usize = 3;
+#[derive(Default)]
+struct WindowLayoutIndex {
+    tab: usize,
+    header: usize,
+    contents: usize,
+}
+
+#[derive(Default)]
+pub struct WindowBuilder<'a> {
+    tabs: Vec<Tab<'a>>,
+    callbacks: Vec<(UserEvent, InnerCallback)>,
+    popups: Vec<Widget<'a>>,
+    header: Option<HeaderCallback>,
+    header_height: u16,
+}
+
+impl<'a> WindowBuilder<'a> {
+    pub fn tabs(mut self, tabs: impl Into<Vec<Tab<'a>>>) -> Self {
+        self.tabs = tabs.into();
+        self
+    }
+
+    pub fn action<F, E: Into<UserEvent>>(mut self, ev: E, cb: F) -> Self
+    where
+        F: Fn(&mut Window) -> EventResult + 'static,
+    {
+        self.callbacks.push((ev.into(), Rc::new(cb)));
+        self
+    }
+
+    pub fn popup(mut self, popup: impl Into<Vec<Widget<'a>>>) -> Self {
+        self.popups = popup.into();
+        self
+    }
+
+    pub fn header<F>(mut self, height: u16, header: F) -> Self
+    where
+        F: Fn() -> Paragraph<'static> + 'static,
+    {
+        self.header = Some(Rc::new(header));
+        self.header_height = height;
+        self
+    }
+
+    pub fn build(self) -> Window<'a> {
+        let (layout_index, constraints) = if self.header.is_some() {
+            (
+                WindowLayoutIndex {
+                    tab: 0,
+                    header: 2,
+                    contents: 3,
+                },
+                vec![
+                    Constraint::Length(1),
+                    Constraint::Length(1),
+                    Constraint::Length(self.header_height),
+                    Constraint::Min(1),
+                ],
+            )
+        } else {
+            (
+                WindowLayoutIndex {
+                    tab: 0,
+                    header: 0,
+                    contents: 2,
+                },
+                vec![
+                    Constraint::Length(1),
+                    Constraint::Length(1),
+                    Constraint::Min(1),
+                ],
+            )
+        };
+
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(constraints);
+
+        Window {
+            tabs: self.tabs,
+            layout,
+            callbacks: self.callbacks,
+            popups: self.popups,
+            header: self.header,
+            layout_index,
+            ..Default::default()
+        }
+    }
 }
 
 // Window
 impl<'a> Window<'a> {
-    pub fn new(tabs: impl Into<Vec<Tab<'a>>>) -> Self {
-        Self {
-            tabs: tabs.into(),
-            focused_tab_index: 0,
-            layout: Layout::default()
-                .direction(Direction::Vertical)
-                .constraints(
-                    [
-                        Constraint::Length(1),
-                        Constraint::Length(1),
-                        Constraint::Length(2),
-                        Constraint::Min(1),
-                    ]
-                    .as_ref(),
-                ),
-            ..Default::default()
-        }
-    }
-
-    pub fn add_popup(&mut self, popup: impl Into<Vec<Widget<'a>>>) {
-        self.popups = popup.into();
+    pub fn builder() -> WindowBuilder<'a> {
+        WindowBuilder::default()
     }
 
     pub fn update_chunks(&mut self, chunk: Rect) {
@@ -70,8 +139,9 @@ impl<'a> Window<'a> {
 
         let chunks = self.layout.split(chunk);
 
+        let contents_index = self.layout_index.contents;
         self.tabs.iter_mut().for_each(|tab| {
-            tab.update_chunk(chunks[window_layout_index::CONTENTS]);
+            tab.update_chunk(chunks[contents_index]);
         });
 
         self.popups.iter_mut().for_each(|w| {
@@ -176,7 +246,7 @@ impl<'a> Window<'a> {
     }
 
     pub fn tab_chunk(&self) -> Rect {
-        self.chunks()[window_layout_index::TAB]
+        self.chunks()[self.layout_index.tab]
     }
 }
 
@@ -226,47 +296,39 @@ impl<'a> Window<'a> {
 }
 
 // Render
-use window_layout_index::*;
 impl<'a> Window<'a> {
-    pub fn render<B: Backend>(
-        &mut self,
-        f: &mut Frame<B>,
-        context: impl ToString,
-        namespaces: impl ToString,
-    ) {
+    pub fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
         self.render_tab(f);
 
-        self.render_context(f, context, namespaces);
+        self.render_header(f);
 
-        self.focused_tab_mut().render(f);
+        self.render_contents(f);
 
-        if let Some(id) = &self.open_popup_id {
-            if let Some(popup) = self.popups.iter_mut().find(|p| p.id() == id) {
-                f.render_widget(Clear, child_window_chunk(80, 80, self.chunk));
-                popup.render(f, true);
-            }
-        }
+        self.render_popup(f);
     }
 
     fn render_tab<B: Backend>(&mut self, f: &mut Frame<B>) {
         f.render_widget(self.widget(), self.tab_chunk());
     }
 
-    fn render_context<B: Backend>(
-        &mut self,
-        f: &mut Frame<B>,
-        ctx: impl ToString,
-        ns: impl ToString,
-    ) {
-        let block = Block::default().style(Style::default());
+    fn render_header<B: Backend>(&self, f: &mut Frame<B>) {
+        if let Some(header) = &self.header {
+            let w = (header)();
+            f.render_widget(w, self.chunks()[self.layout_index.header]);
+        }
+    }
 
-        let paragraph = Paragraph::new(vec![
-            Spans::from(format!("ctx: {}", ctx.to_string())),
-            Spans::from(format!("ns: {}", ns.to_string())),
-        ])
-        .block(block);
+    fn render_contents<B: Backend>(&mut self, f: &mut Frame<B>) {
+        self.focused_tab_mut().render(f);
+    }
 
-        f.render_widget(paragraph, self.chunks()[CONTEXT]);
+    fn render_popup<B: Backend>(&mut self, f: &mut Frame<B>) {
+        if let Some(id) = &self.open_popup_id {
+            if let Some(popup) = self.popups.iter_mut().find(|p| p.id() == id) {
+                f.render_widget(Clear, child_window_chunk(80, 80, self.chunk));
+                popup.render(f, true);
+            }
+        }
     }
 }
 
@@ -279,13 +341,6 @@ pub enum WindowEvent {
 
 // Event
 impl Window<'_> {
-    pub fn add_action<F, E: Into<UserEvent>>(&mut self, ev: E, cb: F)
-    where
-        F: Fn(&mut Window) -> EventResult + 'static,
-    {
-        self.callbacks.push((ev.into(), Rc::new(cb)));
-    }
-
     pub fn on_event(&mut self, ev: UserEvent) -> EventResult {
         match ev {
             UserEvent::Key(ev) => self.on_key_event(ev),
@@ -343,7 +398,7 @@ impl Window<'_> {
         let result = if util::contains(self.tab_chunk(), pos) {
             self.on_click_tab(ev);
             EventResult::Nop
-        } else if util::contains(self.chunks()[window_layout_index::CONTENTS], pos) {
+        } else if util::contains(self.chunks()[self.layout_index.contents], pos) {
             if let Some(w) = self
                 .focused_tab_mut()
                 .as_mut_widgets()

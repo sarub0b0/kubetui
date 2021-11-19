@@ -24,6 +24,8 @@ use tui_wrapper::{
     tui::{
         backend::{Backend, CrosstermBackend},
         layout::{Constraint, Direction, Layout, Rect},
+        text::Spans,
+        widgets::Paragraph,
         Terminal, TerminalOptions, Viewport,
     },
     widget::{
@@ -521,7 +523,11 @@ fn init_window(
         .build();
 
     // [Sub Window] Context
-    let subwin_ctx = Widget::from(init_subwin_ctx(tx.clone(), context, namespaces.clone()));
+    let subwin_ctx = Widget::from(init_subwin_ctx(
+        tx.clone(),
+        context.clone(),
+        namespaces.clone(),
+    ));
 
     // [Sub Window] Namespace (Single Select)
     let subwin_single_ns = Widget::from(init_subwin_single_ns(tx.clone(), namespaces.clone()));
@@ -536,7 +542,11 @@ fn init_window(
     let subwin_yaml_kind = Widget::from(init_subwin_yaml_kind(tx.clone(), yaml_state.clone()));
 
     // [Sub Window] Yaml 2
-    let subwin_yaml_name = Widget::from(init_subwin_yaml_name(tx.clone(), yaml_state, namespaces));
+    let subwin_yaml_name = Widget::from(init_subwin_yaml_name(
+        tx.clone(),
+        yaml_state,
+        namespaces.clone(),
+    ));
 
     // Init Window
     let tabs = [
@@ -575,11 +585,12 @@ fn init_window(
         Tab::new(view_id::tab_yaml, "5:Yaml", [WidgetData::new(yaml_widget)]),
     ];
 
-    let mut window = Window::new(tabs);
+    // let mut window = Window::new(tabs);
+    let window_builder = Window::builder().tabs(tabs);
 
     // Configure Action
     let tx_clone = tx.clone();
-    window.add_action(
+    let window_builder = window_builder.action(
         UserEvent::Key(KeyEvent {
             code: KeyCode::Char('N'),
             modifiers: KeyModifiers::SHIFT,
@@ -594,7 +605,7 @@ fn init_window(
     );
 
     let tx_clone = tx.clone();
-    window.add_action('n', move |w| {
+    let window_builder = window_builder.action('n', move |w| {
         tx_clone
             .send(Event::Kube(Kube::GetNamespacesRequest))
             .unwrap();
@@ -612,7 +623,7 @@ fn init_window(
     };
 
     let tx_clone = tx;
-    window.add_action('c', move |w| {
+    let window_builder = window_builder.action('c', move |w| {
         tx_clone
             .send(Event::Kube(Kube::GetContextsRequest))
             .unwrap();
@@ -620,18 +631,29 @@ fn init_window(
         EventResult::Nop
     });
 
-    window.add_action('q', fn_close);
-    window.add_action(KeyCode::Esc, fn_close);
-    window.add_popup([
-        subwin_multi_ns,
-        subwin_apis,
-        subwin_single_ns,
-        subwin_ctx,
-        subwin_yaml_kind,
-        subwin_yaml_name,
-    ]);
+    let window_builder = window_builder
+        .action('q', fn_close)
+        .action(KeyCode::Esc, fn_close)
+        .popup([
+            subwin_multi_ns,
+            subwin_apis,
+            subwin_single_ns,
+            subwin_ctx,
+            subwin_yaml_kind,
+            subwin_yaml_name,
+        ]);
 
-    window
+    let window_builder = window_builder.header(2, move || {
+        let ns = namespaces.borrow();
+        let ctx = context.borrow();
+
+        Paragraph::new(vec![
+            Spans::from(format!("ctx: {}", ctx.to_string())),
+            Spans::from(format!("ns: {}", ns.to_string())),
+        ])
+    });
+
+    window_builder.build()
 }
 
 fn run(config: Config) -> Result<()> {
@@ -693,7 +715,7 @@ fn run(config: Config) -> Result<()> {
 
     loop {
         terminal.draw(|f| {
-            window.render(f, context.borrow(), namespace.borrow());
+            window.render(f);
         })?;
 
         match window_action(&mut window, &rx_main) {
