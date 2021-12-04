@@ -1,8 +1,8 @@
 use std::fmt::Display;
 
 pub mod action;
-
 pub mod config;
+pub mod window;
 
 #[cfg(feature = "logging")]
 pub mod log;

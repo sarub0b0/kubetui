@@ -36,13 +36,13 @@ pub mod view_id {
     generate_id!(tab_yaml);
     generate_id!(tab_yaml_widget_yaml);
 
-    generate_id!(subwin_ctx);
-    generate_id!(subwin_ns);
-    generate_id!(subwin_apis);
-    generate_id!(subwin_single_ns);
+    generate_id!(popup_ctx);
+    generate_id!(popup_ns);
+    generate_id!(popup_apis);
+    generate_id!(popup_single_ns);
 
-    generate_id!(subwin_yaml_name);
-    generate_id!(subwin_yaml_kind);
+    generate_id!(popup_yaml_name);
+    generate_id!(popup_yaml_kind);
 }
 
 macro_rules! error_format {
@@ -161,14 +161,14 @@ pub fn update_contents(
 
         Kube::GetNamespacesResponse(ns) => {
             window
-                .find_widget_mut(view_id::subwin_ns)
+                .find_widget_mut(view_id::popup_ns)
                 .update_widget_item(Item::Array(ns.to_vec()));
             window
-                .find_widget_mut(view_id::subwin_single_ns)
+                .find_widget_mut(view_id::popup_single_ns)
                 .update_widget_item(Item::Array(ns));
 
             let widget = window
-                .find_widget_mut(view_id::subwin_ns)
+                .find_widget_mut(view_id::popup_ns)
                 .as_mut_multiple_select();
 
             if widget.selected_items().is_empty() {
@@ -177,11 +177,11 @@ pub fn update_contents(
         }
 
         Kube::GetAPIsResponse(apis) => {
-            update_widget_item_for_vec(window, view_id::subwin_apis, apis);
+            update_widget_item_for_vec(window, view_id::popup_apis, apis);
         }
 
         Kube::GetContextsResponse(ctxs) => {
-            update_widget_item_for_vec(window, view_id::subwin_ctx, ctxs);
+            update_widget_item_for_vec(window, view_id::popup_ctx, ctxs);
         }
 
         Kube::RestoreNamespaces(default, selected) => {
@@ -191,7 +191,7 @@ pub fn update_contents(
 
         Kube::RestoreAPIs(apis) => {
             let w = window
-                .find_widget_mut(view_id::subwin_apis)
+                .find_widget_mut(view_id::popup_apis)
                 .as_mut_multiple_select();
 
             for api in apis {
@@ -200,11 +200,11 @@ pub fn update_contents(
         }
 
         Kube::YamlAPIsResponse(apis) => {
-            update_widget_item_for_vec(window, view_id::subwin_yaml_kind, apis);
+            update_widget_item_for_vec(window, view_id::popup_yaml_kind, apis);
         }
 
         Kube::YamlResourceResponse(resources) => {
-            update_widget_item_for_vec(window, view_id::subwin_yaml_name, resources);
+            update_widget_item_for_vec(window, view_id::popup_yaml_name, resources);
         }
 
         Kube::YamlRawResponse(yaml) => {
