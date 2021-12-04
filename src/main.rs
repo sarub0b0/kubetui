@@ -29,7 +29,7 @@ extern crate kubetui;
 use kubetui::{
     action::{update_contents, window_action},
     config::{configure, Config},
-    window::Init,
+    window::WindowInit,
     Context, Namespace,
 };
 
@@ -103,7 +103,7 @@ fn run(config: Config) -> Result<()> {
         },
     )?;
 
-    let mut window = Init::new(
+    let mut window = WindowInit::new(
         config.split_mode(),
         tx_main,
         context.clone(),

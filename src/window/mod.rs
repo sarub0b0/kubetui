@@ -30,14 +30,14 @@ use tui_wrapper::{
     Tab, Window, WindowEvent,
 };
 
-pub struct Init {
+pub struct WindowInit {
     split_mode: Direction,
     tx: Sender<Event>,
     context: Rc<RefCell<Context>>,
     namespaces: Rc<RefCell<Namespace>>,
 }
 
-impl Init {
+impl WindowInit {
     pub fn new(
         split_mode: Direction,
         tx: Sender<Event>,
