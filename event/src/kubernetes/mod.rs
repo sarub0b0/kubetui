@@ -440,13 +440,6 @@ struct MainWorker {
     api_database: ApiDatabase,
 }
 
-#[derive(Clone)]
-struct MainWorkerArgs {
-    api_resources: ApiResources,
-    rx: Receiver<Event>,
-    contexts: Vec<NamedContext>,
-}
-
 #[async_trait]
 impl Worker for MainWorker {
     type Output = Result<WorkerResult>;
