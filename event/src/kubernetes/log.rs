@@ -459,7 +459,6 @@ impl FetchLogStreamWorker {
                     pod_api: self.pod_api.clone(),
                     pod_name: self.pod_name.clone(),
                     prefix,
-                    log_params,
                     container_name: container_name.clone(),
                 };
 
@@ -551,7 +550,6 @@ impl FetchLogStreamWorker {
                     pod_api: self.pod_api.clone(),
                     pod_name: self.pod_name.clone(),
                     prefix,
-                    log_params: lp,
                     container_name: container_name.clone(),
                 };
 
@@ -775,7 +773,6 @@ struct FetchLogStream {
     pod_api: Api<Pod>,
     pod_name: String,
     prefix: Option<String>,
-    log_params: LogParams,
     container_name: String,
 }
 
