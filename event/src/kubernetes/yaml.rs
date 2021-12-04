@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use futures::future::try_join_all;
-use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ListMeta, ObjectMeta};
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use serde::Deserialize;
 
 use super::{
@@ -13,10 +13,7 @@ use crate::error::{Error, Result};
 #[derive(Default, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct List {
-    api_version: String,
     items: Vec<Item>,
-    kind: String,
-    metadata: Option<ListMeta>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
