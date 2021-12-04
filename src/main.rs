@@ -449,10 +449,10 @@ fn init_window(
 
     // Raw
     let configs_widget = init_configs(tx.clone(), namespaces.clone());
-    let raw_data_widget = init_configs_raw(clipboard);
+    let raw_data_widget = init_configs_raw(clipboard.clone());
 
     // Event
-    let event_widget = Text::builder()
+    let event_widget_builder = Text::builder()
         .id(view_id::tab_event_widget_event)
         .widget_config(&WidgetConfig::builder().title("Event").build())
         .wrap()
@@ -465,8 +465,14 @@ fn init_window(
             *config.append_title_mut() = Some(format!(" [{}/{}]", index, text.rows_size()).into());
 
             config.render_block_with_title(text.focusable() && selected)
-        })
-        .build();
+        });
+
+    let event_widget = if let Some(cb) = &clipboard {
+        event_widget_builder.clipboard(cb.clone())
+    } else {
+        event_widget_builder
+    }
+    .build();
 
     // APIs
     let tx_apis = tx.clone();
@@ -476,7 +482,7 @@ fn init_window(
         EventResult::Nop
     };
 
-    let apis_widget = Text::builder()
+    let apis_widget_builder = Text::builder()
         .id(view_id::tab_apis_widget_apis)
         .widget_config(&WidgetConfig::builder().title("APIs").build())
         .block_injection(|text: &Text, selected: bool| {
@@ -489,8 +495,14 @@ fn init_window(
             config.render_block_with_title(text.focusable() && selected)
         })
         .action('/', open_subwin.clone())
-        .action('f', open_subwin)
-        .build();
+        .action('f', open_subwin);
+
+    let apis_widget = if let Some(cb) = &clipboard {
+        apis_widget_builder.clipboard(cb.clone())
+    } else {
+        apis_widget_builder
+    }
+    .build();
 
     // Yaml
     let yaml_state = Rc::new(RefCell::new((String::default(), String::default())));
@@ -505,7 +517,7 @@ fn init_window(
         EventResult::Nop
     };
 
-    let yaml_widget = Text::builder()
+    let yaml_widget_builder = Text::builder()
         .id(view_id::tab_yaml_widget_yaml)
         .widget_config(&WidgetConfig::builder().title("Yaml").build())
         .block_injection(|text: &Text, selected: bool| {
@@ -519,8 +531,14 @@ fn init_window(
         })
         .action('/', open_subwin.clone())
         .action('f', open_subwin)
-        .wrap()
-        .build();
+        .wrap();
+
+    let yaml_widget = if let Some(cb) = clipboard {
+        yaml_widget_builder.clipboard(cb)
+    } else {
+        yaml_widget_builder
+    }
+    .build();
 
     // [Sub Window] Context
     let subwin_ctx = Widget::from(init_subwin_ctx(
