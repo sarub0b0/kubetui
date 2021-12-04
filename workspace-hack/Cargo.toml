@@ -25,7 +25,7 @@ serde = { version = "1.0.130", features = ["derive", "serde_derive", "std"] }
 [build-dependencies]
 proc-macro2 = { version = "1.0.32", features = ["proc-macro"] }
 quote = { version = "1.0.10", features = ["proc-macro"] }
-syn = { version = "1.0.81", features = ["clone-impls", "derive", "extra-traits", "full", "parsing", "printing", "proc-macro", "quote", "visit", "visit-mut"] }
+syn = { version = "1.0.82", features = ["clone-impls", "derive", "extra-traits", "full", "parsing", "printing", "proc-macro", "quote", "visit", "visit-mut"] }
 
 [target.x86_64-pc-windows-msvc.dependencies]
 winapi = { version = "0.3.9", default-features = false, features = ["basetsd", "cfg", "consoleapi", "errhandlingapi", "evntrace", "fileapi", "handleapi", "impl-default", "in6addr", "inaddr", "ioapiset", "knownfolders", "lmcons", "minschannel", "minwinbase", "minwindef", "mstcpip", "mswsock", "namedpipeapi", "ntdef", "ntsecapi", "ntstatus", "objbase", "processenv", "processthreadsapi", "profileapi", "schannel", "securitybaseapi", "shellapi", "shlobj", "sspi", "std", "synchapi", "sysinfoapi", "timezoneapi", "winbase", "wincon", "wincrypt", "windef", "winerror", "winioctl", "winnt", "winsock2", "winuser", "ws2def", "ws2ipdef", "ws2tcpip"] }
