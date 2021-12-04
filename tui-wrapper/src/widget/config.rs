@@ -6,7 +6,7 @@ use tui::{
     widgets::{Block, BorderType, Borders},
 };
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct WidgetConfigBuilder(WidgetConfig);
 
 /// widgets::Block and Title wrapper
@@ -16,12 +16,6 @@ pub struct WidgetConfig {
     append_title: Option<Title>,
     block: Block<'static>,
     focusable: bool,
-}
-
-impl Default for WidgetConfigBuilder {
-    fn default() -> Self {
-        Self(WidgetConfig::default())
-    }
 }
 
 impl Default for WidgetConfig {
