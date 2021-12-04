@@ -120,7 +120,10 @@ impl<'a> InputForm<'a> {
 
     fn render_content(content: &str, cursor: &Cursor) -> Spans<'a> {
         match (content.len(), cursor.pos()) {
-            (0, _) => Spans::from(Span::styled(" ", cursor.cursor_style())),
+            (0, _) => Spans::from(Span::styled(
+                cursor.cursor.to_string(),
+                cursor.cursor_style(),
+            )),
             (len, pos) if pos < len => Spans::from(
                 content
                     .chars()
