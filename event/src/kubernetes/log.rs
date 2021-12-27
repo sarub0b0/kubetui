@@ -384,6 +384,7 @@ impl FetchLogStreamWorker {
         ::log::info!("log_stream: phase_init_container_log done {:?}", pod_name);
 
         // containers phase
+        // TODO なんのための処理かわからない
         let enable_prefix = {
             let pod = self.pod.read().await;
 
