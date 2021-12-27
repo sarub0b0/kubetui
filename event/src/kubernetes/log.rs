@@ -391,7 +391,11 @@ impl FetchLogStreamWorker {
                 if let Some(statuses) = &status.init_container_statuses {
                     !statuses.is_empty()
                 } else {
-                    false
+                    if let Some(statuses) = &status.container_statuses {
+                        !statuses.is_empty()
+                    } else {
+                        false
+                    }
                 }
             } else {
                 false
