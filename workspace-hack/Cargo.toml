@@ -13,19 +13,19 @@ publish = false
 
 ### BEGIN HAKARI SECTION
 [dependencies]
-crossbeam-channel = { version = "0.5.1", features = ["crossbeam-utils", "std"] }
+crossbeam-channel = { version = "0.5.2", features = ["crossbeam-utils", "std"] }
 crossbeam-deque = { version = "0.8.1", features = ["crossbeam-epoch", "crossbeam-utils", "std"] }
-crossbeam-utils = { version = "0.8.5", features = ["lazy_static", "std"] }
+crossbeam-utils = { version = "0.8.6", features = ["lazy_static", "std"] }
 log = { version = "0.4.14", default-features = false, features = ["serde", "std"] }
 memchr = { version = "2.4.1", features = ["std"] }
 regex = { version = "1.5.4", features = ["aho-corasick", "memchr", "perf", "perf-cache", "perf-dfa", "perf-inline", "perf-literal", "std", "unicode", "unicode-age", "unicode-bool", "unicode-case", "unicode-gencat", "unicode-perl", "unicode-script", "unicode-segment"] }
 regex-syntax = { version = "0.6.25", features = ["unicode", "unicode-age", "unicode-bool", "unicode-case", "unicode-gencat", "unicode-perl", "unicode-script", "unicode-segment"] }
-serde = { version = "1.0.131", features = ["derive", "serde_derive", "std"] }
+serde = { version = "1.0.133", features = ["derive", "serde_derive", "std"] }
 
 [build-dependencies]
-proc-macro2 = { version = "1.0.33", features = ["proc-macro"] }
-quote = { version = "1.0.10", features = ["proc-macro"] }
-syn = { version = "1.0.82", features = ["clone-impls", "derive", "extra-traits", "full", "parsing", "printing", "proc-macro", "quote", "visit", "visit-mut"] }
+proc-macro2 = { version = "1.0.36", features = ["proc-macro"] }
+quote = { version = "1.0.14", features = ["proc-macro"] }
+syn = { version = "1.0.85", features = ["clone-impls", "derive", "extra-traits", "full", "parsing", "printing", "proc-macro", "quote", "visit", "visit-mut"] }
 
 [target.x86_64-pc-windows-msvc.dependencies]
 winapi = { version = "0.3.9", default-features = false, features = ["basetsd", "cfg", "consoleapi", "errhandlingapi", "evntrace", "fileapi", "handleapi", "impl-default", "in6addr", "inaddr", "ioapiset", "knownfolders", "lmcons", "minschannel", "minwinbase", "minwindef", "mstcpip", "mswsock", "namedpipeapi", "ntdef", "ntsecapi", "ntstatus", "objbase", "processenv", "processthreadsapi", "profileapi", "schannel", "securitybaseapi", "shellapi", "shlobj", "sspi", "std", "synchapi", "sysinfoapi", "timezoneapi", "winbase", "wincon", "wincrypt", "windef", "winerror", "winioctl", "winnt", "winsock2", "winuser", "ws2def", "ws2ipdef", "ws2tcpip"] }
