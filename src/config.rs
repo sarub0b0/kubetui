@@ -1,9 +1,19 @@
-use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg};
+use std::str::FromStr;
+
+use clap::{ArgEnum, Parser};
 
 use tui_wrapper::tui::layout::Direction;
 
-#[derive(Debug, Default)]
+#[derive(Parser, Debug)]
+#[clap(author, version, about)]
 pub struct Config {
+    /// Window split mode
+    #[clap(
+        short,
+        long,
+        default_value = "vertical",
+        possible_values = ["v", "h", "vertical", "horizontal"]
+        )]
     split_mode: DirectionWrapper,
 }
 
@@ -16,7 +26,7 @@ impl Config {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, ArgEnum)]
 enum DirectionWrapper {
     Horizontal,
     Vertical,
@@ -28,36 +38,18 @@ impl Default for DirectionWrapper {
     }
 }
 
-pub fn configure() -> Config {
-    let app = App::new(crate_name!())
-        .author(crate_authors!())
-        .version(crate_version!())
-        .about(crate_description!())
-        .arg(
-            Arg::new("split-mode")
-                .short('s')
-                .long("split-mode")
-                .help("Window split mode")
-                .value_name("direction")
-                .default_value("vertical")
-                .possible_values(&["vertical", "v", "horizontal", "h"])
-                .takes_value(true),
-        )
-        .get_matches();
+impl FromStr for DirectionWrapper {
+    type Err = &'static str;
 
-    let mut config = Config::default();
-
-    if let Some(d) = app.value_of("split-mode") {
-        match d {
-            "vertical" | "v" => {
-                config.split_mode = DirectionWrapper::Vertical;
-            }
-            "horizontal" | "h" => {
-                config.split_mode = DirectionWrapper::Horizontal;
-            }
-            _ => {}
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "vertical" | "v" => Ok(DirectionWrapper::Vertical),
+            "horizontal" | "h" => Ok(DirectionWrapper::Horizontal),
+            _ => Err("invalid value"),
         }
     }
+}
 
-    config
+pub fn configure() -> Config {
+    Config::parse()
 }
