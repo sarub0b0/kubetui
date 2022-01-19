@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use clap::{ArgEnum, Parser};
+use clap::Parser;
 
 use tui_wrapper::tui::layout::Direction;
 
@@ -26,7 +26,7 @@ impl Config {
     }
 }
 
-#[derive(Debug, Clone, Copy, ArgEnum)]
+#[derive(Debug, Clone, Copy)]
 enum DirectionWrapper {
     Horizontal,
     Vertical,
