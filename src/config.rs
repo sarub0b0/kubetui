@@ -34,8 +34,8 @@ pub fn configure() -> Config {
         .version(crate_version!())
         .about(crate_description!())
         .arg(
-            Arg::with_name("split-mode")
-                .short("s")
+            Arg::new("split-mode")
+                .short('s')
                 .long("split-mode")
                 .help("Window split mode")
                 .value_name("direction")

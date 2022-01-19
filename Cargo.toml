@@ -19,7 +19,7 @@ new-log-stream = [ "event/new-log-stream" ]
 [dependencies]
 tokio = { version = "1", features = ["rt"] }
 crossbeam = "0.8"
-clap = { version = "3", features = ["wrap_help"] }
+clap = { version = "3", features = ["wrap_help", "cargo"] }
 clipboard-wrapper = { path = "./clipboard-wrapper" }
 tui-wrapper = { path = "./tui-wrapper" }
 
