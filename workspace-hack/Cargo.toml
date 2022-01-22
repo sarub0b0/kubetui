@@ -24,7 +24,7 @@ serde = { version = "1.0.134", features = ["derive", "serde_derive", "std"] }
 
 [build-dependencies]
 proc-macro2 = { version = "1.0.36", features = ["proc-macro"] }
-quote = { version = "1.0.14", features = ["proc-macro"] }
+quote = { version = "1.0.15", features = ["proc-macro"] }
 syn = { version = "1.0.86", features = ["clone-impls", "derive", "extra-traits", "full", "parsing", "printing", "proc-macro", "quote", "visit", "visit-mut"] }
 
 [target.x86_64-pc-windows-msvc.dependencies]
