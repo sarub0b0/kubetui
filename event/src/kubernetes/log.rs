@@ -1,5 +1,5 @@
 use super::{client::KubeClient, Event, Kube, Worker};
-use crate::{error::PodError, kubernetes::Handlers};
+use crate::{error::PodError, kubernetes::Handlers, util::color::Color};
 
 use async_trait::async_trait;
 use chrono::Local;
@@ -19,8 +19,6 @@ use kube::{
     api::{ListParams, LogParams, WatchEvent},
     Api,
 };
-
-use color::Color;
 
 use crate::error::{anyhow, Error, Result};
 
@@ -841,68 +839,5 @@ impl Worker for FetchLogStream {
     #[cfg(feature = "mock-failed")]
     async fn run(&self) -> Self::Output {
         Err(anyhow!(Error::Mock("follow_container_log_stream failed")))
-    }
-}
-
-mod color {
-    const COLOR: [u8; 6] = [32, 33, 34, 35, 36, 37];
-
-    pub struct Color {
-        index: usize,
-    }
-
-    impl Color {
-        pub fn new() -> Self {
-            Self { index: 0 }
-        }
-
-        pub fn next_color(&mut self) -> u8 {
-            if COLOR.len() <= self.index {
-                self.index = 0;
-            }
-            self.index += 1;
-            COLOR[self.index - 1]
-        }
-    }
-
-    #[cfg(test)]
-    mod tests {
-        use super::*;
-
-        #[test]
-        fn color_default() {
-            let mut color = Color::new();
-            assert_eq!(color.next_color(), 32)
-        }
-
-        #[test]
-        fn color_next_1() {
-            let mut color = Color::new();
-            color.next_color();
-            assert_eq!(color.next_color(), 33)
-        }
-
-        #[test]
-        fn color_next_last() {
-            let mut color = Color::new();
-            color.next_color();
-            color.next_color();
-            color.next_color();
-            color.next_color();
-            color.next_color();
-            assert_eq!(color.next_color(), 37)
-        }
-
-        #[test]
-        fn color_next_loop() {
-            let mut color = Color::new();
-            color.next_color();
-            color.next_color();
-            color.next_color();
-            color.next_color();
-            color.next_color();
-            color.next_color();
-            assert_eq!(color.next_color(), 32)
-        }
     }
 }
