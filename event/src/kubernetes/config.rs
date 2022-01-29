@@ -4,14 +4,15 @@ use super::{
     Event, Kube, KubeClient, KubeTable, WorkerResult,
 };
 
-use std::time;
+use std::{collections::BTreeMap, time};
 
 use futures::future::try_join_all;
-use k8s_openapi::api::core::v1::{ConfigMap, Secret};
+use k8s_openapi::api::core::v1::ConfigMap;
 
-use kube::Api;
+use kube::{api::ObjectMeta, Api};
 
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 
 use crate::error::{anyhow, Error, Result};
 
@@ -137,6 +138,39 @@ async fn fetch_configs(client: &KubeClient, namespaces: &[String]) -> Result<Kub
     Ok(table)
 }
 
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+struct Secret {
+    metadata: ObjectMeta,
+    data: Option<BTreeMap<String, String>>,
+}
+
+impl kube::Resource for Secret {
+    type DynamicType = ();
+
+    fn kind(_: &Self::DynamicType) -> std::borrow::Cow<'_, str> {
+        "Secret".into()
+    }
+
+    fn group(_: &Self::DynamicType) -> std::borrow::Cow<'_, str> {
+        "".into()
+    }
+
+    fn version(_: &Self::DynamicType) -> std::borrow::Cow<'_, str> {
+        "v1".into()
+    }
+
+    fn plural(_: &Self::DynamicType) -> std::borrow::Cow<'_, str> {
+        "secrets".into()
+    }
+
+    fn meta(&self) -> &ObjectMeta {
+        &self.metadata
+    }
+
+    fn meta_mut(&mut self) -> &mut ObjectMeta {
+        &mut self.metadata
+    }
+}
 pub async fn get_config(
     client: KubeClient,
     ns: &str,
