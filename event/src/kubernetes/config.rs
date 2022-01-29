@@ -195,10 +195,15 @@ pub async fn get_config(
                 Ok(data
                     .iter()
                     .map(|(k, v)| {
-                        let decode = if let Ok(b) = std::str::from_utf8(&v.0) {
-                            b
-                        } else {
-                            unsafe { std::str::from_utf8_unchecked(&v.0) }
+                        let decode = match base64::decode(v) {
+                            Ok(decoded_data) => {
+                                if let Ok(utf8_data) = String::from_utf8(decoded_data) {
+                                    utf8_data
+                                } else {
+                                    format!("Can't output a non-UTF8 value. [base64-encoded] {}", v)
+                                }
+                            }
+                            Err(err) => err.to_string(),
                         };
 
                         format!("{}: {}", k, decode)
