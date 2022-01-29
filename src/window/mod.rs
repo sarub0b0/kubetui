@@ -104,8 +104,8 @@ impl WindowInit {
             let ctx = context.borrow();
 
             Paragraph::new(vec![
-                Spans::from(format!(" ctx: {}", ctx.to_string())),
-                Spans::from(format!(" ns: {}", ns.to_string())),
+                Spans::from(format!(" ctx: {}", ctx)),
+                Spans::from(format!(" ns: {}", ns)),
             ])
         });
 

@@ -389,12 +389,10 @@ impl FetchLogStreamWorker {
             if let Some(status) = &pod.status {
                 if let Some(statuses) = &status.init_container_statuses {
                     !statuses.is_empty()
+                } else if let Some(statuses) = &status.container_statuses {
+                    !statuses.is_empty()
                 } else {
-                    if let Some(statuses) = &status.container_statuses {
-                        !statuses.is_empty()
-                    } else {
-                        false
-                    }
+                    false
                 }
             } else {
                 false
