@@ -381,28 +381,10 @@ impl FetchLogStreamWorker {
         #[cfg(feature = "logging")]
         ::log::info!("log_stream: phase_init_container_log done {:?}", pod_name);
 
-        // containers phase
-        // TODO なんのための処理かわからない
-        let enable_prefix = {
-            let pod = self.pod.read().await;
-
-            if let Some(status) = &pod.status {
-                if let Some(statuses) = &status.init_container_statuses {
-                    !statuses.is_empty()
-                } else if let Some(statuses) = &status.container_statuses {
-                    !statuses.is_empty()
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
-        };
-
         #[cfg(feature = "logging")]
         ::log::info!("log_stream: phase_container_log start {:?}", pod_name);
 
-        let ret = self.phase_container_log(&mut color, enable_prefix).await?;
+        let ret = self.phase_container_log(&mut color).await?;
 
         #[cfg(feature = "logging")]
         ::log::info!("log_stream: phase_container_log done {:?}", pod_name);
@@ -517,17 +499,28 @@ impl FetchLogStreamWorker {
         Ok(())
     }
 
-    async fn phase_container_log(
-        &self,
-        color: &mut Color,
-        enable_prefix: bool,
-    ) -> Result<Vec<Result<()>>>
+    async fn phase_container_log(&self, color: &mut Color) -> Result<Vec<Result<()>>>
     where
         Self: Clone + Send + Sync + 'static,
     {
         let mut container_handler = Vec::new();
 
         let pod = self.pod.read().await.clone();
+
+        // containersが１つの時だけプレフィックスをつけない
+        let enable_prefix = {
+            if let Some(status) = &pod.status {
+                if let Some(statuses) = &status.init_container_statuses {
+                    !statuses.is_empty()
+                } else if let Some(statuses) = &status.container_statuses {
+                    1 < statuses.len()
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        };
 
         if let Some(containers) = as_ref_container_statuses(&pod)? {
             for (i, c) in containers.iter().enumerate() {
