@@ -14,7 +14,10 @@ use kube::{api::ObjectMeta, Api};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-use crate::error::{anyhow, Error, Result};
+use crate::{
+    error::{anyhow, Error, Result},
+    util::color::Color,
+};
 
 #[derive(Clone)]
 pub struct ConfigsPollWorker {
@@ -171,6 +174,11 @@ impl kube::Resource for Secret {
         &mut self.metadata
     }
 }
+
+fn format_key_value(k: &str, v: &str, color: u8) -> String {
+    format!("\x1b[{}m{}:\x1b[39m {}", color, k, v)
+}
+
 pub async fn get_config(
     client: KubeClient,
     ns: &str,
@@ -182,7 +190,12 @@ pub async fn get_config(
             let cms: Api<ConfigMap> = Api::namespaced(client.client_clone(), ns);
             let cm = cms.get(name).await?;
             if let Some(data) = cm.data {
-                Ok(data.iter().map(|(k, v)| format!("{}: {}", k, v)).collect())
+                Ok(data
+                    .iter()
+                    .scan(Color::new(), |c, (k, v)| {
+                        Some(format_key_value(k, v, c.next_color()))
+                    })
+                    .collect())
             } else {
                 Err(anyhow!(Error::NoneParameter("configmap.data")))
             }
@@ -192,9 +205,9 @@ pub async fn get_config(
             let sec = secs.get(name).await?;
 
             if let Some(data) = sec.data {
-                Ok(data
+                let ret = data
                     .iter()
-                    .map(|(k, v)| {
+                    .scan(Color::new(), |c, (k, v)| {
                         let decode = match base64::decode(v) {
                             Ok(decoded_data) => {
                                 if let Ok(utf8_data) = String::from_utf8(decoded_data) {
@@ -206,9 +219,10 @@ pub async fn get_config(
                             Err(err) => err.to_string(),
                         };
 
-                        format!("{}: {}", k, decode)
+                        Some(format_key_value(k, &decode, c.next_color()))
                     })
-                    .collect())
+                    .collect();
+                Ok(ret)
             } else {
                 Err(anyhow!(Error::NoneParameter("secret.data")))
             }
