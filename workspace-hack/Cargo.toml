@@ -13,14 +13,16 @@ publish = false
 
 ### BEGIN HAKARI SECTION
 [dependencies]
+base64 = { version = "0.13.0", features = ["alloc", "std"] }
 crossbeam-channel = { version = "0.5.2", features = ["crossbeam-utils", "std"] }
 crossbeam-deque = { version = "0.8.1", features = ["crossbeam-epoch", "crossbeam-utils", "std"] }
 crossbeam-utils = { version = "0.8.6", features = ["lazy_static", "std"] }
+indexmap = { version = "1.7.0", default-features = false, features = ["std"] }
 log = { version = "0.4.14", default-features = false, features = ["serde", "std"] }
 memchr = { version = "2.4.1", features = ["std"] }
 regex = { version = "1.5.4", features = ["aho-corasick", "memchr", "perf", "perf-cache", "perf-dfa", "perf-inline", "perf-literal", "std", "unicode", "unicode-age", "unicode-bool", "unicode-case", "unicode-gencat", "unicode-perl", "unicode-script", "unicode-segment"] }
 regex-syntax = { version = "0.6.25", features = ["unicode", "unicode-age", "unicode-bool", "unicode-case", "unicode-gencat", "unicode-perl", "unicode-script", "unicode-segment"] }
-serde = { version = "1.0.136", features = ["derive", "serde_derive", "std"] }
+serde = { version = "1.0.136", features = ["alloc", "derive", "serde_derive", "std"] }
 
 [build-dependencies]
 proc-macro2 = { version = "1.0.36", features = ["proc-macro"] }
