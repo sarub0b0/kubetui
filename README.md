@@ -5,7 +5,7 @@
 
 Kubernetes resource watching tool
 
-![](screenshots/example.png)
+![](screenshots/pods-log.png)
 
 ## Features
 
@@ -24,14 +24,10 @@ Kubernetes resource watching tool
 USAGE:
     kubetui [OPTIONS]
 
-FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
-
 OPTIONS:
-    -s, --split-mode <direction>
-            Window split mode [default: vertical]
-            [possible values: vertical, v, horizontal, h]
+    -h, --help                       Print help information
+    -s, --split-mode <SPLIT_MODE>    Window split mode [default: vertical] [possible values: v, h, vertical, horizontal]
+    -V, --version                    Print version information
 ```
 
 ## Key Bindings
@@ -44,10 +40,10 @@ General
 | <kbd>c</kbd>                         | Open the popup for selecting the context                                       |
 | <kbd>Shift+n</kbd>                   | Open the popup for selecting multiple namespaces                               |
 | <kbd>f</kbd>, <kbd>/</kbd>           | Open the popup for selecting multiple api-resources (**only APIs / Yaml tab**) |
-| <kbd>Tab</kbd>, <kbd>Shift+Tab</kbd> | Change the focus of view within the active tab                          |
-| <kbd>number</kbd>                    | Switch the tab (number: 1~4)                                            |
-| <kbd>ESC</kbd>                       | Close the window, or terminate the app (when the popup is not opening)  |
-| <kbd>q</kbd>                         | Terminate the app                                                       |
+| <kbd>Tab</kbd>, <kbd>Shift+Tab</kbd> | Change the focus of view within the active tab                                 |
+| <kbd>number</kbd>                    | Switch the tab (number: 1~4)                                                   |
+| <kbd>ESC</kbd>                       | Close the window, or terminate the app (when the popup is not opening)         |
+| <kbd>q</kbd>                         | Terminate the app                                                              |
 
 View control
 
@@ -107,6 +103,10 @@ Events
 APIs
 
 ![](screenshots/apis.png)
+
+Yaml
+
+![](screenshots/yaml.png)
 
 ### Select Items
 
