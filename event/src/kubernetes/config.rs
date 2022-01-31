@@ -4,7 +4,10 @@ use super::{
     Event, Kube, KubeClient, KubeTable, WorkerResult,
 };
 
-use std::{collections::BTreeMap, time};
+use std::{
+    collections::{btree_map::Iter, BTreeMap},
+    time,
+};
 
 use futures::future::try_join_all;
 use k8s_openapi::api::core::v1::ConfigMap;
@@ -12,7 +15,7 @@ use k8s_openapi::api::core::v1::ConfigMap;
 use kube::{api::ObjectMeta, Api};
 
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use crate::{
     error::{anyhow, Error, Result},
@@ -141,10 +144,10 @@ async fn fetch_configs(client: &KubeClient, namespaces: &[String]) -> Result<Kub
     Ok(table)
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Deserialize)]
 struct Secret {
     metadata: ObjectMeta,
-    data: Option<BTreeMap<String, String>>,
+    data: Option<SecretData>,
 }
 
 impl kube::Resource for Secret {
@@ -175,8 +178,90 @@ impl kube::Resource for Secret {
     }
 }
 
-fn format_key_value(k: &str, v: &str, color: u8) -> String {
-    format!("\x1b[{}m{}:\x1b[39m {}", color, k, v)
+#[derive(Debug, Default, Clone, Deserialize)]
+struct SecretData(BTreeMap<String, String>);
+
+impl SecretData {
+    fn to_string_key_values(&self) -> Vec<String> {
+        SecretDataToStringIterator::new(self.0.iter()).collect()
+    }
+}
+
+struct SecretDataToStringIterator<'a> {
+    iter: Iter<'a, String, String>,
+    color: Color,
+}
+
+impl<'a> SecretDataToStringIterator<'a> {
+    fn new(iter: Iter<'a, String, String>) -> Self {
+        Self {
+            iter,
+            color: Color::new(),
+        }
+    }
+}
+
+impl<'a> SecretDataToStringIterator<'a> {
+    fn format_utf8(key: &str, value: &str, color: u8) -> String {
+        let newline = if value.contains('\n') { "\n" } else { "" };
+        format!(
+            "\x1b[{color}m{key}:\x1b[39m {newline}{value}",
+            color = color,
+            key = key,
+            value = value,
+            newline = newline
+        )
+    }
+
+    fn format_non_utf8(key: &str, value: &str, color: u8) -> String {
+        Self::format_error(key, value, "Can't output a non-UTF8 value", color)
+    }
+
+    fn format_decode_error(key: &str, value: &str, err: &str, color: u8) -> String {
+        Self::format_error(key, value, &format!("\x1b[31m{}\x1b[39m", err), color)
+    }
+
+    fn format_error(key: &str, value: &str, err: &str, color: u8) -> String {
+        format!(
+            "\x1b[{color}m{key}:\x1b[39m {error}\n[base64-encoded] {value}",
+            color = color,
+            key = key,
+            value = value,
+            error = err
+        )
+    }
+}
+
+impl Iterator for SecretDataToStringIterator<'_> {
+    type Item = String;
+    fn next(&mut self) -> std::option::Option<<Self as Iterator>::Item> {
+        if let Some((k, v)) = self.iter.next() {
+            let c = self.color.next_color();
+            match base64::decode(v) {
+                Ok(decoded_data) => {
+                    if let Ok(utf8_data) = String::from_utf8(decoded_data) {
+                        Some(Self::format_utf8(k, &utf8_data, c))
+                    } else {
+                        Some(Self::format_non_utf8(k, v, c))
+                    }
+                }
+                Err(err) => Some(Self::format_decode_error(k, v, &err.to_string(), c)),
+            }
+        } else {
+            None
+        }
+    }
+}
+
+fn format_config_key_value(key: &str, value: &str, color: u8) -> String {
+    let newline = if value.contains('\n') { "\n" } else { "" };
+    format!(
+        "\x1b[{color}m{key}:\x1b[39m {newline}{value}",
+        color = color,
+        key = key,
+        value = value,
+        newline = newline
+    )
 }
 
 pub async fn get_config(
@@ -193,7 +278,7 @@ pub async fn get_config(
                 Ok(data
                     .iter()
                     .scan(Color::new(), |c, (k, v)| {
-                        Some(format_key_value(k, v, c.next_color()))
+                        Some(format_config_key_value(k, v, c.next_color()))
                     })
                     .collect())
             } else {
@@ -205,24 +290,7 @@ pub async fn get_config(
             let sec = secs.get(name).await?;
 
             if let Some(data) = sec.data {
-                let ret = data
-                    .iter()
-                    .scan(Color::new(), |c, (k, v)| {
-                        let decode = match base64::decode(v) {
-                            Ok(decoded_data) => {
-                                if let Ok(utf8_data) = String::from_utf8(decoded_data) {
-                                    utf8_data
-                                } else {
-                                    format!("Can't output a non-UTF8 value. [base64-encoded] {}", v)
-                                }
-                            }
-                            Err(err) => err.to_string(),
-                        };
-
-                        Some(format_key_value(k, &decode, c.next_color()))
-                    })
-                    .collect();
-                Ok(ret)
+                Ok(data.to_string_key_values())
             } else {
                 Err(anyhow!(Error::NoneParameter("secret.data")))
             }
