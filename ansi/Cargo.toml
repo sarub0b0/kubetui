@@ -11,4 +11,4 @@ nom = "7.1.0"
 workspace-hack = { path = "../workspace-hack"}
 
 [dev-dependencies]
-pretty_assertions = "1.0.0"
+pretty_assertions = "1.1.0"
