@@ -1,10 +1,5 @@
 use std::rc::Rc;
 
-use crate::tui_wrapper::{
-    event::{Callback, EventResult},
-    key_event_to_code, Window,
-};
-
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use derivative::*;
 
@@ -17,6 +12,11 @@ use tui::{
 };
 
 use unicode_width::UnicodeWidthStr;
+
+use crate::tui_wrapper::{
+    event::{Callback, EventResult},
+    key_event_to_code, Window,
+};
 
 use super::{
     spans::generate_spans_line,
