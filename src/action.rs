@@ -30,6 +30,9 @@ pub mod view_id {
     generate_id!(tab_configs);
     generate_id!(tab_configs_widget_configs);
     generate_id!(tab_configs_widget_raw_data);
+    generate_id!(tab_network);
+    generate_id!(tab_network_widget_network);
+    generate_id!(tab_network_widget_description);
     generate_id!(tab_event);
     generate_id!(tab_event_widget_event);
     generate_id!(tab_apis);
