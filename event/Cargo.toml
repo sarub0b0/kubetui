@@ -33,7 +33,6 @@ thiserror = "1"
 anyhow = "1"
 
 async-trait = "0.1"
-workspace-hack = { path = "../workspace-hack"}
 
 base64 = "0.13.0"
 

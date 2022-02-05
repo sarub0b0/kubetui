@@ -9,7 +9,7 @@ repository = "https://github.com/sarub0b0/kubetui"
 keywords = ["kubernetes", "tui", "terminal", "monitor"]
 
 [workspace]
-members = [ "tui-wrapper", "event", "ansi", "clipboard-wrapper" , "workspace-hack" ]
+members = [ "tui-wrapper", "event", "ansi", "clipboard-wrapper" ]
 
 [features]
 default = []
@@ -32,6 +32,5 @@ log = { version = "0.4", optional = true }
 
 event = { path = "./event", version = "0.1.0" }
 ansi = { path = "./ansi", version = "0.1.0" }
-workspace-hack = { path = "workspace-hack", version = "0.1.0" }
 
 

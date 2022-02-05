@@ -28,7 +28,6 @@ version = "0.1.0"
 dependencies = [
  "nom",
  "pretty_assertions",
- "workspace-hack",
 ]
 
 [[package]]
@@ -206,7 +205,6 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "clipboard",
- "workspace-hack",
  "wsl",
 ]
 
@@ -440,7 +438,6 @@ dependencies = [
  "serde_yaml",
  "thiserror",
  "tokio",
- "workspace-hack",
 ]
 
 [[package]]
@@ -865,7 +862,6 @@ dependencies = [
  "log4rs",
  "tokio",
  "tui-wrapper",
- "workspace-hack",
 ]
 
 [[package]]
@@ -1880,7 +1876,6 @@ dependencies = [
  "tui",
  "unicode-segmentation",
  "unicode-width",
- "workspace-hack",
 ]
 
 [[package]]
