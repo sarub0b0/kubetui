@@ -2,9 +2,11 @@ mod api;
 mod config;
 mod context;
 mod event;
+mod network;
 mod pod;
 mod yaml;
 
+use self::network::{NetworkTab, NetworkTabBuilder};
 use api::*;
 use config::*;
 use context::*;
@@ -132,18 +134,27 @@ impl WindowInit {
         )
         .build();
 
-        let EventsTab { tab: tab_events } = EventsTabBuilder::new("3:Event", &clipboard).build();
+        let NetworkTab { tab: tab_network } = NetworkTabBuilder::new(
+            "3:Network",
+            &self.tx,
+            &self.namespaces,
+            &clipboard,
+            self.split_mode.clone(),
+        )
+        .build();
+
+        let EventsTab { tab: tab_events } = EventsTabBuilder::new("4:Event", &clipboard).build();
 
         let APIsTab {
             tab: tab_apis,
             popup: popup_apis,
-        } = APIsTabBuilder::new("4:APIs", &self.tx, &clipboard).build();
+        } = APIsTabBuilder::new("5:APIs", &self.tx, &clipboard).build();
 
         let YamlTab {
             tab: tab_yaml,
             popup_kind: popup_yaml_kind,
             popup_name: popup_yaml_name,
-        } = YamlTabBuilder::new("5:Yaml", &self.tx, &self.namespaces, &clipboard).build();
+        } = YamlTabBuilder::new("6:Yaml", &self.tx, &self.namespaces, &clipboard).build();
 
         let ContextPopup {
             context: popup_context,
@@ -152,7 +163,14 @@ impl WindowInit {
         } = ContextPopupBuilder::new(&self.tx, &self.context, &self.namespaces).build();
 
         // Init Window
-        let tabs = vec![tab_pods, tab_configs, tab_events, tab_apis, tab_yaml];
+        let tabs = vec![
+            tab_pods,
+            tab_configs,
+            tab_network,
+            tab_events,
+            tab_apis,
+            tab_yaml,
+        ];
 
         let popups = vec![
             popup_context,
