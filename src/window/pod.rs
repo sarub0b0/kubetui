@@ -1,24 +1,22 @@
 use crossbeam::channel::Sender;
 
 use std::{cell::RefCell, rc::Rc};
-use tui_wrapper::{
-    tab::WidgetData,
-    tui::layout::{Constraint, Direction, Layout},
-    Tab,
-};
 
-use clipboard_wrapper::ClipboardContextWrapper;
+use crate::clipboard_wrapper::ClipboardContextWrapper;
 
-use ::event::{kubernetes::*, Event};
+use crate::event::{kubernetes::*, Event};
 
 use crate::action::view_id;
-use crate::Namespace;
+use crate::context::Namespace;
 
-use tui_wrapper::{
+use crate::tui_wrapper::{
     event::EventResult,
+    tab::WidgetData,
     widget::{config::WidgetConfig, Table, Text, WidgetTrait},
-    WindowEvent,
+    Tab, WindowEvent,
 };
+
+use tui::layout::{Constraint, Direction, Layout};
 
 pub struct PodTabBuilder<'a> {
     title: &'a str,

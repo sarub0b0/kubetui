@@ -8,29 +8,29 @@ use std::{
     thread, time,
 };
 
-use ::event::{error::Result, input::*, kubernetes::*, tick::*, Event};
+use crossterm::{
+    cursor::Show,
+    event::{DisableMouseCapture, EnableMouseCapture},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
 
-use tui_wrapper::{
-    crossterm::{
-        cursor::Show,
-        event::{DisableMouseCapture, EnableMouseCapture},
-        execute,
-        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-    },
-    tui::{
-        backend::{Backend, CrosstermBackend},
-        layout::Rect,
-        Terminal, TerminalOptions, Viewport,
-    },
-    WindowEvent,
+use tui::{
+    backend::{Backend, CrosstermBackend},
+    layout::Rect,
+    Terminal, TerminalOptions, Viewport,
 };
 
 extern crate kubetui;
+
 use kubetui::{
     action::{update_contents, window_action},
     config::{configure, Config},
+    context::{Context, Namespace},
+    error::Result,
+    event::{input::*, kubernetes::*, tick::*, Event},
+    tui_wrapper::WindowEvent,
     window::WindowInit,
-    Context, Namespace,
 };
 
 #[cfg(feature = "logging")]

@@ -1,11 +1,14 @@
 use std::{cell::RefCell, rc::Rc};
-use tui_wrapper::{tab::WidgetData, Tab};
 
-use clipboard_wrapper::ClipboardContextWrapper;
+use crate::clipboard_wrapper::ClipboardContextWrapper;
 
 use crate::action::view_id;
 
-use tui_wrapper::widget::{config::WidgetConfig, Text, WidgetTrait};
+use crate::tui_wrapper::{
+    tab::WidgetData,
+    widget::{config::WidgetConfig, Text, WidgetTrait},
+    Tab,
+};
 
 pub struct EventsTabBuilder<'a> {
     title: &'a str,

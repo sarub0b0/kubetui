@@ -1,18 +1,18 @@
 use crossbeam::channel::Sender;
 
 use std::{cell::RefCell, rc::Rc};
-use tui_wrapper::{tab::WidgetData, widget::Widget, Tab};
 
-use clipboard_wrapper::ClipboardContextWrapper;
+use crate::clipboard_wrapper::ClipboardContextWrapper;
 
-use ::event::{kubernetes::*, Event};
+use crate::event::{kubernetes::*, Event};
 
 use crate::action::view_id;
 
-use tui_wrapper::{
+use crate::tui_wrapper::{
     event::EventResult,
-    widget::{config::WidgetConfig, MultipleSelect, Text, WidgetTrait},
-    Window,
+    tab::WidgetData,
+    widget::{config::WidgetConfig, MultipleSelect, Text, Widget, WidgetTrait},
+    Tab, Window,
 };
 
 pub struct APIsTabBuilder<'a> {

@@ -1,18 +1,19 @@
 use crossbeam::channel::Receiver;
 
-use event::{
-    error::Result,
+use crate::event::{
     kubernetes::{Kube, KubeTable},
     Event,
 };
 
-use tui_wrapper::{
+use crate::error::Result;
+
+use super::tui_wrapper::{
     event::{exec_to_window_event, EventResult},
     widget::{Item, WidgetTrait},
     Window, WindowEvent,
 };
 
-use crate::{Context, Namespace};
+use crate::context::{Context, Namespace};
 
 pub mod view_id {
 

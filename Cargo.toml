@@ -8,29 +8,65 @@ description = "kubernetes terminal user interface"
 repository = "https://github.com/sarub0b0/kubetui"
 keywords = ["kubernetes", "tui", "terminal", "monitor"]
 
-[workspace]
-members = [ "tui-wrapper", "event", "ansi", "clipboard-wrapper" ]
-
 [features]
 default = []
-logging = [ "log", "log4rs", "event/logging", "tui-wrapper/logging" ]
-mock = [ "event/mock" ]
-mock-failed = [ "event/mock-failed" ]
-new-log-stream = [ "event/new-log-stream" ]
+logging = [ "log", "log4rs" ]
+mock = []
+mock-failed = []
+new-log-stream = []
+stack-widget = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio = { version = "1", features = ["rt"] }
 crossbeam = "0.8"
 clap = { version = "3", features = ["wrap_help", "derive"] }
-clipboard-wrapper = { path = "./clipboard-wrapper", version = "0.1.0" }
-tui-wrapper = { path = "./tui-wrapper", version = "0.1.0" }
 
-log4rs = { version = "1", optional = true }
+# ansi
+nom = "7.1.0"
+
+# clipboard
+clipboard = "0.5"
+base64 = "0.13"
+wsl = "0.1"
+
+
+# tui
+tui = { git = "https://github.com/sarub0b0/tui-rs.git", features = ["crossterm"], default-features = false }
+unicode-segmentation = "1.8"
+unicode-width = "0.1"
+rayon = "1.5"
+crossterm = "0.22.1"
+derivative = "2.2"
+fuzzy-matcher = "0.3"
+chrono = "0.4"
+enum_dispatch = "0.3"
+
+# log
 log = { version = "0.4", optional = true }
+log4rs = { version = "1", optional = true }
 
-event = { path = "./event", version = "0.1.0" }
-ansi = { path = "./ansi", version = "0.1.0" }
+kube = "0.68"
+kube-runtime = "0.68"
+k8s-openapi = { version = "0.14", default-features = false, features = ["v1_20"] }
+futures = "0.3"
+bytes = "1"
+tokio = { version = "1", features = ["rt", "rt-multi-thread"] }
+http = "0.2"
+serde_json = "1.0"
+serde_yaml = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+
+hyper = { version = "0.14", optional = true }
+thiserror = "1"
+anyhow = "1"
+
+async-trait = "0.1"
 
 
+[dev-dependencies]
+pretty_assertions = "1.1.0"
+
+[[example]]
+name = "stack_view"
+required-features = ["stack-widget"]

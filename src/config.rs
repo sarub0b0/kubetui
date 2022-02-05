@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use clap::Parser;
 
-use tui_wrapper::tui::layout::Direction;
+use tui::layout::Direction;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about)]

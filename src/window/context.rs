@@ -1,15 +1,14 @@
 use crossbeam::channel::Sender;
 use std::{cell::RefCell, rc::Rc};
-use tui_wrapper::widget::Widget;
 
-use ::event::{kubernetes::*, Event};
+use crate::event::{kubernetes::*, Event};
 
 use crate::action::view_id;
-use crate::{Context, Namespace};
+use crate::context::{Context, Namespace};
 
-use tui_wrapper::{
+use crate::tui_wrapper::{
     event::EventResult,
-    widget::{config::WidgetConfig, MultipleSelect, SingleSelect},
+    widget::{config::WidgetConfig, MultipleSelect, SingleSelect, Widget},
     Window,
 };
 

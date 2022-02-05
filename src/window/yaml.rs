@@ -1,16 +1,16 @@
 use crossbeam::channel::Sender;
 
+use crate::tui_wrapper::{tab::WidgetData, widget::Widget, Tab};
 use std::{cell::RefCell, rc::Rc};
-use tui_wrapper::{tab::WidgetData, widget::Widget, Tab};
 
-use clipboard_wrapper::ClipboardContextWrapper;
+use crate::clipboard_wrapper::ClipboardContextWrapper;
 
-use ::event::{kubernetes::*, Event};
+use crate::event::{kubernetes::*, Event};
 
 use crate::action::view_id;
-use crate::Namespace;
+use crate::context::Namespace;
 
-use tui_wrapper::{
+use crate::tui_wrapper::{
     event::EventResult,
     widget::{config::WidgetConfig, SingleSelect, Text, WidgetTrait},
     Window,
