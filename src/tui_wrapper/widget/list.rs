@@ -4,19 +4,19 @@ use tui::{
     backend::Backend,
     layout::Rect,
     style::{Modifier, Style},
+    widgets::{self, Block, ListState},
     Frame,
 };
 
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use derivative::*;
-use tui::widgets::{self, Block, ListState};
+
+use super::{config::WidgetConfig, Item, RenderTrait, WidgetTrait};
 
 use crate::tui_wrapper::{
     event::{Callback, EventResult},
     key_event_to_code, Window,
 };
-
-use super::{config::WidgetConfig, Item, RenderTrait, WidgetTrait};
 
 mod inner_item {
 
