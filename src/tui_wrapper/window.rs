@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
+
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
@@ -14,11 +15,9 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::event::{kubernetes::Kube, UserEvent};
 
-use super::util::child_window_chunk;
-
 use super::{
     event::{EventResult, InnerCallback},
-    util,
+    util::{self, child_window_chunk, key_event_to_code},
     widget::{RenderTrait, Widget, WidgetTrait},
     Tab,
 };
@@ -359,7 +358,7 @@ impl Window<'_> {
         let focus_widget = self.focused_tab_mut().focused_widget_mut();
 
         match focus_widget.on_key_event(ev) {
-            EventResult::Ignore => match util::key_event_to_code(ev) {
+            EventResult::Ignore => match key_event_to_code(ev) {
                 KeyCode::Tab => {
                     self.focus_next_widget();
                 }

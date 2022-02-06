@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::tui_wrapper::{
     event::{Callback, EventResult},
     key_event_to_code, Window,
@@ -6,7 +8,6 @@ use crate::tui_wrapper::{
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use derivative::*;
 
-use std::rc::Rc;
 use tui::{
     backend::Backend,
     layout::{Constraint, Rect},
@@ -17,9 +18,11 @@ use tui::{
 
 use unicode_width::UnicodeWidthStr;
 
-use super::spans::generate_spans_line;
-use super::{config::WidgetConfig, wrap::wrap_line};
-use super::{Item, RenderTrait, WidgetTrait};
+use super::{
+    spans::generate_spans_line,
+    {config::WidgetConfig, wrap::wrap_line},
+    {Item, RenderTrait, WidgetTrait},
+};
 
 const COLUMN_SPACING: u16 = 3;
 const HIGHLIGHT_SYMBOL: &str = " ";

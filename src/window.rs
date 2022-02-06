@@ -12,22 +12,19 @@ use context::*;
 use pod::*;
 use yaml::*;
 
-use crossbeam::channel::Sender;
-
 use std::{cell::RefCell, rc::Rc};
 
-use crate::clipboard_wrapper::{ClipboardContextWrapper, ClipboardProvider};
-
-use crate::event::{kubernetes::*, Event, UserEvent};
-
-use crate::action::view_id;
-use crate::context::{Context, Namespace};
-
-use crate::tui_wrapper::{event::EventResult, widget::Widget, Tab, Window, WindowEvent};
-
+use crossbeam::channel::Sender;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-
 use tui::{layout::Direction, text::Spans, widgets::Paragraph};
+
+use crate::{
+    action::view_id,
+    clipboard_wrapper::{ClipboardContextWrapper, ClipboardProvider},
+    context::{Context, Namespace},
+    event::{kubernetes::*, Event, UserEvent},
+    tui_wrapper::{event::EventResult, widget::Widget, Tab, Window, WindowEvent},
+};
 
 pub struct WindowInit {
     split_mode: Direction,

@@ -5,10 +5,11 @@ pub mod kubernetes;
 
 mod util;
 
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+
 use crate::error::Error;
 
 use self::kubernetes::Kube;
-use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
 
 #[derive(Debug, PartialEq, Clone, Copy, Eq, Hash)]
 pub enum UserEvent {

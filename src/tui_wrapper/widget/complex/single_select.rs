@@ -7,19 +7,24 @@ use tui::{
     Frame,
 };
 
-use crate::tui_wrapper::{event::EventResult, util::contains, widget::*};
-
 use derivative::*;
 use std::rc::Rc;
 use tui::widgets::Block;
 
-use crate::event::UserEvent;
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 
 use super::input::InputForm;
-use crate::tui_wrapper::event::InnerCallback;
-use crate::tui_wrapper::Window;
+
+use crate::{
+    event::UserEvent,
+    tui_wrapper::{
+        event::{EventResult, InnerCallback},
+        util::contains,
+        widget::*,
+        Window,
+    },
+};
 
 #[derive(Derivative)]
 #[derivative(Debug, Default)]

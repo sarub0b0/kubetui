@@ -8,16 +8,15 @@ use tui::{
 };
 
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
-
+use derivative::*;
 use tui::widgets::{self, Block, ListState};
 
-use super::{config::WidgetConfig, Item, RenderTrait, WidgetTrait};
 use crate::tui_wrapper::{
     event::{Callback, EventResult},
     key_event_to_code, Window,
 };
 
-use derivative::*;
+use super::{config::WidgetConfig, Item, RenderTrait, WidgetTrait};
 
 mod inner_item {
 

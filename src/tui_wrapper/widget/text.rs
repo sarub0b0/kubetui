@@ -15,9 +15,9 @@ use derivative::*;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
-use crate::event::UserEvent;
 use crate::{
     clipboard_wrapper::{ClipboardContextWrapper, ClipboardProvider},
+    event::UserEvent,
     tui_wrapper::event::Callback,
 };
 

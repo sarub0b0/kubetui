@@ -1,7 +1,7 @@
 // pub type Result<R> = std::result::Result<R, Box<dyn std::error::Error>>;
 
-pub use anyhow::anyhow;
-pub use anyhow::Result;
+pub use anyhow::{anyhow, Result};
+
 use thiserror::Error as TError;
 
 #[cfg(any(feature = "mock", feature = "mock-failed"))]
