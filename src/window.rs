@@ -5,10 +5,10 @@ mod event;
 mod pod;
 mod yaml;
 
-use self::event::*;
 use api::*;
 use config::*;
 use context::*;
+use event::*;
 use pod::*;
 use yaml::*;
 
