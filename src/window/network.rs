@@ -1,16 +1,17 @@
 use std::{cell::RefCell, rc::Rc};
 
-use clipboard_wrapper::ClipboardContextWrapper;
-use crossbeam::channel::Sender;
-use event::Event;
-use tui_wrapper::{
+use crate::action::view_id;
+use crate::clipboard_wrapper::ClipboardContextWrapper;
+use crate::context::Namespace;
+use crate::event::Event;
+use crate::tui_wrapper::{
     tab::WidgetData,
     tui::layout::{Constraint, Direction, Layout},
     widget::{config::WidgetConfig, List, Text},
     Tab,
 };
 
-use crate::{action::view_id, Namespace};
+use crossbeam::channel::Sender;
 
 pub struct NetworkTab {
     pub tab: Tab<'static>,
