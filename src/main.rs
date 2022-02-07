@@ -34,7 +34,7 @@ use kubetui::{
 };
 
 #[cfg(feature = "logging")]
-use kubetui::log::logging;
+use kubetui::logging::logging;
 
 macro_rules! enable_raw_mode {
     () => {

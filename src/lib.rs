@@ -9,4 +9,4 @@ pub mod tui_wrapper;
 pub mod window;
 
 #[cfg(feature = "logging")]
-pub mod log;
+pub mod logging;
