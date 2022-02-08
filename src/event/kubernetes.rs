@@ -4,6 +4,7 @@ mod config;
 mod event;
 mod log;
 mod metric_type;
+pub mod network;
 mod pod;
 mod v1_table;
 mod worker;
@@ -48,7 +49,7 @@ use crate::{
 
 use self::{
     api_resources::ApiPollWorker, config::ConfigsPollWorker, event::EventPollWorker,
-    log::LogWorkerBuilder, pod::PodPollWorker, worker::PollWorker,
+    log::LogWorkerBuilder, network::NetworkMessage, pod::PodPollWorker, worker::PollWorker,
 };
 
 pub use kube;
@@ -97,6 +98,12 @@ impl KubeTable {
     }
 }
 
+impl From<Kube> for Event {
+    fn from(k: Kube) -> Self {
+        Event::Kube(k)
+    }
+}
+
 pub enum Kube {
     // apis
     GetAPIsRequest,
@@ -127,6 +134,8 @@ pub enum Kube {
     Configs(Result<KubeTable>),
     ConfigRequest(String, String, String), // namespace, kind, resource_name
     ConfigResponse(Result<Vec<String>>),
+    // Network
+    Network(NetworkMessage),
     // Yaml
     YamlAPIsRequest,
     YamlAPIsResponse(Result<Vec<String>>), // kind, name
@@ -550,6 +559,16 @@ impl Worker for MainWorker {
                             let yaml = fetch_resource_yaml(kube_client, &db, kind, name, ns).await;
 
                             tx.send(Event::Kube(Kube::YamlRawResponse(yaml)))?
+                        }
+
+                        Kube::Network(NetworkMessage::Request(req)) => {
+                            // unimplemented
+                            tx.send(
+                                NetworkMessage::Response(Err(anyhow!(Error::Raw(
+                                    "Not implemented".to_string()
+                                ))))
+                                .into(),
+                            )?;
                         }
                         _ => unreachable!(),
                     },
