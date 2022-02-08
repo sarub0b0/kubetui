@@ -3,7 +3,10 @@ use std::{cell::RefCell, rc::Rc};
 use crate::action::view_id;
 use crate::clipboard_wrapper::ClipboardContextWrapper;
 use crate::context::Namespace;
+use crate::event::kubernetes::network::{NetworkMessage, Request};
 use crate::event::Event;
+use crate::tui_wrapper::event::EventResult;
+use crate::tui_wrapper::widget::{Table, WidgetTrait};
 use crate::tui_wrapper::{
     tab::WidgetData,
     tui::layout::{Constraint, Direction, Layout},
@@ -60,10 +63,47 @@ impl<'a> NetworkTabBuilder<'a> {
         }
     }
 
-    fn network(&self) -> List<'static> {
-        List::builder()
+    fn network(&self) -> Table<'static> {
+        let tx = self.tx.clone();
+        Table::builder()
             .id(view_id::tab_network_widget_network)
             .widget_config(&WidgetConfig::builder().title("Network").build())
+            .items(vec![
+                vec![
+                    "Item 0".to_string(),
+                    "Item 1".to_string(),
+                    "Item 2".to_string(),
+                    "Item 3".to_string(),
+                ],
+                vec![
+                    "Item 0".to_string(),
+                    "Item 1".to_string(),
+                    "Item 2".to_string(),
+                    "Item 3".to_string(),
+                ],
+            ])
+            .block_injection(|table: &Table, selected: bool| {
+                let index = if let Some(index) = table.state().selected() {
+                    index + 1
+                } else {
+                    0
+                };
+
+                let mut config = table.widget_config().clone();
+
+                *config.append_title_mut() =
+                    Some(format!(" [{}/{}]", index, table.items().len()).into());
+
+                config.render_block_with_title(table.focusable() && selected)
+            })
+            .on_select(move |_, _| {
+                tx.send(
+                    NetworkMessage::Request(Request::Pod("name".into(), "namespace".into())).into(),
+                )
+                .unwrap();
+
+                EventResult::Nop
+            })
             .build()
     }
 

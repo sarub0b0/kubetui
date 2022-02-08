@@ -4,7 +4,7 @@ use crate::{
     context::{Context, Namespace},
     error::Result,
     event::{
-        kubernetes::{Kube, KubeTable},
+        kubernetes::{network::NetworkMessage, Kube, KubeTable},
         Event,
     },
 };
@@ -213,6 +213,10 @@ pub fn update_contents(
 
         Kube::YamlRawResponse(yaml) => {
             update_widget_item_for_vec(window, view_id::tab_yaml_widget_yaml, yaml);
+        }
+
+        Kube::Network(NetworkMessage::Response(res)) => {
+            update_widget_item_for_vec(window, view_id::tab_network_widget_description, res);
         }
 
         _ => unreachable!(),
