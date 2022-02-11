@@ -68,20 +68,6 @@ impl<'a> NetworkTabBuilder<'a> {
         Table::builder()
             .id(view_id::tab_network_widget_network)
             .widget_config(&WidgetConfig::builder().title("Network").build())
-            .items(vec![
-                vec![
-                    "Item 0".to_string(),
-                    "Item 1".to_string(),
-                    "Item 2".to_string(),
-                    "Item 3".to_string(),
-                ],
-                vec![
-                    "Item 0".to_string(),
-                    "Item 1".to_string(),
-                    "Item 2".to_string(),
-                    "Item 3".to_string(),
-                ],
-            ])
             .block_injection(|table: &Table, selected: bool| {
                 let index = if let Some(index) = table.state().selected() {
                     index + 1

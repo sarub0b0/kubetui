@@ -215,6 +215,10 @@ pub fn update_contents(
             update_widget_item_for_vec(window, view_id::tab_yaml_widget_yaml, yaml);
         }
 
+        Kube::Network(NetworkMessage::Poll(table)) => {
+            update_widget_item_for_table(window, view_id::tab_network_widget_network, table)
+        }
+
         Kube::Network(NetworkMessage::Response(res)) => {
             update_widget_item_for_vec(window, view_id::tab_network_widget_description, res);
         }
