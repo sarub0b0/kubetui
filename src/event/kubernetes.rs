@@ -44,6 +44,7 @@ use kube::{
 
 use crate::{
     error::{anyhow, Error, Result},
+    event::kubernetes::network::NetworkPollWorker,
     panic_set_hook,
 };
 
@@ -349,6 +350,7 @@ async fn inner_kube_process(
 
         let pod_handler = PodPollWorker::new(poll_worker.clone()).spawn();
         let config_handler = ConfigsPollWorker::new(poll_worker.clone()).spawn();
+        let network_handler = NetworkPollWorker::new(poll_worker.clone()).spawn();
         let event_handler = EventPollWorker::new(poll_worker.clone()).spawn();
         let apis_handler = ApiPollWorker::new(
             poll_worker.clone(),
@@ -361,6 +363,7 @@ async fn inner_kube_process(
             main_handler,
             pod_handler,
             config_handler,
+            network_handler,
             event_handler,
             apis_handler,
         ];
