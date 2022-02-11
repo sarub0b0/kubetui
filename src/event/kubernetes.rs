@@ -565,11 +565,11 @@ impl Worker for MainWorker {
                         }
 
                         Kube::Network(NetworkMessage::Request(req)) => {
-                            // unimplemented
                             tx.send(
-                                NetworkMessage::Response(Err(anyhow!(Error::Raw(
-                                    "Not implemented".to_string()
-                                ))))
+                                NetworkMessage::Response(Err(anyhow!(Error::Raw(format!(
+                                    "{:#?}",
+                                    req
+                                )))))
                                 .into(),
                             )?;
                         }

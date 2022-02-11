@@ -14,12 +14,14 @@ use super::{
 type Name = String;
 type Namespace = String;
 
+#[derive(Debug)]
 pub enum Request {
     Pod(Namespace, Name),
     Service(Namespace, Name),
     Ingress(Namespace, Name),
 }
 
+#[derive(Debug)]
 pub enum NetworkMessage {
     Poll(Result<KubeTable>),
     Request(Request),

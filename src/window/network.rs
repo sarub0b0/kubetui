@@ -7,6 +7,7 @@ use crate::event::kubernetes::network::{NetworkMessage, Request};
 use crate::event::Event;
 use crate::tui_wrapper::event::EventResult;
 use crate::tui_wrapper::widget::{Table, WidgetTrait};
+use crate::tui_wrapper::WindowEvent;
 use crate::tui_wrapper::{
     tab::WidgetData,
     tui::layout::{Constraint, Direction, Layout},
@@ -65,6 +66,7 @@ impl<'a> NetworkTabBuilder<'a> {
 
     fn network(&self) -> Table<'static> {
         let tx = self.tx.clone();
+        let namespaces = self.namespaces.clone();
         Table::builder()
             .id(view_id::tab_network_widget_network)
             .widget_config(&WidgetConfig::builder().title("Network").build())
@@ -82,13 +84,35 @@ impl<'a> NetworkTabBuilder<'a> {
 
                 config.render_block_with_title(table.focusable() && selected)
             })
-            .on_select(move |_, _| {
-                tx.send(
-                    NetworkMessage::Request(Request::Pod("name".into(), "namespace".into())).into(),
-                )
-                .unwrap();
+            .on_select(move |w, v| {
+                w.widget_clear(view_id::tab_network_widget_description);
 
-                EventResult::Nop
+                let namespaces = namespaces.borrow();
+                let parsed = parse(&v, &namespaces.selected);
+
+                if let Ok(p) = parsed {
+                    *(w.find_widget_mut(view_id::tab_network_widget_description)
+                        .widget_config_mut()
+                        .append_title_mut()) = Some((format!(" : {}", p.name)).into());
+
+                    match p.kind {
+                        "Pod" => {
+                            let req = Request::Pod(p.name.to_string(), p.namespace.to_string());
+                            tx.send(NetworkMessage::Request(req).into()).unwrap();
+                        }
+                        "Service" => {
+                            let req = Request::Service(p.name.to_string(), p.namespace.to_string());
+                            tx.send(NetworkMessage::Request(req).into()).unwrap();
+                        }
+                        "Ingress" => {
+                            let req = Request::Ingress(p.name.to_string(), p.namespace.to_string());
+                            tx.send(NetworkMessage::Request(req).into()).unwrap();
+                        }
+                        _ => {}
+                    }
+                }
+
+                EventResult::Window(WindowEvent::Continue)
             })
             .build()
     }
@@ -98,5 +122,33 @@ impl<'a> NetworkTabBuilder<'a> {
             .id(view_id::tab_network_widget_description)
             .widget_config(&WidgetConfig::builder().title("Description").build())
             .build()
+    }
+}
+
+struct Param<'a> {
+    name: &'a str,
+    kind: &'a str,
+    namespace: &'a str,
+}
+
+fn parse<'a>(row: &'a [String], namespace: &'a [String]) -> Result<Param<'a>, String> {
+    if namespace.len() == 1 {
+        if 2 <= row.len() {
+            Ok(Param {
+                name: &row[1],
+                kind: &row[0],
+                namespace: &namespace[0],
+            })
+        } else {
+            Err("invalid row".into())
+        }
+    } else if 3 <= row.len() {
+        Ok(Param {
+            name: &row[2],
+            kind: &row[1],
+            namespace: &row[0],
+        })
+    } else {
+        Err("invalid row".into())
     }
 }
