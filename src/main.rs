@@ -1,4 +1,4 @@
-use crossbeam::channel::{unbounded, Receiver, Sender};
+use crossbeam::channel::{bounded, Receiver, Sender};
 
 use std::{
     cell::RefCell,
@@ -57,8 +57,8 @@ macro_rules! disable_raw_mode {
 }
 
 fn run(config: Config) -> Result<()> {
-    let (tx_input, rx_main): (Sender<Event>, Receiver<Event>) = unbounded();
-    let (tx_main, rx_kube): (Sender<Event>, Receiver<Event>) = unbounded();
+    let (tx_input, rx_main): (Sender<Event>, Receiver<Event>) = bounded(128);
+    let (tx_main, rx_kube): (Sender<Event>, Receiver<Event>) = bounded(256);
     let tx_kube = tx_input.clone();
     let tx_tick = tx_input.clone();
 
