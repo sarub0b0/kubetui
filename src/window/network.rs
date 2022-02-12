@@ -121,6 +121,16 @@ impl<'a> NetworkTabBuilder<'a> {
         Text::builder()
             .id(view_id::tab_network_widget_description)
             .widget_config(&WidgetConfig::builder().title("Description").build())
+            .block_injection(|text: &Text, selected: bool| {
+                let (index, _) = text.state().selected();
+
+                let mut config = text.widget_config().clone();
+
+                *config.title_mut() =
+                    format!("Description [{}/{}]", index, text.rows_size()).into();
+
+                config.render_block_with_title(text.focusable() && selected)
+            })
             .build()
     }
 }
