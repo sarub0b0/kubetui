@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 use crate::action::view_id;
 use crate::clipboard_wrapper::ClipboardContextWrapper;
 use crate::context::Namespace;
-use crate::event::kubernetes::network::{NetworkMessage, Request};
+use crate::event::kubernetes::network::{NetworkMessage, Request, RequestData};
 use crate::event::Event;
 use crate::tui_wrapper::event::EventResult;
 use crate::tui_wrapper::widget::{Table, WidgetTrait};
@@ -95,17 +95,22 @@ impl<'a> NetworkTabBuilder<'a> {
                         .widget_config_mut()
                         .append_title_mut()) = Some((format!(" : {}", p.name)).into());
 
+                    let request_data = RequestData {
+                        namespace: p.namespace.to_string(),
+                        name: p.name.to_string(),
+                    };
+
                     match p.kind {
                         "Pod" => {
-                            let req = Request::Pod(p.name.to_string(), p.namespace.to_string());
+                            let req = Request::Pod(request_data);
                             tx.send(NetworkMessage::Request(req).into()).unwrap();
                         }
                         "Service" => {
-                            let req = Request::Service(p.name.to_string(), p.namespace.to_string());
+                            let req = Request::Service(request_data);
                             tx.send(NetworkMessage::Request(req).into()).unwrap();
                         }
                         "Ingress" => {
-                            let req = Request::Ingress(p.name.to_string(), p.namespace.to_string());
+                            let req = Request::Ingress(request_data);
                             tx.send(NetworkMessage::Request(req).into()).unwrap();
                         }
                         _ => {}

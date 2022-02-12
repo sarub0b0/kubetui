@@ -12,6 +12,7 @@ mod yaml;
 
 use self::{
     api_resources::{apis_list_from_api_database, ApiDatabase},
+    network::NetworkDescriptionWorker,
     yaml::{fetch_resource_list, fetch_resource_yaml},
 };
 
@@ -459,6 +460,7 @@ impl Worker for MainWorker {
 
     async fn run(&self) -> Self::Output {
         let mut log_stream_handler: Option<Handlers> = None;
+        let mut network_handler: Option<JoinHandle<Result<()>>> = None;
 
         let MainWorker {
             inner: poll_worker,
@@ -493,6 +495,11 @@ impl Worker for MainWorker {
                             if let Some(handler) = log_stream_handler {
                                 handler.abort();
                                 log_stream_handler = None;
+                            }
+
+                            if let Some(handler) = network_handler {
+                                handler.abort();
+                                network_handler = None;
                             }
                         }
 
@@ -565,13 +572,21 @@ impl Worker for MainWorker {
                         }
 
                         Kube::Network(NetworkMessage::Request(req)) => {
-                            tx.send(
-                                NetworkMessage::Response(Err(anyhow!(Error::Raw(format!(
-                                    "{:#?}",
-                                    req
-                                )))))
-                                .into(),
-                            )?;
+                            if let Some(handler) = network_handler {
+                                handler.abort();
+                            }
+
+                            network_handler = Some(
+                                NetworkDescriptionWorker::new(
+                                    is_terminated.clone(),
+                                    tx,
+                                    kube_client.clone(),
+                                    req,
+                                )
+                                .spawn(),
+                            );
+
+                            task::yield_now().await;
                         }
                         _ => unreachable!(),
                     },
