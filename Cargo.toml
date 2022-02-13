@@ -36,7 +36,7 @@ tui = { git = "https://github.com/sarub0b0/tui-rs.git", features = ["crossterm"]
 unicode-segmentation = "1.8"
 unicode-width = "0.1"
 rayon = "1.5"
-crossterm = "0.22.1"
+crossterm = "0.23.0"
 derivative = "2.2"
 fuzzy-matcher = "0.3"
 chrono = "0.4"
