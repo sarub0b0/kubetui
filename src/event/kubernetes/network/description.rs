@@ -1,6 +1,23 @@
+mod ingress;
+mod pod;
+mod service;
+
 use std::sync::{atomic::AtomicBool, Arc};
 
+use self::{
+    ingress::IngressDescriptionWorker, pod::PodDescriptionWorker, service::ServiceDescriptionWorker,
+};
+
 use super::*;
+
+const INTERVAL: u64 = 3;
+
+#[async_trait]
+trait DescriptionWorker<'a> {
+    fn new(client: &'a KubeClient, tx: &'a Sender<Event>, namespace: String, name: String) -> Self;
+
+    async fn run(&self) -> Result<()>;
+}
 
 #[derive(Clone)]
 pub struct NetworkDescriptionWorker {
@@ -32,9 +49,16 @@ impl Worker for NetworkDescriptionWorker {
 
     async fn run(&self) -> Self::Output {
         let ret = match &self.req {
-            Request::Pod(data) => self.fetch_pod_description(data).await,
-            Request::Service(data) => self.fetch_service_description(data).await,
-            Request::Ingress(data) => self.fetch_ingress_description(data).await,
+            Request::Pod(data) => self.fetch_description::<PodDescriptionWorker>(data).await,
+            Request::Service(data) => {
+                self.fetch_description::<ServiceDescriptionWorker>(data)
+                    .await
+            }
+            Request::Ingress(data) => {
+                self.fetch_description::<IngressDescriptionWorker>(data)
+                    .await
+            }
+            _ => Ok(()),
         };
 
         if let Err(e) = ret {
@@ -46,40 +70,17 @@ impl Worker for NetworkDescriptionWorker {
 }
 
 impl NetworkDescriptionWorker {
-    async fn fetch_pod_description(&self, data: &RequestData) -> Result<()> {
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
+    async fn fetch_description<'a, Worker>(&'a self, data: &RequestData) -> Result<()>
+    where
+        Worker: DescriptionWorker<'a>,
+    {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(INTERVAL));
 
-        let url = format!("api/v1/namespaces/{}/pods/{}", data.namespace, data.name);
-
-        while !self
-            .is_terminated
-            .load(std::sync::atomic::Ordering::Relaxed)
-        {
-            interval.tick().await;
-
-            let res = self.client.request_text(&url).await?;
-
-            let value: serde_yaml::Value = serde_json::from_str(&res)?;
-
-            let yaml = serde_yaml::to_string(&value)?
-                .lines()
-                .skip(1)
-                .map(ToString::to_string)
-                .collect();
-
-            self.tx.send(NetworkMessage::Response(Ok(yaml)).into())?;
-        }
-        Ok(())
-    }
-}
-
-impl NetworkDescriptionWorker {
-    async fn fetch_service_description(&self, data: &RequestData) -> Result<()> {
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
-
-        let url = format!(
-            "api/v1/namespaces/{}/services/{}",
-            data.namespace, data.name
+        let worker = Worker::new(
+            &self.client,
+            &self.tx,
+            data.namespace.clone(),
+            data.name.clone(),
         );
 
         while !self
@@ -88,49 +89,7 @@ impl NetworkDescriptionWorker {
         {
             interval.tick().await;
 
-            let res = self.client.request_text(&url).await?;
-
-            let value: serde_yaml::Value = serde_json::from_str(&res)?;
-
-            let yaml = serde_yaml::to_string(&value)?
-                .lines()
-                .skip(1)
-                .map(ToString::to_string)
-                .collect();
-
-            self.tx.send(NetworkMessage::Response(Ok(yaml)).into())?;
-        }
-
-        Ok(())
-    }
-}
-
-impl NetworkDescriptionWorker {
-    async fn fetch_ingress_description(&self, data: &RequestData) -> Result<()> {
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
-
-        let url = format!(
-            "apis/networking.k8s.io/v1/namespaces/{}/ingresses/{}",
-            data.namespace, data.name
-        );
-
-        while !self
-            .is_terminated
-            .load(std::sync::atomic::Ordering::Relaxed)
-        {
-            interval.tick().await;
-
-            let res = self.client.request_text(&url).await?;
-
-            let value: serde_yaml::Value = serde_json::from_str(&res)?;
-
-            let yaml = serde_yaml::to_string(&value)?
-                .lines()
-                .skip(1)
-                .map(ToString::to_string)
-                .collect();
-
-            self.tx.send(NetworkMessage::Response(Ok(yaml)).into())?;
+            worker.run().await?;
         }
 
         Ok(())
