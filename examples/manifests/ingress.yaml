@@ -1,0 +1,50 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress
+spec:
+  tls:
+    - secretName: secret-name
+      hosts:
+        - example.com
+  rules:
+    - host: example.com
+      http:
+        paths:
+          - path: /path
+            pathType: ImplementationSpecific # | Exact | Prefix
+            backend:
+              service: # or resource
+                name: service
+                port:
+                  number: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service
+spec:
+  selector:
+    app: app
+  ports:
+    - port: 80
+      targetPort: 80
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+spec:
+  replicas: 5
+  selector:
+    matchLabels: # or matchExpressions:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+        - name: app
+          image: nginx
