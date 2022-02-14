@@ -1,6 +1,7 @@
 use std::{collections::BTreeMap, fmt::Display};
 
 use crossbeam::channel::Sender;
+use k8s_openapi::api::core::v1::ContainerPort;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 
@@ -26,6 +27,18 @@ struct Status {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+struct Container {
+    image: String,
+    name: String,
+    ports: Option<Vec<ContainerPort>>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct Spec {
+    containers: Vec<Container>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
 struct Metadata {
     labels: BTreeMap<String, String>,
 }
@@ -34,6 +47,7 @@ struct Metadata {
 struct Pod {
     metadata: Metadata,
     status: Status,
+    spec: Spec,
 }
 
 impl Pod {
@@ -64,6 +78,44 @@ impl Pod {
         ret.push(format!("    PodIP: {}", self.status.pod_ip));
         ret.push(format!("    PodIPs:"));
         ret.extend(pod_ips);
+        ret.push("  Containers:".to_string());
+
+        let containers: Vec<String> = self
+            .spec
+            .containers
+            .iter()
+            .flat_map(|c| {
+                let mut ret = vec![format!("    - Image: {}", c.image)];
+
+                if let Some(ports) = &c.ports {
+                    ret.push(format!("      Ports:"));
+
+                    ports.iter().for_each(|port| {
+                        ret.push(format!("        ContainerPort: {}", port.container_port));
+
+                        if let Some(host_ip) = &port.host_ip {
+                            ret.push(format!("        HostIP: {}", host_ip));
+                        }
+
+                        if let Some(host_port) = &port.host_port {
+                            ret.push(format!("        HostPort: {}", host_port));
+                        }
+
+                        if let Some(name) = &port.name {
+                            ret.push(format!("        Name: {}", name));
+                        }
+
+                        if let Some(protocol) = &port.protocol {
+                            ret.push(format!("        Protocol: {}", protocol));
+                        }
+                    })
+                }
+
+                ret
+            })
+            .collect();
+
+        ret.extend(containers);
 
         ret
     }
