@@ -1,7 +1,9 @@
+use super::DescriptionWorker;
+
 use std::{collections::BTreeMap, fmt::Display};
 
 use crossbeam::channel::Sender;
-use k8s_openapi::api::core::v1::ContainerPort;
+use k8s_openapi::api::core::v1::{ContainerPort, Service};
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 
@@ -13,8 +15,8 @@ use crate::{
     },
 };
 
-use super::DescriptionWorker;
 use pod::*;
+use service::*;
 
 mod pod {
     use k8s_openapi::api::core::v1::Pod;
@@ -118,9 +120,31 @@ mod pod {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug)]
-struct PodDescription {
-    pod: Pod,
+mod service {
+    use k8s_openapi::{
+        api::core::v1::{Service, ServiceSpec, ServiceStatus},
+        List,
+    };
+
+    use super::*;
+
+    pub type FetchedServiceList = List<Service>;
+
+    pub struct FetchedService(pub Service);
+
+    impl FetchedService {
+        pub fn to_string_vec(&self) -> Vec<String> {
+            // let mut ret = vec!["Service:".to_string()];
+            // ret.push(format!("  Name: {}", self.metadata.name));
+
+            serde_yaml::to_string(&self.0)
+                .unwrap()
+                .lines()
+                .map(|l| l.to_string())
+                .collect()
+            // ret
+        }
+    }
 }
 
 pub(super) struct PodDescriptionWorker<'a> {
@@ -143,10 +167,19 @@ impl<'a> DescriptionWorker<'a> for PodDescriptionWorker<'a> {
 
     // TODO 関連するService, Ingress, NetworkPolicyの情報を合わせて表示する
     async fn run(&self) -> Result<()> {
-        let value = self.fetch_pod().await?;
+        let mut value = Vec::new();
 
-        self.tx
-            .send(NetworkMessage::Response(Ok(value.to_string_vec())).into())?;
+        let pod = self.fetch_pod().await?;
+        let service = self.fetch_service(&pod.0.metadata.labels).await?;
+
+        value.extend(pod.to_string_vec());
+
+        if let Some(service) = service {
+            value.push("\n".to_string());
+            value.extend(service.to_string_vec());
+        }
+
+        self.tx.send(NetworkMessage::Response(Ok(value)).into())?;
 
         Ok(())
     }
@@ -162,6 +195,28 @@ impl<'a> PodDescriptionWorker<'a> {
 
         Ok(value)
     }
+
+    async fn fetch_service(
+        &self,
+        pod_labels: &Option<BTreeMap<String, String>>,
+    ) -> Result<Option<FetchedService>> {
+        let url = format!("api/v1/namespaces/{}/services", self.namespace);
+        let res = self.client.request_text(&url).await?;
+
+        let list: FetchedServiceList = serde_json::from_str(&res)?;
+
+        if let Some(service) = list.items.iter().find(|s| {
+            s.spec
+                .as_ref()
+                .map_or(false, |spec| match_selector(&spec.selector, pod_labels))
+        }) {
+            Ok(Some(FetchedService(service.clone())))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
 fn match_selector(
     service_labels: &Option<BTreeMap<String, String>>,
     pod_labels: &Option<BTreeMap<String, String>>,
