@@ -14,110 +14,107 @@ use crate::{
 };
 
 use super::DescriptionWorker;
+use pod::*;
 
-#[derive(Deserialize, Serialize, Debug)]
-struct Status {
-    phase: String,
-    #[serde(rename = "hostIP")]
-    host_ip: String,
-    #[serde(rename = "podIP")]
-    pod_ip: String,
-    #[serde(rename = "podIPs")]
-    pod_ips: Vec<BTreeMap<String, String>>,
-}
+mod pod {
+    use k8s_openapi::api::core::v1::Pod;
 
-#[derive(Deserialize, Serialize, Debug)]
-struct Container {
-    image: String,
-    name: String,
-    ports: Option<Vec<ContainerPort>>,
-}
+    use super::*;
 
-#[derive(Deserialize, Serialize, Debug)]
-struct Spec {
-    containers: Vec<Container>,
-}
+    #[derive(Deserialize, Serialize, Debug)]
+    pub struct FetchedPod(pub Pod);
 
-#[derive(Deserialize, Serialize, Debug)]
-struct Metadata {
-    labels: BTreeMap<String, String>,
-}
+    impl FetchedPod {
+        pub fn to_string_vec(&self) -> Vec<String> {
+            let mut ret = vec!["Pod:".to_string()];
 
-#[derive(Deserialize, Serialize, Debug)]
-struct Pod {
-    metadata: Metadata,
-    status: Status,
-    spec: Spec,
-}
+            if let Some(labels) = &self.0.metadata.labels {
+                let labels = labels
+                    .iter()
+                    .map(|(k, v)| format!("    {}: {}", k, v))
+                    .collect::<Vec<String>>();
 
-impl Pod {
-    fn to_string_vec(&self) -> Vec<String> {
-        let labels = self
-            .metadata
-            .labels
-            .iter()
-            .map(|(k, v)| format!("    {}: {}", k, v))
-            .collect::<Vec<String>>();
+                ret.push("  Labels:".to_string());
 
-        let pod_ips = self
-            .status
-            .pod_ips
-            .iter()
-            .flat_map(|v| {
-                v.iter()
-                    .map(|(_, v)| format!("      - {}", v))
-                    .collect::<Vec<String>>()
-            })
-            .collect::<Vec<String>>();
+                ret.extend(labels);
+            }
 
-        let mut ret = vec!["Pod:".to_string(), "  Labels:".to_string()];
-
-        ret.extend(labels);
-        ret.push("  IP:".to_string());
-        ret.push(format!("    HostIP: {}", self.status.host_ip));
-        ret.push(format!("    PodIP: {}", self.status.pod_ip));
-        ret.push(format!("    PodIPs:"));
-        ret.extend(pod_ips);
-        ret.push("  Containers:".to_string());
-
-        let containers: Vec<String> = self
-            .spec
-            .containers
-            .iter()
-            .flat_map(|c| {
-                let mut ret = vec![format!("    - Image: {}", c.image)];
-
-                if let Some(ports) = &c.ports {
-                    ret.push(format!("      Ports:"));
-
-                    ports.iter().for_each(|port| {
-                        ret.push(format!("        ContainerPort: {}", port.container_port));
-
-                        if let Some(host_ip) = &port.host_ip {
-                            ret.push(format!("        HostIP: {}", host_ip));
-                        }
-
-                        if let Some(host_port) = &port.host_port {
-                            ret.push(format!("        HostPort: {}", host_port));
-                        }
-
-                        if let Some(name) = &port.name {
-                            ret.push(format!("        Name: {}", name));
-                        }
-
-                        if let Some(protocol) = &port.protocol {
-                            ret.push(format!("        Protocol: {}", protocol));
-                        }
+            if let Some(status) = &self.0.status {
+                let pod_ips = status
+                    .pod_ips
+                    .iter()
+                    .flat_map(|v| {
+                        v.iter()
+                            .filter_map(|ip| ip.ip.as_ref().map(|ip| format!("      - {}", ip)))
+                            .collect::<Vec<String>>()
                     })
+                    .collect::<Vec<String>>();
+
+                if status.host_ip.is_some() || status.pod_ip.is_some() || !pod_ips.is_empty() {
+                    ret.push("  IP:".to_string());
+
+                    if let Some(host_ip) = &status.host_ip {
+                        ret.push(format!("    HostIP: {}", host_ip));
+                    }
+
+                    if let Some(pod_ip) = &status.pod_ip {
+                        ret.push(format!("    PodIP: {}", pod_ip));
+                    }
+
+                    if !pod_ips.is_empty() {
+                        ret.push("    PodIPs:".to_string());
+
+                        ret.extend(pod_ips);
+                    }
                 }
+            }
 
-                ret
-            })
-            .collect();
+            if let Some(spec) = &self.0.spec {
+                ret.push("  Containers:".to_string());
 
-        ret.extend(containers);
+                let containers: Vec<String> = spec
+                    .containers
+                    .iter()
+                    .flat_map(|c| {
+                        let mut vec = vec![format!("    - Name: {}", c.name)];
 
-        ret
+                        if let Some(image) = &c.image {
+                            vec.push(format!("      Image: {}", image));
+                        }
+
+                        if let Some(ports) = &c.ports {
+                            vec.push("      Ports:".to_string());
+
+                            ports.iter().for_each(|port| {
+                                vec.push(format!("        ContainerPort: {}", port.container_port));
+
+                                if let Some(host_ip) = &port.host_ip {
+                                    vec.push(format!("        HostIP: {}", host_ip));
+                                }
+
+                                if let Some(host_port) = &port.host_port {
+                                    vec.push(format!("        HostPort: {}", host_port));
+                                }
+
+                                if let Some(name) = &port.name {
+                                    vec.push(format!("        Name: {}", name));
+                                }
+
+                                if let Some(protocol) = &port.protocol {
+                                    vec.push(format!("        Protocol: {}", protocol));
+                                }
+                            })
+                        }
+
+                        vec
+                    })
+                    .collect();
+
+                ret.extend(containers);
+            }
+
+            ret
+        }
     }
 }
 
@@ -160,11 +157,10 @@ impl<'a> DescriptionWorker<'a> for PodDescriptionWorker<'a> {
 }
 
 impl<'a> PodDescriptionWorker<'a> {
-    async fn fetch_pod(&self) -> Result<Pod> {
         let res = self.client.request_text(&self.url).await?;
+    async fn fetch_pod(&self) -> Result<FetchedPod> {
 
-        let value: Pod = serde_json::from_str(&res)?;
-        // let value: serde_yaml::Value = serde_json::from_str(&res)?;
+        let value: FetchedPod = serde_json::from_str(&res)?;
 
         Ok(value)
     }
