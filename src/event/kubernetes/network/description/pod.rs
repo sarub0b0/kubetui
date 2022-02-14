@@ -128,20 +128,16 @@ pub(super) struct PodDescriptionWorker<'a> {
     tx: &'a Sender<Event>,
     namespace: String,
     name: String,
-    url: String,
 }
 
 #[async_trait::async_trait]
 impl<'a> DescriptionWorker<'a> for PodDescriptionWorker<'a> {
     fn new(client: &'a KubeClient, tx: &'a Sender<Event>, namespace: String, name: String) -> Self {
-        let url = format!("api/v1/namespaces/{}/pods/{}", namespace, name);
-
         PodDescriptionWorker {
             client,
             tx,
             namespace,
             name,
-            url,
         }
     }
 
@@ -157,8 +153,10 @@ impl<'a> DescriptionWorker<'a> for PodDescriptionWorker<'a> {
 }
 
 impl<'a> PodDescriptionWorker<'a> {
-        let res = self.client.request_text(&self.url).await?;
     async fn fetch_pod(&self) -> Result<FetchedPod> {
+        let url = format!("api/v1/namespaces/{}/pods/{}", self.namespace, self.name);
+
+        let res = self.client.request_text(&url).await?;
 
         let value: FetchedPod = serde_json::from_str(&res)?;
 
