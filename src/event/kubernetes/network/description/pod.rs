@@ -162,4 +162,24 @@ impl<'a> PodDescriptionWorker<'a> {
 
         Ok(value)
     }
+fn match_selector(
+    service_labels: &Option<BTreeMap<String, String>>,
+    pod_labels: &Option<BTreeMap<String, String>>,
+) -> bool {
+    #[cfg(feature = "logging")]
+    ::log::debug!("match_selector {:#?} <=> {:#?}", service_labels, pod_labels);
+
+    service_labels.as_ref().map_or(false, |service_labels| {
+        pod_labels.as_ref().map_or(false, |pod_labels| {
+            service_labels
+                .iter()
+                .all(|(service_label_key, service_label_value)| {
+                    pod_labels
+                        .get(service_label_key)
+                        .map_or(false, |pod_label_value| {
+                            service_label_value == pod_label_value
+                        })
+                })
+        })
+    })
 }
