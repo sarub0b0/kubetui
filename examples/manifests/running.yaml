@@ -1,3 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubetui-running
+spec:
+  selector:
+    app: kubetui-running
+  ports:
+    - port: 80
+      targetPort: 80
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -17,4 +29,3 @@ spec:
           ports:
             - containerPort: 80
               name: http
-
