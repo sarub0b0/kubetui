@@ -12,7 +12,7 @@ pub struct FetchedService(pub Service);
 
 impl FetchedService {
     pub fn to_string_vec(&self) -> Vec<String> {
-        let mut ret = vec!["Service:".to_string()];
+        let mut ret = vec!["service:".to_string()];
 
         if let Some(name) = &self.0.metadata.name {
             ret.push(format!("  name: {}", name));
@@ -164,7 +164,7 @@ mod tests {
                 };
 
                 let expected = indoc! { "
-                Service:
+                service:
                   name: test
                 " }
                 .lines()
@@ -233,7 +233,7 @@ mod tests {
                     };
 
                     let expected = indoc! { "
-                    Service:
+                    service:
                       name: test
                       loadBalancer:
                         ingress:
@@ -275,7 +275,7 @@ mod tests {
                     };
 
                     let expected = indoc! { "
-                    Service:
+                    service:
                       name: test
                     "}
                     .lines()
@@ -300,7 +300,7 @@ mod tests {
                     };
 
                     let expected = indoc! { "
-                    Service:
+                    service:
                       name: test
                     "}
                     .lines()
@@ -332,7 +332,7 @@ mod tests {
                     };
 
                     let expected = indoc! { "
-                    Service:
+                    service:
                       name: test
                     " }
                     .lines()
@@ -359,7 +359,7 @@ mod tests {
                     };
 
                     let expected = indoc! { "
-                    Service:
+                    service:
                       name: test
                     " }
                     .lines()
@@ -403,7 +403,7 @@ mod tests {
                     };
 
                     let expected = indoc! { "
-                    Service:
+                    service:
                       name: test
                         conditions:
                           - message: test
