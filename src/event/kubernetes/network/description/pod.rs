@@ -206,9 +206,9 @@ impl<'a> PodDescriptionWorker<'a> {
         let list: FetchedServiceList = serde_json::from_str(&res)?;
 
         if let Some(service) = list.items.iter().find(|s| {
-            s.spec
-                .as_ref()
-                .map_or(false, |spec| match_selector(&spec.selector, pod_labels))
+            s.spec.as_ref().map_or(false, |spec| {
+                contains_key_values(&spec.selector, pod_labels)
+            })
         }) {
             Ok(Some(FetchedService(service.clone())))
         } else {
@@ -217,24 +217,19 @@ impl<'a> PodDescriptionWorker<'a> {
     }
 }
 
-fn match_selector(
-    service_labels: &Option<BTreeMap<String, String>>,
-    pod_labels: &Option<BTreeMap<String, String>>,
+fn contains_key_values(
+    lhs: &Option<BTreeMap<String, String>>,
+    rhs: &Option<BTreeMap<String, String>>,
 ) -> bool {
     #[cfg(feature = "logging")]
     ::log::debug!("match_selector {:#?} <=> {:#?}", service_labels, pod_labels);
 
-    service_labels.as_ref().map_or(false, |service_labels| {
-        pod_labels.as_ref().map_or(false, |pod_labels| {
-            service_labels
-                .iter()
-                .all(|(service_label_key, service_label_value)| {
-                    pod_labels
-                        .get(service_label_key)
-                        .map_or(false, |pod_label_value| {
-                            service_label_value == pod_label_value
-                        })
-                })
+    lhs.as_ref().map_or(false, |lhs| {
+        rhs.as_ref().map_or(false, |rhs| {
+            lhs.iter().all(|(lhs_key, lhs_value)| {
+                rhs.get(lhs_key)
+                    .map_or(false, |rhs_value| lhs_value == rhs_value)
+            })
         })
     })
 }
