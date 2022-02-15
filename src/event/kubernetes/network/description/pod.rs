@@ -233,3 +233,43 @@ fn contains_key_values(
         })
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod match_selector {
+        use super::*;
+
+        #[test]
+        fn lhsの値すべてがrhsにふくまれていればtrueを返す() {
+            let lhs = Some(BTreeMap::from_iter(vec![
+                ("a".to_string(), "aaa".to_string()),
+                ("b".to_string(), "bbb".to_string()),
+            ]));
+
+            let rhs = Some(BTreeMap::from_iter(vec![
+                ("a".to_string(), "aaa".to_string()),
+                ("b".to_string(), "bbb".to_string()),
+                ("c".to_string(), "ccc".to_string()),
+            ]));
+
+            assert!(contains_key_values(&lhs, &rhs));
+        }
+
+        #[test]
+        fn lhsの値すべてがrhsにふくまれていなければfalseを返す() {
+            let lhs = Some(BTreeMap::from_iter(vec![
+                ("a".to_string(), "aaa".to_string()),
+                ("b".to_string(), "bbb".to_string()),
+            ]));
+
+            let rhs = Some(BTreeMap::from_iter(vec![
+                ("b".to_string(), "bbb".to_string()),
+                ("c".to_string(), "ccc".to_string()),
+            ]));
+
+            assert!(!contains_key_values(&lhs, &rhs));
+        }
+    }
+}
