@@ -64,6 +64,7 @@ async-trait = "0.1"
 
 [dev-dependencies]
 pretty_assertions = "1.1.0"
+indoc = "1.0.3"
 
 [[example]]
 name = "stack_view"
