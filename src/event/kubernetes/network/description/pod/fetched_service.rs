@@ -1,5 +1,6 @@
 use k8s_openapi::{
-    api::core::v1::{Service, ServiceSpec, ServiceStatus},
+    api::core::v1::{LoadBalancerIngress, LoadBalancerStatus, Service, ServiceSpec, ServiceStatus},
+    apimachinery::pkg::apis::meta::v1::Condition,
     List,
 };
 
@@ -17,104 +18,116 @@ impl FetchedService {
             ret.push(format!("  name: {}", name));
         }
 
-        if let Some(spec) = &self.0.spec {}
+        if let Some(spec) = &self.0.spec {
+            Self::spec(spec, &mut ret);
+        }
 
         if let Some(status) = &self.0.status {
-            if let Some(load_balancer) = &status.load_balancer {
-                if let Some(ingresses) = &load_balancer.ingress {
-                    let ingresses_vec: Vec<String> = ingresses
-                        .iter()
-                        .flat_map(|ingress| {
-                            let mut v = vec![];
-
-                            let mut has_value = false;
-
-                            let hyphen_or_space = |has_value: &mut bool| {
-                                if *has_value {
-                                    " "
-                                } else {
-                                    *has_value = true;
-                                    "-"
-                                }
-                            };
-
-                            if let Some(ip) = &ingress.ip {
-                                v.push(format!(
-                                    "      {} ip: {}",
-                                    hyphen_or_space(&mut has_value),
-                                    ip
-                                ));
-                            }
-
-                            if let Some(hostname) = &ingress.hostname {
-                                v.push(format!(
-                                    "      {} hostname: {}",
-                                    hyphen_or_space(&mut has_value),
-                                    hostname
-                                ));
-                            }
-
-                            if let Some(ports) = &ingress.ports {
-                                v.push(format!("      {} ports:", hyphen_or_space(&mut has_value)));
-
-                                ports.iter().for_each(|port_status| {
-                                    v.push(format!("          - port: {}", port_status.port));
-                                    v.push(format!(
-                                        "            protocol: {}",
-                                        port_status.protocol
-                                    ));
-                                    if let Some(error) = &port_status.error {
-                                        v.push(format!("            error: {}", error));
-                                    }
-                                })
-                            }
-
-                            v
-                        })
-                        .collect();
-
-                    if !ingresses_vec.is_empty() {
-                        ret.push("  loadBalancer:".to_string());
-                        ret.push("    ingress:".to_string());
-                        ret.extend(ingresses_vec);
-                    }
-                }
-            }
-
-            if let Some(conditions) = &status.conditions {
-                let conditions_vec: Vec<String> = conditions
-                    .iter()
-                    .flat_map(|condition| {
-                        let mut v = vec![format!("      - message: {}", condition.message)];
-
-                        v.push(format!(
-                            "        lastTransitionTime: {}",
-                            condition.last_transition_time.0.to_rfc3339()
-                        ));
-
-                        if let Some(observed_generation) = &condition.observed_generation {
-                            v.push(format!(
-                                "        observedGeneration: {}",
-                                observed_generation
-                            ));
-                        }
-
-                        v.push(format!("        reason: {}", condition.reason));
-                        v.push(format!("        status: {}", condition.status));
-                        v.push(format!("        type: {}", condition.type_));
-
-                        v
-                    })
-                    .collect();
-
-                if !conditions_vec.is_empty() {
-                    ret.push("    conditions:".to_string());
-                    ret.extend(conditions_vec)
-                }
-            }
+            Self::load_balancer(&status.load_balancer, &mut ret);
+            Self::conditions(&status.conditions, &mut ret);
         }
 
         ret
+    }
+
+    fn spec(spec: &ServiceSpec, vec: &mut Vec<String>) {}
+
+    fn load_balancer(load_balancer: &Option<LoadBalancerStatus>, vec: &mut Vec<String>) {
+        if let Some(load_balancer) = load_balancer {
+            if let Some(ingresses) = &load_balancer.ingress {
+                let ingresses_vec: Vec<String> = Self::ingresses(ingresses);
+
+                if !ingresses_vec.is_empty() {
+                    vec.push("  loadBalancer:".to_string());
+                    vec.push("    ingress:".to_string());
+                    vec.extend(ingresses_vec);
+                }
+            }
+        }
+    }
+
+    fn ingresses(ingresses: &[LoadBalancerIngress]) -> Vec<String> {
+        ingresses
+            .iter()
+            .flat_map(|ingress| {
+                let mut v = vec![];
+
+                let mut has_value = false;
+
+                let hyphen_or_space = |has_value: &mut bool| {
+                    if *has_value {
+                        " "
+                    } else {
+                        *has_value = true;
+                        "-"
+                    }
+                };
+
+                if let Some(ip) = &ingress.ip {
+                    v.push(format!(
+                        "      {} ip: {}",
+                        hyphen_or_space(&mut has_value),
+                        ip
+                    ));
+                }
+
+                if let Some(hostname) = &ingress.hostname {
+                    v.push(format!(
+                        "      {} hostname: {}",
+                        hyphen_or_space(&mut has_value),
+                        hostname
+                    ));
+                }
+
+                if let Some(ports) = &ingress.ports {
+                    v.push(format!("      {} ports:", hyphen_or_space(&mut has_value)));
+
+                    ports.iter().for_each(|port_status| {
+                        v.push(format!("          - port: {}", port_status.port));
+                        v.push(format!("            protocol: {}", port_status.protocol));
+                        if let Some(error) = &port_status.error {
+                            v.push(format!("            error: {}", error));
+                        }
+                    })
+                }
+
+                v
+            })
+            .collect()
+    }
+
+    fn conditions(conditions: &Option<Vec<Condition>>, vec: &mut Vec<String>) {
+        if let Some(conditions) = &conditions {
+            let conditions_vec: Vec<String> = conditions
+                .iter()
+                .flat_map(|condition| {
+                    let mut v = vec![format!("      - message: {}", condition.message)];
+
+                    v.push(format!(
+                        "        lastTransitionTime: {}",
+                        condition.last_transition_time.0.to_rfc3339()
+                    ));
+
+                    if let Some(observed_generation) = &condition.observed_generation {
+                        v.push(format!(
+                            "        observedGeneration: {}",
+                            observed_generation
+                        ));
+                    }
+
+                    v.push(format!("        reason: {}", condition.reason));
+                    v.push(format!("        status: {}", condition.status));
+                    v.push(format!("        type: {}", condition.type_));
+
+                    v
+                })
+                .collect();
+
+            if !conditions_vec.is_empty() {
+                vec.push("    conditions:".to_string());
+                vec.extend(conditions_vec)
+            }
+        }
     }
 }
 
