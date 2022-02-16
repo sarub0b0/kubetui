@@ -77,23 +77,65 @@ impl FetchedService {
     fn load_balancer(load_balancer: &Option<LoadBalancerStatus>, vec: &mut Vec<String>) {
         if let Some(load_balancer) = load_balancer {
             if let Some(ingresses) = &load_balancer.ingress {
-                if !ingresses.is_empty() {
-                    if let Ok(yaml) = serde_yaml::to_string(ingresses) {
-                        let v: Vec<String> = yaml
-                            .lines()
-                            .skip(1)
-                            .map(|y| format!("      {}", y))
-                            .collect();
+                let ingresses_vec: Vec<String> = Self::ingresses(ingresses);
 
-                        if !v.is_empty() {
-                            vec.push("  loadBalancer:".to_string());
-                            vec.push("    ingress:".to_string());
-                            vec.extend(v);
-                        }
-                    }
+                if !ingresses_vec.is_empty() {
+                    vec.push("  loadBalancer:".to_string());
+                    vec.push("    ingress:".to_string());
+                    vec.extend(ingresses_vec);
                 }
             }
         }
+    }
+
+    fn ingresses(ingresses: &[LoadBalancerIngress]) -> Vec<String> {
+        ingresses
+            .iter()
+            .flat_map(|ingress| {
+                let mut v = vec![];
+
+                let mut has_value = false;
+
+                let hyphen_or_space = |has_value: &mut bool| {
+                    if *has_value {
+                        " "
+                    } else {
+                        *has_value = true;
+                        "-"
+                    }
+                };
+
+                if let Some(ip) = &ingress.ip {
+                    v.push(format!(
+                        "      {} ip: {}",
+                        hyphen_or_space(&mut has_value),
+                        ip
+                    ));
+                }
+
+                if let Some(hostname) = &ingress.hostname {
+                    v.push(format!(
+                        "      {} hostname: {}",
+                        hyphen_or_space(&mut has_value),
+                        hostname
+                    ));
+                }
+
+                if let Some(ports) = &ingress.ports {
+                    v.push(format!("      {} ports:", hyphen_or_space(&mut has_value)));
+
+                    ports.iter().for_each(|port_status| {
+                        v.push(format!("          - port: {}", port_status.port));
+                        v.push(format!("            protocol: {}", port_status.protocol));
+                        if let Some(error) = &port_status.error {
+                            v.push(format!("            error: {}", error));
+                        }
+                    })
+                }
+
+                v
+            })
+            .collect()
     }
 
     fn conditions(conditions: &Option<Vec<Condition>>, vec: &mut Vec<String>) {
@@ -234,15 +276,15 @@ mod tests {
                       name: test
                       loadBalancer:
                         ingress:
-                          - hostname: hostname
-                            ip: 0.0.0.0
+                          - ip: 0.0.0.0
+                            hostname: hostname
                             ports:
-                              - error: test
-                                port: 0
+                              - port: 0
                                 protocol: TCP
-                              - error: test
-                                port: 0
+                                error: test
+                              - port: 0
                                 protocol: TCP
+                                error: test
                           - hostname: hostname
                             ports:
                               - port: 0
