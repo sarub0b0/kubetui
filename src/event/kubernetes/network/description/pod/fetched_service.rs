@@ -101,30 +101,27 @@ impl FetchedService {
             let conditions_vec: Vec<String> = conditions
                 .iter()
                 .flat_map(|condition| {
-                    let mut v = vec![format!("      - message: {}", condition.message)];
+                    let mut v = vec![format!("    - message: {}", condition.message)];
 
                     v.push(format!(
-                        "        lastTransitionTime: {}",
+                        "      lastTransitionTime: {}",
                         condition.last_transition_time.0.to_rfc3339()
                     ));
 
                     if let Some(observed_generation) = &condition.observed_generation {
-                        v.push(format!(
-                            "        observedGeneration: {}",
-                            observed_generation
-                        ));
+                        v.push(format!("      observedGeneration: {}", observed_generation));
                     }
 
-                    v.push(format!("        reason: {}", condition.reason));
-                    v.push(format!("        status: {}", condition.status));
-                    v.push(format!("        type: {}", condition.type_));
+                    v.push(format!("      reason: {}", condition.reason));
+                    v.push(format!("      status: {}", condition.status));
+                    v.push(format!("      type: {}", condition.type_));
 
                     v
                 })
                 .collect();
 
             if !conditions_vec.is_empty() {
-                vec.push("    conditions:".to_string());
+                vec.push("  conditions:".to_string());
                 vec.extend(conditions_vec)
             }
         }
@@ -406,18 +403,18 @@ mod tests {
                     let expected = indoc! { "
                     service:
                       name: test
-                        conditions:
-                          - message: test
-                            lastTransitionTime: 2019-01-01T00:00:00+00:00
-                            observedGeneration: 0
-                            reason: test
-                            status: test
-                            type: test
-                          - message: test
-                            lastTransitionTime: 2019-01-01T00:00:00+00:00
-                            reason: test
-                            status: test
-                            type: test
+                      conditions:
+                        - message: test
+                          lastTransitionTime: 2019-01-01T00:00:00+00:00
+                          observedGeneration: 0
+                          reason: test
+                          status: test
+                          type: test
+                        - message: test
+                          lastTransitionTime: 2019-01-01T00:00:00+00:00
+                          reason: test
+                          status: test
+                          type: test
                     " }
                     .lines()
                     .map(ToString::to_string)
