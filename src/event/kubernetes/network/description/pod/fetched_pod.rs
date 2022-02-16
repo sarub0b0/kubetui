@@ -33,28 +33,21 @@ impl FetchedPod {
                         vec.push(format!("      image: {}", image));
                     }
 
+                    // そのままserde_yaml::to_stringにいれると"~"になるため中身を取り出す処理をいれ
+                    // ている
                     if let Some(ports) = &c.ports {
-                        vec.push("      ports:".to_string());
+                        if let Ok(ports) = serde_yaml::to_string(ports) {
+                            let v = ports
+                                .lines()
+                                .skip(1)
+                                .map(|p| format!("        {}", p))
+                                .collect::<Vec<String>>();
 
-                        ports.iter().for_each(|port| {
-                            vec.push(format!("        containerPort: {}", port.container_port));
-
-                            if let Some(host_ip) = &port.host_ip {
-                                vec.push(format!("        hostIP: {}", host_ip));
+                            if !v.is_empty() {
+                                vec.push("      ports:".to_string());
+                                vec.extend(v);
                             }
-
-                            if let Some(host_port) = &port.host_port {
-                                vec.push(format!("        hostPort: {}", host_port));
-                            }
-
-                            if let Some(name) = &port.name {
-                                vec.push(format!("        name: {}", name));
-                            }
-
-                            if let Some(protocol) = &port.protocol {
-                                vec.push(format!("        protocol: {}", protocol));
-                            }
-                        })
+                        }
                     }
 
                     vec
