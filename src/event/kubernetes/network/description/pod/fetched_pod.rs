@@ -66,20 +66,21 @@ impl FetchedPod {
                 ret.push(format!("  podIP: {}", pod_ip));
             }
 
-            let pod_ips = status
-                .pod_ips
-                .iter()
-                .flat_map(|v| {
-                    v.iter()
-                        .filter_map(|ip| ip.ip.as_ref().map(|ip| format!("    - {}", ip)))
-                        .collect::<Vec<String>>()
-                })
-                .collect::<Vec<String>>();
+            if let Some(pod_ips) = &status.pod_ips {
+                let ips: Vec<&String> = pod_ips.iter().filter_map(|ip| ip.ip.as_ref()).collect();
 
-            if !pod_ips.is_empty() {
-                ret.push("  podIPs:".to_string());
+                if let Ok(yaml) = serde_yaml::to_string(&ips) {
+                    let v: Vec<String> = yaml
+                        .lines()
+                        .skip(1)
+                        .map(|ip| format!("    {}", ip))
+                        .collect();
 
-                ret.extend(pod_ips);
+                    if !v.is_empty() {
+                        ret.push("  podIPs:".to_string());
+                        ret.extend(v);
+                    }
+                }
             }
 
             if let Some(phase) = &status.phase {
