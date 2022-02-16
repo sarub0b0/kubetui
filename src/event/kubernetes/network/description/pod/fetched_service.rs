@@ -1,10 +1,8 @@
 use k8s_openapi::{
-    api::core::v1::{LoadBalancerIngress, LoadBalancerStatus, Service, ServiceSpec, ServiceStatus},
+    api::core::v1::{LoadBalancerIngress, LoadBalancerStatus, Service, ServiceSpec},
     apimachinery::pkg::apis::meta::v1::Condition,
     List,
 };
-
-use super::*;
 
 pub type FetchedServiceList = List<Service>;
 
@@ -30,7 +28,54 @@ impl FetchedService {
         ret
     }
 
-    fn spec(spec: &ServiceSpec, vec: &mut Vec<String>) {}
+    fn spec(spec: &ServiceSpec, vec: &mut Vec<String>) {
+        if let Some(cluster_ip) = &spec.cluster_ip {
+            vec.push(format!("  cluster_ip: {}", cluster_ip));
+        }
+
+        if let Some(cluster_ips) = &spec.cluster_ips {
+            let ips = cluster_ips
+                .iter()
+                .map(|ip| format!("    - {}", ip))
+                .collect::<Vec<String>>();
+
+            if !ips.is_empty() {
+                vec.push("  cluster_ips:".to_string());
+                vec.extend(ips);
+            }
+        }
+
+        if let Some(external_ips) = &spec.external_ips {
+            vec.push(format!("  externalIPs: {:?}", external_ips));
+        }
+
+        if let Some(external_name) = &spec.external_name {
+            vec.push(format!("  externalName: {}", external_name));
+        }
+
+        if let Some(health_check_node_port) = &spec.health_check_node_port {
+            vec.push(format!("  healthCheckNodePort: {}", health_check_node_port));
+        }
+
+        if let Some(load_balancer_ip) = &spec.load_balancer_ip {
+            vec.push(format!("  load_balancer_ip: {}", load_balancer_ip));
+        }
+
+        if let Some(ports) = &spec.ports {
+            if let Ok(yaml) = serde_yaml::to_string(&ports) {
+                let v: Vec<String> = yaml.lines().skip(1).map(|y| format!("    {}", y)).collect();
+
+                if !v.is_empty() {
+                    vec.push("  ports:".to_string());
+                    vec.extend(v);
+                }
+            }
+        }
+
+        if let Some(type_) = &spec.type_ {
+            vec.push(format!("  type: {}", type_));
+        }
+    }
 
     fn load_balancer(load_balancer: &Option<LoadBalancerStatus>, vec: &mut Vec<String>) {
         if let Some(load_balancer) = load_balancer {
@@ -186,7 +231,7 @@ mod tests {
             mod load_balancer {
                 use super::*;
                 use k8s_openapi::api::core::v1::{
-                    LoadBalancerIngress, LoadBalancerStatus, PortStatus,
+                    LoadBalancerIngress, LoadBalancerStatus, PortStatus, ServiceStatus,
                 };
                 use pretty_assertions::assert_eq;
 
@@ -313,6 +358,7 @@ mod tests {
 
             mod conditions {
                 use super::*;
+                use k8s_openapi::api::core::v1::ServiceStatus;
                 use pretty_assertions::assert_eq;
 
                 #[test]
