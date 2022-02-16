@@ -67,19 +67,15 @@ impl FetchedPod {
             }
 
             if let Some(pod_ips) = &status.pod_ips {
-                let ips: Vec<&String> = pod_ips.iter().filter_map(|ip| ip.ip.as_ref()).collect();
+                let ips = pod_ips
+                    .iter()
+                    .cloned()
+                    .filter_map(|ip| ip.ip)
+                    .collect::<Vec<String>>()
+                    .join(", ");
 
-                if let Ok(yaml) = serde_yaml::to_string(&ips) {
-                    let v: Vec<String> = yaml
-                        .lines()
-                        .skip(1)
-                        .map(|ip| format!("    {}", ip))
-                        .collect();
-
-                    if !v.is_empty() {
-                        ret.push("  podIPs:".to_string());
-                        ret.extend(v);
-                    }
+                if !ips.is_empty() {
+                    ret.push(format!("  podIPs: {}", ips));
                 }
             }
 

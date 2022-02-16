@@ -34,14 +34,11 @@ impl FetchedService {
         }
 
         if let Some(cluster_ips) = &spec.cluster_ips {
-            let ips = cluster_ips
-                .iter()
-                .map(|ip| format!("    - {}", ip))
-                .collect::<Vec<String>>();
+            // 縦に長くなりがちのためカンマくぎりで表示
+            let ips = cluster_ips.join(", ");
 
             if !ips.is_empty() {
-                vec.push("  cluster_ips:".to_string());
-                vec.extend(ips);
+                vec.push(format!("  clusterIPs: {}", ips));
             }
         }
 
