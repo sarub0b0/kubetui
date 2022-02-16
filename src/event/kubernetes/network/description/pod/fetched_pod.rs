@@ -93,6 +93,9 @@ impl FetchedPod {
                 }
             }
 
+            if let Some(phase) = &status.phase {
+                ret.push(format!("  phase: {}", phase));
+            }
         }
 
         ret
