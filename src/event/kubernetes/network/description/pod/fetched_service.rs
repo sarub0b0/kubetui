@@ -30,7 +30,7 @@ impl FetchedService {
 
     fn spec(spec: &ServiceSpec, vec: &mut Vec<String>) {
         if let Some(cluster_ip) = &spec.cluster_ip {
-            vec.push(format!("  cluster_ip: {}", cluster_ip));
+            vec.push(format!("  clusterIP: {}", cluster_ip));
         }
 
         if let Some(cluster_ips) = &spec.cluster_ips {
@@ -55,7 +55,7 @@ impl FetchedService {
         }
 
         if let Some(load_balancer_ip) = &spec.load_balancer_ip {
-            vec.push(format!("  load_balancer_ip: {}", load_balancer_ip));
+            vec.push(format!("  loadBalancerIP: {}", load_balancer_ip));
         }
 
         if let Some(ports) = &spec.ports {
