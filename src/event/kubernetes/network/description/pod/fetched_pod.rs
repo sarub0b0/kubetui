@@ -20,36 +20,6 @@ impl FetchedPod {
             ret.extend(labels);
         }
 
-        if let Some(status) = &self.0.status {
-            let pod_ips = status
-                .pod_ips
-                .iter()
-                .flat_map(|v| {
-                    v.iter()
-                        .filter_map(|ip| ip.ip.as_ref().map(|ip| format!("      - {}", ip)))
-                        .collect::<Vec<String>>()
-                })
-                .collect::<Vec<String>>();
-
-            if status.host_ip.is_some() || status.pod_ip.is_some() || !pod_ips.is_empty() {
-                ret.push("  ip:".to_string());
-
-                if let Some(host_ip) = &status.host_ip {
-                    ret.push(format!("    hostIP: {}", host_ip));
-                }
-
-                if let Some(pod_ip) = &status.pod_ip {
-                    ret.push(format!("    podIP: {}", pod_ip));
-                }
-
-                if !pod_ips.is_empty() {
-                    ret.push("    podIPs:".to_string());
-
-                    ret.extend(pod_ips);
-                }
-            }
-        }
-
         if let Some(spec) = &self.0.spec {
             ret.push("  containers:".to_string());
 
@@ -92,6 +62,37 @@ impl FetchedPod {
                 .collect();
 
             ret.extend(containers);
+        }
+
+        if let Some(status) = &self.0.status {
+            let pod_ips = status
+                .pod_ips
+                .iter()
+                .flat_map(|v| {
+                    v.iter()
+                        .filter_map(|ip| ip.ip.as_ref().map(|ip| format!("      - {}", ip)))
+                        .collect::<Vec<String>>()
+                })
+                .collect::<Vec<String>>();
+
+            if status.host_ip.is_some() || status.pod_ip.is_some() || !pod_ips.is_empty() {
+                ret.push("  ip:".to_string());
+
+                if let Some(host_ip) = &status.host_ip {
+                    ret.push(format!("    hostIP: {}", host_ip));
+                }
+
+                if let Some(pod_ip) = &status.pod_ip {
+                    ret.push(format!("    podIP: {}", pod_ip));
+                }
+
+                if !pod_ips.is_empty() {
+                    ret.push("    podIPs:".to_string());
+
+                    ret.extend(pod_ips);
+                }
+            }
+
         }
 
         ret
