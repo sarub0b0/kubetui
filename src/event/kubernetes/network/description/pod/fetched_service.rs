@@ -79,10 +79,10 @@ impl FetchedService {
 
     fn status(status: &ServiceStatus, vec: &mut Vec<String>) {
         if let Some(load_balancer) = &status.load_balancer {
-            Self::load_balancer(load_balancer, &mut vec);
+            Self::load_balancer(load_balancer, vec);
         }
-        if let Some(conditions) = status.conditions {
-            Self::conditions(&conditions, &mut vec);
+        if let Some(conditions) = &status.conditions {
+            Self::conditions(&conditions, vec);
         }
     }
 
