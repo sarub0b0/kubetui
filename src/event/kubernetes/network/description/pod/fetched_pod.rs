@@ -39,13 +39,11 @@ impl FetchedPod {
 
                 ret.extend(labels);
 
-                Some(ret)
-            } else {
-                None
+                return Some(ret);
             }
-        } else {
-            None
         }
+
+        None
     }
 
     fn spec(spec: &Option<PodSpec>) -> Option<Vec<String>> {
@@ -84,13 +82,11 @@ impl FetchedPod {
                 let mut ret = vec!["  containers:".to_string()];
                 ret.extend(containers);
 
-                Some(ret)
-            } else {
-                None
+                return Some(ret);
             }
-        } else {
-            None
         }
+
+        None
     }
 
     fn status(status: &Option<PodStatus>) -> Option<Vec<String>> {
@@ -123,13 +119,11 @@ impl FetchedPod {
             }
 
             if !ret.is_empty() {
-                Some(ret)
-            } else {
-                None
+                return Some(ret);
             }
-        } else {
-            None
         }
+
+        None
     }
 }
 
