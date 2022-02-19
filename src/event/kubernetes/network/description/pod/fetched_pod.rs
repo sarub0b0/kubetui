@@ -137,6 +137,181 @@ impl FetchedPod {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_name() {}
+    mod metadata {
+        use super::*;
+
+        use indoc::indoc;
+        use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn labels() {
+            let labels = vec![
+                ("foo".to_string(), "bar".to_string()),
+                ("hoge".to_string(), "fuga".to_string()),
+            ];
+
+            let actual = Pod {
+                metadata: ObjectMeta {
+                    labels: Some(labels.into_iter().collect()),
+                    name: Some("test".to_string()),
+                    ..Default::default()
+                },
+                spec: None,
+                status: None,
+            };
+
+            let expected = indoc!(
+                "
+                pod:
+                  labels:
+                    foo: bar
+                    hoge: fuga
+                "
+            )
+            .lines()
+            .map(ToString::to_string)
+            .collect::<Vec<String>>();
+
+            assert_eq!(FetchedPod(actual).to_vec_string(), expected);
+        }
+    }
+
+    mod spec {
+        use super::*;
+
+        use indoc::indoc;
+        use k8s_openapi::{
+            api::core::v1::{Container, ContainerPort},
+            apimachinery::pkg::apis::meta::v1::ObjectMeta,
+        };
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn containers() {
+            let actual = Pod {
+                metadata: ObjectMeta {
+                    labels: None,
+                    name: Some("test".to_string()),
+                    ..Default::default()
+                },
+                spec: Some(PodSpec {
+                    containers: vec![
+                        Container {
+                            name: "test".to_string(),
+                            image: Some("test".to_string()),
+                            ports: None,
+                            ..Default::default()
+                        },
+                        Container {
+                            name: "test2".to_string(),
+                            image: Some("test2".to_string()),
+                            ports: Some(vec![
+                                ContainerPort {
+                                    container_port: 8080,
+                                    protocol: Some("TCP".to_string()),
+                                    ..Default::default()
+                                },
+                                ContainerPort {
+                                    container_port: 8081,
+                                    protocol: Some("TCP".to_string()),
+                                    name: Some("test".to_string()),
+                                    ..Default::default()
+                                },
+                            ]),
+                            ..Default::default()
+                        },
+                    ],
+                    ..Default::default()
+                }),
+                status: None,
+            };
+
+            let expected = indoc!(
+                "
+                pod:
+                  containers:
+                    - name: test
+                      image: test
+                    - name: test2
+                      image: test2
+                      ports:
+                        - containerPort: 8080
+                          protocol: TCP
+                        - containerPort: 8081
+                          name: test
+                          protocol: TCP
+                "
+            )
+            .lines()
+            .map(ToString::to_string)
+            .collect::<Vec<String>>();
+
+            assert_eq!(FetchedPod(actual).to_vec_string(), expected);
+        }
+    }
+
+    mod status {
+        use super::*;
+
+        use indoc::indoc;
+        use k8s_openapi::{
+            api::core::v1::{PodCondition, PodIP},
+            apimachinery::pkg::apis::meta::v1::ObjectMeta,
+        };
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn pod_status() {
+            let actual = Pod {
+                metadata: ObjectMeta {
+                    labels: None,
+                    name: Some("test".to_string()),
+                    ..Default::default()
+                },
+                spec: None,
+                status: Some(PodStatus {
+                    host_ip: Some("test".to_string()),
+                    pod_ip: Some("test".to_string()),
+                    pod_ips: Some(vec![
+                        PodIP {
+                            ip: Some("0.0.0.0".to_string()),
+                        },
+                        PodIP {
+                            ip: Some("0.0.0.0".to_string()),
+                        },
+                    ]),
+                    phase: Some("test".to_string()),
+                    conditions: Some(vec![
+                        PodCondition {
+                            type_: "test".to_string(),
+                            status: "test".to_string(),
+                            ..Default::default()
+                        },
+                        PodCondition {
+                            type_: "test2".to_string(),
+                            status: "test2".to_string(),
+                            ..Default::default()
+                        },
+                    ]),
+                    ..Default::default()
+                }),
+            };
+
+            let expected = indoc!(
+                "
+                pod:
+                  hostIP: test
+                  podIP: test
+                  podIPs: 0.0.0.0, 0.0.0.0
+                  phase: test
+                "
+            )
+            .lines()
+            .map(ToString::to_string)
+            .collect::<Vec<String>>();
+
+            assert_eq!(FetchedPod(actual).to_vec_string(), expected);
+        }
+    }
 }
