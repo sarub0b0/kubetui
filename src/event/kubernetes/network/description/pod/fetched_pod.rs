@@ -6,7 +6,7 @@ use super::*;
 pub struct FetchedPod(pub Pod);
 
 impl FetchedPod {
-    pub fn to_string_vec(&self) -> Vec<String> {
+    pub fn to_vec_string(&self) -> Vec<String> {
         let mut ret = vec!["pod:".to_string()];
 
         if let Some(labels) = &self.0.metadata.labels {
@@ -86,4 +86,12 @@ impl FetchedPod {
 
         ret
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_name() {}
 }
