@@ -12,81 +12,110 @@ impl FetchedService {
     pub fn to_vec_string(&self) -> Vec<String> {
         let mut ret = vec!["service:".to_string()];
 
-        Self::metadata(&self.0.metadata, &mut ret);
-
-        if let Some(spec) = &self.0.spec {
-            Self::spec(spec, &mut ret);
+        if let Some(value) = Self::metadata(&self.0.metadata) {
+            ret.extend(value);
         }
 
-        if let Some(status) = &self.0.status {
-            Self::status(status, &mut ret);
+        if let Some(value) = Self::spec(&self.0.spec) {
+            ret.extend(value);
+        }
+
+        if let Some(value) = Self::status(&self.0.status) {
+            ret.extend(value);
         }
 
         ret
     }
 
-    fn metadata(metadata: &ObjectMeta, vec: &mut Vec<String>) {
+    fn metadata(metadata: &ObjectMeta) -> Option<Vec<String>> {
         if let Some(name) = &metadata.name {
-            vec.push(format!("  name: {}", name));
+            Some(vec![format!("  name: {}", name)])
+        } else {
+            None
         }
     }
 
-    fn spec(spec: &ServiceSpec, vec: &mut Vec<String>) {
-        if let Some(cluster_ip) = &spec.cluster_ip {
-            vec.push(format!("  clusterIP: {}", cluster_ip));
-        }
+    fn spec(spec: &Option<ServiceSpec>) -> Option<Vec<String>> {
+        if let Some(spec) = spec {
+            let mut ret = Vec::new();
 
-        if let Some(cluster_ips) = &spec.cluster_ips {
-            // 縦に長くなりがちのためカンマくぎりで表示
-            let ips = cluster_ips.join(", ");
-
-            if !ips.is_empty() {
-                vec.push(format!("  clusterIPs: {}", ips));
+            if let Some(cluster_ip) = &spec.cluster_ip {
+                ret.push(format!("  clusterIP: {}", cluster_ip));
             }
-        }
 
-        if let Some(external_ips) = &spec.external_ips {
-            vec.push(format!("  externalIPs: {:?}", external_ips));
-        }
+            if let Some(cluster_ips) = &spec.cluster_ips {
+                // 縦に長くなりがちのためカンマくぎりで表示
+                let ips = cluster_ips.join(", ");
 
-        if let Some(external_name) = &spec.external_name {
-            vec.push(format!("  externalName: {}", external_name));
-        }
-
-        if let Some(health_check_node_port) = &spec.health_check_node_port {
-            vec.push(format!("  healthCheckNodePort: {}", health_check_node_port));
-        }
-
-        if let Some(load_balancer_ip) = &spec.load_balancer_ip {
-            vec.push(format!("  loadBalancerIP: {}", load_balancer_ip));
-        }
-
-        if let Some(ports) = &spec.ports {
-            if let Ok(yaml) = serde_yaml::to_string(&ports) {
-                let v: Vec<String> = yaml.lines().skip(1).map(|y| format!("    {}", y)).collect();
-
-                if !v.is_empty() {
-                    vec.push("  ports:".to_string());
-                    vec.extend(v);
+                if !ips.is_empty() {
+                    ret.push(format!("  clusterIPs: {}", ips));
                 }
             }
+
+            if let Some(external_ips) = &spec.external_ips {
+                ret.push(format!("  externalIPs: {:?}", external_ips));
+            }
+
+            if let Some(external_name) = &spec.external_name {
+                ret.push(format!("  externalName: {}", external_name));
+            }
+
+            if let Some(health_check_node_port) = &spec.health_check_node_port {
+                ret.push(format!("  healthCheckNodePort: {}", health_check_node_port));
+            }
+
+            if let Some(load_balancer_ip) = &spec.load_balancer_ip {
+                ret.push(format!("  loadBalancerIP: {}", load_balancer_ip));
+            }
+
+            if let Some(ports) = &spec.ports {
+                if let Ok(yaml) = serde_yaml::to_string(&ports) {
+                    let v: Vec<String> =
+                        yaml.lines().skip(1).map(|y| format!("    {}", y)).collect();
+
+                    if !v.is_empty() {
+                        ret.push("  ports:".to_string());
+                        ret.extend(v);
+                    }
+                }
+            }
+
+            if let Some(type_) = &spec.type_ {
+                ret.push(format!("  type: {}", type_));
+            }
+
+            if !ret.is_empty() {
+                return Some(ret);
+            }
         }
 
-        if let Some(type_) = &spec.type_ {
-            vec.push(format!("  type: {}", type_));
-        }
+        None
     }
 
-    fn status(status: &ServiceStatus, vec: &mut Vec<String>) {
-        if let Some(load_balancer) = &status.load_balancer {
-            Self::load_balancer(load_balancer, vec);
+    fn status(status: &Option<ServiceStatus>) -> Option<Vec<String>> {
+        if let Some(status) = status {
+            let mut ret: Vec<String> = Vec::new();
+
+            if let Some(load_balancer) = &status.load_balancer {
+                if let Some(value) = Self::load_balancer(&load_balancer) {
+                    ret.extend(value);
+                }
+            }
+
+            if let Some(conditions) = &status.conditions {
+                if let Some(value) = Self::conditions(&conditions) {
+                    ret.extend(value);
+                }
+            }
+
+            if !ret.is_empty() {
+                return Some(ret);
+            }
         }
-        if let Some(conditions) = &status.conditions {
-            Self::conditions(&conditions, vec);
-        }
+        None
     }
 
-    fn load_balancer(load_balancer: &LoadBalancerStatus, vec: &mut Vec<String>) {
+    fn load_balancer(load_balancer: &LoadBalancerStatus) -> Option<Vec<String>> {
         if let Some(ingresses) = &load_balancer.ingress {
             if !ingresses.is_empty() {
                 if let Ok(yaml) = serde_yaml::to_string(ingresses) {
@@ -97,16 +126,19 @@ impl FetchedService {
                         .collect();
 
                     if !v.is_empty() {
-                        vec.push("  loadBalancer:".to_string());
-                        vec.push("    ingress:".to_string());
-                        vec.extend(v);
+                        let mut ret =
+                            vec!["  loadBalancer:".to_string(), "    ingress:".to_string()];
+                        ret.extend(v);
+
+                        return Some(ret);
                     }
                 }
             }
         }
+        None
     }
 
-    fn conditions(conditions: &[Condition], vec: &mut Vec<String>) {
+    fn conditions(conditions: &[Condition]) -> Option<Vec<String>> {
         let conditions_vec: Vec<String> = conditions
             .iter()
             .flat_map(|condition| {
@@ -130,8 +162,12 @@ impl FetchedService {
             .collect();
 
         if !conditions_vec.is_empty() {
-            vec.push("  conditions:".to_string());
-            vec.extend(conditions_vec)
+            let mut ret = vec!["  conditions:".to_string()];
+            ret.extend(conditions_vec);
+
+            Some(ret)
+        } else {
+            None
         }
     }
 }
