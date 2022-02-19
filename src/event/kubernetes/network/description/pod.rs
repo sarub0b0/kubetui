@@ -45,11 +45,11 @@ impl<'a> DescriptionWorker<'a> for PodDescriptionWorker<'a> {
         let pod = self.fetch_pod().await?;
         let service = self.fetch_service(&pod.0.metadata.labels).await?;
 
-        value.extend(pod.to_string_vec());
+        value.extend(pod.to_vec_string());
 
         if let Some(service) = service {
             value.push("\n".to_string());
-            value.extend(service.to_string_vec());
+            value.extend(service.to_vec_string());
         }
 
         self.tx.send(NetworkMessage::Response(Ok(value)).into())?;

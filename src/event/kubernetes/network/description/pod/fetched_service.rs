@@ -1,5 +1,5 @@
 use k8s_openapi::{
-    api::core::v1::{LoadBalancerIngress, LoadBalancerStatus, Service, ServiceSpec},
+    api::core::v1::{LoadBalancerStatus, Service, ServiceSpec},
     apimachinery::pkg::apis::meta::v1::Condition,
     List,
 };
@@ -9,7 +9,7 @@ pub type FetchedServiceList = List<Service>;
 pub struct FetchedService(pub Service);
 
 impl FetchedService {
-    pub fn to_string_vec(&self) -> Vec<String> {
+    pub fn to_vec_string(&self) -> Vec<String> {
         let mut ret = vec!["service:".to_string()];
 
         if let Some(name) = &self.0.metadata.name {
@@ -132,7 +132,7 @@ impl FetchedService {
 mod tests {
     use super::*;
 
-    mod to_string_vec {
+    mod to_vec_string {
         use super::*;
 
         use chrono::{DateTime, NaiveDate, Utc};
@@ -168,7 +168,7 @@ mod tests {
                 .map(ToString::to_string)
                 .collect::<Vec<_>>();
 
-                assert_eq!(FetchedService(actual).to_string_vec(), expected);
+                assert_eq!(FetchedService(actual).to_vec_string(), expected);
             }
         }
 
@@ -252,7 +252,7 @@ mod tests {
                     .map(ToString::to_string)
                     .collect::<Vec<_>>();
 
-                    assert_eq!(FetchedService(actual).to_string_vec(), expected);
+                    assert_eq!(FetchedService(actual).to_vec_string(), expected);
                 }
 
                 #[test]
@@ -279,7 +279,7 @@ mod tests {
                     .map(ToString::to_string)
                     .collect::<Vec<_>>();
 
-                    assert_eq!(FetchedService(actual).to_string_vec(), expected);
+                    assert_eq!(FetchedService(actual).to_vec_string(), expected);
                 }
 
                 #[test]
@@ -304,7 +304,7 @@ mod tests {
                     .map(ToString::to_string)
                     .collect::<Vec<_>>();
 
-                    assert_eq!(FetchedService(actual).to_string_vec(), expected);
+                    assert_eq!(FetchedService(actual).to_vec_string(), expected);
                 }
             }
 
@@ -337,7 +337,7 @@ mod tests {
                     .map(ToString::to_string)
                     .collect::<Vec<_>>();
 
-                    assert_eq!(FetchedService(actual).to_string_vec(), expected);
+                    assert_eq!(FetchedService(actual).to_vec_string(), expected);
                 }
 
                 #[test]
@@ -364,7 +364,7 @@ mod tests {
                     .map(ToString::to_string)
                     .collect::<Vec<_>>();
 
-                    assert_eq!(FetchedService(actual).to_string_vec(), expected);
+                    assert_eq!(FetchedService(actual).to_vec_string(), expected);
                 }
 
                 #[test]
@@ -420,7 +420,7 @@ mod tests {
                     .map(ToString::to_string)
                     .collect::<Vec<_>>();
 
-                    assert_eq!(FetchedService(actual).to_string_vec(), expected);
+                    assert_eq!(FetchedService(actual).to_vec_string(), expected);
                 }
             }
         }
