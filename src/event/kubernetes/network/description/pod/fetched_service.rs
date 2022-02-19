@@ -1,6 +1,6 @@
 use k8s_openapi::{
-    api::core::v1::{LoadBalancerStatus, Service, ServiceSpec},
-    apimachinery::pkg::apis::meta::v1::Condition,
+    api::core::v1::{LoadBalancerStatus, Service, ServiceSpec, ServiceStatus},
+    apimachinery::pkg::apis::meta::v1::{Condition, ObjectMeta},
     List,
 };
 
@@ -12,20 +12,23 @@ impl FetchedService {
     pub fn to_vec_string(&self) -> Vec<String> {
         let mut ret = vec!["service:".to_string()];
 
-        if let Some(name) = &self.0.metadata.name {
-            ret.push(format!("  name: {}", name));
-        }
+        Self::metadata(&self.0.metadata, &mut ret);
 
         if let Some(spec) = &self.0.spec {
             Self::spec(spec, &mut ret);
         }
 
         if let Some(status) = &self.0.status {
-            Self::load_balancer(&status.load_balancer, &mut ret);
-            Self::conditions(&status.conditions, &mut ret);
+            Self::status(status, &mut ret);
         }
 
         ret
+    }
+
+    fn metadata(metadata: &ObjectMeta, vec: &mut Vec<String>) {
+        if let Some(name) = &metadata.name {
+            vec.push(format!("  name: {}", name));
+        }
     }
 
     fn spec(spec: &ServiceSpec, vec: &mut Vec<String>) {
@@ -74,56 +77,61 @@ impl FetchedService {
         }
     }
 
-    fn load_balancer(load_balancer: &Option<LoadBalancerStatus>, vec: &mut Vec<String>) {
-        if let Some(load_balancer) = load_balancer {
-            if let Some(ingresses) = &load_balancer.ingress {
-                if !ingresses.is_empty() {
-                    if let Ok(yaml) = serde_yaml::to_string(ingresses) {
-                        let v: Vec<String> = yaml
-                            .lines()
-                            .skip(1)
-                            .map(|y| format!("      {}", y))
-                            .collect();
+    fn status(status: &ServiceStatus, vec: &mut Vec<String>) {
+        if let Some(load_balancer) = &status.load_balancer {
+            Self::load_balancer(load_balancer, &mut vec);
+        }
+        if let Some(conditions) = status.conditions {
+            Self::conditions(&conditions, &mut vec);
+        }
+    }
 
-                        if !v.is_empty() {
-                            vec.push("  loadBalancer:".to_string());
-                            vec.push("    ingress:".to_string());
-                            vec.extend(v);
-                        }
+    fn load_balancer(load_balancer: &LoadBalancerStatus, vec: &mut Vec<String>) {
+        if let Some(ingresses) = &load_balancer.ingress {
+            if !ingresses.is_empty() {
+                if let Ok(yaml) = serde_yaml::to_string(ingresses) {
+                    let v: Vec<String> = yaml
+                        .lines()
+                        .skip(1)
+                        .map(|y| format!("      {}", y))
+                        .collect();
+
+                    if !v.is_empty() {
+                        vec.push("  loadBalancer:".to_string());
+                        vec.push("    ingress:".to_string());
+                        vec.extend(v);
                     }
                 }
             }
         }
     }
 
-    fn conditions(conditions: &Option<Vec<Condition>>, vec: &mut Vec<String>) {
-        if let Some(conditions) = &conditions {
-            let conditions_vec: Vec<String> = conditions
-                .iter()
-                .flat_map(|condition| {
-                    let mut v = vec![format!("    - message: {}", condition.message)];
+    fn conditions(conditions: &[Condition], vec: &mut Vec<String>) {
+        let conditions_vec: Vec<String> = conditions
+            .iter()
+            .flat_map(|condition| {
+                let mut v = vec![format!("    - message: {}", condition.message)];
 
-                    v.push(format!(
-                        "      lastTransitionTime: {}",
-                        condition.last_transition_time.0.to_rfc3339()
-                    ));
+                v.push(format!(
+                    "      lastTransitionTime: {}",
+                    condition.last_transition_time.0.to_rfc3339()
+                ));
 
-                    if let Some(observed_generation) = &condition.observed_generation {
-                        v.push(format!("      observedGeneration: {}", observed_generation));
-                    }
+                if let Some(observed_generation) = &condition.observed_generation {
+                    v.push(format!("      observedGeneration: {}", observed_generation));
+                }
 
-                    v.push(format!("      reason: {}", condition.reason));
-                    v.push(format!("      status: {}", condition.status));
-                    v.push(format!("      type: {}", condition.type_));
+                v.push(format!("      reason: {}", condition.reason));
+                v.push(format!("      status: {}", condition.status));
+                v.push(format!("      type: {}", condition.type_));
 
-                    v
-                })
-                .collect();
+                v
+            })
+            .collect();
 
-            if !conditions_vec.is_empty() {
-                vec.push("  conditions:".to_string());
-                vec.extend(conditions_vec)
-            }
+        if !conditions_vec.is_empty() {
+            vec.push("  conditions:".to_string());
+            vec.extend(conditions_vec)
         }
     }
 }
