@@ -28,11 +28,10 @@ impl FetchedService {
     }
 
     fn metadata(metadata: &ObjectMeta) -> Option<Vec<String>> {
-        if let Some(name) = &metadata.name {
-            Some(vec![format!("  name: {}", name)])
-        } else {
-            None
-        }
+        metadata
+            .name
+            .as_ref()
+            .map(|name| vec![format!("  name: {}", name)])
     }
 
     fn spec(spec: &Option<ServiceSpec>) -> Option<Vec<String>> {
@@ -97,13 +96,13 @@ impl FetchedService {
             let mut ret: Vec<String> = Vec::new();
 
             if let Some(load_balancer) = &status.load_balancer {
-                if let Some(value) = Self::load_balancer(&load_balancer) {
+                if let Some(value) = Self::load_balancer(load_balancer) {
                     ret.extend(value);
                 }
             }
 
             if let Some(conditions) = &status.conditions {
-                if let Some(value) = Self::conditions(&conditions) {
+                if let Some(value) = Self::conditions(conditions) {
                     ret.extend(value);
                 }
             }
