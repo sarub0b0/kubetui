@@ -58,7 +58,6 @@ impl Worker for NetworkDescriptionWorker {
                 self.fetch_description::<IngressDescriptionWorker>(data)
                     .await
             }
-            _ => Ok(()),
         };
 
         if let Err(e) = ret {
