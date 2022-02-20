@@ -1,8 +1,9 @@
 use k8s_openapi::{
-    api::core::v1::{LoadBalancerStatus, Service, ServiceSpec, ServiceStatus},
-    apimachinery::pkg::apis::meta::v1::{Condition, ObjectMeta},
+    api::core::v1::{Service, ServiceSpec, ServiceStatus},
+    apimachinery::pkg::apis::meta::v1::ObjectMeta,
     List,
 };
+use serde_yaml::{Mapping, Sequence, Value};
 
 pub type FetchedServiceList = List<Service>;
 
@@ -10,174 +11,129 @@ pub struct FetchedService(pub Vec<Service>);
 
 impl FetchedService {
     pub fn to_vec_string(&self) -> Vec<String> {
-        let mut ret = vec!["service:".to_string()];
+        let mut seq = Sequence::new();
 
         for service in &self.0 {
-            if let Some(value) = Self::metadata(&service.metadata) {
-                ret.extend(value);
+            let mut map = Mapping::new();
+            // value 生成
+            if let Some(Value::Mapping(value)) = Self::metadata(&service.metadata) {
+                map.extend(value);
             }
 
-            if let Some(value) = Self::spec(&service.spec) {
-                ret.extend(value);
+            if let Some(Value::Mapping(value)) = Self::spec(&service.spec) {
+                map.extend(value);
             }
 
-            if let Some(value) = Self::status(&service.status) {
-                ret.extend(value);
+            if let Some(Value::Mapping(value)) = Self::status(&service.status) {
+                map.extend(value);
             }
+
+            seq.push(map.into());
         }
 
-        ret
+        if !seq.is_empty() {
+            let mut root = Mapping::new();
+            root.insert("service".into(), seq.into());
+
+            if let Ok(yaml) = serde_yaml::to_string(&root) {
+                yaml.lines().skip(1).map(ToString::to_string).collect()
+            } else {
+                vec![]
+            }
+        } else {
+            vec![]
+        }
     }
 
-    fn metadata(metadata: &ObjectMeta) -> Option<Vec<String>> {
-        metadata
-            .name
-            .as_ref()
-            .map(|name| vec![format!("  - name: {}", name)])
+    fn metadata(metadata: &ObjectMeta) -> Option<Value> {
+        metadata.name.as_ref().map(|name| {
+            let mut map = Mapping::new();
+            map.insert("name".into(), name.to_string().into());
+            map.into()
+        })
     }
 
-    fn spec(spec: &Option<ServiceSpec>) -> Option<Vec<String>> {
+    fn spec(spec: &Option<ServiceSpec>) -> Option<Value> {
         if let Some(spec) = spec {
-            let mut ret = Vec::new();
+            let mut map = Mapping::new();
 
             if let Some(cluster_ip) = &spec.cluster_ip {
-                ret.push(format!("    clusterIP: {}", cluster_ip));
+                map.insert("clusterIP".into(), cluster_ip.to_string().into());
             }
 
             if let Some(cluster_ips) = &spec.cluster_ips {
                 // 縦に長くなりがちのためカンマくぎりで表示
                 let ips = cluster_ips.join(", ");
-
                 if !ips.is_empty() {
-                    ret.push(format!("    clusterIPs: {}", ips));
+                    map.insert("clusterIPs".into(), ips.into());
                 }
             }
 
             if let Some(external_ips) = &spec.external_ips {
-                ret.push(format!("    externalIPs: {:?}", external_ips));
+                let ips = external_ips.join(", ");
+                if !ips.is_empty() {
+                    map.insert("externalIPs".into(), ips.to_string().into());
+                }
             }
 
             if let Some(external_name) = &spec.external_name {
-                ret.push(format!("    externalName: {}", external_name));
+                map.insert("externalName".into(), external_name.to_string().into());
             }
 
             if let Some(health_check_node_port) = &spec.health_check_node_port {
-                ret.push(format!(
-                    "    healthCheckNodePort: {}",
-                    health_check_node_port
-                ));
+                map.insert(
+                    "healthCheckNodePort".into(),
+                    health_check_node_port.to_string().into(),
+                );
             }
 
             if let Some(load_balancer_ip) = &spec.load_balancer_ip {
-                ret.push(format!("    loadBalancerIP: {}", load_balancer_ip));
+                map.insert("loadBalancerIP".into(), load_balancer_ip.to_string().into());
             }
 
             if let Some(ports) = &spec.ports {
-                if let Ok(yaml) = serde_yaml::to_string(&ports) {
-                    let v: Vec<String> = yaml
-                        .lines()
-                        .skip(1)
-                        .map(|y| format!("      {}", y))
-                        .collect();
-
-                    if !v.is_empty() {
-                        ret.push("    ports:".to_string());
-                        ret.extend(v);
-                    }
+                if let Ok(value) = serde_yaml::to_value(ports) {
+                    map.insert("ports".into(), value);
                 }
             }
 
             if let Some(type_) = &spec.type_ {
-                ret.push(format!("    type: {}", type_));
+                map.insert("type".into(), type_.to_string().into());
             }
 
-            if !ret.is_empty() {
-                return Some(ret);
-            }
+            Some(map.into())
+        } else {
+            None
         }
-
-        None
     }
 
-    fn status(status: &Option<ServiceStatus>) -> Option<Vec<String>> {
+    fn status(status: &Option<ServiceStatus>) -> Option<Value> {
         if let Some(status) = status {
-            let mut ret: Vec<String> = Vec::new();
+            let mut map = Mapping::new();
 
             if let Some(load_balancer) = &status.load_balancer {
-                if let Some(value) = Self::load_balancer(load_balancer) {
-                    ret.extend(value);
+                if let Some(ingresses) = &load_balancer.ingress {
+                    if !ingresses.is_empty() {
+                        if let Ok(value) = serde_yaml::to_value(load_balancer) {
+                            map.insert("loadBalancer".into(), value);
+                        }
+                    }
                 }
             }
 
             if let Some(conditions) = &status.conditions {
-                if let Some(value) = Self::conditions(conditions) {
-                    ret.extend(value);
-                }
-            }
-
-            if !ret.is_empty() {
-                return Some(ret);
-            }
-        }
-        None
-    }
-
-    fn load_balancer(load_balancer: &LoadBalancerStatus) -> Option<Vec<String>> {
-        if let Some(ingresses) = &load_balancer.ingress {
-            if !ingresses.is_empty() {
-                if let Ok(yaml) = serde_yaml::to_string(ingresses) {
-                    let v: Vec<String> = yaml
-                        .lines()
-                        .skip(1)
-                        .map(|y| format!("        {}", y))
-                        .collect();
-
-                    if !v.is_empty() {
-                        let mut ret = vec![
-                            "    loadBalancer:".to_string(),
-                            "      ingress:".to_string(),
-                        ];
-                        ret.extend(v);
-
-                        return Some(ret);
+                if !conditions.is_empty() {
+                    if let Ok(value) = serde_yaml::to_value(conditions) {
+                        map.insert("conditions".into(), value);
                     }
                 }
             }
-        }
-        None
-    }
 
-    fn conditions(conditions: &[Condition]) -> Option<Vec<String>> {
-        let conditions_vec: Vec<String> = conditions
-            .iter()
-            .flat_map(|condition| {
-                let mut v = vec![format!("      - message: {}", condition.message)];
-
-                v.push(format!(
-                    "        lastTransitionTime: {}",
-                    condition.last_transition_time.0.to_rfc3339()
-                ));
-
-                if let Some(observed_generation) = &condition.observed_generation {
-                    v.push(format!(
-                        "        observedGeneration: {}",
-                        observed_generation
-                    ));
-                }
-
-                v.push(format!("        reason: {}", condition.reason));
-                v.push(format!("        status: {}", condition.status));
-                v.push(format!("        type: {}", condition.type_));
-
-                v
-            })
-            .collect();
-
-        if !conditions_vec.is_empty() {
-            let mut ret = vec!["    conditions:".to_string()];
-            ret.extend(conditions_vec);
-
-            Some(ret)
+            if !map.is_empty() {
+                Some(map.into())
+            } else {
+                None
+            }
         } else {
             None
         }
@@ -200,6 +156,85 @@ mod tests {
                 NaiveDate::from_ymd(2019, 1, 1).and_hms(0, 0, 0),
                 Utc,
             ))
+        }
+
+        mod multiple {
+            use super::*;
+            use k8s_openapi::{
+                api::core::v1::ServicePort, apimachinery::pkg::util::intstr::IntOrString,
+            };
+            use pretty_assertions::assert_eq;
+
+            #[test]
+            fn multiple() {
+                let actual = vec![
+                    Service {
+                        metadata: ObjectMeta {
+                            name: Some("test0".into()),
+                            ..Default::default()
+                        },
+                        spec: Some(ServiceSpec {
+                            cluster_ip: Some("0.0.0.0".to_string()),
+                            cluster_ips: Some(vec!["0.0.0.0".to_string(), "0.0.0.0".to_string()]),
+                            ports: Some(vec![ServicePort {
+                                port: 80,
+                                protocol: Some("TCP".to_string()),
+                                target_port: Some(IntOrString::Int(80)),
+                                ..Default::default()
+                            }]),
+                            type_: Some("ClusterIP".to_string()),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    },
+                    Service {
+                        metadata: ObjectMeta {
+                            name: Some("test1".into()),
+                            ..Default::default()
+                        },
+                        spec: Some(ServiceSpec {
+                            cluster_ip: Some("0.0.0.0".to_string()),
+                            cluster_ips: Some(vec!["0.0.0.0".to_string(), "0.0.0.0".to_string()]),
+                            ports: Some(vec![ServicePort {
+                                port: 80,
+                                protocol: Some("TCP".to_string()),
+                                target_port: Some(IntOrString::Int(80)),
+                                ..Default::default()
+                            }]),
+                            type_: Some("ClusterIP".to_string()),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    },
+                ];
+
+                let expected = indoc! {
+                    "
+                    service:
+                      - name: test0
+                        clusterIP: 0.0.0.0
+                        clusterIPs: \"0.0.0.0, 0.0.0.0\"
+                        ports:
+                          - port: 80
+                            protocol: TCP
+                            targetPort: 80
+                        type: ClusterIP
+                      - name: test1
+                        clusterIP: 0.0.0.0
+                        clusterIPs: \"0.0.0.0, 0.0.0.0\"
+                        ports:
+                          - port: 80
+                            protocol: TCP
+                            targetPort: 80
+                        type: ClusterIP
+                    "
+                }
+                .lines()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>();
+
+                assert_eq!(FetchedService(actual).to_vec_string(), expected);
+            }
         }
 
         mod metadata {
@@ -229,8 +264,50 @@ mod tests {
         }
 
         mod spec {
+            use super::*;
+
+            use k8s_openapi::{
+                api::core::v1::ServicePort, apimachinery::pkg::util::intstr::IntOrString,
+            };
+            use pretty_assertions::assert_eq;
+
             #[test]
-            fn feature() {}
+            fn spec() {
+                let actual = vec![Service {
+                    spec: Some(ServiceSpec {
+                        cluster_ip: Some("0.0.0.0".to_string()),
+                        cluster_ips: Some(vec!["0.0.0.0".to_string(), "0.0.0.0".to_string()]),
+                        ports: Some(vec![ServicePort {
+                            port: 80,
+                            protocol: Some("TCP".to_string()),
+                            target_port: Some(IntOrString::Int(80)),
+                            ..Default::default()
+                        }]),
+                        type_: Some("ClusterIP".to_string()),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                }];
+
+                let expected = indoc! {
+                    "
+                    service:
+                      - clusterIP: 0.0.0.0
+                        clusterIPs: \"0.0.0.0, 0.0.0.0\"
+                        ports:
+                          - port: 80
+                            protocol: TCP
+                            targetPort: 80
+                        type: ClusterIP
+                    "
+
+                }
+                .lines()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>();
+
+                assert_eq!(FetchedService(actual).to_vec_string(), expected);
+            }
         }
 
         mod status {
@@ -460,14 +537,14 @@ mod tests {
                     service:
                       - name: test
                         conditions:
-                          - message: test
-                            lastTransitionTime: 2019-01-01T00:00:00+00:00
+                          - lastTransitionTime: \"2019-01-01T00:00:00Z\"
+                            message: test
                             observedGeneration: 0
                             reason: test
                             status: test
                             type: test
-                          - message: test
-                            lastTransitionTime: 2019-01-01T00:00:00+00:00
+                          - lastTransitionTime: \"2019-01-01T00:00:00Z\"
+                            message: test
                             reason: test
                             status: test
                             type: test
