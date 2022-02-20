@@ -37,7 +37,9 @@ impl<'a> DescriptionWorker<'a> for IngressDescriptionWorker<'a> {
 
         let res = self.client.request_text(&url).await?;
 
-        let value: Ingress = serde_json::from_str(&res)?;
+        let mut value: Ingress = serde_json::from_str(&res)?;
+
+        value.metadata.managed_fields = None;
 
         let value = serde_yaml::to_string(&value)?
             .lines()
