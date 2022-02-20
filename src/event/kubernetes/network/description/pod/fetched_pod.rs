@@ -2,6 +2,7 @@ use k8s_openapi::{
     api::core::v1::{Pod, PodSpec, PodStatus},
     apimachinery::pkg::apis::meta::v1::ObjectMeta,
 };
+use serde_yaml::{Mapping, Value};
 
 use super::*;
 
@@ -10,99 +11,92 @@ pub struct FetchedPod(pub Pod);
 
 impl FetchedPod {
     pub fn to_vec_string(&self) -> Vec<String> {
-        let mut ret = vec!["pod:".to_string()];
+        let mut map = Mapping::new();
 
-        if let Some(value) = Self::metadata(&self.0.metadata) {
-            ret.extend(value);
+        if let Some(Value::Mapping(value)) = Self::metadata(&self.0.metadata) {
+            map.extend(value);
         }
 
-        if let Some(value) = Self::spec(&self.0.spec) {
-            ret.extend(value);
+        if let Some(Value::Mapping(value)) = Self::spec(&self.0.spec) {
+            map.extend(value);
         }
 
-        if let Some(value) = Self::status(&self.0.status) {
-            ret.extend(value)
+        if let Some(Value::Mapping(value)) = Self::status(&self.0.status) {
+            map.extend(value);
         }
 
-        ret
-    }
+        if !map.is_empty() {
+            let mut root = Mapping::new();
+            root.insert("pod".into(), map.into());
 
-    fn metadata(metadata: &ObjectMeta) -> Option<Vec<String>> {
-        if let Some(labels) = &metadata.labels {
-            let labels = labels
-                .iter()
-                .map(|(k, v)| format!("    {}: {}", k, v))
-                .collect::<Vec<String>>();
-
-            if !labels.is_empty() {
-                let mut ret = vec!["  labels:".to_string()];
-
-                ret.extend(labels);
-
-                Some(ret)
-            } else {
-                None
+            if let Ok(yaml) = serde_yaml::to_string(&root) {
+                return yaml.lines().skip(1).map(ToString::to_string).collect();
             }
-        } else {
-            None
         }
+
+        vec![]
     }
 
-    fn spec(spec: &Option<PodSpec>) -> Option<Vec<String>> {
+    fn metadata(metadata: &ObjectMeta) -> Option<Value> {
+        if let Some(labels) = &metadata.labels {
+            if !labels.is_empty() {
+                if let Ok(value) = serde_yaml::to_value(labels) {
+                    let mut map = Mapping::new();
+                    map.insert("labels".into(), value);
+
+                    return Some(map.into());
+                }
+            }
+        }
+
+        None
+    }
+
+    fn spec(spec: &Option<PodSpec>) -> Option<Value> {
         if let Some(spec) = spec {
-            let containers: Vec<String> = spec
+            let values: Vec<Value> = spec
                 .containers
                 .iter()
-                .flat_map(|c| {
-                    let mut vec = vec![format!("    - name: {}", c.name)];
+                .map(|c| {
+                    let mut map = Mapping::new();
+
+                    map.insert("name".into(), c.name.to_string().into());
 
                     if let Some(image) = &c.image {
-                        vec.push(format!("      image: {}", image));
+                        map.insert("image".into(), image.to_string().into());
                     }
 
-                    // そのままserde_yaml::to_stringにいれると"~"になるため中身を取り出す処理をいれている
                     if let Some(ports) = &c.ports {
-                        if let Ok(ports) = serde_yaml::to_string(ports) {
-                            let v = ports
-                                .lines()
-                                .skip(1)
-                                .map(|p| format!("        {}", p))
-                                .collect::<Vec<String>>();
-
-                            if !v.is_empty() {
-                                vec.push("      ports:".to_string());
-                                vec.extend(v);
-                            }
+                        if let Ok(value) = serde_yaml::to_value(ports) {
+                            map.insert("ports".into(), value);
                         }
                     }
 
-                    vec
+                    map.into()
                 })
                 .collect();
 
-            if !containers.is_empty() {
-                let mut ret = vec!["  containers:".to_string()];
-                ret.extend(containers);
+            if !values.is_empty() {
+                let mut map = Mapping::new();
+                map.insert("containers".into(), values.into());
 
-                Some(ret)
-            } else {
-                None
+                return Some(map.into());
             }
-        } else {
-            None
         }
+
+        None
     }
 
-    fn status(status: &Option<PodStatus>) -> Option<Vec<String>> {
+    fn status(status: &Option<PodStatus>) -> Option<Value> {
         if let Some(status) = status {
-            let mut ret = Vec::new();
+            let mut map = Mapping::new();
 
             if let Some(host_ip) = &status.host_ip {
-                ret.push(format!("  hostIP: {}", host_ip));
+                map.insert("hostIP".into(), host_ip.to_string().into());
             }
 
             if let Some(pod_ip) = &status.pod_ip {
-                ret.push(format!("  podIP: {}", pod_ip));
+                map.insert("podIP".into(), pod_ip.to_string().into());
             }
 
             if let Some(pod_ips) = &status.pod_ips {
@@ -114,22 +108,20 @@ impl FetchedPod {
                     .join(", ");
 
                 if !ips.is_empty() {
-                    ret.push(format!("  podIPs: {}", ips));
+                    map.insert("podIPs".into(), ips.into());
                 }
             }
 
             if let Some(phase) = &status.phase {
-                ret.push(format!("  phase: {}", phase));
+                map.insert("phase".into(), phase.to_string().into());
             }
 
-            if !ret.is_empty() {
-                Some(ret)
-            } else {
-                None
+            if !map.is_empty() {
+                return Some(map.into());
             }
-        } else {
-            None
         }
+
+        None
     }
 }
 
@@ -303,7 +295,7 @@ mod tests {
                 pod:
                   hostIP: test
                   podIP: test
-                  podIPs: 0.0.0.0, 0.0.0.0
+                  podIPs: \"0.0.0.0, 0.0.0.0\"
                   phase: test
                 "
             )
