@@ -6,22 +6,24 @@ use k8s_openapi::{
 
 pub type FetchedServiceList = List<Service>;
 
-pub struct FetchedService(pub Service);
+pub struct FetchedService(pub Vec<Service>);
 
 impl FetchedService {
     pub fn to_vec_string(&self) -> Vec<String> {
         let mut ret = vec!["service:".to_string()];
 
-        if let Some(value) = Self::metadata(&self.0.metadata) {
-            ret.extend(value);
-        }
+        for service in &self.0 {
+            if let Some(value) = Self::metadata(&service.metadata) {
+                ret.extend(value);
+            }
 
-        if let Some(value) = Self::spec(&self.0.spec) {
-            ret.extend(value);
-        }
+            if let Some(value) = Self::spec(&service.spec) {
+                ret.extend(value);
+            }
 
-        if let Some(value) = Self::status(&self.0.status) {
-            ret.extend(value);
+            if let Some(value) = Self::status(&service.status) {
+                ret.extend(value);
+            }
         }
 
         ret
@@ -31,7 +33,7 @@ impl FetchedService {
         metadata
             .name
             .as_ref()
-            .map(|name| vec![format!("  name: {}", name)])
+            .map(|name| vec![format!("  - name: {}", name)])
     }
 
     fn spec(spec: &Option<ServiceSpec>) -> Option<Vec<String>> {
@@ -39,7 +41,7 @@ impl FetchedService {
             let mut ret = Vec::new();
 
             if let Some(cluster_ip) = &spec.cluster_ip {
-                ret.push(format!("  clusterIP: {}", cluster_ip));
+                ret.push(format!("    clusterIP: {}", cluster_ip));
             }
 
             if let Some(cluster_ips) = &spec.cluster_ips {
@@ -47,40 +49,46 @@ impl FetchedService {
                 let ips = cluster_ips.join(", ");
 
                 if !ips.is_empty() {
-                    ret.push(format!("  clusterIPs: {}", ips));
+                    ret.push(format!("    clusterIPs: {}", ips));
                 }
             }
 
             if let Some(external_ips) = &spec.external_ips {
-                ret.push(format!("  externalIPs: {:?}", external_ips));
+                ret.push(format!("    externalIPs: {:?}", external_ips));
             }
 
             if let Some(external_name) = &spec.external_name {
-                ret.push(format!("  externalName: {}", external_name));
+                ret.push(format!("    externalName: {}", external_name));
             }
 
             if let Some(health_check_node_port) = &spec.health_check_node_port {
-                ret.push(format!("  healthCheckNodePort: {}", health_check_node_port));
+                ret.push(format!(
+                    "    healthCheckNodePort: {}",
+                    health_check_node_port
+                ));
             }
 
             if let Some(load_balancer_ip) = &spec.load_balancer_ip {
-                ret.push(format!("  loadBalancerIP: {}", load_balancer_ip));
+                ret.push(format!("    loadBalancerIP: {}", load_balancer_ip));
             }
 
             if let Some(ports) = &spec.ports {
                 if let Ok(yaml) = serde_yaml::to_string(&ports) {
-                    let v: Vec<String> =
-                        yaml.lines().skip(1).map(|y| format!("    {}", y)).collect();
+                    let v: Vec<String> = yaml
+                        .lines()
+                        .skip(1)
+                        .map(|y| format!("      {}", y))
+                        .collect();
 
                     if !v.is_empty() {
-                        ret.push("  ports:".to_string());
+                        ret.push("    ports:".to_string());
                         ret.extend(v);
                     }
                 }
             }
 
             if let Some(type_) = &spec.type_ {
-                ret.push(format!("  type: {}", type_));
+                ret.push(format!("    type: {}", type_));
             }
 
             if !ret.is_empty() {
@@ -121,12 +129,14 @@ impl FetchedService {
                     let v: Vec<String> = yaml
                         .lines()
                         .skip(1)
-                        .map(|y| format!("      {}", y))
+                        .map(|y| format!("        {}", y))
                         .collect();
 
                     if !v.is_empty() {
-                        let mut ret =
-                            vec!["  loadBalancer:".to_string(), "    ingress:".to_string()];
+                        let mut ret = vec![
+                            "    loadBalancer:".to_string(),
+                            "      ingress:".to_string(),
+                        ];
                         ret.extend(v);
 
                         return Some(ret);
@@ -141,27 +151,30 @@ impl FetchedService {
         let conditions_vec: Vec<String> = conditions
             .iter()
             .flat_map(|condition| {
-                let mut v = vec![format!("    - message: {}", condition.message)];
+                let mut v = vec![format!("      - message: {}", condition.message)];
 
                 v.push(format!(
-                    "      lastTransitionTime: {}",
+                    "        lastTransitionTime: {}",
                     condition.last_transition_time.0.to_rfc3339()
                 ));
 
                 if let Some(observed_generation) = &condition.observed_generation {
-                    v.push(format!("      observedGeneration: {}", observed_generation));
+                    v.push(format!(
+                        "        observedGeneration: {}",
+                        observed_generation
+                    ));
                 }
 
-                v.push(format!("      reason: {}", condition.reason));
-                v.push(format!("      status: {}", condition.status));
-                v.push(format!("      type: {}", condition.type_));
+                v.push(format!("        reason: {}", condition.reason));
+                v.push(format!("        status: {}", condition.status));
+                v.push(format!("        type: {}", condition.type_));
 
                 v
             })
             .collect();
 
         if !conditions_vec.is_empty() {
-            let mut ret = vec!["  conditions:".to_string()];
+            let mut ret = vec!["    conditions:".to_string()];
             ret.extend(conditions_vec);
 
             Some(ret)
@@ -195,17 +208,17 @@ mod tests {
 
             #[test]
             fn name() {
-                let actual = Service {
+                let actual = vec![Service {
                     metadata: ObjectMeta {
                         name: Some("test".to_string()),
                         ..Default::default()
                     },
                     ..Default::default()
-                };
+                }];
 
                 let expected = indoc! { "
                 service:
-                  name: test
+                  - name: test
                 " }
                 .lines()
                 .map(ToString::to_string)
@@ -232,7 +245,7 @@ mod tests {
 
                 #[test]
                 fn 値をもつとき出力する() {
-                    let actual = Service {
+                    let actual = vec![Service {
                         metadata: ObjectMeta {
                             name: Some("test".to_string()),
                             ..Default::default()
@@ -270,26 +283,26 @@ mod tests {
                                 ]),
                             }),
                         }),
-                    };
+                    }];
 
                     let expected = indoc! { "
                     service:
-                      name: test
-                      loadBalancer:
-                        ingress:
-                          - hostname: hostname
-                            ip: 0.0.0.0
-                            ports:
-                              - error: test
-                                port: 0
-                                protocol: TCP
-                              - error: test
-                                port: 0
-                                protocol: TCP
-                          - hostname: hostname
-                            ports:
-                              - port: 0
-                                protocol: TCP
+                      - name: test
+                        loadBalancer:
+                          ingress:
+                            - hostname: hostname
+                              ip: 0.0.0.0
+                              ports:
+                                - error: test
+                                  port: 0
+                                  protocol: TCP
+                                - error: test
+                                  port: 0
+                                  protocol: TCP
+                            - hostname: hostname
+                              ports:
+                                - port: 0
+                                  protocol: TCP
                     "}
                     .lines()
                     .map(ToString::to_string)
@@ -300,7 +313,7 @@ mod tests {
 
                 #[test]
                 fn someでかつ空のとき出力しない() {
-                    let actual = Service {
+                    let actual = vec![Service {
                         metadata: ObjectMeta {
                             name: Some("test".to_string()),
                             ..Default::default()
@@ -312,11 +325,11 @@ mod tests {
                                 ingress: Some(vec![]),
                             }),
                         }),
-                    };
+                    }];
 
                     let expected = indoc! { "
                     service:
-                      name: test
+                      - name: test
                     "}
                     .lines()
                     .map(ToString::to_string)
@@ -327,7 +340,7 @@ mod tests {
 
                 #[test]
                 fn noneのとき出力しない() {
-                    let actual = Service {
+                    let actual = vec![Service {
                         metadata: ObjectMeta {
                             name: Some("test".to_string()),
                             ..Default::default()
@@ -337,11 +350,11 @@ mod tests {
                             conditions: None,
                             load_balancer: Some(LoadBalancerStatus { ingress: None }),
                         }),
-                    };
+                    }];
 
                     let expected = indoc! { "
                     service:
-                      name: test
+                      - name: test
                     "}
                     .lines()
                     .map(ToString::to_string)
@@ -358,7 +371,7 @@ mod tests {
 
                 #[test]
                 fn noneのとき出力しない() {
-                    let actual = Service {
+                    let actual = vec![Service {
                         metadata: ObjectMeta {
                             name: Some("test".to_string()),
                             ..Default::default()
@@ -370,11 +383,11 @@ mod tests {
                             load_balancer: None,
                             conditions: None,
                         }),
-                    };
+                    }];
 
                     let expected = indoc! { "
                     service:
-                      name: test
+                      - name: test
                     " }
                     .lines()
                     .map(ToString::to_string)
@@ -385,7 +398,7 @@ mod tests {
 
                 #[test]
                 fn someでかつ空のとき出力しない() {
-                    let actual = Service {
+                    let actual = vec![Service {
                         metadata: ObjectMeta {
                             name: Some("test".to_string()),
                             ..Default::default()
@@ -397,11 +410,11 @@ mod tests {
                             load_balancer: None,
                             conditions: Some(vec![]),
                         }),
-                    };
+                    }];
 
                     let expected = indoc! { "
                     service:
-                      name: test
+                      - name: test
                     " }
                     .lines()
                     .map(ToString::to_string)
@@ -412,7 +425,7 @@ mod tests {
 
                 #[test]
                 fn 値をもつとき出力する() {
-                    let actual = Service {
+                    let actual = vec![Service {
                         metadata: ObjectMeta {
                             name: Some("test".to_string()),
                             ..Default::default()
@@ -441,23 +454,23 @@ mod tests {
                                 },
                             ]),
                         }),
-                    };
+                    }];
 
                     let expected = indoc! { "
                     service:
-                      name: test
-                      conditions:
-                        - message: test
-                          lastTransitionTime: 2019-01-01T00:00:00+00:00
-                          observedGeneration: 0
-                          reason: test
-                          status: test
-                          type: test
-                        - message: test
-                          lastTransitionTime: 2019-01-01T00:00:00+00:00
-                          reason: test
-                          status: test
-                          type: test
+                      - name: test
+                        conditions:
+                          - message: test
+                            lastTransitionTime: 2019-01-01T00:00:00+00:00
+                            observedGeneration: 0
+                            reason: test
+                            status: test
+                            type: test
+                          - message: test
+                            lastTransitionTime: 2019-01-01T00:00:00+00:00
+                            reason: test
+                            status: test
+                            type: test
                     " }
                     .lines()
                     .map(ToString::to_string)

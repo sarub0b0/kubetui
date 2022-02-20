@@ -3,6 +3,7 @@ mod fetched_service;
 
 use fetched_pod::*;
 use fetched_service::*;
+use k8s_openapi::api::core::v1::Service;
 
 use super::DescriptionWorker;
 
@@ -78,12 +79,18 @@ impl<'a> PodDescriptionWorker<'a> {
 
         let list: FetchedServiceList = serde_json::from_str(&res)?;
 
-        if let Some(service) = list.items.iter().find(|s| {
-            s.spec.as_ref().map_or(false, |spec| {
-                contains_key_values(&spec.selector, pod_labels)
+        let services: Vec<Service> = list
+            .items
+            .into_iter()
+            .filter(|s| {
+                s.spec.as_ref().map_or(false, |spec| {
+                    contains_key_values(&spec.selector, pod_labels)
+                })
             })
-        }) {
-            Ok(Some(FetchedService(service.clone())))
+            .collect();
+
+        if !services.is_empty() {
+            Ok(Some(FetchedService(services)))
         } else {
             Ok(None)
         }
