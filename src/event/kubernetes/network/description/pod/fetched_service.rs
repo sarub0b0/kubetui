@@ -15,7 +15,7 @@ impl FetchedService {
 
         for service in &self.0 {
             let mut map = Mapping::new();
-            // value 生成
+
             if let Some(Value::Mapping(value)) = Self::metadata(&service.metadata) {
                 map.extend(value);
             }
