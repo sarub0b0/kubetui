@@ -161,7 +161,8 @@ impl<'a> Window<'a> {
         let titles: Vec<Spans> = self
             .tabs
             .iter()
-            .map(|t| Spans::from(Self::tab_title_format(t.title())))
+            .enumerate()
+            .map(|(i, t)| Spans::from(Self::tab_title_format(i, t.title())))
             .collect();
 
         Tabs::new(titles)
@@ -236,8 +237,8 @@ impl<'a> Window<'a> {
         }
     }
 
-    fn tab_title_format(title: &str) -> String {
-        format!(" {} ", title)
+    fn tab_title_format(index: usize, title: &str) -> String {
+        format!("{}: {} ", index + 1, title)
     }
 
     fn tab_block() -> Block<'a> {
@@ -439,7 +440,7 @@ impl Window<'_> {
         let h = chunk.height;
 
         for (i, tab) in self.tabs.iter().enumerate() {
-            let w = Self::tab_title_format(tab.title()).width() as u16;
+            let w = Self::tab_title_format(i, tab.title()).width() as u16;
             x = x.saturating_add(1);
 
             let title_chunk = Rect::new(x, y, w, h);
