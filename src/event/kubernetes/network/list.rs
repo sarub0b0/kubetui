@@ -33,10 +33,15 @@ impl Worker for NetworkPollWorker {
     }
 }
 
-const POLLING_RESOURCES: [[&str; 3]; 3] = [
+const POLLING_RESOURCES: [[&str; 3]; 4] = [
     ["Ingress", "ingresses", "apis/networking.k8s.io/v1"],
     ["Service", "services", "api/v1"],
     ["Pod", "pods", "api/v1"],
+    [
+        "NetworkPolicy",
+        "networkpolicies",
+        "apis/networking.k8s.io/v1",
+    ],
 ];
 
 impl NetworkPollWorker {

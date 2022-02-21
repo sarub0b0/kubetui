@@ -33,6 +33,7 @@ pub enum Request {
     Pod(RequestData),
     Service(RequestData),
     Ingress(RequestData),
+    NetworkPolicy(RequestData),
 }
 
 #[derive(Debug)]
