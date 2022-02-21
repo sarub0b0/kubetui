@@ -113,6 +113,10 @@ impl<'a> NetworkTabBuilder<'a> {
                             let req = Request::Ingress(request_data);
                             tx.send(NetworkMessage::Request(req).into()).unwrap();
                         }
+                        "NetworkPolicy" => {
+                            let req = Request::NetworkPolicy(request_data);
+                            tx.send(NetworkMessage::Request(req).into()).unwrap();
+                        }
                         _ => {}
                     }
                 }

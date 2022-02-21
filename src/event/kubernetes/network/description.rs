@@ -1,11 +1,13 @@
 mod ingress;
+mod network_policy;
 mod pod;
 mod service;
 
 use std::sync::{atomic::AtomicBool, Arc};
 
 use self::{
-    ingress::IngressDescriptionWorker, pod::PodDescriptionWorker, service::ServiceDescriptionWorker,
+    ingress::IngressDescriptionWorker, network_policy::NetworkPolicyDescriptionWorker,
+    pod::PodDescriptionWorker, service::ServiceDescriptionWorker,
 };
 
 use super::*;
@@ -56,6 +58,10 @@ impl Worker for NetworkDescriptionWorker {
             }
             Request::Ingress(data) => {
                 self.fetch_description::<IngressDescriptionWorker>(data)
+                    .await
+            }
+            Request::NetworkPolicy(data) => {
+                self.fetch_description::<NetworkPolicyDescriptionWorker>(data)
                     .await
             }
         };
