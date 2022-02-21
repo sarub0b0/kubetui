@@ -1,5 +1,5 @@
 use crossbeam::channel::Sender;
-use k8s_openapi::api::{core::v1::Service, networking::v1::NetworkPolicy};
+use k8s_openapi::api::networking::v1::NetworkPolicy;
 
 use crate::{
     error::Result,

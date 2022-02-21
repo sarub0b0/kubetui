@@ -11,7 +11,7 @@ use crossbeam::channel::Sender;
 use futures::future::try_join_all;
 
 use crate::{
-    error::{anyhow, Error, Result},
+    error::{anyhow, Result},
     event::Event,
 };
 

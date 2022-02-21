@@ -72,7 +72,7 @@ impl FetchedService {
             if let Some(external_ips) = &spec.external_ips {
                 let ips = external_ips.join(", ");
                 if !ips.is_empty() {
-                    map.insert("externalIPs".into(), ips.to_string().into());
+                    map.insert("externalIPs".into(), ips.into());
                 }
             }
 

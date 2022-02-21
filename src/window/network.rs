@@ -11,7 +11,7 @@ use crate::tui_wrapper::WindowEvent;
 use crate::tui_wrapper::{
     tab::WidgetData,
     tui::layout::{Constraint, Direction, Layout},
-    widget::{config::WidgetConfig, List, Text},
+    widget::{config::WidgetConfig, Text},
     Tab,
 };
 
@@ -88,7 +88,7 @@ impl<'a> NetworkTabBuilder<'a> {
                 w.widget_clear(view_id::tab_network_widget_description);
 
                 let namespaces = namespaces.borrow();
-                let parsed = parse(&v, &namespaces.selected);
+                let parsed = parse(v, &namespaces.selected);
 
                 if let Ok(p) = parsed {
                     *(w.find_widget_mut(view_id::tab_network_widget_description)
