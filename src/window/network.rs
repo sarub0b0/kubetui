@@ -127,7 +127,7 @@ impl<'a> NetworkTabBuilder<'a> {
     }
 
     fn description(&self) -> Text<'static> {
-        Text::builder()
+        let builder = Text::builder()
             .id(view_id::tab_network_widget_description)
             .widget_config(&WidgetConfig::builder().title("Description").build())
             .block_injection(|text: &Text, selected: bool| {
@@ -139,8 +139,14 @@ impl<'a> NetworkTabBuilder<'a> {
                     format!("Description [{}/{}]", index, text.rows_size()).into();
 
                 config.render_block_with_title(text.focusable() && selected)
-            })
-            .build()
+            });
+
+        if let Some(cb) = self.clipboard {
+            builder.clipboard(cb.clone())
+        } else {
+            builder
+        }
+        .build()
     }
 }
 
