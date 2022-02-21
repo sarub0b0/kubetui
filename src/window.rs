@@ -117,7 +117,7 @@ impl WindowInit {
         };
 
         let PodsTab { tab: tab_pods } = PodTabBuilder::new(
-            "1:Pods",
+            "Pod",
             &self.tx,
             &self.namespaces,
             &clipboard,
@@ -126,7 +126,7 @@ impl WindowInit {
         .build();
 
         let ConfigsTab { tab: tab_configs } = ConfigsTabBuilder::new(
-            "2:Configs",
+            "Config",
             &self.tx,
             &self.namespaces,
             &clipboard,
@@ -135,7 +135,7 @@ impl WindowInit {
         .build();
 
         let NetworkTab { tab: tab_network } = NetworkTabBuilder::new(
-            "3:Network",
+            "Network",
             &self.tx,
             &self.namespaces,
             &clipboard,
@@ -143,18 +143,18 @@ impl WindowInit {
         )
         .build();
 
-        let EventsTab { tab: tab_events } = EventsTabBuilder::new("4:Event", &clipboard).build();
+        let EventsTab { tab: tab_events } = EventsTabBuilder::new("Event", &clipboard).build();
 
         let APIsTab {
             tab: tab_apis,
             popup: popup_apis,
-        } = APIsTabBuilder::new("5:APIs", &self.tx, &clipboard).build();
+        } = APIsTabBuilder::new("API", &self.tx, &clipboard).build();
 
         let YamlTab {
             tab: tab_yaml,
             popup_kind: popup_yaml_kind,
             popup_name: popup_yaml_name,
-        } = YamlTabBuilder::new("6:Yaml", &self.tx, &self.namespaces, &clipboard).build();
+        } = YamlTabBuilder::new("Yaml", &self.tx, &self.namespaces, &clipboard).build();
 
         let ContextPopup {
             context: popup_context,

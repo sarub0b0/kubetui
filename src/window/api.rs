@@ -59,7 +59,7 @@ impl<'a> APIsTabBuilder<'a> {
 
         let builder = Text::builder()
             .id(view_id::tab_apis_widget_apis)
-            .widget_config(&WidgetConfig::builder().title("APIs").build())
+            .widget_config(&WidgetConfig::builder().title("API").build())
             .block_injection(|text: &Text, selected: bool| {
                 let (index, _) = text.state().selected();
 
@@ -86,7 +86,7 @@ impl<'a> APIsTabBuilder<'a> {
 
         MultipleSelect::builder()
             .id(view_id::popup_apis)
-            .widget_config(&WidgetConfig::builder().title("APIs").build())
+            .widget_config(&WidgetConfig::builder().title("API").build())
             .on_select(move |w, _| {
                 let widget = w
                     .find_widget_mut(view_id::popup_apis)

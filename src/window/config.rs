@@ -71,7 +71,7 @@ impl<'a> ConfigsTabBuilder<'a> {
         let namespaces = self.namespaces.clone();
         Table::builder()
             .id(view_id::tab_configs_widget_configs)
-            .widget_config(&WidgetConfig::builder().title("Configs").build())
+            .widget_config(&WidgetConfig::builder().title("Config").build())
             .block_injection(|table: &Table, selected: bool| {
                 let index = if let Some(index) = table.state().selected() {
                     index + 1

@@ -74,7 +74,7 @@ impl<'a> PodTabBuilder<'a> {
 
         Table::builder()
             .id(view_id::tab_pods_widget_pods)
-            .widget_config(&WidgetConfig::builder().title("Pods").build())
+            .widget_config(&WidgetConfig::builder().title("Pod").build())
             .block_injection(|table: &Table, selected: bool| {
                 let index = if let Some(index) = table.state().selected() {
                     index + 1
@@ -111,7 +111,7 @@ impl<'a> PodTabBuilder<'a> {
     fn logs(&self) -> Text<'static> {
         let builder = Text::builder()
             .id(view_id::tab_pods_widget_logs)
-            .widget_config(&WidgetConfig::builder().title("Logs").build())
+            .widget_config(&WidgetConfig::builder().title("Log").build())
             .wrap()
             .follow()
             .block_injection(|text: &Text, selected: bool| {
@@ -119,7 +119,7 @@ impl<'a> PodTabBuilder<'a> {
 
                 let mut config = text.widget_config().clone();
 
-                *config.title_mut() = format!("Logs [{}/{}]", index, text.rows_size()).into();
+                *config.title_mut() = format!("Log [{}/{}]", index, text.rows_size()).into();
 
                 config.render_block_with_title(text.focusable() && selected)
             });
