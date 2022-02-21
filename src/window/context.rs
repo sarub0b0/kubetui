@@ -70,10 +70,10 @@ impl<'a> ContextPopupBuilder<'a> {
                 let mut ns = namespaces.borrow_mut();
                 ns.selected = items;
 
-                w.widget_clear(view_id::tab_pods_widget_logs);
-                w.widget_clear(view_id::tab_configs_widget_raw_data);
+                w.widget_clear(view_id::tab_pod_widget_log);
+                w.widget_clear(view_id::tab_config_widget_raw_data);
                 w.widget_clear(view_id::tab_event_widget_event);
-                w.widget_clear(view_id::tab_apis_widget_apis);
+                w.widget_clear(view_id::tab_api_widget_api);
 
                 EventResult::Nop
             })
@@ -102,10 +102,10 @@ impl<'a> ContextPopupBuilder<'a> {
 
                 w.close_popup();
 
-                w.widget_clear(view_id::tab_pods_widget_logs);
-                w.widget_clear(view_id::tab_configs_widget_raw_data);
+                w.widget_clear(view_id::tab_pod_widget_log);
+                w.widget_clear(view_id::tab_config_widget_raw_data);
                 w.widget_clear(view_id::tab_event_widget_event);
-                w.widget_clear(view_id::tab_apis_widget_apis);
+                w.widget_clear(view_id::tab_api_widget_api);
 
                 let widget = w
                     .find_widget_mut(view_id::popup_ns)
@@ -114,7 +114,7 @@ impl<'a> ContextPopupBuilder<'a> {
                 widget.unselect_all();
 
                 let widget = w
-                    .find_widget_mut(view_id::popup_apis)
+                    .find_widget_mut(view_id::popup_api)
                     .as_mut_multiple_select();
 
                 widget.unselect_all();
@@ -141,10 +141,10 @@ impl<'a> ContextPopupBuilder<'a> {
 
                 w.close_popup();
 
-                w.widget_clear(view_id::tab_pods_widget_logs);
-                w.widget_clear(view_id::tab_configs_widget_raw_data);
+                w.widget_clear(view_id::tab_pod_widget_log);
+                w.widget_clear(view_id::tab_config_widget_raw_data);
                 w.widget_clear(view_id::tab_event_widget_event);
-                w.widget_clear(view_id::tab_apis_widget_apis);
+                w.widget_clear(view_id::tab_api_widget_api);
 
                 let widget = w
                     .find_widget_mut(view_id::popup_ns)

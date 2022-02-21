@@ -24,25 +24,25 @@ pub mod view_id {
         };
     }
 
-    generate_id!(tab_pods);
-    generate_id!(tab_pods_widget_pods);
-    generate_id!(tab_pods_widget_logs);
-    generate_id!(tab_configs);
-    generate_id!(tab_configs_widget_configs);
-    generate_id!(tab_configs_widget_raw_data);
+    generate_id!(tab_pod);
+    generate_id!(tab_pod_widget_pod);
+    generate_id!(tab_pod_widget_log);
+    generate_id!(tab_config);
+    generate_id!(tab_config_widget_config);
+    generate_id!(tab_config_widget_raw_data);
     generate_id!(tab_network);
     generate_id!(tab_network_widget_network);
     generate_id!(tab_network_widget_description);
     generate_id!(tab_event);
     generate_id!(tab_event_widget_event);
-    generate_id!(tab_apis);
-    generate_id!(tab_apis_widget_apis);
+    generate_id!(tab_api);
+    generate_id!(tab_api_widget_api);
     generate_id!(tab_yaml);
     generate_id!(tab_yaml_widget_yaml);
 
     generate_id!(popup_ctx);
     generate_id!(popup_ns);
-    generate_id!(popup_apis);
+    generate_id!(popup_api);
     generate_id!(popup_single_ns);
 
     generate_id!(popup_yaml_name);
@@ -121,19 +121,15 @@ pub fn update_contents(
 ) {
     match ev {
         Kube::Pod(pods_table) => {
-            update_widget_item_for_table(window, view_id::tab_pods_widget_pods, pods_table);
+            update_widget_item_for_table(window, view_id::tab_pod_widget_pod, pods_table);
         }
 
         Kube::Configs(configs_table) => {
-            update_widget_item_for_table(
-                window,
-                view_id::tab_configs_widget_configs,
-                configs_table,
-            );
+            update_widget_item_for_table(window, view_id::tab_config_widget_config, configs_table);
         }
 
         Kube::LogStreamResponse(logs) => {
-            let widget = window.find_widget_mut(view_id::tab_pods_widget_logs);
+            let widget = window.find_widget_mut(view_id::tab_pod_widget_log);
 
             match logs {
                 Ok(i) => {
@@ -146,7 +142,7 @@ pub fn update_contents(
         }
 
         Kube::ConfigResponse(raw) => {
-            update_widget_item_for_vec(window, view_id::tab_configs_widget_raw_data, raw);
+            update_widget_item_for_vec(window, view_id::tab_config_widget_raw_data, raw);
         }
 
         Kube::GetCurrentContextResponse(ctx, ns) => {
@@ -160,7 +156,7 @@ pub fn update_contents(
         }
 
         Kube::APIsResults(apis) => {
-            update_widget_item_for_vec(window, view_id::tab_apis_widget_apis, apis);
+            update_widget_item_for_vec(window, view_id::tab_api_widget_api, apis);
         }
 
         Kube::GetNamespacesResponse(ns) => {
@@ -181,7 +177,7 @@ pub fn update_contents(
         }
 
         Kube::GetAPIsResponse(apis) => {
-            update_widget_item_for_vec(window, view_id::popup_apis, apis);
+            update_widget_item_for_vec(window, view_id::popup_api, apis);
         }
 
         Kube::GetContextsResponse(ctxs) => {
@@ -195,7 +191,7 @@ pub fn update_contents(
 
         Kube::RestoreAPIs(apis) => {
             let w = window
-                .find_widget_mut(view_id::popup_apis)
+                .find_widget_mut(view_id::popup_api)
                 .as_mut_multiple_select();
 
             for api in apis {

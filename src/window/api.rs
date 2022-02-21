@@ -15,18 +15,18 @@ use crate::tui_wrapper::{
     Tab, Window,
 };
 
-pub struct APIsTabBuilder<'a> {
+pub struct ApiTabBuilder<'a> {
     title: &'a str,
     tx: &'a Sender<Event>,
     clipboard: &'a Option<Rc<RefCell<ClipboardContextWrapper>>>,
 }
 
-pub struct APIsTab {
+pub struct ApiTab {
     pub tab: Tab<'static>,
     pub popup: Widget<'static>,
 }
 
-impl<'a> APIsTabBuilder<'a> {
+impl<'a> ApiTabBuilder<'a> {
     pub fn new(
         title: &'static str,
         tx: &'a Sender<Event>,
@@ -39,26 +39,26 @@ impl<'a> APIsTabBuilder<'a> {
         }
     }
 
-    pub fn build(self) -> APIsTab {
-        let apis = self.apis();
+    pub fn build(self) -> ApiTab {
+        let api = self.api();
 
-        APIsTab {
-            tab: Tab::new(view_id::tab_apis, self.title, [WidgetData::new(apis)]),
+        ApiTab {
+            tab: Tab::new(view_id::tab_api, self.title, [WidgetData::new(api)]),
             popup: self.popup().into(),
         }
     }
 
-    fn apis(&self) -> Text<'static> {
+    fn api(&self) -> Text<'static> {
         let tx = self.tx.clone();
 
         let open_subwin = move |w: &mut Window| {
             tx.send(Event::Kube(Kube::GetAPIsRequest)).unwrap();
-            w.open_popup(view_id::popup_apis);
+            w.open_popup(view_id::popup_api);
             EventResult::Nop
         };
 
         let builder = Text::builder()
-            .id(view_id::tab_apis_widget_apis)
+            .id(view_id::tab_api_widget_api)
             .widget_config(&WidgetConfig::builder().title("API").build())
             .block_injection(|text: &Text, selected: bool| {
                 let (index, _) = text.state().selected();
@@ -85,11 +85,11 @@ impl<'a> APIsTabBuilder<'a> {
         let tx = self.tx.clone();
 
         MultipleSelect::builder()
-            .id(view_id::popup_apis)
+            .id(view_id::popup_api)
             .widget_config(&WidgetConfig::builder().title("API").build())
             .on_select(move |w, _| {
                 let widget = w
-                    .find_widget_mut(view_id::popup_apis)
+                    .find_widget_mut(view_id::popup_api)
                     .as_mut_multiple_select();
 
                 widget.toggle_select_unselect();
@@ -100,7 +100,7 @@ impl<'a> APIsTabBuilder<'a> {
                 }
 
                 if widget.selected_items().is_empty() {
-                    w.widget_clear(view_id::tab_apis_widget_apis)
+                    w.widget_clear(view_id::tab_api_widget_api)
                 }
 
                 EventResult::Nop

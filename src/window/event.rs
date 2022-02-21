@@ -28,14 +28,14 @@ impl<'a> EventsTabBuilder<'a> {
     }
 
     pub fn build(self) -> EventsTab {
-        let events = self.events();
+        let event = self.event();
 
         EventsTab {
-            tab: Tab::new(view_id::tab_event, self.title, [WidgetData::new(events)]),
+            tab: Tab::new(view_id::tab_event, self.title, [WidgetData::new(event)]),
         }
     }
 
-    fn events(&self) -> Text<'static> {
+    fn event(&self) -> Text<'static> {
         let builder = Text::builder()
             .id(view_id::tab_event_widget_event)
             .widget_config(&WidgetConfig::builder().title("Event").build())

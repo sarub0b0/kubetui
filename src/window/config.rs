@@ -16,7 +16,7 @@ use crate::tui_wrapper::{
     Tab, WindowEvent,
 };
 
-pub struct ConfigsTabBuilder<'a> {
+pub struct ConfigTabBuilder<'a> {
     title: &'static str,
     tx: &'a Sender<Event>,
     namespaces: &'a Rc<RefCell<Namespace>>,
@@ -24,11 +24,11 @@ pub struct ConfigsTabBuilder<'a> {
     split_mode: Direction,
 }
 
-pub struct ConfigsTab {
+pub struct ConfigTab {
     pub tab: Tab<'static>,
 }
 
-impl<'a> ConfigsTabBuilder<'a> {
+impl<'a> ConfigTabBuilder<'a> {
     pub fn new(
         title: &'static str,
         tx: &'a Sender<Event>,
@@ -36,7 +36,7 @@ impl<'a> ConfigsTabBuilder<'a> {
         clipboard: &'a Option<Rc<RefCell<ClipboardContextWrapper>>>,
         split_mode: Direction,
     ) -> Self {
-        ConfigsTabBuilder {
+        ConfigTabBuilder {
             title,
             tx,
             namespaces,
@@ -45,16 +45,16 @@ impl<'a> ConfigsTabBuilder<'a> {
         }
     }
 
-    pub fn build(self) -> ConfigsTab {
-        let configs = self.configs();
+    pub fn build(self) -> ConfigTab {
+        let config = self.config();
         let raw_data = self.raw_data();
 
-        ConfigsTab {
+        ConfigTab {
             tab: Tab::new(
-                view_id::tab_configs,
+                view_id::tab_config,
                 self.title,
                 [
-                    WidgetData::new(configs).chunk_index(0),
+                    WidgetData::new(config).chunk_index(0),
                     WidgetData::new(raw_data).chunk_index(1),
                 ],
             )
@@ -66,11 +66,11 @@ impl<'a> ConfigsTabBuilder<'a> {
         }
     }
 
-    fn configs(&self) -> Table<'static> {
+    fn config(&self) -> Table<'static> {
         let tx = self.tx.clone();
         let namespaces = self.namespaces.clone();
         Table::builder()
-            .id(view_id::tab_configs_widget_configs)
+            .id(view_id::tab_config_widget_config)
             .widget_config(&WidgetConfig::builder().title("Config").build())
             .block_injection(|table: &Table, selected: bool| {
                 let index = if let Some(index) = table.state().selected() {
@@ -87,11 +87,11 @@ impl<'a> ConfigsTabBuilder<'a> {
                 config.render_block_with_title(table.focusable() && selected)
             })
             .on_select(move |w, v| {
-                w.widget_clear(view_id::tab_configs_widget_raw_data);
+                w.widget_clear(view_id::tab_config_widget_raw_data);
 
                 let (ns, kind, name) = config_request_param(v, &namespaces.borrow().selected);
 
-                *(w.find_widget_mut(view_id::tab_configs_widget_raw_data)
+                *(w.find_widget_mut(view_id::tab_config_widget_raw_data)
                     .widget_config_mut()
                     .append_title_mut()) = Some((format!(" : {}", name)).into());
 
@@ -105,7 +105,7 @@ impl<'a> ConfigsTabBuilder<'a> {
 
     fn raw_data(&self) -> Text<'static> {
         let builder = Text::builder()
-            .id(view_id::tab_configs_widget_raw_data)
+            .id(view_id::tab_config_widget_raw_data)
             .widget_config(&WidgetConfig::builder().title("Raw Data").build())
             .wrap()
             .block_injection(|text: &Text, selected: bool| {

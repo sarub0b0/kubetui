@@ -48,16 +48,16 @@ impl<'a> PodTabBuilder<'a> {
     }
 
     pub fn build(self) -> PodsTab {
-        let pods = self.pods();
-        let logs = self.logs();
+        let pod = self.pod();
+        let log = self.log();
 
         PodsTab {
             tab: Tab::new(
-                view_id::tab_pods,
+                view_id::tab_pod,
                 self.title,
                 [
-                    WidgetData::new(pods).chunk_index(0),
-                    WidgetData::new(logs).chunk_index(1),
+                    WidgetData::new(pod).chunk_index(0),
+                    WidgetData::new(log).chunk_index(1),
                 ],
             )
             .layout(
@@ -68,12 +68,12 @@ impl<'a> PodTabBuilder<'a> {
         }
     }
 
-    fn pods(&self) -> Table<'static> {
+    fn pod(&self) -> Table<'static> {
         let tx = self.tx.clone();
         let namespace = self.namespaces.clone();
 
         Table::builder()
-            .id(view_id::tab_pods_widget_pods)
+            .id(view_id::tab_pod_widget_pod)
             .widget_config(&WidgetConfig::builder().title("Pod").build())
             .block_injection(|table: &Table, selected: bool| {
                 let index = if let Some(index) = table.state().selected() {
@@ -90,13 +90,13 @@ impl<'a> PodTabBuilder<'a> {
                 config.render_block_with_title(table.focusable() && selected)
             })
             .on_select(move |w, v| {
-                w.widget_clear(view_id::tab_pods_widget_logs);
+                w.widget_clear(view_id::tab_pod_widget_log);
 
                 let selected = &namespace.borrow().selected;
 
                 let (ns, pod_name) = log_stream_request_param(v, selected);
 
-                *(w.find_widget_mut(view_id::tab_pods_widget_logs)
+                *(w.find_widget_mut(view_id::tab_pod_widget_log)
                     .widget_config_mut()
                     .append_title_mut()) = Some((format!(" : {}", pod_name)).into());
 
@@ -108,9 +108,9 @@ impl<'a> PodTabBuilder<'a> {
             .build()
     }
 
-    fn logs(&self) -> Text<'static> {
+    fn log(&self) -> Text<'static> {
         let builder = Text::builder()
-            .id(view_id::tab_pods_widget_logs)
+            .id(view_id::tab_pod_widget_log)
             .widget_config(&WidgetConfig::builder().title("Log").build())
             .wrap()
             .follow()

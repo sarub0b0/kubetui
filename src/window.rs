@@ -125,7 +125,7 @@ impl WindowInit {
         )
         .build();
 
-        let ConfigsTab { tab: tab_configs } = ConfigsTabBuilder::new(
+        let ConfigTab { tab: tab_configs } = ConfigTabBuilder::new(
             "Config",
             &self.tx,
             &self.namespaces,
@@ -145,10 +145,10 @@ impl WindowInit {
 
         let EventsTab { tab: tab_events } = EventsTabBuilder::new("Event", &clipboard).build();
 
-        let APIsTab {
+        let ApiTab {
             tab: tab_apis,
             popup: popup_apis,
-        } = APIsTabBuilder::new("API", &self.tx, &clipboard).build();
+        } = ApiTabBuilder::new("API", &self.tx, &clipboard).build();
 
         let YamlTab {
             tab: tab_yaml,
