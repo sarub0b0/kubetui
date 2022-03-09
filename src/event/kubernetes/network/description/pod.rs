@@ -4,6 +4,7 @@ mod fetched_service;
 use fetched_pod::*;
 use fetched_service::*;
 use k8s_openapi::api::core::v1::Service;
+use serde_yaml::Mapping;
 
 use super::DescriptionWorker;
 
@@ -44,13 +45,24 @@ impl<'a> DescriptionWorker<'a> for PodDescriptionWorker<'a> {
         let mut value = Vec::new();
 
         let pod = self.fetch_pod().await?;
-        let service = self.fetch_service(&pod.0.metadata.labels).await?;
+        let services = self.fetch_service(&pod.0.metadata.labels).await?;
 
         value.extend(pod.to_vec_string());
 
-        if let Some(service) = service {
-            value.push("\n".to_string());
-            value.extend(service.to_vec_string());
+        let mut related_resources = Mapping::new();
+        if let Some(services) = services {
+            if let Some(svc) = services.to_value() {
+                related_resources.insert("related resources".into(), svc);
+            }
+        }
+
+        if !related_resources.is_empty() {
+            if let Ok(resources) = serde_yaml::to_string(&related_resources) {
+                let vec: Vec<String> = resources.lines().skip(1).map(ToString::to_string).collect();
+
+                value.push("\n".to_string());
+                value.extend(vec);
+            }
         }
 
         self.tx.send(NetworkMessage::Response(Ok(value)).into())?;
