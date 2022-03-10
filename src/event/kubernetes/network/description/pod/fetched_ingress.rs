@@ -29,7 +29,6 @@ mod tests {
 
     use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
     use pretty_assertions::assert_eq;
-    use serde_yaml::Mapping;
 
     #[test]
     fn 複数のingressを持つときリソース名を含むvalueを返す() {
@@ -51,11 +50,7 @@ mod tests {
         ])
         .to_value();
 
-        let mut expected = Mapping::new();
-
-        let ingresses: Vec<Value> = vec!["foo".into(), "bar".into()];
-
-        expected.insert("ingresses".into(), ingresses.into());
+        let expected: Vec<Value> = vec!["foo".into(), "bar".into()];
 
         assert_eq!(actual, Some(expected.into()));
     }
