@@ -1,4 +1,5 @@
 mod fetched_ingress;
+mod fetched_network_policy;
 mod fetched_pod;
 mod fetched_service;
 
@@ -9,7 +10,7 @@ use k8s_openapi::api::{
     core::v1::Service,
     networking::v1::{Ingress, IngressSpec},
 };
-use serde_yaml::Mapping;
+use serde_yaml::{Mapping, Value};
 
 use super::DescriptionWorker;
 
@@ -26,6 +27,18 @@ use crate::{
         Event,
     },
 };
+
+enum FetchArgs {
+    Value(String),
+    List(Vec<String>),
+}
+
+trait FetchedResource {
+    type Resource;
+
+    fn fetch(args: Option<FetchArgs>) -> Result<Self::Resource>;
+    fn to_value(&self) -> Option<Value>;
+}
 
 pub(super) struct PodDescriptionWorker<'a> {
     client: &'a KubeClient,
