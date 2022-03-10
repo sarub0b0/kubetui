@@ -1,5 +1,5 @@
 use k8s_openapi::{api::networking::v1::Ingress, List};
-use serde_yaml::{Mapping, Value};
+use serde_yaml::Value;
 
 pub type FetchedIngressList = List<Ingress>;
 
@@ -16,9 +16,7 @@ impl FetchedIngress {
             .collect();
 
         if !ret.is_empty() {
-            let mut map = Mapping::new();
-            map.insert("ingresses".into(), ret.into());
-            Some(map.into())
+            Some(ret.into())
         } else {
             None
         }

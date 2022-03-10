@@ -20,9 +20,7 @@ impl FetchedService {
             .collect();
 
         if !ret.is_empty() {
-            let mut map = Mapping::new();
-            map.insert("services".into(), ret.into());
-            Some(map.into())
+            Some(ret.into())
         } else {
             None
         }
