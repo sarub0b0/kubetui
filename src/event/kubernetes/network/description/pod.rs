@@ -107,6 +107,65 @@ impl<'a> PodDescriptionWorker<'a> {
             Ok(None)
         }
     }
+
+    async fn fetch_ingress(&self, services: &[String]) -> Result<Option<FetchedIngress>> {
+        let url = format!(
+            "apis/networking.k8s.io/v1/namespaces/{}/ingresses",
+            self.namespace
+        );
+
+        let res = self.client.request_text(&url).await?;
+
+        let list: FetchedIngressList = serde_json::from_str(&res)?;
+
+        let ingresses: Vec<Ingress> = list
+            .items
+            .into_iter()
+            .filter(|ing| {
+                ing.spec
+                    .as_ref()
+                    .map_or(false, |spec| contains_service_into_ingress(spec, services))
+            })
+            .collect();
+
+        if !ingresses.is_empty() {
+            Ok(Some(FetchedIngress(ingresses)))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+fn contains_service_into_ingress(ingress_spec: &IngressSpec, services: &[String]) -> bool {
+    ingress_spec
+        .default_backend
+        .as_ref()
+        .map_or(false, |default_backend| {
+            default_backend
+                .service
+                .as_ref()
+                .map_or(false, |backend_service| {
+                    services
+                        .iter()
+                        .any(|service| &backend_service.name == service)
+                })
+        })
+        || ingress_spec.rules.as_ref().map_or(false, |rules| {
+            rules.iter().any(|rule| {
+                rule.http.as_ref().map_or(false, |http| {
+                    http.paths.iter().any(|path| {
+                        path.backend
+                            .service
+                            .as_ref()
+                            .map_or(false, |backend_service| {
+                                services
+                                    .iter()
+                                    .any(|service| &backend_service.name == service)
+                            })
+                    })
+                })
+            })
+        })
 }
 
 fn contains_key_values(
