@@ -83,7 +83,7 @@ impl<'a> DescriptionWorker<'a> for PodDescriptionWorker<'a> {
         if !related_resources.is_empty() {
             let mut root = Mapping::new();
 
-            root.insert("related_resources".into(), related_resources.into());
+            root.insert("relatedResources".into(), related_resources.into());
 
             if let Ok(resources) = serde_yaml::to_string(&root) {
                 let vec: Vec<String> = resources.lines().skip(1).map(ToString::to_string).collect();
