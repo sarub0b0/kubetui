@@ -29,6 +29,7 @@ mod tests {
 
     use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
     use pretty_assertions::assert_eq;
+    use serde_yaml::Mapping;
 
     #[test]
     fn 複数のingressを持つときリソース名を含むvalueを返す() {
