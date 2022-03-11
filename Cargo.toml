@@ -63,7 +63,7 @@ anyhow = "1"
 async-trait = "0.1"
 
 [dev-dependencies]
-pretty_assertions = "1.1.0"
+pretty_assertions = "1.2.0"
 indoc = "1.0.4"
 
 [[example]]
