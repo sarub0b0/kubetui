@@ -112,3 +112,41 @@ where
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    mod run {
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn is_terminatedで処理を停止したときokを返す() {
+            unimplemented!()
+        }
+
+        #[test]
+        fn 内部でエラーがでたとき処理を停止してtxにerrを送信してokを返す() {
+            unimplemented!()
+        }
+    }
+    mod fetch_description {
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn 正常系のときtxにデータを送信する() {
+            unimplemented!()
+        }
+
+        #[test]
+        fn is_terminatedがtrueのときループを抜けてokを返す() {
+            unimplemented!()
+        }
+
+        #[test]
+        fn 内部でエラーがでたときループを抜けてerrを返す() {
+            unimplemented!()
+        }
+    }
+}
