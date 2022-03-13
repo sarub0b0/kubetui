@@ -8,7 +8,7 @@ use serde_json::Value as JsonValue;
 use std::cmp::Ordering;
 use std::cmp::{Ord, PartialOrd};
 
-use super::client::KubeClient;
+use super::client::{KubeClient, KubeClientRequest};
 
 use crate::error::Result;
 

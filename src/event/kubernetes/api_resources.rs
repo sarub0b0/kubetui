@@ -1,4 +1,5 @@
 use super::{
+    client::KubeClientRequest,
     worker::{PollWorker, Worker},
     KubeClient,
     {v1_table::*, ApiResources},

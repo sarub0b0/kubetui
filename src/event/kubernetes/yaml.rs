@@ -6,7 +6,7 @@ use serde::Deserialize;
 
 use super::{
     api_resources::{APIInfo, InnerApiDatabase},
-    client::KubeClient,
+    client::{KubeClient, KubeClientRequest},
 };
 use crate::error::{Error, Result};
 

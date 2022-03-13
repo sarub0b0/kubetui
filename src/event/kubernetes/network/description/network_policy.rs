@@ -4,23 +4,32 @@ use k8s_openapi::api::networking::v1::NetworkPolicy;
 use crate::{
     error::Result,
     event::{
-        kubernetes::{client::KubeClient, network::NetworkMessage},
+        kubernetes::{
+            client::{KubeClient, KubeClientRequest},
+            network::NetworkMessage,
+        },
         Event,
     },
 };
 
 use super::DescriptionWorker;
 
-pub(super) struct NetworkPolicyDescriptionWorker<'a> {
-    client: &'a KubeClient,
+pub(super) struct NetworkPolicyDescriptionWorker<'a, C>
+where
+    C: KubeClientRequest + Clone,
+{
+    client: &'a C,
     tx: &'a Sender<Event>,
     namespace: String,
     name: String,
 }
 
 #[async_trait::async_trait]
-impl<'a> DescriptionWorker<'a> for NetworkPolicyDescriptionWorker<'a> {
-    fn new(client: &'a KubeClient, tx: &'a Sender<Event>, namespace: String, name: String) -> Self {
+impl<'a, C> DescriptionWorker<'a, C> for NetworkPolicyDescriptionWorker<'a, C>
+where
+    C: KubeClientRequest + Clone,
+{
+    fn new(client: &'a C, tx: &'a Sender<Event>, namespace: String, name: String) -> Self {
         Self {
             client,
             tx,

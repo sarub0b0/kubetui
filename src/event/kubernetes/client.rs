@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 
 use http::header::{HeaderValue, ACCEPT};
@@ -45,21 +46,6 @@ impl KubeClient {
         &mut self.server_url
     }
 
-    #[allow(dead_code)]
-    pub async fn table_request<T>(&self, path: &str) -> Result<T>
-    where
-        T: DeserializeOwned,
-    {
-        self.inner_request(path, TABLE_REQUEST_HEADER).await
-    }
-
-    pub async fn request<T>(&self, path: &str) -> Result<T>
-    where
-        T: DeserializeOwned,
-    {
-        self.inner_request(path, "application/json").await
-    }
-
     async fn inner_request<T>(&self, path: &str, header: &str) -> Result<T>
     where
         T: DeserializeOwned,
@@ -79,8 +65,33 @@ impl KubeClient {
 
         ret.map_err(|e| anyhow!(Error::Kube(e)))
     }
+}
 
-    pub async fn request_text(&self, path: &str) -> Result<String> {
+#[async_trait]
+pub trait KubeClientRequest: Send + Sync {
+    async fn table_request<T: DeserializeOwned>(&self, path: &str) -> Result<T>;
+    async fn request<T: DeserializeOwned>(&self, path: &str) -> Result<T>;
+
+    async fn request_text(&self, path: &str) -> Result<String>;
+}
+
+#[async_trait]
+impl KubeClientRequest for KubeClient {
+    async fn table_request<T>(&self, path: &str) -> Result<T>
+    where
+        T: DeserializeOwned,
+    {
+        self.inner_request(path, TABLE_REQUEST_HEADER).await
+    }
+
+    async fn request<T>(&self, path: &str) -> Result<T>
+    where
+        T: DeserializeOwned,
+    {
+        self.inner_request(path, "application/json").await
+    }
+
+    async fn request_text(&self, path: &str) -> Result<String> {
         let request = Request::new(&self.server_url);
 
         let mut request = request.get(path)?;

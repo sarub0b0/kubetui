@@ -4,23 +4,32 @@ use k8s_openapi::api::core::v1::Service;
 use crate::{
     error::Result,
     event::{
-        kubernetes::{client::KubeClient, network::NetworkMessage},
+        kubernetes::{
+            client::{KubeClient, KubeClientRequest},
+            network::NetworkMessage,
+        },
         Event,
     },
 };
 
 use super::DescriptionWorker;
 
-pub(super) struct ServiceDescriptionWorker<'a> {
-    client: &'a KubeClient,
+pub(super) struct ServiceDescriptionWorker<'a, C>
+where
+    C: KubeClientRequest + Clone,
+{
+    client: &'a C,
     tx: &'a Sender<Event>,
     namespace: String,
     name: String,
 }
 
 #[async_trait::async_trait]
-impl<'a> DescriptionWorker<'a> for ServiceDescriptionWorker<'a> {
-    fn new(client: &'a KubeClient, tx: &'a Sender<Event>, namespace: String, name: String) -> Self {
+impl<'a, C> DescriptionWorker<'a, C> for ServiceDescriptionWorker<'a, C>
+where
+    C: KubeClientRequest + Clone,
+{
+    fn new(client: &'a C, tx: &'a Sender<Event>, namespace: String, name: String) -> Self {
         Self {
             client,
             tx,

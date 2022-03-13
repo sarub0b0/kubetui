@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     error::Result,
     event::{
-        kubernetes::{client::KubeClient, network::NetworkMessage},
+        kubernetes::{client::KubeClientRequest, network::NetworkMessage},
         Event,
     },
 };
@@ -40,16 +40,19 @@ trait FetchedResource {
     fn to_value(&self) -> Option<Value>;
 }
 
-pub(super) struct PodDescriptionWorker<'a> {
-    client: &'a KubeClient,
+pub(super) struct PodDescriptionWorker<'a, C>
+where
+    C: KubeClientRequest + Clone,
+{
+    client: &'a C,
     tx: &'a Sender<Event>,
     namespace: String,
     name: String,
 }
 
 #[async_trait::async_trait]
-impl<'a> DescriptionWorker<'a> for PodDescriptionWorker<'a> {
-    fn new(client: &'a KubeClient, tx: &'a Sender<Event>, namespace: String, name: String) -> Self {
+impl<'a, C: KubeClientRequest + Clone> DescriptionWorker<'a, C> for PodDescriptionWorker<'a, C> {
+    fn new(client: &'a C, tx: &'a Sender<Event>, namespace: String, name: String) -> Self {
         PodDescriptionWorker {
             client,
             tx,
@@ -112,7 +115,7 @@ impl<'a> DescriptionWorker<'a> for PodDescriptionWorker<'a> {
     }
 }
 
-impl<'a> PodDescriptionWorker<'a> {
+impl<C: KubeClientRequest + Clone> PodDescriptionWorker<'_, C> {
     async fn fetch_pod(&self) -> Result<FetchedPod> {
         let url = format!("api/v1/namespaces/{}/pods/{}", self.namespace, self.name);
 
