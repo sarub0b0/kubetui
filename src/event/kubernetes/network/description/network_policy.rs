@@ -4,10 +4,7 @@ use k8s_openapi::api::networking::v1::NetworkPolicy;
 use crate::{
     error::Result,
     event::{
-        kubernetes::{
-            client::{KubeClient, KubeClientRequest},
-            network::NetworkMessage,
-        },
+        kubernetes::{client::KubeClientRequest, network::NetworkMessage},
         Event,
     },
 };

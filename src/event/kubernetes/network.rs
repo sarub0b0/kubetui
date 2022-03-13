@@ -16,7 +16,6 @@ use crate::{
 };
 
 use super::{
-    client::KubeClient,
     v1_table::{get_resource_per_namespace, insert_ns, TableRow},
     worker::{PollWorker, Worker},
     Kube, KubeTable, WorkerResult,
