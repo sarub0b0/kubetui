@@ -13,7 +13,7 @@ use k8s_openapi::api::{
 };
 use serde_yaml::{Mapping, Value};
 
-use super::DescriptionWorker;
+use super::{DescriptionWorker, Result};
 
 use std::collections::BTreeMap;
 
@@ -21,12 +21,8 @@ use crossbeam::channel::Sender;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    error::Result,
-    event::{
-        kubernetes::{client::KubeClientRequest, network::NetworkMessage},
-        Event,
-    },
+use crate::event::{
+    kubernetes::client::KubeClientRequest, kubernetes::network::NetworkMessage, Event,
 };
 
 #[derive(Debug)]
@@ -103,12 +99,11 @@ impl<'a, C: KubeClientRequest> DescriptionWorker<'a, C> for PodDescriptionWorker
 
             root.insert("relatedResources".into(), related_resources.into());
 
-            if let Ok(resources) = serde_yaml::to_string(&root) {
-                let vec: Vec<String> = resources.lines().skip(1).map(ToString::to_string).collect();
+            let resources = serde_yaml::to_string(&root)?;
+            let vec: Vec<String> = resources.lines().skip(1).map(ToString::to_string).collect();
 
-                value.push("\n".to_string());
-                value.extend(vec);
-            }
+            value.push("\n".to_string());
+            value.extend(vec);
         }
 
         self.tx.send(NetworkMessage::Response(Ok(value)).into())?;
