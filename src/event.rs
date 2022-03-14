@@ -34,6 +34,8 @@ impl From<KeyCode> for UserEvent {
         UserEvent::Key(KeyEvent::from(code))
     }
 }
+
+#[derive(Debug)]
 pub enum Event {
     Kube(Kube),
     User(UserEvent),

@@ -106,6 +106,7 @@ impl From<Kube> for Event {
     }
 }
 
+#[derive(Debug)]
 pub enum Kube {
     // apis
     GetAPIsRequest,

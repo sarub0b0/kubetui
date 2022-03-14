@@ -3,6 +3,7 @@ use serde_yaml::Value;
 
 pub type FetchedServiceList = List<Service>;
 
+#[derive(Debug)]
 pub struct FetchedService(pub Vec<Service>);
 
 impl FetchedService {
