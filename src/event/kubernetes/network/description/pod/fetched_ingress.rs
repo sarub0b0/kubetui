@@ -3,6 +3,7 @@ use serde_yaml::Value;
 
 pub type FetchedIngressList = List<Ingress>;
 
+#[derive(Debug, Default)]
 pub struct FetchedIngress(pub Vec<Ingress>);
 
 impl FetchedIngress {

@@ -6,7 +6,7 @@ use serde_yaml::{Mapping, Value};
 
 use super::*;
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 pub struct FetchedPod(pub Pod);
 
 impl FetchedPod {
