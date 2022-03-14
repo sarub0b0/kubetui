@@ -23,7 +23,7 @@ crossbeam = "0.8"
 clap = { version = "3", features = ["wrap_help", "derive"] }
 
 # ansi
-nom = "7.1.0"
+nom = "7.1.1"
 
 # clipboard
 clipboard = "0.5"
