@@ -69,25 +69,19 @@ impl KubeClient {
 
 #[async_trait]
 pub trait KubeClientRequest: Send + Sync {
-    async fn table_request<T: DeserializeOwned>(&self, path: &str) -> Result<T>;
-    async fn request<T: DeserializeOwned>(&self, path: &str) -> Result<T>;
+    async fn table_request<T: DeserializeOwned + 'static>(&self, path: &str) -> Result<T>;
+    async fn request<T: DeserializeOwned + 'static>(&self, path: &str) -> Result<T>;
 
     async fn request_text(&self, path: &str) -> Result<String>;
 }
 
 #[async_trait]
 impl KubeClientRequest for KubeClient {
-    async fn table_request<T>(&self, path: &str) -> Result<T>
-    where
-        T: DeserializeOwned,
-    {
+    async fn table_request<T: DeserializeOwned + 'static>(&self, path: &str) -> Result<T> {
         self.inner_request(path, TABLE_REQUEST_HEADER).await
     }
 
-    async fn request<T>(&self, path: &str) -> Result<T>
-    where
-        T: DeserializeOwned,
-    {
+    async fn request<T: DeserializeOwned + 'static>(&self, path: &str) -> Result<T> {
         self.inner_request(path, "application/json").await
     }
 
@@ -106,5 +100,25 @@ impl KubeClientRequest for KubeClient {
         let ret = self.client.request_text(request).await;
 
         ret.map_err(|e| anyhow!(Error::Kube(e)))
+    }
+}
+
+#[cfg(test)]
+pub mod mock {
+    use super::{DeserializeOwned, KubeClientRequest, Result};
+    use mockall::mock;
+
+    mock! {
+        pub TestKubeClient {}
+        impl Clone for TestKubeClient {
+            fn clone(&self) -> Self;
+        }
+
+        #[async_trait::async_trait]
+        impl KubeClientRequest for TestKubeClient {
+            async fn table_request<T: DeserializeOwned + 'static>(&self, path: &str) -> Result<T>;
+            async fn request<T: DeserializeOwned + 'static>(&self, path: &str) -> Result<T>;
+            async fn request_text(&self, path: &str) -> Result<String>;
+        }
     }
 }
