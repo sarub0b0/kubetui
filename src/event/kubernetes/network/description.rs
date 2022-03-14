@@ -17,7 +17,7 @@ use super::*;
 const INTERVAL: u64 = 3;
 
 #[async_trait]
-trait DescriptionWorker<'a, C: KubeClientRequest + Clone> {
+trait DescriptionWorker<'a, C: KubeClientRequest> {
     fn new(client: &'a C, tx: &'a Sender<Event>, namespace: String, name: String) -> Self;
 
     async fn run(&self) -> Result<()>;
@@ -26,7 +26,7 @@ trait DescriptionWorker<'a, C: KubeClientRequest + Clone> {
 #[derive(Clone)]
 pub struct NetworkDescriptionWorker<C>
 where
-    C: KubeClientRequest + Clone,
+    C: KubeClientRequest,
 {
     is_terminated: Arc<AtomicBool>,
     tx: Sender<Event>,
@@ -36,7 +36,7 @@ where
 
 impl<C> NetworkDescriptionWorker<C>
 where
-    C: KubeClientRequest + Clone,
+    C: KubeClientRequest,
 {
     pub fn new(is_terminated: Arc<AtomicBool>, tx: Sender<Event>, client: C, req: Request) -> Self {
         Self {
@@ -51,7 +51,7 @@ where
 #[async_trait]
 impl<C> Worker for NetworkDescriptionWorker<C>
 where
-    C: KubeClientRequest + Clone,
+    C: KubeClientRequest,
 {
     type Output = Result<()>;
 
@@ -85,7 +85,7 @@ where
 
 impl<C> NetworkDescriptionWorker<C>
 where
-    C: KubeClientRequest + Clone,
+    C: KubeClientRequest,
 {
     async fn fetch_description<'a, Worker>(&'a self, data: &RequestData) -> Result<()>
     where

@@ -28,6 +28,7 @@ use crate::{
     },
 };
 
+#[derive(Debug)]
 enum FetchArgs {
     Value(String),
     List(Vec<String>),
@@ -42,7 +43,7 @@ trait FetchedResource {
 
 pub(super) struct PodDescriptionWorker<'a, C>
 where
-    C: KubeClientRequest + Clone,
+    C: KubeClientRequest,
 {
     client: &'a C,
     tx: &'a Sender<Event>,
@@ -51,7 +52,7 @@ where
 }
 
 #[async_trait::async_trait]
-impl<'a, C: KubeClientRequest + Clone> DescriptionWorker<'a, C> for PodDescriptionWorker<'a, C> {
+impl<'a, C: KubeClientRequest> DescriptionWorker<'a, C> for PodDescriptionWorker<'a, C> {
     fn new(client: &'a C, tx: &'a Sender<Event>, namespace: String, name: String) -> Self {
         PodDescriptionWorker {
             client,
@@ -115,7 +116,7 @@ impl<'a, C: KubeClientRequest + Clone> DescriptionWorker<'a, C> for PodDescripti
     }
 }
 
-impl<C: KubeClientRequest + Clone> PodDescriptionWorker<'_, C> {
+impl<C: KubeClientRequest> PodDescriptionWorker<'_, C> {
     async fn fetch_pod(&self) -> Result<FetchedPod> {
         let url = format!("api/v1/namespaces/{}/pods/{}", self.namespace, self.name);
 

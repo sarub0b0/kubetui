@@ -13,7 +13,7 @@ use super::DescriptionWorker;
 
 pub(super) struct ServiceDescriptionWorker<'a, C>
 where
-    C: KubeClientRequest + Clone,
+    C: KubeClientRequest,
 {
     client: &'a C,
     tx: &'a Sender<Event>,
@@ -24,7 +24,7 @@ where
 #[async_trait::async_trait]
 impl<'a, C> DescriptionWorker<'a, C> for ServiceDescriptionWorker<'a, C>
 where
-    C: KubeClientRequest + Clone,
+    C: KubeClientRequest,
 {
     fn new(client: &'a C, tx: &'a Sender<Event>, namespace: String, name: String) -> Self {
         Self {
