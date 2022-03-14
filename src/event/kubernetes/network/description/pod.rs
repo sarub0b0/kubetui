@@ -121,9 +121,7 @@ impl<C: KubeClientRequest> PodDescriptionWorker<'_, C> {
     async fn fetch_pod(&self) -> Result<FetchedPod> {
         let url = format!("api/v1/namespaces/{}/pods/{}", self.namespace, self.name);
 
-        let res = self.client.request_text(&url).await?;
-
-        let value: FetchedPod = serde_json::from_str(&res)?;
+        let value: FetchedPod = self.client.request(&url).await?;
 
         Ok(value)
     }
@@ -133,9 +131,8 @@ impl<C: KubeClientRequest> PodDescriptionWorker<'_, C> {
         pod_labels: &Option<BTreeMap<String, String>>,
     ) -> Result<Option<FetchedService>> {
         let url = format!("api/v1/namespaces/{}/services", self.namespace);
-        let res = self.client.request_text(&url).await?;
 
-        let list: FetchedServiceList = serde_json::from_str(&res)?;
+        let list: FetchedServiceList = self.client.request(&url).await?;
 
         let services: Vec<Service> = list
             .items
@@ -160,9 +157,7 @@ impl<C: KubeClientRequest> PodDescriptionWorker<'_, C> {
             self.namespace
         );
 
-        let res = self.client.request_text(&url).await?;
-
-        let list: FetchedIngressList = serde_json::from_str(&res)?;
+        let list: FetchedIngressList = self.client.request(&url).await?;
 
         let ingresses: Vec<Ingress> = list
             .items
