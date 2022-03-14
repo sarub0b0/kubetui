@@ -231,11 +231,46 @@ mod tests {
             assert!(ret.is_ok())
         }
 
-        #[ignore]
-        #[test]
-        fn 内部でエラーがでたときループを抜けてerrを返す() {
-            unimplemented!()
+        #[tokio::test(flavor = "multi_thread")]
+        async fn 内部でエラーがでたときループを抜けてerrを返す() {
+            let (tx, _rx): (Sender<Event>, Receiver<Event>) = bounded(3);
+            let mut client = MockTestKubeClient::new();
+            client
+                .expect_request_text()
+                .with(eq("api/v1/namespaces/default/pods/test"))
+                .returning(|_| Ok(String::from(FAILED_POD_JSON)));
+            client
+                .expect_request_text()
+                .with(eq("api/v1/namespaces/default/services"))
+                .returning(|_| Ok(String::from(SERVICE_JSON)));
+            client
+                .expect_request_text()
+                .with(eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"))
+                .returning(|_| Ok(String::from(INGRESS_JSON)));
+
+            let req_data = RequestData {
+                namespace: "default".to_string(),
+                name: "test".to_string(),
+            };
+            let req = Request::Pod(req_data);
+
+            let is_terminated = Arc::new(AtomicBool::new(false));
+            let worker = NetworkDescriptionWorker::new(is_terminated.clone(), tx, client, req);
+
+            let handle = tokio::spawn(async move {
+                worker
+                    .fetch_description::<PodDescriptionWorker<MockTestKubeClient>>()
+                    .await
+            });
+
+            is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
+
+            let ret = handle.await;
+
+            assert_eq!(ret, Ok(Err(_)))
         }
+
+        const FAILED_POD_JSON: &str = "{\"apiVersion\":\"v1\",\"kind\":\"Pod\"}";
 
         const POD_JSON: &str = "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"creationTimestamp\":\"2022-03-09T08:16:50Z\",\"generateName\":\"kubetui-text-color--1-\",\"labels\":{\"controller-uid\":\"30d417a8-cb1c-467b-92fe-7819601a6ef8\",\"job-name\":\"kubetui-text-color\"},\"name\":\"kubetui-text-color--1-g8gcl\",\"namespace\":\"kubetui\",\"ownerReferences\":[{\"apiVersion\":\"batch/v1\",\"blockOwnerDeletion\":true,\"controller\":true,\"kind\":\"Job\",\"name\":\"kubetui-text-color\",\"uid\":\"30d417a8-cb1c-467b-92fe-7819601a6ef8\"}],\"resourceVersion\":\"4858\",\"uid\":\"36041cab-e840-42dd-aa2c-417134fcfa47\"},\"spec\":{\"containers\":[{\"command\":[\"/opt/bin/color.sh\"],\"image\":\"alpine\",\"imagePullPolicy\":\"Always\",\"name\":\"job\",\"resources\":{},\"terminationMessagePath\":\"/dev/termination-log\",\"terminationMessagePolicy\":\"File\",\"volumeMounts\":[{\"mountPath\":\"/opt/bin/color.sh\",\"name\":\"script\",\"subPath\":\"color.sh\"},{\"mountPath\":\"/var/run/secrets/kubernetes.io/serviceaccount\",\"name\":\"kube-api-access-p4d2h\",\"readOnly\":true}]}],\"dnsPolicy\":\"ClusterFirst\",\"enableServiceLinks\":true,\"nodeName\":\"docker-desktop\",\"preemptionPolicy\":\"PreemptLowerPriority\",\"priority\":0,\"restartPolicy\":\"Never\",\"schedulerName\":\"default-scheduler\",\"securityContext\":{},\"serviceAccount\":\"default\",\"serviceAccountName\":\"default\",\"terminationGracePeriodSeconds\":30,\"tolerations\":[{\"effect\":\"NoExecute\",\"key\":\"node.kubernetes.io/not-ready\",\"operator\":\"Exists\",\"tolerationSeconds\":300},{\"effect\":\"NoExecute\",\"key\":\"node.kubernetes.io/unreachable\",\"operator\":\"Exists\",\"tolerationSeconds\":300}],\"volumes\":[{\"configMap\":{\"defaultMode\":493,\"name\":\"24bit-color-script\"},\"name\":\"script\"},{\"name\":\"kube-api-access-p4d2h\",\"projected\":{\"defaultMode\":420,\"sources\":[{\"serviceAccountToken\":{\"expirationSeconds\":3607,\"path\":\"token\"}},{\"configMap\":{\"items\":[{\"key\":\"ca.crt\",\"path\":\"ca.crt\"}],\"name\":\"kube-root-ca.crt\"}},{\"downwardAPI\":{\"items\":[{\"fieldRef\":{\"apiVersion\":\"v1\",\"fieldPath\":\"metadata.namespace\"},\"path\":\"namespace\"}]}}]}}]},\"status\":{\"conditions\":[{\"lastProbeTime\":null,\"lastTransitionTime\":\"2022-03-09T08:16:50Z\",\"reason\":\"PodCompleted\",\"status\":\"True\",\"type\":\"Initialized\"},{\"lastProbeTime\":null,\"lastTransitionTime\":\"2022-03-09T08:16:50Z\",\"reason\":\"PodCompleted\",\"status\":\"False\",\"type\":\"Ready\"},{\"lastProbeTime\":null,\"lastTransitionTime\":\"2022-03-09T08:16:50Z\",\"reason\":\"PodCompleted\",\"status\":\"False\",\"type\":\"ContainersReady\"},{\"lastProbeTime\":null,\"lastTransitionTime\":\"2022-03-09T08:16:50Z\",\"status\":\"True\",\"type\":\"PodScheduled\"}],\"containerStatuses\":[{\"containerID\":\"docker://e10aca86212a3c1c5c19bf4ba707dc9aa92a12428e12201932fa2985a572edec\",\"image\":\"alpine:latest\",\"imageID\":\"docker-pullable://alpine@sha256:21a3deaa0d32a8057914f36584b5288d2e5ecc984380bc0118285c70fa8c9300\",\"lastState\":{},\"name\":\"job\",\"ready\":false,\"restartCount\":0,\"started\":false,\"state\":{\"terminated\":{\"containerID\":\"docker://e10aca86212a3c1c5c19bf4ba707dc9aa92a12428e12201932fa2985a572edec\",\"exitCode\":0,\"finishedAt\":\"2022-03-09T08:17:39Z\",\"reason\":\"Completed\",\"startedAt\":\"2022-03-09T08:17:39Z\"}}}],\"hostIP\":\"192.168.65.4\",\"phase\":\"Succeeded\",\"podIP\":\"10.1.0.21\",\"podIPs\":[{\"ip\":\"10.1.0.21\"}],\"qosClass\":\"BestEffort\",\"startTime\":\"2022-03-09T08:16:50Z\"}}" ;
 
