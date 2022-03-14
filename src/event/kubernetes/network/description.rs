@@ -5,14 +5,21 @@ mod service;
 
 use std::sync::{atomic::AtomicBool, Arc};
 
-use crate::event::kubernetes::client::KubeClientRequest;
+use crate::event::{
+    kubernetes::{client::KubeClientRequest, worker::Worker},
+    Event,
+};
 
 use self::{
     ingress::IngressDescriptionWorker, network_policy::NetworkPolicyDescriptionWorker,
     pod::PodDescriptionWorker, service::ServiceDescriptionWorker,
 };
 
-use super::*;
+use anyhow::{anyhow, Result};
+use async_trait::async_trait;
+use crossbeam::channel::Sender;
+
+use super::{NetworkMessage, Request, RequestData};
 
 const INTERVAL: u64 = 3;
 
@@ -132,33 +139,72 @@ mod tests {
         }
     }
     mod fetch_description {
+        use std::collections::BTreeMap;
+
         use super::*;
 
         use crossbeam::channel::{bounded, Receiver};
         use indoc::indoc;
+        use k8s_openapi::api::core::v1::{Container, Pod, PodIP, PodSpec, PodStatus};
         use mockall::predicate::eq;
         use pretty_assertions::assert_eq;
 
-        use crate::event::kubernetes::client::mock::MockTestKubeClient;
+        use crate::event::kubernetes::{client::mock::MockTestKubeClient, Kube};
+
+        use self::{pod::FetchedIngressList, pod::FetchedPod, pod::FetchedServiceList};
+        use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
+
+        fn setup_pod() -> FetchedPod {
+            FetchedPod(Pod {
+                metadata: ObjectMeta {
+                    name: Some("test".into()),
+                    namespace: Some("default".into()),
+                    labels: Some(BTreeMap::from([
+                        (
+                            "controller-uid".into(),
+                            "30d417a8-cb1c-467b-92fe-7819601a6ef8".into(),
+                        ),
+                        ("job-name".into(), "kubetui-text-color".into()),
+                    ])),
+                    ..Default::default()
+                },
+                spec: Some(PodSpec {
+                    containers: vec![Container {
+                        name: "job".into(),
+                        image: Some("alpine".into()),
+                        ..Default::default()
+                    }],
+                    ..Default::default()
+                }),
+                status: Some(PodStatus {
+                    phase: Some("Succeeded".into()),
+                    host_ip: Some("192.168.65.4".into()),
+                    pod_ip: Some("10.1.0.21".into()),
+                    pod_ips: Some(vec![PodIP {
+                        ip: Some("10.1.0.21".into()),
+                    }]),
+                    ..Default::default()
+                }),
+            })
+        }
 
         #[tokio::test(flavor = "multi_thread")]
         async fn 正常系のときtxにデータを送信する() {
             let is_terminated = Arc::new(AtomicBool::new(false));
             let (tx, rx): (Sender<Event>, Receiver<Event>) = bounded(3);
             let mut client = MockTestKubeClient::new();
-
             client
-                .expect_request_text()
+                .expect_request::<FetchedPod>()
                 .with(eq("api/v1/namespaces/default/pods/test"))
-                .returning(|_| Ok(String::from(POD_JSON)));
+                .returning(|_| Ok(setup_pod()));
             client
-                .expect_request_text()
+                .expect_request::<FetchedServiceList>()
                 .with(eq("api/v1/namespaces/default/services"))
-                .returning(|_| Ok(String::from(SERVICE_JSON)));
+                .returning(|_| Ok(FetchedServiceList::default()));
             client
-                .expect_request_text()
+                .expect_request::<FetchedIngressList>()
                 .with(eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"))
-                .returning(|_| Ok(String::from(INGRESS_JSON)));
+                .returning(|_| Ok(FetchedIngressList::default()));
 
             let req_data = RequestData {
                 namespace: "default".to_string(),
@@ -199,11 +245,11 @@ mod tests {
             .map(ToString::to_string)
             .collect();
 
-            assert!(matches!(
-                event,
-                Event::Kube(Kube::Network(NetworkMessage::Response(Ok(data))))
-                    if data == expected
-            ))
+            if let Event::Kube(Kube::Network(NetworkMessage::Response(Ok(actual)))) = event {
+                assert_eq!(actual, expected)
+            } else {
+                unreachable!()
+            }
         }
 
         #[tokio::test(flavor = "multi_thread")]
@@ -236,17 +282,17 @@ mod tests {
             let (tx, _rx): (Sender<Event>, Receiver<Event>) = bounded(3);
             let mut client = MockTestKubeClient::new();
             client
-                .expect_request_text()
+                .expect_request::<FetchedPod>()
                 .with(eq("api/v1/namespaces/default/pods/test"))
-                .returning(|_| Ok(String::from(FAILED_POD_JSON)));
+                .returning(|_| Err(anyhow!("error")));
             client
-                .expect_request_text()
+                .expect_request::<FetchedServiceList>()
                 .with(eq("api/v1/namespaces/default/services"))
-                .returning(|_| Ok(String::from(SERVICE_JSON)));
+                .returning(|_| Err(anyhow!("error")));
             client
-                .expect_request_text()
+                .expect_request::<FetchedIngressList>()
                 .with(eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"))
-                .returning(|_| Ok(String::from(INGRESS_JSON)));
+                .returning(|_| Err(anyhow!("error")));
 
             let req_data = RequestData {
                 namespace: "default".to_string(),
@@ -263,19 +309,9 @@ mod tests {
                     .await
             });
 
-            is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
+            let ret = handle.await.unwrap();
 
-            let ret = handle.await;
-
-            assert_eq!(ret, Ok(Err(_)))
+            assert_eq!(ret.is_err(), true)
         }
-
-        const FAILED_POD_JSON: &str = "{\"apiVersion\":\"v1\",\"kind\":\"Pod\"}";
-
-        const POD_JSON: &str = "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"creationTimestamp\":\"2022-03-09T08:16:50Z\",\"generateName\":\"kubetui-text-color--1-\",\"labels\":{\"controller-uid\":\"30d417a8-cb1c-467b-92fe-7819601a6ef8\",\"job-name\":\"kubetui-text-color\"},\"name\":\"kubetui-text-color--1-g8gcl\",\"namespace\":\"kubetui\",\"ownerReferences\":[{\"apiVersion\":\"batch/v1\",\"blockOwnerDeletion\":true,\"controller\":true,\"kind\":\"Job\",\"name\":\"kubetui-text-color\",\"uid\":\"30d417a8-cb1c-467b-92fe-7819601a6ef8\"}],\"resourceVersion\":\"4858\",\"uid\":\"36041cab-e840-42dd-aa2c-417134fcfa47\"},\"spec\":{\"containers\":[{\"command\":[\"/opt/bin/color.sh\"],\"image\":\"alpine\",\"imagePullPolicy\":\"Always\",\"name\":\"job\",\"resources\":{},\"terminationMessagePath\":\"/dev/termination-log\",\"terminationMessagePolicy\":\"File\",\"volumeMounts\":[{\"mountPath\":\"/opt/bin/color.sh\",\"name\":\"script\",\"subPath\":\"color.sh\"},{\"mountPath\":\"/var/run/secrets/kubernetes.io/serviceaccount\",\"name\":\"kube-api-access-p4d2h\",\"readOnly\":true}]}],\"dnsPolicy\":\"ClusterFirst\",\"enableServiceLinks\":true,\"nodeName\":\"docker-desktop\",\"preemptionPolicy\":\"PreemptLowerPriority\",\"priority\":0,\"restartPolicy\":\"Never\",\"schedulerName\":\"default-scheduler\",\"securityContext\":{},\"serviceAccount\":\"default\",\"serviceAccountName\":\"default\",\"terminationGracePeriodSeconds\":30,\"tolerations\":[{\"effect\":\"NoExecute\",\"key\":\"node.kubernetes.io/not-ready\",\"operator\":\"Exists\",\"tolerationSeconds\":300},{\"effect\":\"NoExecute\",\"key\":\"node.kubernetes.io/unreachable\",\"operator\":\"Exists\",\"tolerationSeconds\":300}],\"volumes\":[{\"configMap\":{\"defaultMode\":493,\"name\":\"24bit-color-script\"},\"name\":\"script\"},{\"name\":\"kube-api-access-p4d2h\",\"projected\":{\"defaultMode\":420,\"sources\":[{\"serviceAccountToken\":{\"expirationSeconds\":3607,\"path\":\"token\"}},{\"configMap\":{\"items\":[{\"key\":\"ca.crt\",\"path\":\"ca.crt\"}],\"name\":\"kube-root-ca.crt\"}},{\"downwardAPI\":{\"items\":[{\"fieldRef\":{\"apiVersion\":\"v1\",\"fieldPath\":\"metadata.namespace\"},\"path\":\"namespace\"}]}}]}}]},\"status\":{\"conditions\":[{\"lastProbeTime\":null,\"lastTransitionTime\":\"2022-03-09T08:16:50Z\",\"reason\":\"PodCompleted\",\"status\":\"True\",\"type\":\"Initialized\"},{\"lastProbeTime\":null,\"lastTransitionTime\":\"2022-03-09T08:16:50Z\",\"reason\":\"PodCompleted\",\"status\":\"False\",\"type\":\"Ready\"},{\"lastProbeTime\":null,\"lastTransitionTime\":\"2022-03-09T08:16:50Z\",\"reason\":\"PodCompleted\",\"status\":\"False\",\"type\":\"ContainersReady\"},{\"lastProbeTime\":null,\"lastTransitionTime\":\"2022-03-09T08:16:50Z\",\"status\":\"True\",\"type\":\"PodScheduled\"}],\"containerStatuses\":[{\"containerID\":\"docker://e10aca86212a3c1c5c19bf4ba707dc9aa92a12428e12201932fa2985a572edec\",\"image\":\"alpine:latest\",\"imageID\":\"docker-pullable://alpine@sha256:21a3deaa0d32a8057914f36584b5288d2e5ecc984380bc0118285c70fa8c9300\",\"lastState\":{},\"name\":\"job\",\"ready\":false,\"restartCount\":0,\"started\":false,\"state\":{\"terminated\":{\"containerID\":\"docker://e10aca86212a3c1c5c19bf4ba707dc9aa92a12428e12201932fa2985a572edec\",\"exitCode\":0,\"finishedAt\":\"2022-03-09T08:17:39Z\",\"reason\":\"Completed\",\"startedAt\":\"2022-03-09T08:17:39Z\"}}}],\"hostIP\":\"192.168.65.4\",\"phase\":\"Succeeded\",\"podIP\":\"10.1.0.21\",\"podIPs\":[{\"ip\":\"10.1.0.21\"}],\"qosClass\":\"BestEffort\",\"startTime\":\"2022-03-09T08:16:50Z\"}}" ;
-
-        const SERVICE_JSON: &str= "{\"kind\":\"ServiceList\",\"apiVersion\":\"v1\",\"metadata\":{\"resourceVersion\":\"254708\"},\"items\":[{\"metadata\":{\"name\":\"kubetui-running\",\"namespace\":\"kubetui\",\"uid\":\"dc175803-fc06-4b20-a150-2b68c962a2c4\",\"resourceVersion\":\"4627\",\"creationTimestamp\":\"2022-03-09T08:16:50Z\",\"annotations\":{\"kubectl.kubernetes.io/last-applied-configuration\":\"{\\\"apiVersion\\\":\\\"v1\\\",\\\"kind\\\":\\\"Service\\\",\\\"metadata\\\":{\\\"annotations\\\":{},\\\"name\\\":\\\"kubetui-running\\\",\\\"namespace\\\":\\\"kubetui\\\"},\\\"spec\\\":{\\\"ports\\\":[{\\\"port\\\":80,\\\"targetPort\\\":80}],\\\"selector\\\":{\\\"app\\\":\\\"kubetui-running\\\"}}}\\n\"},\"managedFields\":[{\"manager\":\"kubectl-client-side-apply\",\"operation\":\"Update\",\"apiVersion\":\"v1\",\"time\":\"2022-03-09T08:16:50Z\",\"fieldsType\":\"FieldsV1\",\"fieldsV1\":{\"f:metadata\":{\"f:annotations\":{\".\":{},\"f:kubectl.kubernetes.io/last-applied-configuration\":{}}},\"f:spec\":{\"f:internalTrafficPolicy\":{},\"f:ports\":{\".\":{},\"k:{\\\"port\\\":80,\\\"protocol\\\":\\\"TCP\\\"}\":{\".\":{},\"f:port\":{},\"f:protocol\":{},\"f:targetPort\":{}}},\"f:selector\":{},\"f:sessionAffinity\":{},\"f:type\":{}}}}]},\"spec\":{\"ports\":[{\"protocol\":\"TCP\",\"port\":80,\"targetPort\":80}],\"selector\":{\"app\":\"kubetui-running\"},\"clusterIP\":\"10.109.244.57\",\"clusterIPs\":[\"10.109.244.57\"],\"type\":\"ClusterIP\",\"sessionAffinity\":\"None\",\"ipFamilies\":[\"IPv4\"],\"ipFamilyPolicy\":\"SingleStack\",\"internalTrafficPolicy\":\"Cluster\"},\"status\":{\"loadBalancer\":{}}},{\"metadata\":{\"name\":\"service-0\",\"namespace\":\"kubetui\",\"uid\":\"c3e392e4-bb72-4a92-8814-109f89c951dd\",\"resourceVersion\":\"4554\",\"creationTimestamp\":\"2022-03-09T08:16:50Z\",\"annotations\":{\"kubectl.kubernetes.io/last-applied-configuration\":\"{\\\"apiVersion\\\":\\\"v1\\\",\\\"kind\\\":\\\"Service\\\",\\\"metadata\\\":{\\\"annotations\\\":{},\\\"name\\\":\\\"service-0\\\",\\\"namespace\\\":\\\"kubetui\\\"},\\\"spec\\\":{\\\"ports\\\":[{\\\"port\\\":80,\\\"targetPort\\\":80}],\\\"selector\\\":{\\\"app\\\":\\\"app\\\"}}}\\n\"},\"managedFields\":[{\"manager\":\"kubectl-client-side-apply\",\"operation\":\"Update\",\"apiVersion\":\"v1\",\"time\":\"2022-03-09T08:16:50Z\",\"fieldsType\":\"FieldsV1\",\"fieldsV1\":{\"f:metadata\":{\"f:annotations\":{\".\":{},\"f:kubectl.kubernetes.io/last-applied-configuration\":{}}},\"f:spec\":{\"f:internalTrafficPolicy\":{},\"f:ports\":{\".\":{},\"k:{\\\"port\\\":80,\\\"protocol\\\":\\\"TCP\\\"}\":{\".\":{},\"f:port\":{},\"f:protocol\":{},\"f:targetPort\":{}}},\"f:selector\":{},\"f:sessionAffinity\":{},\"f:type\":{}}}}]},\"spec\":{\"ports\":[{\"protocol\":\"TCP\",\"port\":80,\"targetPort\":80}],\"selector\":{\"app\":\"app\"},\"clusterIP\":\"10.102.47.75\",\"clusterIPs\":[\"10.102.47.75\"],\"type\":\"ClusterIP\",\"sessionAffinity\":\"None\",\"ipFamilies\":[\"IPv4\"],\"ipFamilyPolicy\":\"SingleStack\",\"internalTrafficPolicy\":\"Cluster\"},\"status\":{\"loadBalancer\":{}}},{\"metadata\":{\"name\":\"service-1\",\"namespace\":\"kubetui\",\"uid\":\"78c65502-8600-4a6e-a55a-a5420bd42609\",\"resourceVersion\":\"4557\",\"creationTimestamp\":\"2022-03-09T08:16:50Z\",\"annotations\":{\"kubectl.kubernetes.io/last-applied-configuration\":\"{\\\"apiVersion\\\":\\\"v1\\\",\\\"kind\\\":\\\"Service\\\",\\\"metadata\\\":{\\\"annotations\\\":{},\\\"name\\\":\\\"service-1\\\",\\\"namespace\\\":\\\"kubetui\\\"},\\\"spec\\\":{\\\"ports\\\":[{\\\"port\\\":80,\\\"targetPort\\\":80}],\\\"selector\\\":{\\\"app\\\":\\\"app\\\"}}}\\n\"},\"managedFields\":[{\"manager\":\"kubectl-client-side-apply\",\"operation\":\"Update\",\"apiVersion\":\"v1\",\"time\":\"2022-03-09T08:16:50Z\",\"fieldsType\":\"FieldsV1\",\"fieldsV1\":{\"f:metadata\":{\"f:annotations\":{\".\":{},\"f:kubectl.kubernetes.io/last-applied-configuration\":{}}},\"f:spec\":{\"f:internalTrafficPolicy\":{},\"f:ports\":{\".\":{},\"k:{\\\"port\\\":80,\\\"protocol\\\":\\\"TCP\\\"}\":{\".\":{},\"f:port\":{},\"f:protocol\":{},\"f:targetPort\":{}}},\"f:selector\":{},\"f:sessionAffinity\":{},\"f:type\":{}}}}]},\"spec\":{\"ports\":[{\"protocol\":\"TCP\",\"port\":80,\"targetPort\":80}],\"selector\":{\"app\":\"app\"},\"clusterIP\":\"10.96.217.254\",\"clusterIPs\":[\"10.96.217.254\"],\"type\":\"ClusterIP\",\"sessionAffinity\":\"None\",\"ipFamilies\":[\"IPv4\"],\"ipFamilyPolicy\":\"SingleStack\",\"internalTrafficPolicy\":\"Cluster\"},\"status\":{\"loadBalancer\":{}}}]}";
-
-        const INGRESS_JSON: &str = "{\"kind\":\"IngressList\",\"apiVersion\":\"networking.k8s.io/v1\",\"metadata\":{\"resourceVersion\":\"254764\"},\"items\":[{\"metadata\":{\"name\":\"ingress\",\"namespace\":\"kubetui\",\"uid\":\"649efd06-afe2-4783-a8ae-96778f5c5e23\",\"resourceVersion\":\"4549\",\"generation\":1,\"creationTimestamp\":\"2022-03-09T08:16:50Z\",\"annotations\":{\"kubectl.kubernetes.io/last-applied-configuration\":\"{\\\"apiVersion\\\":\\\"networking.k8s.io/v1\\\",\\\"kind\\\":\\\"Ingress\\\",\\\"metadata\\\":{\\\"annotations\\\":{},\\\"name\\\":\\\"ingress\\\",\\\"namespace\\\":\\\"kubetui\\\"},\\\"spec\\\":{\\\"rules\\\":[{\\\"host\\\":\\\"example-0.com\\\",\\\"http\\\":{\\\"paths\\\":[{\\\"backend\\\":{\\\"service\\\":{\\\"name\\\":\\\"service-0\\\",\\\"port\\\":{\\\"number\\\":80}}},\\\"path\\\":\\\"/path\\\",\\\"pathType\\\":\\\"ImplementationSpecific\\\"}]}},{\\\"host\\\":\\\"example-1.com\\\",\\\"http\\\":{\\\"paths\\\":[{\\\"backend\\\":{\\\"service\\\":{\\\"name\\\":\\\"service-1\\\",\\\"port\\\":{\\\"number\\\":80}}},\\\"path\\\":\\\"/path\\\",\\\"pathType\\\":\\\"ImplementationSpecific\\\"}]}}],\\\"tls\\\":[{\\\"hosts\\\":[\\\"example.com\\\"],\\\"secretName\\\":\\\"secret-name\\\"}]}}\\n\"},\"managedFields\":[{\"manager\":\"kubectl-client-side-apply\",\"operation\":\"Update\",\"apiVersion\":\"networking.k8s.io/v1\",\"time\":\"2022-03-09T08:16:50Z\",\"fieldsType\":\"FieldsV1\",\"fieldsV1\":{\"f:metadata\":{\"f:annotations\":{\".\":{},\"f:kubectl.kubernetes.io/last-applied-configuration\":{}}},\"f:spec\":{\"f:rules\":{},\"f:tls\":{}}}}]},\"spec\":{\"tls\":[{\"hosts\":[\"example.com\"],\"secretName\":\"secret-name\"}],\"rules\":[{\"host\":\"example-0.com\",\"http\":{\"paths\":[{\"path\":\"/path\",\"pathType\":\"ImplementationSpecific\",\"backend\":{\"service\":{\"name\":\"service-0\",\"port\":{\"number\":80}}}}]}},{\"host\":\"example-1.com\",\"http\":{\"paths\":[{\"path\":\"/path\",\"pathType\":\"ImplementationSpecific\",\"backend\":{\"service\":{\"name\":\"service-1\",\"port\":{\"number\":80}}}}]}}]},\"status\":{\"loadBalancer\":{}}}]}";
     }
 }
