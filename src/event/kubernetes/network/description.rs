@@ -57,20 +57,17 @@ where
 
     async fn run(&self) -> Self::Output {
         let ret = match &self.req {
-            Request::Pod(data) => {
-                self.fetch_description::<PodDescriptionWorker<C>>(data)
+            Request::Pod(_) => self.fetch_description::<PodDescriptionWorker<C>>().await,
+            Request::Service(_) => {
+                self.fetch_description::<ServiceDescriptionWorker<C>>()
                     .await
             }
-            Request::Service(data) => {
-                self.fetch_description::<ServiceDescriptionWorker<C>>(data)
+            Request::Ingress(_) => {
+                self.fetch_description::<IngressDescriptionWorker<C>>()
                     .await
             }
-            Request::Ingress(data) => {
-                self.fetch_description::<IngressDescriptionWorker<C>>(data)
-                    .await
-            }
-            Request::NetworkPolicy(data) => {
-                self.fetch_description::<NetworkPolicyDescriptionWorker<C>>(data)
+            Request::NetworkPolicy(_) => {
+                self.fetch_description::<NetworkPolicyDescriptionWorker<C>>()
                     .await
             }
         };
@@ -87,17 +84,19 @@ impl<C> NetworkDescriptionWorker<C>
 where
     C: KubeClientRequest,
 {
-    async fn fetch_description<'a, Worker>(&'a self, data: &RequestData) -> Result<()>
+    async fn fetch_description<'a, Worker>(&'a self) -> Result<()>
     where
         Worker: DescriptionWorker<'a, C>,
     {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(INTERVAL));
 
+        let RequestData { name, namespace } = self.req.data();
+
         let worker = Worker::new(
             &self.client,
             &self.tx,
-            data.namespace.clone(),
-            data.name.clone(),
+            namespace.to_string(),
+            name.to_string(),
         );
 
         while !self
@@ -165,13 +164,13 @@ mod tests {
                 namespace: "default".to_string(),
                 name: "test".to_string(),
             };
-            let req = Request::Pod(req_data.clone());
+            let req = Request::Pod(req_data);
 
             let worker = NetworkDescriptionWorker::new(is_terminated.clone(), tx, client, req);
 
             let handle = tokio::spawn(async move {
                 worker
-                    .fetch_description::<PodDescriptionWorker<MockTestKubeClient>>(&req_data)
+                    .fetch_description::<PodDescriptionWorker<MockTestKubeClient>>()
                     .await
             });
 
