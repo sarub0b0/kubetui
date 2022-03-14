@@ -42,6 +42,17 @@ pub enum NetworkMessage {
     Response(Result<Vec<String>>),
 }
 
+impl Request {
+    pub fn data(&self) -> &RequestData {
+        match self {
+            Self::Pod(data) => data,
+            Self::Service(data) => data,
+            Self::Ingress(data) => data,
+            Self::NetworkPolicy(data) => data,
+        }
+    }
+}
+
 impl From<NetworkMessage> for Kube {
     fn from(m: NetworkMessage) -> Self {
         Self::Network(m)
