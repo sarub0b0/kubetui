@@ -206,10 +206,29 @@ mod tests {
             ))
         }
 
-        #[ignore]
-        #[test]
-        fn is_terminatedがtrueのときループを抜けてokを返す() {
-            unimplemented!()
+        #[tokio::test(flavor = "multi_thread")]
+        async fn is_terminatedがtrueのときループを抜けてokを返す() {
+            let (tx, _rx): (Sender<Event>, Receiver<Event>) = bounded(3);
+            let client = MockTestKubeClient::new();
+
+            let req_data = RequestData {
+                namespace: "default".to_string(),
+                name: "test".to_string(),
+            };
+            let req = Request::Pod(req_data);
+
+            let is_terminated = Arc::new(AtomicBool::new(true));
+            let worker = NetworkDescriptionWorker::new(is_terminated, tx, client, req);
+
+            let handle = tokio::spawn(async move {
+                worker
+                    .fetch_description::<PodDescriptionWorker<MockTestKubeClient>>()
+                    .await
+            });
+
+            let ret = handle.await.unwrap();
+
+            assert!(ret.is_ok())
         }
 
         #[ignore]
