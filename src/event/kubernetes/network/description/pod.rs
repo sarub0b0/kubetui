@@ -253,13 +253,175 @@ mod tests {
     }
 
     mod fetch {
+        use super::*;
+
+        use crate::event::kubernetes::client::mock::MockTestKubeClient;
+        use indoc::indoc;
+        use k8s_openapi::{
+            api::{
+                core::v1::{Container, Pod, PodIP, PodSpec, PodStatus, ServiceSpec},
+                networking::v1::{
+                    HTTPIngressPath, HTTPIngressRuleValue, Ingress, IngressBackend, IngressRule,
+                    IngressServiceBackend, IngressSpec,
+                },
+            },
+            apimachinery::pkg::apis::meta::v1::ObjectMeta,
+            List,
+        };
+        use mockall::predicate::eq;
+
+        use pretty_assertions::assert_eq;
+
+        use anyhow::anyhow;
+
+        // TODO: 行数が長くよみにくいため、文字列から各データ構造に変換する。
+        fn setup_pod() -> FetchedPod {
+            let yaml = indoc! {
+            "
+            metadata:
+              name: test
+              namespace: default
+              labels:
+                controller-uid: 30d417a8-cb1c-467b-92fe-7819601a6ef8
+                job-name: kubetui-text-color
+            spec:
+              containers:
+                - name: job
+                  image: alpine
+            status:
+              phase: Succeeded
+              hostIP: 192.168.65.4
+              podIP: 10.1.0.21
+              podIPs:
+                - ip: 10.1.0.21
+            " };
+
+            let pod: Pod = serde_yaml::from_str(&yaml).unwrap();
+
+            FetchedPod(pod)
+        }
+
+        fn setup_services() -> FetchedServiceList {
+            let yaml = indoc! {
+            "
+            items:
+              - metadata:
+                  name: service-1
+                spec:
+                  selector:
+                    job-name: kubetui-text-color
+              - metadata:
+                  name: service-2
+                spec:
+                  selector:
+                    job-name: kubetui-text-color
+            "
+            };
+
+            serde_yaml::from_str(&yaml).unwrap()
+        }
+
+        fn setup_ingresses() -> FetchedIngressList {
+            let yaml = indoc! {
+            "
+            items:
+              - metadata:
+                  name: ingress-1
+                spec:
+                  rules:
+                    - http:
+                        paths:
+                          - backend:
+                              service:
+                                name: service-1
+              - metadata:
+                  name: ingress-2
+                spec:
+                  rules:
+                    - http:
+                        paths:
+                          - backend:
+                              service:
+                                name: service-2
+            "
+            };
+
+            serde_yaml::from_str(&yaml).unwrap()
+        }
 
         #[tokio::test(flavor = "multi_thread")]
-        #[ignore]
-        async fn yamlデータを送信してokを返す() {}
+        async fn yamlデータを送信してokを返す() {
+            let mut client = MockTestKubeClient::new();
+            client
+                .expect_request::<FetchedPod>()
+                .with(eq("api/v1/namespaces/default/pods/test"))
+                .returning(|_| Ok(setup_pod()));
+            client
+                .expect_request::<FetchedServiceList>()
+                .with(eq("api/v1/namespaces/default/services"))
+                .returning(|_| Ok(setup_services()));
+            client
+                .expect_request::<FetchedIngressList>()
+                .with(eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"))
+                .returning(|_| Ok(setup_ingresses()));
+
+            let worker =
+                PodDescriptionWorker::new(&client, "default".to_string(), "test".to_string());
+
+            let result = worker.fetch().await;
+
+            let expected: Vec<String> = indoc! {
+                "
+                pod:
+                  labels:
+                    controller-uid: 30d417a8-cb1c-467b-92fe-7819601a6ef8
+                    job-name: kubetui-text-color
+                  containers:
+                    - name: job
+                      image: alpine
+                  hostIP: 192.168.65.4
+                  podIP: 10.1.0.21
+                  podIPs: 10.1.0.21
+                  phase: Succeeded
+
+                relatedResources:
+                  services:
+                    - service-1
+                    - service-2
+                  ingresses:
+                    - ingress-1
+                    - ingress-2
+                "
+            }
+            .lines()
+            .map(ToString::to_string)
+            .collect();
+
+            assert_eq!(result.unwrap(), expected)
+        }
 
         #[tokio::test(flavor = "multi_thread")]
-        #[ignore]
-        async fn エラーが出たときerrを返す() {}
+        async fn エラーが出たときerrを返す() {
+            let mut client = MockTestKubeClient::new();
+            client
+                .expect_request::<FetchedPod>()
+                .with(eq("api/v1/namespaces/default/pods/test"))
+                .returning(|_| Err(anyhow!("error")));
+            client
+                .expect_request::<FetchedServiceList>()
+                .with(eq("api/v1/namespaces/default/services"))
+                .returning(|_| Err(anyhow!("error")));
+            client
+                .expect_request::<FetchedIngressList>()
+                .with(eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"))
+                .returning(|_| Err(anyhow!("error")));
+
+            let worker =
+                PodDescriptionWorker::new(&client, "default".to_string(), "test".to_string());
+
+            let result = worker.fetch().await;
+
+            assert!(result.is_err());
+        }
     }
 }
