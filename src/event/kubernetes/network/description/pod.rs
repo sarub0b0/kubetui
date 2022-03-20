@@ -96,7 +96,7 @@ impl<'a, C: KubeClientRequest> Fetch<'a, C> for PodDescriptionWorker<'a, C> {
             let resources = serde_yaml::to_string(&root)?;
             let vec: Vec<String> = resources.lines().skip(1).map(ToString::to_string).collect();
 
-            value.push("\n".to_string());
+            value.push(String::default());
             value.extend(vec);
         }
 
