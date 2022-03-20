@@ -262,9 +262,4 @@ mod tests {
         #[ignore]
         async fn エラーが出たときerrを返す() {}
     }
-
-    mod fetch_pod {}
-    mod fetch_service {}
-    mod fetch_ingress {}
-    mod fetch_network_policy {}
 }
