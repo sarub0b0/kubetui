@@ -166,19 +166,89 @@ mod tests {
     }
 
     mod run {
-        use super::*;
-        use pretty_assertions::assert_eq;
 
-        #[ignore]
-        #[test]
-        fn is_terminatedで処理を停止したときokを返す() {
-            unimplemented!()
+        use crate::event::kubernetes::{
+            client::mock::MockTestKubeClient,
+            network::description::pod::{FetchedIngressList, FetchedPod, FetchedServiceList},
+        };
+
+        use super::*;
+        use crossbeam::channel::{bounded, Receiver};
+        use mockall::predicate::eq;
+
+        #[tokio::test(flavor = "multi_thread")]
+        async fn is_terminatedで処理を停止したときokを返す() {
+            let is_terminated = Arc::new(AtomicBool::new(false));
+            let (tx, _rx): (Sender<Event>, Receiver<Event>) = bounded(3);
+            let mut client = MockTestKubeClient::new();
+            client
+                .expect_request::<FetchedPod>()
+                .with(eq("api/v1/namespaces/default/pods/test"))
+                .returning(|_| Ok(setup_pod()));
+            client
+                .expect_request::<FetchedServiceList>()
+                .with(eq("api/v1/namespaces/default/services"))
+                .returning(|_| Ok(FetchedServiceList::default()));
+            client
+                .expect_request::<FetchedIngressList>()
+                .with(eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"))
+                .returning(|_| Ok(FetchedIngressList::default()));
+
+            let req_data = RequestData {
+                namespace: "default".to_string(),
+                name: "test".to_string(),
+            };
+            let req = Request::Pod(req_data);
+
+            let worker = NetworkDescriptionWorker::new(is_terminated.clone(), tx, client, req);
+
+            let handle = tokio::spawn(async move { worker.run().await });
+
+            is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
+
+            assert!(handle.await.unwrap().is_ok());
         }
 
-        #[ignore]
-        #[test]
-        fn 内部でエラーがでたとき処理を停止してtxにerrを送信してokを返す() {
-            unimplemented!()
+        #[tokio::test(flavor = "multi_thread")]
+        async fn 内部でエラーがでたとき処理を停止してtxにerrを送信してokを返す() {
+            let (tx, rx): (Sender<Event>, Receiver<Event>) = bounded(3);
+            let mut client = MockTestKubeClient::new();
+            client
+                .expect_request::<FetchedPod>()
+                .with(eq("api/v1/namespaces/default/pods/test"))
+                .returning(|_| Err(anyhow!("error")));
+            client
+                .expect_request::<FetchedServiceList>()
+                .with(eq("api/v1/namespaces/default/services"))
+                .returning(|_| Err(anyhow!("error")));
+            client
+                .expect_request::<FetchedIngressList>()
+                .with(eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"))
+                .returning(|_| Err(anyhow!("error")));
+
+            let req_data = RequestData {
+                namespace: "default".to_string(),
+                name: "test".to_string(),
+            };
+            let req = Request::Pod(req_data);
+
+            let is_terminated = Arc::new(AtomicBool::new(false));
+            let worker = NetworkDescriptionWorker::new(is_terminated.clone(), tx, client, req);
+
+            let handle = tokio::spawn(async move { worker.run().await });
+
+            let ret = handle.await.unwrap();
+
+            if let Event::Kube(crate::event::kubernetes::Kube::Network(NetworkMessage::Response(
+                msg,
+            ))) = rx.recv().unwrap()
+            {
+                assert!(msg.is_err())
+            } else {
+                unreachable!()
+            }
+
+            assert!(ret.is_ok())
         }
     }
     mod fetch_description {
