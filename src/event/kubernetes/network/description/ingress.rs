@@ -1,22 +1,14 @@
-use crossbeam::channel::Sender;
 use k8s_openapi::api::networking::v1::Ingress;
 
-use crate::{
-    error::Result,
-    event::{
-        kubernetes::{client::KubeClientRequest, network::NetworkMessage},
-        Event,
-    },
-};
+use crate::{error::Result, event::kubernetes::client::KubeClientRequest};
 
-use super::Fetch;
+use super::{Fetch, FetchedData};
 
 pub(super) struct IngressDescriptionWorker<'a, C>
 where
     C: KubeClientRequest,
 {
     client: &'a C,
-    tx: &'a Sender<Event>,
     namespace: String,
     name: String,
 }
@@ -26,16 +18,15 @@ impl<'a, C> Fetch<'a, C> for IngressDescriptionWorker<'a, C>
 where
     C: KubeClientRequest,
 {
-    fn new(client: &'a C, tx: &'a Sender<Event>, namespace: String, name: String) -> Self {
+    fn new(client: &'a C, namespace: String, name: String) -> Self {
         Self {
             client,
-            tx,
             namespace,
             name,
         }
     }
 
-    async fn fetch(&self) -> Result<()> {
+    async fn fetch(&self) -> Result<FetchedData> {
         let url = format!(
             "apis/networking.k8s.io/v1/namespaces/{}/ingresses/{}",
             self.namespace, self.name
@@ -53,8 +44,6 @@ where
             .map(ToString::to_string)
             .collect();
 
-        self.tx.send(NetworkMessage::Response(Ok(value)).into())?;
-
-        Ok(())
+        Ok(value)
     }
 }

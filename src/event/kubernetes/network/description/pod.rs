@@ -13,17 +13,13 @@ use k8s_openapi::api::{
 };
 use serde_yaml::{Mapping, Value};
 
-use super::{Fetch, Result};
+use super::{Fetch, FetchedData, Result};
 
 use std::collections::BTreeMap;
 
-use crossbeam::channel::Sender;
-
 use serde::Deserialize;
 
-use crate::event::{
-    kubernetes::client::KubeClientRequest, kubernetes::network::NetworkMessage, Event,
-};
+use crate::event::kubernetes::client::KubeClientRequest;
 
 #[derive(Debug)]
 enum FetchArgs {
@@ -43,24 +39,22 @@ where
     C: KubeClientRequest,
 {
     client: &'a C,
-    tx: &'a Sender<Event>,
     namespace: String,
     name: String,
 }
 
 #[async_trait::async_trait]
 impl<'a, C: KubeClientRequest> Fetch<'a, C> for PodDescriptionWorker<'a, C> {
-    fn new(client: &'a C, tx: &'a Sender<Event>, namespace: String, name: String) -> Self {
+    fn new(client: &'a C, namespace: String, name: String) -> Self {
         PodDescriptionWorker {
             client,
-            tx,
             namespace,
             name,
         }
     }
 
     // TODO 関連するService, Ingress, NetworkPolicyの情報を合わせて表示する
-    async fn fetch(&self) -> Result<()> {
+    async fn fetch(&self) -> Result<FetchedData> {
         let mut value = Vec::new();
 
         let pod = self.fetch_pod().await?;
@@ -106,9 +100,7 @@ impl<'a, C: KubeClientRequest> Fetch<'a, C> for PodDescriptionWorker<'a, C> {
             value.extend(vec);
         }
 
-        self.tx.send(NetworkMessage::Response(Ok(value)).into())?;
-
-        Ok(())
+        Ok(value)
     }
 }
 

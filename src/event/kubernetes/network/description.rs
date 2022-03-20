@@ -23,11 +23,13 @@ use super::{NetworkMessage, Request, RequestData};
 
 const INTERVAL: u64 = 3;
 
+type FetchedData = Vec<String>;
+
 #[async_trait]
 trait Fetch<'a, C: KubeClientRequest> {
-    fn new(client: &'a C, tx: &'a Sender<Event>, namespace: String, name: String) -> Self;
+    fn new(client: &'a C, namespace: String, name: String) -> Self;
 
-    async fn fetch(&self) -> Result<()>;
+    async fn fetch(&self) -> Result<FetchedData>;
 }
 
 #[derive(Clone)]
@@ -99,12 +101,7 @@ where
 
         let RequestData { name, namespace } = self.req.data();
 
-        let worker = Worker::new(
-            &self.client,
-            &self.tx,
-            namespace.to_string(),
-            name.to_string(),
-        );
+        let worker = Worker::new(&self.client, namespace.to_string(), name.to_string());
 
         while !self
             .is_terminated
@@ -112,7 +109,10 @@ where
         {
             interval.tick().await;
 
-            worker.fetch().await?;
+            let fetched_data = worker.fetch().await;
+
+            self.tx
+                .send(NetworkMessage::Response(fetched_data).into())?;
         }
 
         Ok(())
