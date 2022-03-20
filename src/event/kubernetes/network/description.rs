@@ -123,46 +123,34 @@ where
 mod tests {
     use super::*;
 
-    use std::collections::BTreeMap;
-
-    use k8s_openapi::{
-        api::core::v1::{Container, Pod, PodIP, PodSpec, PodStatus},
-        apimachinery::pkg::apis::meta::v1::ObjectMeta,
-    };
+    use indoc::indoc;
+    use k8s_openapi::api::core::v1::Pod;
 
     use self::{pod::FetchedIngressList, pod::FetchedPod, pod::FetchedServiceList};
     fn setup_pod() -> FetchedPod {
-        FetchedPod(Pod {
-            metadata: ObjectMeta {
-                name: Some("test".into()),
-                namespace: Some("default".into()),
-                labels: Some(BTreeMap::from([
-                    (
-                        "controller-uid".into(),
-                        "30d417a8-cb1c-467b-92fe-7819601a6ef8".into(),
-                    ),
-                    ("job-name".into(), "kubetui-text-color".into()),
-                ])),
-                ..Default::default()
-            },
-            spec: Some(PodSpec {
-                containers: vec![Container {
-                    name: "job".into(),
-                    image: Some("alpine".into()),
-                    ..Default::default()
-                }],
-                ..Default::default()
-            }),
-            status: Some(PodStatus {
-                phase: Some("Succeeded".into()),
-                host_ip: Some("192.168.65.4".into()),
-                pod_ip: Some("10.1.0.21".into()),
-                pod_ips: Some(vec![PodIP {
-                    ip: Some("10.1.0.21".into()),
-                }]),
-                ..Default::default()
-            }),
-        })
+        let yaml = indoc! {
+        "
+            metadata:
+              name: test
+              namespace: default
+              labels:
+                controller-uid: 30d417a8-cb1c-467b-92fe-7819601a6ef8
+                job-name: kubetui-text-color
+            spec:
+              containers:
+                - name: job
+                  image: alpine
+            status:
+              phase: Succeeded
+              hostIP: 192.168.65.4
+              podIP: 10.1.0.21
+              podIPs:
+                - ip: 10.1.0.21
+            " };
+
+        let pod: Pod = serde_yaml::from_str(&yaml).unwrap();
+
+        FetchedPod(pod)
     }
 
     mod run {
