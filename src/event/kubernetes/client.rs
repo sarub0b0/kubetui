@@ -121,4 +121,23 @@ pub mod mock {
             async fn request_text(&self, path: &str) -> Result<String>;
         }
     }
+
+    #[macro_export]
+    macro_rules! mock_expect {
+        ($client:ident, request, [$(($ty:ty, $with:expr, $ret:expr)),*]) => {
+            $(
+                $client.expect_request::<$ty>().with($with).returning(|_| $ret);
+            )*
+        };
+        ($client:ident, table_request, [$(($ty:ty, $with:expr, $ret:expr)),*]) => {
+            $(
+                $client.expect_table_request::<$ty>().with($with).returning(|_| $ret);
+            )*
+        };
+        ($client:ident, request_text, [$(($with:expr, $ret:expr)),*]) => {
+            $(
+                $client.expect_request_text().with($with).returning(|_| $ret);
+            )*
+        };
+    }
 }
