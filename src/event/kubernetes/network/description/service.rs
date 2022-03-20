@@ -9,7 +9,7 @@ use crate::{
     },
 };
 
-use super::DescriptionWorker;
+use super::Fetch;
 
 pub(super) struct ServiceDescriptionWorker<'a, C>
 where
@@ -22,7 +22,7 @@ where
 }
 
 #[async_trait::async_trait]
-impl<'a, C> DescriptionWorker<'a, C> for ServiceDescriptionWorker<'a, C>
+impl<'a, C> Fetch<'a, C> for ServiceDescriptionWorker<'a, C>
 where
     C: KubeClientRequest,
 {
@@ -35,7 +35,7 @@ where
         }
     }
 
-    async fn run(&self) -> Result<()> {
+    async fn fetch(&self) -> Result<()> {
         let url = format!(
             "api/v1/namespaces/{}/services/{}",
             self.namespace, self.name

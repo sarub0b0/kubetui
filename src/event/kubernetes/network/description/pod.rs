@@ -13,13 +13,13 @@ use k8s_openapi::api::{
 };
 use serde_yaml::{Mapping, Value};
 
-use super::{DescriptionWorker, Result};
+use super::{Fetch, Result};
 
 use std::collections::BTreeMap;
 
 use crossbeam::channel::Sender;
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use crate::event::{
     kubernetes::client::KubeClientRequest, kubernetes::network::NetworkMessage, Event,
@@ -49,7 +49,7 @@ where
 }
 
 #[async_trait::async_trait]
-impl<'a, C: KubeClientRequest> DescriptionWorker<'a, C> for PodDescriptionWorker<'a, C> {
+impl<'a, C: KubeClientRequest> Fetch<'a, C> for PodDescriptionWorker<'a, C> {
     fn new(client: &'a C, tx: &'a Sender<Event>, namespace: String, name: String) -> Self {
         PodDescriptionWorker {
             client,
@@ -60,7 +60,7 @@ impl<'a, C: KubeClientRequest> DescriptionWorker<'a, C> for PodDescriptionWorker
     }
 
     // TODO 関連するService, Ingress, NetworkPolicyの情報を合わせて表示する
-    async fn run(&self) -> Result<()> {
+    async fn fetch(&self) -> Result<()> {
         let mut value = Vec::new();
 
         let pod = self.fetch_pod().await?;
@@ -259,4 +259,20 @@ mod tests {
             assert!(!contains_key_values(&lhs, &rhs));
         }
     }
+
+    mod fetch {
+
+        #[tokio::test(flavor = "multi_thread")]
+        #[ignore]
+        async fn yamlデータを送信してokを返す() {}
+
+        #[tokio::test(flavor = "multi_thread")]
+        #[ignore]
+        async fn エラーが出たときerrを返す() {}
+    }
+
+    mod fetch_pod {}
+    mod fetch_service {}
+    mod fetch_ingress {}
+    mod fetch_network_policy {}
 }

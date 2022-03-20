@@ -24,10 +24,10 @@ use super::{NetworkMessage, Request, RequestData};
 const INTERVAL: u64 = 3;
 
 #[async_trait]
-trait DescriptionWorker<'a, C: KubeClientRequest> {
+trait Fetch<'a, C: KubeClientRequest> {
     fn new(client: &'a C, tx: &'a Sender<Event>, namespace: String, name: String) -> Self;
 
-    async fn run(&self) -> Result<()>;
+    async fn fetch(&self) -> Result<()>;
 }
 
 #[derive(Clone)]
@@ -93,7 +93,7 @@ where
 {
     async fn fetch_description<'a, Worker>(&'a self) -> Result<()>
     where
-        Worker: DescriptionWorker<'a, C>,
+        Worker: Fetch<'a, C>,
     {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(INTERVAL));
 
@@ -112,7 +112,7 @@ where
         {
             interval.tick().await;
 
-            worker.run().await?;
+            worker.fetch().await?;
         }
 
         Ok(())

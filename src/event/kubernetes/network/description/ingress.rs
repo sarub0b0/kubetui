@@ -9,7 +9,7 @@ use crate::{
     },
 };
 
-use super::DescriptionWorker;
+use super::Fetch;
 
 pub(super) struct IngressDescriptionWorker<'a, C>
 where
@@ -22,7 +22,7 @@ where
 }
 
 #[async_trait::async_trait]
-impl<'a, C> DescriptionWorker<'a, C> for IngressDescriptionWorker<'a, C>
+impl<'a, C> Fetch<'a, C> for IngressDescriptionWorker<'a, C>
 where
     C: KubeClientRequest,
 {
@@ -35,7 +35,7 @@ where
         }
     }
 
-    async fn run(&self) -> Result<()> {
+    async fn fetch(&self) -> Result<()> {
         let url = format!(
             "apis/networking.k8s.io/v1/namespaces/{}/ingresses/{}",
             self.namespace, self.name
