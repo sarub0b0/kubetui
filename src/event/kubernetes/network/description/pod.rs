@@ -339,21 +339,38 @@ mod tests {
             serde_yaml::from_str(&yaml).unwrap()
         }
 
+        macro_rules! mock_expect {
+            ($client:ident, [$(($ty:ty, $with:expr, $ret:expr)),*]) => {
+                $(
+                    $client.expect_request::<$ty>().with($with).returning(|_| $ret);
+                )*
+            };
+
+        }
+
         #[tokio::test(flavor = "multi_thread")]
         async fn yamlデータを送信してokを返す() {
             let mut client = MockTestKubeClient::new();
-            client
-                .expect_request::<FetchedPod>()
-                .with(eq("api/v1/namespaces/default/pods/test"))
-                .returning(|_| Ok(setup_pod()));
-            client
-                .expect_request::<FetchedServiceList>()
-                .with(eq("api/v1/namespaces/default/services"))
-                .returning(|_| Ok(setup_services()));
-            client
-                .expect_request::<FetchedIngressList>()
-                .with(eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"))
-                .returning(|_| Ok(setup_ingresses()));
+            mock_expect!(
+                client,
+                [
+                    (
+                        FetchedPod,
+                        eq("api/v1/namespaces/default/pods/test"),
+                        Ok(setup_pod())
+                    ),
+                    (
+                        FetchedServiceList,
+                        eq("api/v1/namespaces/default/services"),
+                        Ok(setup_services())
+                    ),
+                    (
+                        FetchedIngressList,
+                        eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"),
+                        Ok(setup_ingresses())
+                    )
+                ]
+            );
 
             let worker =
                 PodDescriptionWorker::new(&client, "default".to_string(), "test".to_string());
@@ -393,18 +410,26 @@ mod tests {
         #[tokio::test(flavor = "multi_thread")]
         async fn エラーが出たときerrを返す() {
             let mut client = MockTestKubeClient::new();
-            client
-                .expect_request::<FetchedPod>()
-                .with(eq("api/v1/namespaces/default/pods/test"))
-                .returning(|_| Err(anyhow!("error")));
-            client
-                .expect_request::<FetchedServiceList>()
-                .with(eq("api/v1/namespaces/default/services"))
-                .returning(|_| Err(anyhow!("error")));
-            client
-                .expect_request::<FetchedIngressList>()
-                .with(eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"))
-                .returning(|_| Err(anyhow!("error")));
+            mock_expect!(
+                client,
+                [
+                    (
+                        FetchedPod,
+                        eq("api/v1/namespaces/default/pods/test"),
+                        Err(anyhow!("error"))
+                    ),
+                    (
+                        FetchedServiceList,
+                        eq("api/v1/namespaces/default/services"),
+                        Err(anyhow!("error"))
+                    ),
+                    (
+                        FetchedIngressList,
+                        eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"),
+                        Err(anyhow!("error"))
+                    )
+                ]
+            );
 
             let worker =
                 PodDescriptionWorker::new(&client, "default".to_string(), "test".to_string());
