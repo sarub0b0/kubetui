@@ -122,6 +122,49 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use std::collections::BTreeMap;
+
+    use k8s_openapi::{
+        api::core::v1::{Container, Pod, PodIP, PodSpec, PodStatus},
+        apimachinery::pkg::apis::meta::v1::ObjectMeta,
+    };
+
+    use self::{pod::FetchedIngressList, pod::FetchedPod, pod::FetchedServiceList};
+    fn setup_pod() -> FetchedPod {
+        FetchedPod(Pod {
+            metadata: ObjectMeta {
+                name: Some("test".into()),
+                namespace: Some("default".into()),
+                labels: Some(BTreeMap::from([
+                    (
+                        "controller-uid".into(),
+                        "30d417a8-cb1c-467b-92fe-7819601a6ef8".into(),
+                    ),
+                    ("job-name".into(), "kubetui-text-color".into()),
+                ])),
+                ..Default::default()
+            },
+            spec: Some(PodSpec {
+                containers: vec![Container {
+                    name: "job".into(),
+                    image: Some("alpine".into()),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            }),
+            status: Some(PodStatus {
+                phase: Some("Succeeded".into()),
+                host_ip: Some("192.168.65.4".into()),
+                pod_ip: Some("10.1.0.21".into()),
+                pod_ips: Some(vec![PodIP {
+                    ip: Some("10.1.0.21".into()),
+                }]),
+                ..Default::default()
+            }),
+        })
+    }
+
     mod run {
         use super::*;
         use pretty_assertions::assert_eq;
@@ -139,54 +182,15 @@ mod tests {
         }
     }
     mod fetch_description {
-        use std::collections::BTreeMap;
 
         use super::*;
 
         use crossbeam::channel::{bounded, Receiver};
         use indoc::indoc;
-        use k8s_openapi::api::core::v1::{Container, Pod, PodIP, PodSpec, PodStatus};
         use mockall::predicate::eq;
         use pretty_assertions::assert_eq;
 
         use crate::event::kubernetes::{client::mock::MockTestKubeClient, Kube};
-
-        use self::{pod::FetchedIngressList, pod::FetchedPod, pod::FetchedServiceList};
-        use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
-
-        fn setup_pod() -> FetchedPod {
-            FetchedPod(Pod {
-                metadata: ObjectMeta {
-                    name: Some("test".into()),
-                    namespace: Some("default".into()),
-                    labels: Some(BTreeMap::from([
-                        (
-                            "controller-uid".into(),
-                            "30d417a8-cb1c-467b-92fe-7819601a6ef8".into(),
-                        ),
-                        ("job-name".into(), "kubetui-text-color".into()),
-                    ])),
-                    ..Default::default()
-                },
-                spec: Some(PodSpec {
-                    containers: vec![Container {
-                        name: "job".into(),
-                        image: Some("alpine".into()),
-                        ..Default::default()
-                    }],
-                    ..Default::default()
-                }),
-                status: Some(PodStatus {
-                    phase: Some("Succeeded".into()),
-                    host_ip: Some("192.168.65.4".into()),
-                    pod_ip: Some("10.1.0.21".into()),
-                    pod_ips: Some(vec![PodIP {
-                        ip: Some("10.1.0.21".into()),
-                    }]),
-                    ..Default::default()
-                }),
-            })
-        }
 
         #[tokio::test(flavor = "multi_thread")]
         async fn 正常系のときtxにデータを送信する() {
