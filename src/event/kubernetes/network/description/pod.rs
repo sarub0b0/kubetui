@@ -257,17 +257,7 @@ mod tests {
 
         use crate::event::kubernetes::client::mock::MockTestKubeClient;
         use indoc::indoc;
-        use k8s_openapi::{
-            api::{
-                core::v1::{Container, Pod, PodIP, PodSpec, PodStatus, ServiceSpec},
-                networking::v1::{
-                    HTTPIngressPath, HTTPIngressRuleValue, Ingress, IngressBackend, IngressRule,
-                    IngressServiceBackend, IngressSpec,
-                },
-            },
-            apimachinery::pkg::apis::meta::v1::ObjectMeta,
-            List,
-        };
+        use k8s_openapi::api::core::v1::Pod;
         use mockall::predicate::eq;
 
         use pretty_assertions::assert_eq;
