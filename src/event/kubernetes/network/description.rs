@@ -155,9 +155,12 @@ mod tests {
 
     mod run {
 
-        use crate::event::kubernetes::{
-            client::mock::MockTestKubeClient,
-            network::description::pod::{FetchedIngressList, FetchedPod, FetchedServiceList},
+        use crate::{
+            event::kubernetes::{
+                client::mock::MockTestKubeClient,
+                network::description::pod::{FetchedIngressList, FetchedPod, FetchedServiceList},
+            },
+            mock_expect,
         };
 
         use super::*;
@@ -169,18 +172,28 @@ mod tests {
             let is_terminated = Arc::new(AtomicBool::new(false));
             let (tx, _rx): (Sender<Event>, Receiver<Event>) = bounded(3);
             let mut client = MockTestKubeClient::new();
-            client
-                .expect_request::<FetchedPod>()
-                .with(eq("api/v1/namespaces/default/pods/test"))
-                .returning(|_| Ok(setup_pod()));
-            client
-                .expect_request::<FetchedServiceList>()
-                .with(eq("api/v1/namespaces/default/services"))
-                .returning(|_| Ok(FetchedServiceList::default()));
-            client
-                .expect_request::<FetchedIngressList>()
-                .with(eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"))
-                .returning(|_| Ok(FetchedIngressList::default()));
+
+            mock_expect!(
+                client,
+                request,
+                [
+                    (
+                        FetchedPod,
+                        eq("api/v1/namespaces/default/pods/test"),
+                        Ok(setup_pod())
+                    ),
+                    (
+                        FetchedServiceList,
+                        eq("api/v1/namespaces/default/services"),
+                        Ok(FetchedServiceList::default())
+                    ),
+                    (
+                        FetchedIngressList,
+                        eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"),
+                        Ok(FetchedIngressList::default())
+                    )
+                ]
+            );
 
             let req_data = RequestData {
                 namespace: "default".to_string(),
@@ -201,18 +214,27 @@ mod tests {
         async fn 内部でエラーがでたとき処理を停止してtxにerrを送信してokを返す() {
             let (tx, rx): (Sender<Event>, Receiver<Event>) = bounded(3);
             let mut client = MockTestKubeClient::new();
-            client
-                .expect_request::<FetchedPod>()
-                .with(eq("api/v1/namespaces/default/pods/test"))
-                .returning(|_| Err(anyhow!("error")));
-            client
-                .expect_request::<FetchedServiceList>()
-                .with(eq("api/v1/namespaces/default/services"))
-                .returning(|_| Err(anyhow!("error")));
-            client
-                .expect_request::<FetchedIngressList>()
-                .with(eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"))
-                .returning(|_| Err(anyhow!("error")));
+            mock_expect!(
+                client,
+                request,
+                [
+                    (
+                        FetchedPod,
+                        eq("api/v1/namespaces/default/pods/test"),
+                        Err(anyhow!("error"))
+                    ),
+                    (
+                        FetchedServiceList,
+                        eq("api/v1/namespaces/default/services"),
+                        Err(anyhow!("error"))
+                    ),
+                    (
+                        FetchedIngressList,
+                        eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"),
+                        Err(anyhow!("error"))
+                    )
+                ]
+            );
 
             let req_data = RequestData {
                 namespace: "default".to_string(),
@@ -248,25 +270,38 @@ mod tests {
         use mockall::predicate::eq;
         use pretty_assertions::assert_eq;
 
-        use crate::event::kubernetes::{client::mock::MockTestKubeClient, Kube};
+        use crate::{
+            event::kubernetes::{client::mock::MockTestKubeClient, Kube},
+            mock_expect,
+        };
 
         #[tokio::test(flavor = "multi_thread")]
         async fn 正常系のときtxにデータを送信する() {
             let is_terminated = Arc::new(AtomicBool::new(false));
             let (tx, rx): (Sender<Event>, Receiver<Event>) = bounded(3);
             let mut client = MockTestKubeClient::new();
-            client
-                .expect_request::<FetchedPod>()
-                .with(eq("api/v1/namespaces/default/pods/test"))
-                .returning(|_| Ok(setup_pod()));
-            client
-                .expect_request::<FetchedServiceList>()
-                .with(eq("api/v1/namespaces/default/services"))
-                .returning(|_| Ok(FetchedServiceList::default()));
-            client
-                .expect_request::<FetchedIngressList>()
-                .with(eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"))
-                .returning(|_| Ok(FetchedIngressList::default()));
+
+            mock_expect!(
+                client,
+                request,
+                [
+                    (
+                        FetchedPod,
+                        eq("api/v1/namespaces/default/pods/test"),
+                        Ok(setup_pod())
+                    ),
+                    (
+                        FetchedServiceList,
+                        eq("api/v1/namespaces/default/services"),
+                        Ok(FetchedServiceList::default())
+                    ),
+                    (
+                        FetchedIngressList,
+                        eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"),
+                        Ok(FetchedIngressList::default())
+                    )
+                ]
+            );
 
             let req_data = RequestData {
                 namespace: "default".to_string(),
@@ -343,18 +378,27 @@ mod tests {
         async fn 内部でエラーがでたときループを抜けてerrを返す() {
             let (tx, _rx): (Sender<Event>, Receiver<Event>) = bounded(3);
             let mut client = MockTestKubeClient::new();
-            client
-                .expect_request::<FetchedPod>()
-                .with(eq("api/v1/namespaces/default/pods/test"))
-                .returning(|_| Err(anyhow!("error")));
-            client
-                .expect_request::<FetchedServiceList>()
-                .with(eq("api/v1/namespaces/default/services"))
-                .returning(|_| Err(anyhow!("error")));
-            client
-                .expect_request::<FetchedIngressList>()
-                .with(eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"))
-                .returning(|_| Err(anyhow!("error")));
+            mock_expect!(
+                client,
+                request,
+                [
+                    (
+                        FetchedPod,
+                        eq("api/v1/namespaces/default/pods/test"),
+                        Err(anyhow!("error"))
+                    ),
+                    (
+                        FetchedServiceList,
+                        eq("api/v1/namespaces/default/services"),
+                        Err(anyhow!("error"))
+                    ),
+                    (
+                        FetchedIngressList,
+                        eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"),
+                        Err(anyhow!("error"))
+                    )
+                ]
+            );
 
             let req_data = RequestData {
                 namespace: "default".to_string(),

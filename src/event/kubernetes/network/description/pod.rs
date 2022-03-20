@@ -255,7 +255,7 @@ mod tests {
     mod fetch {
         use super::*;
 
-        use crate::event::kubernetes::client::mock::MockTestKubeClient;
+        use crate::{event::kubernetes::client::mock::MockTestKubeClient, mock_expect};
         use indoc::indoc;
         use k8s_openapi::api::core::v1::Pod;
         use mockall::predicate::eq;
@@ -339,20 +339,12 @@ mod tests {
             serde_yaml::from_str(&yaml).unwrap()
         }
 
-        macro_rules! mock_expect {
-            ($client:ident, [$(($ty:ty, $with:expr, $ret:expr)),*]) => {
-                $(
-                    $client.expect_request::<$ty>().with($with).returning(|_| $ret);
-                )*
-            };
-
-        }
-
         #[tokio::test(flavor = "multi_thread")]
         async fn yamlデータを送信してokを返す() {
             let mut client = MockTestKubeClient::new();
             mock_expect!(
                 client,
+                request,
                 [
                     (
                         FetchedPod,
@@ -412,6 +404,7 @@ mod tests {
             let mut client = MockTestKubeClient::new();
             mock_expect!(
                 client,
+                request,
                 [
                     (
                         FetchedPod,
