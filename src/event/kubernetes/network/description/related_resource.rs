@@ -84,11 +84,9 @@ mod pod {
                 mock_expect!(
                     client,
                     request,
-                    [(
-                        FetchedPodList,
-                        eq("api/v1/namespaces/default/pods"),
-                        Ok(pod_one())
-                    )]
+                    FetchedPodList,
+                    eq("api/v1/namespaces/default/pods"),
+                    Ok(pod_one())
                 );
 
                 let selector = BTreeMap::from([("app", "test"), ("version", "v1")]);
@@ -107,11 +105,9 @@ mod pod {
                 mock_expect!(
                     client,
                     request,
-                    [(
-                        FetchedPodList,
-                        eq("api/v1/namespaces/default/pods"),
-                        bail!("error")
-                    )]
+                    FetchedPodList,
+                    eq("api/v1/namespaces/default/pods"),
+                    bail!("error")
                 );
 
                 let selector = BTreeMap::from([("app", "test"), ("version", "v1")]);
