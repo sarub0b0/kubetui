@@ -139,5 +139,15 @@ pub mod mock {
                 $client.expect_request_text().with($with).returning(|_| $ret);
             )*
         };
+
+        ($client:ident, request, $ty:ty, $with:expr, $ret:expr) => {
+            $client.expect_request::<$ty>().with($with).returning(|_| $ret);
+        };
+        ($client:ident, table_request, $ty:ty, $with:expr, $ret:expr) => {
+            $client.expect_table_request::<$ty>().with($with).returning(|_| $ret);
+        };
+        ($client:ident, request_text, $with:expr, $ret:expr) => {
+            $client.expect_request_text().with($with).returning(|_| $ret);
+        };
     }
 }
