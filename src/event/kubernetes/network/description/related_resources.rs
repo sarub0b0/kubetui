@@ -4,7 +4,7 @@
 mod pod {
     use std::collections::BTreeMap;
 
-    use anyhow::Result;
+    use anyhow::{Ok, Result};
     use k8s_openapi::{api::core::v1::Pod, List};
     use serde_yaml::Value;
 
@@ -22,37 +22,28 @@ mod pod {
 
     type FetchedPodList = List<Pod>;
 
-    struct FetchPodClient<'a, C: KubeClientRequest> {
-        client: &'a C,
-        namespace: &'a str,
+    use fetch::{Fetch, FetchPodClient};
+
+    struct RelatedPod<'a, F: Fetch> {
+        client: &'a F,
         selector: BTreeMap<&'a str, &'a str>,
     }
 
-    impl<'a, C: KubeClientRequest> FetchPodClient<'a, C> {
-        fn new(client: &'a C, namespace: &'a str, selector: BTreeMap<&'a str, &'a str>) -> Self {
-            Self {
-                client,
-                namespace,
-                selector,
-            }
+    impl<'a, F: Fetch> RelatedPod<'a, F> {
+        fn new(client: &'a F, selector: BTreeMap<&'a str, &'a str>) -> Self {
+            Self { client, selector }
         }
     }
 
-    impl<'a, C: KubeClientRequest> FetchPodClient<'a, C> {
+    impl<'a, F: Fetch> RelatedPod<'a, F> {
         async fn related_resources(&self) -> Result<Option<Value>> {
-            let list = self.fetch().await?;
+            let list = self.client.fetch().await?;
 
             if let Some(filter) = self.filter(&list) {
                 Ok(filter.to_value())
             } else {
                 Ok(None)
             }
-        }
-
-        async fn fetch(&self) -> Result<FetchedPodList> {
-            let url = format!("api/v1/namespaces/{}/pods", self.namespace);
-
-            self.client.request(&url).await
         }
 
         fn filter(&self, list: &FetchedPodList) -> Option<FetchedPodList> {
@@ -71,7 +62,15 @@ mod pod {
 
             use super::*;
 
-            use crate::{event::kubernetes::client::mock::MockTestKubeClient, mock_expect};
+            use crate::{
+                event::kubernetes::{
+                    client::mock::MockTestKubeClient,
+                    network::description::related_resources::pod::fetch::mock::MockTestFetchPodClient,
+                },
+                mock_expect,
+            };
+
+            use self::Fetch;
             fn setup_pod() -> FetchedPodList {
                 let yaml = indoc! {
                 "
@@ -94,18 +93,16 @@ mod pod {
 
             #[tokio::test]
             async fn 関連するpodのvalueを返す() {
-                let mut client = MockTestKubeClient::new();
+                let mut client = MockTestFetchPodClient::new();
+
+                client.expect_fetch().returning(|| Ok(setup_pod()));
+
                 let selector = BTreeMap::from([("version", "v1")]);
 
-                mock_expect!(
-                    client,
-                    request,
-                    FetchedPodList,
-                    eq("api/v1/namespaces/default/pods"),
-                    Ok(setup_pod())
-                );
-
-                let client = FetchPodClient::new(&client, "default", selector);
+                let client = RelatedPod {
+                    client: &client,
+                    selector,
+                };
 
                 let result = client.related_resources().await.unwrap().unwrap();
 
@@ -116,19 +113,16 @@ mod pod {
 
             #[tokio::test]
             async fn 関連するpodがないときnoneを返す() {
-                let mut client = MockTestKubeClient::new();
+                let mut client = MockTestFetchPodClient::new();
+
+                client.expect_fetch().returning(|| Ok(setup_pod()));
 
                 let selector = BTreeMap::from([("hoge", "fuga")]);
 
-                mock_expect!(
-                    client,
-                    request,
-                    FetchedPodList,
-                    eq("api/v1/namespaces/default/pods"),
-                    Ok(setup_pod())
-                );
-
-                let client = FetchPodClient::new(&client, "default", selector);
+                let client = RelatedPod {
+                    client: &client,
+                    selector,
+                };
 
                 let result = client.related_resources().await.unwrap();
 
@@ -137,17 +131,14 @@ mod pod {
 
             #[tokio::test]
             async fn エラーがでたときerrを返す() {
-                let mut client = MockTestKubeClient::new();
+                let mut client = MockTestFetchPodClient::new();
 
-                mock_expect!(
-                    client,
-                    request,
-                    FetchedPodList,
-                    eq("api/v1/namespaces/default/pods"),
-                    bail!("error")
-                );
+                client.expect_fetch().returning(|| Ok(setup_pod()));
 
-                let client = FetchPodClient::new(&client, "default", BTreeMap::default());
+                let client = RelatedPod {
+                    client: &client,
+                    selector: BTreeMap::new(),
+                };
 
                 let result = client.related_resources().await;
 
@@ -318,4 +309,3 @@ mod pod {
         }
     }
 }
-
