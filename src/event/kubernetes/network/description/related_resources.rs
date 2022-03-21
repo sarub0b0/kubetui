@@ -51,126 +51,6 @@ mod pod {
         }
     }
 
-    #[cfg(test)]
-    mod tests {
-        use super::*;
-
-        mod related_resources {
-            use anyhow::bail;
-            use indoc::indoc;
-            use mockall::predicate::eq;
-
-            use super::*;
-
-            use crate::{
-                event::kubernetes::{
-                    client::mock::MockTestKubeClient,
-                    network::description::related_resources::pod::fetch::mock::MockTestFetchPodClient,
-                },
-                mock_expect,
-            };
-
-            use self::Fetch;
-            fn setup_pod() -> FetchedPodList {
-                let yaml = indoc! {
-                "
-                items:
-                  - metadata:
-                    name: pod-1
-                    labels:
-                      app: pod-1
-                      version: v1
-                  - metadata:
-                    name: pod-2
-                    labels:
-                      app: pod-2
-                      version: v1
-                "
-                };
-
-                serde_yaml::from_str::<FetchedPodList>(&yaml).unwrap()
-            }
-
-            #[tokio::test]
-            async fn 関連するpodのvalueを返す() {
-                let mut client = MockTestFetchPodClient::new();
-
-                client.expect_fetch().returning(|| Ok(setup_pod()));
-
-                let selector = BTreeMap::from([("version", "v1")]);
-
-                let client = RelatedPod {
-                    client: &client,
-                    selector,
-                };
-
-                let result = client.related_resources().await.unwrap().unwrap();
-
-                let expected = Value::from(vec!["pod-1", "pod-2"]);
-
-                assert_eq!(result, expected);
-            }
-
-            #[tokio::test]
-            async fn 関連するpodがないときnoneを返す() {
-                let mut client = MockTestFetchPodClient::new();
-
-                client.expect_fetch().returning(|| Ok(setup_pod()));
-
-                let selector = BTreeMap::from([("hoge", "fuga")]);
-
-                let client = RelatedPod {
-                    client: &client,
-                    selector,
-                };
-
-                let result = client.related_resources().await.unwrap();
-
-                assert_eq!(result.is_none(), true);
-            }
-
-            #[tokio::test]
-            async fn エラーがでたときerrを返す() {
-                let mut client = MockTestFetchPodClient::new();
-
-                client.expect_fetch().returning(|| Ok(setup_pod()));
-
-                let client = RelatedPod {
-                    client: &client,
-                    selector: BTreeMap::new(),
-                };
-
-                let result = client.related_resources().await;
-
-                assert_eq!(result.is_err(), true);
-            }
-        }
-
-        mod filter {
-            use super::*;
-
-            #[ignore]
-            #[test]
-            fn 関連するpodのリストを生成する() {}
-
-            #[ignore]
-            #[test]
-            fn 関連するpodがないときnoneを返す() {}
-        }
-
-        mod to_value {
-            use super::*;
-
-            #[ignore]
-            #[test]
-            fn podのリストからnameのリストをvalue型で返す() {}
-
-            #[ignore]
-            #[test]
-            fn リストが空のときnoneを返す() {}
-        }
-    }
-
     mod fetch {
         use crate::event::kubernetes::client::KubeClientRequest;
 
@@ -306,6 +186,126 @@ mod pod {
 
                 assert_eq!(result.is_err(), true);
             }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        mod related_resources {
+            use anyhow::bail;
+            use indoc::indoc;
+            use mockall::predicate::eq;
+
+            use super::*;
+
+            use crate::{
+                event::kubernetes::{
+                    client::mock::MockTestKubeClient,
+                    network::description::related_resources::pod::fetch::mock::MockTestFetchPodClient,
+                },
+                mock_expect,
+            };
+
+            use self::Fetch;
+            fn setup_pod() -> FetchedPodList {
+                let yaml = indoc! {
+                "
+                items:
+                  - metadata:
+                    name: pod-1
+                    labels:
+                      app: pod-1
+                      version: v1
+                  - metadata:
+                    name: pod-2
+                    labels:
+                      app: pod-2
+                      version: v1
+                "
+                };
+
+                serde_yaml::from_str::<FetchedPodList>(&yaml).unwrap()
+            }
+
+            #[tokio::test]
+            async fn 関連するpodのvalueを返す() {
+                let mut client = MockTestFetchPodClient::new();
+
+                client.expect_fetch().returning(|| Ok(setup_pod()));
+
+                let selector = BTreeMap::from([("version", "v1")]);
+
+                let client = RelatedPod {
+                    client: &client,
+                    selector,
+                };
+
+                let result = client.related_resources().await.unwrap().unwrap();
+
+                let expected = Value::from(vec!["pod-1", "pod-2"]);
+
+                assert_eq!(result, expected);
+            }
+
+            #[tokio::test]
+            async fn 関連するpodがないときnoneを返す() {
+                let mut client = MockTestFetchPodClient::new();
+
+                client.expect_fetch().returning(|| Ok(setup_pod()));
+
+                let selector = BTreeMap::from([("hoge", "fuga")]);
+
+                let client = RelatedPod {
+                    client: &client,
+                    selector,
+                };
+
+                let result = client.related_resources().await.unwrap();
+
+                assert_eq!(result.is_none(), true);
+            }
+
+            #[tokio::test]
+            async fn エラーがでたときerrを返す() {
+                let mut client = MockTestFetchPodClient::new();
+
+                client.expect_fetch().returning(|| Ok(setup_pod()));
+
+                let client = RelatedPod {
+                    client: &client,
+                    selector: BTreeMap::new(),
+                };
+
+                let result = client.related_resources().await;
+
+                assert_eq!(result.is_err(), true);
+            }
+        }
+
+        mod filter {
+            use super::*;
+
+            #[ignore]
+            #[test]
+            fn 関連するpodのリストを生成する() {}
+
+            #[ignore]
+            #[test]
+            fn 関連するpodがないときnoneを返す() {}
+        }
+
+        mod to_value {
+            use super::*;
+
+            #[ignore]
+            #[test]
+            fn podのリストからnameのリストをvalue型で返す() {}
+
+            #[ignore]
+            #[test]
+            fn リストが空のときnoneを返す() {}
         }
     }
 }
