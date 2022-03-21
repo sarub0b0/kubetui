@@ -37,6 +37,20 @@ mod pod {
     mod tests {
         use super::*;
 
+        mod related_resource {
+            #[ignore]
+            #[test]
+            fn 関連するpodのvalueを返す() {}
+
+            #[ignore]
+            #[test]
+            fn 関連するpodがないときnoneを返す() {}
+
+            #[ignore]
+            #[test]
+            fn エラーがでたときerrを返す() {}
+        }
+
         mod fetch {
             use indoc::indoc;
             use mockall::predicate::eq;
