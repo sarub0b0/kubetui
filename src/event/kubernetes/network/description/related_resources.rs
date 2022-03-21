@@ -6,8 +6,19 @@ mod pod {
 
     use anyhow::Result;
     use k8s_openapi::{api::core::v1::Pod, List};
+    use serde_yaml::Value;
 
     use crate::event::kubernetes::client::KubeClientRequest;
+
+    trait ToValue {
+        fn to_value(&self) -> Option<Value>;
+    }
+
+    impl ToValue for FetchedPodList {
+        fn to_value(&self) -> Option<Value> {
+            todo!()
+        }
+    }
 
     type FetchedPodList = List<Pod>;
 
@@ -25,11 +36,27 @@ mod pod {
                 selector,
             }
         }
+    }
+
+    impl<'a, C: KubeClientRequest> FetchPodClient<'a, C> {
+        async fn related_resources(&self) -> Result<Option<Value>> {
+            let list = self.fetch().await?;
+
+            if let Some(filter) = self.filter(&list) {
+                Ok(filter.to_value())
+            } else {
+                Ok(None)
+            }
+        }
 
         async fn fetch(&self) -> Result<FetchedPodList> {
             let url = format!("api/v1/namespaces/{}/pods", self.namespace);
 
             self.client.request(&url).await
+        }
+
+        fn filter(&self, list: &FetchedPodList) -> Option<FetchedPodList> {
+            todo!()
         }
     }
 
