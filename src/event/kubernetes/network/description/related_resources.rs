@@ -37,7 +37,7 @@ mod pod {
     mod tests {
         use super::*;
 
-        mod related_resource {
+        mod related_resources {
             #[ignore]
             #[test]
             fn 関連するpodのvalueを返す() {}
@@ -163,3 +163,4 @@ mod pod {
         }
     }
 }
+

@@ -3,6 +3,9 @@ mod network_policy;
 mod pod;
 mod service;
 
+#[allow(dead_code)]
+mod related_resources;
+
 use std::sync::{atomic::AtomicBool, Arc};
 
 use crate::event::{
