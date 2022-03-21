@@ -7,15 +7,17 @@ mod pod {
     use anyhow::Result;
     use k8s_openapi::{api::core::v1::Pod, List};
 
+    use crate::event::kubernetes::client::KubeClientRequest;
+
     type FetchedPodList = List<Pod>;
 
-    struct FetchPodClient<'a, C> {
+    struct FetchPodClient<'a, C: KubeClientRequest> {
         client: &'a C,
         namespace: &'a str,
         selector: BTreeMap<&'a str, &'a str>,
     }
 
-    impl<'a, C> FetchPodClient<'a, C> {
+    impl<'a, C: KubeClientRequest> FetchPodClient<'a, C> {
         fn new(client: &'a C, namespace: &'a str, selector: BTreeMap<&'a str, &'a str>) -> Self {
             Self {
                 client,
@@ -25,7 +27,9 @@ mod pod {
         }
 
         async fn fetch(&self) -> Result<FetchedPodList> {
-            unimplemented!()
+            let url = format!("api/v1/namespaces/{}/pods", self.namespace);
+
+            self.client.request(&url).await
         }
     }
 
@@ -119,6 +123,7 @@ mod pod {
                 assert_eq!(result.is_err(), true);
             }
         }
+
         mod filter {
             use super::*;
 
