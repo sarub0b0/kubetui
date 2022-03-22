@@ -26,11 +26,11 @@ mod pod {
 
     struct RelatedPod<'a, C: KubeClientRequest> {
         client: FetchPodClient<'a, C>,
-        selector: BTreeMap<&'a str, &'a str>,
+        selector: BTreeMap<String, String>,
     }
 
     impl<'a, C: KubeClientRequest> RelatedPod<'a, C> {
-        fn new(client: &'a C, namespace: &'a str, selector: BTreeMap<&'a str, &'a str>) -> Self {
+        fn new(client: &'a C, namespace: &'a str, selector: BTreeMap<String, String>) -> Self {
             Self {
                 client: FetchPodClient::new(client, namespace),
                 selector,
@@ -203,7 +203,7 @@ mod pod {
 
             #[test]
             fn 値にマッチしたときそのリストを返す() {
-                let selector = BTreeMap::from([("app", "pod-1")]);
+                let selector = BTreeMap::from([("app".into(), "pod-1".into())]);
 
                 let target = setup_target();
 
@@ -226,7 +226,7 @@ mod pod {
 
             #[test]
             fn 値にマッチする値がないときnoneを返す() {
-                let selector = BTreeMap::from([("hoge", "fuga")]);
+                let selector = BTreeMap::from([("hoge".into(), "fuga".into())]);
 
                 let target = setup_target();
 
@@ -282,7 +282,7 @@ mod pod {
                     Ok(setup_pod())
                 );
 
-                let selector = BTreeMap::from([("version", "v1")]);
+                let selector = BTreeMap::from([("version".into(), "v1".into())]);
 
                 let client = RelatedPod::new(&client, "default", selector);
 
@@ -305,7 +305,7 @@ mod pod {
                     Ok(setup_pod())
                 );
 
-                let selector = BTreeMap::from([("hoge", "fuga")]);
+                let selector = BTreeMap::from([("hoge".into(), "fuga".into())]);
 
                 let client = RelatedPod::new(&client, "default", selector);
 
