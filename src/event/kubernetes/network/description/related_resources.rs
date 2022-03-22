@@ -371,29 +371,5 @@ mod pod {
                 assert_eq!(result.is_err(), true);
             }
         }
-
-        mod filter {
-            use super::*;
-
-            #[ignore]
-            #[test]
-            fn 関連するpodのリストを生成する() {}
-
-            #[ignore]
-            #[test]
-            fn 関連するpodがないときnoneを返す() {}
-        }
-
-        mod to_value {
-            use super::*;
-
-            #[ignore]
-            #[test]
-            fn podのリストからnameのリストをvalue型で返す() {}
-
-            #[ignore]
-            #[test]
-            fn リストが空のときnoneを返す() {}
-        }
     }
 }
