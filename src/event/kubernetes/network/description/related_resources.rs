@@ -173,6 +173,46 @@ mod pod {
 
         use super::FetchedPodList;
 
+        pub trait Filter {
+            fn filter(&self, list: &FetchedPodList) -> Option<FetchedPodList>;
+        }
+
+        impl<'a> Filter for BTreeMap<String, String> {
+            fn filter(&self, target: &FetchedPodList) -> Option<FetchedPodList> {
+                let ret: Vec<Pod> = target
+                    .items
+                    .iter()
+                    .filter(|item| {
+                        item.metadata
+                            .labels
+                            .as_ref()
+                            .map_or(false, |rhs| compare_btree_map(self, rhs))
+                    })
+                    .cloned()
+                    .collect();
+
+                if !ret.is_empty() {
+                    Some(FetchedPodList {
+                        items: ret,
+                        ..Default::default()
+                    })
+                } else {
+                    None
+                }
+            }
+        }
+
+        fn compare_btree_map<K, V>(lhs: &BTreeMap<K, V>, rhs: &BTreeMap<K, V>) -> bool
+        where
+            K: Ord,
+            V: PartialEq,
+        {
+            lhs.iter().all(|(lhs_key, lhs_value)| {
+                rhs.get(lhs_key)
+                    .map_or(false, |rhs_value| lhs_value == rhs_value)
+            })
+        }
+
         #[cfg(test)]
         mod tests {
             use indoc::indoc;
