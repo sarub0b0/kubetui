@@ -10,6 +10,8 @@ mod pod {
 
     use crate::event::kubernetes::client::KubeClientRequest;
 
+    use filter::Filter;
+
     trait ToValue {
         fn to_value(&self) -> Option<Value>;
     }
@@ -42,15 +44,11 @@ mod pod {
         async fn related_resources(&self) -> Result<Option<Value>> {
             let list = self.client.fetch().await?;
 
-            if let Some(filter) = self.filter(&list) {
+            if let Some(filter) = self.selector.filter(&list) {
                 Ok(filter.to_value())
             } else {
                 Ok(None)
             }
-        }
-
-        fn filter(&self, list: &FetchedPodList) -> Option<FetchedPodList> {
-            todo!()
         }
     }
 
