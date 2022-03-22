@@ -275,6 +275,74 @@ mod pod {
         }
     }
 
+    mod to_value {
+        use serde_yaml::Value;
+
+        use crate::event::kubernetes::network::description::related_resources::pod::FetchedPodList;
+
+        pub trait ToValue {
+            fn to_value(&self) -> Option<Value>;
+        }
+
+        impl ToValue for FetchedPodList {
+            fn to_value(&self) -> Option<Value> {
+                todo!()
+            }
+        }
+
+        #[cfg(test)]
+        mod tests {
+            use super::*;
+
+            use indoc::indoc;
+
+            fn setup_list() -> FetchedPodList {
+                let yaml = indoc! {
+                    "
+                    items:
+                      - metadata:
+                          name: pod-1
+                          labels:
+                            app: pod-1
+                            version: v1
+                      - metadata:
+                          name: pod-2
+                          labels:
+                            app: pod-2
+                            version: v1
+                    "
+                };
+
+                serde_yaml::from_str::<FetchedPodList>(&yaml).unwrap()
+            }
+            #[test]
+            fn podのリストからnameのリストをvalue型で返す() {
+                let list = setup_list();
+
+                let actual = list.to_value();
+
+                let expected = serde_yaml::from_str(indoc! {
+                    "
+                    - pod-1
+                    - pod-2
+                    "
+                })
+                .unwrap();
+
+                assert_eq!(actual, expected)
+            }
+
+            #[test]
+            fn リストが空のときnoneを返す() {
+                let list = FetchedPodList::default();
+
+                let actual = list.to_value();
+
+                assert_eq!(actual, None)
+            }
+        }
+    }
+
     #[cfg(test)]
     mod tests {
         use super::*;
