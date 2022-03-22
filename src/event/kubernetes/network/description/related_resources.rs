@@ -10,21 +10,11 @@ mod pod {
 
     use crate::event::kubernetes::client::KubeClientRequest;
 
+    use fetch::FetchPodClient;
     use filter::Filter;
-
-    trait ToValue {
-        fn to_value(&self) -> Option<Value>;
-    }
-
-    impl ToValue for FetchedPodList {
-        fn to_value(&self) -> Option<Value> {
-            todo!()
-        }
-    }
+    use to_value::ToValue;
 
     type FetchedPodList = List<Pod>;
-
-    use fetch::FetchPodClient;
 
     struct RelatedPod<'a, C: KubeClientRequest> {
         client: FetchPodClient<'a, C>,
@@ -286,7 +276,18 @@ mod pod {
 
         impl ToValue for FetchedPodList {
             fn to_value(&self) -> Option<Value> {
-                todo!()
+                let ret: Vec<Value> = self
+                    .items
+                    .iter()
+                    .filter_map(|pod| pod.metadata.name.as_ref())
+                    .map(|name| Value::from(name.to_string()))
+                    .collect();
+
+                if !ret.is_empty() {
+                    Some(ret.into())
+                } else {
+                    None
+                }
             }
         }
 
