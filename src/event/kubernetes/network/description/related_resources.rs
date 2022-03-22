@@ -207,7 +207,7 @@ mod pod {
 
                 let target = setup_target();
 
-                let actual = selector.filter(target);
+                let actual = selector.filter(&target);
 
                 let expected = serde_yaml::from_str(indoc! {
                     "
@@ -230,7 +230,7 @@ mod pod {
 
                 let target = setup_target();
 
-                let actual = selector.filter(target);
+                let actual = selector.filter(&target);
 
                 assert_eq!(actual.is_none(), true);
             }
