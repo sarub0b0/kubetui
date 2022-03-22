@@ -166,6 +166,77 @@ mod pod {
         }
     }
 
+    mod filter {
+        use std::collections::BTreeMap;
+
+        use k8s_openapi::api::core::v1::Pod;
+
+        use super::FetchedPodList;
+
+        #[cfg(test)]
+        mod tests {
+            use indoc::indoc;
+
+            use super::*;
+
+            use pretty_assertions::assert_eq;
+
+            fn setup_target() -> FetchedPodList {
+                let yaml = indoc! {
+                    "
+                    items:
+                      - metadata:
+                        name: pod-1
+                        labels:
+                          app: pod-1
+                          version: v1
+                      - metadata:
+                        name: pod-2
+                        labels:
+                          app: pod-2
+                          version: v1
+                    "
+                };
+
+                serde_yaml::from_str::<FetchedPodList>(&yaml).unwrap()
+            }
+
+            #[test]
+            fn 値にマッチしたときそのリストを返す() {
+                let selector = BTreeMap::from([("app", "pod-1")]);
+
+                let target = setup_target();
+
+                let actual = selector.filter(target);
+
+                let expected = serde_yaml::from_str(indoc! {
+                    "
+                    items:
+                      - metadata:
+                        name: pod-1
+                        labels:
+                          app: pod-1
+                          version: v1
+                    "
+                })
+                .unwrap();
+
+                assert_eq!(actual, Some(expected));
+            }
+
+            #[test]
+            fn 値にマッチする値がないときnoneを返す() {
+                let selector = BTreeMap::from([("hoge", "fuga")]);
+
+                let target = setup_target();
+
+                let actual = selector.filter(target);
+
+                assert_eq!(actual.is_none(), true);
+            }
+        }
+    }
+
     #[cfg(test)]
     mod tests {
         use super::*;
