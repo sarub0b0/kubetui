@@ -362,15 +362,15 @@ mod pod {
                 "
                 items:
                   - metadata:
-                    name: pod-1
-                    labels:
-                      app: pod-1
-                      version: v1
+                      name: pod-1
+                      labels:
+                        app: pod-1
+                        version: v1
                   - metadata:
-                    name: pod-2
-                    labels:
-                      app: pod-2
-                      version: v1
+                      name: pod-2
+                      labels:
+                        app: pod-2
+                        version: v1
                 "
                 };
 
