@@ -1,9 +1,124 @@
+use anyhow::{Ok, Result};
+
+use k8s_openapi::{api::core::v1::Pod, List};
+
+type FetchedPodList = List<Pod>;
+
+mod fetch {
+    use super::*;
+
+    use crate::event::kubernetes::client::KubeClientRequest;
+
+    pub struct FetchPodClient<'a, C: KubeClientRequest> {
+        client: &'a C,
+        namespace: &'a str,
+    }
+
+    impl<'a, C: KubeClientRequest> FetchPodClient<'a, C> {
+        pub fn new(client: &'a C, namespace: &'a str) -> Self {
+            Self { client, namespace }
+        }
+    }
+
+    impl<'a, C: KubeClientRequest> FetchPodClient<'_, C> {
+        pub async fn fetch(&self) -> Result<FetchedPodList> {
+            let url = format!("api/v1/namespaces/{}/pods", self.namespace);
+
+            self.client.request(&url).await
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+
+        use indoc::indoc;
+        use mockall::predicate::eq;
+
+        use crate::{event::kubernetes::client::mock::MockTestKubeClient, mock_expect};
+
+        use anyhow::bail;
+
+        use super::*;
+
+        fn pod_one() -> FetchedPodList {
+            let yaml = indoc! {
+            "
+                items:
+                  - metadata:
+                    name: pod-1
+                    labels:
+                      app: pod-1
+                "
+            };
+
+            serde_yaml::from_str::<FetchedPodList>(&yaml).unwrap()
+        }
+
+        fn pod_two() -> FetchedPodList {
+            let yaml = indoc! {
+            "
+                items:
+                  - metadata:
+                    name: pod-1
+                    labels:
+                      app: pod-1
+                      version: v1
+                  - metadata:
+                    name: pod-2
+                    labels:
+                      app: pod-2
+                      version: v1
+                "
+            };
+
+            serde_yaml::from_str::<FetchedPodList>(&yaml).unwrap()
+        }
+
+        #[tokio::test]
+        async fn podリストを取得する() {
+            let mut client = MockTestKubeClient::new();
+
+            mock_expect!(
+                client,
+                request,
+                FetchedPodList,
+                eq("api/v1/namespaces/default/pods"),
+                Ok(pod_one())
+            );
+
+            let client = FetchPodClient::new(&client, "default");
+
+            let result = client.fetch().await;
+
+            assert_eq!(result.is_ok(), true);
+        }
+
+        #[tokio::test]
+        async fn エラーのときerrを返す() {
+            let mut client = MockTestKubeClient::new();
+
+            mock_expect!(
+                client,
+                request,
+                FetchedPodList,
+                eq("api/v1/namespaces/default/pods"),
+                bail!("error")
+            );
+
+            let client = FetchPodClient::new(&client, "default");
+
+            let result = client.fetch().await;
+
+            assert_eq!(result.is_err(), true);
+        }
+    }
+}
+
 pub mod filter_by_labels {
+    use super::*;
 
     use std::collections::BTreeMap;
 
-    use anyhow::{Ok, Result};
-    use k8s_openapi::{api::core::v1::Pod, List};
     use serde_yaml::Value;
 
     use crate::event::kubernetes::{
@@ -13,8 +128,6 @@ pub mod filter_by_labels {
     use fetch::FetchPodClient;
 
     use self::filter::Filter;
-
-    type FetchedPodList = List<Pod>;
 
     struct RelatedPod<'a, C: KubeClientRequest> {
         client: FetchPodClient<'a, C>,
@@ -38,118 +151,6 @@ pub mod filter_by_labels {
                 Ok(filtered.to_value())
             } else {
                 Ok(None)
-            }
-        }
-    }
-
-    mod fetch {
-        use crate::event::kubernetes::client::KubeClientRequest;
-
-        use anyhow::Result;
-
-        use super::FetchedPodList;
-
-        pub struct FetchPodClient<'a, C: KubeClientRequest> {
-            client: &'a C,
-            namespace: &'a str,
-        }
-
-        impl<'a, C: KubeClientRequest> FetchPodClient<'a, C> {
-            pub fn new(client: &'a C, namespace: &'a str) -> Self {
-                Self { client, namespace }
-            }
-        }
-
-        impl<'a, C: KubeClientRequest> FetchPodClient<'_, C> {
-            pub async fn fetch(&self) -> Result<FetchedPodList> {
-                let url = format!("api/v1/namespaces/{}/pods", self.namespace);
-
-                self.client.request(&url).await
-            }
-        }
-
-        #[cfg(test)]
-        mod tests {
-
-            use indoc::indoc;
-            use mockall::predicate::eq;
-
-            use crate::{event::kubernetes::client::mock::MockTestKubeClient, mock_expect};
-
-            use anyhow::bail;
-
-            use super::*;
-
-            fn pod_one() -> FetchedPodList {
-                let yaml = indoc! {
-                "
-                items:
-                  - metadata:
-                    name: pod-1
-                    labels:
-                      app: pod-1
-                "
-                };
-
-                serde_yaml::from_str::<FetchedPodList>(&yaml).unwrap()
-            }
-
-            fn pod_two() -> FetchedPodList {
-                let yaml = indoc! {
-                "
-                items:
-                  - metadata:
-                    name: pod-1
-                    labels:
-                      app: pod-1
-                      version: v1
-                  - metadata:
-                    name: pod-2
-                    labels:
-                      app: pod-2
-                      version: v1
-                "
-                };
-
-                serde_yaml::from_str::<FetchedPodList>(&yaml).unwrap()
-            }
-
-            #[tokio::test]
-            async fn podリストを取得する() {
-                let mut client = MockTestKubeClient::new();
-
-                mock_expect!(
-                    client,
-                    request,
-                    FetchedPodList,
-                    eq("api/v1/namespaces/default/pods"),
-                    Ok(pod_one())
-                );
-
-                let client = FetchPodClient::new(&client, "default");
-
-                let result = client.fetch().await;
-
-                assert_eq!(result.is_ok(), true);
-            }
-
-            #[tokio::test]
-            async fn エラーのときerrを返す() {
-                let mut client = MockTestKubeClient::new();
-
-                mock_expect!(
-                    client,
-                    request,
-                    FetchedPodList,
-                    eq("api/v1/namespaces/default/pods"),
-                    bail!("error")
-                );
-
-                let client = FetchPodClient::new(&client, "default");
-
-                let result = client.fetch().await;
-
-                assert_eq!(result.is_err(), true);
             }
         }
     }
