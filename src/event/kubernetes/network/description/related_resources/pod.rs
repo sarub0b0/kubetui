@@ -12,10 +12,11 @@ pub mod filter_by_labels {
 
     use crate::event::kubernetes::{
         client::KubeClientRequest,
-        network::description::related_resources::{fetch::FetchClient, to_value::ToValue},
+        network::description::related_resources::{
+            btree_map_contains_key_values::BTreeMapContains, fetch::FetchClient, to_value::ToValue,
+            Filter, RelatedResources,
+        },
     };
-
-    use self::filter::Filter;
 
     struct RelatedPod<'a, C: KubeClientRequest> {
         client: FetchClient<'a, C>,
@@ -31,18 +32,17 @@ pub mod filter_by_labels {
         }
     }
 
-    impl<'a, C: KubeClientRequest> RelatedPod<'a, C> {
-        async fn related_resources<K>(&self) -> Result<Option<Value>>
-        where
-            K: Resource<DynamicType = ()>,
-        {
-            let list = self.client.fetch().await?;
+    #[async_trait::async_trait]
+    impl<'a, C: KubeClientRequest> RelatedResources<C> for RelatedPod<'a, C> {
+        type Item = BTreeMap<String, String>;
+        type Filtered = Pod;
 
-            if let Some(filtered) = list.filter_by_labels(&self.selector) {
-                Ok(filtered.to_value())
-            } else {
-                Ok(None)
-            }
+        fn client(&self) -> &FetchClient<C> {
+            &self.client
+        }
+
+        fn item(&self) -> &Self::Item {
+            &self.selector
         }
     }
 
@@ -51,26 +51,26 @@ pub mod filter_by_labels {
 
         use k8s_openapi::{api::core::v1::Pod, List};
 
-        use crate::event::kubernetes::network::description::related_resources::btree_map_contains_key_values::BTreeMapContains;
+        use crate::event::kubernetes::network::description::related_resources::{
+            btree_map_contains_key_values::BTreeMapContains, Filter,
+        };
 
-        pub trait Filter {
-            fn filter_by_labels(&self, selector: &BTreeMap<String, String>) -> Option<Self>
-            where
-                Self: Sized;
-        }
+        impl Filter for List<Pod> {
+            type Item = BTreeMap<String, String>;
+            type Filtered = Pod;
 
-        impl<'a> Filter for List<Pod> {
-            fn filter_by_labels(&self, selector: &BTreeMap<String, String>) -> Option<Self> {
-                let ret: Vec<Pod> =
-                    self.items
-                        .iter()
-                        .filter(|item| {
-                            item.metadata.labels.as_ref().map_or(false, |pod_labels| {
-                                pod_labels.contains_key_values(selector)
-                            })
-                        })
-                        .cloned()
-                        .collect();
+            fn filter_by_item(&self, arg: &Self::Item) -> Option<List<Self::Filtered>> {
+                let ret: Vec<Pod> = self
+                    .items
+                    .iter()
+                    .filter(|item| {
+                        item.metadata
+                            .labels
+                            .as_ref()
+                            .map_or(false, |pod_labels| pod_labels.contains_key_values(arg))
+                    })
+                    .cloned()
+                    .collect();
 
                 if !ret.is_empty() {
                     Some(List {
@@ -117,7 +117,7 @@ pub mod filter_by_labels {
 
                 let list = setup_target();
 
-                let actual = list.filter_by_labels(&selector);
+                let actual = list.filter_by_item(&selector);
 
                 let expected = serde_yaml::from_str(indoc! {
                     "
@@ -140,7 +140,7 @@ pub mod filter_by_labels {
 
                 let list = setup_target();
 
-                let actual = list.filter_by_labels(&selector);
+                let actual = list.filter_by_item(&selector);
 
                 assert_eq!(actual.is_none(), true);
             }
@@ -196,7 +196,7 @@ pub mod filter_by_labels {
 
                 let client = RelatedPod::new(&client, "default", selector);
 
-                let result = client.related_resources::<Pod>().await.unwrap().unwrap();
+                let result = client.related_resources().await.unwrap().unwrap();
 
                 let expected = Value::from(vec!["pod-1", "pod-2"]);
 
@@ -219,7 +219,7 @@ pub mod filter_by_labels {
 
                 let client = RelatedPod::new(&client, "default", selector);
 
-                let result = client.related_resources::<Pod>().await.unwrap();
+                let result = client.related_resources().await.unwrap();
 
                 assert_eq!(result.is_none(), true);
             }
@@ -238,7 +238,7 @@ pub mod filter_by_labels {
 
                 let client = RelatedPod::new(&client, "default", BTreeMap::default());
 
-                let result = client.related_resources::<Pod>().await;
+                let result = client.related_resources().await;
 
                 assert_eq!(result.is_err(), true);
             }

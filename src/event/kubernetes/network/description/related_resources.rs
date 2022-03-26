@@ -2,13 +2,52 @@
 #![allow(unused_imports)]
 
 use anyhow::Result;
+use k8s_openapi::{List, ListableResource};
+use kube::Resource;
+use serde::de::DeserializeOwned;
 use serde_yaml::Value;
+
+use crate::event::kubernetes::client::KubeClientRequest;
+
+use self::{
+    fetch::FetchClient,
+    to_value::{ResourceList, ToValue},
+};
 
 pub mod pod;
 pub mod service;
 
-trait RelatedResources {
-    fn related_resources(&self) -> Result<Option<Value>>;
+trait Filter {
+    type Item;
+    type Filtered;
+
+    fn filter_by_item(&self, arg: &Self::Item) -> Option<List<Self::Filtered>>
+    where
+        Self::Filtered: ListableResource;
+}
+
+#[async_trait::async_trait]
+trait RelatedResources<C: KubeClientRequest> {
+    type Item;
+    type Filtered;
+
+    fn client(&self) -> &FetchClient<C>;
+
+    fn item(&self) -> &Self::Item;
+
+    async fn related_resources(&self) -> Result<Option<Value>>
+    where
+        Self::Filtered: Resource<DynamicType = ()> + ListableResource + DeserializeOwned + 'static,
+        List<Self::Filtered>: Filter<Item = Self::Item, Filtered = Self::Filtered> + ToValue,
+    {
+        let list = self.client().fetch().await?;
+
+        if let Some(filtered) = list.filter_by_item(self.item()) {
+            Ok(filtered.to_value())
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 mod btree_map_contains_key_values {
@@ -215,21 +254,24 @@ mod to_value {
     use kube::ResourceExt;
     use serde_yaml::Value;
 
-    pub trait ResourceList<K: ResourceExt + ListableResource> {
-        fn list(&self) -> &[K];
+    pub trait ResourceList {
+        type Value: ResourceExt + ListableResource;
+        fn list(&self) -> &[Self::Value];
     }
 
-    impl<K: ResourceExt + ListableResource> ResourceList<K> for List<K> {
-        fn list(&self) -> &[K] {
+    impl<K: ResourceExt + ListableResource> ResourceList for List<K> {
+        type Value = K;
+
+        fn list(&self) -> &[Self::Value] {
             &self.items
         }
     }
 
-    pub trait ToValue<K: ResourceExt + ListableResource, R: ResourceList<K>> {
+    pub trait ToValue {
         fn to_value(&self) -> Option<Value>;
     }
 
-    impl<K: ResourceExt + ListableResource, R: ResourceList<K>> ToValue<K, R> for R {
+    impl<R: ResourceList> ToValue for R {
         fn to_value(&self) -> Option<Value> {
             let ret: Vec<Value> = self.list().iter().map(|r| Value::from(r.name())).collect();
             if !ret.is_empty() {
