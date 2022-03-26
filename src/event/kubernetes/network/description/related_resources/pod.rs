@@ -123,7 +123,7 @@ pub mod filter_by_labels {
             }
 
             #[test]
-            fn 値にマッチしたときそのリストを返す() {
+            fn labelsにselectorの値を含むときそのpodのリストを返す() {
                 let selector = BTreeMap::from([("app".into(), "pod-1".into())]);
 
                 let list = setup_target();
@@ -146,7 +146,7 @@ pub mod filter_by_labels {
             }
 
             #[test]
-            fn 値にマッチする値がないときnoneを返す() {
+            fn labelsにselectorの値を含むpodがないときnoneを返す() {
                 let selector = BTreeMap::from([("hoge".into(), "fuga".into())]);
 
                 let list = setup_target();
@@ -192,7 +192,7 @@ pub mod filter_by_labels {
             }
 
             #[tokio::test]
-            async fn 関連するpodのvalueを返す() {
+            async fn selectorの対象になるpodのvalueを返す() {
                 let mut client = MockTestKubeClient::new();
 
                 mock_expect!(
@@ -215,7 +215,7 @@ pub mod filter_by_labels {
             }
 
             #[tokio::test]
-            async fn 関連するpodがないときnoneを返す() {
+            async fn selectorの対象になるpodがないときnoneを返す() {
                 let mut client = MockTestKubeClient::new();
 
                 mock_expect!(
