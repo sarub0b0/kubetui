@@ -264,7 +264,6 @@ mod tests {
 
         use anyhow::anyhow;
 
-        // TODO: 行数が長くよみにくいため、文字列から各データ構造に変換する。
         fn setup_pod() -> FetchedPod {
             let yaml = indoc! {
             "
