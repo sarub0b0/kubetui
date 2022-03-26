@@ -114,6 +114,118 @@ mod fetch {
     }
 }
 
+mod filter {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    use crate::event::kubernetes::network::description::related_resources::btree_map_contains_key_values::BTreeMapContains;
+
+    pub trait Filter {
+        fn filter_by_labels(&self, selector: &BTreeMap<String, String>) -> Option<Self>
+        where
+            Self: Sized;
+    }
+
+    impl<'a> Filter for FetchedPodList {
+        fn filter_by_labels(&self, selector: &BTreeMap<String, String>) -> Option<FetchedPodList> {
+            let ret: Vec<Pod> = self
+                .items
+                .iter()
+                .filter(|item| {
+                    item.metadata
+                        .labels
+                        .as_ref()
+                        .map_or(false, |pod_labels| pod_labels.contains_key_values(selector))
+                })
+                .cloned()
+                .collect();
+
+            if !ret.is_empty() {
+                Some(FetchedPodList {
+                    items: ret,
+                    ..Default::default()
+                })
+            } else {
+                None
+            }
+        }
+    }
+
+    fn compare_btree_map<K, V>(lhs: &BTreeMap<K, V>, rhs: &BTreeMap<K, V>) -> bool
+    where
+        K: Ord,
+        V: PartialEq,
+    {
+        lhs.iter().all(|(lhs_key, lhs_value)| {
+            rhs.get(lhs_key)
+                .map_or(false, |rhs_value| lhs_value == rhs_value)
+        })
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use indoc::indoc;
+
+        use super::*;
+
+        use pretty_assertions::assert_eq;
+
+        fn setup_target() -> FetchedPodList {
+            let yaml = indoc! {
+                "
+                    items:
+                      - metadata:
+                          name: pod-1
+                          labels:
+                            app: pod-1
+                            version: v1
+                      - metadata:
+                          name: pod-2
+                          labels:
+                            app: pod-2
+                            version: v1
+                    "
+            };
+
+            serde_yaml::from_str::<FetchedPodList>(&yaml).unwrap()
+        }
+
+        #[test]
+        fn 値にマッチしたときそのリストを返す() {
+            let selector = BTreeMap::from([("app".into(), "pod-1".into())]);
+
+            let list = setup_target();
+
+            let actual = list.filter_by_labels(&selector);
+
+            let expected = serde_yaml::from_str(indoc! {
+                "
+                    items:
+                      - metadata:
+                          name: pod-1
+                          labels:
+                            app: pod-1
+                            version: v1
+                    "
+            })
+            .unwrap();
+
+            assert_eq!(actual, Some(expected));
+        }
+
+        #[test]
+        fn 値にマッチする値がないときnoneを返す() {
+            let selector = BTreeMap::from([("hoge".into(), "fuga".into())]);
+
+            let list = setup_target();
+
+            let actual = list.filter_by_labels(&selector);
+
+            assert_eq!(actual.is_none(), true);
+        }
+    }
+}
+
 pub mod filter_by_labels {
     use super::*;
 
@@ -151,123 +263,6 @@ pub mod filter_by_labels {
                 Ok(filtered.to_value())
             } else {
                 Ok(None)
-            }
-        }
-    }
-
-    mod filter {
-        use std::collections::BTreeMap;
-
-        use k8s_openapi::api::core::v1::Pod;
-
-        use crate::event::kubernetes::network::description::related_resources::btree_map_contains_key_values::BTreeMapContains;
-
-        use super::FetchedPodList;
-
-        pub trait Filter {
-            fn filter_by_labels(&self, selector: &BTreeMap<String, String>) -> Option<Self>
-            where
-                Self: Sized;
-        }
-
-        impl<'a> Filter for FetchedPodList {
-            fn filter_by_labels(
-                &self,
-                selector: &BTreeMap<String, String>,
-            ) -> Option<FetchedPodList> {
-                let ret: Vec<Pod> =
-                    self.items
-                        .iter()
-                        .filter(|item| {
-                            item.metadata.labels.as_ref().map_or(false, |pod_labels| {
-                                pod_labels.contains_key_values(selector)
-                            })
-                        })
-                        .cloned()
-                        .collect();
-
-                if !ret.is_empty() {
-                    Some(FetchedPodList {
-                        items: ret,
-                        ..Default::default()
-                    })
-                } else {
-                    None
-                }
-            }
-        }
-
-        fn compare_btree_map<K, V>(lhs: &BTreeMap<K, V>, rhs: &BTreeMap<K, V>) -> bool
-        where
-            K: Ord,
-            V: PartialEq,
-        {
-            lhs.iter().all(|(lhs_key, lhs_value)| {
-                rhs.get(lhs_key)
-                    .map_or(false, |rhs_value| lhs_value == rhs_value)
-            })
-        }
-
-        #[cfg(test)]
-        mod tests {
-            use indoc::indoc;
-
-            use super::*;
-
-            use pretty_assertions::assert_eq;
-
-            fn setup_target() -> FetchedPodList {
-                let yaml = indoc! {
-                    "
-                    items:
-                      - metadata:
-                          name: pod-1
-                          labels:
-                            app: pod-1
-                            version: v1
-                      - metadata:
-                          name: pod-2
-                          labels:
-                            app: pod-2
-                            version: v1
-                    "
-                };
-
-                serde_yaml::from_str::<FetchedPodList>(&yaml).unwrap()
-            }
-
-            #[test]
-            fn 値にマッチしたときそのリストを返す() {
-                let selector = BTreeMap::from([("app".into(), "pod-1".into())]);
-
-                let list = setup_target();
-
-                let actual = list.filter_by_labels(&selector);
-
-                let expected = serde_yaml::from_str(indoc! {
-                    "
-                    items:
-                      - metadata:
-                          name: pod-1
-                          labels:
-                            app: pod-1
-                            version: v1
-                    "
-                })
-                .unwrap();
-
-                assert_eq!(actual, Some(expected));
-            }
-
-            #[test]
-            fn 値にマッチする値がないときnoneを返す() {
-                let selector = BTreeMap::from([("hoge".into(), "fuga".into())]);
-
-                let list = setup_target();
-
-                let actual = list.filter_by_labels(&selector);
-
-                assert_eq!(actual.is_none(), true);
             }
         }
     }
