@@ -10,6 +10,58 @@ trait RelatedResources {
     fn related_resources(&self) -> Result<Option<Value>>;
 }
 
+mod btree_map_contains_key_values {
+    use std::collections::BTreeMap;
+
+    pub trait BTreeMapContains<K: Ord, V: PartialEq> {
+        fn contains_key_values(&self, rhs: &BTreeMap<K, V>) -> bool;
+    }
+
+    impl<K, V> BTreeMapContains<K, V> for BTreeMap<K, V>
+    where
+        K: Ord,
+        V: PartialEq,
+    {
+        fn contains_key_values(&self, arg: &BTreeMap<K, V>) -> bool {
+            arg.iter().all(|(arg_key, arg_value)| {
+                self.get(arg_key)
+                    .map_or(false, |self_value| self_value == arg_value)
+            })
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use indoc::indoc;
+
+        use super::*;
+
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn 引数の値をすべて含んでいたときtrueを返す() {
+            let args: BTreeMap<&str, &str> = BTreeMap::from([("app", "pod-1"), ("version", "v1")]);
+
+            let map = BTreeMap::from([("app", "pod-1"), ("version", "v1")]);
+
+            let actual = map.contains_key_values(&args);
+
+            assert_eq!(actual, true);
+        }
+
+        #[test]
+        fn 引数の値をすべて含んでいないときfalseを返す() {
+            let args: BTreeMap<&str, &str> = BTreeMap::from([("app", "pod-1"), ("version", "v1")]);
+
+            let map = BTreeMap::from([("version", "v1")]);
+
+            let actual = map.contains_key_values(&args);
+
+            assert_eq!(actual, false);
+        }
+    }
+}
+
 mod to_value {
 
     use k8s_openapi::{api::core::v1::Pod, List, ListableResource};
