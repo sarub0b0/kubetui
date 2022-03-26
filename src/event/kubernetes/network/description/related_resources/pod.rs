@@ -83,17 +83,6 @@ pub mod filter_by_labels {
             }
         }
 
-        fn compare_btree_map<K, V>(lhs: &BTreeMap<K, V>, rhs: &BTreeMap<K, V>) -> bool
-        where
-            K: Ord,
-            V: PartialEq,
-        {
-            lhs.iter().all(|(lhs_key, lhs_value)| {
-                rhs.get(lhs_key)
-                    .map_or(false, |rhs_value| lhs_value == rhs_value)
-            })
-        }
-
         #[cfg(test)]
         mod tests {
             use indoc::indoc;
