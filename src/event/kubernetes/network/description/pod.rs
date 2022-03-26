@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 mod fetched_ingress;
 mod fetched_network_policy;
 mod fetched_pod;
