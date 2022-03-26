@@ -34,7 +34,7 @@ pub mod filter_by_labels {
         async fn related_resources(&self) -> Result<Option<Value>> {
             let list = self.client.fetch().await?;
 
-            if let Some(filtered) = self.selector.filter_by_labels(&list) {
+            if let Some(filtered) = list.filter_by_labels(&self.selector) {
                 Ok(filtered.to_value())
             } else {
                 Ok(None)
@@ -162,19 +162,25 @@ pub mod filter_by_labels {
         use super::FetchedPodList;
 
         pub trait Filter {
-            fn filter_by_labels(&self, list: &FetchedPodList) -> Option<FetchedPodList>;
+            fn filter_by_labels(
+                &self,
+                selector: &BTreeMap<String, String>,
+            ) -> Option<FetchedPodList>;
         }
 
-        impl<'a> Filter for BTreeMap<String, String> {
-            fn filter_by_labels(&self, target: &FetchedPodList) -> Option<FetchedPodList> {
-                let ret: Vec<Pod> = target
+        impl<'a> Filter for FetchedPodList {
+            fn filter_by_labels(
+                &self,
+                selector: &BTreeMap<String, String>,
+            ) -> Option<FetchedPodList> {
+                let ret: Vec<Pod> = self
                     .items
                     .iter()
                     .filter(|item| {
                         item.metadata
                             .labels
                             .as_ref()
-                            .map_or(false, |rhs| compare_btree_map(self, rhs))
+                            .map_or(false, |pod_labels| compare_btree_map(selector, pod_labels))
                     })
                     .cloned()
                     .collect();
@@ -233,9 +239,9 @@ pub mod filter_by_labels {
             fn 値にマッチしたときそのリストを返す() {
                 let selector = BTreeMap::from([("app".into(), "pod-1".into())]);
 
-                let target = setup_target();
+                let list = setup_target();
 
-                let actual = selector.filter_by_labels(&target);
+                let actual = list.filter_by_labels(&selector);
 
                 let expected = serde_yaml::from_str(indoc! {
                     "
@@ -256,9 +262,9 @@ pub mod filter_by_labels {
             fn 値にマッチする値がないときnoneを返す() {
                 let selector = BTreeMap::from([("hoge".into(), "fuga".into())]);
 
-                let target = setup_target();
+                let list = setup_target();
 
-                let actual = selector.filter_by_labels(&target);
+                let actual = list.filter_by_labels(&selector);
 
                 assert_eq!(actual.is_none(), true);
             }
