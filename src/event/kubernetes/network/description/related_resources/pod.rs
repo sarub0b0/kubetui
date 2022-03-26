@@ -162,10 +162,9 @@ pub mod filter_by_labels {
         use super::FetchedPodList;
 
         pub trait Filter {
-            fn filter_by_labels(
-                &self,
-                selector: &BTreeMap<String, String>,
-            ) -> Option<FetchedPodList>;
+            fn filter_by_labels(&self, selector: &BTreeMap<String, String>) -> Option<Self>
+            where
+                Self: Sized;
         }
 
         impl<'a> Filter for FetchedPodList {
