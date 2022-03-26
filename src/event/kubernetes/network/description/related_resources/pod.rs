@@ -159,6 +159,8 @@ pub mod filter_by_labels {
 
         use k8s_openapi::api::core::v1::Pod;
 
+        use crate::event::kubernetes::network::description::related_resources::btree_map_contains_key_values::BTreeMapContains;
+
         use super::FetchedPodList;
 
         pub trait Filter {
@@ -172,17 +174,16 @@ pub mod filter_by_labels {
                 &self,
                 selector: &BTreeMap<String, String>,
             ) -> Option<FetchedPodList> {
-                let ret: Vec<Pod> = self
-                    .items
-                    .iter()
-                    .filter(|item| {
-                        item.metadata
-                            .labels
-                            .as_ref()
-                            .map_or(false, |pod_labels| compare_btree_map(selector, pod_labels))
-                    })
-                    .cloned()
-                    .collect();
+                let ret: Vec<Pod> =
+                    self.items
+                        .iter()
+                        .filter(|item| {
+                            item.metadata.labels.as_ref().map_or(false, |pod_labels| {
+                                pod_labels.contains_key_values(selector)
+                            })
+                        })
+                        .cloned()
+                        .collect();
 
                 if !ret.is_empty() {
                     Some(FetchedPodList {
