@@ -2,8 +2,6 @@ use anyhow::{Ok, Result};
 
 use k8s_openapi::{api::core::v1::Pod, List};
 
-type FetchedPodList = List<Pod>;
-
 pub mod filter_by_labels {
     use super::*;
 
@@ -51,11 +49,9 @@ pub mod filter_by_labels {
     mod filter {
         use std::collections::BTreeMap;
 
-        use k8s_openapi::api::core::v1::Pod;
+        use k8s_openapi::{api::core::v1::Pod, List};
 
         use crate::event::kubernetes::network::description::related_resources::btree_map_contains_key_values::BTreeMapContains;
-
-        use super::FetchedPodList;
 
         pub trait Filter {
             fn filter_by_labels(&self, selector: &BTreeMap<String, String>) -> Option<Self>
@@ -63,11 +59,8 @@ pub mod filter_by_labels {
                 Self: Sized;
         }
 
-        impl<'a> Filter for FetchedPodList {
-            fn filter_by_labels(
-                &self,
-                selector: &BTreeMap<String, String>,
-            ) -> Option<FetchedPodList> {
+        impl<'a> Filter for List<Pod> {
+            fn filter_by_labels(&self, selector: &BTreeMap<String, String>) -> Option<Self> {
                 let ret: Vec<Pod> =
                     self.items
                         .iter()
@@ -80,7 +73,7 @@ pub mod filter_by_labels {
                         .collect();
 
                 if !ret.is_empty() {
-                    Some(FetchedPodList {
+                    Some(List {
                         items: ret,
                         ..Default::default()
                     })
@@ -109,7 +102,7 @@ pub mod filter_by_labels {
 
             use pretty_assertions::assert_eq;
 
-            fn setup_target() -> FetchedPodList {
+            fn setup_target() -> List<Pod> {
                 let yaml = indoc! {
                     "
                     items:
@@ -126,7 +119,7 @@ pub mod filter_by_labels {
                     "
                 };
 
-                serde_yaml::from_str::<FetchedPodList>(&yaml).unwrap()
+                serde_yaml::from_str(&yaml).unwrap()
             }
 
             #[test]
@@ -178,7 +171,7 @@ pub mod filter_by_labels {
 
             use crate::{event::kubernetes::client::mock::MockTestKubeClient, mock_expect};
 
-            fn setup_pod() -> FetchedPodList {
+            fn setup_pod() -> List<Pod> {
                 let yaml = indoc! {
                 "
                 items:
@@ -195,7 +188,7 @@ pub mod filter_by_labels {
                 "
                 };
 
-                serde_yaml::from_str::<FetchedPodList>(&yaml).unwrap()
+                serde_yaml::from_str(&yaml).unwrap()
             }
 
             #[tokio::test]
@@ -205,7 +198,7 @@ pub mod filter_by_labels {
                 mock_expect!(
                     client,
                     request,
-                    FetchedPodList,
+                    List<Pod>,
                     eq("/api/v1/namespaces/default/pods"),
                     Ok(setup_pod())
                 );
@@ -228,7 +221,7 @@ pub mod filter_by_labels {
                 mock_expect!(
                     client,
                     request,
-                    FetchedPodList,
+                    List<Pod>,
                     eq("/api/v1/namespaces/default/pods"),
                     Ok(setup_pod())
                 );
@@ -249,7 +242,7 @@ pub mod filter_by_labels {
                 mock_expect!(
                     client,
                     request,
-                    FetchedPodList,
+                    List<Pod>,
                     eq("/api/v1/namespaces/default/pods"),
                     bail!("error")
                 );
