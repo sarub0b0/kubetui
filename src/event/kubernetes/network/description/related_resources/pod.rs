@@ -4,147 +4,40 @@ use k8s_openapi::{api::core::v1::Pod, List};
 
 type FetchedPodList = List<Pod>;
 
-mod fetch {
-    use super::*;
-
-    use crate::event::kubernetes::client::KubeClientRequest;
-
-    pub struct FetchPodClient<'a, C: KubeClientRequest> {
-        client: &'a C,
-        namespace: &'a str,
-    }
-
-    impl<'a, C: KubeClientRequest> FetchPodClient<'a, C> {
-        pub fn new(client: &'a C, namespace: &'a str) -> Self {
-            Self { client, namespace }
-        }
-    }
-
-    impl<'a, C: KubeClientRequest> FetchPodClient<'_, C> {
-        pub async fn fetch(&self) -> Result<FetchedPodList> {
-            let url = format!("api/v1/namespaces/{}/pods", self.namespace);
-
-            self.client.request(&url).await
-        }
-    }
-
-    #[cfg(test)]
-    mod tests {
-
-        use indoc::indoc;
-        use mockall::predicate::eq;
-
-        use crate::{event::kubernetes::client::mock::MockTestKubeClient, mock_expect};
-
-        use anyhow::bail;
-
-        use super::*;
-
-        fn pod_one() -> FetchedPodList {
-            let yaml = indoc! {
-            "
-                items:
-                  - metadata:
-                    name: pod-1
-                    labels:
-                      app: pod-1
-                "
-            };
-
-            serde_yaml::from_str::<FetchedPodList>(&yaml).unwrap()
-        }
-
-        fn pod_two() -> FetchedPodList {
-            let yaml = indoc! {
-            "
-                items:
-                  - metadata:
-                    name: pod-1
-                    labels:
-                      app: pod-1
-                      version: v1
-                  - metadata:
-                    name: pod-2
-                    labels:
-                      app: pod-2
-                      version: v1
-                "
-            };
-
-            serde_yaml::from_str::<FetchedPodList>(&yaml).unwrap()
-        }
-
-        #[tokio::test]
-        async fn podリストを取得する() {
-            let mut client = MockTestKubeClient::new();
-
-            mock_expect!(
-                client,
-                request,
-                FetchedPodList,
-                eq("api/v1/namespaces/default/pods"),
-                Ok(pod_one())
-            );
-
-            let client = FetchPodClient::new(&client, "default");
-
-            let result = client.fetch().await;
-
-            assert_eq!(result.is_ok(), true);
-        }
-
-        #[tokio::test]
-        async fn エラーのときerrを返す() {
-            let mut client = MockTestKubeClient::new();
-
-            mock_expect!(
-                client,
-                request,
-                FetchedPodList,
-                eq("api/v1/namespaces/default/pods"),
-                bail!("error")
-            );
-
-            let client = FetchPodClient::new(&client, "default");
-
-            let result = client.fetch().await;
-
-            assert_eq!(result.is_err(), true);
-        }
-    }
-}
-
 pub mod filter_by_labels {
     use super::*;
 
     use std::collections::BTreeMap;
 
+    use kube::Resource;
     use serde_yaml::Value;
 
     use crate::event::kubernetes::{
-        client::KubeClientRequest, network::description::related_resources::to_value::ToValue,
+        client::KubeClientRequest,
+        network::description::related_resources::{fetch::FetchClient, to_value::ToValue},
     };
-
-    use fetch::FetchPodClient;
 
     use self::filter::Filter;
 
     struct RelatedPod<'a, C: KubeClientRequest> {
-        client: FetchPodClient<'a, C>,
+        client: FetchClient<'a, C>,
         selector: BTreeMap<String, String>,
     }
 
     impl<'a, C: KubeClientRequest> RelatedPod<'a, C> {
         fn new(client: &'a C, namespace: &'a str, selector: BTreeMap<String, String>) -> Self {
             Self {
-                client: FetchPodClient::new(client, namespace),
+                client: FetchClient::new(client, namespace),
                 selector,
             }
         }
     }
 
     impl<'a, C: KubeClientRequest> RelatedPod<'a, C> {
-        async fn related_resources(&self) -> Result<Option<Value>> {
+        async fn related_resources<K>(&self) -> Result<Option<Value>>
+        where
+            K: Resource<DynamicType = ()>,
+        {
             let list = self.client.fetch().await?;
 
             if let Some(filtered) = list.filter_by_labels(&self.selector) {
@@ -313,7 +206,7 @@ pub mod filter_by_labels {
                     client,
                     request,
                     FetchedPodList,
-                    eq("api/v1/namespaces/default/pods"),
+                    eq("/api/v1/namespaces/default/pods"),
                     Ok(setup_pod())
                 );
 
@@ -321,7 +214,7 @@ pub mod filter_by_labels {
 
                 let client = RelatedPod::new(&client, "default", selector);
 
-                let result = client.related_resources().await.unwrap().unwrap();
+                let result = client.related_resources::<Pod>().await.unwrap().unwrap();
 
                 let expected = Value::from(vec!["pod-1", "pod-2"]);
 
@@ -336,7 +229,7 @@ pub mod filter_by_labels {
                     client,
                     request,
                     FetchedPodList,
-                    eq("api/v1/namespaces/default/pods"),
+                    eq("/api/v1/namespaces/default/pods"),
                     Ok(setup_pod())
                 );
 
@@ -344,7 +237,7 @@ pub mod filter_by_labels {
 
                 let client = RelatedPod::new(&client, "default", selector);
 
-                let result = client.related_resources().await.unwrap();
+                let result = client.related_resources::<Pod>().await.unwrap();
 
                 assert_eq!(result.is_none(), true);
             }
@@ -357,13 +250,13 @@ pub mod filter_by_labels {
                     client,
                     request,
                     FetchedPodList,
-                    eq("api/v1/namespaces/default/pods"),
+                    eq("/api/v1/namespaces/default/pods"),
                     bail!("error")
                 );
 
                 let client = RelatedPod::new(&client, "default", BTreeMap::default());
 
-                let result = client.related_resources().await;
+                let result = client.related_resources::<Pod>().await;
 
                 assert_eq!(result.is_err(), true);
             }
