@@ -6,11 +6,13 @@ pub mod filter_by_labels {
     use k8s_openapi::{api::core::v1::Pod, List};
     use serde_yaml::Value;
 
-    use crate::event::kubernetes::client::KubeClientRequest;
+    use crate::event::kubernetes::{
+        client::KubeClientRequest, network::description::related_resources::to_value::ToValue,
+    };
 
     use fetch::FetchPodClient;
 
-    use self::{filter::Filter, to_value::ToValue};
+    use self::filter::Filter;
 
     type FetchedPodList = List<Pod>;
 
@@ -259,85 +261,6 @@ pub mod filter_by_labels {
                 let actual = selector.filter_by_labels(&target);
 
                 assert_eq!(actual.is_none(), true);
-            }
-        }
-    }
-
-    mod to_value {
-        use serde_yaml::Value;
-
-        use super::FetchedPodList;
-
-        pub trait ToValue {
-            fn to_value(&self) -> Option<Value>;
-        }
-
-        impl ToValue for FetchedPodList {
-            fn to_value(&self) -> Option<Value> {
-                let ret: Vec<Value> = self
-                    .items
-                    .iter()
-                    .filter_map(|pod| pod.metadata.name.as_ref())
-                    .map(|name| Value::from(name.to_string()))
-                    .collect();
-
-                if !ret.is_empty() {
-                    Some(ret.into())
-                } else {
-                    None
-                }
-            }
-        }
-
-        #[cfg(test)]
-        mod tests {
-            use super::*;
-
-            use indoc::indoc;
-
-            fn setup_list() -> FetchedPodList {
-                let yaml = indoc! {
-                    "
-                    items:
-                      - metadata:
-                          name: pod-1
-                          labels:
-                            app: pod-1
-                            version: v1
-                      - metadata:
-                          name: pod-2
-                          labels:
-                            app: pod-2
-                            version: v1
-                    "
-                };
-
-                serde_yaml::from_str::<FetchedPodList>(&yaml).unwrap()
-            }
-            #[test]
-            fn podのリストからnameのリストをvalue型で返す() {
-                let list = setup_list();
-
-                let actual = list.to_value();
-
-                let expected = serde_yaml::from_str(indoc! {
-                    "
-                    - pod-1
-                    - pod-2
-                    "
-                })
-                .unwrap();
-
-                assert_eq!(actual, expected)
-            }
-
-            #[test]
-            fn リストが空のときnoneを返す() {
-                let list = FetchedPodList::default();
-
-                let actual = list.to_value();
-
-                assert_eq!(actual, None)
             }
         }
     }
