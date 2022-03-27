@@ -145,7 +145,7 @@ fn contains_key_values(
     rhs: &Option<BTreeMap<String, String>>,
 ) -> bool {
     #[cfg(feature = "logging")]
-    ::log::debug!("match_selector {:#?} <=> {:#?}", service_labels, pod_labels);
+    ::log::debug!("match_selector {:#?} <=> {:#?}", lhs, rhs);
 
     lhs.as_ref().map_or(false, |lhs| {
         rhs.as_ref().map_or(false, |rhs| {
