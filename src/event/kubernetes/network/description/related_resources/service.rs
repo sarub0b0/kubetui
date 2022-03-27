@@ -262,7 +262,9 @@ pub mod filter_by_selector {
 
         use super::*;
 
-        use crate::event::kubernetes::network::description::related_resources::Filter;
+        use crate::event::kubernetes::network::description::related_resources::{
+            btree_map_contains_key_values::BTreeMapContains, Filter,
+        };
 
         impl Filter<BTreeMap<String, String>> for List<Service> {
             type Filtered = Service;
@@ -271,7 +273,28 @@ pub mod filter_by_selector {
             where
                 Self::Filtered: k8s_openapi::ListableResource,
             {
-                todo!()
+                let ret: Vec<Service> = self
+                    .items
+                    .iter()
+                    .filter(|svc| {
+                        if let Some(spec) = &svc.spec {
+                            if let Some(selector) = &spec.selector {
+                                return arg.contains_key_values(&selector);
+                            }
+                        }
+                        false
+                    })
+                    .cloned()
+                    .collect();
+
+                if !ret.is_empty() {
+                    Some(List {
+                        items: ret,
+                        ..Default::default()
+                    })
+                } else {
+                    None
+                }
             }
         }
 
