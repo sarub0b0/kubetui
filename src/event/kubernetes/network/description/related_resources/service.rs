@@ -282,6 +282,8 @@ pub mod filter_by_selector {
 
             use crate::event::kubernetes::network::description::related_resources::Filter;
 
+            use pretty_assertions::assert_eq;
+
             use super::*;
 
             fn services() -> List<Service> {
@@ -331,12 +333,6 @@ pub mod filter_by_selector {
                         spec:
                           selector:
                             app: pod-1
-                            version: v1
-                      - metadata:
-                          name: service-2
-                        spec:
-                          selector:
-                            app: pod-2
                             version: v1
                     "
                 })
