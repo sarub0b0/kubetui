@@ -55,13 +55,7 @@ pub mod filter_by_name {
                 let ret: Vec<Service> = self
                     .items
                     .iter()
-                    .filter_map(|svc| {
-                        if arg.iter().find(|a| &&svc.name() == a).is_some() {
-                            Some(svc)
-                        } else {
-                            None
-                        }
-                    })
+                    .filter(|svc| arg.iter().any(|name| &svc.name() == name))
                     .cloned()
                     .collect();
 
