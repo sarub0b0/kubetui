@@ -258,13 +258,104 @@ pub mod filter_by_selector {
     }
 
     mod filter {
+        use k8s_openapi::List;
+
         use super::*;
 
-        #[test]
-        fn labelsにselectorの値を含むときそのserviceのリストを返す() {}
+        use crate::event::kubernetes::network::description::related_resources::Filter;
 
-        #[test]
-        fn labelsにselectorの値を含まないときnoneを返す() {}
+        impl Filter<BTreeMap<String, String>> for List<Service> {
+            type Filtered = Service;
+
+            fn filter_by_item(&self, arg: &BTreeMap<String, String>) -> Option<List<Self::Filtered>>
+            where
+                Self::Filtered: k8s_openapi::ListableResource,
+            {
+                todo!()
+            }
+        }
+
+        #[cfg(test)]
+        mod tests {
+            use indoc::indoc;
+            use k8s_openapi::List;
+
+            use crate::event::kubernetes::network::description::related_resources::Filter;
+
+            use super::*;
+
+            fn services() -> List<Service> {
+                let yaml = indoc! {
+                    "
+                    items:
+                      - metadata:
+                          name: service-1
+                        spec:
+                          selector:
+                            app: pod-1
+                            version: v1
+                      - metadata:
+                          name: service-2
+                        spec:
+                          selector:
+                            app: pod-2
+                            version: v1
+                      - metadata:
+                          name: service-3
+                        spec:
+                          selector:
+                            app: pod-3
+                            version: v2
+                    "
+                };
+
+                serde_yaml::from_str(&yaml).unwrap()
+            }
+
+            #[test]
+            fn labelsにselectorの値を含むときそのserviceのリストを返す() {
+                let arg = BTreeMap::from([
+                    ("version".into(), "v1".into()),
+                    ("app".into(), "pod-1".into()),
+                ]);
+
+                let list = services();
+
+                let actual = list.filter_by_item(&arg);
+
+                let expected = serde_yaml::from_str(indoc! {
+                    "
+                    items:
+                      - metadata:
+                          name: service-1
+                        spec:
+                          selector:
+                            app: pod-1
+                            version: v1
+                      - metadata:
+                          name: service-2
+                        spec:
+                          selector:
+                            app: pod-2
+                            version: v1
+                    "
+                })
+                .unwrap();
+
+                assert_eq!(actual, Some(expected))
+            }
+
+            #[test]
+            fn labelsにselectorの値を含まないときnoneを返す() {
+                let arg = BTreeMap::from([("version".into(), "v1".into())]);
+
+                let list = services();
+
+                let actual = list.filter_by_item(&arg);
+
+                assert_eq!(actual.is_none(), true)
+            }
+        }
     }
 
     #[cfg(test)]
