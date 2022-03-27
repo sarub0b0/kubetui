@@ -18,14 +18,93 @@ pub mod filter_by_name {
     mod tests {
         use super::*;
 
-        #[test]
-        fn nameリストに含まれるservice名のvalueを返す() {}
+        use anyhow::bail;
+        use indoc::indoc;
+        use k8s_openapi::{api::core::v1::Service, List};
+        use mockall::predicate::eq;
+        use pretty_assertions::assert_eq;
+        use serde_yaml::Value;
 
-        #[test]
-        fn nameリストに含まれるserviceがないときnoneを返す() {}
+        use crate::{event::kubernetes::client::mock::MockTestKubeClient, mock_expect};
 
-        #[test]
-        fn エラーがでたときerrを返す() {}
+        fn services() -> List<Service> {
+            let yaml = indoc! {
+                "
+                items:
+                  - metadata:
+                      name: service-1
+                  - metadata:
+                      name: service-2
+                  - metadata:
+                      name: service-3
+                "
+            };
+
+            serde_yaml::from_str(&yaml).unwrap()
+        }
+
+        #[tokio::test]
+        async fn nameリストに含まれるservice名のvalueを返す() {
+            let mut client = MockTestKubeClient::new();
+
+            mock_expect!(
+                client,
+                request,
+                List<Service>,
+                eq("/api/v1/namespaces/default/services"),
+                Ok(services())
+            );
+
+            let client = RelatedService::new(
+                &client,
+                "default",
+                vec!["service-1".into(), "service-3".into()],
+            );
+
+            let result = client.related_resources().await.unwrap().unwrap();
+
+            let expected = Value::from(vec!["service-1", "service-3"]);
+
+            assert_eq!(result, expected);
+        }
+
+        #[tokio::test]
+        async fn nameリストに含まれるserviceがないときnoneを返す() {
+            let mut client = MockTestKubeClient::new();
+
+            mock_expect!(
+                client,
+                request,
+                List<Service>,
+                eq("/api/v1/namespaces/default/services"),
+                Ok(services())
+            );
+
+            let client = RelatedService::new(&client, "default", vec!["hoge".into()]);
+
+            let result = client.related_resources().await.unwrap();
+
+            assert_eq!(result.is_none(), true);
+        }
+
+        #[tokio::test]
+        async fn エラーがでたときerrを返す() {
+            let mut client = MockTestKubeClient::new();
+
+            mock_expect!(
+                client,
+                request,
+                List<Service>,
+                eq("/api/v1/namespaces/default/services"),
+                bail!("error")
+            );
+
+            let client = RelatedService::new(&client, "default", vec!["service-1".into()]);
+
+            let result = client.related_resources().await;
+
+            assert_eq!(result.is_err(), true);
+        }
     }
 }
 
