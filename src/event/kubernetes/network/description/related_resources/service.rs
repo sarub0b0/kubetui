@@ -1,17 +1,60 @@
 pub mod filter_by_name {
+    use k8s_openapi::api::core::v1::Service;
+
     use crate::event::kubernetes::{
-        client::KubeClientRequest, network::description::related_resources::fetch::FetchClient,
+        client::KubeClientRequest,
+        network::description::related_resources::{fetch::FetchClient, RelatedResources},
     };
 
     use super::*;
 
-    struct RelatedService<'a, C: KubeClientRequest> {
+    pub struct RelatedService<'a, C: KubeClientRequest> {
         client: FetchClient<'a, C>,
         names: Vec<String>,
     }
 
+    impl<'a, C: KubeClientRequest> RelatedService<'a, C> {
+        pub fn new(client: &'a C, namespace: &'a str, names: Vec<String>) -> Self {
+            Self {
+                client: FetchClient::new(client, namespace),
+                names,
+            }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl<'a, C: KubeClientRequest> RelatedResources<C> for RelatedService<'a, C> {
+        type Item = Vec<String>;
+        type Filtered = Service;
+
+        fn client(&self) -> &FetchClient<C> {
+            &self.client
+        }
+
+        fn item(&self) -> &Self::Item {
+            &self.names
+        }
+    }
+
     mod filter {
+        use k8s_openapi::List;
+
+        use crate::event::kubernetes::network::description::related_resources::Filter;
+
         use super::*;
+
+        impl Filter for List<Service> {
+            type Item = Vec<String>;
+
+            type Filtered = Service;
+
+            fn filter_by_item(&self, arg: &Self::Item) -> Option<List<Self::Filtered>>
+            where
+                Self::Filtered: k8s_openapi::ListableResource,
+            {
+                todo!()
+            }
+        }
     }
 
     #[cfg(test)]
