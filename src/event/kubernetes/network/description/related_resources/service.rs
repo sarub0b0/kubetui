@@ -238,15 +238,113 @@ pub mod filter_by_selector {
 
     #[cfg(test)]
     mod tests {
+        use anyhow::bail;
+        use indoc::indoc;
+        use k8s_openapi::{api::core::v1::Service, List};
+        use mockall::predicate::eq;
+        use serde_yaml::Value;
+
+        use crate::{event::kubernetes::client::mock::MockTestKubeClient, mock_expect};
+
         use super::*;
 
-        #[test]
-        fn labelsリストに含まれるservice名のvalueを返す() {}
+        fn services() -> List<Service> {
+            let yaml = indoc! {
+                "
+                items:
+                  - metadata:
+                      name: service-1
+                    spec:
+                      selector:
+                        app: pod-1
+                        version: v1
+                  - metadata:
+                      name: service-2
+                    spec:
+                      selector:
+                        app: pod-2
+                        version: v1
+                  - metadata:
+                      name: service-3
+                    spec:
+                      selector:
+                        app: pod-3
+                        version: v2
+                "
+            };
 
-        #[test]
-        fn labelsリストに含まれるserviceがないときnoneを返す() {}
+            serde_yaml::from_str(&yaml).unwrap()
+        }
 
-        #[test]
-        fn エラーがでたときerrを返す() {}
+        #[tokio::test]
+        async fn labelsリストに含まれるservice名のvalueを返す() {
+            let mut client = MockTestKubeClient::new();
+
+            mock_expect!(
+                client,
+                request,
+                List<Service>,
+                eq("/api/v1/namespaces/default/services"),
+                Ok(services())
+            );
+
+            let client = RelatedService::new(
+                &client,
+                "default",
+                BTreeMap::from([("version".to_string(), "v1".to_string())]),
+            );
+
+            let result = client.related_resources().await.unwrap().unwrap();
+
+            let expected = Value::from(vec!["service-1", "service-2"]);
+
+            assert_eq!(result, expected);
+        }
+
+        #[tokio::test]
+        async fn labelsリストに含まれるserviceがないときnoneを返す() {
+            let mut client = MockTestKubeClient::new();
+
+            mock_expect!(
+                client,
+                request,
+                List<Service>,
+                eq("/api/v1/namespaces/default/services"),
+                Ok(services())
+            );
+
+            let client = RelatedService::new(
+                &client,
+                "default",
+                BTreeMap::from([("foo".to_string(), "bar".to_string())]),
+            );
+
+            let result = client.related_resources().await.unwrap();
+
+            assert_eq!(result.is_none(), true);
+        }
+
+        #[tokio::test]
+        async fn エラーがでたときerrを返す() {
+            let mut client = MockTestKubeClient::new();
+
+            mock_expect!(
+                client,
+                request,
+                List<Service>,
+                eq("/api/v1/namespaces/default/services"),
+                bail!("error")
+            );
+
+            let client = RelatedService::new(
+                &client,
+                "default",
+                BTreeMap::from([("version".to_string(), "v1".to_string())]),
+            );
+
+            let result = client.related_resources().await;
+
+            assert_eq!(result.is_err(), true);
+        }
     }
 }
