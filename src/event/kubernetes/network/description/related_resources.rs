@@ -18,7 +18,7 @@ pub mod ingress;
 pub mod pod;
 pub mod service;
 
-trait Filter<I> {
+pub trait Filter<I> {
     type Filtered;
 
     fn filter_by_item(&self, arg: &I) -> Option<List<Self::Filtered>>
@@ -27,7 +27,7 @@ trait Filter<I> {
 }
 
 #[async_trait::async_trait]
-trait RelatedResources<C: KubeClientRequest> {
+pub trait RelatedResources<C: KubeClientRequest> {
     type Item;
     type Filtered;
 

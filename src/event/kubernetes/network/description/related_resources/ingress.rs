@@ -18,13 +18,13 @@ pub mod filter_by_service {
         },
     };
 
-    struct RelatedIngress<'a, C: KubeClientRequest> {
+    pub struct RelatedIngress<'a, C: KubeClientRequest> {
         client: FetchClient<'a, C>,
         services: Vec<String>,
     }
 
     impl<'a, C: KubeClientRequest> RelatedIngress<'a, C> {
-        fn new(client: &'a C, namespace: &'a str, services: Vec<String>) -> Self {
+        pub fn new(client: &'a C, namespace: &'a str, services: Vec<String>) -> Self {
             Self {
                 client: FetchClient::new(client, namespace),
                 services,
