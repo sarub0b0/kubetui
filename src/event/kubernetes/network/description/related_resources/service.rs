@@ -279,7 +279,7 @@ pub mod filter_by_selector {
                     .filter(|svc| {
                         if let Some(spec) = &svc.spec {
                             if let Some(selector) = &spec.selector {
-                                return arg.contains_key_values(&selector);
+                                return arg.contains_key_values(selector);
                             }
                         }
                         false
