@@ -413,12 +413,15 @@ pub mod filter_by_selector {
             let client = RelatedService::new(
                 &client,
                 "default",
-                BTreeMap::from([("version".to_string(), "v1".to_string())]),
+                BTreeMap::from([
+                    ("version".to_string(), "v1".to_string()),
+                    ("app".to_string(), "pod-1".to_string()),
+                ]),
             );
 
             let result = client.related_resources().await.unwrap().unwrap();
 
-            let expected = Value::from(vec!["service-1", "service-2"]);
+            let expected = Value::from(vec!["service-1"]);
 
             assert_eq!(result, expected);
         }
