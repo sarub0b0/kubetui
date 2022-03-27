@@ -231,14 +231,18 @@ pub mod filter_by_selector {
 
     pub struct RelatedService<'a, C: KubeClientRequest> {
         client: FetchClient<'a, C>,
-        labels: BTreeMap<String, String>,
+        labels: &'a BTreeMap<String, String>,
     }
 
     impl<'a, C: KubeClientRequest> RelatedService<'a, C> {
-        pub fn new(client: &'a C, namespace: &'a str, labels: BTreeMap<String, String>) -> Self {
+        pub fn new(
+            client: &'a C,
+            namespace: &'a str,
+            labels: &'a BTreeMap<String, String>,
+        ) -> Self {
             Self {
                 client: FetchClient::new(client, namespace),
-                labels,
+                labels: labels.into(),
             }
         }
     }
@@ -429,14 +433,12 @@ pub mod filter_by_selector {
                 Ok(services())
             );
 
-            let client = RelatedService::new(
-                &client,
-                "default",
-                BTreeMap::from([
-                    ("version".to_string(), "v1".to_string()),
-                    ("app".to_string(), "pod-1".to_string()),
-                ]),
-            );
+            let labels = BTreeMap::from([
+                ("version".to_string(), "v1".to_string()),
+                ("app".to_string(), "pod-1".to_string()),
+            ]);
+
+            let client = RelatedService::new(&client, "default", &labels);
 
             let result = client.related_resources().await.unwrap().unwrap();
 
@@ -457,11 +459,9 @@ pub mod filter_by_selector {
                 Ok(services())
             );
 
-            let client = RelatedService::new(
-                &client,
-                "default",
-                BTreeMap::from([("foo".to_string(), "bar".to_string())]),
-            );
+            let labels = BTreeMap::from([("foo".to_string(), "bar".to_string())]);
+
+            let client = RelatedService::new(&client, "default", &labels);
 
             let result = client.related_resources().await.unwrap();
 
@@ -480,11 +480,9 @@ pub mod filter_by_selector {
                 bail!("error")
             );
 
-            let client = RelatedService::new(
-                &client,
-                "default",
-                BTreeMap::from([("version".to_string(), "v1".to_string())]),
-            );
+            let labels = BTreeMap::from([("version".to_string(), "v1".to_string())]);
+
+            let client = RelatedService::new(&client, "default", &labels);
 
             let result = client.related_resources().await;
 
