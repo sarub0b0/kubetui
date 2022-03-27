@@ -129,7 +129,7 @@ mod tests {
     use indoc::indoc;
     use k8s_openapi::api::core::v1::Pod;
 
-    use self::{pod::FetchedIngressList, pod::FetchedPod, pod::FetchedServiceList};
+    use self::pod::FetchedPod;
     fn setup_pod() -> FetchedPod {
         let yaml = indoc! {
         "
@@ -160,14 +160,17 @@ mod tests {
 
         use crate::{
             event::kubernetes::{
-                client::mock::MockTestKubeClient,
-                network::description::pod::{FetchedIngressList, FetchedPod, FetchedServiceList},
+                client::mock::MockTestKubeClient, network::description::pod::FetchedPod,
             },
             mock_expect,
         };
 
         use super::*;
         use crossbeam::channel::{bounded, Receiver};
+        use k8s_openapi::{
+            api::{core::v1::Service, networking::v1::Ingress},
+            List,
+        };
         use mockall::predicate::eq;
 
         #[tokio::test(flavor = "multi_thread")]
@@ -182,18 +185,18 @@ mod tests {
                 [
                     (
                         FetchedPod,
-                        eq("api/v1/namespaces/default/pods/test"),
+                        eq("/api/v1/namespaces/default/pods/test"),
                         Ok(setup_pod())
                     ),
                     (
-                        FetchedServiceList,
-                        eq("api/v1/namespaces/default/services"),
-                        Ok(FetchedServiceList::default())
+                        List<Service>,
+                        eq("/api/v1/namespaces/default/services"),
+                        Ok(Default::default())
                     ),
                     (
-                        FetchedIngressList,
-                        eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"),
-                        Ok(FetchedIngressList::default())
+                        List<Ingress>,
+                        eq("/apis/networking.k8s.io/v1/namespaces/default/ingresses"),
+                        Ok(Default::default())
                     )
                 ]
             );
@@ -223,17 +226,17 @@ mod tests {
                 [
                     (
                         FetchedPod,
-                        eq("api/v1/namespaces/default/pods/test"),
+                        eq("/api/v1/namespaces/default/pods/test"),
                         Err(anyhow!("error"))
                     ),
                     (
-                        FetchedServiceList,
-                        eq("api/v1/namespaces/default/services"),
+                        List<Service>,
+                        eq("/api/v1/namespaces/default/services"),
                         Err(anyhow!("error"))
                     ),
                     (
-                        FetchedIngressList,
-                        eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"),
+                        List<Ingress>,
+                        eq("/apis/networking.k8s.io/v1/namespaces/default/ingresses"),
                         Err(anyhow!("error"))
                     )
                 ]
@@ -273,6 +276,10 @@ mod tests {
 
         use crossbeam::channel::{bounded, Receiver};
         use indoc::indoc;
+        use k8s_openapi::{
+            api::{core::v1::Service, networking::v1::Ingress},
+            List,
+        };
         use mockall::predicate::eq;
         use pretty_assertions::assert_eq;
 
@@ -293,18 +300,18 @@ mod tests {
                 [
                     (
                         FetchedPod,
-                        eq("api/v1/namespaces/default/pods/test"),
+                        eq("/api/v1/namespaces/default/pods/test"),
                         Ok(setup_pod())
                     ),
                     (
-                        FetchedServiceList,
-                        eq("api/v1/namespaces/default/services"),
-                        Ok(FetchedServiceList::default())
+                        List<Service>,
+                        eq("/api/v1/namespaces/default/services"),
+                        Ok(Default::default())
                     ),
                     (
-                        FetchedIngressList,
-                        eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"),
-                        Ok(FetchedIngressList::default())
+                        List<Ingress>,
+                        eq("/apis/networking.k8s.io/v1/namespaces/default/ingresses"),
+                        Ok(Default::default())
                     )
                 ]
             );
@@ -390,17 +397,17 @@ mod tests {
                 [
                     (
                         FetchedPod,
-                        eq("api/v1/namespaces/default/pods/test"),
+                        eq("/api/v1/namespaces/default/pods/test"),
                         Err(anyhow!("error"))
                     ),
                     (
-                        FetchedServiceList,
-                        eq("api/v1/namespaces/default/services"),
+                        List<Service>,
+                        eq("/api/v1/namespaces/default/services"),
                         Err(anyhow!("error"))
                     ),
                     (
-                        FetchedIngressList,
-                        eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"),
+                        List<Ingress>,
+                        eq("/apis/networking.k8s.io/v1/namespaces/default/ingresses"),
                         Err(anyhow!("error"))
                     )
                 ]
