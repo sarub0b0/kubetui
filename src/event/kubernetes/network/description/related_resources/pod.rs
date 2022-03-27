@@ -55,11 +55,13 @@ pub mod filter_by_labels {
             btree_map_contains_key_values::BTreeMapContains, Filter,
         };
 
-        impl Filter for List<Pod> {
-            type Item = BTreeMap<String, String>;
+        impl Filter<BTreeMap<String, String>> for List<Pod> {
             type Filtered = Pod;
 
-            fn filter_by_item(&self, arg: &Self::Item) -> Option<List<Self::Filtered>> {
+            fn filter_by_item(
+                &self,
+                arg: &BTreeMap<String, String>,
+            ) -> Option<List<Self::Filtered>> {
                 let ret: Vec<Pod> = self
                     .items
                     .iter()

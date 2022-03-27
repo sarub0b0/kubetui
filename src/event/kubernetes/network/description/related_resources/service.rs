@@ -38,19 +38,15 @@ pub mod filter_by_names {
 
     mod filter {
         use crate::event::kubernetes::network::description::related_resources::Filter;
-        use k8s_openapi::List;
+        use k8s_openapi::{List, ListableResource};
         use kube::ResourceExt;
 
         use super::*;
 
-        trait FilterByNames: Filter {}
-
-        impl Filter for List<Service> {
-            type Item = Vec<String>;
-
+        impl Filter<Vec<String>> for List<Service> {
             type Filtered = Service;
 
-            fn filter_by_item(&self, arg: &Self::Item) -> Option<List<Self::Filtered>>
+            fn filter_by_item(&self, arg: &Vec<String>) -> Option<List<Self::Filtered>>
             where
                 Self::Filtered: k8s_openapi::ListableResource,
             {

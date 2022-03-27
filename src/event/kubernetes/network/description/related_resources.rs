@@ -17,11 +17,10 @@ use self::{
 pub mod pod;
 pub mod service;
 
-trait Filter {
-    type Item;
+trait Filter<I> {
     type Filtered;
 
-    fn filter_by_item(&self, arg: &Self::Item) -> Option<List<Self::Filtered>>
+    fn filter_by_item(&self, arg: &I) -> Option<List<Self::Filtered>>
     where
         Self::Filtered: ListableResource;
 }
@@ -38,7 +37,7 @@ trait RelatedResources<C: KubeClientRequest> {
     async fn related_resources(&self) -> Result<Option<Value>>
     where
         Self::Filtered: Resource<DynamicType = ()> + ListableResource + DeserializeOwned + 'static,
-        List<Self::Filtered>: Filter<Item = Self::Item, Filtered = Self::Filtered> + ToValue,
+        List<Self::Filtered>: Filter<Self::Item, Filtered = Self::Filtered> + ToValue,
     {
         let list = self.client().fetch().await?;
 
