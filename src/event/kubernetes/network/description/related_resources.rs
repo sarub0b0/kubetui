@@ -14,6 +14,7 @@ use self::{
     to_value::{ResourceList, ToValue},
 };
 
+pub mod ingress;
 pub mod pod;
 pub mod service;
 
