@@ -1,4 +1,4 @@
-pub mod filter_by_names {
+pub mod filter_by_name {
     use k8s_openapi::api::core::v1::Service;
 
     use crate::event::kubernetes::{
@@ -8,12 +8,12 @@ pub mod filter_by_names {
 
     use super::*;
 
-    pub struct RelatedServiceByNames<'a, C: KubeClientRequest> {
+    pub struct RelatedService<'a, C: KubeClientRequest> {
         client: FetchClient<'a, C>,
         names: Vec<String>,
     }
 
-    impl<'a, C: KubeClientRequest> RelatedServiceByNames<'a, C> {
+    impl<'a, C: KubeClientRequest> RelatedService<'a, C> {
         pub fn new(client: &'a C, namespace: &'a str, names: Vec<String>) -> Self {
             Self {
                 client: FetchClient::new(client, namespace),
@@ -23,7 +23,7 @@ pub mod filter_by_names {
     }
 
     #[async_trait::async_trait]
-    impl<'a, C: KubeClientRequest> RelatedResources<C> for RelatedServiceByNames<'a, C> {
+    impl<'a, C: KubeClientRequest> RelatedResources<C> for RelatedService<'a, C> {
         type Item = Vec<String>;
         type Filtered = Service;
 
@@ -43,9 +43,7 @@ pub mod filter_by_names {
 
         use super::*;
 
-        struct ListServiceByNames(List<Service>);
-
-        impl Filter for ListServiceByNames {
+        impl Filter for List<Service> {
             type Item = Vec<String>;
 
             type Filtered = Service;
@@ -55,7 +53,6 @@ pub mod filter_by_names {
                 Self::Filtered: k8s_openapi::ListableResource,
             {
                 let ret: Vec<Service> = self
-                    .0
                     .items
                     .iter()
                     .filter(|svc| arg.iter().any(|name| &svc.name() == name))
@@ -79,7 +76,7 @@ pub mod filter_by_names {
 
             use super::*;
 
-            fn services() -> ListServiceByNames {
+            fn services() -> List<Service> {
                 let yaml = indoc! {
                     "
                     items:
@@ -92,7 +89,7 @@ pub mod filter_by_names {
                     "
                 };
 
-                ListServiceByNames(serde_yaml::from_str(&yaml).unwrap())
+                serde_yaml::from_str(&yaml).unwrap()
             }
 
             #[test]
@@ -171,7 +168,7 @@ pub mod filter_by_names {
                 Ok(services())
             );
 
-            let client = RelatedServiceByNames::new(
+            let client = RelatedService::new(
                 &client,
                 "default",
                 vec!["service-1".into(), "service-3".into()],
@@ -196,7 +193,7 @@ pub mod filter_by_names {
                 Ok(services())
             );
 
-            let client = RelatedServiceByNames::new(&client, "default", vec!["hoge".into()]);
+            let client = RelatedService::new(&client, "default", vec!["hoge".into()]);
 
             let result = client.related_resources().await.unwrap();
 
@@ -215,7 +212,7 @@ pub mod filter_by_names {
                 bail!("error")
             );
 
-            let client = RelatedServiceByNames::new(&client, "default", vec!["service-1".into()]);
+            let client = RelatedService::new(&client, "default", vec!["service-1".into()]);
 
             let result = client.related_resources().await;
 
