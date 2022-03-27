@@ -1,4 +1,5 @@
 pub mod filter_by_name {
+pub mod filter_by_names {
     use k8s_openapi::api::core::v1::Service;
 
     use crate::event::kubernetes::{
