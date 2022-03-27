@@ -1,4 +1,3 @@
-pub mod filter_by_name {
 pub mod filter_by_names {
     use k8s_openapi::api::core::v1::Service;
 
@@ -43,6 +42,8 @@ pub mod filter_by_names {
         use kube::ResourceExt;
 
         use super::*;
+
+        trait FilterByNames: Filter {}
 
         impl Filter for List<Service> {
             type Item = Vec<String>;
