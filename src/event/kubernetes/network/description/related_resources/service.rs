@@ -37,9 +37,9 @@ pub mod filter_by_name {
     }
 
     mod filter {
-        use k8s_openapi::List;
-
         use crate::event::kubernetes::network::description::related_resources::Filter;
+        use k8s_openapi::List;
+        use kube::ResourceExt;
 
         use super::*;
 
@@ -52,7 +52,83 @@ pub mod filter_by_name {
             where
                 Self::Filtered: k8s_openapi::ListableResource,
             {
-                todo!()
+                let ret: Vec<Service> = self
+                    .items
+                    .iter()
+                    .filter_map(|svc| {
+                        if arg.iter().find(|a| &&svc.name() == a).is_some() {
+                            Some(svc)
+                        } else {
+                            None
+                        }
+                    })
+                    .cloned()
+                    .collect();
+
+                if !ret.is_empty() {
+                    Some(List {
+                        items: ret,
+                        ..Default::default()
+                    })
+                } else {
+                    None
+                }
+            }
+        }
+
+        #[cfg(test)]
+        mod tests {
+            use indoc::indoc;
+
+            use super::*;
+
+            fn services() -> List<Service> {
+                let yaml = indoc! {
+                    "
+                    items:
+                      - metadata:
+                          name: service-1
+                      - metadata:
+                          name: service-2
+                      - metadata:
+                          name: service-3
+                    "
+                };
+
+                serde_yaml::from_str(&yaml).unwrap()
+            }
+
+            #[test]
+            fn namesに一致するserviceのリストを返す() {
+                let arg = vec!["service-1".into(), "service-2".into()];
+
+                let list = services();
+
+                let actual = list.filter_by_item(&arg);
+
+                let expected = serde_yaml::from_str(indoc! {
+                    "
+                    items:
+                      - metadata:
+                          name: service-1
+                      - metadata:
+                          name: service-2
+                    "
+                })
+                .unwrap();
+
+                assert_eq!(actual, Some(expected))
+            }
+
+            #[test]
+            fn namesに一致するserviceがないときnoneを返す() {
+                let arg = vec!["hoge".into()];
+
+                let list = services();
+
+                let actual = list.filter_by_item(&arg);
+
+                assert_eq!(actual.is_none(), true)
             }
         }
     }
