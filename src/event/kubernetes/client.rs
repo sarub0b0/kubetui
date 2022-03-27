@@ -8,6 +8,14 @@ use crate::error::{anyhow, Error, Result};
 
 const TABLE_REQUEST_HEADER: &str = "application/json;as=Table;v=v1;g=meta.k8s.io,application/json;as=Table;v=v1beta1;g=meta.k8s.io,application/json";
 
+fn remove_slash(path: &str) -> &str {
+    if let Some(path) = path.strip_prefix("/") {
+        path
+    } else {
+        path
+    }
+}
+
 #[derive(Clone)]
 pub struct KubeClient {
     client: Client,
@@ -52,7 +60,7 @@ impl KubeClient {
     {
         let request = Request::new(&self.server_url);
 
-        let mut request = request.get(path)?;
+        let mut request = request.get(remove_slash(path))?;
 
         request
             .headers_mut()
@@ -88,7 +96,7 @@ impl KubeClientRequest for KubeClient {
     async fn request_text(&self, path: &str) -> Result<String> {
         let request = Request::new(&self.server_url);
 
-        let mut request = request.get(path)?;
+        let mut request = request.get(remove_slash(path))?;
 
         request
             .headers_mut()
