@@ -4,17 +4,19 @@ mod fetched_network_policy;
 mod fetched_pod;
 mod fetched_service;
 
-pub(super) use fetched_ingress::*;
 pub(super) use fetched_pod::*;
-pub(super) use fetched_service::*;
 
-use k8s_openapi::api::{
-    core::v1::Service,
-    networking::v1::{Ingress, IngressSpec},
-};
+use k8s_openapi::api::{core::v1::Pod, networking::v1::IngressSpec};
+use kube::{Resource, ResourceExt};
 use serde_yaml::{Mapping, Value};
 
-use super::{Fetch, FetchedData, Result};
+use super::{
+    related_resources::{
+        ingress::filter_by_service::RelatedIngress, service::filter_by_selector::RelatedService,
+        RelatedResources,
+    },
+    Fetch, FetchedData, Result,
+};
 
 use std::collections::BTreeMap;
 
@@ -58,18 +60,23 @@ impl<'a, C: KubeClientRequest> Fetch<'a, C> for PodDescriptionWorker<'a, C> {
     async fn fetch(&self) -> Result<FetchedData> {
         let mut value = Vec::new();
 
-        let pod = self.fetch_pod().await?;
-        let services = self.fetch_service(&pod.0.metadata.labels).await?;
+        let url = format!(
+            "{}/{}",
+            Pod::url_path(&(), Some(&self.namespace)),
+            self.name
+        );
 
-        let ingresses = if let Some(services) = &services {
-            let services: Vec<String> = services
-                .0
-                .iter()
-                .cloned()
-                .filter_map(|service| service.metadata.name)
-                .collect();
+        let pod: FetchedPod = self.client.request(&url).await?;
 
-            self.fetch_ingress(&services).await?
+        let related_services = RelatedService::new(self.client, &self.namespace, pod.0.labels())
+            .related_resources()
+            .await?;
+
+        let related_ingresses: Option<Value> = if let Some(services) = &related_services {
+            let services: Vec<String> = serde_yaml::from_value(services.clone())?;
+            RelatedIngress::new(self.client, &self.namespace, services)
+                .related_resources()
+                .await?
         } else {
             None
         };
@@ -77,16 +84,12 @@ impl<'a, C: KubeClientRequest> Fetch<'a, C> for PodDescriptionWorker<'a, C> {
         value.extend(pod.to_vec_string());
 
         let mut related_resources = Mapping::new();
-        if let Some(services) = services {
-            if let Some(svc) = services.to_value() {
-                related_resources.insert("services".into(), svc);
-            }
+        if let Some(services) = related_services {
+            related_resources.insert("services".into(), services);
         }
 
-        if let Some(ingresses) = ingresses {
-            if let Some(ing) = ingresses.to_value() {
-                related_resources.insert("ingresses".into(), ing);
-            }
+        if let Some(ingresses) = related_ingresses {
+            related_resources.insert("ingresses".into(), ingresses);
         }
 
         if !related_resources.is_empty() {
@@ -102,66 +105,6 @@ impl<'a, C: KubeClientRequest> Fetch<'a, C> for PodDescriptionWorker<'a, C> {
         }
 
         Ok(value)
-    }
-}
-
-impl<C: KubeClientRequest> PodDescriptionWorker<'_, C> {
-    async fn fetch_pod(&self) -> Result<FetchedPod> {
-        let url = format!("api/v1/namespaces/{}/pods/{}", self.namespace, self.name);
-
-        let value: FetchedPod = self.client.request(&url).await?;
-
-        Ok(value)
-    }
-
-    async fn fetch_service(
-        &self,
-        pod_labels: &Option<BTreeMap<String, String>>,
-    ) -> Result<Option<FetchedService>> {
-        let url = format!("api/v1/namespaces/{}/services", self.namespace);
-
-        let list: FetchedServiceList = self.client.request(&url).await?;
-
-        let services: Vec<Service> = list
-            .items
-            .into_iter()
-            .filter(|s| {
-                s.spec.as_ref().map_or(false, |spec| {
-                    contains_key_values(&spec.selector, pod_labels)
-                })
-            })
-            .collect();
-
-        if !services.is_empty() {
-            Ok(Some(FetchedService(services)))
-        } else {
-            Ok(None)
-        }
-    }
-
-    async fn fetch_ingress(&self, services: &[String]) -> Result<Option<FetchedIngress>> {
-        let url = format!(
-            "apis/networking.k8s.io/v1/namespaces/{}/ingresses",
-            self.namespace
-        );
-
-        let list: FetchedIngressList = self.client.request(&url).await?;
-
-        let ingresses: Vec<Ingress> = list
-            .items
-            .into_iter()
-            .filter(|ing| {
-                ing.spec
-                    .as_ref()
-                    .map_or(false, |spec| contains_service_into_ingress(spec, services))
-            })
-            .collect();
-
-        if !ingresses.is_empty() {
-            Ok(Some(FetchedIngress(ingresses)))
-        } else {
-            Ok(None)
-        }
     }
 }
 
@@ -258,7 +201,13 @@ mod tests {
 
         use crate::{event::kubernetes::client::mock::MockTestKubeClient, mock_expect};
         use indoc::indoc;
-        use k8s_openapi::api::core::v1::Pod;
+        use k8s_openapi::{
+            api::{
+                core::v1::{Pod, Service},
+                networking::v1::Ingress,
+            },
+            List,
+        };
         use mockall::predicate::eq;
 
         use pretty_assertions::assert_eq;
@@ -291,7 +240,7 @@ mod tests {
             FetchedPod(pod)
         }
 
-        fn setup_services() -> FetchedServiceList {
+        fn setup_services() -> List<Service> {
             let yaml = indoc! {
             "
             items:
@@ -311,7 +260,7 @@ mod tests {
             serde_yaml::from_str(&yaml).unwrap()
         }
 
-        fn setup_ingresses() -> FetchedIngressList {
+        fn setup_ingresses() -> List<Ingress> {
             let yaml = indoc! {
             "
             items:
@@ -348,17 +297,17 @@ mod tests {
                 [
                     (
                         FetchedPod,
-                        eq("api/v1/namespaces/default/pods/test"),
+                        eq("/api/v1/namespaces/default/pods/test"),
                         Ok(setup_pod())
                     ),
                     (
-                        FetchedServiceList,
-                        eq("api/v1/namespaces/default/services"),
+                        List<Service>,
+                        eq("/api/v1/namespaces/default/services"),
                         Ok(setup_services())
                     ),
                     (
-                        FetchedIngressList,
-                        eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"),
+                        List<Ingress>,
+                        eq("/apis/networking.k8s.io/v1/namespaces/default/ingresses"),
                         Ok(setup_ingresses())
                     )
                 ]
@@ -408,17 +357,17 @@ mod tests {
                 [
                     (
                         FetchedPod,
-                        eq("api/v1/namespaces/default/pods/test"),
+                        eq("/api/v1/namespaces/default/pods/test"),
                         Err(anyhow!("error"))
                     ),
                     (
-                        FetchedServiceList,
-                        eq("api/v1/namespaces/default/services"),
+                        List<Service>,
+                        eq("/api/v1/namespaces/default/services"),
                         Err(anyhow!("error"))
                     ),
                     (
-                        FetchedIngressList,
-                        eq("apis/networking.k8s.io/v1/namespaces/default/ingresses"),
+                        List<Ingress>,
+                        eq("/apis/networking.k8s.io/v1/namespaces/default/ingresses"),
                         Err(anyhow!("error"))
                     )
                 ]
