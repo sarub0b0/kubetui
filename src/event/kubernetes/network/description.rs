@@ -250,8 +250,6 @@ mod tests {
 
             let handle = tokio::spawn(async move { worker.run().await });
 
-            let ret = handle.await.unwrap();
-
             if let Event::Kube(crate::event::kubernetes::Kube::Network(NetworkMessage::Response(
                 msg,
             ))) = rx.recv().unwrap()
@@ -261,9 +259,14 @@ mod tests {
                 unreachable!()
             }
 
+            is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
+
+            let ret = handle.await.unwrap();
+
             assert!(ret.is_ok())
         }
     }
+
     mod fetch_description {
 
         use super::*;
@@ -379,7 +382,7 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread")]
         async fn 内部でエラーがでたときループを抜けてerrを返す() {
-            let (tx, _rx): (Sender<Event>, Receiver<Event>) = bounded(3);
+            let (tx, rx): (Sender<Event>, Receiver<Event>) = bounded(3);
             let mut client = MockTestKubeClient::new();
             mock_expect!(
                 client,
@@ -417,6 +420,8 @@ mod tests {
                     .fetch_description::<PodDescriptionWorker<MockTestKubeClient>>()
                     .await
             });
+
+            drop(rx);
 
             let ret = handle.await.unwrap();
 
