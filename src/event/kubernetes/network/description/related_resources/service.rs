@@ -224,7 +224,42 @@ pub mod filter_by_names {
 }
 
 pub mod filter_by_selector {
-    use super::*;
+    use std::collections::BTreeMap;
+
+    use k8s_openapi::api::core::v1::Service;
+
+    use crate::event::kubernetes::{
+        client::KubeClientRequest,
+        network::description::related_resources::{fetch::FetchClient, RelatedResources},
+    };
+
+    pub struct RelatedService<'a, C: KubeClientRequest> {
+        client: FetchClient<'a, C>,
+        labels: BTreeMap<String, String>,
+    }
+
+    impl<'a, C: KubeClientRequest> RelatedService<'a, C> {
+        pub fn new(client: &'a C, namespace: &'a str, labels: BTreeMap<String, String>) -> Self {
+            Self {
+                client: FetchClient::new(client, namespace),
+                labels,
+            }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl<'a, C: KubeClientRequest> RelatedResources<C> for RelatedService<'a, C> {
+        type Item = BTreeMap<String, String>;
+        type Filtered = Service;
+
+        fn client(&self) -> &FetchClient<C> {
+            &self.client
+        }
+
+        fn item(&self) -> &Self::Item {
+            &self.labels
+        }
+    }
 
     mod filter {
         use super::*;
