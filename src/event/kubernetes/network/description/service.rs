@@ -1,8 +1,11 @@
 use k8s_openapi::api::core::v1::Service;
+use kube::Resource;
 
 use crate::{error::Result, event::kubernetes::client::KubeClientRequest};
 
 use super::{Fetch, FetchedData};
+
+use extract::Extract;
 
 pub(super) struct ServiceDescriptionWorker<'a, C>
 where
@@ -28,17 +31,16 @@ where
 
     async fn fetch(&self) -> Result<FetchedData> {
         let url = format!(
-            "api/v1/namespaces/{}/services/{}",
-            self.namespace, self.name
+            "{}/{}",
+            Service::url_path(&(), Some(&self.namespace)),
+            self.name
         );
 
         let res = self.client.request_text(&url).await?;
 
-        let mut value: Service = serde_json::from_str(&res)?;
+        let value: Service = serde_json::from_str(&res)?;
 
-        value.metadata.managed_fields = None;
-
-        let value = serde_yaml::to_string(&value)?
+        let value = serde_yaml::to_string(&value.extract())?
             .lines()
             .skip(1)
             .map(ToString::to_string)
