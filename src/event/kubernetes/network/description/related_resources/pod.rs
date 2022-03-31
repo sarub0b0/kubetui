@@ -18,13 +18,13 @@ pub mod filter_by_labels {
         },
     };
 
-    struct RelatedPod<'a, C: KubeClientRequest> {
+    pub struct RelatedPod<'a, C: KubeClientRequest> {
         client: FetchClient<'a, C>,
         selector: BTreeMap<String, String>,
     }
 
     impl<'a, C: KubeClientRequest> RelatedPod<'a, C> {
-        fn new(client: &'a C, namespace: &'a str, selector: BTreeMap<String, String>) -> Self {
+        pub fn new(client: &'a C, namespace: &'a str, selector: BTreeMap<String, String>) -> Self {
             Self {
                 client: FetchClient::new(client, namespace),
                 selector,
