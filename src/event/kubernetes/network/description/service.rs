@@ -59,6 +59,7 @@ mod tests {
         List,
     };
     use mockall::predicate::eq;
+    use pretty_assertions::assert_eq;
 
     use crate::{event::kubernetes::client::mock::MockTestKubeClient, mock_expect};
 
@@ -125,7 +126,7 @@ mod tests {
                         paths:
                           - backend:
                               service:
-                                name: service-1
+                                name: service
                           - backend:
                               service:
                                 name: service-2
@@ -153,7 +154,7 @@ mod tests {
             [
                 (
                     Service,
-                    eq("/api/v1/namespaces/default/services/test"),
+                    eq("/api/v1/namespaces/default/services/service"),
                     Ok(service())
                 ),
                 (
@@ -170,22 +171,30 @@ mod tests {
         );
 
         let worker =
-            ServiceDescriptionWorker::new(&client, "default".to_string(), "service-1".to_string());
+            ServiceDescriptionWorker::new(&client, "default".to_string(), "service".to_string());
 
         let result = worker.fetch().await;
 
         let expected: Vec<String> = indoc! {
             "
             service:
-              selector:
-                version: v1
-              clusterIP: 10.101.97.182
-              clusterIPs: 10.101.97.182
-              ports:
-                - port: 80
-                  protocol: TCP
-                  targetPort: 80
-              type: ClusterIP
+              metadata:
+                name: service
+              spec:
+                clusterIP: 10.101.97.182
+                clusterIPs:
+                  - 10.101.97.182
+                ipFamilies:
+                  - IPv4
+                ipFamilyPolicy: SingleStack
+                ports:
+                  - port: 80
+                    protocol: TCP
+                    targetPort: 80
+                selector:
+                  version: v1
+                sessionAffinity: None
+                type: ClusterIP
 
             relatedResources:
               ingresses:
