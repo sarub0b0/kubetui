@@ -47,6 +47,194 @@ where
         Ok(value)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use anyhow::bail;
+    use indoc::indoc;
+    use k8s_openapi::{
+        api::{core::v1::Pod, networking::v1::Ingress},
+        List,
+    };
+    use mockall::predicate::eq;
+
+    use crate::{event::kubernetes::client::mock::MockTestKubeClient, mock_expect};
+
+    use super::*;
+
+    fn service() -> Service {
+        serde_yaml::from_str(indoc! {
+            "
+            metadata:
+              name: service
+            spec:
+              clusterIP: 10.101.97.182
+              clusterIPs:
+                - 10.101.97.182
+              ipFamilies:
+                - IPv4
+              ipFamilyPolicy: SingleStack
+              ports:
+                - port: 80
+                  protocol: TCP
+                  targetPort: 80
+              selector:
+                version: v1
+              sessionAffinity: None
+              type: ClusterIP
+            "
+        })
+        .unwrap()
+    }
+
+    fn pods() -> List<Pod> {
+        serde_yaml::from_str(indoc! {
+            "
+            items:
+              - metadata:
+                  name: pod-1
+                  labels:
+                    app: pod-1
+                    version: v1
+              - metadata:
+                  name: pod-2
+                  labels:
+                    app: pod-2
+                    version: v1
+              - metadata:
+                  name: pod-3
+                  labels:
+                    app: pod-3
+                    version: v2
+            "
+        })
+        .unwrap()
+    }
+
+    fn ingresses() -> List<Ingress> {
+        serde_yaml::from_str(indoc! {
+            "
+            items:
+              - metadata:
+                  name: ingress-1
+                spec:
+                  rules:
+                    - http:
+                        paths:
+                          - backend:
+                              service:
+                                name: service-1
+                          - backend:
+                              service:
+                                name: service-2
+              - metadata:
+                  name: ingress-2
+                spec:
+                  rules:
+                    - http:
+                        paths:
+                          - backend:
+                              service:
+                                name: service-3
+
+            "
+        })
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn yamlデータを返す() {
+        let mut client = MockTestKubeClient::new();
+        mock_expect!(
+            client,
+            request,
+            [
+                (
+                    Service,
+                    eq("/api/v1/namespaces/default/services/test"),
+                    Ok(service())
+                ),
+                (
+                    List<Ingress>,
+                    eq("/apis/networking.k8s.io/v1/namespaces/default/ingresses"),
+                    Ok(ingresses())
+                ),
+                (
+                    List<Pod>,
+                    eq("/api/v1/namespaces/default/pods"),
+                    Ok(pods())
+                )
+            ]
+        );
+
+        let worker =
+            ServiceDescriptionWorker::new(&client, "default".to_string(), "service-1".to_string());
+
+        let result = worker.fetch().await;
+
+        let expected: Vec<String> = indoc! {
+            "
+            service:
+              selector:
+                version: v1
+              clusterIP: 10.101.97.182
+              clusterIPs: 10.101.97.182
+              ports:
+                - port: 80
+                  protocol: TCP
+                  targetPort: 80
+              type: ClusterIP
+
+            relatedResources:
+              ingresses:
+                - ingress-1
+              pods:
+                - pod-1
+                - pod-2
+            "
+        }
+        .lines()
+        .map(ToString::to_string)
+        .collect();
+
+        assert_eq!(result.unwrap(), expected);
+    }
+
+    #[tokio::test]
+    async fn エラーのときerrorを返す() {
+        let mut client = MockTestKubeClient::new();
+        mock_expect!(
+            client,
+            request,
+            [
+                (
+                    Service,
+                    eq("/api/v1/namespaces/default/services/test"),
+                    bail!("error")
+                ),
+                (
+                    List<Ingress>,
+                    eq("/apis/networking.k8s.io/v1/namespaces/default/ingresses"),
+                    bail!("error")
+                ),
+                (
+                    List<Pod>,
+                    eq("/api/v1/namespaces/default/pods"),
+                    bail!("error")
+                )
+
+            ]
+        );
+
+        let worker =
+            ServiceDescriptionWorker::new(&client, "default".to_string(), "test".to_string());
+
+        let result = worker.fetch().await;
+
+        assert_eq!(result.is_err(), true);
+    }
+}
+
 mod extract {
     use anyhow::Result;
     use k8s_openapi::api::core::v1::Service;
