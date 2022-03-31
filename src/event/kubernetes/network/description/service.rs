@@ -1,11 +1,19 @@
-use k8s_openapi::api::core::v1::Service;
-use kube::Resource;
+use k8s_openapi::api::core::v1::{Service, ServiceSpec};
+use kube::{Resource, ResourceExt};
+use serde_yaml::{Mapping, Value};
 
 use crate::{error::Result, event::kubernetes::client::KubeClientRequest};
 
-use super::{Fetch, FetchedData};
+use super::{
+    related_resources::{
+        ingress::filter_by_service::RelatedIngress, pod::filter_by_labels::RelatedPod,
+        RelatedResources,
+    },
+    Fetch, FetchedData,
+};
 
 use extract::Extract;
+use to_value::ToValue;
 
 pub(super) struct ServiceDescriptionWorker<'a, C>
 where
@@ -36,15 +44,59 @@ where
             self.name
         );
 
-        let res = self.client.request_text(&url).await?;
+        let service: Service = self.client.request(&url).await?;
+        let service = service.extract();
 
-        let value: Service = serde_json::from_str(&res)?;
+        let related_ingresses: Option<Value> =
+            RelatedIngress::new(self.client, &self.namespace, vec![service.name()])
+                .related_resources()
+                .await?;
 
-        let value = serde_yaml::to_string(&value.extract())?
+        let related_pods: Option<Value> = if let Some(ServiceSpec {
+            selector: Some(selector),
+            ..
+        }) = &service.spec
+        {
+            RelatedPod::new(self.client, &self.namespace, selector.clone())
+                .related_resources()
+                .await?
+        } else {
+            None
+        };
+
+        let mut related_resources = Mapping::new();
+
+        if let Some(ingresses) = related_ingresses {
+            related_resources.insert("ingresses".into(), ingresses);
+        }
+
+        if let Some(pods) = related_pods {
+            related_resources.insert("pods".into(), pods);
+        }
+
+        let service: Vec<String> = serde_yaml::to_string(&service.to_value()?)?
             .lines()
             .skip(1)
             .map(ToString::to_string)
             .collect();
+
+        let mut value = service;
+
+        if !related_resources.is_empty() {
+            let mut root = Mapping::new();
+
+            root.insert("relatedResources".into(), related_resources.into());
+
+            let related_resources: Vec<String> = serde_yaml::to_string(&root)?
+                .lines()
+                .skip(1)
+                .map(ToString::to_string)
+                .collect();
+
+            value.push(Default::default());
+
+            value.extend(related_resources);
+        }
 
         Ok(value)
     }
