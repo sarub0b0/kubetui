@@ -242,7 +242,7 @@ pub mod filter_by_selector {
         ) -> Self {
             Self {
                 client: FetchClient::new(client, namespace),
-                labels: labels.into(),
+                labels,
             }
         }
     }
@@ -257,7 +257,7 @@ pub mod filter_by_selector {
         }
 
         fn item(&self) -> &Self::Item {
-            &self.labels
+            self.labels
         }
     }
 

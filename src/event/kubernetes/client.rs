@@ -9,7 +9,7 @@ use crate::error::{anyhow, Error, Result};
 const TABLE_REQUEST_HEADER: &str = "application/json;as=Table;v=v1;g=meta.k8s.io,application/json;as=Table;v=v1beta1;g=meta.k8s.io,application/json";
 
 fn remove_slash(path: &str) -> &str {
-    if let Some(path) = path.strip_prefix("/") {
+    if let Some(path) = path.strip_prefix('/') {
         path
     } else {
         path
