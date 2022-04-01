@@ -1,8 +1,19 @@
 use k8s_openapi::api::networking::v1::Ingress;
+use kube::{Resource, ResourceExt};
+use serde_yaml::{Mapping, Value};
 
 use crate::{error::Result, event::kubernetes::client::KubeClientRequest};
 
-use super::{Fetch, FetchedData};
+use super::{
+    related_resources::{
+        pod::filter_by_labels::RelatedPod, service::filter_by_names::RelatedService,
+        to_list_value::ToListValue, RelatedResources,
+    },
+    Fetch, FetchedData,
+};
+
+use extract::Extract;
+use to_value::ToValue;
 
 pub(super) struct IngressDescriptionWorker<'a, C>
 where
@@ -28,25 +39,108 @@ where
 
     async fn fetch(&self) -> Result<FetchedData> {
         let url = format!(
-            "apis/networking.k8s.io/v1/namespaces/{}/ingresses/{}",
-            self.namespace, self.name
+            "{}/{}",
+            Ingress::url_path(&(), Some(&self.namespace)),
+            self.name
         );
 
-        let res = self.client.request_text(&url).await?;
+        let ingress: Ingress = self.client.request(&url).await?;
+        let ingress = ingress.extract();
 
-        let mut value: Ingress = serde_json::from_str(&res)?;
+        let services: Option<Vec<String>> = backend_service_names(&ingress);
 
-        value.metadata.managed_fields = None;
+        let related_services = if let Some(services) = services {
+            RelatedService::new(self.client, &self.namespace, services)
+                .related_resources()
+                .await?
+        } else {
+            None
+        };
 
-        let value = serde_yaml::to_string(&value)?
+        let related_pods = if let Some(services) = &related_services {
+            let selectors = services
+                .items
+                .iter()
+                .filter_map(|svc| svc.spec.as_ref())
+                .filter_map(|spec| spec.selector.clone())
+                .collect();
+
+            RelatedPod::new(self.client, &self.namespace, selectors)
+                .related_resources()
+                .await?
+        } else {
+            None
+        };
+
+        let mut related_resources = Mapping::new();
+
+        if let Some(services) = related_services {
+            if let Some(value) = services.to_list_value() {
+                related_resources.insert("services".into(), value);
+            }
+        }
+
+        if let Some(pods) = related_pods {
+            if let Some(value) = pods.to_list_value() {
+                related_resources.insert("pods".into(), value);
+            }
+        }
+
+        let ingress: Vec<String> = serde_yaml::to_string(&ingress.to_value()?)?
             .lines()
             .skip(1)
             .map(ToString::to_string)
             .collect();
 
+        let mut value = ingress;
+
+        if !related_resources.is_empty() {
+            let mut root = Mapping::new();
+
+            root.insert("relatedResources".into(), related_resources.into());
+
+            let related_resources: Vec<String> = serde_yaml::to_string(&root)?
+                .lines()
+                .skip(1)
+                .map(ToString::to_string)
+                .collect();
+
+            value.push(Default::default());
+
+            value.extend(related_resources);
+        }
+
         Ok(value)
     }
 }
+
+fn backend_service_names(ing: &Ingress) -> Option<Vec<String>> {
+    let names: Option<Vec<String>> = ing.spec.as_ref().map_or(None, |spec| {
+        spec.rules.as_ref().map_or(None, |rules| {
+            let a: Vec<String> = rules
+                .iter()
+                .flat_map(|rule| {
+                    rule.http.as_ref().map_or(vec![], |http| {
+                        http.paths
+                            .iter()
+                            .filter_map(|path| path.backend.service.as_ref())
+                            .map(|service| service.name.clone())
+                            .collect()
+                    })
+                })
+                .collect();
+
+            if !a.is_empty() {
+                Some(a)
+            } else {
+                None
+            }
+        })
+    });
+
+    names
+}
+
 #[cfg(test)]
 mod tests {
     use anyhow::bail;
