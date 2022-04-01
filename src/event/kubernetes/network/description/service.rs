@@ -64,7 +64,7 @@ where
             ..
         }) = &service.spec
         {
-            RelatedPod::new(self.client, &self.namespace, selector.clone())
+            RelatedPod::new(self.client, &self.namespace, vec![selector.clone()])
                 .related_resources()
                 .await?
         } else {

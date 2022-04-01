@@ -20,21 +20,25 @@ pub mod filter_by_labels {
 
     pub struct RelatedPod<'a, C: KubeClientRequest> {
         client: FetchClient<'a, C>,
-        selector: BTreeMap<String, String>,
+        selectors: Vec<BTreeMap<String, String>>,
     }
 
     impl<'a, C: KubeClientRequest> RelatedPod<'a, C> {
-        pub fn new(client: &'a C, namespace: &'a str, selector: BTreeMap<String, String>) -> Self {
+        pub fn new(
+            client: &'a C,
+            namespace: &'a str,
+            selectors: Vec<BTreeMap<String, String>>,
+        ) -> Self {
             Self {
                 client: FetchClient::new(client, namespace),
-                selector,
+                selectors,
             }
         }
     }
 
     #[async_trait::async_trait]
     impl<'a, C: KubeClientRequest> RelatedResources<C> for RelatedPod<'a, C> {
-        type Item = BTreeMap<String, String>;
+        type Item = Vec<BTreeMap<String, String>>;
         type Filtered = Pod;
 
         fn client(&self) -> &FetchClient<C> {
@@ -42,7 +46,7 @@ pub mod filter_by_labels {
         }
 
         fn item(&self) -> &Self::Item {
-            &self.selector
+            &self.selectors
         }
     }
 
@@ -55,21 +59,20 @@ pub mod filter_by_labels {
             btree_map_contains_key_values::BTreeMapContains, Filter,
         };
 
-        impl Filter<BTreeMap<String, String>> for List<Pod> {
+        impl Filter<Vec<BTreeMap<String, String>>> for List<Pod> {
             type Filtered = Pod;
 
             fn filter_by_item(
                 &self,
-                arg: &BTreeMap<String, String>,
+                arg: &Vec<BTreeMap<String, String>>,
             ) -> Option<List<Self::Filtered>> {
                 let ret: Vec<Pod> = self
                     .items
                     .iter()
                     .filter(|item| {
-                        item.metadata
-                            .labels
-                            .as_ref()
-                            .map_or(false, |pod_labels| pod_labels.contains_key_values(arg))
+                        item.metadata.labels.as_ref().map_or(false, |pod_labels| {
+                            arg.iter().any(|arg| pod_labels.contains_key_values(arg))
+                        })
                     })
                     .cloned()
                     .collect();
@@ -115,11 +118,14 @@ pub mod filter_by_labels {
 
             #[test]
             fn labelsにselectorの値を含むときそのpodのリストを返す() {
-                let selector = BTreeMap::from([("app".into(), "pod-1".into())]);
+                let selectors = vec![
+                    BTreeMap::from([("app".into(), "pod-1".into())]),
+                    BTreeMap::from([("version".into(), "v1".into())]),
+                ];
 
                 let list = setup_target();
 
-                let actual = list.filter_by_item(&selector);
+                let actual = list.filter_by_item(&selectors);
 
                 let expected = serde_yaml::from_str(indoc! {
                     "
@@ -128,6 +134,11 @@ pub mod filter_by_labels {
                           name: pod-1
                           labels:
                             app: pod-1
+                            version: v1
+                      - metadata:
+                          name: pod-2
+                          labels:
+                            app: pod-2
                             version: v1
                     "
                 })
@@ -138,11 +149,11 @@ pub mod filter_by_labels {
 
             #[test]
             fn labelsにselectorの値を含むpodがないときnoneを返す() {
-                let selector = BTreeMap::from([("hoge".into(), "fuga".into())]);
+                let selectors = vec![BTreeMap::from([("hoge".into(), "fuga".into())])];
 
                 let list = setup_target();
 
-                let actual = list.filter_by_item(&selector);
+                let actual = list.filter_by_item(&selectors);
 
                 assert_eq!(actual.is_none(), true);
             }
@@ -194,9 +205,12 @@ pub mod filter_by_labels {
                     Ok(setup_pod())
                 );
 
-                let selector = BTreeMap::from([("version".into(), "v1".into())]);
+                let selectors = vec![
+                    BTreeMap::from([("app".into(), "pod-1".into())]),
+                    BTreeMap::from([("version".into(), "v1".into())]),
+                ];
 
-                let client = RelatedPod::new(&client, "default", selector);
+                let client = RelatedPod::new(&client, "default", selectors);
 
                 let result = client.related_resources().await.unwrap().unwrap();
 
@@ -232,9 +246,9 @@ pub mod filter_by_labels {
                     Ok(setup_pod())
                 );
 
-                let selector = BTreeMap::from([("hoge".into(), "fuga".into())]);
+                let selectors = vec![BTreeMap::from([("hoge".into(), "fuga".into())])];
 
-                let client = RelatedPod::new(&client, "default", selector);
+                let client = RelatedPod::new(&client, "default", selectors);
 
                 let result = client.related_resources().await.unwrap();
 
@@ -253,7 +267,7 @@ pub mod filter_by_labels {
                     bail!("error")
                 );
 
-                let client = RelatedPod::new(&client, "default", BTreeMap::default());
+                let client = RelatedPod::new(&client, "default", Default::default());
 
                 let result = client.related_resources().await;
 
