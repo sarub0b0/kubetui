@@ -1,6 +1,6 @@
 use k8s_openapi::api::networking::v1::Ingress;
-use kube::{Resource, ResourceExt};
-use serde_yaml::{Mapping, Value};
+use kube::Resource;
+use serde_yaml::Mapping;
 
 use crate::{error::Result, event::kubernetes::client::KubeClientRequest};
 
