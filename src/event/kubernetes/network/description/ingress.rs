@@ -47,3 +47,251 @@ where
         Ok(value)
     }
 }
+#[cfg(test)]
+mod tests {
+    use anyhow::bail;
+    use indoc::indoc;
+    use k8s_openapi::{
+        api::{
+            core::v1::{Pod, Service},
+            networking::v1::Ingress,
+        },
+        List,
+    };
+    use mockall::predicate::eq;
+    use pretty_assertions::assert_eq;
+
+    use crate::{event::kubernetes::client::mock::MockTestKubeClient, mock_expect};
+
+    use super::*;
+
+    fn ingress() -> Ingress {
+        serde_yaml::from_str(indoc! {
+            r#"
+            apiVersion: networking.k8s.io/v1
+            kind: Ingress
+            metadata:
+              annotations:
+                kubectl.kubernetes.io/last-applied-configuration: |
+                  {"apiVersion":"networking.k8s.io/v1","kind":"Ingress","metadata":{"annotations":{},"name":"ingress","namespace":"kubetui"},"spec":{"rules":[{"host":"example-0.com","http":{"paths":[{"backend":{"service":{"name":"service-0","port":{"number":80}}},"path":"/path","pathType":"ImplementationSpecific"}]}},{"host":"example-1.com","http":{"paths":[{"backend":{"service":{"name":"service-1","port":{"number":80}}},"path":"/path","pathType":"ImplementationSpecific"}]}}],"tls":[{"hosts":["example.com"],"secretName":"secret-name"}]}}
+              creationTimestamp: "2022-03-27T09:17:06Z"
+              generation: 1
+              name: ingress
+              resourceVersion: "710"
+              uid: 28a8cecd-8bbb-476f-8e34-eb86a8a8255f
+            spec:
+              rules:
+              - host: example-0.com
+                http:
+                  paths:
+                  - backend:
+                      service:
+                        name: service-1
+                        port:
+                          number: 80
+                    path: /path
+                    pathType: ImplementationSpecific
+                  - backend:
+                      service:
+                        name: service-2
+                        port:
+                          number: 80
+                    path: /path
+                    pathType: ImplementationSpecific
+
+              - host: example-1.com
+                http:
+                  paths:
+                  - backend:
+                      service:
+                        name: service-3
+                        port:
+                          number: 80
+                    path: /path
+                    pathType: ImplementationSpecific
+              tls:
+                - hosts:
+                  - example.com
+                  secretName: secret-name
+            status:
+              loadBalancer: {}
+            "#
+        })
+        .unwrap()
+    }
+
+    fn pods() -> List<Pod> {
+        serde_yaml::from_str(indoc! {
+            "
+            items:
+              - metadata:
+                  name: pod-1
+                  labels:
+                    app: pod-1
+                    version: v1
+              - metadata:
+                  name: pod-2
+                  labels:
+                    app: pod-2
+                    version: v1
+              - metadata:
+                  name: pod-3
+                  labels:
+                    app: pod-3
+                    version: v2
+            "
+        })
+        .unwrap()
+    }
+
+    fn services() -> List<Service> {
+        serde_yaml::from_str(indoc! {
+            "
+            items:
+              - metadata:
+                  name: service-1
+                spec:
+                  selector:
+                    app: pod-1
+                    version: v1
+              - metadata:
+                  name: service-2
+                spec:
+                   selector:
+                    app: pod-2
+                    version: v1
+              - metadata:
+                  name: service-3
+                spec:
+                   selector:
+                    app: pod-3
+                    version: v2
+           "
+        })
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn yamlデータを返す() {
+        let mut client = MockTestKubeClient::new();
+        mock_expect!(
+            client,
+            request,
+            [
+                (
+                    Ingress,
+                    eq("/apis/networking.k8s.io/v1/namespaces/default/ingresses/ingress"),
+                    Ok(ingress())
+                ),
+                (
+                    List<Service>,
+                    eq("/api/v1/namespaces/default/services"),
+                    Ok(services())
+                ),
+                (
+                    List<Pod>,
+                    eq("/api/v1/namespaces/default/pods"),
+                    Ok(pods())
+                )
+            ]
+        );
+
+        let worker =
+            IngressDescriptionWorker::new(&client, "default".to_string(), "ingress".to_string());
+
+        let result = worker.fetch().await;
+
+        let expected: Vec<String> = indoc! {
+            "
+            ingress:
+              metadata:
+                name: ingress
+              spec:
+                rules:
+                  - host: example-0.com
+                    http:
+                      paths:
+                        - backend:
+                            service:
+                              name: service-1
+                              port:
+                                number: 80
+                          path: /path
+                          pathType: ImplementationSpecific
+                        - backend:
+                            service:
+                              name: service-2
+                              port:
+                                number: 80
+                          path: /path
+                          pathType: ImplementationSpecific
+                  - host: example-1.com
+                    http:
+                      paths:
+                        - backend:
+                            service:
+                              name: service-3
+                              port:
+                                number: 80
+                          path: /path
+                          pathType: ImplementationSpecific
+                tls:
+                  - hosts:
+                      - example.com
+                    secretName: secret-name
+              status:
+                loadBalancer: {}
+
+            relatedResources:
+              services:
+                - service-1
+                - service-2
+                - service-3
+              pods:
+                - pod-1
+                - pod-2
+                - pod-3
+            "
+        }
+        .lines()
+        .map(ToString::to_string)
+        .collect();
+
+        assert_eq!(result.unwrap(), expected);
+    }
+
+    #[tokio::test]
+    async fn エラーのときerrorを返す() {
+        let mut client = MockTestKubeClient::new();
+        mock_expect!(
+            client,
+            request,
+            [
+                (
+                    Ingress,
+                    eq("/apis/networking.k8s.io/v1/namespaces/default/ingresses/test"),
+                    bail!("error")
+                ),
+                (
+                    List<Service>,
+                    eq("/api/v1/namespaces/default/services"),
+                    bail!("error")
+                ),
+                (
+                    List<Pod>,
+                    eq("/api/v1/namespaces/default/pods"),
+                    bail!("error")
+                )
+
+            ]
+        );
+
+        let worker =
+            IngressDescriptionWorker::new(&client, "default".to_string(), "test".to_string());
+
+        let result = worker.fetch().await;
+
+        assert_eq!(result.is_err(), true);
+    }
+}
+
