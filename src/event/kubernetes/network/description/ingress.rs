@@ -295,6 +295,44 @@ mod tests {
     }
 }
 
+mod to_value {
+    use anyhow::Result;
+    use k8s_openapi::api::networking::v1::Ingress;
+    use serde_yaml::{Mapping, Value};
+
+    pub trait ToValue {
+        fn to_value(&self) -> Result<Option<Value>>;
+    }
+
+    impl ToValue for Ingress {
+        fn to_value(&self) -> Result<Option<Value>> {
+            let mut value = Mapping::new();
+
+            value.insert("metadata".into(), serde_yaml::to_value(&self.metadata)?);
+
+            if let Some(spec) = &self.spec {
+                value.insert("spec".into(), serde_yaml::to_value(spec)?);
+            }
+
+            if let Some(status) = &self.status {
+                value.insert("status".into(), serde_yaml::to_value(status)?);
+            }
+
+            let ret = if !value.is_empty() {
+                let mut root = Mapping::new();
+
+                root.insert("ingress".into(), value.into());
+
+                Some(root.into())
+            } else {
+                None
+            };
+
+            Ok(ret)
+        }
+    }
+}
+
 mod extract {
     use k8s_openapi::api::networking::v1::Ingress;
     use kube::api::ObjectMeta;
