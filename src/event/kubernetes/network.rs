@@ -7,13 +7,10 @@ pub use list::*;
 use std::time;
 
 use async_trait::async_trait;
-use crossbeam::channel::Sender;
+
 use futures::future::try_join_all;
 
-use crate::{
-    error::{anyhow, Result},
-    event::Event,
-};
+use crate::{error::Result, event::Event};
 
 use super::{
     v1_table::{get_resource_per_namespace, insert_ns, TableRow},
