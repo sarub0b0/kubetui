@@ -65,7 +65,9 @@ impl<'a, C: KubeClientRequest> Fetch<'a, C> for PodDescriptionWorker<'a, C> {
 
         let mut related_resources = Mapping::new();
         if let Some(services) = related_services {
-            related_resources.insert("services".into(), services);
+            if let Some(value) = services.to_list_value() {
+                related_resources.insert("services".into(), value);
+            }
         }
 
         if let Some(ingresses) = related_ingresses {

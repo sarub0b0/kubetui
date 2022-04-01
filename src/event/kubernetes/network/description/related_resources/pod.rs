@@ -13,8 +13,8 @@ pub mod filter_by_labels {
     use crate::event::kubernetes::{
         client::KubeClientRequest,
         network::description::related_resources::{
-            btree_map_contains_key_values::BTreeMapContains, fetch::FetchClient, to_value::ToValue,
-            Filter, RelatedResources,
+            btree_map_contains_key_values::BTreeMapContains, fetch::FetchClient, Filter,
+            RelatedResources,
         },
     };
 

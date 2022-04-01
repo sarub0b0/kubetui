@@ -11,7 +11,7 @@ use crate::event::kubernetes::client::KubeClientRequest;
 
 use self::{
     fetch::FetchClient,
-    to_value::{ResourceList, ToValue},
+    to_list_value::{ResourceList, ToListValue},
 };
 
 pub mod ingress;
@@ -38,12 +38,12 @@ pub trait RelatedResources<C: KubeClientRequest> {
     async fn related_resources(&self) -> Result<Option<Value>>
     where
         Self::Filtered: Resource<DynamicType = ()> + ListableResource + DeserializeOwned + 'static,
-        List<Self::Filtered>: Filter<Self::Item, Filtered = Self::Filtered> + ToValue,
+        List<Self::Filtered>: Filter<Self::Item, Filtered = Self::Filtered> + ToListValue,
     {
         let list = self.client().fetch().await?;
 
         if let Some(filtered) = list.filter_by_item(self.item()) {
-            Ok(filtered.to_value())
+            Ok(filtered.to_list_value())
         } else {
             Ok(None)
         }
@@ -248,7 +248,7 @@ mod fetch {
     }
 }
 
-mod to_value {
+pub mod to_list_value {
 
     use k8s_openapi::{api::core::v1::Pod, List, ListableResource};
     use kube::ResourceExt;
@@ -267,12 +267,12 @@ mod to_value {
         }
     }
 
-    pub trait ToValue {
-        fn to_value(&self) -> Option<Value>;
+    pub trait ToListValue {
+        fn to_list_value(&self) -> Option<Value>;
     }
 
-    impl<R: ResourceList> ToValue for R {
-        fn to_value(&self) -> Option<Value> {
+    impl<R: ResourceList> ToListValue for R {
+        fn to_list_value(&self) -> Option<Value> {
             let ret: Vec<Value> = self.list().iter().map(|r| Value::from(r.name())).collect();
             if !ret.is_empty() {
                 Some(ret.into())
@@ -327,7 +327,7 @@ mod to_value {
         fn podのリストからnameのリストをvalue型で返す() {
             let list = setup_pod_list();
 
-            let actual = list.to_value();
+            let actual = list.to_list_value();
 
             let expected = serde_yaml::from_str(indoc! {
                 "
@@ -344,7 +344,7 @@ mod to_value {
         fn serviceのリストからnameのリストをvalue型で返す() {
             let list = setup_service_list();
 
-            let actual = list.to_value();
+            let actual = list.to_list_value();
 
             let expected = serde_yaml::from_str(indoc! {
                 "
@@ -361,7 +361,7 @@ mod to_value {
         fn リストが空のときnoneを返す() {
             let list = List::<Pod>::default();
 
-            let actual = list.to_value();
+            let actual = list.to_list_value();
 
             assert_eq!(actual, None)
         }
