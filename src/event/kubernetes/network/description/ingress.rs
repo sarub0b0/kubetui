@@ -295,3 +295,140 @@ mod tests {
     }
 }
 
+mod extract {
+    use k8s_openapi::api::networking::v1::Ingress;
+    use kube::api::ObjectMeta;
+
+    pub trait Extract {
+        fn extract(&self) -> Self
+        where
+            Self: Sized;
+    }
+
+    impl Extract for Ingress {
+        fn extract(&self) -> Self {
+            let annotations = if let Some(mut annotations) = self.metadata.annotations.clone() {
+                annotations.remove("kubectl.kubernetes.io/last-applied-configuration");
+                if annotations.is_empty() {
+                    None
+                } else {
+                    Some(annotations)
+                }
+            } else {
+                None
+            };
+            Ingress {
+                metadata: ObjectMeta {
+                    annotations,
+                    labels: self.metadata.labels.clone(),
+                    name: self.metadata.name.clone(),
+                    ..Default::default()
+                },
+                spec: self.spec.clone(),
+                status: self.status.clone(),
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use indoc::indoc;
+        use pretty_assertions::assert_eq;
+
+        use super::*;
+
+        fn ingress() -> Ingress {
+            serde_yaml::from_str(indoc! {
+                r#"
+                apiVersion: networking.k8s.io/v1
+                kind: Ingress
+                metadata:
+                  annotations:
+                    kubectl.kubernetes.io/last-applied-configuration: |
+                      {"apiVersion":"networking.k8s.io/v1","kind":"Ingress","metadata":{"annotations":{},"name":"ingress","namespace":"kubetui"},"spec":{"rules":[{"host":"example-0.com","http":{"paths":[{"backend":{"service":{"name":"service-0","port":{"number":80}}},"path":"/path","pathType":"ImplementationSpecific"}]}},{"host":"example-1.com","http":{"paths":[{"backend":{"service":{"name":"service-1","port":{"number":80}}},"path":"/path","pathType":"ImplementationSpecific"}]}}],"tls":[{"hosts":["example.com"],"secretName":"secret-name"}]}}
+                  creationTimestamp: "2022-03-27T09:17:06Z"
+                  generation: 1
+                  name: ingress
+                  namespace: kubetui
+                  resourceVersion: "710"
+                  uid: 28a8cecd-8bbb-476f-8e34-eb86a8a8255f
+                spec:
+                  rules:
+                  - host: example-0.com
+                    http:
+                      paths:
+                      - backend:
+                          service:
+                            name: service-0
+                            port:
+                              number: 80
+                        path: /path
+                        pathType: ImplementationSpecific
+                  - host: example-1.com
+                    http:
+                      paths:
+                      - backend:
+                          service:
+                            name: service-1
+                            port:
+                              number: 80
+                        path: /path
+                        pathType: ImplementationSpecific
+                  tls:
+                  - hosts:
+                    - example.com
+                    secretName: secret-name
+                status:
+                  loadBalancer: {}
+                "#
+            })
+            .unwrap()
+        }
+
+        #[test]
+        fn 必要な情報のみを抽出してserviceを返す() {
+            let actual = ingress().extract();
+
+            let expected = serde_yaml::from_str(indoc! {
+                r#"
+                apiVersion: networking.k8s.io/v1
+                kind: Ingress
+                metadata:
+                  annotations:
+                  name: ingress
+                spec:
+                  rules:
+                  - host: example-0.com
+                    http:
+                      paths:
+                      - backend:
+                          service:
+                            name: service-0
+                            port:
+                              number: 80
+                        path: /path
+                        pathType: ImplementationSpecific
+                  - host: example-1.com
+                    http:
+                      paths:
+                      - backend:
+                          service:
+                            name: service-1
+                            port:
+                              number: 80
+                        path: /path
+                        pathType: ImplementationSpecific
+                  tls:
+                  - hosts:
+                    - example.com
+                    secretName: secret-name
+                status:
+                  loadBalancer: {}
+                "#
+            })
+            .unwrap();
+
+            assert_eq!(actual, expected);
+        }
+    }
+}
