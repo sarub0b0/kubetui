@@ -7,7 +7,7 @@ use k8s_openapi::{
     List,
 };
 use kube::{Resource, ResourceExt};
-use serde_yaml::{Mapping, Value};
+use serde_yaml::Mapping;
 
 use super::{
     related_resources::{
