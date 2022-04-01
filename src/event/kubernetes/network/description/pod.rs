@@ -2,14 +2,17 @@ mod fetched_pod;
 
 pub(super) use fetched_pod::*;
 
-use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::{
+    api::{core::v1::Pod, networking::v1::Ingress},
+    List,
+};
 use kube::{Resource, ResourceExt};
 use serde_yaml::{Mapping, Value};
 
 use super::{
     related_resources::{
         ingress::filter_by_service::RelatedIngress, service::filter_by_selector::RelatedService,
-        RelatedResources,
+        to_list_value::ToListValue, RelatedResources,
     },
     Fetch, FetchedData, Result,
 };
@@ -52,8 +55,9 @@ impl<'a, C: KubeClientRequest> Fetch<'a, C> for PodDescriptionWorker<'a, C> {
             .related_resources()
             .await?;
 
-        let related_ingresses: Option<Value> = if let Some(services) = &related_services {
-            let services: Vec<String> = serde_yaml::from_value(services.clone())?;
+        let related_ingresses: Option<List<Ingress>> = if let Some(services) = &related_services {
+            let services = services.items.iter().map(|svc| svc.name()).collect();
+
             RelatedIngress::new(self.client, &self.namespace, services)
                 .related_resources()
                 .await?
@@ -71,7 +75,9 @@ impl<'a, C: KubeClientRequest> Fetch<'a, C> for PodDescriptionWorker<'a, C> {
         }
 
         if let Some(ingresses) = related_ingresses {
-            related_resources.insert("ingresses".into(), ingresses);
+            if let Some(value) = ingresses.to_list_value() {
+                related_resources.insert("ingresses".into(), value);
+            }
         }
 
         if !related_resources.is_empty() {

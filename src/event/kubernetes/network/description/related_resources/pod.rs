@@ -200,7 +200,22 @@ pub mod filter_by_labels {
 
                 let result = client.related_resources().await.unwrap().unwrap();
 
-                let expected = Value::from(vec!["pod-1", "pod-2"]);
+                let expected = serde_yaml::from_str(indoc! {
+                    "
+                    items:
+                      - metadata:
+                          name: pod-1
+                          labels:
+                            app: pod-1
+                            version: v1
+                      - metadata:
+                          name: pod-2
+                          labels:
+                            app: pod-2
+                            version: v1
+                    "
+                })
+                .unwrap();
 
                 assert_eq!(result, expected);
             }

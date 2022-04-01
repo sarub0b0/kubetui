@@ -1,19 +1,26 @@
-use k8s_openapi::api::core::v1::{Service, ServiceSpec};
+use k8s_openapi::{
+    api::{
+        core::v1::{Pod, Service, ServiceSpec},
+        networking::v1::Ingress,
+    },
+    List,
+};
 use kube::{Resource, ResourceExt};
 use serde_yaml::{Mapping, Value};
 
 use crate::{error::Result, event::kubernetes::client::KubeClientRequest};
 
+use self::to_value::ToValue;
+
 use super::{
     related_resources::{
         ingress::filter_by_service::RelatedIngress, pod::filter_by_labels::RelatedPod,
-        RelatedResources,
+        to_list_value::ToListValue, RelatedResources,
     },
     Fetch, FetchedData,
 };
 
 use extract::Extract;
-use to_value::ToValue;
 
 pub(super) struct ServiceDescriptionWorker<'a, C>
 where
@@ -47,12 +54,12 @@ where
         let service: Service = self.client.request(&url).await?;
         let service = service.extract();
 
-        let related_ingresses: Option<Value> =
+        let related_ingresses: Option<List<Ingress>> =
             RelatedIngress::new(self.client, &self.namespace, vec![service.name()])
                 .related_resources()
                 .await?;
 
-        let related_pods: Option<Value> = if let Some(ServiceSpec {
+        let related_pods: Option<List<Pod>> = if let Some(ServiceSpec {
             selector: Some(selector),
             ..
         }) = &service.spec
@@ -67,11 +74,15 @@ where
         let mut related_resources = Mapping::new();
 
         if let Some(ingresses) = related_ingresses {
-            related_resources.insert("ingresses".into(), ingresses);
+            if let Some(value) = ingresses.to_list_value() {
+                related_resources.insert("ingresses".into(), value);
+            }
         }
 
         if let Some(pods) = related_pods {
-            related_resources.insert("pods".into(), pods);
+            if let Some(value) = pods.to_list_value() {
+                related_resources.insert("pods".into(), value);
+            }
         }
 
         let service: Vec<String> = serde_yaml::to_string(&service.to_value()?)?

@@ -286,7 +286,39 @@ pub mod filter_by_service {
 
                 let result = client.related_resources().await.unwrap().unwrap();
 
-                let expected = Value::from(vec!["ingress-1", "ingress-3"]);
+                let expected = serde_yaml::from_str(indoc! {
+                    "
+                    items:
+                      - metadata:
+                          name: ingress-1
+                        spec:
+                          rules:
+                            - http:
+                                paths:
+                                  - backend:
+                                      service:
+                                        name: service-1
+                      - metadata:
+                          name: ingress-3
+                        spec:
+                          rules:
+                            - http:
+                                paths:
+                                  - backend:
+                                      service:
+                                        name: service-1
+                                  - backend:
+                                      service:
+                                        name: service-3
+                            - http:
+                                paths:
+                                  - backend:
+                                      service:
+                                        name: service-2
+
+                    "
+                })
+                .unwrap();
 
                 assert_eq!(result, expected);
             }

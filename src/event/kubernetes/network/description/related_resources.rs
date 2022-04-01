@@ -35,18 +35,14 @@ pub trait RelatedResources<C: KubeClientRequest> {
 
     fn item(&self) -> &Self::Item;
 
-    async fn related_resources(&self) -> Result<Option<Value>>
+    async fn related_resources(&self) -> Result<Option<List<Self::Filtered>>>
     where
         Self::Filtered: Resource<DynamicType = ()> + ListableResource + DeserializeOwned + 'static,
         List<Self::Filtered>: Filter<Self::Item, Filtered = Self::Filtered> + ToListValue,
     {
         let list = self.client().fetch().await?;
 
-        if let Some(filtered) = list.filter_by_item(self.item()) {
-            Ok(filtered.to_list_value())
-        } else {
-            Ok(None)
-        }
+        Ok(list.filter_by_item(self.item()))
     }
 }
 

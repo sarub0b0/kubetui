@@ -174,7 +174,16 @@ pub mod filter_by_names {
 
             let result = client.related_resources().await.unwrap().unwrap();
 
-            let expected = Value::from(vec!["service-1", "service-3"]);
+            let expected = serde_yaml::from_str(indoc! {
+                "
+                items:
+                  - metadata:
+                      name: service-1
+                  - metadata:
+                      name: service-3
+                "
+            })
+            .unwrap();
 
             assert_eq!(result, expected);
         }
@@ -442,7 +451,18 @@ pub mod filter_by_selector {
 
             let result = client.related_resources().await.unwrap().unwrap();
 
-            let expected = Value::from(vec!["service-1"]);
+            let expected = serde_yaml::from_str(indoc! {
+                "
+                items:
+                  - metadata:
+                      name: service-1
+                    spec:
+                      selector:
+                        app: pod-1
+                        version: v1
+                "
+            })
+            .unwrap();
 
             assert_eq!(result, expected);
         }
