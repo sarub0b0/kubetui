@@ -259,11 +259,8 @@ mod tests {
             ]
         );
 
-        let worker = NetworkPolicyDescriptionWorker::new(
-            &client,
-            "default".to_string(),
-            "service".to_string(),
-        );
+        let worker =
+            NetworkPolicyDescriptionWorker::new(&client, "default".to_string(), "test".to_string());
 
         let result = worker.fetch().await;
 
