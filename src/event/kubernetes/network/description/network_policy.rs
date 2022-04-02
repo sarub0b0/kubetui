@@ -179,9 +179,11 @@ mod extract {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::bail;
     use indoc::indoc;
     use k8s_openapi::{api::core::v1::Pod, List};
     use mockall::predicate::eq;
+    use pretty_assertions::assert_eq;
 
     use crate::{event::kubernetes::client::mock::MockTestKubeClient, mock_expect};
 
@@ -301,12 +303,12 @@ mod tests {
                 (
                     NetworkPolicy,
                     eq("/apis/networking.k8s.io/v1/namespaces/default/networkpolicies/test"),
-                    Ok(networkpolicy())
+                    bail!("error")
                 ),
                 (
                     List<Pod>,
                     eq("/api/v1/namespaces/default/pods"),
-                    Ok(pods())
+                    bail!("error")
                 )
             ]
         );
