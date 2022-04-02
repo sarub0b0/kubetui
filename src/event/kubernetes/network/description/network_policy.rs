@@ -82,3 +82,98 @@ mod to_value {
     }
 }
 
+mod extract {
+    use k8s_openapi::api::networking::v1::NetworkPolicy;
+    use kube::api::ObjectMeta;
+
+    pub trait Extract {
+        fn extract(&self) -> Self
+        where
+            Self: Sized;
+    }
+
+    impl Extract for NetworkPolicy {
+        fn extract(&self) -> Self {
+            let annotations = if let Some(mut annotations) = self.metadata.annotations.clone() {
+                annotations.remove("kubectl.kubernetes.io/last-applied-configuration");
+                if annotations.is_empty() {
+                    None
+                } else {
+                    Some(annotations)
+                }
+            } else {
+                None
+            };
+            NetworkPolicy {
+                metadata: ObjectMeta {
+                    annotations,
+                    labels: self.metadata.labels.clone(),
+                    name: self.metadata.name.clone(),
+                    ..Default::default()
+                },
+                spec: self.spec.clone(),
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use indoc::indoc;
+        use pretty_assertions::assert_eq;
+
+        use super::*;
+
+        fn networkpolicy() -> NetworkPolicy {
+            serde_yaml::from_str(indoc! {
+                r#"
+                apiVersion: networking.k8s.io/v1
+                kind: NetworkPolicy
+                metadata:
+                  annotations:
+                    kubectl.kubernetes.io/last-applied-configuration: |
+                      {"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"annotations":{},"name":"allow-all-ingress","namespace":"kubetui"},"spec":{"ingress":[{}],"podSelector":{},"policyTypes":["Ingress"]}}
+                    foo: bar
+                  creationTimestamp: "2022-03-27T09:17:06Z"
+                  generation: 1
+                  name: test
+                  namespace: kubetui
+                  resourceVersion: "777"
+                  uid: c3a2c3c9-c74a-4a2f-be06-88e7cf527f5d
+                spec:
+                  ingress:
+                    - {}
+                  podSelector: {}
+                  policyTypes:
+                    - Ingress
+                "#
+            })
+            .unwrap()
+        }
+
+        #[test]
+        fn 必要な情報のみを抽出してserviceを返す() {
+            let actual = networkpolicy().extract();
+
+            let expected = serde_yaml::from_str(indoc! {
+                r#"
+                apiVersion: networking.k8s.io/v1
+                kind: NetworkPolicy
+                metadata:
+                  annotations:
+                    foo: bar
+                  name: test
+                spec:
+                  ingress:
+                    - {}
+                  podSelector: {}
+                  policyTypes:
+                    - Ingress
+                "#
+            })
+            .unwrap();
+
+            assert_eq!(actual, expected);
+        }
+    }
+}
+
