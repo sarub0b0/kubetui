@@ -63,7 +63,7 @@ anyhow = "1"
 async-trait = "0.1"
 
 [dev-dependencies]
-pretty_assertions = "1.2.0"
+pretty_assertions = "1.2.1"
 indoc = "1.0.4"
 mockall = "0.11.0"
 mockall_double = "0.2.1"
