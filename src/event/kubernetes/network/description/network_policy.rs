@@ -47,3 +47,38 @@ where
         Ok(value)
     }
 }
+
+mod to_value {
+    use anyhow::Result;
+    use k8s_openapi::api::networking::v1::NetworkPolicy;
+    use serde_yaml::{Mapping, Value};
+
+    pub trait ToValue {
+        fn to_value(&self) -> Result<Option<Value>>;
+    }
+
+    impl ToValue for NetworkPolicy {
+        fn to_value(&self) -> Result<Option<Value>> {
+            let mut value = Mapping::new();
+
+            value.insert("metadata".into(), serde_yaml::to_value(&self.metadata)?);
+
+            if let Some(spec) = &self.spec {
+                value.insert("spec".into(), serde_yaml::to_value(spec)?);
+            }
+
+            let ret = if !value.is_empty() {
+                let mut root = Mapping::new();
+
+                root.insert("networkpolicy".into(), value.into());
+
+                Some(root.into())
+            } else {
+                None
+            };
+
+            Ok(ret)
+        }
+    }
+}
+
