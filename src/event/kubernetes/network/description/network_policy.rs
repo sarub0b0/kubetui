@@ -177,3 +177,145 @@ mod extract {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use indoc::indoc;
+    use k8s_openapi::{api::core::v1::Pod, List};
+    use mockall::predicate::eq;
+
+    use crate::{event::kubernetes::client::mock::MockTestKubeClient, mock_expect};
+
+    use super::*;
+
+    fn networkpolicy() -> NetworkPolicy {
+        serde_yaml::from_str(indoc! {
+            r#"
+            apiVersion: networking.k8s.io/v1
+            kind: NetworkPolicy
+            metadata:
+              annotations:
+                kubectl.kubernetes.io/last-applied-configuration: |
+                  {"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"annotations":{},"name":"allow-all-ingress","namespace":"kubetui"},"spec":{"ingress":[{}],"podSelector":{},"policyTypes":["Ingress"]}}
+              creationTimestamp: "2022-03-27T09:17:06Z"
+              generation: 1
+              name: test
+              namespace: kubetui
+              resourceVersion: "777"
+              uid: c3a2c3c9-c74a-4a2f-be06-88e7cf527f5d
+            spec:
+              ingress:
+                - {}
+              podSelector: {}
+              policyTypes:
+                - Ingress
+            "#
+        }).unwrap()
+    }
+
+    fn pods() -> List<Pod> {
+        serde_yaml::from_str(indoc! {
+            "
+            items:
+              - metadata:
+                  name: pod-1
+                  labels:
+                    app: pod-1
+                    version: v1
+              - metadata:
+                  name: pod-2
+                  labels:
+                    app: pod-2
+                    version: v1
+              - metadata:
+                  name: pod-3
+                  labels:
+                    app: pod-3
+                    version: v2
+            "
+        })
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn yamlデータを返す() {
+        let mut client = MockTestKubeClient::new();
+
+        mock_expect!(
+            client,
+            request,
+            [
+                (
+                    NetworkPolicy,
+                    eq("/apis/networking.k8s.io/v1/namespaces/default/networkpolicies/test"),
+                    Ok(networkpolicy())
+                ),
+                (
+                    List<Pod>,
+                    eq("/api/v1/namespaces/default/pods"),
+                    Ok(pods())
+                )
+            ]
+        );
+
+        let worker = NetworkPolicyDescriptionWorker::new(
+            &client,
+            "default".to_string(),
+            "service".to_string(),
+        );
+
+        let result = worker.fetch().await;
+
+        let expected: Vec<String> = indoc! {
+            r#"
+            networkpolicy:
+              metadata:
+                name: test
+              spec:
+                ingress:
+                  - {}
+                podSelector: {}
+                policyTypes:
+                  - Ingress
+
+            relatedResources:
+              pods:
+                - pod-1
+                - pod-2
+                - pod-3
+            "#
+        }
+        .lines()
+        .map(ToString::to_string)
+        .collect();
+
+        assert_eq!(result.unwrap(), expected);
+    }
+
+    #[tokio::test]
+    async fn エラーのときerrorを返す() {
+        let mut client = MockTestKubeClient::new();
+        mock_expect!(
+            client,
+            request,
+            [
+                (
+                    NetworkPolicy,
+                    eq("/apis/networking.k8s.io/v1/namespaces/default/networkpolicies/test"),
+                    Ok(networkpolicy())
+                ),
+                (
+                    List<Pod>,
+                    eq("/api/v1/namespaces/default/pods"),
+                    Ok(pods())
+                )
+            ]
+        );
+
+        let worker =
+            NetworkPolicyDescriptionWorker::new(&client, "default".to_string(), "test".to_string());
+
+        let result = worker.fetch().await;
+
+        assert_eq!(result.is_err(), true);
+    }
+}
