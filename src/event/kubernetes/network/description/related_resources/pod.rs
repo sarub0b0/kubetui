@@ -10,7 +10,10 @@ use serde_yaml::Value;
 use crate::event::kubernetes::client::KubeClientRequest;
 
 use super::{
-    btree_map_contains_key_values::BTreeMapContains, fetch::FetchClient, Filter, RelatedClient,
+    btree_map_contains_key_values::BTreeMapContains,
+    fetch::FetchClient,
+    label_selector::{LabelSelectorExpression, LabelSelectorWrapper},
+    Filter, RelatedClient,
 };
 
 impl Filter<BTreeMap<String, String>> for List<Pod> {
@@ -51,6 +54,32 @@ impl Filter<Vec<BTreeMap<String, String>>> for List<Pod> {
                 item.metadata.labels.as_ref().map_or(false, |pod_labels| {
                     arg.iter().any(|arg| pod_labels.contains_key_values(arg))
                 })
+            })
+            .cloned()
+            .collect();
+
+        if !ret.is_empty() {
+            Some(List {
+                items: ret,
+                ..Default::default()
+            })
+        } else {
+            None
+        }
+    }
+}
+
+impl Filter<LabelSelectorWrapper> for List<Pod> {
+    type Filtered = Pod;
+    fn filter_by_item(&self, arg: &LabelSelectorWrapper) -> Option<List<Self::Filtered>> {
+        let ret: Vec<Pod> = self
+            .items
+            .iter()
+            .filter(|item| {
+                item.metadata
+                    .labels
+                    .as_ref()
+                    .map_or(false, |pod_labels| arg.expression(pod_labels))
             })
             .cloned()
             .collect();
