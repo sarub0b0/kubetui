@@ -1,8 +1,23 @@
-use k8s_openapi::api::networking::v1::NetworkPolicy;
+use k8s_openapi::{
+    api::{
+        core::v1::Pod,
+        networking::v1::{NetworkPolicy, NetworkPolicySpec},
+    },
+    List,
+};
+use kube::Resource;
+use serde_yaml::Mapping;
 
 use crate::{error::Result, event::kubernetes::client::KubeClientRequest};
 
-use super::{Fetch, FetchedData};
+use self::{extract::Extract, to_value::ToValue};
+
+use super::{
+    related_resources::{
+        label_selector::LabelSelectorWrapper, to_list_value::ToListValue, RelatedClient,
+    },
+    Fetch, FetchedData,
+};
 
 pub(super) struct NetworkPolicyDescriptionWorker<'a, C>
 where
@@ -28,21 +43,54 @@ where
 
     async fn fetch(&self) -> Result<FetchedData> {
         let url = format!(
-            "apis/networking.k8s.io/v1/namespaces/{}/networkpolicies/{}",
-            self.namespace, self.name
+            "{}/{}",
+            NetworkPolicy::url_path(&(), Some(&self.namespace)),
+            self.name
         );
 
-        let res = self.client.request_text(&url).await?;
+        let networkpolicy: NetworkPolicy = self.client.request(&url).await?;
+        let networkpolicy = networkpolicy.extract();
 
-        let mut value: NetworkPolicy = serde_json::from_str(&res)?;
+        let related_pods: Option<List<Pod>> =
+            if let Some(NetworkPolicySpec { pod_selector, .. }) = &networkpolicy.spec {
+                RelatedClient::new(self.client, &self.namespace)
+                    .related_resources::<Pod, LabelSelectorWrapper>(&pod_selector.clone().into())
+                    .await?
+            } else {
+                None
+            };
 
-        value.metadata.managed_fields = None;
+        let mut related_resources = Mapping::new();
 
-        let value = serde_yaml::to_string(&value)?
+        if let Some(pods) = related_pods {
+            if let Some(value) = pods.to_list_value() {
+                related_resources.insert("pods".into(), value);
+            }
+        }
+
+        let value: Vec<String> = serde_yaml::to_string(&networkpolicy.to_value()?)?
             .lines()
             .skip(1)
             .map(ToString::to_string)
             .collect();
+
+        let mut value = value;
+
+        if !related_resources.is_empty() {
+            let mut root = Mapping::new();
+
+            root.insert("relatedResources".into(), related_resources.into());
+
+            let related_resources: Vec<String> = serde_yaml::to_string(&root)?
+                .lines()
+                .skip(1)
+                .map(ToString::to_string)
+                .collect();
+
+            value.push(Default::default());
+
+            value.extend(related_resources);
+        }
 
         Ok(value)
     }
