@@ -45,6 +45,232 @@ impl<'a, C: KubeClientRequest> RelatedClient<'a, C> {
     }
 }
 
+mod label_selector {
+    use std::collections::BTreeMap;
+
+    use k8s_openapi::apimachinery::pkg::apis::meta::v1::{LabelSelector, LabelSelectorRequirement};
+
+    use super::btree_map_contains_key_values::BTreeMapContains;
+
+    #[derive(Debug, Default)]
+    pub struct LabelSelectorWrapper(LabelSelector);
+
+    impl LabelSelectorWrapper {
+        pub fn new(label_selector: LabelSelector) -> Self {
+            Self(label_selector)
+        }
+    }
+
+    impl From<BTreeMap<String, String>> for LabelSelectorWrapper {
+        fn from(match_labels: BTreeMap<String, String>) -> Self {
+            Self(LabelSelector {
+                match_labels: Some(match_labels),
+                ..Default::default()
+            })
+        }
+    }
+
+    impl From<Vec<LabelSelectorRequirement>> for LabelSelectorWrapper {
+        fn from(match_expressions: Vec<LabelSelectorRequirement>) -> Self {
+            Self(LabelSelector {
+                match_expressions: Some(match_expressions),
+                ..Default::default()
+            })
+        }
+    }
+
+    impl From<LabelSelector> for LabelSelectorWrapper {
+        fn from(label_selector: LabelSelector) -> Self {
+            Self(label_selector)
+        }
+    }
+
+    pub trait LabelSelectorExpression {
+        fn expression(&self, labels: &BTreeMap<String, String>) -> bool;
+    }
+
+    impl LabelSelectorExpression for LabelSelectorWrapper {
+        fn expression(&self, labels: &BTreeMap<String, String>) -> bool {
+            let requirements = {
+                let mut ret = vec![];
+                if let Some(match_labels) = &self.0.match_labels {
+                    for (k, v) in match_labels {
+                        ret.push(LabelSelectorRequirement {
+                            key: k.to_string(),
+                            operator: "In".to_string(),
+                            values: Some(vec![v.to_string()]),
+                        });
+                    }
+                }
+
+                if let Some(match_expressions) = &self.0.match_expressions {
+                    ret.extend(match_expressions.clone());
+                }
+
+                ret
+            };
+
+            requirements
+                .iter()
+                .all(|requirement| match requirement.operator.as_str() {
+                    // A In [B, ..]
+                    // Aの値が[B, ..]のいずれか1つ以上と一致する場合にtrue
+                    "In" => requirement.values.as_ref().map_or(false, |values| {
+                        values.iter().any(|value| {
+                            let r = BTreeMap::from([(requirement.key.clone(), value.clone())]);
+
+                            r.contains_key_values(&labels)
+                        })
+                    }),
+                    // A NotIn [B, ..]
+                    // Aの値が[B, ..]のいずれとも一致しない場合にtrue
+                    "NotIn" => requirement.values.as_ref().map_or(false, |values| {
+                        values.iter().all(|value| {
+                            let r = BTreeMap::from([(requirement.key.clone(), value.clone())]);
+
+                            !r.contains_key_values(&labels)
+                        })
+                    }),
+                    // A Exists []
+                    // Aが存在する場合にtrue
+                    "Exists" => labels.contains_key(&requirement.key),
+                    // A DoesNotExist []
+                    // Aが存在しない場合にtrue
+                    "DoesNotExist" => !labels.contains_key(&requirement.key),
+                    _ => {
+                        unreachable!()
+                    }
+                })
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        mod operator_in {
+            use super::*;
+
+            #[test]
+            fn labelsにkey_valueが存在するときtrueを返す() {
+                let expr = LabelSelectorWrapper::from(vec![LabelSelectorRequirement {
+                    key: "a".into(),
+                    operator: "In".into(),
+                    values: Some(vec!["b".into(), "c".into()]),
+                }]);
+
+                let labels = BTreeMap::from([("a".into(), "b".into())]);
+
+                assert_eq!(expr.expression(&labels), true)
+            }
+
+            #[test]
+            fn labelsにkey_valueが存在しないときfalseを返す() {
+                let expr = LabelSelectorWrapper::from(vec![LabelSelectorRequirement {
+                    key: "a".into(),
+                    operator: "In".into(),
+                    values: Some(vec!["b".into(), "c".into()]),
+                }]);
+
+                let labels = BTreeMap::from([("a".into(), "d".into())]);
+
+                assert_eq!(expr.expression(&labels), false)
+            }
+        }
+
+        mod operator_not_int {
+            use super::*;
+
+            #[test]
+            fn labelsにkey_valueが存在しないときtrueを返す() {
+                let expr = LabelSelectorWrapper::from(vec![LabelSelectorRequirement {
+                    key: "a".into(),
+                    operator: "NotIn".into(),
+                    values: Some(vec!["b".into(), "c".into()]),
+                }]);
+
+                let labels = BTreeMap::from([("a".into(), "d".into())]);
+
+                assert_eq!(expr.expression(&labels), true)
+            }
+
+            #[test]
+            fn labelsにkey_valueが存在するときfalseを返す() {
+                let expr = LabelSelectorWrapper::from(vec![LabelSelectorRequirement {
+                    key: "a".into(),
+                    operator: "NotIn".into(),
+                    values: Some(vec!["b".into(), "c".into()]),
+                }]);
+
+                let labels = BTreeMap::from([("a".into(), "b".into())]);
+
+                assert_eq!(expr.expression(&labels), false)
+            }
+        }
+
+        mod operator_exists {
+            use super::*;
+
+            #[test]
+            fn labelsにkeyが存在するときtrueを返す() {
+                let expr = LabelSelectorWrapper::from(vec![LabelSelectorRequirement {
+                    key: "a".into(),
+                    operator: "Exists".into(),
+                    values: None,
+                }]);
+
+                let labels = BTreeMap::from([("a".into(), "".into()), ("b".into(), "".into())]);
+
+                assert_eq!(expr.expression(&labels), true)
+            }
+
+            #[test]
+            fn labelsにkeyが存在しないときfalseを返す() {
+                let expr = LabelSelectorWrapper::from(vec![LabelSelectorRequirement {
+                    key: "c".into(),
+                    operator: "Exists".into(),
+                    values: None,
+                }]);
+
+                let labels = BTreeMap::from([("a".into(), "".into()), ("b".into(), "".into())]);
+
+                assert_eq!(expr.expression(&labels), false)
+            }
+        }
+
+        mod operator_does_not_exist {
+            use super::*;
+
+            #[test]
+            fn labelsにkeyが存在しないときtrueを返す() {
+                let expr = LabelSelectorWrapper::from(vec![LabelSelectorRequirement {
+                    key: "c".into(),
+                    operator: "DoesNotExist".into(),
+                    values: None,
+                }]);
+
+                let labels = BTreeMap::from([("a".into(), "".into()), ("b".into(), "".into())]);
+
+                assert_eq!(expr.expression(&labels), true)
+            }
+
+            #[test]
+            fn labelsにkeyが存在するときfalseを返す() {
+                let expr = LabelSelectorWrapper::from(vec![LabelSelectorRequirement {
+                    key: "a".into(),
+                    operator: "DoesNotExist".into(),
+                    values: None,
+                }]);
+
+                let labels = BTreeMap::from([("a".into(), "".into()), ("b".into(), "".into())]);
+
+                assert_eq!(expr.expression(&labels), false)
+            }
+        }
+
+        mod complex_operator {
+            use super::*;
+        }
     }
 }
 
