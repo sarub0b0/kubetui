@@ -14,8 +14,7 @@ use self::to_value::ToValue;
 
 use super::{
     related_resources::{
-        ingress::filter_by_service::RelatedIngress, pod::filter_by_labels::RelatedPod,
-        to_list_value::ToListValue, RelatedResources,
+        ingress::RelatedIngress, pod::RelatedPod, to_list_value::ToListValue, RelatedResources,
     },
     Fetch, FetchedData,
 };
@@ -55,8 +54,8 @@ where
         let service = service.extract();
 
         let related_ingresses: Option<List<Ingress>> =
-            RelatedIngress::new(self.client, &self.namespace, vec![service.name()])
-                .related_resources()
+            RelatedIngress::new(self.client, &self.namespace)
+                .related_resources(&vec![service.name()])
                 .await?;
 
         let related_pods: Option<List<Pod>> = if let Some(ServiceSpec {
@@ -64,8 +63,8 @@ where
             ..
         }) = &service.spec
         {
-            RelatedPod::new(self.client, &self.namespace, vec![selector.clone()])
-                .related_resources()
+            RelatedPod::new(self.client, &self.namespace)
+                .related_resources(&vec![selector.clone()])
                 .await?
         } else {
             None

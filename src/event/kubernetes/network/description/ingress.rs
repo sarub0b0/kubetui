@@ -6,8 +6,7 @@ use crate::{error::Result, event::kubernetes::client::KubeClientRequest};
 
 use super::{
     related_resources::{
-        pod::filter_by_labels::RelatedPod, service::filter_by_names::RelatedService,
-        to_list_value::ToListValue, RelatedResources,
+        pod::RelatedPod, service::RelatedService, to_list_value::ToListValue, RelatedResources,
     },
     Fetch, FetchedData,
 };
@@ -50,8 +49,8 @@ where
         let services: Option<Vec<String>> = backend_service_names(&ingress);
 
         let related_services = if let Some(services) = services {
-            RelatedService::new(self.client, &self.namespace, services)
-                .related_resources()
+            RelatedService::new(self.client, &self.namespace)
+                .related_resources(&services)
                 .await?
         } else {
             None
@@ -65,8 +64,8 @@ where
                 .filter_map(|spec| spec.selector.clone())
                 .collect();
 
-            RelatedPod::new(self.client, &self.namespace, selectors)
-                .related_resources()
+            RelatedPod::new(self.client, &self.namespace)
+                .related_resources(&selectors)
                 .await?
         } else {
             None

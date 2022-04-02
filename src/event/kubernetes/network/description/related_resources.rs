@@ -27,22 +27,23 @@ pub trait Filter<I> {
 }
 
 #[async_trait::async_trait]
-pub trait RelatedResources<C: KubeClientRequest> {
-    type Item;
+pub trait RelatedResources<I, C: KubeClientRequest> {
     type Filtered;
 
     fn client(&self) -> &FetchClient<C>;
 
-    fn item(&self) -> &Self::Item;
-
-    async fn related_resources(&self) -> Result<Option<List<Self::Filtered>>>
+    async fn related_resources(&self, item: &I) -> Result<Option<List<Self::Filtered>>>
     where
         Self::Filtered: Resource<DynamicType = ()> + ListableResource + DeserializeOwned + 'static,
-        List<Self::Filtered>: Filter<Self::Item, Filtered = Self::Filtered> + ToListValue,
+        List<Self::Filtered>: Filter<I, Filtered = Self::Filtered> + ToListValue,
+        I: Sync,
     {
         let list = self.client().fetch().await?;
 
-        Ok(list.filter_by_item(self.item()))
+        Ok(list.filter_by_item(item))
+    }
+}
+
     }
 }
 

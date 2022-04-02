@@ -11,8 +11,8 @@ use serde_yaml::Mapping;
 
 use super::{
     related_resources::{
-        ingress::filter_by_service::RelatedIngress, service::filter_by_selector::RelatedService,
-        to_list_value::ToListValue, RelatedResources,
+        ingress::RelatedIngress, service::RelatedService, to_list_value::ToListValue,
+        RelatedResources,
     },
     Fetch, FetchedData, Result,
 };
@@ -51,15 +51,15 @@ impl<'a, C: KubeClientRequest> Fetch<'a, C> for PodDescriptionWorker<'a, C> {
 
         let pod: FetchedPod = self.client.request(&url).await?;
 
-        let related_services = RelatedService::new(self.client, &self.namespace, pod.0.labels())
-            .related_resources()
+        let related_services = RelatedService::new(self.client, &self.namespace)
+            .related_resources(pod.0.labels())
             .await?;
 
         let related_ingresses: Option<List<Ingress>> = if let Some(services) = &related_services {
             let services = services.items.iter().map(|svc| svc.name()).collect();
 
-            RelatedIngress::new(self.client, &self.namespace, services)
-                .related_resources()
+            RelatedIngress::new(self.client, &self.namespace)
+                .related_resources(&services)
                 .await?
         } else {
             None

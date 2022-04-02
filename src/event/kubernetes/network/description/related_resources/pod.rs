@@ -2,179 +2,90 @@ use anyhow::{Ok, Result};
 
 use k8s_openapi::{api::core::v1::Pod, List};
 
-pub mod filter_by_labels {
-    use super::*;
+use super::*;
 
+use std::collections::BTreeMap;
+
+use kube::Resource;
+use serde_yaml::Value;
+
+use crate::event::kubernetes::{
+    client::KubeClientRequest,
+    network::description::related_resources::{
+        btree_map_contains_key_values::BTreeMapContains, fetch::FetchClient, Filter,
+        RelatedResources,
+    },
+};
+
+pub struct RelatedPod<'a, C: KubeClientRequest> {
+    client: FetchClient<'a, C>,
+}
+
+impl<'a, C: KubeClientRequest> RelatedPod<'a, C> {
+    pub fn new(client: &'a C, namespace: &'a str) -> Self {
+        Self {
+            client: FetchClient::new(client, namespace),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl<'a, I, C: KubeClientRequest> RelatedResources<I, C> for RelatedPod<'a, C> {
+    type Filtered = Pod;
+
+    fn client(&self) -> &FetchClient<C> {
+        &self.client
+    }
+}
+
+mod filter {
     use std::collections::BTreeMap;
 
-    use kube::Resource;
-    use serde_yaml::Value;
+    use k8s_openapi::{api::core::v1::Pod, List};
 
-    use crate::event::kubernetes::{
-        client::KubeClientRequest,
-        network::description::related_resources::{
-            btree_map_contains_key_values::BTreeMapContains, fetch::FetchClient, Filter,
-            RelatedResources,
-        },
+    use crate::event::kubernetes::network::description::related_resources::{
+        btree_map_contains_key_values::BTreeMapContains, Filter,
     };
 
-    pub struct RelatedPod<'a, C: KubeClientRequest> {
-        client: FetchClient<'a, C>,
-        selectors: Vec<BTreeMap<String, String>>,
-    }
-
-    impl<'a, C: KubeClientRequest> RelatedPod<'a, C> {
-        pub fn new(
-            client: &'a C,
-            namespace: &'a str,
-            selectors: Vec<BTreeMap<String, String>>,
-        ) -> Self {
-            Self {
-                client: FetchClient::new(client, namespace),
-                selectors,
-            }
-        }
-    }
-
-    #[async_trait::async_trait]
-    impl<'a, C: KubeClientRequest> RelatedResources<C> for RelatedPod<'a, C> {
-        type Item = Vec<BTreeMap<String, String>>;
+    impl Filter<Vec<BTreeMap<String, String>>> for List<Pod> {
         type Filtered = Pod;
 
-        fn client(&self) -> &FetchClient<C> {
-            &self.client
-        }
-
-        fn item(&self) -> &Self::Item {
-            &self.selectors
-        }
-    }
-
-    mod filter {
-        use std::collections::BTreeMap;
-
-        use k8s_openapi::{api::core::v1::Pod, List};
-
-        use crate::event::kubernetes::network::description::related_resources::{
-            btree_map_contains_key_values::BTreeMapContains, Filter,
-        };
-
-        impl Filter<Vec<BTreeMap<String, String>>> for List<Pod> {
-            type Filtered = Pod;
-
-            fn filter_by_item(
-                &self,
-                arg: &Vec<BTreeMap<String, String>>,
-            ) -> Option<List<Self::Filtered>> {
-                let ret: Vec<Pod> = self
-                    .items
-                    .iter()
-                    .filter(|item| {
-                        item.metadata.labels.as_ref().map_or(false, |pod_labels| {
-                            arg.iter().any(|arg| pod_labels.contains_key_values(arg))
-                        })
+        fn filter_by_item(
+            &self,
+            arg: &Vec<BTreeMap<String, String>>,
+        ) -> Option<List<Self::Filtered>> {
+            let ret: Vec<Pod> = self
+                .items
+                .iter()
+                .filter(|item| {
+                    item.metadata.labels.as_ref().map_or(false, |pod_labels| {
+                        arg.iter().any(|arg| pod_labels.contains_key_values(arg))
                     })
-                    .cloned()
-                    .collect();
-
-                if !ret.is_empty() {
-                    Some(List {
-                        items: ret,
-                        ..Default::default()
-                    })
-                } else {
-                    None
-                }
-            }
-        }
-
-        #[cfg(test)]
-        mod tests {
-            use indoc::indoc;
-
-            use super::*;
-
-            use pretty_assertions::assert_eq;
-
-            fn setup_target() -> List<Pod> {
-                let yaml = indoc! {
-                    "
-                    items:
-                      - metadata:
-                          name: pod-1
-                          labels:
-                            app: pod-1
-                            version: v1
-                      - metadata:
-                          name: pod-2
-                          labels:
-                            app: pod-2
-                            version: v1
-                    "
-                };
-
-                serde_yaml::from_str(&yaml).unwrap()
-            }
-
-            #[test]
-            fn labelsにselectorの値を含むときそのpodのリストを返す() {
-                let selectors = vec![
-                    BTreeMap::from([("app".into(), "pod-1".into())]),
-                    BTreeMap::from([("version".into(), "v1".into())]),
-                ];
-
-                let list = setup_target();
-
-                let actual = list.filter_by_item(&selectors);
-
-                let expected = serde_yaml::from_str(indoc! {
-                    "
-                    items:
-                      - metadata:
-                          name: pod-1
-                          labels:
-                            app: pod-1
-                            version: v1
-                      - metadata:
-                          name: pod-2
-                          labels:
-                            app: pod-2
-                            version: v1
-                    "
                 })
-                .unwrap();
+                .cloned()
+                .collect();
 
-                assert_eq!(actual, Some(expected));
-            }
-
-            #[test]
-            fn labelsにselectorの値を含むpodがないときnoneを返す() {
-                let selectors = vec![BTreeMap::from([("hoge".into(), "fuga".into())])];
-
-                let list = setup_target();
-
-                let actual = list.filter_by_item(&selectors);
-
-                assert_eq!(actual.is_none(), true);
+            if !ret.is_empty() {
+                Some(List {
+                    items: ret,
+                    ..Default::default()
+                })
+            } else {
+                None
             }
         }
     }
 
     #[cfg(test)]
     mod tests {
+        use indoc::indoc;
+
         use super::*;
 
-        mod related_resources {
-            use anyhow::bail;
-            use indoc::indoc;
-            use mockall::predicate::eq;
+        use pretty_assertions::assert_eq;
 
-            use super::*;
-
-            use crate::{event::kubernetes::client::mock::MockTestKubeClient, mock_expect};
-
-            fn setup_pod() -> List<Pod> {
-                let yaml = indoc! {
+        fn setup_target() -> List<Pod> {
+            let yaml = indoc! {
                 "
                 items:
                   - metadata:
@@ -188,91 +99,167 @@ pub mod filter_by_labels {
                         app: pod-2
                         version: v1
                 "
-                };
+            };
 
-                serde_yaml::from_str(&yaml).unwrap()
-            }
+            serde_yaml::from_str(&yaml).unwrap()
+        }
 
-            #[tokio::test]
-            async fn selectorの対象になるpodのvalueを返す() {
-                let mut client = MockTestKubeClient::new();
+        #[test]
+        fn labelsにselectorの値を含むときそのpodのリストを返す() {
+            let selectors = vec![
+                BTreeMap::from([("app".into(), "pod-1".into())]),
+                BTreeMap::from([("version".into(), "v1".into())]),
+            ];
 
-                mock_expect!(
-                    client,
-                    request,
-                    List<Pod>,
-                    eq("/api/v1/namespaces/default/pods"),
-                    Ok(setup_pod())
-                );
+            let list = setup_target();
 
-                let selectors = vec![
-                    BTreeMap::from([("app".into(), "pod-1".into())]),
-                    BTreeMap::from([("version".into(), "v1".into())]),
-                ];
+            let actual = list.filter_by_item(&selectors);
 
-                let client = RelatedPod::new(&client, "default", selectors);
+            let expected = serde_yaml::from_str(indoc! {
+                "
+                items:
+                  - metadata:
+                      name: pod-1
+                      labels:
+                        app: pod-1
+                        version: v1
+                  - metadata:
+                      name: pod-2
+                      labels:
+                        app: pod-2
+                        version: v1
+                "
+            })
+            .unwrap();
 
-                let result = client.related_resources().await.unwrap().unwrap();
+            assert_eq!(actual, Some(expected));
+        }
 
-                let expected = serde_yaml::from_str(indoc! {
-                    "
-                    items:
-                      - metadata:
-                          name: pod-1
-                          labels:
-                            app: pod-1
-                            version: v1
-                      - metadata:
-                          name: pod-2
-                          labels:
-                            app: pod-2
-                            version: v1
-                    "
-                })
-                .unwrap();
+        #[test]
+        fn labelsにselectorの値を含むpodがないときnoneを返す() {
+            let selectors = vec![BTreeMap::from([("hoge".into(), "fuga".into())])];
 
-                assert_eq!(result, expected);
-            }
+            let list = setup_target();
 
-            #[tokio::test]
-            async fn selectorの対象になるpodがないときnoneを返す() {
-                let mut client = MockTestKubeClient::new();
+            let actual = list.filter_by_item(&selectors);
 
-                mock_expect!(
-                    client,
-                    request,
-                    List<Pod>,
-                    eq("/api/v1/namespaces/default/pods"),
-                    Ok(setup_pod())
-                );
+            assert_eq!(actual.is_none(), true);
+        }
+    }
+}
 
-                let selectors = vec![BTreeMap::from([("hoge".into(), "fuga".into())])];
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-                let client = RelatedPod::new(&client, "default", selectors);
+    mod related_resources {
+        use anyhow::bail;
+        use indoc::indoc;
+        use mockall::predicate::eq;
 
-                let result = client.related_resources().await.unwrap();
+        use super::*;
 
-                assert_eq!(result.is_none(), true);
-            }
+        use crate::{event::kubernetes::client::mock::MockTestKubeClient, mock_expect};
 
-            #[tokio::test]
-            async fn エラーがでたときerrを返す() {
-                let mut client = MockTestKubeClient::new();
+        fn setup_pod() -> List<Pod> {
+            let yaml = indoc! {
+                "
+                items:
+                  - metadata:
+                      name: pod-1
+                      labels:
+                        app: pod-1
+                        version: v1
+                  - metadata:
+                      name: pod-2
+                      labels:
+                        app: pod-2
+                        version: v1
+                "
+            };
 
-                mock_expect!(
-                    client,
-                    request,
-                    List<Pod>,
-                    eq("/api/v1/namespaces/default/pods"),
-                    bail!("error")
-                );
+            serde_yaml::from_str(&yaml).unwrap()
+        }
 
-                let client = RelatedPod::new(&client, "default", Default::default());
+        #[tokio::test]
+        async fn selectorの対象になるpodのvalueを返す() {
+            let mut client = MockTestKubeClient::new();
 
-                let result = client.related_resources().await;
+            mock_expect!(
+                client,
+                request,
+                List<Pod>,
+                eq("/api/v1/namespaces/default/pods"),
+                Ok(setup_pod())
+            );
 
-                assert_eq!(result.is_err(), true);
-            }
+            let selectors = vec![
+                BTreeMap::from([("app".into(), "pod-1".into())]),
+                BTreeMap::from([("version".into(), "v1".into())]),
+            ];
+
+            let client = RelatedPod::new(&client, "default");
+
+            let result = client.related_resources(&selectors).await.unwrap().unwrap();
+
+            let expected = serde_yaml::from_str(indoc! {
+                "
+                items:
+                  - metadata:
+                      name: pod-1
+                      labels:
+                        app: pod-1
+                        version: v1
+                  - metadata:
+                      name: pod-2
+                      labels:
+                        app: pod-2
+                        version: v1
+                "
+            })
+            .unwrap();
+
+            assert_eq!(result, expected);
+        }
+
+        #[tokio::test]
+        async fn selectorの対象になるpodがないときnoneを返す() {
+            let mut client = MockTestKubeClient::new();
+
+            mock_expect!(
+                client,
+                request,
+                List<Pod>,
+                eq("/api/v1/namespaces/default/pods"),
+                Ok(setup_pod())
+            );
+
+            let selectors = vec![BTreeMap::from([("hoge".into(), "fuga".into())])];
+
+            let client = RelatedPod::new(&client, "default");
+
+            let result = client.related_resources(&selectors).await.unwrap();
+
+            assert_eq!(result.is_none(), true);
+        }
+
+        #[tokio::test]
+        async fn エラーがでたときerrを返す() {
+            let mut client = MockTestKubeClient::new();
+
+            mock_expect!(
+                client,
+                request,
+                List<Pod>,
+                eq("/api/v1/namespaces/default/pods"),
+                bail!("error")
+            );
+
+            let client = RelatedPod::new(&client, "default");
+
+            let result = client.related_resources(&Default::default()).await;
+
+            assert_eq!(result.is_err(), true);
         }
     }
 }
