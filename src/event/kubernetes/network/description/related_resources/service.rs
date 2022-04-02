@@ -6,29 +6,8 @@ use kube::ResourceExt;
 use crate::event::kubernetes::client::KubeClientRequest;
 
 use super::{
-    btree_map_contains_key_values::BTreeMapContains, fetch::FetchClient, Filter, RelatedResources,
+    btree_map_contains_key_values::BTreeMapContains, fetch::FetchClient, Filter, RelatedClient,
 };
-
-pub struct RelatedService<'a, C: KubeClientRequest> {
-    client: FetchClient<'a, C>,
-}
-
-impl<'a, C: KubeClientRequest> RelatedService<'a, C> {
-    pub fn new(client: &'a C, namespace: &'a str) -> Self {
-        Self {
-            client: FetchClient::new(client, namespace),
-        }
-    }
-}
-
-#[async_trait::async_trait]
-impl<'a, I, C: KubeClientRequest> RelatedResources<I, C> for RelatedService<'a, C> {
-    type Filtered = Service;
-
-    fn client(&self) -> &FetchClient<C> {
-        &self.client
-    }
-}
 
 impl Filter<Vec<String>> for List<Service> {
     type Filtered = Service;
@@ -95,80 +74,69 @@ mod tests {
         use super::*;
 
         mod filter {
-            use crate::event::kubernetes::network::description::related_resources::Filter;
-            use k8s_openapi::{List, ListableResource};
-            use kube::ResourceExt;
-
             use super::*;
+            use indoc::indoc;
+            use pretty_assertions::assert_eq;
 
-            #[cfg(test)]
-            mod tests {
-                use indoc::indoc;
+            fn services() -> List<Service> {
+                let yaml = indoc! {
+                    "
+                    items:
+                      - metadata:
+                          name: service-1
+                      - metadata:
+                          name: service-2
+                      - metadata:
+                          name: service-3
+                    "
+                };
 
-                use super::*;
+                serde_yaml::from_str(&yaml).unwrap()
+            }
 
-                fn services() -> List<Service> {
-                    let yaml = indoc! {
-                        "
-                        items:
-                          - metadata:
-                              name: service-1
-                          - metadata:
-                              name: service-2
-                          - metadata:
-                              name: service-3
-                        "
-                    };
+            #[test]
+            fn namesに一致するserviceのリストを返す() {
+                let arg = vec!["service-1".into(), "service-2".into()];
 
-                    serde_yaml::from_str(&yaml).unwrap()
-                }
+                let list = services();
 
-                #[test]
-                fn namesに一致するserviceのリストを返す() {
-                    let arg = vec!["service-1".into(), "service-2".into()];
+                let actual = list.filter_by_item(&arg);
 
-                    let list = services();
+                let expected = serde_yaml::from_str(indoc! {
+                    "
+                    items:
+                      - metadata:
+                          name: service-1
+                      - metadata:
+                          name: service-2
+                    "
+                })
+                .unwrap();
 
-                    let actual = list.filter_by_item(&arg);
+                assert_eq!(actual, Some(expected))
+            }
 
-                    let expected = serde_yaml::from_str(indoc! {
-                        "
-                        items:
-                          - metadata:
-                              name: service-1
-                          - metadata:
-                              name: service-2
-                        "
-                    })
-                    .unwrap();
+            #[test]
+            fn namesに一致するserviceがないときnoneを返す() {
+                let arg = vec!["hoge".into()];
 
-                    assert_eq!(actual, Some(expected))
-                }
+                let list = services();
 
-                #[test]
-                fn namesに一致するserviceがないときnoneを返す() {
-                    let arg = vec!["hoge".into()];
+                let actual = list.filter_by_item(&arg);
 
-                    let list = services();
-
-                    let actual = list.filter_by_item(&arg);
-
-                    assert_eq!(actual.is_none(), true)
-                }
+                assert_eq!(actual.is_none(), true)
             }
         }
 
         mod related_resources {
+            use crate::{event::kubernetes::client::mock::MockTestKubeClient, mock_expect};
+
             use super::*;
 
             use anyhow::bail;
             use indoc::indoc;
-            use k8s_openapi::{api::core::v1::Service, List};
             use mockall::predicate::eq;
             use pretty_assertions::assert_eq;
-            use serde_yaml::Value;
-
-            use crate::{event::kubernetes::client::mock::MockTestKubeClient, mock_expect};
 
             fn services() -> List<Service> {
                 let yaml = indoc! {
@@ -198,10 +166,10 @@ mod tests {
                     Ok(services())
                 );
 
-                let client = RelatedService::new(&client, "default");
+                let client = RelatedClient::new(&client, "default");
 
                 let result = client
-                    .related_resources(&vec!["service-1".into(), "service-3".into()])
+                    .related_resources::<Service, _>(&vec!["service-1".into(), "service-3".into()])
                     .await
                     .unwrap()
                     .unwrap();
@@ -232,10 +200,10 @@ mod tests {
                     Ok(services())
                 );
 
-                let client = RelatedService::new(&client, "default");
+                let client = RelatedClient::new(&client, "default");
 
                 let result = client
-                    .related_resources(&vec!["hoge".into()])
+                    .related_resources::<Service, _>(&vec!["hoge".into()])
                     .await
                     .unwrap();
 
@@ -254,9 +222,11 @@ mod tests {
                     bail!("error")
                 );
 
-                let client = RelatedService::new(&client, "default");
+                let client = RelatedClient::new(&client, "default");
 
-                let result = client.related_resources(&vec!["service-1".into()]).await;
+                let result = client
+                    .related_resources::<Service, _>(&vec!["service-1".into()])
+                    .await;
 
                 assert_eq!(result.is_err(), true);
             }
@@ -266,93 +236,76 @@ mod tests {
     mod filter_by_selector {
         use super::*;
 
-        use std::collections::BTreeMap;
-
         mod filter {
             use super::*;
 
-            use k8s_openapi::List;
+            use indoc::indoc;
+            use pretty_assertions::assert_eq;
 
-            use crate::event::kubernetes::network::description::related_resources::{
-                btree_map_contains_key_values::BTreeMapContains, Filter,
-            };
+            fn services() -> List<Service> {
+                let yaml = indoc! {
+                    "
+                    items:
+                      - metadata:
+                          name: service-1
+                        spec:
+                          selector:
+                            app: pod-1
+                            version: v1
+                      - metadata:
+                          name: service-2
+                        spec:
+                          selector:
+                            app: pod-2
+                            version: v1
+                      - metadata:
+                          name: service-3
+                        spec:
+                          selector:
+                            app: pod-3
+                            version: v2
+                    "
+                };
 
-            #[cfg(test)]
-            mod tests {
-                use indoc::indoc;
-                use k8s_openapi::List;
+                serde_yaml::from_str(&yaml).unwrap()
+            }
 
-                use crate::event::kubernetes::network::description::related_resources::Filter;
+            #[test]
+            fn labelsにselectorの値を含むときそのserviceのリストを返す() {
+                let arg = BTreeMap::from([
+                    ("version".into(), "v1".into()),
+                    ("app".into(), "pod-1".into()),
+                ]);
 
-                use pretty_assertions::assert_eq;
+                let list = services();
 
-                use super::*;
+                let actual = list.filter_by_item(&arg);
 
-                fn services() -> List<Service> {
-                    let yaml = indoc! {
-                        "
-                        items:
-                          - metadata:
-                              name: service-1
-                            spec:
-                              selector:
-                                app: pod-1
-                                version: v1
-                          - metadata:
-                              name: service-2
-                            spec:
-                              selector:
-                                app: pod-2
-                                version: v1
-                          - metadata:
-                              name: service-3
-                            spec:
-                              selector:
-                                app: pod-3
-                                version: v2
-                        "
-                    };
+                let expected = serde_yaml::from_str(indoc! {
+                    "
+                    items:
+                      - metadata:
+                          name: service-1
+                        spec:
+                          selector:
+                            app: pod-1
+                            version: v1
+                    "
+                })
+                .unwrap();
 
-                    serde_yaml::from_str(&yaml).unwrap()
-                }
+                assert_eq!(actual, Some(expected))
+            }
 
-                #[test]
-                fn labelsにselectorの値を含むときそのserviceのリストを返す() {
-                    let arg = BTreeMap::from([
-                        ("version".into(), "v1".into()),
-                        ("app".into(), "pod-1".into()),
-                    ]);
+            #[test]
+            fn labelsにselectorの値を含まないときnoneを返す() {
+                let arg = BTreeMap::from([("version".into(), "v1".into())]);
 
-                    let list = services();
+                let list = services();
 
-                    let actual = list.filter_by_item(&arg);
+                let actual = list.filter_by_item(&arg);
 
-                    let expected = serde_yaml::from_str(indoc! {
-                        "
-                        items:
-                          - metadata:
-                              name: service-1
-                            spec:
-                              selector:
-                                app: pod-1
-                                version: v1
-                        "
-                    })
-                    .unwrap();
-
-                    assert_eq!(actual, Some(expected))
-                }
-
-                #[test]
-                fn labelsにselectorの値を含まないときnoneを返す() {
-                    let arg = BTreeMap::from([("version".into(), "v1".into())]);
-
-                    let list = services();
-
-                    let actual = list.filter_by_item(&arg);
-
-                    assert_eq!(actual.is_none(), true)
-                }
+                assert_eq!(actual.is_none(), true)
             }
         }
 
@@ -412,9 +365,13 @@ mod tests {
                     ("app".to_string(), "pod-1".to_string()),
                 ]);
 
-                let client = RelatedService::new(&client, "default");
+                let client = RelatedClient::new(&client, "default");
 
-                let result = client.related_resources(&labels).await.unwrap().unwrap();
+                let result = client
+                    .related_resources::<Service, _>(&labels)
+                    .await
+                    .unwrap()
+                    .unwrap();
 
                 let expected = serde_yaml::from_str(indoc! {
                     "
@@ -446,9 +403,12 @@ mod tests {
 
                 let labels = BTreeMap::from([("foo".to_string(), "bar".to_string())]);
 
-                let client = RelatedService::new(&client, "default");
+                let client = RelatedClient::new(&client, "default");
 
-                let result = client.related_resources(&labels).await.unwrap();
+                let result = client
+                    .related_resources::<Service, _>(&labels)
+                    .await
+                    .unwrap();
 
                 assert_eq!(result.is_none(), true);
             }
@@ -467,9 +427,9 @@ mod tests {
 
                 let labels = BTreeMap::from([("version".to_string(), "v1".to_string())]);
 
-                let client = RelatedService::new(&client, "default");
+                let client = RelatedClient::new(&client, "default");
 
-                let result = client.related_resources(&labels).await;
+                let result = client.related_resources::<Service, _>(&labels).await;
 
                 assert_eq!(result.is_err(), true);
             }

@@ -7,81 +7,51 @@ use std::collections::BTreeMap;
 use kube::Resource;
 use serde_yaml::Value;
 
-use crate::event::kubernetes::{
-    client::KubeClientRequest,
-    network::description::related_resources::{
-        btree_map_contains_key_values::BTreeMapContains, fetch::FetchClient, Filter,
-        RelatedResources,
-    },
-};
+use crate::event::kubernetes::client::KubeClientRequest;
 
-pub struct RelatedIngress<'a, C: KubeClientRequest> {
-    client: FetchClient<'a, C>,
-}
+use super::{btree_map_contains_key_values::BTreeMapContains, Filter, RelatedClient};
 
-impl<'a, C: KubeClientRequest> RelatedIngress<'a, C> {
-    pub fn new(client: &'a C, namespace: &'a str) -> Self {
-        Self {
-            client: FetchClient::new(client, namespace),
-        }
-    }
-}
-
-#[async_trait::async_trait]
-impl<'a, I, C: KubeClientRequest> RelatedResources<I, C> for RelatedIngress<'a, C> {
+impl Filter<Vec<String>> for List<Ingress> {
     type Filtered = Ingress;
 
-    fn client(&self) -> &FetchClient<C> {
-        &self.client
-    }
-}
-
-mod filter {
-    use super::*;
-
-    use crate::event::kubernetes::network::description::related_resources::{
-        btree_map_contains_key_values::BTreeMapContains, Filter,
-    };
-    use std::collections::BTreeMap;
-
-    impl Filter<Vec<String>> for List<Ingress> {
-        type Filtered = Ingress;
-
-        fn filter_by_item(&self, arg: &Vec<String>) -> Option<List<Self::Filtered>> {
-            let ret: Vec<Ingress> = self
-                .items
-                .iter()
-                .filter(|ing| {
-                    ing.spec.as_ref().map_or(false, |spec| {
-                        spec.rules.as_ref().map_or(false, |rules| {
-                            rules.iter().any(|rule| {
-                                rule.http.as_ref().map_or(false, |http| {
-                                    http.paths.iter().any(|path| {
-                                        path.backend.service.as_ref().map_or(false, |service| {
-                                            arg.iter().any(|arg_name| arg_name == &service.name)
-                                        })
+    fn filter_by_item(&self, arg: &Vec<String>) -> Option<List<Self::Filtered>> {
+        let ret: Vec<Ingress> = self
+            .items
+            .iter()
+            .filter(|ing| {
+                ing.spec.as_ref().map_or(false, |spec| {
+                    spec.rules.as_ref().map_or(false, |rules| {
+                        rules.iter().any(|rule| {
+                            rule.http.as_ref().map_or(false, |http| {
+                                http.paths.iter().any(|path| {
+                                    path.backend.service.as_ref().map_or(false, |service| {
+                                        arg.iter().any(|arg_name| arg_name == &service.name)
                                     })
                                 })
                             })
                         })
                     })
                 })
-                .cloned()
-                .collect();
+            })
+            .cloned()
+            .collect();
 
-            if !ret.is_empty() {
-                Some(List {
-                    items: ret,
-                    ..Default::default()
-                })
-            } else {
-                None
-            }
+        if !ret.is_empty() {
+            Some(List {
+                items: ret,
+                ..Default::default()
+            })
+        } else {
+            None
         }
     }
+}
 
-    #[cfg(test)]
-    mod tests {
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod filter {
         use super::*;
 
         use indoc::indoc;
@@ -196,11 +166,6 @@ mod filter {
             assert_eq!(actual.is_none(), true);
         }
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
 
     mod related_resources {
         use super::*;
@@ -268,10 +233,10 @@ mod tests {
                 Ok(ingresses())
             );
 
-            let client = RelatedIngress::new(&client, "default");
+            let client = RelatedClient::new(&client, "default");
 
             let result = client
-                .related_resources(&vec!["service-1".into()])
+                .related_resources::<Ingress, Vec<String>>(&vec!["service-1".into()])
                 .await
                 .unwrap()
                 .unwrap();
@@ -324,10 +289,10 @@ mod tests {
                 Ok(ingresses())
             );
 
-            let client = RelatedIngress::new(&client, "default");
+            let client = RelatedClient::new(&client, "default");
 
             let result = client
-                .related_resources(&vec!["foo".into(), "bar".into()])
+                .related_resources::<Ingress, Vec<String>>(&vec!["foo".into(), "bar".into()])
                 .await
                 .unwrap();
 
@@ -346,9 +311,11 @@ mod tests {
                 bail!("error")
             );
 
-            let client = RelatedIngress::new(&client, "default");
+            let client = RelatedClient::new(&client, "default");
 
-            let result = client.related_resources(&vec![]).await;
+            let result = client
+                .related_resources::<Ingress, Vec<String>>(&vec![])
+                .await;
 
             assert_eq!(result.is_err(), true);
         }

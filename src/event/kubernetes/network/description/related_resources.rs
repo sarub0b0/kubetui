@@ -18,6 +18,8 @@ pub mod ingress;
 pub mod pod;
 pub mod service;
 
+pub struct RelatedClient<'a, C: KubeClientRequest>(FetchClient<'a, C>);
+
 pub trait Filter<I> {
     type Filtered;
 
@@ -26,19 +28,18 @@ pub trait Filter<I> {
         Self::Filtered: ListableResource;
 }
 
-#[async_trait::async_trait]
-pub trait RelatedResources<I, C: KubeClientRequest> {
-    type Filtered;
+impl<'a, C: KubeClientRequest> RelatedClient<'a, C> {
+    pub fn new(client: &'a C, namespace: &'a str) -> Self {
+        Self(FetchClient::new(client, namespace))
+    }
 
-    fn client(&self) -> &FetchClient<C>;
-
-    async fn related_resources(&self, item: &I) -> Result<Option<List<Self::Filtered>>>
+    pub async fn related_resources<K, I>(&self, item: &I) -> Result<Option<List<K>>>
     where
-        Self::Filtered: Resource<DynamicType = ()> + ListableResource + DeserializeOwned + 'static,
-        List<Self::Filtered>: Filter<I, Filtered = Self::Filtered> + ToListValue,
+        K: Resource<DynamicType = ()> + ListableResource + DeserializeOwned + 'static,
         I: Sync,
+        List<K>: Filter<I, Filtered = K> + ToListValue,
     {
-        let list = self.client().fetch().await?;
+        let list = self.0.fetch().await?;
 
         Ok(list.filter_by_item(item))
     }

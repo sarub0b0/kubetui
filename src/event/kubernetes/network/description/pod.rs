@@ -3,17 +3,17 @@ mod fetched_pod;
 pub(super) use fetched_pod::*;
 
 use k8s_openapi::{
-    api::{core::v1::Pod, networking::v1::Ingress},
+    api::{
+        core::v1::{Pod, Service},
+        networking::v1::Ingress,
+    },
     List,
 };
 use kube::{Resource, ResourceExt};
 use serde_yaml::Mapping;
 
 use super::{
-    related_resources::{
-        ingress::RelatedIngress, service::RelatedService, to_list_value::ToListValue,
-        RelatedResources,
-    },
+    related_resources::{to_list_value::ToListValue, RelatedClient},
     Fetch, FetchedData, Result,
 };
 
@@ -51,15 +51,15 @@ impl<'a, C: KubeClientRequest> Fetch<'a, C> for PodDescriptionWorker<'a, C> {
 
         let pod: FetchedPod = self.client.request(&url).await?;
 
-        let related_services = RelatedService::new(self.client, &self.namespace)
-            .related_resources(pod.0.labels())
+        let related_services = RelatedClient::new(self.client, &self.namespace)
+            .related_resources::<Service, _>(pod.0.labels())
             .await?;
 
         let related_ingresses: Option<List<Ingress>> = if let Some(services) = &related_services {
             let services = services.items.iter().map(|svc| svc.name()).collect();
 
-            RelatedIngress::new(self.client, &self.namespace)
-                .related_resources(&services)
+            RelatedClient::new(self.client, &self.namespace)
+                .related_resources::<Ingress, _>(&services)
                 .await?
         } else {
             None

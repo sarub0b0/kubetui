@@ -13,9 +13,7 @@ use crate::{error::Result, event::kubernetes::client::KubeClientRequest};
 use self::to_value::ToValue;
 
 use super::{
-    related_resources::{
-        ingress::RelatedIngress, pod::RelatedPod, to_list_value::ToListValue, RelatedResources,
-    },
+    related_resources::{to_list_value::ToListValue, RelatedClient},
     Fetch, FetchedData,
 };
 
@@ -54,7 +52,7 @@ where
         let service = service.extract();
 
         let related_ingresses: Option<List<Ingress>> =
-            RelatedIngress::new(self.client, &self.namespace)
+            RelatedClient::new(self.client, &self.namespace)
                 .related_resources(&vec![service.name()])
                 .await?;
 
@@ -63,7 +61,7 @@ where
             ..
         }) = &service.spec
         {
-            RelatedPod::new(self.client, &self.namespace)
+            RelatedClient::new(self.client, &self.namespace)
                 .related_resources(&vec![selector.clone()])
                 .await?
         } else {

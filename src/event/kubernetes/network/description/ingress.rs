@@ -1,13 +1,13 @@
-use k8s_openapi::api::networking::v1::Ingress;
+use std::collections::BTreeMap;
+
+use k8s_openapi::api::{core::v1::Service, networking::v1::Ingress};
 use kube::Resource;
 use serde_yaml::Mapping;
 
 use crate::{error::Result, event::kubernetes::client::KubeClientRequest};
 
 use super::{
-    related_resources::{
-        pod::RelatedPod, service::RelatedService, to_list_value::ToListValue, RelatedResources,
-    },
+    related_resources::{to_list_value::ToListValue, RelatedClient},
     Fetch, FetchedData,
 };
 
@@ -49,22 +49,22 @@ where
         let services: Option<Vec<String>> = backend_service_names(&ingress);
 
         let related_services = if let Some(services) = services {
-            RelatedService::new(self.client, &self.namespace)
-                .related_resources(&services)
+            RelatedClient::new(self.client, &self.namespace)
+                .related_resources::<Service, _>(&services)
                 .await?
         } else {
             None
         };
 
         let related_pods = if let Some(services) = &related_services {
-            let selectors = services
+            let selectors: Vec<BTreeMap<String, String>> = services
                 .items
                 .iter()
                 .filter_map(|svc| svc.spec.as_ref())
                 .filter_map(|spec| spec.selector.clone())
                 .collect();
 
-            RelatedPod::new(self.client, &self.namespace)
+            RelatedClient::new(self.client, &self.namespace)
                 .related_resources(&selectors)
                 .await?
         } else {

@@ -2,86 +2,78 @@ use anyhow::{Ok, Result};
 
 use k8s_openapi::{api::core::v1::Pod, List};
 
-use super::*;
-
 use std::collections::BTreeMap;
 
 use kube::Resource;
 use serde_yaml::Value;
 
-use crate::event::kubernetes::{
-    client::KubeClientRequest,
-    network::description::related_resources::{
-        btree_map_contains_key_values::BTreeMapContains, fetch::FetchClient, Filter,
-        RelatedResources,
-    },
+use crate::event::kubernetes::client::KubeClientRequest;
+
+use super::{
+    btree_map_contains_key_values::BTreeMapContains, fetch::FetchClient, Filter, RelatedClient,
 };
 
-pub struct RelatedPod<'a, C: KubeClientRequest> {
-    client: FetchClient<'a, C>,
-}
-
-impl<'a, C: KubeClientRequest> RelatedPod<'a, C> {
-    pub fn new(client: &'a C, namespace: &'a str) -> Self {
-        Self {
-            client: FetchClient::new(client, namespace),
-        }
-    }
-}
-
-#[async_trait::async_trait]
-impl<'a, I, C: KubeClientRequest> RelatedResources<I, C> for RelatedPod<'a, C> {
+impl Filter<BTreeMap<String, String>> for List<Pod> {
     type Filtered = Pod;
 
-    fn client(&self) -> &FetchClient<C> {
-        &self.client
+    fn filter_by_item(&self, arg: &BTreeMap<String, String>) -> Option<List<Self::Filtered>> {
+        let ret: Vec<Pod> = self
+            .items
+            .iter()
+            .filter(|item| {
+                item.metadata
+                    .labels
+                    .as_ref()
+                    .map_or(false, |pod_labels| pod_labels.contains_key_values(arg))
+            })
+            .cloned()
+            .collect();
+
+        if !ret.is_empty() {
+            Some(List {
+                items: ret,
+                ..Default::default()
+            })
+        } else {
+            None
+        }
     }
 }
 
-mod filter {
-    use std::collections::BTreeMap;
+impl Filter<Vec<BTreeMap<String, String>>> for List<Pod> {
+    type Filtered = Pod;
 
-    use k8s_openapi::{api::core::v1::Pod, List};
-
-    use crate::event::kubernetes::network::description::related_resources::{
-        btree_map_contains_key_values::BTreeMapContains, Filter,
-    };
-
-    impl Filter<Vec<BTreeMap<String, String>>> for List<Pod> {
-        type Filtered = Pod;
-
-        fn filter_by_item(
-            &self,
-            arg: &Vec<BTreeMap<String, String>>,
-        ) -> Option<List<Self::Filtered>> {
-            let ret: Vec<Pod> = self
-                .items
-                .iter()
-                .filter(|item| {
-                    item.metadata.labels.as_ref().map_or(false, |pod_labels| {
-                        arg.iter().any(|arg| pod_labels.contains_key_values(arg))
-                    })
+    fn filter_by_item(&self, arg: &Vec<BTreeMap<String, String>>) -> Option<List<Self::Filtered>> {
+        let ret: Vec<Pod> = self
+            .items
+            .iter()
+            .filter(|item| {
+                item.metadata.labels.as_ref().map_or(false, |pod_labels| {
+                    arg.iter().any(|arg| pod_labels.contains_key_values(arg))
                 })
-                .cloned()
-                .collect();
+            })
+            .cloned()
+            .collect();
 
-            if !ret.is_empty() {
-                Some(List {
-                    items: ret,
-                    ..Default::default()
-                })
-            } else {
-                None
-            }
+        if !ret.is_empty() {
+            Some(List {
+                items: ret,
+                ..Default::default()
+            })
+        } else {
+            None
         }
     }
+}
 
-    #[cfg(test)]
-    mod tests {
-        use indoc::indoc;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
+    mod filter {
         use super::*;
 
+        use indoc::indoc;
         use pretty_assertions::assert_eq;
 
         fn setup_target() -> List<Pod> {
@@ -146,10 +138,7 @@ mod filter {
             assert_eq!(actual.is_none(), true);
         }
     }
-}
 
-#[cfg(test)]
-mod tests {
     use super::*;
 
     mod related_resources {
@@ -198,7 +187,7 @@ mod tests {
                 BTreeMap::from([("version".into(), "v1".into())]),
             ];
 
-            let client = RelatedPod::new(&client, "default");
+            let client = RelatedClient::new(&client, "default");
 
             let result = client.related_resources(&selectors).await.unwrap().unwrap();
 
@@ -236,7 +225,7 @@ mod tests {
 
             let selectors = vec![BTreeMap::from([("hoge".into(), "fuga".into())])];
 
-            let client = RelatedPod::new(&client, "default");
+            let client = RelatedClient::new(&client, "default");
 
             let result = client.related_resources(&selectors).await.unwrap();
 
@@ -255,9 +244,11 @@ mod tests {
                 bail!("error")
             );
 
-            let client = RelatedPod::new(&client, "default");
+            let client = RelatedClient::new(&client, "default");
 
-            let result = client.related_resources(&Default::default()).await;
+            let result = client
+                .related_resources::<Pod, BTreeMap<String, String>>(&Default::default())
+                .await;
 
             assert_eq!(result.is_err(), true);
         }
