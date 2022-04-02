@@ -45,7 +45,7 @@ impl<'a, C: KubeClientRequest> RelatedClient<'a, C> {
     }
 }
 
-mod label_selector {
+pub mod label_selector {
     use std::collections::BTreeMap;
 
     use k8s_openapi::apimachinery::pkg::apis::meta::v1::{LabelSelector, LabelSelectorRequirement};
