@@ -218,7 +218,11 @@ mod tests {
 
             let client = RelatedClient::new(&client, "default");
 
-            let result = client.related_resources(&selectors).await.unwrap().unwrap();
+            let result = client
+                .related_resources::<Pod, _>(&selectors)
+                .await
+                .unwrap()
+                .unwrap();
 
             let expected = serde_yaml::from_str(indoc! {
                 "
@@ -256,7 +260,10 @@ mod tests {
 
             let client = RelatedClient::new(&client, "default");
 
-            let result = client.related_resources(&selectors).await.unwrap();
+            let result = client
+                .related_resources::<Pod, _>(&selectors)
+                .await
+                .unwrap();
 
             assert_eq!(result.is_none(), true);
         }

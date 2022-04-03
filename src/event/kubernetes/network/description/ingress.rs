@@ -1,6 +1,9 @@
 use std::collections::BTreeMap;
 
-use k8s_openapi::api::{core::v1::Service, networking::v1::Ingress};
+use k8s_openapi::api::{
+    core::v1::{Pod, Service},
+    networking::v1::Ingress,
+};
 use kube::Resource;
 use serde_yaml::Mapping;
 
@@ -65,7 +68,7 @@ where
                 .collect();
 
             RelatedClient::new(self.client, &self.namespace)
-                .related_resources(&selectors)
+                .related_resources::<Pod, _>(&selectors)
                 .await?
         } else {
             None
