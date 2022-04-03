@@ -5,7 +5,7 @@ pub(super) use fetched_pod::*;
 use k8s_openapi::{
     api::{
         core::v1::{Pod, Service},
-        networking::v1::Ingress,
+        networking::v1::{Ingress, NetworkPolicy},
     },
     List,
 };
@@ -65,6 +65,15 @@ impl<'a, C: KubeClientRequest> Fetch<'a, C> for PodDescriptionWorker<'a, C> {
             None
         };
 
+        let related_networkpolicies: Option<List<NetworkPolicy>> =
+            if let Some(labels) = &pod.0.metadata.labels {
+                RelatedClient::new(self.client, &self.namespace)
+                    .related_resources(labels)
+                    .await?
+            } else {
+                None
+            };
+
         value.extend(pod.to_vec_string());
 
         let mut related_resources = Mapping::new();
@@ -77,6 +86,12 @@ impl<'a, C: KubeClientRequest> Fetch<'a, C> for PodDescriptionWorker<'a, C> {
         if let Some(ingresses) = related_ingresses {
             if let Some(value) = ingresses.to_list_value() {
                 related_resources.insert("ingresses".into(), value);
+            }
+        }
+
+        if let Some(networkpolicies) = related_networkpolicies {
+            if let Some(value) = networkpolicies.to_list_value() {
+                related_resources.insert("networkpolicies".into(), value);
             }
         }
 
@@ -105,7 +120,7 @@ mod tests {
     use k8s_openapi::{
         api::{
             core::v1::{Pod, Service},
-            networking::v1::Ingress,
+            networking::v1::{Ingress, NetworkPolicy},
         },
         List,
     };
@@ -115,7 +130,7 @@ mod tests {
 
     use anyhow::anyhow;
 
-    fn setup_pod() -> FetchedPod {
+    fn pod() -> FetchedPod {
         let yaml = indoc! {
             "
             metadata:
@@ -142,7 +157,7 @@ mod tests {
         FetchedPod(pod)
     }
 
-    fn setup_services() -> List<Service> {
+    fn services() -> List<Service> {
         let yaml = indoc! {
             "
             items:
@@ -162,7 +177,7 @@ mod tests {
         serde_yaml::from_str(&yaml).unwrap()
     }
 
-    fn setup_ingresses() -> List<Ingress> {
+    fn ingresses() -> List<Ingress> {
         let yaml = indoc! {
             "
             items:
@@ -190,6 +205,47 @@ mod tests {
         serde_yaml::from_str(&yaml).unwrap()
     }
 
+    fn networkpolicies() -> List<NetworkPolicy> {
+        serde_yaml::from_str(indoc! {
+            r#"
+            items:
+              - apiVersion: networking.k8s.io/v1
+                kind: NetworkPolicy
+                metadata:
+                  name: allow-all-egress
+                spec:
+                  egress:
+                    - {}
+                  podSelector: {}
+                  policyTypes:
+                    - Egress
+              - apiVersion: networking.k8s.io/v1
+                kind: NetworkPolicy
+                metadata:
+                  name: allow-all-ingress
+                spec:
+                  ingress:
+                    - {}
+                  podSelector: {}
+                  policyTypes:
+                    - Ingress
+              - apiVersion: networking.k8s.io/v1
+                kind: NetworkPolicy
+                metadata:
+                  name: test
+                spec:
+                  ingress:
+                    - {}
+                  podSelector:
+                    matchLabels:
+                      foo: bar
+                  policyTypes:
+                    - Ingress
+            "#
+        })
+        .unwrap()
+    }
+
     #[tokio::test(flavor = "multi_thread")]
     async fn yamlデータを送信してokを返す() {
         let mut client = MockTestKubeClient::new();
@@ -200,17 +256,22 @@ mod tests {
                     (
                         FetchedPod,
                         eq("/api/v1/namespaces/default/pods/test"),
-                        Ok(setup_pod())
+                        Ok(pod())
                     ),
                     (
                         List<Service>,
                         eq("/api/v1/namespaces/default/services"),
-                        Ok(setup_services())
+                        Ok(services())
                     ),
                     (
                         List<Ingress>,
                         eq("/apis/networking.k8s.io/v1/namespaces/default/ingresses"),
-                        Ok(setup_ingresses())
+                        Ok(ingresses())
+                    ),
+                    (
+                        List<NetworkPolicy>,
+                        eq("/apis/networking.k8s.io/v1/namespaces/default/networkpolicies"),
+                        Ok(networkpolicies())
                     )
                 ]
             );
@@ -240,6 +301,9 @@ mod tests {
               ingresses:
                 - ingress-1
                 - ingress-2
+              networkpolicies:
+                - allow-all-egress
+                - allow-all-ingress
             "
         }
         .lines()
@@ -269,6 +333,11 @@ mod tests {
                     (
                         List<Ingress>,
                         eq("/apis/networking.k8s.io/v1/namespaces/default/ingresses"),
+                        Err(anyhow!("error"))
+                    ),
+                    (
+                        List<NetworkPolicy>,
+                        eq("/apis/networking.k8s.io/v1/namespaces/default/networkpolicies"),
                         Err(anyhow!("error"))
                     )
                 ]

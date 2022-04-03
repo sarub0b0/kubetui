@@ -15,6 +15,7 @@ use self::{
 };
 
 pub mod ingress;
+pub mod network_policy;
 pub mod pod;
 pub mod service;
 
