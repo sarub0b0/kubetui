@@ -119,7 +119,7 @@ pub mod label_selector {
                         values.iter().any(|value| {
                             let r = BTreeMap::from([(requirement.key.clone(), value.clone())]);
 
-                            r.contains_key_values(&labels)
+                            labels.contains_key_values(&r)
                         })
                     }),
                     // A NotIn [B, ..]
@@ -128,7 +128,7 @@ pub mod label_selector {
                         values.iter().all(|value| {
                             let r = BTreeMap::from([(requirement.key.clone(), value.clone())]);
 
-                            !r.contains_key_values(&labels)
+                            !labels.contains_key_values(&r)
                         })
                     }),
                     // A Exists []
@@ -159,7 +159,7 @@ pub mod label_selector {
                     values: Some(vec!["b".into(), "c".into()]),
                 }]);
 
-                let labels = BTreeMap::from([("a".into(), "b".into())]);
+                let labels = BTreeMap::from([("a".into(), "b".into()), ("c".into(), "d".into())]);
 
                 assert_eq!(expr.expression(&labels), true)
             }
@@ -172,7 +172,8 @@ pub mod label_selector {
                     values: Some(vec!["b".into(), "c".into()]),
                 }]);
 
-                let labels = BTreeMap::from([("a".into(), "d".into())]);
+                let labels =
+                    BTreeMap::from([("a".into(), "d".into()), ("aaa".into(), "dddd".into())]);
 
                 assert_eq!(expr.expression(&labels), false)
             }
