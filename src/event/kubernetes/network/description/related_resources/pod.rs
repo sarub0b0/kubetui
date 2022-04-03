@@ -200,7 +200,7 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn selectorの対象になるpodのvalueを返す() {
+        async fn selectorの対象になるpodのリストを返す() {
             let mut client = MockTestKubeClient::new();
 
             mock_expect!(

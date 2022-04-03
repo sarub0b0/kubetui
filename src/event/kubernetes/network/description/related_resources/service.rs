@@ -155,7 +155,7 @@ mod tests {
             }
 
             #[tokio::test]
-            async fn nameリストに含まれるservice名のvalueを返す() {
+            async fn nameリストに含まれるservice名のリストを返す() {
                 let mut client = MockTestKubeClient::new();
 
                 mock_expect!(
@@ -349,7 +349,7 @@ mod tests {
             }
 
             #[tokio::test]
-            async fn labelsリストに含まれるservice名のvalueを返す() {
+            async fn labelsリストに含まれるservice名のリストを返す() {
                 let mut client = MockTestKubeClient::new();
 
                 mock_expect!(
