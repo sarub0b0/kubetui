@@ -128,7 +128,7 @@ mod tests {
 
     use pretty_assertions::assert_eq;
 
-    use anyhow::anyhow;
+    use anyhow::{anyhow, bail};
 
     fn pod() -> FetchedPod {
         let yaml = indoc! {
@@ -323,22 +323,22 @@ mod tests {
                     (
                         FetchedPod,
                         eq("/api/v1/namespaces/default/pods/test"),
-                        Err(anyhow!("error"))
+                        bail!("error")
                     ),
                     (
                         List<Service>,
                         eq("/api/v1/namespaces/default/services"),
-                        Err(anyhow!("error"))
+                        bail!("error")
                     ),
                     (
                         List<Ingress>,
                         eq("/apis/networking.k8s.io/v1/namespaces/default/ingresses"),
-                        Err(anyhow!("error"))
+                        bail!("error")
                     ),
                     (
                         List<NetworkPolicy>,
                         eq("/apis/networking.k8s.io/v1/namespaces/default/networkpolicies"),
-                        Err(anyhow!("error"))
+                        bail!("error")
                     )
                 ]
             );

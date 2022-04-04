@@ -166,6 +166,7 @@ mod tests {
         };
 
         use super::*;
+        use anyhow::bail;
         use crossbeam::channel::{bounded, Receiver};
         use k8s_openapi::{
             api::{core::v1::Service, networking::v1::Ingress},
@@ -227,17 +228,17 @@ mod tests {
                     (
                         FetchedPod,
                         eq("/api/v1/namespaces/default/pods/test"),
-                        Err(anyhow!("error"))
+                        bail!("error")
                     ),
                     (
                         List<Service>,
                         eq("/api/v1/namespaces/default/services"),
-                        Err(anyhow!("error"))
+                        bail!("error")
                     ),
                     (
                         List<Ingress>,
                         eq("/apis/networking.k8s.io/v1/namespaces/default/ingresses"),
-                        Err(anyhow!("error"))
+                        bail!("error")
                     )
                 ]
             );
@@ -274,6 +275,7 @@ mod tests {
 
         use super::*;
 
+        use anyhow::bail;
         use crossbeam::channel::{bounded, Receiver};
         use indoc::indoc;
         use k8s_openapi::{
@@ -406,22 +408,22 @@ mod tests {
                     (
                         FetchedPod,
                         eq("/api/v1/namespaces/default/pods/test"),
-                        Err(anyhow!("error"))
+                        bail!("error")
                     ),
                     (
                         List<Service>,
                         eq("/api/v1/namespaces/default/services"),
-                        Err(anyhow!("error"))
+                        bail!("error")
                     ),
                     (
                         List<Ingress>,
                         eq("/apis/networking.k8s.io/v1/namespaces/default/ingresses"),
-                        Err(anyhow!("error"))
+                        bail!("error")
                     ),
                     (
                         List<NetworkPolicy>,
                         eq("/apis/networking.k8s.io/v1/namespaces/default/networkpolicies"),
-                        Err(anyhow!("error"))
+                        bail!("error")
                     )
                 ]
             );
