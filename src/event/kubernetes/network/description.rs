@@ -129,10 +129,9 @@ mod tests {
     use indoc::indoc;
     use k8s_openapi::api::core::v1::Pod;
 
-    use self::pod::FetchedPod;
-    fn setup_pod() -> FetchedPod {
+    fn pod() -> Pod {
         let yaml = indoc! {
-        "
+            "
             metadata:
               name: test
               namespace: default
@@ -149,21 +148,15 @@ mod tests {
               podIP: 10.1.0.21
               podIPs:
                 - ip: 10.1.0.21
-            " };
+            "
+        };
 
-        let pod: Pod = serde_yaml::from_str(&yaml).unwrap();
-
-        FetchedPod(pod)
+        serde_yaml::from_str(&yaml).unwrap()
     }
 
     mod run {
 
-        use crate::{
-            event::kubernetes::{
-                client::mock::MockTestKubeClient, network::description::pod::FetchedPod,
-            },
-            mock_expect,
-        };
+        use crate::{event::kubernetes::client::mock::MockTestKubeClient, mock_expect};
 
         use super::*;
         use anyhow::bail;
@@ -185,9 +178,9 @@ mod tests {
                 request,
                 [
                     (
-                        FetchedPod,
+                        Pod,
                         eq("/api/v1/namespaces/default/pods/test"),
-                        Ok(setup_pod())
+                        Ok(pod())
                     ),
                     (
                         List<Service>,
@@ -226,7 +219,7 @@ mod tests {
                 request,
                 [
                     (
-                        FetchedPod,
+                        Pod,
                         eq("/api/v1/namespaces/default/pods/test"),
                         bail!("error")
                     ),
@@ -304,9 +297,9 @@ mod tests {
                 request,
                 [
                     (
-                        FetchedPod,
+                        Pod,
                         eq("/api/v1/namespaces/default/pods/test"),
-                        Ok(setup_pod())
+                        Ok(pod())
                     ),
                     (
                         List<Service>,
@@ -349,16 +342,21 @@ mod tests {
             let expected: Vec<String> = indoc!(
                 "
                 pod:
-                  labels:
-                    controller-uid: 30d417a8-cb1c-467b-92fe-7819601a6ef8
-                    job-name: kubetui-text-color
-                  containers:
-                    - name: job
-                      image: alpine
-                  hostIP: 192.168.65.4
-                  podIP: 10.1.0.21
-                  podIPs: 10.1.0.21
-                  phase: Succeeded
+                  metadata:
+                    labels:
+                      controller-uid: 30d417a8-cb1c-467b-92fe-7819601a6ef8
+                      job-name: kubetui-text-color
+                    name: test
+                  spec:
+                    containers:
+                      - image: alpine
+                        name: job
+                  status:
+                    hostIP: 192.168.65.4
+                    phase: Succeeded
+                    podIP: 10.1.0.21
+                    podIPs:
+                      - ip: 10.1.0.21
                 "
             )
             .lines()
@@ -406,7 +404,7 @@ mod tests {
                 request,
                 [
                     (
-                        FetchedPod,
+                        Pod,
                         eq("/api/v1/namespaces/default/pods/test"),
                         bail!("error")
                     ),

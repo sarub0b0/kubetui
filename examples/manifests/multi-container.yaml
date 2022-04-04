@@ -41,6 +41,11 @@ spec:
             - -c
           args:
             - "while true; do echo app-1; sleep 1; done"
+        - name: web
+          image: nginx
+          ports:
+            - containerPort: 80
+              name: http
 
 ---
 apiVersion: apps/v1
