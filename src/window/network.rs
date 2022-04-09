@@ -1,21 +1,21 @@
+use crossbeam::channel::Sender;
 use std::{cell::RefCell, rc::Rc};
 
-use crate::action::view_id;
-use crate::clipboard_wrapper::ClipboardContextWrapper;
-use crate::context::Namespace;
-use crate::event::kubernetes::network::{NetworkMessage, Request, RequestData};
-use crate::event::Event;
-use crate::tui_wrapper::event::EventResult;
-use crate::tui_wrapper::widget::{Table, WidgetTrait};
-use crate::tui_wrapper::WindowEvent;
-use crate::tui_wrapper::{
-    tab::WidgetData,
-    tui::layout::{Constraint, Direction, Layout},
-    widget::{config::WidgetConfig, Text},
-    Tab,
+use crate::{
+    action::view_id,
+    clipboard_wrapper::ClipboardContextWrapper,
+    event::{
+        kubernetes::network::{NetworkMessage, Request, RequestData},
+        Event,
+    },
+    tui_wrapper::{
+        event::EventResult,
+        tab::WidgetData,
+        tui::layout::{Constraint, Direction, Layout},
+        widget::{config::WidgetConfig, Table, Text, WidgetTrait},
+        Tab, WindowEvent,
+    },
 };
-
-use crossbeam::channel::Sender;
 
 pub struct NetworkTab {
     pub tab: Tab<'static>,
@@ -24,7 +24,6 @@ pub struct NetworkTab {
 pub struct NetworkTabBuilder<'a> {
     title: &'a str,
     tx: &'a Sender<Event>,
-    namespaces: &'a Rc<RefCell<Namespace>>,
     clipboard: &'a Option<Rc<RefCell<ClipboardContextWrapper>>>,
     split_mode: Direction,
 }
@@ -33,14 +32,12 @@ impl<'a> NetworkTabBuilder<'a> {
     pub fn new(
         title: &'static str,
         tx: &'a Sender<Event>,
-        namespaces: &'a Rc<RefCell<Namespace>>,
         clipboard: &'a Option<Rc<RefCell<ClipboardContextWrapper>>>,
         split_mode: Direction,
     ) -> Self {
         Self {
             title,
             tx,
-            namespaces,
             clipboard,
             split_mode,
         }
@@ -66,7 +63,6 @@ impl<'a> NetworkTabBuilder<'a> {
 
     fn network(&self) -> Table<'static> {
         let tx = self.tx.clone();
-        let namespaces = self.namespaces.clone();
         Table::builder()
             .id(view_id::tab_network_widget_network)
             .widget_config(&WidgetConfig::builder().title("Network").build())
@@ -86,42 +82,47 @@ impl<'a> NetworkTabBuilder<'a> {
             })
             .on_select(move |w, v| {
                 w.widget_clear(view_id::tab_network_widget_description);
+                v.metadata.as_ref().map_or(EventResult::Ignore, |metadata| {
+                    metadata
+                        .get("namespace")
+                        .map_or(EventResult::Ignore, |namespace| {
+                            metadata.get("name").map_or(EventResult::Ignore, |name| {
+                                metadata.get("kind").map_or(EventResult::Ignore, |kind| {
+                                    *(w.find_widget_mut(view_id::tab_network_widget_description)
+                                        .widget_config_mut()
+                                        .append_title_mut()) =
+                                        Some((format!(" : {}", name)).into());
 
-                let namespaces = namespaces.borrow();
-                let parsed = parse(&v.item, &namespaces.selected);
+                                    let request_data = RequestData {
+                                        namespace: namespace.to_string(),
+                                        name: name.to_string(),
+                                    };
 
-                if let Ok(p) = parsed {
-                    *(w.find_widget_mut(view_id::tab_network_widget_description)
-                        .widget_config_mut()
-                        .append_title_mut()) = Some((format!(" : {}", p.name)).into());
+                                    match kind.as_str() {
+                                        "Pod" => {
+                                            let req = Request::Pod(request_data);
+                                            tx.send(NetworkMessage::Request(req).into()).unwrap();
+                                        }
+                                        "Service" => {
+                                            let req = Request::Service(request_data);
+                                            tx.send(NetworkMessage::Request(req).into()).unwrap();
+                                        }
+                                        "Ingress" => {
+                                            let req = Request::Ingress(request_data);
+                                            tx.send(NetworkMessage::Request(req).into()).unwrap();
+                                        }
+                                        "NetworkPolicy" => {
+                                            let req = Request::NetworkPolicy(request_data);
+                                            tx.send(NetworkMessage::Request(req).into()).unwrap();
+                                        }
+                                        _ => {}
+                                    }
 
-                    let request_data = RequestData {
-                        namespace: p.namespace.to_string(),
-                        name: p.name.to_string(),
-                    };
-
-                    match p.kind {
-                        "Pod" => {
-                            let req = Request::Pod(request_data);
-                            tx.send(NetworkMessage::Request(req).into()).unwrap();
-                        }
-                        "Service" => {
-                            let req = Request::Service(request_data);
-                            tx.send(NetworkMessage::Request(req).into()).unwrap();
-                        }
-                        "Ingress" => {
-                            let req = Request::Ingress(request_data);
-                            tx.send(NetworkMessage::Request(req).into()).unwrap();
-                        }
-                        "NetworkPolicy" => {
-                            let req = Request::NetworkPolicy(request_data);
-                            tx.send(NetworkMessage::Request(req).into()).unwrap();
-                        }
-                        _ => {}
-                    }
-                }
-
-                EventResult::Window(WindowEvent::Continue)
+                                    EventResult::Window(WindowEvent::Continue)
+                                })
+                            })
+                        })
+                })
             })
             .build()
     }
@@ -147,33 +148,5 @@ impl<'a> NetworkTabBuilder<'a> {
             builder
         }
         .build()
-    }
-}
-
-struct Param<'a> {
-    name: &'a str,
-    kind: &'a str,
-    namespace: &'a str,
-}
-
-fn parse<'a>(row: &'a [String], namespace: &'a [String]) -> Result<Param<'a>, String> {
-    if namespace.len() == 1 {
-        if 2 <= row.len() {
-            Ok(Param {
-                name: &row[1],
-                kind: &row[0],
-                namespace: &namespace[0],
-            })
-        } else {
-            Err("invalid row".into())
-        }
-    } else if 3 <= row.len() {
-        Ok(Param {
-            name: &row[2],
-            kind: &row[1],
-            namespace: &row[0],
-        })
-    } else {
-        Err("invalid row".into())
     }
 }

@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use crate::event::kubernetes::KubeTableRow;
 
 use super::*;
@@ -96,6 +98,7 @@ impl NetworkPollWorker {
                         row.cells[indexes[1]].to_string(),
                     ];
 
+                    let kind = row[0].clone();
                     let name = row[1].clone();
 
                     if insert_ns {
@@ -106,7 +109,7 @@ impl NetworkPollWorker {
                         namespace: ns.to_string(),
                         name,
                         row,
-                        ..Default::default()
+                        metadata: Some(BTreeMap::from([("kind".to_string(), kind)])),
                     }
                 },
             )
