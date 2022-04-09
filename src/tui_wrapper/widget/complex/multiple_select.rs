@@ -137,8 +137,8 @@ mod inner {
 
             let expected: Vec<LiteralItem> = vec![
                 "Item 2".to_string().into(),
-                "Item 5".to_string().into(),
                 "Item 4".to_string().into(),
+                "Item 5".to_string().into(),
             ];
 
             assert_eq!(items.selected_items(), expected);
@@ -146,7 +146,7 @@ mod inner {
             items.unselect(&"Item 2".to_string().into());
 
             let expected: Vec<LiteralItem> =
-                vec!["Item 5".to_string().into(), "Item 4".to_string().into()];
+                vec!["Item 4".to_string().into(), "Item 5".to_string().into()];
 
             assert_eq!(items.selected_items(), expected);
         }
