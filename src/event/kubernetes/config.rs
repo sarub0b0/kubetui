@@ -1,7 +1,7 @@
 use super::{
     v1_table::*,
     worker::{PollWorker, Worker},
-    Event, Kube, KubeClient, KubeTable, WorkerResult,
+    Event, Kube, KubeClient, KubeTable, KubeTableRow, WorkerResult,
 };
 
 use std::{
@@ -89,7 +89,7 @@ async fn fetch_configs_per_namespace(
     client: &KubeClient,
     namespaces: &[String],
     ty: Configs,
-) -> Result<Vec<Vec<String>>> {
+) -> Result<Vec<KubeTableRow>> {
     let insert_ns = insert_ns(namespaces);
     let jobs = try_join_all(namespaces.iter().map(|ns| {
         get_resource_per_namespace(
@@ -97,18 +97,24 @@ async fn fetch_configs_per_namespace(
             format!("api/v1/namespaces/{}/{}", ns, ty.kind()),
             &["Name", "Data", "Age"],
             move |row: &TableRow, indexes: &[usize]| {
-                let mut cells = vec![
+                let mut row = vec![
                     ty.resource().to_string(),
                     row.cells[indexes[0]].to_string(),
                     row.cells[indexes[1]].to_string(),
                     row.cells[indexes[2]].to_string(),
                 ];
 
+                let name = row[1].clone();
+
                 if insert_ns {
-                    cells.insert(0, ns.to_string())
+                    row.insert(0, ns.to_string())
                 }
 
-                cells
+                KubeTableRow {
+                    namespace: ns.to_string(),
+                    name,
+                    row,
+                }
             },
         )
     }))

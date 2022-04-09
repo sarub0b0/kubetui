@@ -1,3 +1,5 @@
+use crate::event::kubernetes::KubeTableRow;
+
 use super::*;
 
 #[derive(Clone)]
@@ -79,7 +81,7 @@ impl NetworkPollWorker {
         kind: &str,
         url: &str,
         plural: &str,
-    ) -> Result<Vec<Vec<String>>> {
+    ) -> Result<Vec<KubeTableRow>> {
         let client = &self.inner.kube_client;
         let insert_ns = insert_ns(namespaces);
         let jobs = try_join_all(namespaces.iter().map(|ns| {
@@ -88,17 +90,23 @@ impl NetworkPollWorker {
                 format!("{}/namespaces/{}/{}", url, ns, plural),
                 &["Name", "Age"],
                 move |row: &TableRow, indexes: &[usize]| {
-                    let mut cells = vec![
+                    let mut row = vec![
                         kind.to_string(),
                         row.cells[indexes[0]].to_string(),
                         row.cells[indexes[1]].to_string(),
                     ];
 
+                    let name = row[1].clone();
+
                     if insert_ns {
-                        cells.insert(0, ns.to_string())
+                        row.insert(0, ns.to_string())
                     }
 
-                    cells
+                    KubeTableRow {
+                        namespace: ns.to_string(),
+                        name,
+                        row,
+                    }
                 },
             )
         }))

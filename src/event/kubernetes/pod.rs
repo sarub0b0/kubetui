@@ -1,7 +1,7 @@
 use super::{
     v1_table::*,
     worker::{PollWorker, Worker},
-    KubeClient, KubeTable, WorkerResult, {Event, Kube},
+    KubeClient, KubeTable, KubeTableRow, WorkerResult, {Event, Kube},
 };
 
 use crate::error::Result;
@@ -81,7 +81,7 @@ impl Worker for PodPollWorker {
 async fn get_pods_per_namespace(
     client: &KubeClient,
     namespaces: &[String],
-) -> Result<Vec<Vec<Vec<String>>>> {
+) -> Result<Vec<Vec<KubeTableRow>>> {
     let insert_ns = insert_ns(namespaces);
     try_join_all(namespaces.iter().map(|ns| {
         get_resource_per_namespace(
@@ -89,14 +89,20 @@ async fn get_pods_per_namespace(
             format!("api/v1/namespaces/{}/{}", ns, "pods"),
             &["Name", "Ready", "Status", "Age"],
             move |row: &TableRow, indexes: &[usize]| {
-                let mut cells: Vec<String> =
+                let mut row: Vec<String> =
                     indexes.iter().map(|i| row.cells[*i].to_string()).collect();
 
+                let name = row[0].clone();
+
                 if insert_ns {
-                    cells.insert(0, ns.to_string())
+                    row.insert(0, ns.to_string())
                 }
 
-                cells
+                KubeTableRow {
+                    namespace: ns.to_string(),
+                    name,
+                    row,
+                }
             },
         )
     }))
@@ -170,7 +176,7 @@ async fn get_pods_per_namespace(
 async fn get_pod_info(client: &KubeClient, namespaces: &[String]) -> Result<KubeTable> {
     let jobs = get_pods_per_namespace(client, namespaces).await;
 
-    let ok_only: Vec<Vec<String>> = jobs?.into_iter().flatten().collect();
+    let ok_only: Vec<KubeTableRow> = jobs?.into_iter().flatten().collect();
 
     let mut table = KubeTable {
         header: if namespaces.len() == 1 {

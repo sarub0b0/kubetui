@@ -1,7 +1,7 @@
 use super::{
     v1_table::*,
     worker::{PollWorker, Worker},
-    KubeClient, WorkerResult, {Event, Kube},
+    KubeClient, KubeTableRow, WorkerResult, {Event, Kube},
 };
 
 use std::time;
@@ -63,30 +63,37 @@ async fn get_event_table(client: &KubeClient, namespaces: &[String]) -> Result<V
             format!("api/v1/namespaces/{}/{}", ns, "events"),
             &TARGET,
             move |row: &TableRow, indexes: &[usize]| {
-                let mut cells: Vec<String> =
+                let mut row: Vec<String> =
                     indexes.iter().map(|i| row.cells[*i].to_string()).collect();
 
+                let name = row[0].clone();
+
                 if insert_ns {
-                    cells.insert(1, ns.to_string())
+                    row.insert(1, ns.to_string())
                 }
 
-                cells
+                KubeTableRow {
+                    namespace: ns.to_string(),
+                    name,
+                    row,
+                }
             },
         )
     }))
     .await?;
 
-    let mut ok_only: Vec<Vec<String>> = jobs.into_iter().flatten().collect();
+    let mut ok_only: Vec<KubeTableRow> = jobs.into_iter().flatten().collect();
 
-    ok_only.sort_by_key(|row| row[0].to_time());
+    ok_only.sort_by_key(|row| row.row[0].to_time());
 
     Ok(ok_only
         .iter()
         .map(|v| {
-            v.iter()
+            v.row
+                .iter()
                 .enumerate()
                 .fold(String::new(), |mut s: String, (i, item)| -> String {
-                    if i == v.len() - 1 {
+                    if i == v.row.len() - 1 {
                         s += &format!("\n\x1b[90m> {}\x1b[0m\n ", item);
                     } else {
                         s += &format!("{:<4}  ", item);

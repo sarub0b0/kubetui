@@ -9,6 +9,7 @@ use std::cmp::Ordering;
 use std::cmp::{Ord, PartialOrd};
 
 use super::client::{KubeClient, KubeClientRequest};
+use super::KubeTableRow;
 
 use crate::error::Result;
 
@@ -292,9 +293,9 @@ pub async fn get_resource_per_namespace<F>(
     path: String,
     target_values: &[&str],
     create_cells: F,
-) -> Result<Vec<Vec<String>>>
+) -> Result<Vec<KubeTableRow>>
 where
-    F: Fn(&TableRow, &[usize]) -> Vec<String>,
+    F: Fn(&TableRow, &[usize]) -> KubeTableRow,
 {
     let table: Table = client.table_request(&path).await?;
 
