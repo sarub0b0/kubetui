@@ -100,14 +100,23 @@ fn update_widget_item_for_table(window: &mut Window, id: &str, table: Result<Kub
                         .map(
                             |KubeTableRow {
                                  namespace,
-                                 row,
                                  name,
-                             }| TableItem {
-                                metadata: Some(BTreeMap::from([
+                                 metadata,
+                                 row,
+                             }| {
+                                let mut item_metadata = BTreeMap::from([
                                     ("namespace".to_string(), namespace),
                                     ("name".to_string(), name),
-                                ])),
-                                item: row,
+                                ]);
+
+                                if let Some(metadata) = metadata {
+                                    item_metadata.extend(metadata);
+                                }
+
+                                TableItem {
+                                    metadata: Some(item_metadata),
+                                    item: row,
+                                }
                             },
                         )
                         .collect(),
@@ -119,14 +128,23 @@ fn update_widget_item_for_table(window: &mut Window, id: &str, table: Result<Kub
                     .map(
                         |KubeTableRow {
                              namespace,
-                             row,
                              name,
-                         }| TableItem {
-                            metadata: Some(BTreeMap::from([
+                             metadata,
+                             row,
+                         }| {
+                            let mut item_metadata = BTreeMap::from([
                                 ("namespace".to_string(), namespace),
                                 ("name".to_string(), name),
-                            ])),
-                            item: row,
+                            ]);
+
+                            if let Some(metadata) = metadata {
+                                item_metadata.extend(metadata);
+                            }
+
+                            TableItem {
+                                metadata: Some(item_metadata),
+                                item: row,
+                            }
                         },
                     )
                     .collect();
@@ -176,10 +194,7 @@ pub fn update_contents(
                     let array = i
                         .into_iter()
                         .map(|i| LiteralItem {
-                            metadata: Some(BTreeMap::from([(
-                                "namespace".to_string(),
-                                namespace.to_string(),
-                            )])),
+                            metadata: None,
                             item: i,
                         })
                         .collect();

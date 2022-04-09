@@ -102,6 +102,7 @@ async fn get_pods_per_namespace(
                     namespace: ns.to_string(),
                     name,
                     row,
+                    ..Default::default()
                 }
             },
         )

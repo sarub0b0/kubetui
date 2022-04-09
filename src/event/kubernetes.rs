@@ -24,7 +24,11 @@ use k8s_openapi::api::core::v1::Namespace;
 use worker::Worker;
 
 use std::{
-    collections::HashMap, convert::TryFrom, panic, sync::atomic::AtomicBool, sync::Arc,
+    collections::{BTreeMap, HashMap},
+    convert::TryFrom,
+    panic,
+    sync::atomic::AtomicBool,
+    sync::Arc,
     time::Duration,
 };
 
@@ -60,6 +64,7 @@ pub use kube;
 pub struct KubeTableRow {
     pub namespace: String,
     pub name: String,
+    pub metadata: Option<BTreeMap<String, String>>,
     pub row: Vec<String>,
 }
 

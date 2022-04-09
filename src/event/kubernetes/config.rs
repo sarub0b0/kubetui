@@ -104,6 +104,7 @@ async fn fetch_configs_per_namespace(
                     row.cells[indexes[2]].to_string(),
                 ];
 
+                let kind = row[0].clone();
                 let name = row[1].clone();
 
                 if insert_ns {
@@ -114,6 +115,7 @@ async fn fetch_configs_per_namespace(
                     namespace: ns.to_string(),
                     name,
                     row,
+                    metadata: Some(BTreeMap::from([("kind".to_string(), kind)])),
                 }
             },
         )

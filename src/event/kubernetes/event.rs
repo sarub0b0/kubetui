@@ -76,6 +76,7 @@ async fn get_event_table(client: &KubeClient, namespaces: &[String]) -> Result<V
                     namespace: ns.to_string(),
                     name,
                     row,
+                    ..Default::default()
                 }
             },
         )
