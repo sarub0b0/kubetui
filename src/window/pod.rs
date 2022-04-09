@@ -7,7 +7,6 @@ use crate::clipboard_wrapper::ClipboardContextWrapper;
 use crate::event::{kubernetes::*, Event};
 
 use crate::action::view_id;
-use crate::context::Namespace;
 
 use crate::tui_wrapper::{
     event::EventResult,
@@ -21,7 +20,6 @@ use tui::layout::{Constraint, Direction, Layout};
 pub struct PodTabBuilder<'a> {
     title: &'a str,
     tx: &'a Sender<Event>,
-    namespaces: &'a Rc<RefCell<Namespace>>,
     clipboard: &'a Option<Rc<RefCell<ClipboardContextWrapper>>>,
     split_mode: Direction,
 }
@@ -34,14 +32,12 @@ impl<'a> PodTabBuilder<'a> {
     pub fn new(
         title: &'static str,
         tx: &'a Sender<Event>,
-        namespaces: &'a Rc<RefCell<Namespace>>,
         clipboard: &'a Option<Rc<RefCell<ClipboardContextWrapper>>>,
         split_mode: Direction,
     ) -> Self {
         PodTabBuilder {
             title,
             tx,
-            namespaces,
             clipboard,
             split_mode,
         }
@@ -70,7 +66,6 @@ impl<'a> PodTabBuilder<'a> {
 
     fn pod(&self) -> Table<'static> {
         let tx = self.tx.clone();
-        let namespace = self.namespaces.clone();
 
         Table::builder()
             .id(view_id::tab_pod_widget_pod)
@@ -92,18 +87,30 @@ impl<'a> PodTabBuilder<'a> {
             .on_select(move |w, v| {
                 w.widget_clear(view_id::tab_pod_widget_log);
 
-                let selected = &namespace.borrow().selected;
+                v.metadata.as_ref().map_or(EventResult::Ignore, |metadata| {
+                    metadata
+                        .get("namespace")
+                        .as_ref()
+                        .map_or(EventResult::Ignore, |namespace| {
+                            metadata
+                                .get("name")
+                                .as_ref()
+                                .map_or(EventResult::Ignore, |name| {
+                                    *(w.find_widget_mut(view_id::tab_pod_widget_log)
+                                        .widget_config_mut()
+                                        .append_title_mut()) =
+                                        Some((format!(" : {}", name)).into());
 
-                let (ns, pod_name) = log_stream_request_param(&v.item, selected);
+                                    tx.send(Event::Kube(Kube::LogStreamRequest(
+                                        namespace.to_string(),
+                                        name.to_string(),
+                                    )))
+                                    .unwrap();
 
-                *(w.find_widget_mut(view_id::tab_pod_widget_log)
-                    .widget_config_mut()
-                    .append_title_mut()) = Some((format!(" : {}", pod_name)).into());
-
-                tx.send(Event::Kube(Kube::LogStreamRequest(ns, pod_name)))
-                    .unwrap();
-
-                EventResult::Window(WindowEvent::Continue)
+                                    EventResult::Window(WindowEvent::Continue)
+                                })
+                        })
+                })
             })
             .build()
     }
@@ -130,49 +137,5 @@ impl<'a> PodTabBuilder<'a> {
             builder
         }
         .build()
-    }
-}
-
-fn log_stream_request_param(value: &[String], namespace: &[String]) -> (String, String) {
-    if namespace.len() == 1 {
-        (namespace[0].to_string(), value[0].to_string())
-    } else {
-        (value[0].to_string(), value[1].to_string())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn log_stream_request_param_single_namespace() {
-        let value = vec![
-            "name".to_string(),
-            "ready".to_string(),
-            "status".to_string(),
-            "age".to_string(),
-        ];
-        let namespace = vec!["ns".to_string()];
-
-        let actual = log_stream_request_param(&value, &namespace);
-
-        assert_eq!(("ns".to_string(), "name".to_string()), actual)
-    }
-
-    #[test]
-    fn log_stream_request_param_multiple_namespaces() {
-        let value = vec![
-            "ns-1".to_string(),
-            "name".to_string(),
-            "ready".to_string(),
-            "status".to_string(),
-            "age".to_string(),
-        ];
-        let namespace = vec!["ns-0".to_string(), "ns-1".to_string()];
-
-        let actual = log_stream_request_param(&value, &namespace);
-
-        assert_eq!(("ns-1".to_string(), "name".to_string()), actual)
     }
 }

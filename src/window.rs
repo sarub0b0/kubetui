@@ -116,14 +116,8 @@ impl WindowInit {
             Err(_) => None,
         };
 
-        let PodsTab { tab: tab_pods } = PodTabBuilder::new(
-            "Pod",
-            &self.tx,
-            &self.namespaces,
-            &clipboard,
-            self.split_mode.clone(),
-        )
-        .build();
+        let PodsTab { tab: tab_pods } =
+            PodTabBuilder::new("Pod", &self.tx, &clipboard, self.split_mode.clone()).build();
 
         let ConfigTab { tab: tab_configs } = ConfigTabBuilder::new(
             "Config",
