@@ -128,7 +128,7 @@ mod inner_item {
         }
 
         pub fn update_item(&mut self, item: Item) {
-            let item = self.items = item.array();
+            self.items = item.array();
             self.list_item = self
                 .items
                 .iter()
