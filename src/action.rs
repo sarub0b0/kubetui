@@ -11,7 +11,7 @@ use super::{
     },
     tui_wrapper::{
         event::{exec_to_window_event, EventResult},
-        widget::{AtomLiteralItem, AtomTableItem, Item, WidgetTrait},
+        widget::{Item, LiteralItem, TableItem, WidgetTrait},
         Window, WindowEvent,
     },
 };
@@ -95,21 +95,21 @@ fn update_widget_item_for_table(window: &mut Window, id: &str, table: Result<Kub
                     table
                         .rows()
                         .into_iter()
-                        .map(|row| AtomTableItem::from(row.clone()))
+                        .map(|row| TableItem::from(row.clone()))
                         .collect(),
                 ));
             } else {
-                let rows: Vec<AtomTableItem> = table
+                let rows: Vec<TableItem> = table
                     .rows()
                     .into_iter()
-                    .map(|row| AtomTableItem::from(row.clone()))
+                    .map(|row| TableItem::from(row.clone()))
                     .collect();
 
                 w.update_header_and_rows(table.header(), &rows);
             }
         }
         Err(e) => {
-            let rows: Vec<AtomTableItem> = vec![vec![error_format!("{}", e)].into()];
+            let rows: Vec<TableItem> = vec![vec![error_format!("{}", e)].into()];
             w.update_header_and_rows(&["ERROR".to_string()], &rows);
         }
     }
@@ -119,9 +119,7 @@ fn update_widget_item_for_vec(window: &mut Window, id: &str, vec: Result<Vec<Str
     let widget = window.find_widget_mut(id);
     match vec {
         Ok(i) => {
-            widget.update_widget_item(Item::Array(
-                i.into_iter().map(AtomLiteralItem::from).collect(),
-            ));
+            widget.update_widget_item(Item::Array(i.into_iter().map(LiteralItem::from).collect()));
         }
         Err(i) => {
             widget.update_widget_item(Item::Array(vec![error_format!("{}", i).into()]));
@@ -151,7 +149,7 @@ pub fn update_contents(
                 Ok(i) => {
                     let array = i
                         .into_iter()
-                        .map(|i| AtomLiteralItem {
+                        .map(|i| LiteralItem {
                             metadata: Some(BTreeMap::from([(
                                 "namespace".to_string(),
                                 namespace.to_string(),
@@ -189,12 +187,12 @@ pub fn update_contents(
             window
                 .find_widget_mut(view_id::popup_ns)
                 .update_widget_item(Item::Array(
-                    ns.iter().cloned().map(AtomLiteralItem::from).collect(),
+                    ns.iter().cloned().map(LiteralItem::from).collect(),
                 ));
             window
                 .find_widget_mut(view_id::popup_single_ns)
                 .update_widget_item(Item::Array(
-                    ns.iter().cloned().map(AtomLiteralItem::from).collect(),
+                    ns.iter().cloned().map(LiteralItem::from).collect(),
                 ));
 
             let widget = window

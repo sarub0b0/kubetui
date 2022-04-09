@@ -20,7 +20,7 @@ use crate::tui_wrapper::{
 
 use super::{
     spans::generate_spans_line,
-    AtomTableItem, SelectedItem,
+    SelectedItem, TableItem,
     {config::WidgetConfig, wrap::wrap_line},
     {Item, RenderTrait, WidgetTrait},
 };
@@ -29,13 +29,13 @@ const COLUMN_SPACING: u16 = 3;
 const HIGHLIGHT_SYMBOL: &str = " ";
 const ROW_START_INDEX: usize = 2;
 
-type InnerCallback = Rc<dyn Fn(&mut Window, &AtomTableItem) -> EventResult>;
+type InnerCallback = Rc<dyn Fn(&mut Window, &TableItem) -> EventResult>;
 type RenderBlockInjection = Rc<dyn Fn(&Table, bool) -> Block<'static>>;
 
 #[derive(Debug, Default)]
 struct InnerItemBuilder {
     header: Vec<String>,
-    rows: Vec<AtomTableItem>,
+    rows: Vec<TableItem>,
     max_width: usize,
 }
 
@@ -45,7 +45,7 @@ impl InnerItemBuilder {
         self
     }
 
-    fn rows(mut self, rows: impl Into<Vec<AtomTableItem>>) -> Self {
+    fn rows(mut self, rows: impl Into<Vec<TableItem>>) -> Self {
         self.rows = rows.into();
         self
     }
@@ -87,7 +87,7 @@ struct InnerRow<'a> {
 struct InnerItem<'a> {
     header: Vec<String>,
     header_row: Row<'a>,
-    rows: Vec<AtomTableItem>,
+    rows: Vec<TableItem>,
     widget_rows: Vec<InnerRow<'a>>,
     bottom_margin: u16,
     digits: Vec<usize>,
@@ -242,7 +242,7 @@ pub struct TableBuilder {
     widget_config: WidgetConfig,
     show_status: bool,
     header: Vec<String>,
-    items: Vec<AtomTableItem>,
+    items: Vec<TableItem>,
     state: TableState,
     #[derivative(Debug = "ignore")]
     on_select: Option<InnerCallback>,
@@ -261,7 +261,7 @@ impl TableBuilder {
         self
     }
 
-    pub fn items(mut self, items: impl Into<Vec<AtomTableItem>>) -> Self {
+    pub fn items(mut self, items: impl Into<Vec<TableItem>>) -> Self {
         self.items = items.into();
         self.state.select(Some(0));
         self
@@ -274,7 +274,7 @@ impl TableBuilder {
 
     pub fn on_select<F>(mut self, cb: F) -> Self
     where
-        F: Fn(&mut Window, &AtomTableItem) -> EventResult + 'static,
+        F: Fn(&mut Window, &TableItem) -> EventResult + 'static,
     {
         self.on_select = Some(Rc::new(cb));
         self
@@ -338,7 +338,7 @@ impl<'a> Table<'a> {
         TableBuilder::default()
     }
 
-    pub fn items(&self) -> &[AtomTableItem] {
+    pub fn items(&self) -> &[TableItem] {
         &self.items.rows
     }
 
@@ -354,7 +354,7 @@ impl<'a> Table<'a> {
         self.inner_chunk.width.saturating_sub(2) as usize
     }
 
-    pub fn update_header_and_rows(&mut self, header: &[String], rows: &[AtomTableItem]) {
+    pub fn update_header_and_rows(&mut self, header: &[String], rows: &[TableItem]) {
         self.items = InnerItem::builder()
             .header(header)
             .rows(rows)
@@ -616,7 +616,7 @@ impl<'a> Table<'a> {
         })
     }
 
-    fn selected_item(&self) -> Option<Rc<AtomTableItem>> {
+    fn selected_item(&self) -> Option<Rc<TableItem>> {
         self.state
             .selected()
             .map(|i| Rc::new(self.items.rows[i].clone()))
@@ -680,11 +680,11 @@ mod tests {
         fn 初期値は1つ目のアイテムを選択() {
             let table = Table::builder()
                 .items([
-                    AtomTableItem::new(vec!["Item-0".to_string(), "Item-0".to_string()], None),
-                    AtomTableItem::new(vec!["Item-1".to_string(), "Item-1".to_string()], None),
-                    AtomTableItem::new(vec!["Item-2".to_string(), "Item-2".to_string()], None),
-                    AtomTableItem::new(vec!["Item-3".to_string(), "Item-3".to_string()], None),
-                    AtomTableItem::new(vec!["Item-4".to_string(), "Item-4".to_string()], None),
+                    TableItem::new(vec!["Item-0".to_string(), "Item-0".to_string()], None),
+                    TableItem::new(vec!["Item-1".to_string(), "Item-1".to_string()], None),
+                    TableItem::new(vec!["Item-2".to_string(), "Item-2".to_string()], None),
+                    TableItem::new(vec!["Item-3".to_string(), "Item-3".to_string()], None),
+                    TableItem::new(vec!["Item-4".to_string(), "Item-4".to_string()], None),
                 ])
                 .build();
 
@@ -695,11 +695,11 @@ mod tests {
         fn 次のアイテムを選択_1() {
             let mut table = Table::builder()
                 .items([
-                    AtomTableItem::new(vec!["Item-0".to_string(), "Item-0".to_string()], None),
-                    AtomTableItem::new(vec!["Item-1".to_string(), "Item-1".to_string()], None),
-                    AtomTableItem::new(vec!["Item-2".to_string(), "Item-2".to_string()], None),
-                    AtomTableItem::new(vec!["Item-3".to_string(), "Item-3".to_string()], None),
-                    AtomTableItem::new(vec!["Item-4".to_string(), "Item-4".to_string()], None),
+                    TableItem::new(vec!["Item-0".to_string(), "Item-0".to_string()], None),
+                    TableItem::new(vec!["Item-1".to_string(), "Item-1".to_string()], None),
+                    TableItem::new(vec!["Item-2".to_string(), "Item-2".to_string()], None),
+                    TableItem::new(vec!["Item-3".to_string(), "Item-3".to_string()], None),
+                    TableItem::new(vec!["Item-4".to_string(), "Item-4".to_string()], None),
                 ])
                 .build();
 
@@ -712,11 +712,11 @@ mod tests {
         fn 次のアイテムを選択_3() {
             let mut table = Table::builder()
                 .items([
-                    AtomTableItem::new(vec!["Item-0".to_string(), "Item-0".to_string()], None),
-                    AtomTableItem::new(vec!["Item-1".to_string(), "Item-1".to_string()], None),
-                    AtomTableItem::new(vec!["Item-2".to_string(), "Item-2".to_string()], None),
-                    AtomTableItem::new(vec!["Item-3".to_string(), "Item-3".to_string()], None),
-                    AtomTableItem::new(vec!["Item-4".to_string(), "Item-4".to_string()], None),
+                    TableItem::new(vec!["Item-0".to_string(), "Item-0".to_string()], None),
+                    TableItem::new(vec!["Item-1".to_string(), "Item-1".to_string()], None),
+                    TableItem::new(vec!["Item-2".to_string(), "Item-2".to_string()], None),
+                    TableItem::new(vec!["Item-3".to_string(), "Item-3".to_string()], None),
+                    TableItem::new(vec!["Item-4".to_string(), "Item-4".to_string()], None),
                 ])
                 .build();
 
@@ -741,16 +741,16 @@ mod tests {
             let mut table = Table::builder()
                 .header(["A".to_string(), "B".to_string()])
                 .items([
-                    AtomTableItem::new(vec!["Item-0".to_string(), "Item-0".to_string()], None),
-                    AtomTableItem::new(vec!["Item-1".to_string(), "Item-1".to_string()], None),
-                    AtomTableItem::new(vec!["Item-2".to_string(), "Item-2".to_string()], None),
-                    AtomTableItem::new(vec!["Item-3".to_string(), "Item-3".to_string()], None),
-                    AtomTableItem::new(vec!["Item-4".to_string(), "Item-4".to_string()], None),
-                    AtomTableItem::new(vec!["Item-5".to_string(), "Item-5".to_string()], None),
-                    AtomTableItem::new(vec!["Item-6".to_string(), "Item-6".to_string()], None),
-                    AtomTableItem::new(vec!["Item-7".to_string(), "Item-7".to_string()], None),
-                    AtomTableItem::new(vec!["Item-8".to_string(), "Item-8".to_string()], None),
-                    AtomTableItem::new(vec!["Item-9".to_string(), "Item-9".to_string()], None),
+                    TableItem::new(vec!["Item-0".to_string(), "Item-0".to_string()], None),
+                    TableItem::new(vec!["Item-1".to_string(), "Item-1".to_string()], None),
+                    TableItem::new(vec!["Item-2".to_string(), "Item-2".to_string()], None),
+                    TableItem::new(vec!["Item-3".to_string(), "Item-3".to_string()], None),
+                    TableItem::new(vec!["Item-4".to_string(), "Item-4".to_string()], None),
+                    TableItem::new(vec!["Item-5".to_string(), "Item-5".to_string()], None),
+                    TableItem::new(vec!["Item-6".to_string(), "Item-6".to_string()], None),
+                    TableItem::new(vec!["Item-7".to_string(), "Item-7".to_string()], None),
+                    TableItem::new(vec!["Item-8".to_string(), "Item-8".to_string()], None),
+                    TableItem::new(vec!["Item-9".to_string(), "Item-9".to_string()], None),
                 ])
                 .build();
 
@@ -779,9 +779,9 @@ mod tests {
                 assert_eq!((table.state.selected(), table.state.offset()), (None, 0));
 
                 table.update_widget_item(Item::Table(vec![
-                    AtomTableItem::new(vec!["Item-0".to_string(), "Item-0".to_string()], None),
-                    AtomTableItem::new(vec!["Item-1".to_string(), "Item-1".to_string()], None),
-                    AtomTableItem::new(vec!["Item-2".to_string(), "Item-2".to_string()], None),
+                    TableItem::new(vec!["Item-0".to_string(), "Item-0".to_string()], None),
+                    TableItem::new(vec!["Item-1".to_string(), "Item-1".to_string()], None),
+                    TableItem::new(vec!["Item-2".to_string(), "Item-2".to_string()], None),
                 ]));
 
                 assert_eq!((table.state.selected(), table.state.offset()), (Some(0), 0));
@@ -805,20 +805,20 @@ mod tests {
                 assert_eq!((table.state.selected(), table.state.offset()), (Some(5), 3));
 
                 table.update_widget_item(Item::Table(vec![
-                    AtomTableItem::new(vec!["Item-0".to_string(), "Item-0".to_string()], None),
-                    AtomTableItem::new(vec!["Item-1".to_string(), "Item-1".to_string()], None),
-                    AtomTableItem::new(vec!["Item-2".to_string(), "Item-2".to_string()], None),
-                    AtomTableItem::new(vec!["Item-3".to_string(), "Item-3".to_string()], None),
-                    AtomTableItem::new(vec!["Item-4".to_string(), "Item-4".to_string()], None),
-                    AtomTableItem::new(vec!["Item-5".to_string(), "Item-5".to_string()], None),
-                    AtomTableItem::new(vec!["Item-6".to_string(), "Item-6".to_string()], None),
-                    AtomTableItem::new(vec!["Item-7".to_string(), "Item-7".to_string()], None),
-                    AtomTableItem::new(vec!["Item-8".to_string(), "Item-8".to_string()], None),
-                    AtomTableItem::new(vec!["Item-9".to_string(), "Item-9".to_string()], None),
+                    TableItem::new(vec!["Item-0".to_string(), "Item-0".to_string()], None),
+                    TableItem::new(vec!["Item-1".to_string(), "Item-1".to_string()], None),
+                    TableItem::new(vec!["Item-2".to_string(), "Item-2".to_string()], None),
+                    TableItem::new(vec!["Item-3".to_string(), "Item-3".to_string()], None),
+                    TableItem::new(vec!["Item-4".to_string(), "Item-4".to_string()], None),
+                    TableItem::new(vec!["Item-5".to_string(), "Item-5".to_string()], None),
+                    TableItem::new(vec!["Item-6".to_string(), "Item-6".to_string()], None),
+                    TableItem::new(vec!["Item-7".to_string(), "Item-7".to_string()], None),
+                    TableItem::new(vec!["Item-8".to_string(), "Item-8".to_string()], None),
+                    TableItem::new(vec!["Item-9".to_string(), "Item-9".to_string()], None),
                     // 増加分
-                    AtomTableItem::new(vec!["Item-10".to_string(), "Item-10".to_string()], None),
-                    AtomTableItem::new(vec!["Item-11".to_string(), "Item-11".to_string()], None),
-                    AtomTableItem::new(vec!["Item-12".to_string(), "Item-12".to_string()], None),
+                    TableItem::new(vec!["Item-10".to_string(), "Item-10".to_string()], None),
+                    TableItem::new(vec!["Item-11".to_string(), "Item-11".to_string()], None),
+                    TableItem::new(vec!["Item-12".to_string(), "Item-12".to_string()], None),
                 ]));
 
                 terminal
@@ -887,9 +887,9 @@ mod tests {
                 assert_eq!((table.state.selected(), table.state.offset()), (Some(8), 6));
 
                 table.update_widget_item(Item::Table(vec![
-                    AtomTableItem::new(vec!["Item-0".to_string(), "Item-0".to_string()], None),
-                    AtomTableItem::new(vec!["Item-1".to_string(), "Item-1".to_string()], None),
-                    AtomTableItem::new(vec!["Item-2".to_string(), "Item-2".to_string()], None),
+                    TableItem::new(vec!["Item-0".to_string(), "Item-0".to_string()], None),
+                    TableItem::new(vec!["Item-1".to_string(), "Item-1".to_string()], None),
+                    TableItem::new(vec!["Item-2".to_string(), "Item-2".to_string()], None),
                 ]));
 
                 terminal

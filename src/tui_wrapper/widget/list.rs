@@ -11,7 +11,7 @@ use tui::{
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use derivative::*;
 
-use super::{config::WidgetConfig, AtomLiteralItem, Item, RenderTrait, SelectedItem, WidgetTrait};
+use super::{config::WidgetConfig, Item, LiteralItem, RenderTrait, SelectedItem, WidgetTrait};
 
 use crate::tui_wrapper::{
     event::{Callback, EventResult},
@@ -20,7 +20,7 @@ use crate::tui_wrapper::{
 
 mod inner_item {
 
-    use crate::tui_wrapper::widget::AtomLiteralItem;
+    use crate::tui_wrapper::widget::LiteralItem;
 
     use super::Item;
     use tui::widgets::ListItem;
@@ -113,12 +113,12 @@ mod inner_item {
 
     #[derive(Debug, Default)]
     pub struct InnerItem<'a> {
-        items: Vec<AtomLiteralItem>,
+        items: Vec<LiteralItem>,
         list_item: Vec<ListItem<'a>>,
     }
 
     impl<'a> InnerItem<'a> {
-        pub fn items(&self) -> &Vec<AtomLiteralItem> {
+        pub fn items(&self) -> &Vec<LiteralItem> {
             &self.items
         }
 
@@ -164,7 +164,7 @@ pub struct List<'a> {
     chunk: Rect,
     inner_chunk: Rect,
     #[derivative(Debug = "ignore")]
-    on_select: Option<Rc<dyn Fn(&mut Window, &AtomLiteralItem) -> EventResult>>,
+    on_select: Option<Rc<dyn Fn(&mut Window, &LiteralItem) -> EventResult>>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
 }
@@ -174,10 +174,10 @@ pub struct List<'a> {
 pub struct ListBuilder {
     id: String,
     widget_config: WidgetConfig,
-    items: Vec<AtomLiteralItem>,
+    items: Vec<LiteralItem>,
     state: ListState,
     #[derivative(Debug = "ignore")]
-    on_select: Option<Rc<dyn Fn(&mut Window, &AtomLiteralItem) -> EventResult>>,
+    on_select: Option<Rc<dyn Fn(&mut Window, &LiteralItem) -> EventResult>>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
 }
@@ -193,7 +193,7 @@ impl ListBuilder {
         self
     }
 
-    pub fn items(mut self, items: impl Into<Vec<AtomLiteralItem>>) -> Self {
+    pub fn items(mut self, items: impl Into<Vec<LiteralItem>>) -> Self {
         self.items = items.into();
         self.state.select(Some(0));
         self
@@ -201,7 +201,7 @@ impl ListBuilder {
 
     pub fn on_select<F>(mut self, cb: F) -> Self
     where
-        F: Fn(&mut Window, &AtomLiteralItem) -> EventResult + 'static,
+        F: Fn(&mut Window, &LiteralItem) -> EventResult + 'static,
     {
         self.on_select = Some(Rc::new(cb));
         self
@@ -235,7 +235,7 @@ impl<'a> List<'a> {
         ListBuilder::default()
     }
 
-    pub fn items(&self) -> &Vec<AtomLiteralItem> {
+    pub fn items(&self) -> &Vec<LiteralItem> {
         self.items.items()
     }
 
@@ -245,7 +245,7 @@ impl<'a> List<'a> {
 
     pub fn on_select_mut(
         &mut self,
-    ) -> &mut Option<Rc<dyn Fn(&mut Window, &AtomLiteralItem) -> EventResult>> {
+    ) -> &mut Option<Rc<dyn Fn(&mut Window, &LiteralItem) -> EventResult>> {
         &mut self.on_select
     }
 
@@ -441,7 +441,7 @@ impl<'a> List<'a> {
         })
     }
 
-    fn selected_item(&self) -> Option<Rc<AtomLiteralItem>> {
+    fn selected_item(&self) -> Option<Rc<LiteralItem>> {
         self.state
             .selected()
             .map(|i| Rc::new(self.items.items()[i].clone()))

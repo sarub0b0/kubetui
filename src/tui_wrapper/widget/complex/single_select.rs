@@ -29,7 +29,7 @@ use crate::{
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
 struct SelectForm<'a> {
-    list_items: Vec<AtomLiteralItem>,
+    list_items: Vec<LiteralItem>,
     list_widget: List<'a>,
     filter: String,
     chunk: Rect,
@@ -42,8 +42,8 @@ impl<'a> SelectForm<'a> {
         self.list_widget.render(f, true);
     }
 
-    fn filter_items(&self, items: &[AtomLiteralItem]) -> Vec<AtomLiteralItem> {
-        let mut ret: Vec<AtomLiteralItem> = items
+    fn filter_items(&self, items: &[LiteralItem]) -> Vec<LiteralItem> {
+        let mut ret: Vec<LiteralItem> = items
             .iter()
             .filter_map(|item| {
                 self.matcher
@@ -323,7 +323,7 @@ pub struct SingleSelectBuilder {
     #[derivative(Debug = "ignore")]
     actions: Vec<(UserEvent, InnerCallback)>,
     #[derivative(Debug = "ignore")]
-    on_select: Option<Box<dyn Fn(&mut Window, &AtomLiteralItem) -> EventResult>>,
+    on_select: Option<Box<dyn Fn(&mut Window, &LiteralItem) -> EventResult>>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
     #[derivative(Debug = "ignore")]
@@ -351,7 +351,7 @@ impl SingleSelectBuilder {
 
     pub fn on_select<F>(mut self, f: F) -> Self
     where
-        F: Fn(&mut Window, &AtomLiteralItem) -> EventResult + 'static,
+        F: Fn(&mut Window, &LiteralItem) -> EventResult + 'static,
     {
         self.on_select = Some(Box::new(f));
         self
@@ -429,8 +429,7 @@ mod tests {
 
         let res = select_form.list_widget.items().clone();
 
-        let expected: Vec<AtomLiteralItem> =
-            vec!["abb".to_string().into(), "abc".to_string().into()];
+        let expected: Vec<LiteralItem> = vec!["abb".to_string().into(), "abc".to_string().into()];
 
         assert_eq!(res, expected)
     }

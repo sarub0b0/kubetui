@@ -28,17 +28,17 @@ use super::input::InputForm;
 mod inner {
     use std::collections::HashMap;
 
-    use crate::tui_wrapper::widget::AtomLiteralItem;
+    use crate::tui_wrapper::widget::LiteralItem;
 
     #[derive(Debug, Default)]
     pub struct SelectItems {
-        items: HashMap<AtomLiteralItem, bool>,
+        items: HashMap<LiteralItem, bool>,
     }
 
     impl SelectItems {
         pub fn update_items<T>(&mut self, items: impl Into<Vec<T>>)
         where
-            T: Into<AtomLiteralItem>,
+            T: Into<LiteralItem>,
         {
             let old = self.items.clone();
 
@@ -55,22 +55,22 @@ mod inner {
             })
         }
 
-        pub fn toggle_select_unselect(&mut self, key: &AtomLiteralItem) {
+        pub fn toggle_select_unselect(&mut self, key: &LiteralItem) {
             if let Some(value) = self.items.get_mut(key) {
                 *value = !*value;
             }
         }
 
         #[allow(dead_code)]
-        pub fn items(&self) -> Vec<&AtomLiteralItem> {
+        pub fn items(&self) -> Vec<&LiteralItem> {
             self.items.iter().map(|(k, _)| k).collect()
         }
 
-        pub fn selected_items(&self) -> Vec<AtomLiteralItem> {
+        pub fn selected_items(&self) -> Vec<LiteralItem> {
             Self::filter_items(&self.items, true)
         }
 
-        pub fn unselected_items(&self) -> Vec<AtomLiteralItem> {
+        pub fn unselected_items(&self) -> Vec<LiteralItem> {
             Self::filter_items(&self.items, false)
         }
 
@@ -82,11 +82,8 @@ mod inner {
             self.items.values_mut().for_each(|v| *v = false);
         }
 
-        fn filter_items(
-            items: &HashMap<AtomLiteralItem, bool>,
-            selected: bool,
-        ) -> Vec<AtomLiteralItem> {
-            let mut ret: Vec<AtomLiteralItem> = items
+        fn filter_items(items: &HashMap<LiteralItem, bool>, selected: bool) -> Vec<LiteralItem> {
+            let mut ret: Vec<LiteralItem> = items
                 .iter()
                 .filter_map(|(k, v)| {
                     if *v == selected {
@@ -102,14 +99,14 @@ mod inner {
         }
 
         #[allow(dead_code)]
-        pub fn select(&mut self, key: &AtomLiteralItem) {
+        pub fn select(&mut self, key: &LiteralItem) {
             if let Some(value) = self.items.get_mut(key) {
                 *value = true;
             }
         }
 
         #[allow(dead_code)]
-        pub fn unselect(&mut self, key: &AtomLiteralItem) {
+        pub fn unselect(&mut self, key: &LiteralItem) {
             if let Some(value) = self.items.get_mut(key) {
                 *value = false;
             }
@@ -138,7 +135,7 @@ mod inner {
             items.select(&"Item 5".to_string().into());
             items.select(&"Item 4".to_string().into());
 
-            let expected: Vec<AtomLiteralItem> = vec![
+            let expected: Vec<LiteralItem> = vec![
                 "Item 2".to_string().into(),
                 "Item 5".to_string().into(),
                 "Item 4".to_string().into(),
@@ -148,7 +145,7 @@ mod inner {
 
             items.unselect(&"Item 2".to_string().into());
 
-            let expected: Vec<AtomLiteralItem> =
+            let expected: Vec<LiteralItem> =
                 vec!["Item 5".to_string().into(), "Item 4".to_string().into()];
 
             assert_eq!(items.selected_items(), expected);
@@ -171,7 +168,7 @@ mod inner {
             items.select(&"Item 5".to_string().into());
             items.select(&"Item 4".to_string().into());
 
-            let expected: Vec<AtomLiteralItem> = vec![
+            let expected: Vec<LiteralItem> = vec![
                 "Item 2".to_string().into(),
                 "Item 4".to_string().into(),
                 "Item 5".to_string().into(),
@@ -185,7 +182,7 @@ mod inner {
                 "Item 2".to_string(),
             ]);
 
-            let expected: Vec<AtomLiteralItem> = vec!["Item 2".to_string().into()];
+            let expected: Vec<LiteralItem> = vec!["Item 2".to_string().into()];
 
             assert_eq!(items.selected_items(), expected);
         }
@@ -318,8 +315,8 @@ impl<'a> SelectForm<'a> {
         self.focused_form_mut().select_last();
     }
 
-    fn filter_items(&self, items: &[AtomLiteralItem]) -> Vec<AtomLiteralItem> {
-        let mut ret: Vec<AtomLiteralItem> = items
+    fn filter_items(&self, items: &[LiteralItem]) -> Vec<LiteralItem> {
+        let mut ret: Vec<LiteralItem> = items
             .iter()
             .filter_map(|item| {
                 self.matcher
@@ -420,11 +417,11 @@ impl<'a> SelectForm<'a> {
         (pos, size)
     }
 
-    fn selected_items(&self) -> Vec<AtomLiteralItem> {
+    fn selected_items(&self) -> Vec<LiteralItem> {
         self.items.selected_items()
     }
 
-    fn select_item(&mut self, item: &AtomLiteralItem) {
+    fn select_item(&mut self, item: &LiteralItem) {
         if let Some((i, _)) = self
             .list_widget
             .items()
@@ -478,9 +475,9 @@ pub struct MultipleSelectBuilder {
     id: String,
     widget_config: WidgetConfig,
     #[derivative(Debug = "ignore")]
-    on_select_list: Option<Box<dyn Fn(&mut Window, &AtomLiteralItem) -> EventResult>>,
+    on_select_list: Option<Box<dyn Fn(&mut Window, &LiteralItem) -> EventResult>>,
     #[derivative(Debug = "ignore")]
-    on_select_selected: Option<Box<dyn Fn(&mut Window, &AtomLiteralItem) -> EventResult>>,
+    on_select_selected: Option<Box<dyn Fn(&mut Window, &LiteralItem) -> EventResult>>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
     #[derivative(Debug = "ignore")]
@@ -502,7 +499,7 @@ impl MultipleSelectBuilder {
 
     pub fn on_select<F>(mut self, cb: F) -> Self
     where
-        F: Fn(&mut Window, &AtomLiteralItem) -> EventResult + 'static,
+        F: Fn(&mut Window, &LiteralItem) -> EventResult + 'static,
         F: Clone,
     {
         self.on_select_list = Some(Box::new(cb.clone()));
@@ -644,11 +641,11 @@ impl<'a> MultipleSelect<'a> {
         self.selected_widget.update_filter("");
     }
 
-    pub fn selected_items(&self) -> Vec<AtomLiteralItem> {
+    pub fn selected_items(&self) -> Vec<LiteralItem> {
         self.selected_widget.selected_items()
     }
 
-    pub fn select_item(&mut self, item: &AtomLiteralItem) {
+    pub fn select_item(&mut self, item: &LiteralItem) {
         self.selected_widget.select_item(item);
     }
 

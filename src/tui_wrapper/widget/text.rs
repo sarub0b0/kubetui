@@ -23,7 +23,7 @@ use crate::{
 
 use super::{
     config::WidgetConfig,
-    AtomLiteralItem, RenderTrait, SelectedItem, {Item, WidgetTrait},
+    LiteralItem, RenderTrait, SelectedItem, {Item, WidgetTrait},
 };
 
 use super::super::{
@@ -319,7 +319,7 @@ impl TextBuilder {
         };
 
         text.update_widget_item(Item::Array(
-            self.items.into_iter().map(AtomLiteralItem::from).collect(),
+            self.items.into_iter().map(LiteralItem::from).collect(),
         ));
         text.items.update_max_width(text.wrap_width());
         text
