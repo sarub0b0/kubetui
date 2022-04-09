@@ -6,7 +6,6 @@ use crate::clipboard_wrapper::ClipboardContextWrapper;
 use crate::event::{kubernetes::*, Event};
 
 use crate::action::view_id;
-use crate::context::Namespace;
 
 use crate::tui_wrapper::{
     event::EventResult,
@@ -19,7 +18,6 @@ use crate::tui_wrapper::{
 pub struct ConfigTabBuilder<'a> {
     title: &'static str,
     tx: &'a Sender<Event>,
-    namespaces: &'a Rc<RefCell<Namespace>>,
     clipboard: &'a Option<Rc<RefCell<ClipboardContextWrapper>>>,
     split_mode: Direction,
 }
@@ -32,14 +30,12 @@ impl<'a> ConfigTabBuilder<'a> {
     pub fn new(
         title: &'static str,
         tx: &'a Sender<Event>,
-        namespaces: &'a Rc<RefCell<Namespace>>,
         clipboard: &'a Option<Rc<RefCell<ClipboardContextWrapper>>>,
         split_mode: Direction,
     ) -> Self {
         ConfigTabBuilder {
             title,
             tx,
-            namespaces,
             clipboard,
             split_mode,
         }
@@ -68,7 +64,6 @@ impl<'a> ConfigTabBuilder<'a> {
 
     fn config(&self) -> Table<'static> {
         let tx = self.tx.clone();
-        let namespaces = self.namespaces.clone();
         Table::builder()
             .id(view_id::tab_config_widget_config)
             .widget_config(&WidgetConfig::builder().title("Config").build())
@@ -89,16 +84,29 @@ impl<'a> ConfigTabBuilder<'a> {
             .on_select(move |w, v| {
                 w.widget_clear(view_id::tab_config_widget_raw_data);
 
-                let (ns, kind, name) = config_request_param(&v.item, &namespaces.borrow().selected);
+                v.metadata.as_ref().map_or(EventResult::Ignore, |metadata| {
+                    metadata
+                        .get("namespace")
+                        .map_or(EventResult::Ignore, |namespace| {
+                            metadata.get("name").map_or(EventResult::Ignore, |name| {
+                                metadata.get("kind").map_or(EventResult::Ignore, |kind| {
+                                    *(w.find_widget_mut(view_id::tab_config_widget_raw_data)
+                                        .widget_config_mut()
+                                        .append_title_mut()) =
+                                        Some((format!(" : {}", name)).into());
 
-                *(w.find_widget_mut(view_id::tab_config_widget_raw_data)
-                    .widget_config_mut()
-                    .append_title_mut()) = Some((format!(" : {}", name)).into());
+                                    tx.send(Event::Kube(Kube::ConfigRequest(
+                                        namespace.to_string(),
+                                        kind.to_string(),
+                                        name.to_string(),
+                                    )))
+                                    .unwrap();
 
-                tx.send(Event::Kube(Kube::ConfigRequest(ns, kind, name)))
-                    .unwrap();
-
-                EventResult::Window(WindowEvent::Continue)
+                                    EventResult::Window(WindowEvent::Continue)
+                                })
+                            })
+                        })
+                })
             })
             .build()
     }
@@ -124,77 +132,5 @@ impl<'a> ConfigTabBuilder<'a> {
             builder
         }
         .build()
-    }
-}
-
-fn config_request_param(value: &[String], namespace: &[String]) -> (String, String, String) {
-    if namespace.len() == 1 {
-        if 2 <= value.len() {
-            (
-                namespace[0].to_string(),
-                value[0].to_string(),
-                value[1].to_string(),
-            )
-        } else {
-            (
-                "Error".to_string(),
-                "Error".to_string(),
-                "Error".to_string(),
-            )
-        }
-    } else if 3 <= value.len() {
-        (
-            value[0].to_string(),
-            value[1].to_string(),
-            value[2].to_string(),
-        )
-    } else {
-        (
-            "Error".to_string(),
-            "Error".to_string(),
-            "Error".to_string(),
-        )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn config_request_param_single_namespace() {
-        let value = vec![
-            "kind".to_string(),
-            "name".to_string(),
-            "data".to_string(),
-            "age".to_string(),
-        ];
-
-        let namespace = vec!["ns".to_string()];
-
-        let actual = config_request_param(&value, &namespace);
-
-        assert_eq!(
-            ("ns".to_string(), "kind".to_string(), "name".to_string()),
-            actual
-        )
-    }
-
-    #[test]
-    fn config_request_param_multiple_namespaces() {
-        let value = vec![
-            "ns-1".to_string(),
-            "kind".to_string(),
-            "name".to_string(),
-            "data".to_string(),
-            "age".to_string(),
-        ];
-        let namespace = vec!["ns-0".to_string(), "ns-1".to_string()];
-        let actual = config_request_param(&value, &namespace);
-
-        assert_eq!(
-            ("ns-1".to_string(), "kind".to_string(), "name".to_string()),
-            actual
-        )
     }
 }
