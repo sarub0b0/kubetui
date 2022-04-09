@@ -89,7 +89,7 @@ impl<'a> ConfigTabBuilder<'a> {
             .on_select(move |w, v| {
                 w.widget_clear(view_id::tab_config_widget_raw_data);
 
-                let (ns, kind, name) = config_request_param(v, &namespaces.borrow().selected);
+                let (ns, kind, name) = config_request_param(&v.item, &namespaces.borrow().selected);
 
                 *(w.find_widget_mut(view_id::tab_config_widget_raw_data)
                     .widget_config_mut()

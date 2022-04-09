@@ -8,6 +8,8 @@ pub mod list;
 pub mod table;
 pub mod text;
 
+use std::collections::BTreeMap;
+
 pub use complex::*;
 pub use list::*;
 pub use table::*;
@@ -22,15 +24,57 @@ use super::event::EventResult;
 
 use enum_dispatch::enum_dispatch;
 
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct AtomLiteralItem {
+    pub metadata: Option<BTreeMap<String, String>>,
+    pub item: String,
+}
+
+impl AtomLiteralItem {
+    pub fn new(item: impl Into<String>, metadata: Option<BTreeMap<String, String>>) -> Self {
+        Self {
+            item: item.into(),
+            metadata,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct AtomTableItem {
+    pub metadata: Option<BTreeMap<String, String>>,
+    pub item: Vec<String>,
+}
+
+impl AtomTableItem {
+    pub fn new(item: impl Into<Vec<String>>, metadata: Option<BTreeMap<String, String>>) -> Self {
+        Self {
+            item: item.into(),
+            metadata,
+        }
+    }
+}
+
+impl From<String> for AtomLiteralItem {
+    fn from(item: String) -> Self {
+        Self::new(item, None)
+    }
+}
+
+impl From<Vec<String>> for AtomTableItem {
+    fn from(item: Vec<String>) -> Self {
+        Self::new(item, None)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Item {
-    Single(String),
-    Array(Vec<String>),
-    DoubleArray(Vec<Vec<String>>),
+    Single(AtomLiteralItem),
+    Array(Vec<AtomLiteralItem>),
+    Table(Vec<AtomTableItem>),
 }
 
 impl Item {
-    pub fn single(self) -> String {
+    pub fn single(self) -> AtomLiteralItem {
         if let Self::Single(v) = self {
             v
         } else {
@@ -38,7 +82,7 @@ impl Item {
         }
     }
 
-    pub fn array(self) -> Vec<String> {
+    pub fn array(self) -> Vec<AtomLiteralItem> {
         if let Self::Array(v) = self {
             v
         } else {
@@ -46,20 +90,57 @@ impl Item {
         }
     }
 
-    pub fn double_array(self) -> Vec<Vec<String>> {
-        if let Self::DoubleArray(v) = self {
+    pub fn table(self) -> Vec<AtomTableItem> {
+        if let Self::Table(v) = self {
             v
         } else {
             panic!("called double_array() on {:?}", self)
         }
     }
 
-    pub fn as_array(&self) -> &[String] {
+    pub fn as_array(&self) -> &[AtomLiteralItem] {
         if let Self::Array(v) = self {
             v
         } else {
             panic!("called as_array() on {:?}", self)
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum SelectedItem {
+    Literal {
+        metadata: Option<BTreeMap<String, String>>,
+        item: String,
+    },
+    TableRow {
+        metadata: Option<BTreeMap<String, String>>,
+        item: Vec<String>,
+    },
+    Array(Vec<AtomLiteralItem>),
+}
+
+impl From<AtomLiteralItem> for SelectedItem {
+    fn from(item: AtomLiteralItem) -> Self {
+        Self::Literal {
+            metadata: item.metadata,
+            item: item.item,
+        }
+    }
+}
+
+impl From<AtomTableItem> for SelectedItem {
+    fn from(item: AtomTableItem) -> Self {
+        Self::TableRow {
+            metadata: item.metadata,
+            item: item.item,
+        }
+    }
+}
+
+impl From<Vec<AtomLiteralItem>> for SelectedItem {
+    fn from(item: Vec<AtomLiteralItem>) -> Self {
+        Self::Array(item)
     }
 }
 
@@ -70,7 +151,8 @@ pub trait WidgetTrait {
     fn widget_config(&self) -> &WidgetConfig;
     fn widget_config_mut(&mut self) -> &mut WidgetConfig;
     fn focusable(&self) -> bool;
-    fn widget_item(&self) -> Option<Item>;
+    /// selected item
+    fn widget_item(&self) -> Option<SelectedItem>;
     fn chunk(&self) -> Rect;
 
     // Setter

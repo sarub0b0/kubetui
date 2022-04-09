@@ -1,18 +1,19 @@
+use std::collections::BTreeMap;
+
 use crossbeam::channel::Receiver;
 
-use crate::{
+use super::{
     context::{Context, Namespace},
     error::Result,
     event::{
         kubernetes::{network::NetworkMessage, Kube, KubeTable},
         Event,
     },
-};
-
-use super::tui_wrapper::{
-    event::{exec_to_window_event, EventResult},
-    widget::{Item, WidgetTrait},
-    Window, WindowEvent,
+    tui_wrapper::{
+        event::{exec_to_window_event, EventResult},
+        widget::{AtomLiteralItem, AtomTableItem, Item, WidgetTrait},
+        Window, WindowEvent,
+    },
 };
 
 pub mod view_id {
@@ -90,13 +91,26 @@ fn update_widget_item_for_table(window: &mut Window, id: &str, table: Result<Kub
     match table {
         Ok(table) => {
             if w.equal_header(table.header()) {
-                w.update_widget_item(Item::DoubleArray(table.rows().to_owned()));
+                w.update_widget_item(Item::Table(
+                    table
+                        .rows()
+                        .into_iter()
+                        .map(|row| AtomTableItem::from(row.clone()))
+                        .collect(),
+                ));
             } else {
-                w.update_header_and_rows(table.header(), table.rows());
+                let rows: Vec<AtomTableItem> = table
+                    .rows()
+                    .into_iter()
+                    .map(|row| AtomTableItem::from(row.clone()))
+                    .collect();
+
+                w.update_header_and_rows(table.header(), &rows);
             }
         }
         Err(e) => {
-            w.update_header_and_rows(&["ERROR".to_string()], &[vec![error_format!("{}", e)]]);
+            let rows: Vec<AtomTableItem> = vec![vec![error_format!("{}", e)].into()];
+            w.update_header_and_rows(&["ERROR".to_string()], &rows);
         }
     }
 }
@@ -105,10 +119,12 @@ fn update_widget_item_for_vec(window: &mut Window, id: &str, vec: Result<Vec<Str
     let widget = window.find_widget_mut(id);
     match vec {
         Ok(i) => {
-            widget.update_widget_item(Item::Array(i));
+            widget.update_widget_item(Item::Array(
+                i.into_iter().map(AtomLiteralItem::from).collect(),
+            ));
         }
         Err(i) => {
-            widget.update_widget_item(Item::Array(vec![error_format!("{}", i)]));
+            widget.update_widget_item(Item::Array(vec![error_format!("{}", i).into()]));
         }
     }
 }
@@ -133,10 +149,20 @@ pub fn update_contents(
 
             match logs {
                 Ok(i) => {
-                    widget.append_widget_item(Item::Array(i));
+                    let array = i
+                        .into_iter()
+                        .map(|i| AtomLiteralItem {
+                            metadata: Some(BTreeMap::from([(
+                                "namespace".to_string(),
+                                namespace.to_string(),
+                            )])),
+                            item: i,
+                        })
+                        .collect();
+                    widget.append_widget_item(Item::Array(array));
                 }
                 Err(i) => {
-                    widget.append_widget_item(Item::Array(vec![error_format!("{}", i)]));
+                    widget.append_widget_item(Item::Array(vec![error_format!("{:?}", i).into()]));
                 }
             }
         }
@@ -162,17 +188,21 @@ pub fn update_contents(
         Kube::GetNamespacesResponse(ns) => {
             window
                 .find_widget_mut(view_id::popup_ns)
-                .update_widget_item(Item::Array(ns.to_vec()));
+                .update_widget_item(Item::Array(
+                    ns.iter().cloned().map(AtomLiteralItem::from).collect(),
+                ));
             window
                 .find_widget_mut(view_id::popup_single_ns)
-                .update_widget_item(Item::Array(ns));
+                .update_widget_item(Item::Array(
+                    ns.iter().cloned().map(AtomLiteralItem::from).collect(),
+                ));
 
             let widget = window
                 .find_widget_mut(view_id::popup_ns)
                 .as_mut_multiple_select();
 
             if widget.selected_items().is_empty() {
-                widget.select_item(&namespace.default)
+                widget.select_item(&namespace.default.clone().into())
             }
         }
 
@@ -195,7 +225,7 @@ pub fn update_contents(
                 .as_mut_multiple_select();
 
             for api in apis {
-                w.select_item(&api);
+                w.select_item(&api.into());
             }
         }
 

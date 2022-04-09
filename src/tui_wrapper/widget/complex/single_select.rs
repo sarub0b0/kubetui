@@ -29,7 +29,7 @@ use crate::{
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
 struct SelectForm<'a> {
-    list_items: Vec<String>,
+    list_items: Vec<AtomLiteralItem>,
     list_widget: List<'a>,
     filter: String,
     chunk: Rect,
@@ -42,13 +42,13 @@ impl<'a> SelectForm<'a> {
         self.list_widget.render(f, true);
     }
 
-    fn filter_items(&self, items: &[String]) -> Vec<String> {
-        let mut ret: Vec<String> = items
+    fn filter_items(&self, items: &[AtomLiteralItem]) -> Vec<AtomLiteralItem> {
+        let mut ret: Vec<AtomLiteralItem> = items
             .iter()
             .filter_map(|item| {
                 self.matcher
-                    .fuzzy_match(item, &self.filter)
-                    .map(|_| item.to_string())
+                    .fuzzy_match(&item.item, &self.filter)
+                    .map(|_| item.clone())
             })
             .collect();
         ret.sort();
@@ -68,12 +68,12 @@ impl<'a> SelectForm<'a> {
         self.update_filter(&filter);
     }
 
-    fn widget_item(&self) -> Option<Item> {
+    fn widget_item(&self) -> Option<SelectedItem> {
         self.list_widget.widget_item()
     }
 
-    fn update_filter(&mut self, filter: &str) {
-        self.filter = filter.to_string();
+    fn update_filter(&mut self, filter: impl Into<String>) {
+        self.filter = filter.into();
         self.list_widget
             .update_widget_item(Item::Array(self.filter_items(&self.list_items)));
 
@@ -204,7 +204,7 @@ impl WidgetTrait for SingleSelect<'_> {
         true
     }
 
-    fn widget_item(&self) -> Option<Item> {
+    fn widget_item(&self) -> Option<SelectedItem> {
         self.selected_widget.widget_item()
     }
 
@@ -323,7 +323,7 @@ pub struct SingleSelectBuilder {
     #[derivative(Debug = "ignore")]
     actions: Vec<(UserEvent, InnerCallback)>,
     #[derivative(Debug = "ignore")]
-    on_select: Option<Box<dyn Fn(&mut Window, &String) -> EventResult>>,
+    on_select: Option<Box<dyn Fn(&mut Window, &AtomLiteralItem) -> EventResult>>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
     #[derivative(Debug = "ignore")]
@@ -351,7 +351,7 @@ impl SingleSelectBuilder {
 
     pub fn on_select<F>(mut self, f: F) -> Self
     where
-        F: Fn(&mut Window, &String) -> EventResult + 'static,
+        F: Fn(&mut Window, &AtomLiteralItem) -> EventResult + 'static,
     {
         self.on_select = Some(Box::new(f));
         self
@@ -420,15 +420,18 @@ mod tests {
         let mut select_form = SelectForm::default();
 
         select_form.update_widget_item(Item::Array(vec![
-            "abb".to_string(),
-            "abc".to_string(),
-            "hoge".to_string(),
+            "abb".to_string().into(),
+            "abc".to_string().into(),
+            "hoge".to_string().into(),
         ]));
 
         select_form.update_filter("ab");
 
         let res = select_form.list_widget.items().clone();
 
-        assert_eq!(res, vec!["abb", "abc"])
+        let expected: Vec<AtomLiteralItem> =
+            vec!["abb".to_string().into(), "abc".to_string().into()];
+
+        assert_eq!(res, expected)
     }
 }

@@ -94,9 +94,11 @@ impl<'a> ApiTabBuilder<'a> {
 
                 widget.toggle_select_unselect();
 
-                if let Some(item) = widget.widget_item() {
-                    tx.send(Event::Kube(Kube::SetAPIsRequest(item.array())))
-                        .unwrap();
+                if let Some(crate::tui_wrapper::widget::SelectedItem::Array(item)) =
+                    widget.widget_item()
+                {
+                    let apis = item.iter().map(|i| i.item.to_string()).collect();
+                    tx.send(Event::Kube(Kube::SetAPIsRequest(apis))).unwrap();
                 }
 
                 if widget.selected_items().is_empty() {

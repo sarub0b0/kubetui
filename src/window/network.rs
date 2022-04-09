@@ -88,7 +88,7 @@ impl<'a> NetworkTabBuilder<'a> {
                 w.widget_clear(view_id::tab_network_widget_description);
 
                 let namespaces = namespaces.borrow();
-                let parsed = parse(v, &namespaces.selected);
+                let parsed = parse(&v.item, &namespaces.selected);
 
                 if let Ok(p) = parsed {
                     *(w.find_widget_mut(view_id::tab_network_widget_description)

@@ -11,7 +11,7 @@ use tui::{
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use derivative::*;
 
-use super::{config::WidgetConfig, Item, RenderTrait, WidgetTrait};
+use super::{config::WidgetConfig, AtomLiteralItem, Item, RenderTrait, SelectedItem, WidgetTrait};
 
 use crate::tui_wrapper::{
     event::{Callback, EventResult},
@@ -19,6 +19,8 @@ use crate::tui_wrapper::{
 };
 
 mod inner_item {
+
+    use crate::tui_wrapper::widget::AtomLiteralItem;
 
     use super::Item;
     use tui::widgets::ListItem;
@@ -111,12 +113,12 @@ mod inner_item {
 
     #[derive(Debug, Default)]
     pub struct InnerItem<'a> {
-        items: Vec<String>,
+        items: Vec<AtomLiteralItem>,
         list_item: Vec<ListItem<'a>>,
     }
 
     impl<'a> InnerItem<'a> {
-        pub fn items(&self) -> &Vec<String> {
+        pub fn items(&self) -> &Vec<AtomLiteralItem> {
             &self.items
         }
 
@@ -126,8 +128,13 @@ mod inner_item {
         }
 
         pub fn update_item(&mut self, item: Item) {
-            self.items = item.array();
-            self.list_item = self.items.iter().cloned().map(ListItem::new).collect();
+            let item = self.items = item.array();
+            self.list_item = self
+                .items
+                .iter()
+                .cloned()
+                .map(|item| ListItem::new(item.item))
+                .collect();
         }
 
         pub fn widget_items(&self) -> &[ListItem<'a>] {
@@ -157,7 +164,7 @@ pub struct List<'a> {
     chunk: Rect,
     inner_chunk: Rect,
     #[derivative(Debug = "ignore")]
-    on_select: Option<Rc<dyn Fn(&mut Window, &String) -> EventResult>>,
+    on_select: Option<Rc<dyn Fn(&mut Window, &AtomLiteralItem) -> EventResult>>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
 }
@@ -167,10 +174,10 @@ pub struct List<'a> {
 pub struct ListBuilder {
     id: String,
     widget_config: WidgetConfig,
-    items: Vec<String>,
+    items: Vec<AtomLiteralItem>,
     state: ListState,
     #[derivative(Debug = "ignore")]
-    on_select: Option<Rc<dyn Fn(&mut Window, &String) -> EventResult>>,
+    on_select: Option<Rc<dyn Fn(&mut Window, &AtomLiteralItem) -> EventResult>>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
 }
@@ -186,7 +193,7 @@ impl ListBuilder {
         self
     }
 
-    pub fn items(mut self, items: impl Into<Vec<String>>) -> Self {
+    pub fn items(mut self, items: impl Into<Vec<AtomLiteralItem>>) -> Self {
         self.items = items.into();
         self.state.select(Some(0));
         self
@@ -194,7 +201,7 @@ impl ListBuilder {
 
     pub fn on_select<F>(mut self, cb: F) -> Self
     where
-        F: Fn(&mut Window, &String) -> EventResult + 'static,
+        F: Fn(&mut Window, &AtomLiteralItem) -> EventResult + 'static,
     {
         self.on_select = Some(Rc::new(cb));
         self
@@ -218,7 +225,7 @@ impl ListBuilder {
             ..Default::default()
         };
 
-        list.update_widget_item(Item::Array(self.items));
+        list.update_widget_item(Item::Array(self.items.into_iter().collect()));
         list
     }
 }
@@ -228,7 +235,7 @@ impl<'a> List<'a> {
         ListBuilder::default()
     }
 
-    pub fn items(&self) -> &Vec<String> {
+    pub fn items(&self) -> &Vec<AtomLiteralItem> {
         self.items.items()
     }
 
@@ -238,7 +245,7 @@ impl<'a> List<'a> {
 
     pub fn on_select_mut(
         &mut self,
-    ) -> &mut Option<Rc<dyn Fn(&mut Window, &String) -> EventResult>> {
+    ) -> &mut Option<Rc<dyn Fn(&mut Window, &AtomLiteralItem) -> EventResult>> {
         &mut self.on_select
     }
 
@@ -259,10 +266,15 @@ impl<'a> WidgetTrait for List<'a> {
         true
     }
 
-    fn widget_item(&self) -> Option<Item> {
-        self.state
-            .selected()
-            .map(|i| Item::Single(self.items.items()[i].clone()))
+    fn widget_item(&self) -> Option<SelectedItem> {
+        self.state.selected().map(|i| {
+            let item = self.items.items()[i].clone();
+
+            SelectedItem::Literal {
+                metadata: item.metadata,
+                item: item.item,
+            }
+        })
     }
 
     fn chunk(&self) -> Rect {
@@ -429,7 +441,7 @@ impl<'a> List<'a> {
         })
     }
 
-    fn selected_item(&self) -> Option<Rc<String>> {
+    fn selected_item(&self) -> Option<Rc<AtomLiteralItem>> {
         self.state
             .selected()
             .map(|i| Rc::new(self.items.items()[i].clone()))
@@ -458,9 +470,9 @@ mod tests {
     fn initial_index() {
         let mut list = List::default();
         list.update_widget_item(Item::Array(vec![
-            String::from("Item 0"),
-            String::from("Item 1"),
-            String::from("Item 2"),
+            String::from("Item 0").into(),
+            String::from("Item 1").into(),
+            String::from("Item 2").into(),
         ]));
 
         assert_eq!(Some(0), list.state.selected())
@@ -470,9 +482,9 @@ mod tests {
     fn two_prev_is_selected_last_index() {
         let mut list = List::default();
         list.update_widget_item(Item::Array(vec![
-            String::from("Item 0"),
-            String::from("Item 1"),
-            String::from("Item 2"),
+            String::from("Item 0").into(),
+            String::from("Item 1").into(),
+            String::from("Item 2").into(),
         ]));
 
         list.select_prev(2);
@@ -482,9 +494,9 @@ mod tests {
     fn one_next_is_selected_second_index() {
         let mut list = List::default();
         list.update_widget_item(Item::Array(vec![
-            String::from("Item 0"),
-            String::from("Item 1"),
-            String::from("Item 2"),
+            String::from("Item 0").into(),
+            String::from("Item 1").into(),
+            String::from("Item 2").into(),
         ]));
 
         list.select_next(1);
@@ -495,9 +507,9 @@ mod tests {
     fn last_next_is_selected_first_index() {
         let mut list = List::default();
         list.update_widget_item(Item::Array(vec![
-            String::from("Item 0"),
-            String::from("Item 1"),
-            String::from("Item 2"),
+            String::from("Item 0").into(),
+            String::from("Item 1").into(),
+            String::from("Item 2").into(),
         ]));
 
         list.select_next(3);
@@ -509,13 +521,13 @@ mod tests {
         let chunk = Rect::new(0, 0, 10, 5);
         let mut list = List::default();
         list.update_widget_item(Item::Array(vec![
-            "Item-0".to_string(),
-            "Item-1".to_string(),
-            "Item-2".to_string(),
-            "Item-3".to_string(),
-            "Item-4".to_string(),
-            "Item-5".to_string(),
-            "Item-6".to_string(),
+            "Item-0".to_string().into(),
+            "Item-1".to_string().into(),
+            "Item-2".to_string().into(),
+            "Item-3".to_string().into(),
+            "Item-4".to_string().into(),
+            "Item-5".to_string().into(),
+            "Item-6".to_string().into(),
         ]));
 
         list.update_chunk(chunk);
@@ -532,13 +544,13 @@ mod tests {
         let chunk = Rect::new(0, 0, 10, 5);
         let mut list = List::default();
         list.update_widget_item(Item::Array(vec![
-            "Item-0".to_string(),
-            "Item-1".to_string(),
-            "Item-2".to_string(),
-            "Item-3".to_string(),
-            "Item-4".to_string(),
-            "Item-5".to_string(),
-            "Item-6".to_string(),
+            "Item-0".to_string().into(),
+            "Item-1".to_string().into(),
+            "Item-2".to_string().into(),
+            "Item-3".to_string().into(),
+            "Item-4".to_string().into(),
+            "Item-5".to_string().into(),
+            "Item-6".to_string().into(),
         ]));
 
         list.update_chunk(chunk);
@@ -559,16 +571,16 @@ mod tests {
         let chunk = Rect::new(0, 0, 10, 5);
         let mut list = List::default();
         list.update_widget_item(Item::Array(vec![
-            "Item-0".to_string(),
-            "Item-1".to_string(),
-            "Item-2".to_string(),
-            "Item-3".to_string(),
-            "Item-4".to_string(),
-            "Item-5".to_string(),
-            "Item-6".to_string(),
-            "Item-7".to_string(),
-            "Item-8".to_string(),
-            "Item-9".to_string(),
+            "Item-0".to_string().into(),
+            "Item-1".to_string().into(),
+            "Item-2".to_string().into(),
+            "Item-3".to_string().into(),
+            "Item-4".to_string().into(),
+            "Item-5".to_string().into(),
+            "Item-6".to_string().into(),
+            "Item-7".to_string().into(),
+            "Item-8".to_string().into(),
+            "Item-9".to_string().into(),
         ]));
 
         list.update_chunk(chunk);
@@ -578,9 +590,9 @@ mod tests {
         assert_eq!(list.state.selected().unwrap(), 9);
 
         list.update_widget_item(Item::Array(vec![
-            "Item-0".to_string(),
-            "Item-1".to_string(),
-            "Item-2".to_string(),
+            "Item-0".to_string().into(),
+            "Item-1".to_string().into(),
+            "Item-2".to_string().into(),
         ]));
 
         assert_eq!((list.state.offset(), list.state.selected()), (0, Some(2)))

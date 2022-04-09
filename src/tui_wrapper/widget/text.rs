@@ -23,7 +23,7 @@ use crate::{
 
 use super::{
     config::WidgetConfig,
-    RenderTrait, {Item, WidgetTrait},
+    AtomLiteralItem, RenderTrait, SelectedItem, {Item, WidgetTrait},
 };
 
 use super::super::{
@@ -72,7 +72,7 @@ mod inner_item {
         }
 
         pub fn update_item(&mut self, item: Item) {
-            self.items = item.array();
+            self.items = item.array().into_iter().map(|i| i.item).collect();
 
             self.update_spans();
         }
@@ -84,7 +84,11 @@ mod inner_item {
         }
 
         pub fn append_widget_item(&mut self, item: Item) {
-            let mut item = item.array();
+            let mut item = item
+                .array()
+                .into_iter()
+                .map(|i| i.item)
+                .collect::<Vec<String>>();
 
             let wrapped = wrap(&item, self.max_width);
 
@@ -314,7 +318,9 @@ impl TextBuilder {
             ..Default::default()
         };
 
-        text.update_widget_item(Item::Array(self.items));
+        text.update_widget_item(Item::Array(
+            self.items.into_iter().map(AtomLiteralItem::from).collect(),
+        ));
         text.items.update_max_width(text.wrap_width());
         text
     }
@@ -477,9 +483,12 @@ impl WidgetTrait for Text<'_> {
         true
     }
 
-    fn widget_item(&self) -> Option<Item> {
+    fn widget_item(&self) -> Option<SelectedItem> {
         let index = self.state.selected_vertical() as usize;
-        Some(Item::Single(self.items.items()[index].clone()))
+        Some(SelectedItem::Literal {
+            metadata: None,
+            item: self.items.items()[index].clone(),
+        })
     }
 
     fn chunk(&self) -> Rect {
@@ -887,7 +896,7 @@ mod tests {
 
     #[test]
     fn disable_wrap() {
-        let data = (0..10).map(|_| "abcd\nefg".to_string()).collect();
+        let data = (0..10).map(|_| "abcd\nefg".to_string().into()).collect();
 
         let mut text = TextBuilder::default().build();
 
@@ -898,7 +907,7 @@ mod tests {
 
     #[test]
     fn enable_wrap() {
-        let data = (0..10).map(|_| "abcd\nefg".to_string()).collect();
+        let data = (0..10).map(|_| "abcd\nefg".to_string().into()).collect();
 
         let mut text = TextBuilder::default().wrap().build();
 
@@ -911,7 +920,7 @@ mod tests {
 
     #[test]
     fn append_items_enable_follow_and_wrap() {
-        let data: Vec<String> = (0..10).map(|_| "abcd\nefg".to_string()).collect();
+        let data = (0..10).map(|_| "abcd\nefg".to_string().into()).collect();
 
         let mut text = TextBuilder::default().wrap().follow().build();
 

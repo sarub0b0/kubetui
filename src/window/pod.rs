@@ -94,7 +94,7 @@ impl<'a> PodTabBuilder<'a> {
 
                 let selected = &namespace.borrow().selected;
 
-                let (ns, pod_name) = log_stream_request_param(v, selected);
+                let (ns, pod_name) = log_stream_request_param(&v.item, selected);
 
                 *(w.find_widget_mut(view_id::tab_pod_widget_log)
                     .widget_config_mut()

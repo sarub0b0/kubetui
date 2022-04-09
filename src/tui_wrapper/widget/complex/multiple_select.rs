@@ -28,15 +28,17 @@ use super::input::InputForm;
 mod inner {
     use std::collections::HashMap;
 
+    use crate::tui_wrapper::widget::AtomLiteralItem;
+
     #[derive(Debug, Default)]
     pub struct SelectItems {
-        items: HashMap<String, bool>,
+        items: HashMap<AtomLiteralItem, bool>,
     }
 
     impl SelectItems {
         pub fn update_items<T>(&mut self, items: impl Into<Vec<T>>)
         where
-            T: Into<String>,
+            T: Into<AtomLiteralItem>,
         {
             let old = self.items.clone();
 
@@ -53,22 +55,22 @@ mod inner {
             })
         }
 
-        pub fn toggle_select_unselect(&mut self, key: &str) {
+        pub fn toggle_select_unselect(&mut self, key: &AtomLiteralItem) {
             if let Some(value) = self.items.get_mut(key) {
                 *value = !*value;
             }
         }
 
         #[allow(dead_code)]
-        pub fn items(&self) -> Vec<&str> {
-            self.items.iter().map(|(k, _)| k.as_str()).collect()
+        pub fn items(&self) -> Vec<&AtomLiteralItem> {
+            self.items.iter().map(|(k, _)| k).collect()
         }
 
-        pub fn selected_items(&self) -> Vec<String> {
+        pub fn selected_items(&self) -> Vec<AtomLiteralItem> {
             Self::filter_items(&self.items, true)
         }
 
-        pub fn unselected_items(&self) -> Vec<String> {
+        pub fn unselected_items(&self) -> Vec<AtomLiteralItem> {
             Self::filter_items(&self.items, false)
         }
 
@@ -80,12 +82,15 @@ mod inner {
             self.items.values_mut().for_each(|v| *v = false);
         }
 
-        fn filter_items(items: &HashMap<String, bool>, selected: bool) -> Vec<String> {
-            let mut ret: Vec<String> = items
+        fn filter_items(
+            items: &HashMap<AtomLiteralItem, bool>,
+            selected: bool,
+        ) -> Vec<AtomLiteralItem> {
+            let mut ret: Vec<AtomLiteralItem> = items
                 .iter()
                 .filter_map(|(k, v)| {
                     if *v == selected {
-                        Some(k.to_string())
+                        Some(k.clone())
                     } else {
                         None
                     }
@@ -97,14 +102,14 @@ mod inner {
         }
 
         #[allow(dead_code)]
-        pub fn select(&mut self, key: &str) {
+        pub fn select(&mut self, key: &AtomLiteralItem) {
             if let Some(value) = self.items.get_mut(key) {
                 *value = true;
             }
         }
 
         #[allow(dead_code)]
-        pub fn unselect(&mut self, key: &str) {
+        pub fn unselect(&mut self, key: &AtomLiteralItem) {
             if let Some(value) = self.items.get_mut(key) {
                 *value = false;
             }
@@ -120,34 +125,69 @@ mod inner {
         fn select_unselect_and_selected_items() {
             let mut items = SelectItems::default();
 
-            items.update_items(["Item 0", "Item 1", "Item 2", "Item 3", "Item 4", "Item 5"]);
+            items.update_items([
+                "Item 0".to_string(),
+                "Item 1".to_string(),
+                "Item 2".to_string(),
+                "Item 3".to_string(),
+                "Item 4".to_string(),
+                "Item 5".to_string(),
+            ]);
 
-            items.select("Item 2");
-            items.select("Item 5");
-            items.select("Item 4");
+            items.select(&"Item 2".to_string().into());
+            items.select(&"Item 5".to_string().into());
+            items.select(&"Item 4".to_string().into());
 
-            assert_eq!(items.selected_items(), vec!["Item 2", "Item 4", "Item 5"]);
+            let expected: Vec<AtomLiteralItem> = vec![
+                "Item 2".to_string().into(),
+                "Item 5".to_string().into(),
+                "Item 4".to_string().into(),
+            ];
 
-            items.unselect("Item 2");
+            assert_eq!(items.selected_items(), expected);
 
-            assert_eq!(items.selected_items(), vec!["Item 4", "Item 5"]);
+            items.unselect(&"Item 2".to_string().into());
+
+            let expected: Vec<AtomLiteralItem> =
+                vec!["Item 5".to_string().into(), "Item 4".to_string().into()];
+
+            assert_eq!(items.selected_items(), expected);
         }
 
         #[test]
         fn update_items() {
             let mut items = SelectItems::default();
 
-            items.update_items(["Item 0", "Item 1", "Item 2", "Item 3", "Item 4", "Item 5"]);
+            items.update_items([
+                "Item 0".to_string(),
+                "Item 1".to_string(),
+                "Item 2".to_string(),
+                "Item 3".to_string(),
+                "Item 4".to_string(),
+                "Item 5".to_string(),
+            ]);
 
-            items.select("Item 2");
-            items.select("Item 5");
-            items.select("Item 4");
+            items.select(&"Item 2".to_string().into());
+            items.select(&"Item 5".to_string().into());
+            items.select(&"Item 4".to_string().into());
 
-            assert_eq!(items.selected_items(), vec!["Item 2", "Item 4", "Item 5"]);
+            let expected: Vec<AtomLiteralItem> = vec![
+                "Item 2".to_string().into(),
+                "Item 4".to_string().into(),
+                "Item 5".to_string().into(),
+            ];
 
-            items.update_items(["Item 0", "Item 1", "Item 2"]);
+            assert_eq!(items.selected_items(), expected);
 
-            assert_eq!(items.selected_items(), vec!["Item 2"]);
+            items.update_items([
+                "Item 0".to_string(),
+                "Item 1".to_string(),
+                "Item 2".to_string(),
+            ]);
+
+            let expected: Vec<AtomLiteralItem> = vec!["Item 2".to_string().into()];
+
+            assert_eq!(items.selected_items(), expected);
         }
     }
 }
@@ -278,13 +318,13 @@ impl<'a> SelectForm<'a> {
         self.focused_form_mut().select_last();
     }
 
-    fn filter_items(&self, items: &[String]) -> Vec<String> {
-        let mut ret: Vec<String> = items
+    fn filter_items(&self, items: &[AtomLiteralItem]) -> Vec<AtomLiteralItem> {
+        let mut ret: Vec<AtomLiteralItem> = items
             .iter()
             .filter_map(|item| {
                 self.matcher
-                    .fuzzy_match(item, &self.filter)
-                    .map(|_| item.to_string())
+                    .fuzzy_match(&item.item, &self.filter)
+                    .map(|_| item.clone())
             })
             .collect();
         ret.sort();
@@ -344,7 +384,7 @@ impl<'a> SelectForm<'a> {
 
     fn toggle_select_unselect(&mut self) {
         let list = self.focused_form();
-        let selected_key = list.state().selected().map(|i| list.items()[i].to_string());
+        let selected_key = list.state().selected().map(|i| list.items()[i].clone());
 
         if let Some(key) = selected_key {
             self.items.toggle_select_unselect(&key);
@@ -380,17 +420,17 @@ impl<'a> SelectForm<'a> {
         (pos, size)
     }
 
-    fn selected_items(&self) -> Vec<String> {
+    fn selected_items(&self) -> Vec<AtomLiteralItem> {
         self.items.selected_items()
     }
 
-    fn select_item(&mut self, item: &str) {
+    fn select_item(&mut self, item: &AtomLiteralItem) {
         if let Some((i, _)) = self
             .list_widget
             .items()
             .iter()
             .enumerate()
-            .find(|(_, i)| item == i.as_str())
+            .find(|(_, i)| item == *i)
         {
             self.list_widget.select_index(i);
             self.toggle_select_unselect();
@@ -438,9 +478,9 @@ pub struct MultipleSelectBuilder {
     id: String,
     widget_config: WidgetConfig,
     #[derivative(Debug = "ignore")]
-    on_select_list: Option<Box<dyn Fn(&mut Window, &String) -> EventResult>>,
+    on_select_list: Option<Box<dyn Fn(&mut Window, &AtomLiteralItem) -> EventResult>>,
     #[derivative(Debug = "ignore")]
-    on_select_selected: Option<Box<dyn Fn(&mut Window, &String) -> EventResult>>,
+    on_select_selected: Option<Box<dyn Fn(&mut Window, &AtomLiteralItem) -> EventResult>>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
     #[derivative(Debug = "ignore")]
@@ -462,7 +502,7 @@ impl MultipleSelectBuilder {
 
     pub fn on_select<F>(mut self, cb: F) -> Self
     where
-        F: Fn(&mut Window, &String) -> EventResult + 'static,
+        F: Fn(&mut Window, &AtomLiteralItem) -> EventResult + 'static,
         F: Clone,
     {
         self.on_select_list = Some(Box::new(cb.clone()));
@@ -604,11 +644,11 @@ impl<'a> MultipleSelect<'a> {
         self.selected_widget.update_filter("");
     }
 
-    pub fn selected_items(&self) -> Vec<String> {
+    pub fn selected_items(&self) -> Vec<AtomLiteralItem> {
         self.selected_widget.selected_items()
     }
 
-    pub fn select_item(&mut self, item: &str) {
+    pub fn select_item(&mut self, item: &AtomLiteralItem) {
         self.selected_widget.select_item(item);
     }
 
@@ -634,8 +674,8 @@ impl WidgetTrait for MultipleSelect<'_> {
         true
     }
 
-    fn widget_item(&self) -> Option<Item> {
-        Some(Item::Array(self.selected_widget.selected_items()))
+    fn widget_item(&self) -> Option<SelectedItem> {
+        Some(self.selected_widget.selected_items().into())
     }
 
     fn chunk(&self) -> Rect {

@@ -59,7 +59,12 @@ impl<'a> ContextPopupBuilder<'a> {
 
                 widget.toggle_select_unselect();
 
-                let mut items = widget.selected_items();
+                let mut items: Vec<String> = widget
+                    .selected_items()
+                    .iter()
+                    .map(|i| i.item.to_string())
+                    .collect();
+
                 if items.is_empty() {
                     items = vec!["None".to_string()];
                 }
@@ -89,7 +94,7 @@ impl<'a> ContextPopupBuilder<'a> {
             .id(view_id::popup_ctx)
             .widget_config(&WidgetConfig::builder().title("Context").build())
             .on_select(move |w: &mut Window, v| {
-                let item = v.to_string();
+                let item = v.item.to_string();
 
                 tx.send(Event::Kube(Kube::SetContext(item.to_string())))
                     .unwrap();
@@ -132,7 +137,7 @@ impl<'a> ContextPopupBuilder<'a> {
             .id(view_id::popup_single_ns)
             .widget_config(&WidgetConfig::builder().title("Namespace").build())
             .on_select(move |w: &mut Window, v| {
-                let items = vec![v.to_string()];
+                let items = vec![v.item.to_string()];
                 tx.send(Event::Kube(Kube::SetNamespaces(items.clone())))
                     .unwrap();
 

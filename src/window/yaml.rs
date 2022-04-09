@@ -108,9 +108,9 @@ impl<'a> YamlTabBuilder<'a> {
                 w.close_popup();
 
                 let mut state = state.borrow_mut();
-                state.0 = v.to_string();
+                state.0 = v.item.to_string();
 
-                tx.send(Event::Kube(Kube::YamlResourceRequest(v.to_string())))
+                tx.send(Event::Kube(Kube::YamlResourceRequest(v.item.to_string())))
                     .unwrap();
 
                 w.open_popup(view_id::popup_yaml_name);
@@ -136,7 +136,7 @@ impl<'a> YamlTabBuilder<'a> {
 
                 let ns = &namespaces.borrow().selected;
 
-                let value: Vec<&str> = v.split_whitespace().collect();
+                let value: Vec<&str> = v.item.split_whitespace().collect();
 
                 let (name, ns) = if value.len() == 1 {
                     (value[0].to_string(), ns[0].to_string())
