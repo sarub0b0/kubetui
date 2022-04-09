@@ -2,6 +2,8 @@ use std::collections::BTreeMap;
 
 use crossbeam::channel::Receiver;
 
+use crate::event::kubernetes::KubeTableRow;
+
 use super::{
     context::{Context, Namespace},
     error::Result,
@@ -93,19 +95,43 @@ fn update_widget_item_for_table(window: &mut Window, id: &str, table: Result<Kub
             if w.equal_header(table.header()) {
                 w.update_widget_item(Item::Table(
                     table
-                        .rows()
+                        .rows
                         .into_iter()
-                        .map(|row| TableItem::from(row.clone()))
+                        .map(
+                            |KubeTableRow {
+                                 namespace,
+                                 row,
+                                 name,
+                             }| TableItem {
+                                metadata: Some(BTreeMap::from([
+                                    ("namespace".to_string(), namespace),
+                                    ("name".to_string(), name),
+                                ])),
+                                item: row,
+                            },
+                        )
                         .collect(),
                 ));
             } else {
                 let rows: Vec<TableItem> = table
-                    .rows()
+                    .rows
                     .into_iter()
-                    .map(|row| TableItem::from(row.clone()))
+                    .map(
+                        |KubeTableRow {
+                             namespace,
+                             row,
+                             name,
+                         }| TableItem {
+                            metadata: Some(BTreeMap::from([
+                                ("namespace".to_string(), namespace),
+                                ("name".to_string(), name),
+                            ])),
+                            item: row,
+                        },
+                    )
                     .collect();
 
-                w.update_header_and_rows(table.header(), &rows);
+                w.update_header_and_rows(&table.header, &rows);
             }
         }
         Err(e) => {
