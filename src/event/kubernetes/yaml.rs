@@ -35,21 +35,40 @@ impl YamlResourceList {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct YamlRawRequestData {
-    pub kind: String,
-    pub name: String,
-    pub namespace: String,
+#[derive(Debug)]
+pub enum YamlRequest {
+    APIs,
+    Resource(String),
+    Yaml {
+        kind: String,
+        name: String,
+        namespace: String,
+    },
+}
+
+impl From<YamlRequest> for Event {
+    fn from(req: YamlRequest) -> Self {
+        Event::Kube(Kube::Yaml(YamlMessage::Request(req).into()))
+    }
+}
+
+#[derive(Debug)]
+pub enum YamlResponse {
+    APIs(Result<Vec<String>>),
+    Resource(Result<YamlResourceList>),
+    Yaml(Result<Vec<String>>),
+}
+
+impl From<YamlResponse> for Event {
+    fn from(res: YamlResponse) -> Self {
+        Event::Kube(Kube::Yaml(YamlMessage::Response(res).into()))
+    }
 }
 
 #[derive(Debug)]
 pub enum YamlMessage {
-    APIsRequest,
-    APIsResponse(Result<Vec<String>>),
-    ResourceRequest(String),
-    ResourceResponse(Result<YamlResourceList>),
-    RawRequest(YamlRawRequestData),
-    RawResponse(Result<Vec<String>>),
+    Request(YamlRequest),
+    Response(YamlResponse),
 }
 
 impl From<YamlMessage> for Kube {
@@ -329,7 +348,14 @@ pub mod fetch_resource_list {
 pub mod worker {
     use super::*;
 
-    #[derive(Clone)]
+    #[derive(Debug, Clone)]
+    pub struct YamlWorkerRequest {
+        pub namespace: String,
+        pub kind: String,
+        pub name: String,
+    }
+
+    #[derive(Debug, Clone)]
     pub struct YamlWorker<C>
     where
         C: KubeClientRequest,
@@ -337,7 +363,7 @@ pub mod worker {
         is_terminated: Arc<AtomicBool>,
         tx: Sender<Event>,
         client: C,
-        req: YamlRawRequestData,
+        req: YamlWorkerRequest,
         api_database: ApiDatabase,
     }
 
@@ -347,7 +373,7 @@ pub mod worker {
             tx: Sender<Event>,
             client: C,
             api_database: ApiDatabase,
-            req: YamlRawRequestData,
+            req: YamlWorkerRequest,
         ) -> Self {
             Self {
                 is_terminated,
@@ -366,7 +392,7 @@ pub mod worker {
         async fn run(&self) -> Self::Output {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(3));
 
-            let YamlRawRequestData {
+            let YamlWorkerRequest {
                 kind,
                 name,
                 namespace,
@@ -389,8 +415,7 @@ pub mod worker {
                 )
                 .await;
 
-                self.tx
-                    .send(YamlMessage::RawResponse(fetched_data).into())?;
+                self.tx.send(YamlResponse::Yaml(fetched_data).into())?;
             }
 
             Ok(())

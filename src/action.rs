@@ -4,7 +4,7 @@ use crossbeam::channel::Receiver;
 
 use crate::event::kubernetes::{
     config::ConfigMessage,
-    yaml::{YamlMessage, YamlResourceListItem},
+    yaml::{YamlMessage, YamlResourceListItem, YamlResponse},
     KubeTableRow,
 };
 
@@ -279,43 +279,49 @@ pub fn update_contents(
             }
         }
 
-        Kube::Yaml(YamlMessage::APIsResponse(apis)) => {
-            update_widget_item_for_vec(window, view_id::popup_yaml_kind, apis);
-        }
-
-        Kube::Yaml(YamlMessage::ResourceResponse(resources)) => {
-            let widget = window.find_widget_mut(view_id::popup_yaml_name);
-            match resources {
-                Ok(i) => {
-                    widget.update_widget_item(Item::Array(
-                        i.items
-                            .into_iter()
-                            .map(
-                                |YamlResourceListItem {
-                                     namespace,
-                                     name,
-                                     kind,
-                                     value,
-                                 }| LiteralItem {
-                                    metadata: Some(BTreeMap::from([
-                                        ("namespace".to_string(), namespace),
-                                        ("name".to_string(), name),
-                                        ("kind".to_string(), kind),
-                                    ])),
-                                    item: value,
-                                },
-                            )
-                            .collect(),
-                    ));
+        Kube::Yaml(YamlMessage::Response(ev)) => {
+            use YamlResponse::*;
+            match ev {
+                APIs(res) => {
+                    update_widget_item_for_vec(window, view_id::popup_yaml_kind, res);
                 }
-                Err(i) => {
-                    widget.update_widget_item(Item::Array(vec![error_format!("{}", i).into()]));
+
+                Resource(res) => {
+                    let widget = window.find_widget_mut(view_id::popup_yaml_name);
+                    match res {
+                        Ok(i) => {
+                            widget.update_widget_item(Item::Array(
+                                i.items
+                                    .into_iter()
+                                    .map(
+                                        |YamlResourceListItem {
+                                             namespace,
+                                             name,
+                                             kind,
+                                             value,
+                                         }| LiteralItem {
+                                            metadata: Some(BTreeMap::from([
+                                                ("namespace".to_string(), namespace),
+                                                ("name".to_string(), name),
+                                                ("kind".to_string(), kind),
+                                            ])),
+                                            item: value,
+                                        },
+                                    )
+                                    .collect(),
+                            ));
+                        }
+                        Err(i) => {
+                            widget.update_widget_item(Item::Array(vec![
+                                error_format!("{}", i).into()
+                            ]));
+                        }
+                    }
+                }
+                Yaml(res) => {
+                    update_widget_item_for_vec(window, view_id::tab_yaml_widget_yaml, res);
                 }
             }
-        }
-
-        Kube::Yaml(YamlMessage::RawResponse(yaml)) => {
-            update_widget_item_for_vec(window, view_id::tab_yaml_widget_yaml, yaml);
         }
 
         Kube::Network(NetworkMessage::Poll(table)) => {

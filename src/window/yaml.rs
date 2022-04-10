@@ -4,10 +4,7 @@ use std::{cell::RefCell, rc::Rc};
 use crate::{
     action::view_id,
     clipboard_wrapper::ClipboardContextWrapper,
-    event::{
-        kubernetes::yaml::{YamlMessage, YamlRawRequestData},
-        Event,
-    },
+    event::{kubernetes::yaml::YamlRequest, Event},
     tui_wrapper::{
         event::EventResult,
         tab::WidgetData,
@@ -55,7 +52,7 @@ impl<'a> YamlTabBuilder<'a> {
         let tx = self.tx.clone();
 
         let open_subwin = move |w: &mut Window| {
-            tx.send(YamlMessage::APIsRequest.into()).unwrap();
+            tx.send(YamlRequest::APIs.into()).unwrap();
             w.open_popup(view_id::popup_yaml_kind);
             EventResult::Nop
         };
@@ -97,7 +94,7 @@ impl<'a> YamlTabBuilder<'a> {
 
                 w.close_popup();
 
-                tx.send(YamlMessage::ResourceRequest(v.item.to_string()).into())
+                tx.send(YamlRequest::Resource(v.item.to_string()).into())
                     .unwrap();
 
                 w.open_popup(view_id::popup_yaml_name);
@@ -125,13 +122,15 @@ impl<'a> YamlTabBuilder<'a> {
                         .map_or(EventResult::Ignore, |namespace| {
                             metadata.get("kind").map_or(EventResult::Ignore, |kind| {
                                 metadata.get("name").map_or(EventResult::Ignore, |name| {
-                                    let req = YamlRawRequestData {
-                                        kind: kind.to_string(),
-                                        name: name.to_string(),
-                                        namespace: namespace.to_string(),
-                                    };
-
-                                    tx.send(YamlMessage::RawRequest(req).into()).unwrap();
+                                    tx.send(
+                                        YamlRequest::Yaml {
+                                            kind: kind.to_string(),
+                                            name: name.to_string(),
+                                            namespace: namespace.to_string(),
+                                        }
+                                        .into(),
+                                    )
+                                    .unwrap();
 
                                     EventResult::Nop
                                 })
