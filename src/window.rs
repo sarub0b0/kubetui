@@ -144,7 +144,7 @@ impl WindowInit {
             context: popup_context,
             single_namespace: popup_single_namespace,
             multiple_namespaces: popup_multiple_namespaces,
-        } = ContextPopupBuilder::new(&self.tx, &self.context, &self.namespaces).build();
+        } = ContextPopupBuilder::new(&self.tx).build();
 
         // Init Window
         let tabs = vec![

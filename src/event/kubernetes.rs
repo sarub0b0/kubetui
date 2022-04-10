@@ -139,7 +139,8 @@ pub enum Kube {
     // Namespace
     GetNamespacesRequest,
     GetNamespacesResponse(Vec<String>),
-    SetNamespaces(Vec<String>),
+    SetNamespacesRequest(Vec<String>),
+    SetNamespacesResponse(Vec<String>),
     // Pod Status
     Pod(Result<KubeTable>),
     // Pod Logs
@@ -499,10 +500,10 @@ impl Worker for MainWorker {
             if let Ok(recv) = task.await {
                 match recv {
                     Ok(Event::Kube(ev)) => match ev {
-                        Kube::SetNamespaces(ns) => {
+                        Kube::SetNamespacesRequest(ns) => {
                             {
                                 let mut namespace = namespaces.write().await;
-                                *namespace = ns;
+                                *namespace = ns.clone();
                             }
 
                             if let Some(handler) = log_stream_handler {
@@ -514,6 +515,8 @@ impl Worker for MainWorker {
                                 handler.abort();
                                 network_handler = None;
                             }
+
+                            tx.send(Event::Kube(Kube::SetNamespacesResponse(ns)))?;
                         }
 
                         Kube::GetNamespacesRequest => {

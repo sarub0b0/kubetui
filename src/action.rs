@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crossbeam::channel::Receiver;
 
-use crate::{event::kubernetes::KubeTableRow, tui_wrapper::HeaderContent};
+use crate::event::kubernetes::KubeTableRow;
 
 use super::{
     context::{Context, Namespace},
@@ -235,14 +235,10 @@ pub fn update_contents(
                 .update_widget_item(Item::Array(
                     ns.iter().cloned().map(LiteralItem::from).collect(),
                 ));
+        }
 
-            let widget = window
-                .find_widget_mut(view_id::popup_ns)
-                .as_mut_multiple_select();
-
-            if widget.selected_items().is_empty() {
-                widget.select_item(&namespace.default.clone().into())
-            }
+        Kube::SetNamespacesResponse(ns) => {
+            namespace.selected = ns;
         }
 
         Kube::GetAPIsResponse(apis) => {

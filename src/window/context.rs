@@ -1,10 +1,8 @@
 use crossbeam::channel::Sender;
-use std::{cell::RefCell, rc::Rc};
 
 use crate::event::{kubernetes::*, Event};
 
 use crate::action::view_id;
-use crate::context::{Context, Namespace};
 
 use crate::tui_wrapper::{
     event::EventResult,
@@ -14,8 +12,6 @@ use crate::tui_wrapper::{
 
 pub struct ContextPopupBuilder<'a> {
     tx: &'a Sender<Event>,
-    context: &'a Rc<RefCell<Context>>,
-    namespaces: &'a Rc<RefCell<Namespace>>,
 }
 
 pub struct ContextPopup {
@@ -25,16 +21,8 @@ pub struct ContextPopup {
 }
 
 impl<'a> ContextPopupBuilder<'a> {
-    pub fn new(
-        tx: &'a Sender<Event>,
-        context: &'a Rc<RefCell<Context>>,
-        namespaces: &'a Rc<RefCell<Namespace>>,
-    ) -> Self {
-        Self {
-            tx,
-            context,
-            namespaces,
-        }
+    pub fn new(tx: &'a Sender<Event>) -> Self {
+        Self { tx }
     }
 
     pub fn build(self) -> ContextPopup {
@@ -47,7 +35,6 @@ impl<'a> ContextPopupBuilder<'a> {
 
     fn multiple_namespaces(&self) -> MultipleSelect<'static> {
         let tx = self.tx.clone();
-        let namespaces = self.namespaces.clone();
 
         MultipleSelect::builder()
             .id(view_id::popup_ns)
@@ -69,11 +56,8 @@ impl<'a> ContextPopupBuilder<'a> {
                     items = vec!["None".to_string()];
                 }
 
-                tx.send(Event::Kube(Kube::SetNamespaces(items.clone())))
+                tx.send(Event::Kube(Kube::SetNamespacesRequest(items.clone())))
                     .unwrap();
-
-                let mut ns = namespaces.borrow_mut();
-                ns.selected = items;
 
                 w.widget_clear(view_id::tab_pod_widget_log);
                 w.widget_clear(view_id::tab_config_widget_raw_data);
@@ -87,9 +71,6 @@ impl<'a> ContextPopupBuilder<'a> {
 
     fn context(&self) -> SingleSelect<'static> {
         let tx = self.tx.clone();
-        let namespaces = self.namespaces.clone();
-        let context = self.context.clone();
-
         SingleSelect::builder()
             .id(view_id::popup_ctx)
             .widget_config(&WidgetConfig::builder().title("Context").build())
@@ -98,12 +79,6 @@ impl<'a> ContextPopupBuilder<'a> {
 
                 tx.send(Event::Kube(Kube::SetContext(item.to_string())))
                     .unwrap();
-
-                let mut ctx = context.borrow_mut();
-                ctx.update(item);
-
-                let mut ns = namespaces.borrow_mut();
-                ns.selected = vec!["None".to_string()];
 
                 w.close_popup();
 
@@ -131,18 +106,14 @@ impl<'a> ContextPopupBuilder<'a> {
 
     fn single_namespace(&self) -> SingleSelect<'static> {
         let tx = self.tx.clone();
-        let namespaces = self.namespaces.clone();
 
         SingleSelect::builder()
             .id(view_id::popup_single_ns)
             .widget_config(&WidgetConfig::builder().title("Namespace").build())
             .on_select(move |w: &mut Window, v| {
                 let items = vec![v.item.to_string()];
-                tx.send(Event::Kube(Kube::SetNamespaces(items.clone())))
+                tx.send(Event::Kube(Kube::SetNamespacesRequest(items.clone())))
                     .unwrap();
-
-                let mut ns = namespaces.borrow_mut();
-                ns.selected = items;
 
                 w.close_popup();
 
