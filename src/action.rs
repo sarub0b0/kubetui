@@ -213,7 +213,14 @@ pub fn update_contents(
         Kube::GetCurrentContextResponse(ctx, ns) => {
             context.update(ctx);
             namespace.default = ns.to_string();
-            namespace.selected = vec![ns];
+            namespace.selected = vec![ns.to_string()];
+
+            let widget = window
+                .find_widget_mut(view_id::popup_ns)
+                .as_mut_multiple_select();
+
+            widget.update_widget_item(Item::Array(vec![ns.to_string().into()]));
+            widget.select_item(&LiteralItem::from(ns.to_string()));
         }
 
         Kube::Event(ev) => {
