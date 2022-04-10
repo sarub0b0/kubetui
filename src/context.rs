@@ -21,14 +21,14 @@ impl Display for Context {
 
 #[derive(Debug, Default)]
 pub struct Namespace {
-    pub default: String,
+    // pub default: String,
     pub selected: Vec<String>,
 }
 
 impl Namespace {
     pub fn new() -> Self {
         Self {
-            default: "None".to_string(),
+            // default: "None".to_string(),
             selected: vec!["None".to_string()],
         }
     }
