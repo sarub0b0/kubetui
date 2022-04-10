@@ -98,12 +98,11 @@ impl WindowInit {
         let namespaces = self.namespaces.clone();
 
         let header = Header::new_callback(2, move || {
-            let ns = namespaces.borrow();
-            let ctx = context.borrow();
-
+            let context = context.borrow();
+            let namespaces = namespaces.borrow();
             Paragraph::new(vec![
-                Spans::from(format!(" ctx: {}", ctx)),
-                Spans::from(format!(" ns: {}", ns)),
+                Spans::from(format!(" ctx: {}", context)),
+                Spans::from(format!(" ns: {}", namespaces)),
             ])
         });
 

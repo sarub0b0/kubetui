@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crossbeam::channel::Receiver;
 
-use crate::event::kubernetes::KubeTableRow;
+use crate::{event::kubernetes::KubeTableRow, tui_wrapper::HeaderContent};
 
 use super::{
     context::{Context, Namespace},
