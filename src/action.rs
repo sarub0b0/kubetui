@@ -2,17 +2,16 @@ use std::collections::BTreeMap;
 
 use crossbeam::channel::Receiver;
 
-use crate::event::kubernetes::{
-    config::ConfigMessage,
-    yaml::{YamlMessage, YamlResourceListItem, YamlResponse},
-    KubeTableRow,
-};
-
-use super::{
+use crate::{
     context::{Context, Namespace},
     error::Result,
     event::{
-        kubernetes::{network::NetworkMessage, Kube, KubeTable},
+        kubernetes::{
+            config::ConfigMessage,
+            network::{NetworkMessage, NetworkResponse},
+            yaml::{YamlMessage, YamlResourceListItem, YamlResponse},
+            Kube, KubeTable, KubeTableRow,
+        },
         Event,
     },
     tui_wrapper::{
@@ -324,12 +323,21 @@ pub fn update_contents(
             }
         }
 
-        Kube::Network(NetworkMessage::Poll(table)) => {
-            update_widget_item_for_table(window, view_id::tab_network_widget_network, table)
-        }
+        Kube::Network(NetworkMessage::Response(ev)) => {
+            use NetworkResponse::*;
 
-        Kube::Network(NetworkMessage::Response(res)) => {
-            update_widget_item_for_vec(window, view_id::tab_network_widget_description, res);
+            match ev {
+                List(res) => {
+                    update_widget_item_for_table(window, view_id::tab_network_widget_network, res)
+                }
+                Yaml(res) => {
+                    update_widget_item_for_vec(
+                        window,
+                        view_id::tab_network_widget_description,
+                        res,
+                    );
+                }
+            }
         }
 
         _ => unreachable!(),

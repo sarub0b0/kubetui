@@ -30,7 +30,7 @@ impl Worker for NetworkPollWorker {
 
             let table = self.polling().await;
 
-            tx.send(NetworkMessage::Poll(table).into())?;
+            tx.send(NetworkResponse::List(table).into())?;
         }
 
         Ok(WorkerResult::Terminated)

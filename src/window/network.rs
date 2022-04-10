@@ -5,7 +5,7 @@ use crate::{
     action::view_id,
     clipboard_wrapper::ClipboardContextWrapper,
     event::{
-        kubernetes::network::{NetworkMessage, Request, RequestData},
+        kubernetes::network::{NetworkRequest, RequestData},
         Event,
     },
     tui_wrapper::{
@@ -100,20 +100,22 @@ impl<'a> NetworkTabBuilder<'a> {
 
                                     match kind.as_str() {
                                         "Pod" => {
-                                            let req = Request::Pod(request_data);
-                                            tx.send(NetworkMessage::Request(req).into()).unwrap();
+                                            tx.send(NetworkRequest::Pod(request_data).into())
+                                                .unwrap();
                                         }
                                         "Service" => {
-                                            let req = Request::Service(request_data);
-                                            tx.send(NetworkMessage::Request(req).into()).unwrap();
+                                            tx.send(NetworkRequest::Service(request_data).into())
+                                                .unwrap();
                                         }
                                         "Ingress" => {
-                                            let req = Request::Ingress(request_data);
-                                            tx.send(NetworkMessage::Request(req).into()).unwrap();
+                                            tx.send(NetworkRequest::Ingress(request_data).into())
+                                                .unwrap();
                                         }
                                         "NetworkPolicy" => {
-                                            let req = Request::NetworkPolicy(request_data);
-                                            tx.send(NetworkMessage::Request(req).into()).unwrap();
+                                            tx.send(
+                                                NetworkRequest::NetworkPolicy(request_data).into(),
+                                            )
+                                            .unwrap();
                                         }
                                         _ => {}
                                     }

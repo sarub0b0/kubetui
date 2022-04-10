@@ -25,7 +25,7 @@ pub struct RequestData {
 }
 
 #[derive(Debug, Clone)]
-pub enum Request {
+pub enum NetworkRequest {
     Pod(RequestData),
     Service(RequestData),
     Ingress(RequestData),
@@ -33,13 +33,18 @@ pub enum Request {
 }
 
 #[derive(Debug)]
-pub enum NetworkMessage {
-    Poll(Result<KubeTable>),
-    Request(Request),
-    Response(Result<Vec<String>>),
+pub enum NetworkResponse {
+    List(Result<KubeTable>),
+    Yaml(Result<Vec<String>>),
 }
 
-impl Request {
+#[derive(Debug)]
+pub enum NetworkMessage {
+    Request(NetworkRequest),
+    Response(NetworkResponse),
+}
+
+impl NetworkRequest {
     pub fn data(&self) -> &RequestData {
         match self {
             Self::Pod(data) => data,
@@ -59,5 +64,17 @@ impl From<NetworkMessage> for Kube {
 impl From<NetworkMessage> for Event {
     fn from(m: NetworkMessage) -> Self {
         Self::Kube(m.into())
+    }
+}
+
+impl From<NetworkRequest> for Event {
+    fn from(req: NetworkRequest) -> Self {
+        NetworkMessage::Request(req).into()
+    }
+}
+
+impl From<NetworkResponse> for Event {
+    fn from(res: NetworkResponse) -> Self {
+        NetworkMessage::Response(res).into()
     }
 }

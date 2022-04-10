@@ -18,11 +18,11 @@ use self::{
     pod::PodDescriptionWorker, service::ServiceDescriptionWorker,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use async_trait::async_trait;
 use crossbeam::channel::Sender;
 
-use super::{NetworkMessage, Request, RequestData};
+use super::{NetworkRequest, NetworkResponse, RequestData};
 
 const INTERVAL: u64 = 3;
 
@@ -43,14 +43,19 @@ where
     is_terminated: Arc<AtomicBool>,
     tx: Sender<Event>,
     client: C,
-    req: Request,
+    req: NetworkRequest,
 }
 
 impl<C> NetworkDescriptionWorker<C>
 where
     C: KubeClientRequest,
 {
-    pub fn new(is_terminated: Arc<AtomicBool>, tx: Sender<Event>, client: C, req: Request) -> Self {
+    pub fn new(
+        is_terminated: Arc<AtomicBool>,
+        tx: Sender<Event>,
+        client: C,
+        req: NetworkRequest,
+    ) -> Self {
         Self {
             is_terminated,
             tx,
@@ -69,24 +74,23 @@ where
 
     async fn run(&self) -> Self::Output {
         let ret = match &self.req {
-            Request::Pod(_) => self.fetch_description::<PodDescriptionWorker<C>>().await,
-            Request::Service(_) => {
+            NetworkRequest::Pod(_) => self.fetch_description::<PodDescriptionWorker<C>>().await,
+            NetworkRequest::Service(_) => {
                 self.fetch_description::<ServiceDescriptionWorker<C>>()
                     .await
             }
-            Request::Ingress(_) => {
+            NetworkRequest::Ingress(_) => {
                 self.fetch_description::<IngressDescriptionWorker<C>>()
                     .await
             }
-            Request::NetworkPolicy(_) => {
+            NetworkRequest::NetworkPolicy(_) => {
                 self.fetch_description::<NetworkPolicyDescriptionWorker<C>>()
                     .await
             }
         };
 
         if let Err(e) = ret {
-            self.tx
-                .send(NetworkMessage::Response(Err(anyhow!(e))).into())?;
+            self.tx.send(NetworkResponse::Yaml(Err(e)).into())?;
         }
         Ok(())
     }
@@ -114,8 +118,7 @@ where
 
             let fetched_data = worker.fetch().await;
 
-            self.tx
-                .send(NetworkMessage::Response(fetched_data).into())?;
+            self.tx.send(NetworkResponse::Yaml(fetched_data).into())?;
         }
 
         Ok(())
@@ -156,7 +159,10 @@ mod tests {
 
     mod run {
 
-        use crate::{event::kubernetes::client::mock::MockTestKubeClient, mock_expect};
+        use crate::{
+            event::kubernetes::{client::mock::MockTestKubeClient, network::NetworkMessage, Kube},
+            mock_expect,
+        };
 
         use super::*;
         use anyhow::bail;
@@ -199,7 +205,7 @@ mod tests {
                 namespace: "default".to_string(),
                 name: "test".to_string(),
             };
-            let req = Request::Pod(req_data);
+            let req = NetworkRequest::Pod(req_data);
 
             let worker = NetworkDescriptionWorker::new(is_terminated.clone(), tx, client, req);
 
@@ -240,16 +246,16 @@ mod tests {
                 namespace: "default".to_string(),
                 name: "test".to_string(),
             };
-            let req = Request::Pod(req_data);
+            let req = NetworkRequest::Pod(req_data);
 
             let is_terminated = Arc::new(AtomicBool::new(false));
             let worker = NetworkDescriptionWorker::new(is_terminated.clone(), tx, client, req);
 
             let handle = tokio::spawn(async move { worker.run().await });
 
-            if let Event::Kube(crate::event::kubernetes::Kube::Network(NetworkMessage::Response(
+            if let Event::Kube(Kube::Network(NetworkMessage::Response(NetworkResponse::Yaml(
                 msg,
-            ))) = rx.recv().unwrap()
+            )))) = rx.recv().unwrap()
             {
                 assert!(msg.is_err())
             } else {
@@ -282,7 +288,7 @@ mod tests {
         use pretty_assertions::assert_eq;
 
         use crate::{
-            event::kubernetes::{client::mock::MockTestKubeClient, Kube},
+            event::kubernetes::{client::mock::MockTestKubeClient, network::NetworkMessage, Kube},
             mock_expect,
         };
 
@@ -323,7 +329,7 @@ mod tests {
                 namespace: "default".to_string(),
                 name: "test".to_string(),
             };
-            let req = Request::Pod(req_data);
+            let req = NetworkRequest::Pod(req_data);
 
             let worker = NetworkDescriptionWorker::new(is_terminated.clone(), tx, client, req);
 
@@ -363,7 +369,10 @@ mod tests {
             .map(ToString::to_string)
             .collect();
 
-            if let Event::Kube(Kube::Network(NetworkMessage::Response(Ok(actual)))) = event {
+            if let Event::Kube(Kube::Network(NetworkMessage::Response(NetworkResponse::Yaml(
+                Ok(actual),
+            )))) = event
+            {
                 assert_eq!(actual, expected)
             } else {
                 unreachable!()
@@ -379,7 +388,7 @@ mod tests {
                 namespace: "default".to_string(),
                 name: "test".to_string(),
             };
-            let req = Request::Pod(req_data);
+            let req = NetworkRequest::Pod(req_data);
 
             let is_terminated = Arc::new(AtomicBool::new(true));
             let worker = NetworkDescriptionWorker::new(is_terminated, tx, client, req);
@@ -430,7 +439,7 @@ mod tests {
                 namespace: "default".to_string(),
                 name: "test".to_string(),
             };
-            let req = Request::Pod(req_data);
+            let req = NetworkRequest::Pod(req_data);
 
             let is_terminated = Arc::new(AtomicBool::new(false));
             let worker = NetworkDescriptionWorker::new(is_terminated.clone(), tx, client, req);
