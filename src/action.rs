@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use crossbeam::channel::Receiver;
 
 use crate::event::kubernetes::{
+    config::ConfigMessage,
     yaml::{YamlMessage, YamlResourceListItem},
     KubeTableRow,
 };
@@ -185,7 +186,7 @@ pub fn update_contents(
             update_widget_item_for_table(window, view_id::tab_pod_widget_pod, pods_table);
         }
 
-        Kube::Configs(configs_table) => {
+        Kube::Config(ConfigMessage::List(configs_table)) => {
             update_widget_item_for_table(window, view_id::tab_config_widget_config, configs_table);
         }
 
@@ -209,7 +210,7 @@ pub fn update_contents(
             }
         }
 
-        Kube::ConfigResponse(raw) => {
+        Kube::Config(ConfigMessage::DataResponse(raw)) => {
             update_widget_item_for_vec(window, view_id::tab_config_widget_raw_data, raw);
         }
 

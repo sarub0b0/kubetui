@@ -22,6 +22,29 @@ use crate::{
     event::util::color::Color,
 };
 
+#[derive(Debug)]
+pub enum ConfigMessage {
+    List(Result<KubeTable>),
+    DataRequest {
+        namespace: String,
+        kind: String,
+        name: String,
+    },
+    DataResponse(Result<Vec<String>>),
+}
+
+impl From<ConfigMessage> for Kube {
+    fn from(msg: ConfigMessage) -> Self {
+        Kube::Config(msg)
+    }
+}
+
+impl From<ConfigMessage> for Event {
+    fn from(msg: ConfigMessage) -> Self {
+        Event::Kube(msg.into())
+    }
+}
+
 #[derive(Clone)]
 pub struct ConfigsPollWorker {
     inner: PollWorker,
@@ -57,7 +80,7 @@ impl Worker for ConfigsPollWorker {
 
             let table = fetch_configs(kube_client, &namespaces).await;
 
-            tx.send(Event::Kube(Kube::Configs(table)))?;
+            tx.send(ConfigMessage::List(table).into())?;
         }
         Ok(WorkerResult::Terminated)
     }

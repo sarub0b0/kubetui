@@ -1,18 +1,17 @@
 use crossbeam::channel::Sender;
 use std::{cell::RefCell, rc::Rc};
 
-use crate::clipboard_wrapper::ClipboardContextWrapper;
-
-use crate::event::{kubernetes::*, Event};
-
-use crate::action::view_id;
-
-use crate::tui_wrapper::{
-    event::EventResult,
-    tab::WidgetData,
-    tui::layout::{Constraint, Direction, Layout},
-    widget::{config::WidgetConfig, Table, Text, WidgetTrait},
-    Tab, WindowEvent,
+use crate::{
+    action::view_id,
+    clipboard_wrapper::ClipboardContextWrapper,
+    event::{kubernetes::config::ConfigMessage, Event},
+    tui_wrapper::{
+        event::EventResult,
+        tab::WidgetData,
+        tui::layout::{Constraint, Direction, Layout},
+        widget::{config::WidgetConfig, Table, Text, WidgetTrait},
+        Tab, WindowEvent,
+    },
 };
 
 pub struct ConfigTabBuilder<'a> {
@@ -95,11 +94,14 @@ impl<'a> ConfigTabBuilder<'a> {
                                         .append_title_mut()) =
                                         Some((format!(" : {}", name)).into());
 
-                                    tx.send(Event::Kube(Kube::ConfigRequest {
-                                        namespace: namespace.to_string(),
-                                        kind: kind.to_string(),
-                                        name: name.to_string(),
-                                    }))
+                                    tx.send(
+                                        ConfigMessage::DataRequest {
+                                            namespace: namespace.to_string(),
+                                            kind: kind.to_string(),
+                                            name: name.to_string(),
+                                        }
+                                        .into(),
+                                    )
                                     .unwrap();
 
                                     EventResult::Window(WindowEvent::Continue)

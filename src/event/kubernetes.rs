@@ -1,6 +1,6 @@
 mod api_resources;
 mod client;
-mod config;
+pub mod config;
 mod event;
 mod log;
 mod metric_type;
@@ -12,6 +12,7 @@ pub mod yaml;
 
 use self::{
     api_resources::{apis_list_from_api_database, ApiDatabase},
+    config::ConfigMessage,
     network::NetworkDescriptionWorker,
     yaml::{fetch_resource_list::FetchResourceList, worker::YamlWorker, YamlMessage},
 };
@@ -175,13 +176,7 @@ pub enum Kube {
     },
     LogStreamResponse(Result<Vec<String>>),
     // ConfigMap & Secret
-    Configs(Result<KubeTable>),
-    ConfigRequest {
-        namespace: String,
-        kind: String,
-        name: String,
-    },
-    ConfigResponse(Result<Vec<String>>),
+    Config(ConfigMessage),
     // Network
     Network(NetworkMessage),
     // Yaml
@@ -566,14 +561,14 @@ impl Worker for MainWorker {
                             task::yield_now().await;
                         }
 
-                        Kube::ConfigRequest {
+                        Kube::Config(ConfigMessage::DataRequest {
                             namespace,
                             kind,
                             name,
-                        } => {
+                        }) => {
                             let raw =
                                 get_config(kube_client.clone(), &namespace, &kind, &name).await;
-                            tx.send(Event::Kube(Kube::ConfigResponse(raw)))?;
+                            tx.send(ConfigMessage::DataResponse(raw).into())?;
                         }
 
                         Kube::GetAPIsRequest => {
