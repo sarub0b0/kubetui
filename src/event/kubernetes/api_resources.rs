@@ -355,7 +355,7 @@ async fn get_table_namespaced_resource(
 
 #[inline]
 async fn get_table_cluster_resource(client: &KubeClient, path: &str) -> Result<Table> {
-    Ok(try_fetch_table(client, path).await?)
+    try_fetch_table(client, path).await
 }
 
 async fn get_api_resources(
