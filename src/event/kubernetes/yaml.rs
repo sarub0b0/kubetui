@@ -1,279 +1,436 @@
-use std::collections::HashMap;
+use std::sync::{atomic::AtomicBool, Arc};
 
-use futures::future::try_join_all;
+use crossbeam::channel::Sender;
+
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use serde::Deserialize;
 
 use super::{
-    api_resources::{APIInfo, InnerApiDatabase},
-    client::{KubeClient, KubeClientRequest},
+    api_resources::{ApiDatabase, InnerApiDatabase},
+    client::KubeClientRequest,
+    worker::Worker,
+    Kube,
 };
-use crate::error::{Error, Result};
+use crate::{
+    error::{Error, Result},
+    event::Event,
+};
 
-#[derive(Default, Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct List {
-    items: Vec<Item>,
+#[derive(Debug, Clone)]
+pub struct YamlResourceListItem {
+    pub kind: String,
+    pub name: String,
+    pub namespace: String,
+    pub value: String,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Item {
-    metadata: ObjectMeta,
+#[derive(Debug, Clone)]
+pub struct YamlResourceList {
+    pub items: Vec<YamlResourceListItem>,
 }
 
-fn join_namespace_and_name(data: &HashMap<String, Vec<String>>) -> Vec<String> {
-    let mut namespace_char_len = 0;
-
-    for k in data.keys() {
-        if namespace_char_len < k.len() {
-            namespace_char_len = k.len();
-        }
+impl YamlResourceList {
+    pub fn new(items: Vec<YamlResourceListItem>) -> Self {
+        YamlResourceList { items }
     }
-
-    let mut list = data
-        .iter()
-        .flat_map(|(k, v)| {
-            v.iter()
-                .map(|v| format!("{:digit$}  {}", k, v, digit = namespace_char_len))
-                .collect::<Vec<String>>()
-        })
-        .collect::<Vec<String>>();
-
-    list.sort();
-
-    list
 }
 
-async fn fetch_resource_list_single_namespace_for_multiple_namespaces(
-    client: &KubeClient,
-    ns: &str,
-    api: &APIInfo,
-    kind: &str,
-) -> Result<(String, Vec<String>)> {
-    let item = fetch_resource_list_single_namespace(client, ns, api, kind).await?;
-    Ok((ns.to_string(), item))
+#[derive(Debug, Clone)]
+pub struct YamlRawRequestData {
+    pub kind: String,
+    pub name: String,
+    pub namespace: String,
 }
 
-async fn fetch_resource_list_multiple_namespaces(
-    client: &KubeClient,
-    namespaces: &[String],
-    api: &APIInfo,
-    kind: &str,
-) -> Result<Vec<String>> {
-    let mut data = HashMap::new();
+#[derive(Debug)]
+pub enum YamlMessage {
+    APIsRequest,
+    APIsResponse(Result<Vec<String>>),
+    ResourceRequest(String),
+    ResourceResponse(Result<YamlResourceList>),
+    RawRequest(YamlRawRequestData),
+    RawResponse(Result<Vec<String>>),
+}
 
-    let jobs = try_join_all(namespaces.iter().map(|ns| {
-        fetch_resource_list_single_namespace_for_multiple_namespaces(client, ns, api, kind)
-    }))
-    .await?;
-
-    for (ns, item) in jobs {
-        data.insert(ns, item);
+impl From<YamlMessage> for Kube {
+    fn from(m: YamlMessage) -> Self {
+        Self::Yaml(m)
     }
-
-    let result = join_namespace_and_name(&data);
-
-    Ok(result)
 }
 
-async fn fetch_resource_list_single_namespace(
-    client: &KubeClient,
-    ns: &str,
-    api: &APIInfo,
-    kind: &str,
-) -> Result<Vec<String>> {
-    let path = format!("{}/namespaces/{}/{}", api.api_url(), ns, kind);
-
-    let res: List = client.request(&path).await?;
-
-    #[cfg(feature = "logging")]
-    ::log::debug!("Fetch Resource List {:#?}", res);
-
-    let list: Vec<String> = res
-        .items
-        .into_iter()
-        .filter_map(|item| item.metadata.name)
-        .collect();
-
-    Ok(list)
+impl From<YamlMessage> for Event {
+    fn from(m: YamlMessage) -> Self {
+        Self::Kube(m.into())
+    }
 }
 
-async fn fetch_resource_list_not_namespaced(
-    client: &KubeClient,
-    api: &APIInfo,
-    kind: &str,
-) -> Result<Vec<String>> {
-    let path = format!("{}/{}", api.api_url(), kind);
+pub mod fetch_resource_list {
+    use crate::event::kubernetes::yaml::fetch_resource_list::not_namespaced::FetchResourceListNotNamespaced;
 
-    let res: List = client.request(&path).await?;
+    use self::multiple_namespace::FetchResourceListMultipleNamespaces;
 
-    #[cfg(feature = "logging")]
-    ::log::debug!("Fetch Resource List {:#?}", res);
+    use self::single_namespace::FetchResourceListSingleNamespace;
 
-    let list: Vec<String> = res
-        .items
-        .into_iter()
-        .filter_map(|item| item.metadata.name)
-        .collect();
-
-    Ok(list)
-}
-
-/// 選択されているリソースのリストを取得する
-///
-/// ネームスペースが１つのとき OR namespaced が false のとき
-///   リソース一覧を返す
-///
-/// ネームスペースが２つ以上のとき
-///   ネームスペースを頭につけたリソース一覧を返す
-///
-pub async fn fetch_resource_list(
-    client: &KubeClient,
-    namespaces: &[String],
-    api_database: &InnerApiDatabase,
-    kind: &str,
-) -> Result<Vec<String>> {
-    let api = api_database
-        .get(kind)
-        .ok_or_else(|| Error::Raw(format!("Can't get {} from API Database", kind)))?;
-
-    #[cfg(feature = "logging")]
-    ::log::info!("[fetch_resource_list] Select APIInfo: {:#?}", api);
-
-    let kind = &api.api_resource.name;
-    let list = if api.api_resource.namespaced {
-        if namespaces.len() == 1 {
-            fetch_resource_list_single_namespace(client, &namespaces[0], api, kind).await
-        } else {
-            fetch_resource_list_multiple_namespaces(client, namespaces, api, kind).await
-        }
-    } else {
-        fetch_resource_list_not_namespaced(client, api, kind).await
-    };
-
-    list
-}
-
-/// 選択されているリソースのyamlを取得する
-pub async fn fetch_resource_yaml(
-    client: &KubeClient,
-    api_database: &InnerApiDatabase,
-    kind: String,
-    name: String,
-    ns: String,
-) -> Result<Vec<String>> {
-    let api = api_database
-        .get(&kind)
-        .ok_or_else(|| Error::Raw(format!("Can't get {} from API Database", kind)))?;
-
-    // json string data
-    let kind = &api.api_resource.name;
-    let path = if api.api_resource.namespaced {
-        format!("{}/namespaces/{}/{}/{}", api.api_url(), ns, kind, name)
-    } else {
-        format!("{}/{}/{}", api.api_url(), kind, name)
-    };
-
-    let res = client.request_text(&path).await?;
-
-    #[cfg(feature = "logging")]
-    ::log::debug!("Fetch Resource yaml {}", res);
-
-    // yaml dataに変換
-    let yaml = convert_json_to_yaml_string_vec(&res)?;
-
-    Ok(yaml)
-}
-
-fn convert_json_to_yaml_string_vec(json: &str) -> Result<Vec<String>> {
-    let yaml_data: serde_yaml::Value = serde_json::from_str(json)?;
-
-    let yaml_string = serde_yaml::to_string(&yaml_data)?
-        .lines()
-        .skip(1)
-        .map(ToString::to_string)
-        .collect();
-
-    Ok(yaml_string)
-}
-
-#[cfg(test)]
-mod tests {
     use super::*;
-    use pretty_assertions::assert_eq;
 
-    #[test]
-    fn namespaceとリソース名を連結() {
-        let mut map: HashMap<String, Vec<String>> = HashMap::new();
-
-        map.insert(
-            "ns-0".to_string(),
-            vec![
-                "item-0".to_string(),
-                "item-1".to_string(),
-                "item-2".to_string(),
-            ],
-        );
-
-        map.insert(
-            "ns-00".to_string(),
-            vec![
-                "item-0".to_string(),
-                "item-1".to_string(),
-                "item-2".to_string(),
-            ],
-        );
-        map.insert(
-            "ns-000".to_string(),
-            vec![
-                "item-0".to_string(),
-                "item-1".to_string(),
-                "item-2".to_string(),
-            ],
-        );
-
-        let actual = join_namespace_and_name(&map);
-
-        assert_eq!(
-            vec![
-                "ns-0    item-0".to_string(),
-                "ns-0    item-1".to_string(),
-                "ns-0    item-2".to_string(),
-                "ns-00   item-0".to_string(),
-                "ns-00   item-1".to_string(),
-                "ns-00   item-2".to_string(),
-                "ns-000  item-0".to_string(),
-                "ns-000  item-1".to_string(),
-                "ns-000  item-2".to_string(),
-            ],
-            actual
-        )
+    #[derive(Default, Debug, Clone, Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct List {
+        items: Vec<Item>,
     }
 
-    #[test]
-    fn json文字列からyaml文字列に変換() {
-        let json = r#"
-        {
-            "apiVersion": "v1",
-            "kind": "Pod",
-            "metadata": {
-                "name": "nginx-deployment",
-                "namespace": "default"
+    #[derive(Default, Debug, Clone, Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Item {
+        metadata: ObjectMeta,
+    }
+
+    mod not_namespaced {
+        use anyhow::Result;
+
+        use crate::event::kubernetes::{
+            api_resources::APIInfo, client::KubeClientRequest, yaml::YamlResourceListItem,
+        };
+
+        use super::List;
+
+        pub(super) struct FetchResourceListNotNamespaced<'a, C: KubeClientRequest> {
+            client: &'a C,
+            api: &'a APIInfo,
+            kind: &'a str,
+        }
+
+        impl<'a, C: KubeClientRequest> FetchResourceListNotNamespaced<'a, C> {
+            pub(super) fn new(client: &'a C, api: &'a APIInfo, kind: &'a str) -> Self {
+                Self { client, api, kind }
             }
-        }"#;
 
-        let yaml = convert_json_to_yaml_string_vec(json).unwrap();
+            pub(super) async fn fetch(&self) -> Result<Vec<YamlResourceListItem>> {
+                let path = format!("{}/{}", self.api.api_url(), self.kind);
 
-        assert_eq!(
-            vec![
-                "apiVersion: v1".to_string(),
-                "kind: Pod".to_string(),
-                "metadata:".to_string(),
-                "  name: nginx-deployment".to_string(),
-                "  namespace: default".to_string(),
-            ],
-            yaml
-        )
+                let res: List = self.client.request(&path).await?;
+
+                #[cfg(feature = "logging")]
+                ::log::debug!("Fetch Resource List {:#?}", res);
+
+                Ok(res
+                    .items
+                    .into_iter()
+                    .filter_map(|item| {
+                        item.metadata.name.map(|name| YamlResourceListItem {
+                            namespace: "".to_string(),
+                            name: name.to_string(),
+                            kind: self.kind.to_string(),
+                            value: name,
+                        })
+                    })
+                    .collect())
+            }
+        }
+    }
+
+    mod single_namespace {
+        use anyhow::Result;
+
+        use crate::event::kubernetes::{
+            api_resources::APIInfo, client::KubeClientRequest, yaml::YamlResourceListItem,
+        };
+
+        use super::List;
+
+        pub(super) struct FetchResourceListSingleNamespace<'a, C: KubeClientRequest> {
+            client: &'a C,
+            ns: &'a str,
+            api: &'a APIInfo,
+            kind: &'a str,
+        }
+
+        impl<'a, C: KubeClientRequest> FetchResourceListSingleNamespace<'a, C> {
+            pub(super) fn new(client: &'a C, ns: &'a str, api: &'a APIInfo, kind: &'a str) -> Self {
+                Self {
+                    client,
+                    ns,
+                    api,
+                    kind,
+                }
+            }
+
+            pub(super) async fn fetch(&self) -> Result<Vec<YamlResourceListItem>> {
+                let path = format!(
+                    "{}/namespaces/{}/{}",
+                    self.api.api_url(),
+                    self.ns,
+                    self.kind
+                );
+
+                let res: List = self.client.request(&path).await?;
+
+                #[cfg(feature = "logging")]
+                ::log::debug!("Fetch Resource List {:#?}", res);
+
+                Ok(res
+                    .items
+                    .into_iter()
+                    .filter_map(|item| {
+                        item.metadata.name.map(|name| YamlResourceListItem {
+                            namespace: self.ns.to_string(),
+                            name: name.to_string(),
+                            kind: self.kind.to_string(),
+                            value: name,
+                        })
+                    })
+                    .collect())
+            }
+        }
+    }
+
+    mod multiple_namespace {
+
+        use anyhow::Result;
+        use futures::future::try_join_all;
+        use unicode_segmentation::UnicodeSegmentation;
+
+        use crate::event::kubernetes::{
+            api_resources::APIInfo, client::KubeClientRequest, yaml::YamlResourceListItem,
+        };
+
+        use super::single_namespace::FetchResourceListSingleNamespace;
+
+        pub(super) struct FetchResourceListMultipleNamespaces<'a, C: KubeClientRequest> {
+            client: &'a C,
+            namespaces: &'a [String],
+            api: &'a APIInfo,
+            kind: &'a str,
+        }
+
+        impl<'a, C: KubeClientRequest> FetchResourceListMultipleNamespaces<'a, C> {
+            pub(super) fn new(
+                client: &'a C,
+                namespaces: &'a [String],
+                api: &'a APIInfo,
+                kind: &'a str,
+            ) -> Self {
+                Self {
+                    client,
+                    namespaces,
+                    api,
+                    kind,
+                }
+            }
+
+            pub(super) async fn fetch(&self) -> Result<Vec<YamlResourceListItem>> {
+                let jobs = try_join_all(self.namespaces.iter().map(|ns| async move {
+                    FetchResourceListSingleNamespace::new(self.client, ns, self.api, self.kind)
+                        .fetch()
+                        .await
+                }))
+                .await?;
+
+                let namespace_digit = self
+                    .namespaces
+                    .iter()
+                    .map(|ns| ns.graphemes(true).count())
+                    .max()
+                    .unwrap_or(0);
+
+                let list = jobs
+                    .into_iter()
+                    .flat_map(|items| {
+                        items
+                            .into_iter()
+                            .map(|mut item| {
+                                item.value = format!(
+                                    "{:digit$}  {}",
+                                    item.namespace,
+                                    item.name,
+                                    digit = namespace_digit
+                                );
+                                item
+                            })
+                            .collect::<Vec<YamlResourceListItem>>()
+                    })
+                    .collect();
+
+                Ok(list)
+            }
+        }
+    }
+
+    pub struct FetchResourceList<'a, C: KubeClientRequest> {
+        client: &'a C,
+        req: String,
+        namespaces: &'a [String],
+        api_database: &'a InnerApiDatabase,
+    }
+
+    impl<'a, C: KubeClientRequest> FetchResourceList<'a, C> {
+        pub fn new(
+            client: &'a C,
+            req: String,
+            api_database: &'a InnerApiDatabase,
+            namespaces: &'a [String],
+        ) -> Self {
+            Self {
+                client,
+                req,
+                api_database,
+                namespaces,
+            }
+        }
+
+        /// 選択されているリソースのリストを取得する
+        ///
+        /// ネームスペースが１つのとき OR namespaced が false のとき
+        ///   リソース一覧を返す
+        ///
+        /// ネームスペースが２つ以上のとき
+        ///   ネームスペースを頭につけたリソース一覧を返す
+        ///
+        pub async fn fetch(&self) -> Result<YamlResourceList> {
+            let kind = &self.req;
+
+            let api = self
+                .api_database
+                .get(kind)
+                .ok_or_else(|| Error::Raw(format!("Can't get {} from API Database", kind)))?;
+
+            let kind = &api.api_resource.name;
+            let list = if api.api_resource.namespaced {
+                if self.namespaces.len() == 1 {
+                    FetchResourceListSingleNamespace::new(
+                        self.client,
+                        &self.namespaces[0],
+                        api,
+                        kind,
+                    )
+                    .fetch()
+                    .await?
+                } else {
+                    FetchResourceListMultipleNamespaces::new(
+                        self.client,
+                        self.namespaces,
+                        api,
+                        kind,
+                    )
+                    .fetch()
+                    .await?
+                }
+            } else {
+                FetchResourceListNotNamespaced::new(self.client, api, kind)
+                    .fetch()
+                    .await?
+            };
+
+            Ok(YamlResourceList::new(list))
+        }
+    }
+}
+
+pub mod worker {
+    use super::*;
+
+    #[derive(Clone)]
+    pub struct YamlWorker<C>
+    where
+        C: KubeClientRequest,
+    {
+        is_terminated: Arc<AtomicBool>,
+        tx: Sender<Event>,
+        client: C,
+        req: YamlRawRequestData,
+        api_database: ApiDatabase,
+    }
+
+    impl<C: KubeClientRequest> YamlWorker<C> {
+        pub fn new(
+            is_terminated: Arc<AtomicBool>,
+            tx: Sender<Event>,
+            client: C,
+            api_database: ApiDatabase,
+            req: YamlRawRequestData,
+        ) -> Self {
+            Self {
+                is_terminated,
+                tx,
+                client,
+                req,
+                api_database,
+            }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl<C: KubeClientRequest> Worker for YamlWorker<C> {
+        type Output = Result<()>;
+
+        async fn run(&self) -> Self::Output {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(3));
+
+            let YamlRawRequestData {
+                kind,
+                name,
+                namespace,
+            } = &self.req;
+
+            while !self
+                .is_terminated
+                .load(std::sync::atomic::Ordering::Relaxed)
+            {
+                interval.tick().await;
+
+                let db = self.api_database.read().await;
+
+                let fetched_data = fetch_resource_yaml(
+                    &self.client,
+                    &db,
+                    kind.to_string(),
+                    name.to_string(),
+                    namespace.to_string(),
+                )
+                .await;
+
+                self.tx
+                    .send(YamlMessage::RawResponse(fetched_data).into())?;
+            }
+
+            Ok(())
+        }
+    }
+
+    /// 選択されているリソースのyamlを取得する
+    pub async fn fetch_resource_yaml<C: KubeClientRequest>(
+        client: &C,
+        api_database: &InnerApiDatabase,
+        kind: String,
+        name: String,
+        ns: String,
+    ) -> Result<Vec<String>> {
+        let api = api_database
+            .get(&kind)
+            .ok_or_else(|| Error::Raw(format!("Can't get {} from API Database", kind)))?;
+
+        // json string data
+        let kind = &api.api_resource.name;
+        let path = if api.api_resource.namespaced {
+            format!("{}/namespaces/{}/{}/{}", api.api_url(), ns, kind, name)
+        } else {
+            format!("{}/{}/{}", api.api_url(), kind, name)
+        };
+
+        let res = client.request_text(&path).await?;
+
+        #[cfg(feature = "logging")]
+        ::log::debug!("Fetch Resource yaml {}", res);
+
+        // yaml dataに変換
+        let yaml_data: serde_yaml::Value = serde_json::from_str(&res)?;
+
+        let yaml_string = serde_yaml::to_string(&yaml_data)?
+            .lines()
+            .skip(1)
+            .map(ToString::to_string)
+            .collect();
+
+        Ok(yaml_string)
     }
 }

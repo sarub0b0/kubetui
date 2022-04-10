@@ -1,29 +1,26 @@
 use crossbeam::channel::Sender;
-
-use crate::tui_wrapper::{tab::WidgetData, widget::Widget, Tab};
 use std::{cell::RefCell, rc::Rc};
 
-use crate::clipboard_wrapper::ClipboardContextWrapper;
-
-use crate::event::{kubernetes::*, Event};
-
-use crate::action::view_id;
-use crate::context::Namespace;
-
-use crate::tui_wrapper::{
-    event::EventResult,
-    widget::{config::WidgetConfig, SingleSelect, Text, WidgetTrait},
-    Window,
+use crate::{
+    action::view_id,
+    clipboard_wrapper::ClipboardContextWrapper,
+    event::{
+        kubernetes::yaml::{YamlMessage, YamlRawRequestData},
+        Event,
+    },
+    tui_wrapper::{
+        event::EventResult,
+        tab::WidgetData,
+        widget::Widget,
+        widget::{config::WidgetConfig, SingleSelect, Text, WidgetTrait},
+        Tab, Window,
+    },
 };
-
-type YamlState = Rc<RefCell<(String, String)>>;
 
 pub struct YamlTabBuilder<'a> {
     title: &'static str,
     tx: &'a Sender<Event>,
-    namespaces: &'a Rc<RefCell<Namespace>>,
     clipboard: &'a Option<Rc<RefCell<ClipboardContextWrapper>>>,
-    state: YamlState,
 }
 
 pub struct YamlTab {
@@ -36,15 +33,12 @@ impl<'a> YamlTabBuilder<'a> {
     pub fn new(
         title: &'static str,
         tx: &'a Sender<Event>,
-        namespaces: &'a Rc<RefCell<Namespace>>,
         clipboard: &'a Option<Rc<RefCell<ClipboardContextWrapper>>>,
     ) -> Self {
         Self {
             title,
             tx,
-            namespaces,
             clipboard,
-            state: Default::default(),
         }
     }
 
@@ -59,13 +53,9 @@ impl<'a> YamlTabBuilder<'a> {
 
     fn main(&self) -> Text<'static> {
         let tx = self.tx.clone();
-        let state = self.state.clone();
 
         let open_subwin = move |w: &mut Window| {
-            let mut state = state.borrow_mut();
-            *state = (String::default(), String::default());
-
-            tx.send(Event::Kube(Kube::YamlAPIsRequest)).unwrap();
+            tx.send(YamlMessage::APIsRequest.into()).unwrap();
             w.open_popup(view_id::popup_yaml_kind);
             EventResult::Nop
         };
@@ -97,7 +87,7 @@ impl<'a> YamlTabBuilder<'a> {
 
     fn subwin_kind(&self) -> SingleSelect<'static> {
         let tx = self.tx.clone();
-        let state = self.state.clone();
+
         SingleSelect::builder()
             .id(view_id::popup_yaml_kind)
             .widget_config(&WidgetConfig::builder().title("Kind").build())
@@ -107,10 +97,7 @@ impl<'a> YamlTabBuilder<'a> {
 
                 w.close_popup();
 
-                let mut state = state.borrow_mut();
-                state.0 = v.item.to_string();
-
-                tx.send(Event::Kube(Kube::YamlResourceRequest(v.item.to_string())))
+                tx.send(YamlMessage::ResourceRequest(v.item.to_string()).into())
                     .unwrap();
 
                 w.open_popup(view_id::popup_yaml_name);
@@ -122,8 +109,6 @@ impl<'a> YamlTabBuilder<'a> {
 
     fn subwin_name(&self) -> SingleSelect<'static> {
         let tx = self.tx.clone();
-        let namespaces = self.namespaces.clone();
-        let state = self.state.clone();
 
         SingleSelect::builder()
             .id(view_id::popup_yaml_name)
@@ -134,24 +119,25 @@ impl<'a> YamlTabBuilder<'a> {
 
                 w.close_popup();
 
-                let ns = &namespaces.borrow().selected;
+                v.metadata.as_ref().map_or(EventResult::Ignore, |metadata| {
+                    metadata
+                        .get("namespace")
+                        .map_or(EventResult::Ignore, |namespace| {
+                            metadata.get("kind").map_or(EventResult::Ignore, |kind| {
+                                metadata.get("name").map_or(EventResult::Ignore, |name| {
+                                    let req = YamlRawRequestData {
+                                        kind: kind.to_string(),
+                                        name: name.to_string(),
+                                        namespace: namespace.to_string(),
+                                    };
 
-                let value: Vec<&str> = v.item.split_whitespace().collect();
+                                    tx.send(YamlMessage::RawRequest(req).into()).unwrap();
 
-                let (name, ns) = if value.len() == 1 {
-                    (value[0].to_string(), ns[0].to_string())
-                } else {
-                    (value[1].to_string(), value[0].to_string())
-                };
-
-                let state = state.borrow();
-
-                let kind = state.0.to_string();
-
-                tx.send(Event::Kube(Kube::YamlRawRequest(kind, name, ns)))
-                    .unwrap();
-
-                EventResult::Nop
+                                    EventResult::Nop
+                                })
+                            })
+                        })
+                })
             })
             .build()
     }

@@ -8,12 +8,12 @@ pub mod network;
 mod pod;
 mod v1_table;
 mod worker;
-mod yaml;
+pub mod yaml;
 
 use self::{
     api_resources::{apis_list_from_api_database, ApiDatabase},
     network::NetworkDescriptionWorker,
-    yaml::{fetch_resource_list, fetch_resource_yaml},
+    yaml::{fetch_resource_list::FetchResourceList, worker::YamlWorker, YamlMessage},
 };
 
 use super::Event;
@@ -59,6 +59,25 @@ use self::{
 };
 
 pub use kube;
+
+#[derive(Debug, Default)]
+pub struct KubeListItem {
+    pub namespace: String,
+    pub name: String,
+    pub metadata: Option<BTreeMap<String, String>>,
+    pub item: String,
+}
+
+#[derive(Debug, Default)]
+pub struct KubeList {
+    pub list: Vec<KubeListItem>,
+}
+
+impl KubeList {
+    pub fn new(list: Vec<KubeListItem>) -> Self {
+        Self { list }
+    }
+}
 
 #[derive(Debug, Default)]
 pub struct KubeTableRow {
@@ -153,12 +172,7 @@ pub enum Kube {
     // Network
     Network(NetworkMessage),
     // Yaml
-    YamlAPIsRequest,
-    YamlAPIsResponse(Result<Vec<String>>), // kind, name
-    YamlResourceRequest(String),
-    YamlResourceResponse(Result<Vec<String>>), // kind, name
-    YamlRawRequest(String, String, String),    // kind, name, namespace
-    YamlRawResponse(Result<Vec<String>>),      // yaml
+    Yaml(YamlMessage),
 }
 
 #[derive(Default, Debug)]
@@ -475,6 +489,7 @@ impl Worker for MainWorker {
     async fn run(&self) -> Self::Output {
         let mut log_stream_handler: Option<Handlers> = None;
         let mut network_handler: Option<JoinHandle<Result<()>>> = None;
+        let mut yaml_handler: Option<JoinHandle<Result<()>>> = None;
 
         let MainWorker {
             inner: poll_worker,
@@ -565,26 +580,39 @@ impl Worker for MainWorker {
                             return Ok(WorkerResult::ChangedContext(ctx));
                         }
 
-                        Kube::YamlAPIsRequest => {
+                        Kube::Yaml(YamlMessage::APIsRequest) => {
                             let db = api_database.read().await;
                             let apis = apis_list_from_api_database(&db);
 
-                            tx.send(Event::Kube(Kube::YamlAPIsResponse(Ok(apis))))?
+                            tx.send(YamlMessage::APIsResponse(Ok(apis)).into())?
                         }
 
-                        Kube::YamlResourceRequest(req) => {
+                        Kube::Yaml(YamlMessage::ResourceRequest(req)) => {
                             let db = api_database.read().await;
                             let ns = namespaces.read().await;
 
-                            let list = fetch_resource_list(kube_client, &ns, &db, &req).await;
+                            let fetched_data = FetchResourceList::new(kube_client, req, &db, &ns)
+                                .fetch()
+                                .await;
 
-                            tx.send(Event::Kube(Kube::YamlResourceResponse(list)))?
+                            tx.send(YamlMessage::ResourceResponse(fetched_data).into())?
                         }
-                        Kube::YamlRawRequest(kind, name, ns) => {
-                            let db = api_database.read().await;
-                            let yaml = fetch_resource_yaml(kube_client, &db, kind, name, ns).await;
+                        Kube::Yaml(YamlMessage::RawRequest(req)) => {
+                            if let Some(handler) = yaml_handler {
+                                handler.abort();
+                            }
 
-                            tx.send(Event::Kube(Kube::YamlRawResponse(yaml)))?
+                            yaml_handler = Some(
+                                YamlWorker::new(
+                                    is_terminated.clone(),
+                                    tx,
+                                    kube_client.clone(),
+                                    api_database.clone(),
+                                    req,
+                                )
+                                .spawn(),
+                            );
+                            task::yield_now().await;
                         }
 
                         Kube::Network(NetworkMessage::Request(req)) => {
