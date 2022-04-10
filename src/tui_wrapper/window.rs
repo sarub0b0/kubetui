@@ -225,7 +225,9 @@ impl<'a> Window<'a> {
     }
 
     pub fn update_header(&mut self, content: HeaderContent<'a>) {
-        self.header.as_mut().map(|h| h.content_update(content));
+        if let Some(h) = self.header.as_mut() {
+            h.content_update(content);
+        }
     }
 }
 

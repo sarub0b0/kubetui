@@ -18,14 +18,13 @@ pub fn wrap_line(text: &str, wrap_width: usize) -> Vec<String> {
     }
 
     text.lines()
-        .map(|line| {
+        .flat_map(|line| {
             if wrap_width < line.width() {
                 wrap_one_line(line, wrap_width)
             } else {
                 vec![line.to_string()]
             }
         })
-        .flatten()
         .collect()
 }
 
