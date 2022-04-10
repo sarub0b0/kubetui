@@ -117,8 +117,8 @@ where
 }
 
 fn backend_service_names(ing: &Ingress) -> Option<Vec<String>> {
-    let names: Option<Vec<String>> = ing.spec.as_ref().map_or(None, |spec| {
-        spec.rules.as_ref().map_or(None, |rules| {
+    let names: Option<Vec<String>> = ing.spec.as_ref().and_then(|spec| {
+        spec.rules.as_ref().and_then(|rules| {
             let a: Vec<String> = rules
                 .iter()
                 .flat_map(|rule| {

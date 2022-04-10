@@ -600,54 +600,43 @@ mod extract {
                 ..Default::default()
             };
 
-            let spec = if let Some(spec) = &self.spec {
-                Some(PodSpec {
-                    containers: spec.containers.iter().map(|c| c.extract()).collect(),
-                    dns_config: spec.dns_config.clone(),
-                    dns_policy: spec.dns_policy.clone(),
-                    enable_service_links: spec.enable_service_links.clone(),
-                    ephemeral_containers: spec.ephemeral_containers.as_ref().map_or(
-                        None,
-                        |ephemeral_containers| {
-                            Some(ephemeral_containers.iter().map(|c| c.extract()).collect())
-                        },
-                    ),
-                    host_aliases: spec.host_aliases.clone(),
-                    host_ipc: spec.host_ipc.clone(),
-                    host_network: spec.host_network.clone(),
-                    host_pid: spec.host_pid.clone(),
-                    hostname: spec.hostname.clone(),
-                    init_containers: spec.init_containers.as_ref().map_or(
-                        None,
-                        |init_containers| {
-                            Some(init_containers.iter().map(|c| c.extract()).collect())
-                        },
-                    ),
-                    node_name: spec.node_name.clone(),
-                    node_selector: spec.node_selector.clone(),
-                    readiness_gates: spec.readiness_gates.clone(),
-                    security_context: spec.security_context.clone(),
-                    service_account: spec.service_account.clone(),
-                    service_account_name: spec.service_account_name.clone(),
-                    set_hostname_as_fqdn: spec.set_hostname_as_fqdn.clone(),
-                    subdomain: spec.subdomain.clone(),
-                    ..Default::default()
-                })
-            } else {
-                None
-            };
+            let spec = self.spec.as_ref().map(|spec| PodSpec {
+                containers: spec.containers.iter().map(|c| c.extract()).collect(),
+                dns_config: spec.dns_config.clone(),
+                dns_policy: spec.dns_policy.clone(),
+                enable_service_links: spec.enable_service_links,
+                ephemeral_containers: spec.ephemeral_containers.as_ref().map(
+                    |ephemeral_containers| {
+                        ephemeral_containers.iter().map(|c| c.extract()).collect()
+                    },
+                ),
+                host_aliases: spec.host_aliases.clone(),
+                host_ipc: spec.host_ipc,
+                host_network: spec.host_network,
+                host_pid: spec.host_pid,
+                hostname: spec.hostname.clone(),
+                init_containers: spec
+                    .init_containers
+                    .as_ref()
+                    .map(|init_containers| init_containers.iter().map(|c| c.extract()).collect()),
+                node_name: spec.node_name.clone(),
+                node_selector: spec.node_selector.clone(),
+                readiness_gates: spec.readiness_gates.clone(),
+                security_context: spec.security_context.clone(),
+                service_account: spec.service_account.clone(),
+                service_account_name: spec.service_account_name.clone(),
+                set_hostname_as_fqdn: spec.set_hostname_as_fqdn,
+                subdomain: spec.subdomain.clone(),
+                ..Default::default()
+            });
 
-            let status = if let Some(status) = &self.status {
-                Some(PodStatus {
-                    host_ip: status.host_ip.clone(),
-                    phase: status.phase.clone(),
-                    pod_ip: status.pod_ip.clone(),
-                    pod_ips: status.pod_ips.clone(),
-                    ..Default::default()
-                })
-            } else {
-                None
-            };
+            let status = self.status.as_ref().map(|status| PodStatus {
+                host_ip: status.host_ip.clone(),
+                phase: status.phase.clone(),
+                pod_ip: status.pod_ip.clone(),
+                pod_ips: status.pod_ips.clone(),
+                ..Default::default()
+            });
 
             Pod {
                 metadata,
