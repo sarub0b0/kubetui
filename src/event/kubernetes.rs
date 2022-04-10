@@ -150,9 +150,15 @@ pub enum Kube {
     GetContextsResponse(Result<Vec<String>>),
     SetContext(String),
     GetCurrentContextRequest,
-    GetCurrentContextResponse(String, String), // current_context, namespace
+    GetCurrentContextResponse {
+        current_context: String,
+        current_namespace: String,
+    },
     // Context Restore
-    RestoreNamespaces(String, Vec<String>), // default_namespace, selected_namespaces
+    RestoreNamespaces {
+        default: String,
+        selected: Vec<String>,
+    },
     // Event
     Event(Result<Vec<String>>),
     // Namespace
@@ -163,11 +169,18 @@ pub enum Kube {
     // Pod Status
     Pod(Result<KubeTable>),
     // Pod Logs
-    LogStreamRequest(String, String),
+    LogStreamRequest {
+        namespace: String,
+        name: String,
+    },
     LogStreamResponse(Result<Vec<String>>),
     // ConfigMap & Secret
     Configs(Result<KubeTable>),
-    ConfigRequest(String, String, String), // namespace, kind, resource_name
+    ConfigRequest {
+        namespace: String,
+        kind: String,
+        name: String,
+    },
     ConfigResponse(Result<Vec<String>>),
     // Network
     Network(NetworkMessage),
@@ -310,10 +323,10 @@ fn restore_state(
             api_resources,
         } = state;
 
-        tx.send(Event::Kube(Kube::RestoreNamespaces(
-            default_namespace.to_string(),
-            namespaces.to_owned(),
-        )))?;
+        tx.send(Event::Kube(Kube::RestoreNamespaces {
+            default: default_namespace.to_string(),
+            selected: namespaces.to_owned(),
+        }))?;
 
         tx.send(Event::Kube(Kube::RestoreAPIs(api_resources.to_vec())))?;
 
@@ -323,10 +336,10 @@ fn restore_state(
             api_resources.to_owned(),
         )
     } else {
-        tx.send(Event::Kube(Kube::GetCurrentContextResponse(
-            context.to_string(),
-            namespace.to_string(),
-        )))?;
+        tx.send(Event::Kube(Kube::GetCurrentContextResponse {
+            current_context: context.to_string(),
+            current_namespace: namespace.to_string(),
+        }))?;
 
         (
             namespace.to_string(),
@@ -539,13 +552,13 @@ impl Worker for MainWorker {
                             tx.send(Event::Kube(Kube::GetNamespacesResponse(res)))?;
                         }
 
-                        Kube::LogStreamRequest(namespace, pod_name) => {
+                        Kube::LogStreamRequest { namespace, name } => {
                             if let Some(handler) = log_stream_handler {
                                 handler.abort();
                             }
 
                             log_stream_handler = Some(
-                                LogWorkerBuilder::new(tx, kube_client.clone(), namespace, pod_name)
+                                LogWorkerBuilder::new(tx, kube_client.clone(), namespace, name)
                                     .build()
                                     .spawn(),
                             );
@@ -553,8 +566,13 @@ impl Worker for MainWorker {
                             task::yield_now().await;
                         }
 
-                        Kube::ConfigRequest(ns, kind, name) => {
-                            let raw = get_config(kube_client.clone(), &ns, &kind, &name).await;
+                        Kube::ConfigRequest {
+                            namespace,
+                            kind,
+                            name,
+                        } => {
+                            let raw =
+                                get_config(kube_client.clone(), &namespace, &kind, &name).await;
                             tx.send(Event::Kube(Kube::ConfigResponse(raw)))?;
                         }
 

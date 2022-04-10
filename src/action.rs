@@ -213,16 +213,19 @@ pub fn update_contents(
             update_widget_item_for_vec(window, view_id::tab_config_widget_raw_data, raw);
         }
 
-        Kube::GetCurrentContextResponse(ctx, ns) => {
-            context.update(ctx);
-            namespace.selected = vec![ns.to_string()];
+        Kube::GetCurrentContextResponse {
+            current_context,
+            current_namespace,
+        } => {
+            context.update(current_context);
+            namespace.selected = vec![current_namespace.to_string()];
 
             let widget = window
                 .find_widget_mut(view_id::popup_ns)
                 .as_mut_multiple_select();
 
-            widget.update_widget_item(Item::Array(vec![ns.to_string().into()]));
-            widget.select_item(&LiteralItem::from(ns));
+            widget.update_widget_item(Item::Array(vec![current_namespace.to_string().into()]));
+            widget.select_item(&LiteralItem::from(current_namespace));
         }
 
         Kube::Event(ev) => {
@@ -258,7 +261,10 @@ pub fn update_contents(
             update_widget_item_for_vec(window, view_id::popup_ctx, ctxs);
         }
 
-        Kube::RestoreNamespaces(default, selected) => {
+        Kube::RestoreNamespaces {
+            default: _,
+            selected,
+        } => {
             namespace.selected = selected;
         }
 

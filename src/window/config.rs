@@ -95,11 +95,11 @@ impl<'a> ConfigTabBuilder<'a> {
                                         .append_title_mut()) =
                                         Some((format!(" : {}", name)).into());
 
-                                    tx.send(Event::Kube(Kube::ConfigRequest(
-                                        namespace.to_string(),
-                                        kind.to_string(),
-                                        name.to_string(),
-                                    )))
+                                    tx.send(Event::Kube(Kube::ConfigRequest {
+                                        namespace: namespace.to_string(),
+                                        kind: kind.to_string(),
+                                        name: name.to_string(),
+                                    }))
                                     .unwrap();
 
                                     EventResult::Window(WindowEvent::Continue)

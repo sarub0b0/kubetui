@@ -101,10 +101,10 @@ impl<'a> PodTabBuilder<'a> {
                                         .append_title_mut()) =
                                         Some((format!(" : {}", name)).into());
 
-                                    tx.send(Event::Kube(Kube::LogStreamRequest(
-                                        namespace.to_string(),
-                                        name.to_string(),
-                                    )))
+                                    tx.send(Event::Kube(Kube::LogStreamRequest {
+                                        namespace: namespace.to_string(),
+                                        name: name.to_string(),
+                                    }))
                                     .unwrap();
 
                                     EventResult::Window(WindowEvent::Continue)
