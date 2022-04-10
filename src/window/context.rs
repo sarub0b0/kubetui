@@ -56,7 +56,7 @@ impl<'a> ContextPopupBuilder<'a> {
                     items = vec!["None".to_string()];
                 }
 
-                tx.send(Event::Kube(Kube::SetNamespacesRequest(items.clone())))
+                tx.send(Event::Kube(Kube::SetNamespacesRequest(items)))
                     .unwrap();
 
                 w.widget_clear(view_id::tab_pod_widget_log);
@@ -77,8 +77,7 @@ impl<'a> ContextPopupBuilder<'a> {
             .on_select(move |w: &mut Window, v| {
                 let item = v.item.to_string();
 
-                tx.send(Event::Kube(Kube::SetContext(item.to_string())))
-                    .unwrap();
+                tx.send(Event::Kube(Kube::SetContext(item))).unwrap();
 
                 w.close_popup();
 
@@ -112,7 +111,7 @@ impl<'a> ContextPopupBuilder<'a> {
             .widget_config(&WidgetConfig::builder().title("Namespace").build())
             .on_select(move |w: &mut Window, v| {
                 let items = vec![v.item.to_string()];
-                tx.send(Event::Kube(Kube::SetNamespacesRequest(items.clone())))
+                tx.send(Event::Kube(Kube::SetNamespacesRequest(items)))
                     .unwrap();
 
                 w.close_popup();
