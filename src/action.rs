@@ -223,7 +223,7 @@ pub fn update_contents(
                 .as_mut_multiple_select();
 
             widget.update_widget_item(Item::Array(vec![ns.to_string().into()]));
-            widget.select_item(&LiteralItem::from(ns.to_string()));
+            widget.select_item(&LiteralItem::from(ns));
         }
 
         Kube::Event(ev) => {
