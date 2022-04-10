@@ -33,7 +33,8 @@ pub struct Window<'a> {
     callbacks: Vec<(UserEvent, InnerCallback)>,
     popups: Vec<Widget<'a>>,
     open_popup_id: Option<String>,
-    header: Option<HeaderCallback>,
+    // header: Option<HeaderCallback>,
+    header: Option<Header<'a>>,
     layout_index: WindowLayoutIndex,
 }
 
@@ -44,13 +45,56 @@ struct WindowLayoutIndex {
     contents: usize,
 }
 
+pub enum HeaderContent<'a> {
+    Static(Vec<Spans<'a>>),
+    Callback(HeaderCallback),
+}
+
+impl Default for HeaderContent<'_> {
+    fn default() -> Self {
+        HeaderContent::Static(Default::default())
+    }
+}
+
+#[derive(Default)]
+pub struct Header<'a> {
+    height: u16,
+    content: HeaderContent<'a>,
+}
+
+impl<'a> Header<'a> {
+    pub fn new_static(height: u16, content: Vec<Spans<'a>>) -> Self {
+        debug_assert!(0 < height, "Header height must be greater than 0");
+
+        Self {
+            height,
+            content: HeaderContent::Static(content),
+        }
+    }
+
+    pub fn new_callback<F>(height: u16, callback: F) -> Self
+    where
+        F: Fn() -> Paragraph<'static> + 'static,
+    {
+        debug_assert!(0 < height, "Header height must be greater than 0");
+
+        Self {
+            height,
+            content: HeaderContent::Callback(Rc::new(callback)),
+        }
+    }
+
+    pub fn content_update(&mut self, content: HeaderContent<'a>) {
+        self.content = content;
+    }
+}
+
 #[derive(Default)]
 pub struct WindowBuilder<'a> {
     tabs: Vec<Tab<'a>>,
     callbacks: Vec<(UserEvent, InnerCallback)>,
     popups: Vec<Widget<'a>>,
-    header: Option<HeaderCallback>,
-    header_height: u16,
+    header: Option<Header<'a>>,
 }
 
 impl<'a> WindowBuilder<'a> {
@@ -72,17 +116,13 @@ impl<'a> WindowBuilder<'a> {
         self
     }
 
-    pub fn header<F>(mut self, height: u16, header: F) -> Self
-    where
-        F: Fn() -> Paragraph<'static> + 'static,
-    {
-        self.header = Some(Rc::new(header));
-        self.header_height = height;
+    pub fn header(mut self, header: Header<'a>) -> Self {
+        self.header = Some(header);
         self
     }
 
     pub fn build(self) -> Window<'a> {
-        let (layout_index, constraints) = if self.header.is_some() {
+        let (layout_index, constraints) = if let Some(header) = &self.header {
             (
                 WindowLayoutIndex {
                     tab: 0,
@@ -92,7 +132,7 @@ impl<'a> WindowBuilder<'a> {
                 vec![
                     Constraint::Length(1),
                     Constraint::Length(1),
-                    Constraint::Length(self.header_height),
+                    Constraint::Length(header.height),
                     Constraint::Min(1),
                 ],
             )
@@ -182,6 +222,10 @@ impl<'a> Window<'a> {
                 None
             }
         })
+    }
+
+    pub fn update_header(&mut self, content: HeaderContent<'a>) {
+        self.header.as_mut().map(|h| h.content_update(content));
     }
 }
 
@@ -313,7 +357,10 @@ impl<'a> Window<'a> {
 
     fn render_header<B: Backend>(&self, f: &mut Frame<B>) {
         if let Some(header) = &self.header {
-            let w = (header)();
+            let w = match &header.content {
+                HeaderContent::Static(content) => Paragraph::new(content.to_vec()),
+                HeaderContent::Callback(callback) => (callback)(),
+            };
             f.render_widget(w, self.chunks()[self.layout_index.header]);
         }
     }

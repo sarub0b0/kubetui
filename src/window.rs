@@ -25,7 +25,7 @@ use crate::{
     clipboard_wrapper::{ClipboardContextWrapper, ClipboardProvider},
     context::{Context, Namespace},
     event::{kubernetes::*, Event, UserEvent},
-    tui_wrapper::{event::EventResult, widget::Widget, Tab, Window, WindowEvent},
+    tui_wrapper::{event::EventResult, widget::Widget, Header, Tab, Window, WindowEvent},
 };
 
 pub struct WindowInit {
@@ -97,7 +97,7 @@ impl WindowInit {
         let context = self.context.clone();
         let namespaces = self.namespaces.clone();
 
-        let builder = builder.header(2, move || {
+        let header = Header::new_callback(2, move || {
             let ns = namespaces.borrow();
             let ctx = context.borrow();
 
@@ -106,6 +106,8 @@ impl WindowInit {
                 Spans::from(format!(" ns: {}", ns)),
             ])
         });
+
+        let builder = builder.header(header);
 
         builder.build()
     }
