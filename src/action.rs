@@ -218,7 +218,7 @@ pub fn update_contents(
             current_namespace,
         } => {
             context.update(current_context);
-            namespace.selected = vec![current_namespace.to_string()];
+            namespace.update(vec![current_namespace.to_string()]);
 
             let widget = window
                 .find_widget_mut(view_id::popup_ns)
@@ -250,7 +250,7 @@ pub fn update_contents(
         }
 
         Kube::SetNamespacesResponse(ns) => {
-            namespace.selected = ns;
+            namespace.update(ns);
         }
 
         Kube::GetAPIsResponse(apis) => {
@@ -261,11 +261,22 @@ pub fn update_contents(
             update_widget_item_for_vec(window, view_id::popup_ctx, ctxs);
         }
 
-        Kube::RestoreNamespaces {
-            default: _,
-            selected,
+        Kube::RestoreContext {
+            context: ctx,
+            namespaces: ns,
         } => {
-            namespace.selected = selected;
+            context.update(ctx);
+            namespace.update(ns.clone());
+
+            window
+                .find_widget_mut(view_id::popup_ns)
+                .update_widget_item(Item::Array(
+                    ns.iter().cloned().map(LiteralItem::from).collect(),
+                ));
+            window
+                .find_widget_mut(view_id::popup_ns)
+                .as_mut_multiple_select()
+                .select_all();
         }
 
         Kube::RestoreAPIs(apis) => {

@@ -151,6 +151,7 @@ pub enum Kube {
     APIsResults(Result<Vec<String>>),
     RestoreAPIs(Vec<String>),
     // Context
+    // for header
     GetContextsRequest,
     GetContextsResponse(Result<Vec<String>>),
     SetContext(String),
@@ -160,13 +161,14 @@ pub enum Kube {
         current_namespace: String,
     },
     // Context Restore
-    RestoreNamespaces {
-        default: String,
-        selected: Vec<String>,
+    RestoreContext {
+        context: String,
+        namespaces: Vec<String>,
     },
     // Event
     Event(Result<Vec<String>>),
     // Namespace
+    // for multiple namespace
     GetNamespacesRequest,
     GetNamespacesResponse(Vec<String>),
     SetNamespacesRequest(Vec<String>),
@@ -322,9 +324,9 @@ fn restore_state(
             api_resources,
         } = state;
 
-        tx.send(Event::Kube(Kube::RestoreNamespaces {
-            default: default_namespace.to_string(),
-            selected: namespaces.to_owned(),
+        tx.send(Event::Kube(Kube::RestoreContext {
+            context: context.to_string(),
+            namespaces: namespaces.to_owned(),
         }))?;
 
         tx.send(Event::Kube(Kube::RestoreAPIs(api_resources.to_vec())))?;

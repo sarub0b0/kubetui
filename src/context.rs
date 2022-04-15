@@ -20,23 +20,21 @@ impl Display for Context {
 }
 
 #[derive(Debug, Default)]
-pub struct Namespace {
-    // pub default: String,
-    pub selected: Vec<String>,
-}
+pub struct Namespace(pub Vec<String>);
 
 impl Namespace {
     pub fn new() -> Self {
-        Self {
-            // default: "None".to_string(),
-            selected: vec!["None".to_string()],
-        }
+        Self(vec!["None".to_string()])
+    }
+
+    pub fn update(&mut self, ns: impl Into<Vec<String>>) {
+        self.0 = ns.into();
     }
 }
 
 impl Display for Namespace {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.selected.join(", "))
+        write!(f, "{}", self.0.join(", "))
     }
 }
 
@@ -48,13 +46,13 @@ mod tests {
     fn namespace_display() {
         let mut ns = Namespace::new();
 
-        ns.selected = vec![
+        ns.update(vec![
             "a".to_string(),
             "b".to_string(),
             "c".to_string(),
             "d".to_string(),
             "e".to_string(),
-        ];
+        ]);
 
         assert_eq!("a, b, c, d, e".to_string(), ns.to_string())
     }
