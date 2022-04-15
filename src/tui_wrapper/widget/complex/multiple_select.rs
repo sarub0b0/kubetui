@@ -730,11 +730,19 @@ impl WidgetTrait for MultipleSelect<'_> {
 
     fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
         match self.input_widget.on_key_event(ev) {
-            EventResult::Ignore => {
-                if let KeyCode::Tab | KeyCode::BackTab = key_event_to_code(ev) {
+            EventResult::Ignore => match key_event_to_code(ev) {
+                KeyCode::Tab | KeyCode::BackTab => {
                     self.selected_widget.toggle_focus();
                     EventResult::Nop
-                } else {
+                }
+                KeyCode::Enter => {
+                    let ret = self.selected_widget.on_key_event(KeyCode::Enter.into());
+
+                    self.toggle_select_unselect();
+
+                    ret
+                }
+                _ => {
                     let ret = self.selected_widget.on_key_event(ev);
 
                     if let EventResult::Callback(_) = &ret {
@@ -743,7 +751,7 @@ impl WidgetTrait for MultipleSelect<'_> {
 
                     ret
                 }
-            }
+            },
             _ => {
                 self.selected_widget.focus(0);
                 self.selected_widget
