@@ -4,7 +4,10 @@ use std::{
     cell::RefCell,
     io, panic,
     rc::Rc,
-    sync::{atomic::AtomicBool, Arc},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
     thread, time,
 };
 
@@ -114,7 +117,7 @@ fn run(config: Config) -> Result<()> {
     terminal.clear()?;
     window.update_chunks(terminal.size()?);
 
-    loop {
+    while !is_terminated.load(Ordering::Relaxed) {
         terminal.draw(|f| {
             window.render(f);
         })?;
