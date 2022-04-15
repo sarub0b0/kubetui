@@ -92,8 +92,6 @@ impl<'a> ApiTabBuilder<'a> {
                     .find_widget_mut(view_id::popup_api)
                     .as_mut_multiple_select();
 
-                widget.toggle_select_unselect();
-
                 if let Some(crate::tui_wrapper::widget::SelectedItem::Array(item)) =
                     widget.widget_item()
                 {
