@@ -597,6 +597,18 @@ impl Worker for MainWorker {
                         }
 
                         Kube::SetContext(ctx) => {
+                            if let Some(h) = log_stream_handler {
+                                h.abort();
+                            }
+
+                            if let Some(h) = network_handler {
+                                h.abort();
+                            }
+
+                            if let Some(h) = yaml_handler {
+                                h.abort();
+                            }
+
                             return Ok(WorkerResult::ChangedContext(ctx));
                         }
 
