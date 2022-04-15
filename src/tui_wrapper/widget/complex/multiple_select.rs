@@ -737,20 +737,10 @@ impl WidgetTrait for MultipleSelect<'_> {
                 }
                 KeyCode::Enter => {
                     let ret = self.selected_widget.on_key_event(KeyCode::Enter.into());
-
                     self.toggle_select_unselect();
-
                     ret
                 }
-                _ => {
-                    let ret = self.selected_widget.on_key_event(ev);
-
-                    if let EventResult::Callback(_) = &ret {
-                        self.toggle_select_unselect();
-                    }
-
-                    ret
-                }
+                _ => self.selected_widget.on_key_event(ev),
             },
             _ => {
                 self.selected_widget.focus(0);
