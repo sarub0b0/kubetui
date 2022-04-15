@@ -41,8 +41,9 @@ use kubetui::logging::logging;
 
 macro_rules! enable_raw_mode {
     () => {
-        enable_raw_mode().unwrap();
-        execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture).unwrap();
+        enable_raw_mode().expect("failed to enable raw mode");
+        execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)
+            .expect("failed to enable raw mode");
     };
 }
 
@@ -54,8 +55,8 @@ macro_rules! disable_raw_mode {
             DisableMouseCapture,
             Show
         )
-        .unwrap();
-        disable_raw_mode().unwrap();
+        .expect("failed to restore terminal");
+        disable_raw_mode().expect("failed to disable raw mode");
     };
 }
 
