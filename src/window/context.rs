@@ -44,8 +44,6 @@ impl<'a> ContextPopupBuilder<'a> {
                     .find_widget_mut(view_id::popup_ns)
                     .as_mut_multiple_select();
 
-                widget.toggle_select_unselect();
-
                 let mut items: Vec<String> = widget
                     .selected_items()
                     .iter()

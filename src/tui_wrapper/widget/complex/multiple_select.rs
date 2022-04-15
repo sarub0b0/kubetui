@@ -713,13 +713,19 @@ impl WidgetTrait for MultipleSelect<'_> {
 
         let chunks = &self.inner_chunks;
 
-        if contains(chunks[LAYOUT_INDEX_FOR_INPUT_FORM], pos) {
+        let ret = if contains(chunks[LAYOUT_INDEX_FOR_INPUT_FORM], pos) {
             self.input_widget.on_mouse_event(ev)
         } else if contains(chunks[LAYOUT_INDEX_FOR_SELECT_FORM], pos) {
             self.selected_widget.on_mouse_event(ev)
         } else {
             EventResult::Nop
+        };
+
+        if let EventResult::Callback(_) = &ret {
+            self.toggle_select_unselect();
         }
+
+        ret
     }
 
     fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
@@ -727,17 +733,24 @@ impl WidgetTrait for MultipleSelect<'_> {
             EventResult::Ignore => {
                 if let KeyCode::Tab | KeyCode::BackTab = key_event_to_code(ev) {
                     self.selected_widget.toggle_focus();
+                    EventResult::Nop
                 } else {
-                    return self.selected_widget.on_key_event(ev);
+                    let ret = self.selected_widget.on_key_event(ev);
+
+                    if let EventResult::Callback(_) = &ret {
+                        self.toggle_select_unselect();
+                    }
+
+                    ret
                 }
             }
             _ => {
                 self.selected_widget.focus(0);
                 self.selected_widget
                     .update_filter(self.input_widget.content());
+                EventResult::Nop
             }
         }
-        EventResult::Nop
     }
 
     fn update_chunk(&mut self, chunk: Rect) {
