@@ -125,7 +125,8 @@ fn run(config: Config) -> Result<()> {
         match window_action(&mut window, &rx_main) {
             WindowEvent::Continue => {}
             WindowEvent::CloseWindow => {
-                break;
+                is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
+                // break
             }
             WindowEvent::ResizeWindow(w, h) => {
                 let chunk = Rect::new(0, 0, w, h);
@@ -143,15 +144,13 @@ fn run(config: Config) -> Result<()> {
         }
     }
 
-    is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
-
-    read_key_handler.join().unwrap();
+    read_key_handler.join().expect("read_key thread panicked")?;
 
     kube_process_handler
         .join()
-        .unwrap_or_else(|e| *e.downcast().unwrap())?;
+        .expect("kube_process thread panicked")?;
 
-    tick_handler.join().unwrap();
+    tick_handler.join().expect("tick thread panicked")?;
 
     Ok(())
 }

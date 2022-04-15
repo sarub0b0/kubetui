@@ -6,29 +6,38 @@ use std::sync::{
 use crate::panic_set_hook;
 
 use super::*;
+use anyhow::Result;
 use crossbeam::channel::Sender;
 
 use tokio::runtime::Runtime;
 use tokio::time;
 
-pub fn tick(tx: Sender<Event>, rate: time::Duration, is_terminated: Arc<AtomicBool>) {
-    let is_terminated_clone = is_terminated.clone();
+pub fn tick(tx: Sender<Event>, rate: time::Duration, is_terminated: Arc<AtomicBool>) -> Result<()> {
+    let is_terminated_panic = is_terminated.clone();
     panic_set_hook!({
-        is_terminated_clone.store(true, std::sync::atomic::Ordering::Relaxed);
+        is_terminated_panic.store(true, std::sync::atomic::Ordering::Relaxed);
     });
 
-    let rt = Runtime::new().unwrap();
+    let rt = Runtime::new()?;
 
-    rt.block_on(async move {
+    let is_terminated_rt = is_terminated.clone();
+
+    let ret: Result<()> = rt.block_on(async move {
         let mut interval = time::interval(rate);
 
-        while !is_terminated.load(Ordering::Relaxed) {
+        while !is_terminated_rt.load(Ordering::Relaxed) {
             interval.tick().await;
 
-            tx.send(Event::Tick).unwrap();
+            tx.send(Event::Tick)?;
         }
+
+        Ok(())
     });
+
+    is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
 
     #[cfg(feature = "logging")]
     log::debug!("Terminated tick event");
+
+    ret
 }

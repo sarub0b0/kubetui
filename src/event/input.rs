@@ -10,32 +10,40 @@ use crate::panic_set_hook;
 
 use super::*;
 
+use anyhow::Result;
 use crossbeam::channel::Sender;
 
 use crossterm::event::{poll, read, Event as CEvent};
 
-pub fn read_key(tx: Sender<Event>, is_terminated: Arc<AtomicBool>) {
-    let is_terminated_clone = is_terminated.clone();
+pub fn read_key(tx: Sender<Event>, is_terminated: Arc<AtomicBool>) -> Result<()> {
+    let is_terminated_panic = is_terminated.clone();
     panic_set_hook!({
-        is_terminated_clone.store(true, std::sync::atomic::Ordering::Relaxed);
+        is_terminated_panic.store(true, std::sync::atomic::Ordering::Relaxed);
     });
 
-    while !is_terminated.load(Ordering::Relaxed) {
-        if let Ok(true) = poll(Duration::from_secs(1)) {
-            if let Ok(ev) = read() {
+    let ret: Result<()> = {
+        while !is_terminated.load(Ordering::Relaxed) {
+            if let Ok(true) = poll(Duration::from_secs(1)) {
+                let ev = read()?;
+
                 #[cfg(feature = "logging")]
                 log::debug!("{:?}", ev);
 
                 match ev {
-                    CEvent::Key(ev) => tx.send(Event::User(UserEvent::Key(ev))).unwrap(),
-                    CEvent::Mouse(ev) => tx.send(Event::User(UserEvent::Mouse(ev))).unwrap(),
-                    CEvent::Resize(w, h) => tx.send(Event::User(UserEvent::Resize(w, h))).unwrap(),
+                    CEvent::Key(ev) => tx.send(Event::User(UserEvent::Key(ev)))?,
+                    CEvent::Mouse(ev) => tx.send(Event::User(UserEvent::Mouse(ev)))?,
+                    CEvent::Resize(w, h) => tx.send(Event::User(UserEvent::Resize(w, h)))?,
                 }
             }
-        } else {
         }
-    }
+
+        Ok(())
+    };
+
+    is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
 
     #[cfg(feature = "logging")]
     log::debug!("Terminated read-key event");
+
+    ret
 }

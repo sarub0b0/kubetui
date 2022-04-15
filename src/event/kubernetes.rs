@@ -31,7 +31,6 @@ use worker::Worker;
 use std::{
     collections::{BTreeMap, HashMap},
     convert::TryFrom,
-    panic,
     sync::atomic::AtomicBool,
     sync::Arc,
     time::Duration,
@@ -462,21 +461,23 @@ pub fn kube_process(
     rx: Receiver<Event>,
     is_terminated: Arc<AtomicBool>,
 ) -> Result<()> {
-    let is_terminated_clone = is_terminated.clone();
+    let is_terminated_panic = is_terminated.clone();
     panic_set_hook!({
-        is_terminated_clone.store(true, std::sync::atomic::Ordering::Relaxed);
+        is_terminated_panic.store(true, std::sync::atomic::Ordering::Relaxed);
     });
 
     let rt = Runtime::new()?;
 
-    if let Err(e) = rt.block_on(inner_kube_process(tx, rx, is_terminated)) {
-        panic!("{}", e);
-    }
+    let is_terminated_rt = is_terminated.clone();
+
+    let ret = rt.block_on(inner_kube_process(tx, rx, is_terminated_rt));
+
+    is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
 
     #[cfg(feature = "logging")]
     ::log::debug!("Terminated kube event");
 
-    Ok(())
+    ret
 }
 
 async fn namespace_list(client: KubeClient) -> Vec<String> {
