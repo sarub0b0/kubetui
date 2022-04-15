@@ -7,6 +7,7 @@ use crate::{
     error::Result,
     event::{
         kubernetes::{
+            api_resources::{ApiMessage, ApiResponse},
             config::ConfigMessage,
             network::{NetworkMessage, NetworkResponse},
             yaml::{YamlMessage, YamlResourceListItem, YamlResponse},
@@ -232,10 +233,6 @@ pub fn update_contents(
             update_widget_item_for_vec(window, view_id::tab_event_widget_event, ev);
         }
 
-        Kube::APIsResults(apis) => {
-            update_widget_item_for_vec(window, view_id::tab_api_widget_api, apis);
-        }
-
         Kube::GetNamespacesResponse(ns) => {
             window
                 .find_widget_mut(view_id::popup_ns)
@@ -251,10 +248,6 @@ pub fn update_contents(
 
         Kube::SetNamespacesResponse(ns) => {
             namespace.update(ns);
-        }
-
-        Kube::GetAPIsResponse(apis) => {
-            update_widget_item_for_vec(window, view_id::popup_api, apis);
         }
 
         Kube::GetContextsResponse(ctxs) => {
@@ -286,6 +279,19 @@ pub fn update_contents(
 
             for api in apis {
                 w.select_item(&api.into());
+            }
+        }
+
+        Kube::API(ApiMessage::Response(res)) => {
+            use ApiResponse::*;
+            match res {
+                Get(api) => {
+                    update_widget_item_for_vec(window, view_id::popup_api, api);
+                }
+                Set(_) => {}
+                Poll(api) => {
+                    update_widget_item_for_vec(window, view_id::tab_api_widget_api, api);
+                }
             }
         }
 

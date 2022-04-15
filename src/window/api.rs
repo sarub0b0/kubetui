@@ -2,17 +2,17 @@ use crossbeam::channel::Sender;
 
 use std::{cell::RefCell, rc::Rc};
 
-use crate::clipboard_wrapper::ClipboardContextWrapper;
-
-use crate::event::{kubernetes::*, Event};
-
-use crate::action::view_id;
-
-use crate::tui_wrapper::{
-    event::EventResult,
-    tab::WidgetData,
-    widget::{config::WidgetConfig, MultipleSelect, Text, Widget, WidgetTrait},
-    Tab, Window,
+use crate::{
+    action::view_id,
+    clipboard_wrapper::ClipboardContextWrapper,
+    event::kubernetes::api_resources::ApiRequest,
+    event::Event,
+    tui_wrapper::{
+        event::EventResult,
+        tab::WidgetData,
+        widget::{config::WidgetConfig, MultipleSelect, SelectedItem, Text, Widget, WidgetTrait},
+        Tab, Window,
+    },
 };
 
 pub struct ApiTabBuilder<'a> {
@@ -52,7 +52,7 @@ impl<'a> ApiTabBuilder<'a> {
         let tx = self.tx.clone();
 
         let open_subwin = move |w: &mut Window| {
-            tx.send(Event::Kube(Kube::GetAPIsRequest)).unwrap();
+            tx.send(ApiRequest::Get.into()).unwrap();
             w.open_popup(view_id::popup_api);
             EventResult::Nop
         };
@@ -92,11 +92,9 @@ impl<'a> ApiTabBuilder<'a> {
                     .find_widget_mut(view_id::popup_api)
                     .as_mut_multiple_select();
 
-                if let Some(crate::tui_wrapper::widget::SelectedItem::Array(item)) =
-                    widget.widget_item()
-                {
+                if let Some(SelectedItem::Array(item)) = widget.widget_item() {
                     let apis = item.iter().map(|i| i.item.to_string()).collect();
-                    tx.send(Event::Kube(Kube::SetAPIsRequest(apis))).unwrap();
+                    tx.send(ApiRequest::Set(apis).into()).unwrap();
                 }
 
                 if widget.selected_items().is_empty() {

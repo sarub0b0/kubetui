@@ -23,6 +23,49 @@ use serde_json::Value as JsonValue;
 use async_trait::async_trait;
 use std::collections::HashMap;
 
+#[derive(Debug)]
+pub enum ApiRequest {
+    Get,
+    Set(Vec<String>),
+}
+
+#[derive(Debug)]
+pub enum ApiResponse {
+    Get(Result<Vec<String>>),
+    Set(Vec<String>),
+    Poll(Result<Vec<String>>),
+}
+
+#[derive(Debug)]
+pub enum ApiMessage {
+    Request(ApiRequest),
+    Response(ApiResponse),
+}
+
+impl From<ApiRequest> for Event {
+    fn from(f: ApiRequest) -> Self {
+        Self::Kube(Kube::API(ApiMessage::Request(f)))
+    }
+}
+
+impl From<ApiResponse> for Event {
+    fn from(f: ApiResponse) -> Self {
+        Self::Kube(Kube::API(ApiMessage::Response(f)))
+    }
+}
+
+impl From<ApiMessage> for Kube {
+    fn from(f: ApiMessage) -> Self {
+        Self::API(f)
+    }
+}
+
+impl From<ApiMessage> for Event {
+    fn from(f: ApiMessage) -> Self {
+        Self::Kube(f.into())
+    }
+}
+
 pub type ApiDatabase = Arc<RwLock<InnerApiDatabase>>;
 pub type InnerApiDatabase = HashMap<String, APIInfo>;
 
@@ -91,7 +134,7 @@ impl Worker for ApiPollWorker {
             let db = api_database.read().await;
             let result = get_api_resources(kube_client, &namespaces, &apis, &db).await;
 
-            tx.send(Event::Kube(Kube::APIsResults(result))).unwrap();
+            tx.send(ApiResponse::Poll(result).into()).unwrap();
         }
 
         Ok(WorkerResult::Terminated)

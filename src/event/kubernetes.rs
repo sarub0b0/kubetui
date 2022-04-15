@@ -1,4 +1,4 @@
-mod api_resources;
+pub mod api_resources;
 mod client;
 pub mod config;
 mod event;
@@ -11,7 +11,9 @@ mod worker;
 pub mod yaml;
 
 use self::{
-    api_resources::{apis_list_from_api_database, ApiDatabase},
+    api_resources::{
+        apis_list_from_api_database, ApiDatabase, ApiMessage, ApiRequest, ApiResponse,
+    },
     config::ConfigMessage,
     network::NetworkDescriptionWorker,
     yaml::{
@@ -144,10 +146,8 @@ impl From<Kube> for Event {
 #[derive(Debug)]
 pub enum Kube {
     // apis
-    GetAPIsRequest,
-    GetAPIsResponse(Result<Vec<String>>),
-    SetAPIsRequest(Vec<String>),
-    APIsResults(Result<Vec<String>>),
+    API(ApiMessage),
+
     RestoreAPIs(Vec<String>),
     // Context
     // for header
@@ -578,15 +578,20 @@ impl Worker for MainWorker {
                             tx.send(ConfigMessage::DataResponse(raw).into())?;
                         }
 
-                        Kube::GetAPIsRequest => {
-                            let db = api_database.read().await;
-                            let apis = apis_list_from_api_database(&db);
-                            tx.send(Event::Kube(Kube::GetAPIsResponse(Ok(apis))))?;
-                        }
-
-                        Kube::SetAPIsRequest(apis) => {
-                            let mut api_resources = api_resources.write().await;
-                            *api_resources = apis;
+                        Kube::API(ApiMessage::Request(req)) => {
+                            use ApiRequest::*;
+                            match req {
+                                Get => {
+                                    let db = api_database.read().await;
+                                    let apis = apis_list_from_api_database(&db);
+                                    tx.send(ApiResponse::Get(Ok(apis)).into())?;
+                                }
+                                Set(req) => {
+                                    let mut api_resources = api_resources.write().await;
+                                    *api_resources = req.clone();
+                                    // tx.send(ApiResponse::Get(Ok(req.clone())).into())?;
+                                }
+                            }
                         }
 
                         Kube::GetContextsRequest => {
