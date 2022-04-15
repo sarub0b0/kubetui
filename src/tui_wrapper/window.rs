@@ -33,7 +33,6 @@ pub struct Window<'a> {
     callbacks: Vec<(UserEvent, InnerCallback)>,
     popups: Vec<Widget<'a>>,
     open_popup_id: Option<String>,
-    // header: Option<HeaderCallback>,
     header: Option<Header<'a>>,
     layout_index: WindowLayoutIndex,
 }
