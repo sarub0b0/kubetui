@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{path::PathBuf, str::FromStr};
 
 use clap::Parser;
 
@@ -47,6 +47,10 @@ pub struct Config {
         display_order = 1000,
         )]
     all_namespaces: bool,
+
+    /// kubeconfig path
+    #[clap(long, display_order = 1000)]
+    kubeconfig: Option<PathBuf>,
 }
 
 impl Config {
