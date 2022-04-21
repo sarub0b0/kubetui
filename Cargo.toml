@@ -20,7 +20,7 @@ stack-widget = []
 
 [dependencies]
 crossbeam = "0.8"
-clap = { version = "3", features = ["wrap_help", "derive"] }
+clap = { version = "3", features = ["wrap_help", "derive", "cargo"] }
 
 # ansi
 nom = "7.1.1"
