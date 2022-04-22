@@ -48,7 +48,7 @@ pub enum YamlRequest {
 
 impl From<YamlRequest> for Event {
     fn from(req: YamlRequest) -> Self {
-        Event::Kube(Kube::Yaml(YamlMessage::Request(req).into()))
+        Event::Kube(Kube::Yaml(YamlMessage::Request(req)))
     }
 }
 
@@ -61,7 +61,7 @@ pub enum YamlResponse {
 
 impl From<YamlResponse> for Event {
     fn from(res: YamlResponse) -> Self {
-        Event::Kube(Kube::Yaml(YamlMessage::Response(res).into()))
+        Event::Kube(Kube::Yaml(YamlMessage::Response(res)))
     }
 }
 
