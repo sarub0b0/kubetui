@@ -33,6 +33,7 @@ use worker::Worker;
 use std::{
     collections::{BTreeMap, HashMap},
     convert::TryFrom,
+    path::PathBuf,
     sync::atomic::AtomicBool,
     sync::Arc,
     time::Duration,
@@ -355,10 +356,18 @@ async fn inner_kube_process(
     tx: Sender<Event>,
     rx: Receiver<Event>,
     is_terminated: Arc<AtomicBool>,
+    kubeconfig: Option<PathBuf>,
+    _namespaces: Option<Vec<String>>,
+    context: Option<String>,
+    _all_namespaces: bool,
 ) -> Result<()> {
-    let kubeconfig = Kubeconfig::read()?;
+    let kubeconfig = if let Some(path) = kubeconfig {
+        Kubeconfig::read_from(path)?
+    } else {
+        Kubeconfig::read()?
+    };
 
-    let mut context: Option<String> = None;
+    let mut context: Option<String> = context;
 
     let mut kube_state: HashMap<String, KubeState> = HashMap::new();
 
@@ -460,6 +469,10 @@ pub fn kube_process(
     tx: Sender<Event>,
     rx: Receiver<Event>,
     is_terminated: Arc<AtomicBool>,
+    kubeconfig: Option<PathBuf>,
+    namespaces: Option<Vec<String>>,
+    context: Option<String>,
+    all_namespaces: bool,
 ) -> Result<()> {
     let is_terminated_panic = is_terminated.clone();
     panic_set_hook!({
@@ -470,7 +483,15 @@ pub fn kube_process(
 
     let is_terminated_rt = is_terminated.clone();
 
-    let ret = rt.block_on(inner_kube_process(tx, rx, is_terminated_rt));
+    let ret = rt.block_on(inner_kube_process(
+        tx,
+        rx,
+        is_terminated_rt,
+        kubeconfig,
+        namespaces,
+        context,
+        all_namespaces,
+    ));
 
     is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
 

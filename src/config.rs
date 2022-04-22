@@ -15,7 +15,7 @@ pub struct Config {
         possible_values = ["v", "h", "vertical", "horizontal"],
         display_order = 1000,
         )]
-    split_mode: Option<DirectionWrapper>,
+    pub split_mode: Option<DirectionWrapper>,
 
     /// Namespaces (e.q. -n val1,val2,val3 | -n val1 -n val2 -n val3)
     #[clap(
@@ -25,11 +25,11 @@ pub struct Config {
         value_delimiter = ',',
         display_order = 1000
     )]
-    namespaces: Option<Vec<String>>,
+    pub namespaces: Option<Vec<String>>,
 
     /// Context
     #[clap(short, long, display_order = 1000)]
-    context: Option<String>,
+    pub context: Option<String>,
 
     /// Select all namespaces
     #[clap(
@@ -46,11 +46,11 @@ pub struct Config {
         hide_possible_values = true,
         display_order = 1000,
         )]
-    all_namespaces: bool,
+    pub all_namespaces: bool,
 
     /// kubeconfig path
-    #[clap(long, display_order = 1000)]
-    kubeconfig: Option<PathBuf>,
+    #[clap(short = 'C', long, display_order = 1000)]
+    pub kubeconfig: Option<PathBuf>,
 }
 
 impl Config {
@@ -66,7 +66,7 @@ impl Config {
 }
 
 #[derive(Debug, Clone, Copy)]
-enum DirectionWrapper {
+pub enum DirectionWrapper {
     Horizontal,
     Vertical,
 }
@@ -74,6 +74,15 @@ enum DirectionWrapper {
 impl Default for DirectionWrapper {
     fn default() -> Self {
         Self::Vertical
+    }
+}
+
+impl From<DirectionWrapper> for Direction {
+    fn from(d: DirectionWrapper) -> Self {
+        match d {
+            DirectionWrapper::Vertical => Direction::Vertical,
+            DirectionWrapper::Horizontal => Direction::Horizontal,
+        }
     }
 }
 

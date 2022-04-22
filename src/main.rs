@@ -28,7 +28,7 @@ extern crate kubetui;
 
 use kubetui::{
     action::{update_contents, window_action},
-    config::{configure, Config},
+    config::{configure, Config, DirectionWrapper},
     context::{Context, Namespace},
     error::Result,
     event::{input::*, kubernetes::*, tick::*, Event},
@@ -61,6 +61,14 @@ macro_rules! disable_raw_mode {
 }
 
 fn run(config: Config) -> Result<()> {
+    let Config {
+        split_mode,
+        namespaces,
+        context,
+        all_namespaces,
+        kubeconfig,
+    } = config;
+
     let (tx_input, rx_main): (Sender<Event>, Receiver<Event>) = bounded(128);
     let (tx_main, rx_kube): (Sender<Event>, Receiver<Event>) = bounded(256);
     let tx_kube = tx_input.clone();
@@ -73,8 +81,17 @@ fn run(config: Config) -> Result<()> {
     let read_key_handler = thread::spawn(move || read_key(tx_input, is_terminated_clone));
 
     let is_terminated_clone = is_terminated.clone();
-    let kube_process_handler =
-        thread::spawn(move || kube_process(tx_kube, rx_kube, is_terminated_clone));
+    let kube_process_handler = thread::spawn(move || {
+        kube_process(
+            tx_kube,
+            rx_kube,
+            is_terminated_clone,
+            kubeconfig,
+            namespaces,
+            context,
+            all_namespaces,
+        )
+    });
 
     let is_terminated_clone = is_terminated.clone();
     let tick_handler = thread::spawn(move || {
@@ -108,7 +125,7 @@ fn run(config: Config) -> Result<()> {
     )?;
 
     let mut window = WindowInit::new(
-        config.split_mode(),
+        split_mode.map_or(DirectionWrapper::default().into(), |s| s.into()),
         tx_main,
         context.clone(),
         namespace.clone(),
