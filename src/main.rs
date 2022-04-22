@@ -148,27 +148,27 @@ fn run(config: Config) -> Result<()> {
     match read_key_handler.join() {
         Ok(ret) => ret?,
         Err(e) => {
-            e.downcast_ref::<&str>().map(|e| {
+            if let Some(e) = e.downcast_ref::<&str>() {
                 panic!("read_key thread panicked: {:?}", e);
-            });
+            };
         }
     }
 
     match kube_process_handler.join() {
         Ok(ret) => ret?,
         Err(e) => {
-            e.downcast_ref::<&str>().map(|e| {
+            if let Some(e) = e.downcast_ref::<&str>() {
                 panic!("kube_process thread panicked: {:?}", e);
-            });
+            };
         }
     }
 
     match tick_handler.join() {
         Ok(ret) => ret?,
         Err(e) => {
-            e.downcast_ref::<&str>().map(|e| {
+            if let Some(e) = e.downcast_ref::<&str>() {
                 panic!("tick thread panicked: {:?}", e);
-            });
+            };
         }
     }
 
