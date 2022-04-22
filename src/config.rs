@@ -17,7 +17,7 @@ pub struct Config {
         )]
     pub split_mode: Option<DirectionWrapper>,
 
-    /// Namespaces (e.q. -n val1,val2,val3 | -n val1 -n val2 -n val3)
+    /// Namespaces (e.g. -n val1,val2,val3 | -n val1 -n val2 -n val3)
     #[clap(
         short,
         long,
