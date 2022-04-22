@@ -292,19 +292,13 @@ pub enum WorkerResult {
 
 #[derive(Debug, Default)]
 struct KubeState {
-    default_namespace: String,
     selected_namespaces: Vec<String>, // selected
     api_resources: Vec<String>,
 }
 
 impl KubeState {
-    fn new(
-        default_namespace: impl Into<String>,
-        namespaces: impl Into<Vec<String>>,
-        api_resources: impl Into<Vec<String>>,
-    ) -> Self {
+    fn new(namespaces: impl Into<Vec<String>>, api_resources: impl Into<Vec<String>>) -> Self {
         Self {
-            default_namespace: default_namespace.into(),
             selected_namespaces: namespaces.into(),
             api_resources: api_resources.into(),
         }
@@ -316,10 +310,9 @@ fn restore_state(
     state: &HashMap<String, KubeState>,
     context: &str,
     namespace: &str,
-) -> Result<(String, Vec<String>, Vec<String>)> {
+) -> Result<(Vec<String>, Vec<String>)> {
     let ret = if let Some(state) = state.get(context) {
         let KubeState {
-            default_namespace,
             selected_namespaces: namespaces,
             api_resources,
         } = state;
@@ -331,22 +324,14 @@ fn restore_state(
 
         tx.send(Event::Kube(Kube::RestoreAPIs(api_resources.to_vec())))?;
 
-        (
-            default_namespace.to_string(),
-            namespaces.to_owned(),
-            api_resources.to_owned(),
-        )
+        (namespaces.to_owned(), api_resources.to_owned())
     } else {
         tx.send(Event::Kube(Kube::GetCurrentContextResponse {
             current_context: context.to_string(),
             current_namespace: namespace.to_string(),
         }))?;
 
-        (
-            namespace.to_string(),
-            vec![namespace.to_string()],
-            Default::default(),
-        )
+        (vec![namespace.to_string()], Default::default())
     };
 
     Ok(ret)
@@ -376,7 +361,7 @@ async fn inner_kube_process(
             kube_worker_builder(&kubeconfig, &context).await?;
 
         // Restore
-        let (current_namespace, namespaces, api_resources) =
+        let (namespaces, api_resources) =
             restore_state(&tx, &kube_state, &current_context, &current_namespace)?;
 
         let shared_namespaces = Arc::new(RwLock::new(namespaces.clone()));
@@ -443,11 +428,7 @@ async fn inner_kube_process(
 
                             kube_state.insert(
                                 current_context.to_string(),
-                                KubeState::new(
-                                    current_namespace.to_string(),
-                                    namespaces.to_vec(),
-                                    api_resources.to_vec(),
-                                ),
+                                KubeState::new(namespaces.to_vec(), api_resources.to_vec()),
                             );
                         }
                         WorkerResult::Terminated => {}
