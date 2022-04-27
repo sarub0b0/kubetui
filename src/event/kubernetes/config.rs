@@ -303,7 +303,7 @@ pub async fn get_config(
 ) -> Result<Vec<String>> {
     match kind {
         "ConfigMap" => {
-            let cms: Api<ConfigMap> = Api::namespaced(client.client_clone(), ns);
+            let cms: Api<ConfigMap> = Api::namespaced(client.as_client().clone(), ns);
             let cm = cms.get(name).await?;
             if let Some(data) = cm.data {
                 Ok(data
@@ -317,7 +317,7 @@ pub async fn get_config(
             }
         }
         "Secret" => {
-            let secs: Api<Secret> = Api::namespaced(client.client_clone(), ns);
+            let secs: Api<Secret> = Api::namespaced(client.as_client().clone(), ns);
             let sec = secs.get(name).await?;
 
             if let Some(data) = sec.data {

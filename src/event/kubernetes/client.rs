@@ -33,28 +33,14 @@ impl KubeClient {
         Self { client, server_url }
     }
 
-    pub fn client_clone(&self) -> Client {
-        self.client.clone()
-    }
-
     #[allow(dead_code)]
     pub fn as_client(&self) -> &Client {
         &self.client
     }
 
     #[allow(dead_code)]
-    pub fn as_mut_client(&mut self) -> &mut Client {
-        &mut self.client
-    }
-
-    #[allow(dead_code)]
     pub fn as_server_url(&self) -> &String {
         &self.server_url
-    }
-
-    #[allow(dead_code)]
-    pub fn as_mut_server_url(&mut self) -> &mut String {
-        &mut self.server_url
     }
 
     async fn inner_request<T>(&self, path: &str, header: &str) -> Result<T>
