@@ -90,7 +90,7 @@ impl<'a> YamlTabBuilder<'a> {
             .widget_config(&WidgetConfig::builder().title("Kind").build())
             .on_select(move |w, v| {
                 #[cfg(feature = "logging")]
-                ::log::info!("[subwin_yaml_kind] Select Item: {}", v);
+                ::log::info!("[subwin_yaml_kind] Select Item: {:?}", v);
 
                 w.close_popup();
 
@@ -112,7 +112,7 @@ impl<'a> YamlTabBuilder<'a> {
             .widget_config(&WidgetConfig::builder().title("Name").build())
             .on_select(move |w, v| {
                 #[cfg(feature = "logging")]
-                ::log::info!("[subwin_yaml_name] Select Item: {}", v);
+                ::log::info!("[subwin_yaml_name] Select Item: {:?}", v);
 
                 w.close_popup();
 
