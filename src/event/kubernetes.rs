@@ -664,7 +664,9 @@ mod kube_store {
 
     impl PartialEq for KubeState {
         fn eq(&self, rhs: &Self) -> bool {
-            self == rhs
+            self.namespaces == rhs.namespaces
+                && self.api_resources == rhs.api_resources
+                && self.client.as_server_url() == rhs.client.as_server_url()
         }
     }
 
