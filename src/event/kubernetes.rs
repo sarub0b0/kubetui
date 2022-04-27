@@ -385,7 +385,7 @@ pub fn kube_process(
 }
 
 async fn namespace_list(client: KubeClient) -> Vec<String> {
-    let namespaces: Api<Namespace> = Api::all(client.client_clone());
+    let namespaces: Api<Namespace> = Api::all(client.as_client().clone());
     let lp = ListParams::default();
     let ns_list = namespaces.list(&lp).await.unwrap();
 
