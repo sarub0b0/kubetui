@@ -795,6 +795,78 @@ mod inner {
             }
         }
 
+mod kube_worker {
+    use std::{
+        path::PathBuf,
+        sync::{atomic::AtomicBool, Arc},
+    };
+
+    use anyhow::{bail, Result};
+    use crossbeam::channel::{Receiver, Sender};
+
+    use crate::event::Event;
+
+    #[derive(Debug, Default)]
+    pub struct KubeWorkerConfig {
+        pub kubeconfig: Option<PathBuf>,
+        pub namespaces: Option<Vec<String>>,
+        pub context: Option<String>,
+        pub all_namespaces: bool,
+    }
+
+    #[derive(Debug)]
+    pub struct KubeWorker {
+        pub(super) tx: Sender<Event>,
+        pub(super) rx: Receiver<Event>,
+        pub(super) is_terminated: Arc<AtomicBool>,
+        pub(super) config: KubeWorkerConfig,
+    }
+
+    impl KubeWorker {
+        pub fn new(
+            tx: Sender<Event>,
+            rx: Receiver<Event>,
+            is_terminated: Arc<AtomicBool>,
+            config: KubeWorkerConfig,
+        ) -> Self {
+            KubeWorker {
+                tx,
+                rx,
+                is_terminated,
+                config,
+            }
+        }
+
+        pub fn run(&self) -> Result<()> {
+            self.is_terminated
+                .store(true, std::sync::atomic::Ordering::Relaxed);
+            bail!("Not implemented")
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        use crossbeam::channel::bounded;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn 内部エラーが発生したときis_terminatedをtrueにしてエラーを返す() {
+            let (tx, rx) = bounded::<Event>(1);
+            let is_terminated = Arc::new(AtomicBool::new(false));
+            let config = KubeWorkerConfig::default();
+
+            let worker = KubeWorker::new(tx, rx, is_terminated.clone(), config);
+
+            let result = worker.run();
+
+            assert_eq!(result.is_err(), true);
+            assert_eq!(
+                is_terminated.load(std::sync::atomic::Ordering::Relaxed),
+                true
+            );
+        }
     }
 }
 
