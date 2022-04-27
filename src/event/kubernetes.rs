@@ -600,6 +600,204 @@ impl Worker for MainWorker {
     }
 }
 
+mod inner {
+    use std::{
+        path::PathBuf,
+        sync::{atomic::AtomicBool, Arc},
+    };
+
+    use anyhow::{anyhow, bail, Result};
+    use crossbeam::channel::{Receiver, Sender};
+    use k8s_openapi::api::core::v1::Namespace;
+    use kube::{
+        api::ListParams,
+        config::{Kubeconfig, KubeconfigError},
+        Api, ResourceExt,
+    };
+
+    use crate::event::Event;
+
+    use super::{
+        kube_store::{KubeState, KubeStore},
+        kube_worker::{KubeWorker, KubeWorkerConfig},
+    };
+
+    struct Context {
+        pub inner: String,
+    }
+
+    impl Context {
+        fn try_from(kubeconfig: &Kubeconfig, context: Option<String>) -> Result<Self> {
+            let context = if let Some(context) = context {
+                kubeconfig
+                    .contexts
+                    .iter()
+                    .find_map(|ctx| {
+                        if ctx.name == context {
+                            Some(ctx.name.to_string())
+                        } else {
+                            None
+                        }
+                    })
+                    .ok_or(anyhow!(format!("Cannot find context {}", context)))?
+            } else if let Some(current_context) = &kubeconfig.current_context {
+                current_context.to_string()
+            } else {
+                kubeconfig
+                    .contexts
+                    .first()
+                    .ok_or(anyhow!("Empty contexts"))?
+                    .name
+                    .to_string()
+            };
+
+            Ok(Self { inner: context })
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use indoc::indoc;
+
+        use super::*;
+
+        const CONFIG: &str = indoc! {
+            r#"
+            apiVersion: v1
+            clusters:
+              - cluster:
+                  certificate-authority-data: ""
+                  server: https://192.168.0.1
+                name: cluster-1
+              - cluster:
+                  certificate-authority-data: ""
+                  server: https://192.168.0.2
+                name: cluster-2
+              - cluster:
+                  certificate-authority-data: ""
+                  server: https://192.168.0.3
+                name: cluster-3
+            contexts:
+              - context:
+                  cluster: cluster-1
+                  namespace: ns-1
+                  user: user-1
+                name: cluster-1
+              - context:
+                  cluster: cluster-2
+                  namespace: ns-2
+                  user: user-2
+                name: cluster-2
+              - context:
+                  cluster: cluster-3
+                  user: user-3
+                name: cluster-3
+            current-context: cluster-2
+            kind: Config
+            preferences: {}
+            users: []
+            "#
+        };
+
+        mod context {
+            use super::*;
+
+            mod context指定あり {
+                use super::*;
+                use pretty_assertions::assert_eq;
+
+                #[test]
+                fn configに存在するときokを返す() {
+                    let kubeconfig = Kubeconfig::from_yaml(CONFIG).unwrap();
+
+                    let context =
+                        Context::try_from(&kubeconfig, Some("cluster-1".to_string())).unwrap();
+
+                    assert_eq!(context.inner, "cluster-1");
+                }
+
+                #[test]
+                fn configに存在しないときerrを返す() {
+                    let kubeconfig = Kubeconfig::from_yaml(CONFIG).unwrap();
+
+                    let context = Context::try_from(&kubeconfig, Some("nothing".to_string()));
+
+                    assert_eq!(context.is_err(), true);
+                }
+            }
+
+            mod context指定なし {
+                use super::*;
+                use pretty_assertions::assert_eq;
+
+                #[test]
+                fn current_contextがあるときcurrent_contextを返す() {
+                    let kubeconfig = Kubeconfig::from_yaml(CONFIG).unwrap();
+
+                    let context = Context::try_from(&kubeconfig, None).unwrap();
+
+                    assert_eq!(context.inner, "cluster-2");
+                }
+
+                #[test]
+                fn current_contextがないとき1つ目のcontextを返す() {
+                    let config = indoc! {
+                        r#"
+                        apiVersion: v1
+                        clusters: []
+                        contexts:
+                          - context:
+                              cluster: cluster-1
+                              namespace: ns-1
+                              user: user-1
+                            name: cluster-1
+                          - context:
+                              cluster: cluster-2
+                              namespace: ns-2
+                              user: user-2
+                            name: cluster-2
+                          - context:
+                              cluster: cluster-3
+                              user: user-3
+                            name: cluster-3
+                        kind: Config
+                        preferences: {}
+                        users: []
+                        "#
+                    };
+
+                    let kubeconfig = Kubeconfig::from_yaml(config).unwrap();
+
+                    let context = Context::try_from(&kubeconfig, None).unwrap();
+
+                    assert_eq!(context.inner, "cluster-1");
+                }
+
+                #[test]
+                fn current_contextとcontextsがないときerrを返す() {
+                    let config = indoc! {
+                        r#"
+                        apiVersion: v1
+                        clusters: []
+                        contexts: []
+                        kind: Config
+                        preferences: {}
+                        users: []
+                        "#
+                    };
+
+                    let kubeconfig = Kubeconfig::from_yaml(config).unwrap();
+
+                    let context = Context::try_from(&kubeconfig, None);
+
+                    assert_eq!(context.is_err(), true);
+                }
+            }
+        }
+
+    }
+}
+
 mod kube_store {
     use std::{collections::HashMap, fmt::Debug};
 
