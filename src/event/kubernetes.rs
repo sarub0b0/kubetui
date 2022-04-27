@@ -15,6 +15,7 @@ use self::{
         apis_list_from_api_database, ApiDatabase, ApiMessage, ApiRequest, ApiResponse,
     },
     config::ConfigMessage,
+    kube_store::KubeStore,
     network::NetworkDescriptionWorker,
     yaml::{
         fetch_resource_list::FetchResourceList,
@@ -32,7 +33,6 @@ use worker::Worker;
 
 use std::{
     collections::{BTreeMap, HashMap},
-    convert::TryFrom,
     path::PathBuf,
     sync::atomic::AtomicBool,
     sync::Arc,
@@ -50,13 +50,13 @@ use async_trait::async_trait;
 
 use kube::{
     api::ListParams,
-    config::{Config, KubeConfigOptions, Kubeconfig, NamedContext},
-    Api, Client, ResourceExt,
+    config::{Kubeconfig, NamedContext},
+    Api, ResourceExt,
 };
 
 use crate::{
     error::{anyhow, Error, Result},
-    event::kubernetes::network::NetworkPollWorker,
+    event::kubernetes::{kube_store::KubeState, network::NetworkPollWorker},
     panic_set_hook,
 };
 
@@ -198,88 +198,6 @@ impl Handlers {
     }
 }
 
-fn cluster_server_url(kubeconfig: &Kubeconfig, named_context: &NamedContext) -> Result<String> {
-    let cluster_name = named_context.context.cluster.clone();
-
-    let named_cluster = kubeconfig.clusters.iter().find(|n| n.name == cluster_name);
-
-    Ok(named_cluster
-        .cloned()
-        .ok_or_else(|| Error::Raw("Failed to get cluster server URL".into()))?
-        .cluster
-        .server)
-}
-
-async fn current_namespace(client: KubeClient, named_context: &NamedContext) -> Result<String> {
-    if let Some(ns) = &named_context.context.namespace {
-        Ok(ns.to_string())
-    } else {
-        let namespaces = namespace_list(client).await;
-
-        if namespaces.iter().any(|ns| ns == "default") {
-            Ok("default".to_string())
-        } else if !namespaces.is_empty() {
-            Ok(namespaces[0].to_string())
-        } else {
-            Err(anyhow!(Error::Raw(
-                "Cannot get current namespace, namespaces".to_string()
-            )))
-        }
-    }
-}
-
-async fn kube_worker_builder(
-    kubeconfig: &Kubeconfig,
-    context: &Option<String>,
-) -> Result<(KubeClient, String, String)> {
-    let ret = if let Some(context) = &context {
-        let named_context = kubeconfig
-            .contexts
-            .iter()
-            .find(|n| n.name == *context)
-            .ok_or_else(|| Error::Raw("Cannot get contexts".into()))?;
-
-        let options = KubeConfigOptions {
-            context: Some(named_context.name.to_string()),
-            cluster: Some(named_context.context.cluster.to_string()),
-            user: Some(named_context.context.user.to_string()),
-        };
-
-        let config = Config::from_custom_kubeconfig(kubeconfig.clone(), &options).await?;
-        let client = Client::try_from(config)?;
-
-        let server_url = cluster_server_url(kubeconfig, named_context)?;
-
-        let kube_client = KubeClient::new(client, server_url);
-
-        let current_namespace = current_namespace(kube_client.clone(), named_context).await?;
-        (kube_client, current_namespace, context.to_string())
-    } else {
-        let current_context = kubeconfig
-            .current_context
-            .clone()
-            .ok_or_else(|| Error::Raw("Cannot get current context".into()))?;
-
-        let named_context = kubeconfig
-            .contexts
-            .iter()
-            .find(|n| n.name == current_context)
-            .ok_or_else(|| Error::Raw("Cannot get contexts".into()))?;
-
-        let server_url = cluster_server_url(kubeconfig, named_context)?;
-
-        let client = Client::try_default().await?;
-
-        let kube_client = KubeClient::new(client, server_url);
-
-        let current_namespace = current_namespace(kube_client.clone(), named_context).await?;
-
-        (kube_client, current_namespace, current_context)
-    };
-
-    Ok(ret)
-}
-
 pub(super) type Namespaces = Arc<RwLock<Vec<String>>>;
 pub(super) type ApiResources = Arc<RwLock<Vec<String>>>;
 
@@ -289,32 +207,59 @@ pub enum WorkerResult {
     Terminated,
 }
 
-#[derive(Debug, Default)]
-struct KubeState {
-    selected_namespaces: Vec<String>, // selected
-    api_resources: Vec<String>,
-}
+async fn inner_kube_process(
+    tx: Sender<Event>,
+    rx: Receiver<Event>,
+    is_terminated: Arc<AtomicBool>,
+    kubeconfig: Option<PathBuf>,
+    namespaces: Option<Vec<String>>,
+    context: Option<String>,
+    all_namespaces: bool,
+) -> Result<()> {
+    let kubeconfig = if let Some(path) = kubeconfig {
+        Kubeconfig::read_from(path)?
+    } else {
+        Kubeconfig::read()?
+    };
 
-impl KubeState {
-    fn new(namespaces: impl Into<Vec<String>>, api_resources: impl Into<Vec<String>>) -> Self {
-        Self {
-            selected_namespaces: namespaces.into(),
-            api_resources: api_resources.into(),
+    let mut context = if let Some(context) = context {
+        context
+    } else {
+        if let Some(current_context) = &kubeconfig.current_context {
+            current_context.to_string()
+        } else {
+            "None".to_string()
         }
-    }
-}
+    };
 
-fn restore_state(
-    tx: &Sender<Event>,
-    state: &HashMap<String, KubeState>,
-    context: &str,
-    namespace: &str,
-) -> Result<(Vec<String>, Vec<String>)> {
-    let ret = if let Some(state) = state.get(context) {
+    let mut kube_store = KubeStore::try_from_kubeconfig(kubeconfig.clone()).await?;
+
+    if let Some(namespaces) = namespaces {
+        kube_store.update_namespaces(&context, namespaces);
+    }
+
+    if all_namespaces {
+        let KubeState { client, .. } = kube_store
+            .get(&context)
+            .ok_or(anyhow!(format!("Cannot get context: {}", context)))?
+            .clone();
+
+        let namespaces = namespace_list(client).await;
+
+        kube_store.update_namespaces(&context, namespaces);
+    }
+
+    while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
+        let ctx = context.to_string();
+
         let KubeState {
-            selected_namespaces: namespaces,
+            client,
+            namespaces,
             api_resources,
-        } = state;
+        }: KubeState = kube_store
+            .get(&ctx)
+            .ok_or(anyhow!(format!("Cannot get context: {}", ctx)))?
+            .clone();
 
         tx.send(Event::Kube(Kube::RestoreContext {
             context: context.to_string(),
@@ -323,55 +268,15 @@ fn restore_state(
 
         tx.send(Event::Kube(Kube::RestoreAPIs(api_resources.to_vec())))?;
 
-        (namespaces.to_owned(), api_resources.to_owned())
-    } else {
-        tx.send(Event::Kube(Kube::GetCurrentContextResponse {
-            current_context: context.to_string(),
-            current_namespace: namespace.to_string(),
-        }))?;
-
-        (vec![namespace.to_string()], Default::default())
-    };
-
-    Ok(ret)
-}
-
-async fn inner_kube_process(
-    tx: Sender<Event>,
-    rx: Receiver<Event>,
-    is_terminated: Arc<AtomicBool>,
-    kubeconfig: Option<PathBuf>,
-    _namespaces: Option<Vec<String>>,
-    context: Option<String>,
-    _all_namespaces: bool,
-) -> Result<()> {
-    let kubeconfig = if let Some(path) = kubeconfig {
-        Kubeconfig::read_from(path)?
-    } else {
-        Kubeconfig::read()?
-    };
-
-    let mut context: Option<String> = context;
-
-    let mut kube_state: HashMap<String, KubeState> = HashMap::new();
-
-    while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
-        let (kube_client, current_namespace, current_context) =
-            kube_worker_builder(&kubeconfig, &context).await?;
-
-        // Restore
-        let (namespaces, api_resources) =
-            restore_state(&tx, &kube_state, &current_context, &current_namespace)?;
-
-        let shared_namespaces = Arc::new(RwLock::new(namespaces.clone()));
-        let shared_api_resources = Arc::new(RwLock::new(api_resources.clone()));
+        let shared_namespaces = Arc::new(RwLock::new(namespaces.to_vec()));
+        let shared_api_resources = Arc::new(RwLock::new(api_resources.to_vec()));
         let shared_api_database = Arc::new(RwLock::new(HashMap::new()));
 
         let poll_worker = PollWorker {
             namespaces: shared_namespaces.clone(),
             tx: tx.clone(),
             is_terminated: is_terminated.clone(),
-            kube_client,
+            kube_client: client.clone(),
         };
 
         let main_handler = MainWorker {
@@ -420,14 +325,18 @@ async fn inner_kube_process(
                         WorkerResult::ChangedContext(ctx) => {
                             abort(&handlers);
 
-                            context = Some(ctx);
+                            context = ctx;
 
                             let namespaces = shared_namespaces.read().await;
                             let api_resources = shared_api_resources.read().await;
 
-                            kube_state.insert(
-                                current_context.to_string(),
-                                KubeState::new(namespaces.to_vec(), api_resources.to_vec()),
+                            kube_store.insert(
+                                context.to_string(),
+                                KubeState::new(
+                                    client.clone(),
+                                    namespaces.to_vec(),
+                                    api_resources.to_vec(),
+                                ),
                             );
                         }
                         WorkerResult::Terminated => {}
@@ -711,10 +620,25 @@ mod kube_store {
 
     pub type Context = String;
 
+    #[derive(Clone)]
     pub struct KubeState {
         pub client: KubeClient,
         pub namespaces: Vec<String>,
         pub api_resources: Vec<String>,
+    }
+
+    impl KubeState {
+        pub fn new(
+            client: KubeClient,
+            namespaces: Vec<String>,
+            api_resources: Vec<String>,
+        ) -> Self {
+            Self {
+                client,
+                namespaces,
+                api_resources,
+            }
+        }
     }
 
     #[derive(Debug, PartialEq)]
@@ -745,7 +669,7 @@ mod kube_store {
     }
 
     impl KubeStore {
-        async fn try_from_kubeconfig(config: Kubeconfig) -> Result<Self> {
+        pub async fn try_from_kubeconfig(config: Kubeconfig) -> Result<Self> {
             let Kubeconfig {
                 clusters,
                 contexts,
@@ -800,6 +724,20 @@ mod kube_store {
             let inner: HashMap<Context, KubeState> = jobs.into_iter().collect();
 
             Ok(inner.into())
+        }
+
+        pub fn update_namespaces(&mut self, context: &str, namespaces: Vec<String>) {
+            if let Some(state) = self.inner.get_mut(context) {
+                state.namespaces = namespaces
+            }
+        }
+
+        pub fn get(&self, context: &str) -> Option<&KubeState> {
+            self.inner.get(context)
+        }
+
+        pub fn insert(&mut self, context: Context, state: KubeState) {
+            self.inner.insert(context, state);
         }
     }
 
