@@ -55,7 +55,7 @@ use kube::{
 };
 
 use crate::{
-    error::{anyhow, Error, Result},
+    error::{Error, Result},
     event::kubernetes::{kube_store::KubeState, network::NetworkPollWorker},
     panic_set_hook,
 };
@@ -235,18 +235,15 @@ async fn inner_kube_process(
     let mut kube_store = KubeStore::try_from_kubeconfig(kubeconfig.clone()).await?;
 
     if let Some(namespaces) = namespaces {
-        kube_store.update_namespaces(&context, namespaces);
+        kube_store.update_namespaces(&context, namespaces)?;
     }
 
     if all_namespaces {
-        let KubeState { client, .. } = kube_store
-            .get(&context)
-            .ok_or(anyhow!(format!("Cannot get context: {}", context)))?
-            .clone();
+        let KubeState { client, .. } = kube_store.get(&context)?.clone();
 
         let namespaces = namespace_list(client).await;
 
-        kube_store.update_namespaces(&context, namespaces);
+        kube_store.update_namespaces(&context, namespaces)?;
     }
 
     while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
@@ -256,10 +253,7 @@ async fn inner_kube_process(
             client,
             namespaces,
             api_resources,
-        }: KubeState = kube_store
-            .get(&ctx)
-            .ok_or(anyhow!(format!("Cannot get context: {}", ctx)))?
-            .clone();
+        } = kube_store.get(&ctx)?.clone();
 
         tx.send(Event::Kube(Kube::RestoreContext {
             context: context.to_string(),
@@ -609,7 +603,7 @@ impl Worker for MainWorker {
 mod kube_store {
     use std::{collections::HashMap, fmt::Debug};
 
-    use anyhow::Result;
+    use anyhow::{anyhow, Result};
     use futures::future::try_join_all;
     use kube::{
         config::{KubeConfigOptions, Kubeconfig},
@@ -728,14 +722,21 @@ mod kube_store {
             Ok(inner.into())
         }
 
-        pub fn update_namespaces(&mut self, context: &str, namespaces: Vec<String>) {
-            if let Some(state) = self.inner.get_mut(context) {
-                state.namespaces = namespaces
-            }
+        pub fn update_namespaces(&mut self, context: &str, namespaces: Vec<String>) -> Result<()> {
+            let KubeState { namespaces: ns, .. } = self
+                .inner
+                .get_mut(context)
+                .ok_or(anyhow!(format!("Cannot get context {}", context)))?;
+
+            *ns = namespaces;
+
+            Ok(())
         }
 
-        pub fn get(&self, context: &str) -> Option<&KubeState> {
-            self.inner.get(context)
+        pub fn get(&self, context: &str) -> Result<&KubeState> {
+            self.inner
+                .get(context)
+                .ok_or(anyhow!(format!("Cannot get context {}", context)))
         }
 
         pub fn insert(&mut self, context: Context, state: KubeState) {
