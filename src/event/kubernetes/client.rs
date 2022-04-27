@@ -24,10 +24,13 @@ pub struct KubeClient {
 
 impl KubeClient {
     pub fn new(client: Client, server_url: impl Into<String>) -> Self {
-        Self {
-            client,
-            server_url: server_url.into(),
-        }
+        let url: String = server_url.into();
+        let server_url = if let Some(url) = url.strip_suffix('/') {
+            url.to_string()
+        } else {
+            url
+        };
+        Self { client, server_url }
     }
 
     pub fn client_clone(&self) -> Client {
