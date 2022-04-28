@@ -28,10 +28,10 @@ extern crate kubetui;
 
 use kubetui::{
     action::{update_contents, window_action},
-    config::{configure, Config, DirectionWrapper},
+    config::{configure, Config},
     context::{Context, Namespace},
     error::Result,
-    event::{input::*, kubernetes::*, tick::*, Event},
+    event::{input::*, kubernetes::kube_worker::KubeWorker, tick::*, Event},
     tui_wrapper::WindowEvent,
     window::WindowInit,
 };
@@ -61,13 +61,8 @@ macro_rules! disable_raw_mode {
 }
 
 fn run(config: Config) -> Result<()> {
-    let Config {
-        split_mode,
-        namespaces,
-        context,
-        all_namespaces,
-        kubeconfig,
-    } = config;
+    let split_mode = config.split_mode();
+    let kube_worker_config = config.kube_worker_config();
 
     let (tx_input, rx_main): (Sender<Event>, Receiver<Event>) = bounded(128);
     let (tx_main, rx_kube): (Sender<Event>, Receiver<Event>) = bounded(256);
@@ -82,15 +77,7 @@ fn run(config: Config) -> Result<()> {
 
     let is_terminated_clone = is_terminated.clone();
     let kube_process_handler = thread::spawn(move || {
-        kube_process(
-            tx_kube,
-            rx_kube,
-            is_terminated_clone,
-            kubeconfig,
-            namespaces,
-            context,
-            all_namespaces,
-        )
+        KubeWorker::new(tx_kube, rx_kube, is_terminated_clone, kube_worker_config).run()
     });
 
     let is_terminated_clone = is_terminated.clone();
@@ -124,13 +111,8 @@ fn run(config: Config) -> Result<()> {
         },
     )?;
 
-    let mut window = WindowInit::new(
-        split_mode.map_or(DirectionWrapper::default().into(), |s| s.into()),
-        tx_main,
-        context.clone(),
-        namespace.clone(),
-    )
-    .build();
+    let mut window =
+        WindowInit::new(split_mode, tx_main, context.clone(), namespace.clone()).build();
 
     terminal.clear()?;
     window.update_chunks(terminal.size()?);
