@@ -153,7 +153,7 @@ pub enum Kube {
     // Context
     // for header
     GetContextsRequest,
-    GetContextsResponse(Result<Vec<String>>),
+    GetContextsResponse(Vec<String>),
     SetContext(String),
     GetCurrentContextRequest,
     GetCurrentContextResponse {
@@ -394,7 +394,7 @@ async fn namespace_list(client: KubeClient) -> Vec<String> {
 struct MainWorker {
     inner: PollWorker,
     rx: Receiver<Event>,
-    contexts: Vec<NamedContext>,
+    contexts: Vec<String>,
     api_resources: ApiResources,
     api_database: ApiDatabase,
 }
@@ -497,10 +497,7 @@ impl Worker for MainWorker {
                         }
 
                         Kube::GetContextsRequest => {
-                            let contexts = contexts.iter().cloned().map(|ctx| ctx.name).collect();
-                            let contexts = Ok(contexts);
-
-                            tx.send(Event::Kube(Kube::GetContextsResponse(contexts)))?
+                            tx.send(Event::Kube(Kube::GetContextsResponse(contexts.to_vec())))?
                         }
 
                         Kube::SetContext(ctx) => {
@@ -624,6 +621,7 @@ mod inner {
         tx: Sender<Event>,
         rx: Receiver<Event>,
         is_terminated: Arc<AtomicBool>,
+        kubeconfig: Kubeconfig,
         context: String,
         store: KubeStore,
     }
@@ -716,6 +714,7 @@ mod inner {
                 tx,
                 rx,
                 is_terminated,
+                kubeconfig,
                 context,
                 store,
             })

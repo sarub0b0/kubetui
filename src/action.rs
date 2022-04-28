@@ -251,7 +251,7 @@ pub fn update_contents(
         }
 
         Kube::GetContextsResponse(ctxs) => {
-            update_widget_item_for_vec(window, view_id::popup_ctx, ctxs);
+            update_widget_item_for_vec(window, view_id::popup_ctx, Ok(ctxs));
         }
 
         Kube::RestoreContext {
