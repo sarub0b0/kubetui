@@ -874,10 +874,13 @@ mod kube_worker {
 
     use anyhow::{bail, Result};
     use crossbeam::channel::{Receiver, Sender};
+    use tokio::runtime::Runtime;
 
     use crate::event::Event;
 
-    #[derive(Debug, Default)]
+    use super::inner::Inner;
+
+    #[derive(Debug, Default, Clone)]
     pub struct KubeWorkerConfig {
         pub kubeconfig: Option<PathBuf>,
         pub namespaces: Option<Vec<String>>,
@@ -885,7 +888,7 @@ mod kube_worker {
         pub all_namespaces: bool,
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, Clone)]
     pub struct KubeWorker {
         pub(super) tx: Sender<Event>,
         pub(super) rx: Receiver<Event>,
@@ -908,10 +911,36 @@ mod kube_worker {
             }
         }
 
+        async fn inner(worker: KubeWorker) -> Result<()> {
+            let inner = Inner::try_from(worker).await?;
+            inner.run().await
+        }
+
         pub fn run(&self) -> Result<()> {
-            self.is_terminated
-                .store(true, std::sync::atomic::Ordering::Relaxed);
-            bail!("Not implemented")
+            let ret: Result<()> = match Runtime::new() {
+                Ok(rt) => match rt.block_on(Self::inner(self.clone())) {
+                    Ok(_) => Ok(()),
+                    Err(e) => {
+                        self.is_terminated
+                            .store(true, std::sync::atomic::Ordering::Relaxed);
+
+                        bail!("{}", e)
+                    }
+                },
+                Err(e) => {
+                    self.is_terminated
+                        .store(true, std::sync::atomic::Ordering::Relaxed);
+                    bail!("failed to create runtime: {}", e)
+                }
+            };
+
+            if let Err(e) = ret {
+                self.is_terminated
+                    .store(true, std::sync::atomic::Ordering::Relaxed);
+                bail!("{:?}", e)
+            } else {
+                Ok(())
+            }
         }
     }
 
