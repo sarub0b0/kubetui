@@ -1000,7 +1000,7 @@ mod inner {
     }
 }
 
-mod kube_worker {
+pub mod kube_worker {
     use std::{
         path::PathBuf,
         sync::{atomic::AtomicBool, Arc},
