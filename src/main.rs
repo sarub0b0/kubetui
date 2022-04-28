@@ -1,5 +1,19 @@
+use anyhow::Result;
 use crossbeam::channel::{bounded, Receiver, Sender};
-
+use crossterm::{
+    cursor::Show,
+    event::{DisableMouseCapture, EnableMouseCapture},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
+use kubetui::{
+    action::{update_contents, window_action},
+    config::{configure, Config},
+    context::{Context, Namespace},
+    event::{input::read_key, kubernetes::KubeWorker, tick::tick, Event},
+    tui_wrapper::WindowEvent,
+    window::WindowInit,
+};
 use std::{
     cell::RefCell,
     io, panic,
@@ -10,30 +24,8 @@ use std::{
     },
     thread, time,
 };
-
-use crossterm::{
-    cursor::Show,
-    event::{DisableMouseCapture, EnableMouseCapture},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
-
 use tui::{
-    backend::{Backend, CrosstermBackend},
-    layout::Rect,
-    Terminal, TerminalOptions, Viewport,
-};
-
-extern crate kubetui;
-
-use kubetui::{
-    action::{update_contents, window_action},
-    config::{configure, Config},
-    context::{Context, Namespace},
-    error::Result,
-    event::{input::*, kubernetes::KubeWorker, tick::*, Event},
-    tui_wrapper::WindowEvent,
-    window::WindowInit,
+    backend::Backend, backend::CrosstermBackend, layout::Rect, Terminal, TerminalOptions, Viewport,
 };
 
 #[cfg(feature = "logging")]
