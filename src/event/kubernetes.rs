@@ -606,7 +606,7 @@ mod inner {
         sync::{atomic::AtomicBool, Arc},
     };
 
-    use anyhow::{anyhow, bail, Result};
+    use anyhow::{anyhow, Result};
     use crossbeam::channel::{Receiver, Sender};
     use k8s_openapi::api::core::v1::Namespace;
     use kube::{
@@ -621,6 +621,14 @@ mod inner {
         kube_store::{KubeState, KubeStore},
         kube_worker::{KubeWorker, KubeWorkerConfig},
     };
+
+    pub struct Inner {
+        tx: Sender<Event>,
+        rx: Receiver<Event>,
+        is_terminated: Arc<AtomicBool>,
+        context: String,
+        store: KubeStore,
+    }
 
     struct Context {
         pub inner: String,
@@ -652,6 +660,67 @@ mod inner {
             };
 
             Ok(Self { inner: context })
+        }
+    }
+
+    fn read_kubeconfig(kubeconfig: Option<PathBuf>) -> Result<Kubeconfig, KubeconfigError> {
+        if let Some(path) = kubeconfig {
+            Kubeconfig::read_from(path)
+        } else {
+            Kubeconfig::read()
+        }
+    }
+
+    impl Inner {
+        pub async fn try_from(worker: KubeWorker) -> Result<Self> {
+            let KubeWorker {
+                tx,
+                rx,
+                is_terminated,
+                config,
+            } = worker;
+
+            let KubeWorkerConfig {
+                kubeconfig,
+                namespaces,
+                context,
+                all_namespaces,
+            } = config;
+
+            let kubeconfig = read_kubeconfig(kubeconfig)?;
+
+            let Context { inner: context } = Context::try_from(&kubeconfig, context)?;
+
+            let mut store = KubeStore::try_from_kubeconfig(kubeconfig.clone()).await?;
+
+            let KubeState {
+                client: state_client,
+                namespaces: state_namespaces,
+                ..
+            } = store.get_mut(&context)?;
+
+            if let Some(namespaces) = namespaces {
+                *state_namespaces = namespaces;
+            }
+
+            if all_namespaces {
+                let api: Api<Namespace> = Api::all(state_client.as_client().clone());
+
+                let lp = ListParams::default();
+                let list = api.list(&lp).await?;
+
+                let vec: Vec<String> = list.iter().map(|ns| ns.name()).collect();
+
+                *state_namespaces = vec;
+            }
+
+            Ok(Self {
+                tx,
+                rx,
+                is_terminated,
+                context,
+                store,
+            })
         }
     }
 
@@ -794,6 +863,8 @@ mod inner {
                 }
             }
         }
+    }
+}
 
 mod kube_worker {
     use std::{
