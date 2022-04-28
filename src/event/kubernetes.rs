@@ -1086,10 +1086,7 @@ mod kube_store {
         }
 
         pub fn update_namespaces(&mut self, context: &str, namespaces: Vec<String>) -> Result<()> {
-            let KubeState { namespaces: ns, .. } = self
-                .inner
-                .get_mut(context)
-                .ok_or(anyhow!(format!("Cannot get context {}", context)))?;
+            let KubeState { namespaces: ns, .. } = self.get_mut(context)?;
 
             *ns = namespaces;
 
@@ -1099,6 +1096,12 @@ mod kube_store {
         pub fn get(&self, context: &str) -> Result<&KubeState> {
             self.inner
                 .get(context)
+                .ok_or(anyhow!(format!("Cannot get context {}", context)))
+        }
+
+        pub fn get_mut(&mut self, context: &str) -> Result<&mut KubeState> {
+            self.inner
+                .get_mut(context)
                 .ok_or(anyhow!(format!("Cannot get context {}", context)))
         }
 
