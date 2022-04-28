@@ -9,6 +9,7 @@ use crate::{
         kubernetes::{
             api_resources::{ApiMessage, ApiResponse},
             config::ConfigMessage,
+            context_message::{ContextMessage, ContextResponse},
             network::{NetworkMessage, NetworkResponse},
             yaml::{YamlMessage, YamlResourceListItem, YamlResponse},
             Kube, KubeTable, KubeTableRow,
@@ -214,21 +215,6 @@ pub fn update_contents(
             update_widget_item_for_vec(window, view_id::tab_config_widget_raw_data, raw);
         }
 
-        Kube::GetCurrentContextResponse {
-            current_context,
-            current_namespace,
-        } => {
-            context.update(current_context);
-            namespace.update(vec![current_namespace.to_string()]);
-
-            let widget = window
-                .find_widget_mut(view_id::popup_ns)
-                .as_mut_multiple_select();
-
-            widget.update_widget_item(Item::Array(vec![current_namespace.to_string().into()]));
-            widget.select_item(&LiteralItem::from(current_namespace));
-        }
-
         Kube::Event(ev) => {
             update_widget_item_for_vec(window, view_id::tab_event_widget_event, ev);
         }
@@ -250,9 +236,11 @@ pub fn update_contents(
             namespace.update(ns);
         }
 
-        Kube::GetContextsResponse(ctxs) => {
-            update_widget_item_for_vec(window, view_id::popup_ctx, Ok(ctxs));
-        }
+        Kube::Context(ContextMessage::Response(res)) => match res {
+            ContextResponse::Get(res) => {
+                update_widget_item_for_vec(window, view_id::popup_ctx, Ok(res));
+            }
+        },
 
         Kube::RestoreContext {
             context: ctx,

@@ -24,7 +24,10 @@ use crate::{
     action::view_id,
     clipboard_wrapper::{ClipboardContextWrapper, ClipboardProvider},
     context::{Context, Namespace},
-    event::{kubernetes::*, Event, UserEvent},
+    event::{
+        kubernetes::{context_message::ContextRequest, *},
+        Event, UserEvent,
+    },
     tui_wrapper::{event::EventResult, widget::Widget, Header, Tab, Window, WindowEvent},
 };
 
@@ -87,7 +90,7 @@ impl WindowInit {
 
         let tx = self.tx.clone();
         let builder = builder.action('c', move |w| {
-            tx.send(Event::Kube(Kube::GetContextsRequest)).unwrap();
+            tx.send(ContextRequest::Get.into()).unwrap();
             w.open_popup(view_id::popup_ctx);
             EventResult::Nop
         });

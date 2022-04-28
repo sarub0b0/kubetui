@@ -1,5 +1,6 @@
 use crossbeam::channel::Sender;
 
+use crate::event::kubernetes::context_message::ContextRequest;
 use crate::event::{kubernetes::*, Event};
 
 use crate::action::view_id;
@@ -75,7 +76,7 @@ impl<'a> ContextPopupBuilder<'a> {
             .on_select(move |w: &mut Window, v| {
                 let item = v.item.to_string();
 
-                tx.send(Event::Kube(Kube::SetContext(item))).unwrap();
+                tx.send(ContextRequest::Set(item).into()).unwrap();
 
                 w.close_popup();
 

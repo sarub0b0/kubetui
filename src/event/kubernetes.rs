@@ -41,6 +41,7 @@ use self::{
     },
     client::KubeClient,
     config::{get_config, ConfigMessage},
+    context_message::{ContextMessage, ContextRequest, ContextResponse},
     inner::Inner,
     log::LogWorkerBuilder,
     network::{NetworkDescriptionWorker, NetworkMessage},
@@ -131,21 +132,12 @@ impl From<Kube> for Event {
 
 #[derive(Debug)]
 pub enum Kube {
+    // Context
+    Context(ContextMessage),
     // apis
     API(ApiMessage),
-
-    RestoreAPIs(Vec<String>),
-    // Context
-    // for header
-    GetContextsRequest,
-    GetContextsResponse(Vec<String>),
-    SetContext(String),
-    GetCurrentContextRequest,
-    GetCurrentContextResponse {
-        current_context: String,
-        current_namespace: String,
-    },
     // Context Restore
+    RestoreAPIs(Vec<String>),
     RestoreContext {
         context: String,
         namespaces: Vec<String>,
@@ -172,6 +164,46 @@ pub enum Kube {
     Network(NetworkMessage),
     // Yaml
     Yaml(YamlMessage),
+}
+
+pub mod context_message {
+    use super::Kube;
+    use crate::event::Event;
+
+    #[derive(Debug)]
+    pub enum ContextMessage {
+        Request(ContextRequest),
+        Response(ContextResponse),
+    }
+
+    #[derive(Debug)]
+    pub enum ContextRequest {
+        Get,
+        Set(String),
+    }
+
+    #[derive(Debug)]
+    pub enum ContextResponse {
+        Get(Vec<String>),
+    }
+
+    impl From<ContextMessage> for Event {
+        fn from(m: ContextMessage) -> Self {
+            Event::Kube(Kube::Context(m))
+        }
+    }
+
+    impl From<ContextRequest> for Event {
+        fn from(m: ContextRequest) -> Self {
+            Event::Kube(Kube::Context(ContextMessage::Request(m)))
+        }
+    }
+
+    impl From<ContextResponse> for Event {
+        fn from(m: ContextResponse) -> Self {
+            Event::Kube(Kube::Context(ContextMessage::Response(m)))
+        }
+    }
 }
 
 #[derive(Default, Debug)]
@@ -377,25 +409,26 @@ impl Worker for MainWorker {
                             }
                         }
 
-                        Kube::GetContextsRequest => {
-                            tx.send(Event::Kube(Kube::GetContextsResponse(contexts.to_vec())))?
-                        }
-
-                        Kube::SetContext(ctx) => {
-                            if let Some(h) = log_stream_handler {
-                                h.abort();
+                        Kube::Context(ContextMessage::Request(req)) => match req {
+                            ContextRequest::Get => {
+                                tx.send(ContextResponse::Get(contexts.to_vec()).into())?
                             }
+                            ContextRequest::Set(req) => {
+                                if let Some(h) = log_stream_handler {
+                                    h.abort();
+                                }
 
-                            if let Some(h) = network_handler {
-                                h.abort();
+                                if let Some(h) = network_handler {
+                                    h.abort();
+                                }
+
+                                if let Some(h) = yaml_handler {
+                                    h.abort();
+                                }
+
+                                return Ok(WorkerResult::ChangedContext(req));
                             }
-
-                            if let Some(h) = yaml_handler {
-                                h.abort();
-                            }
-
-                            return Ok(WorkerResult::ChangedContext(ctx));
-                        }
+                        },
 
                         Kube::Yaml(YamlMessage::Request(ev)) => {
                             use YamlRequest::*;
