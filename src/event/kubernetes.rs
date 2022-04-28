@@ -1010,7 +1010,7 @@ mod kube_worker {
     use crossbeam::channel::{Receiver, Sender};
     use tokio::runtime::Runtime;
 
-    use crate::event::Event;
+    use crate::{event::Event, panic_set_hook};
 
     use super::inner::Inner;
 
@@ -1051,6 +1051,11 @@ mod kube_worker {
         }
 
         pub fn run(&self) -> Result<()> {
+            let is_terminated_panic = self.is_terminated.clone();
+            panic_set_hook!({
+                is_terminated_panic.store(true, std::sync::atomic::Ordering::Relaxed);
+            });
+
             let ret: Result<()> = match Runtime::new() {
                 Ok(rt) => match rt.block_on(Self::inner(self.clone())) {
                     Ok(_) => Ok(()),
