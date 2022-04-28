@@ -1073,6 +1073,9 @@ mod kube_worker {
                 }
             };
 
+            #[cfg(feature = "logging")]
+            log::debug!("Terminated tick event");
+
             if let Err(e) = ret {
                 self.is_terminated
                     .store(true, std::sync::atomic::Ordering::Relaxed);
