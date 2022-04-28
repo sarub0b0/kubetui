@@ -10,51 +10,47 @@ mod v1_table;
 mod worker;
 pub mod yaml;
 
-use self::{
-    api_resources::{
-        apis_list_from_api_database, ApiDatabase, ApiMessage, ApiRequest, ApiResponse,
-    },
-    config::ConfigMessage,
-    inner::Inner,
-    network::NetworkDescriptionWorker,
-    yaml::{
-        fetch_resource_list::FetchResourceList,
-        worker::{YamlWorker, YamlWorkerRequest},
-        YamlMessage, YamlRequest, YamlResponse,
-    },
-};
-
 use super::Event;
-use anyhow::bail;
-use client::KubeClient;
-use config::get_config;
-
-use k8s_openapi::api::core::v1::Namespace;
-use worker::Worker;
 
 use std::{
     collections::BTreeMap,
     path::PathBuf,
-    sync::{atomic::AtomicBool, Arc},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
     time::Duration,
 };
 
+use anyhow::{bail, Result};
+use async_trait::async_trait;
 use crossbeam::channel::{Receiver, Sender};
+use k8s_openapi::api::core::v1::Namespace;
+use kube::{api::ListParams, Api, ResourceExt};
 use tokio::{
     runtime::Runtime,
     sync::RwLock,
     task::{self, JoinHandle},
 };
 
-use async_trait::async_trait;
+use crate::panic_set_hook;
 
-use kube::{api::ListParams, Api, ResourceExt};
-
-use crate::{error::Result, panic_set_hook};
-
-use self::{log::LogWorkerBuilder, network::NetworkMessage, worker::PollWorker};
-
-pub use kube;
+use self::{
+    api_resources::{
+        apis_list_from_api_database, ApiDatabase, ApiMessage, ApiRequest, ApiResponse,
+    },
+    client::KubeClient,
+    config::{get_config, ConfigMessage},
+    inner::Inner,
+    log::LogWorkerBuilder,
+    network::{NetworkDescriptionWorker, NetworkMessage},
+    worker::{PollWorker, Worker},
+    yaml::{
+        fetch_resource_list::FetchResourceList,
+        worker::{YamlWorker, YamlWorkerRequest},
+        YamlMessage, YamlRequest, YamlResponse,
+    },
+};
 
 #[derive(Debug, Default)]
 pub struct KubeListItem {
@@ -250,8 +246,7 @@ impl KubeWorker {
             Ok(rt) => match rt.block_on(Self::inner(self.clone())) {
                 Ok(_) => Ok(()),
                 Err(e) => {
-                    self.is_terminated
-                        .store(true, std::sync::atomic::Ordering::Relaxed);
+                    self.is_terminated.store(true, Ordering::Relaxed);
 
                     bail!("{}", e)
                 }
