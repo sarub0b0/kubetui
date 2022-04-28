@@ -224,12 +224,10 @@ async fn inner_kube_process(
 
     let mut context = if let Some(context) = context {
         context
+    } else if let Some(current_context) = &kubeconfig.current_context {
+        current_context.to_string()
     } else {
-        if let Some(current_context) = &kubeconfig.current_context {
-            current_context.to_string()
-        } else {
-            "None".to_string()
-        }
+        "None".to_string()
     };
 
     let mut kube_store = KubeStore::try_from_kubeconfig(kubeconfig.clone()).await?;
