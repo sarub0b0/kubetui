@@ -1079,7 +1079,9 @@ mod kube_store {
 
             let actual = KubeStore::try_from_kubeconfig(kubeconfig).await.unwrap();
 
-            let client = Client::try_default().await.unwrap();
+            let config = Config::new(Default::default());
+
+            let client = Client::try_from(config).unwrap();
 
             let expected = HashMap::from([
                 (
