@@ -4,7 +4,7 @@ use clap::Parser;
 
 use tui::layout::Direction;
 
-use crate::event::kubernetes::kube_worker::KubeWorkerConfig;
+use crate::event::kubernetes::KubeWorkerConfig;
 
 #[derive(Parser, Debug, Clone)]
 #[clap(author, version, about)]

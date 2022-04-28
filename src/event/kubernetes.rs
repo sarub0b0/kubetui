@@ -15,6 +15,7 @@ use self::{
         apis_list_from_api_database, ApiDatabase, ApiMessage, ApiRequest, ApiResponse,
     },
     config::ConfigMessage,
+    inner::Inner,
     network::NetworkDescriptionWorker,
     yaml::{
         fetch_resource_list::FetchResourceList,
@@ -24,16 +25,23 @@ use self::{
 };
 
 use super::Event;
+use anyhow::bail;
 use client::KubeClient;
 use config::get_config;
 
 use k8s_openapi::api::core::v1::Namespace;
 use worker::Worker;
 
-use std::{collections::BTreeMap, sync::Arc, time::Duration};
+use std::{
+    collections::BTreeMap,
+    path::PathBuf,
+    sync::{atomic::AtomicBool, Arc},
+    time::Duration,
+};
 
-use crossbeam::channel::Receiver;
+use crossbeam::channel::{Receiver, Sender};
 use tokio::{
+    runtime::Runtime,
     sync::RwLock,
     task::{self, JoinHandle},
 };
@@ -42,7 +50,7 @@ use async_trait::async_trait;
 
 use kube::{api::ListParams, Api, ResourceExt};
 
-use crate::error::Result;
+use crate::{error::Result, panic_set_hook};
 
 use self::{log::LogWorkerBuilder, network::NetworkMessage, worker::PollWorker};
 
@@ -194,6 +202,78 @@ async fn namespace_list(client: KubeClient) -> Vec<String> {
     let ns_list = namespaces.list(&lp).await.unwrap();
 
     ns_list.iter().map(|ns| ns.name()).collect()
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct KubeWorkerConfig {
+    pub kubeconfig: Option<PathBuf>,
+    pub namespaces: Option<Vec<String>>,
+    pub context: Option<String>,
+    pub all_namespaces: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct KubeWorker {
+    pub(super) tx: Sender<Event>,
+    pub(super) rx: Receiver<Event>,
+    pub(super) is_terminated: Arc<AtomicBool>,
+    pub(super) config: KubeWorkerConfig,
+}
+
+impl KubeWorker {
+    pub fn new(
+        tx: Sender<Event>,
+        rx: Receiver<Event>,
+        is_terminated: Arc<AtomicBool>,
+        config: KubeWorkerConfig,
+    ) -> Self {
+        KubeWorker {
+            tx,
+            rx,
+            is_terminated,
+            config,
+        }
+    }
+
+    async fn inner(worker: KubeWorker) -> Result<()> {
+        let inner = Inner::try_from(worker).await?;
+        inner.run().await
+    }
+
+    pub fn run(&self) -> Result<()> {
+        let is_terminated_panic = self.is_terminated.clone();
+        panic_set_hook!({
+            is_terminated_panic.store(true, std::sync::atomic::Ordering::Relaxed);
+        });
+
+        let ret: Result<()> = match Runtime::new() {
+            Ok(rt) => match rt.block_on(Self::inner(self.clone())) {
+                Ok(_) => Ok(()),
+                Err(e) => {
+                    self.is_terminated
+                        .store(true, std::sync::atomic::Ordering::Relaxed);
+
+                    bail!("{}", e)
+                }
+            },
+            Err(e) => {
+                self.is_terminated
+                    .store(true, std::sync::atomic::Ordering::Relaxed);
+                bail!("failed to create runtime: {}", e)
+            }
+        };
+
+        #[cfg(feature = "logging")]
+        log::debug!("Terminated tick event");
+
+        if let Err(e) = ret {
+            self.is_terminated
+                .store(true, std::sync::atomic::Ordering::Relaxed);
+            bail!("{:?}", e)
+        } else {
+            Ok(())
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -440,8 +520,7 @@ mod inner {
 
     use super::{
         kube_store::{KubeState, KubeStore},
-        kube_worker::{KubeWorker, KubeWorkerConfig},
-        Kube,
+        Kube, {KubeWorker, KubeWorkerConfig},
     };
 
     pub struct Inner {
@@ -801,93 +880,6 @@ mod inner {
 
                     assert_eq!(context.is_err(), true);
                 }
-            }
-        }
-    }
-}
-
-pub mod kube_worker {
-    use std::{
-        path::PathBuf,
-        sync::{atomic::AtomicBool, Arc},
-    };
-
-    use anyhow::{bail, Result};
-    use crossbeam::channel::{Receiver, Sender};
-    use tokio::runtime::Runtime;
-
-    use crate::{event::Event, panic_set_hook};
-
-    use super::inner::Inner;
-
-    #[derive(Debug, Default, Clone)]
-    pub struct KubeWorkerConfig {
-        pub kubeconfig: Option<PathBuf>,
-        pub namespaces: Option<Vec<String>>,
-        pub context: Option<String>,
-        pub all_namespaces: bool,
-    }
-
-    #[derive(Debug, Clone)]
-    pub struct KubeWorker {
-        pub(super) tx: Sender<Event>,
-        pub(super) rx: Receiver<Event>,
-        pub(super) is_terminated: Arc<AtomicBool>,
-        pub(super) config: KubeWorkerConfig,
-    }
-
-    impl KubeWorker {
-        pub fn new(
-            tx: Sender<Event>,
-            rx: Receiver<Event>,
-            is_terminated: Arc<AtomicBool>,
-            config: KubeWorkerConfig,
-        ) -> Self {
-            KubeWorker {
-                tx,
-                rx,
-                is_terminated,
-                config,
-            }
-        }
-
-        async fn inner(worker: KubeWorker) -> Result<()> {
-            let inner = Inner::try_from(worker).await?;
-            inner.run().await
-        }
-
-        pub fn run(&self) -> Result<()> {
-            let is_terminated_panic = self.is_terminated.clone();
-            panic_set_hook!({
-                is_terminated_panic.store(true, std::sync::atomic::Ordering::Relaxed);
-            });
-
-            let ret: Result<()> = match Runtime::new() {
-                Ok(rt) => match rt.block_on(Self::inner(self.clone())) {
-                    Ok(_) => Ok(()),
-                    Err(e) => {
-                        self.is_terminated
-                            .store(true, std::sync::atomic::Ordering::Relaxed);
-
-                        bail!("{}", e)
-                    }
-                },
-                Err(e) => {
-                    self.is_terminated
-                        .store(true, std::sync::atomic::Ordering::Relaxed);
-                    bail!("failed to create runtime: {}", e)
-                }
-            };
-
-            #[cfg(feature = "logging")]
-            log::debug!("Terminated tick event");
-
-            if let Err(e) = ret {
-                self.is_terminated
-                    .store(true, std::sync::atomic::Ordering::Relaxed);
-                bail!("{:?}", e)
-            } else {
-                Ok(())
             }
         }
     }

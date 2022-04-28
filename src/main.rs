@@ -31,7 +31,7 @@ use kubetui::{
     config::{configure, Config},
     context::{Context, Namespace},
     error::Result,
-    event::{input::*, kubernetes::kube_worker::KubeWorker, tick::*, Event},
+    event::{input::*, kubernetes::KubeWorker, tick::*, Event},
     tui_wrapper::WindowEvent,
     window::WindowInit,
 };
