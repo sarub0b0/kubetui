@@ -597,24 +597,45 @@ impl Worker for MainWorker {
 
 mod inner {
     use std::{
+        collections::HashMap,
         path::PathBuf,
-        sync::{atomic::AtomicBool, Arc},
+        sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc,
+        },
     };
 
     use anyhow::{anyhow, Result};
     use crossbeam::channel::{Receiver, Sender};
+    use futures::future::select_all;
     use k8s_openapi::api::core::v1::Namespace;
     use kube::{
         api::ListParams,
         config::{Kubeconfig, KubeconfigError},
         Api, ResourceExt,
     };
+    use tokio::{sync::RwLock, task::JoinHandle};
 
-    use crate::event::Event;
+    use crate::{
+        error::Error,
+        event::{
+            kubernetes::{
+                api_resources::ApiPollWorker,
+                config::ConfigsPollWorker,
+                event::EventPollWorker,
+                network::NetworkPollWorker,
+                pod::PodPollWorker,
+                worker::{PollWorker, Worker},
+                MainWorker, WorkerResult,
+            },
+            Event,
+        },
+    };
 
     use super::{
         kube_store::{KubeState, KubeStore},
         kube_worker::{KubeWorker, KubeWorkerConfig},
+        Kube,
     };
 
     pub struct Inner {
@@ -718,6 +739,122 @@ mod inner {
                 context,
                 store,
             })
+        }
+
+        pub async fn run(self) -> Result<()> {
+            let Self {
+                tx,
+                rx,
+                is_terminated,
+                kubeconfig,
+                mut context,
+                mut store,
+            } = self;
+
+            while !is_terminated.load(Ordering::Relaxed) {
+                let KubeState {
+                    client,
+                    namespaces,
+                    api_resources,
+                } = store.get(&context)?.clone();
+
+                tx.send(Event::Kube(Kube::RestoreContext {
+                    context: context.to_string(),
+                    namespaces: namespaces.to_vec(),
+                }))?;
+
+                tx.send(Event::Kube(Kube::RestoreAPIs(api_resources.to_vec())))?;
+
+                let shared_namespaces = Arc::new(RwLock::new(namespaces.to_vec()));
+                let shared_api_resources = Arc::new(RwLock::new(api_resources.to_vec()));
+                let shared_api_database = Arc::new(RwLock::new(HashMap::new()));
+
+                let poll_worker = PollWorker {
+                    namespaces: shared_namespaces.clone(),
+                    tx: tx.clone(),
+                    is_terminated: is_terminated.clone(),
+                    kube_client: client.clone(),
+                };
+
+                let main_handler = MainWorker {
+                    inner: poll_worker.clone(),
+                    rx: rx.clone(),
+                    contexts: kubeconfig
+                        .contexts
+                        .iter()
+                        .map(|ctx| ctx.name.to_string())
+                        .collect(),
+                    api_resources: shared_api_resources.clone(),
+                    api_database: shared_api_database.clone(),
+                }
+                .spawn();
+
+                let pod_handler = PodPollWorker::new(poll_worker.clone()).spawn();
+                let config_handler = ConfigsPollWorker::new(poll_worker.clone()).spawn();
+                let network_handler = NetworkPollWorker::new(poll_worker.clone()).spawn();
+                let event_handler = EventPollWorker::new(poll_worker.clone()).spawn();
+                let apis_handler = ApiPollWorker::new(
+                    poll_worker.clone(),
+                    shared_api_resources.clone(),
+                    shared_api_database,
+                )
+                .spawn();
+
+                let mut handlers = vec![
+                    main_handler,
+                    pod_handler,
+                    config_handler,
+                    network_handler,
+                    event_handler,
+                    apis_handler,
+                ];
+
+                fn abort<T>(handlers: &[JoinHandle<T>]) {
+                    for h in handlers {
+                        h.abort()
+                    }
+                }
+
+                while !handlers.is_empty() {
+                    let (ret, _, vec) = select_all(handlers).await;
+
+                    handlers = vec;
+
+                    match ret {
+                        Ok(h) => match h {
+                            Ok(result) => match result {
+                                WorkerResult::ChangedContext(ctx) => {
+                                    abort(&handlers);
+
+                                    let namespaces = shared_namespaces.read().await;
+                                    let api_resources = shared_api_resources.read().await;
+
+                                    store.insert(
+                                        context.to_string(),
+                                        KubeState::new(
+                                            client.clone(),
+                                            namespaces.to_vec(),
+                                            api_resources.to_vec(),
+                                        ),
+                                    );
+
+                                    context = ctx;
+                                }
+                                WorkerResult::Terminated => {}
+                            },
+                            Err(_) => {
+                                tx.send(Event::Error(Error::Raw("KubeProcess Error".to_string())))?
+                            }
+                        },
+                        Err(_) => {
+                            abort(&handlers);
+                            tx.send(Event::Error(Error::Raw("KubeProcess Error".to_string())))?;
+                        }
+                    }
+                }
+            }
+
+            Ok(())
         }
     }
 
