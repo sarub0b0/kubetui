@@ -259,7 +259,7 @@ impl KubeWorker {
         };
 
         #[cfg(feature = "logging")]
-        log::debug!("Terminated tick event");
+        ::log::debug!("Terminated tick event");
 
         if let Err(e) = ret {
             self.is_terminated
