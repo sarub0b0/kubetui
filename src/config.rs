@@ -4,7 +4,9 @@ use clap::Parser;
 
 use tui::layout::Direction;
 
-#[derive(Parser, Debug)]
+use crate::event::kubernetes::kube_worker::KubeWorkerConfig;
+
+#[derive(Parser, Debug, Clone)]
 #[clap(author, version, about)]
 pub struct Config {
     /// Window split mode
@@ -61,6 +63,23 @@ impl Config {
                 DirectionWrapper::Horizontal => Direction::Horizontal,
             },
             None => Direction::Vertical,
+        }
+    }
+
+    pub fn kube_worker_config(&self) -> KubeWorkerConfig {
+        let Self {
+            namespaces,
+            context,
+            all_namespaces,
+            kubeconfig,
+            ..
+        } = self.clone();
+
+        KubeWorkerConfig {
+            kubeconfig,
+            namespaces,
+            context,
+            all_namespaces,
         }
     }
 }
