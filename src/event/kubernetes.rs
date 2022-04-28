@@ -15,7 +15,6 @@ use self::{
         apis_list_from_api_database, ApiDatabase, ApiMessage, ApiRequest, ApiResponse,
     },
     config::ConfigMessage,
-    kube_store::KubeStore,
     network::NetworkDescriptionWorker,
     yaml::{
         fetch_resource_list::FetchResourceList,
@@ -27,43 +26,25 @@ use self::{
 use super::Event;
 use client::KubeClient;
 use config::get_config;
-use futures::future::select_all;
+
 use k8s_openapi::api::core::v1::Namespace;
 use worker::Worker;
 
-use std::{
-    collections::{BTreeMap, HashMap},
-    path::PathBuf,
-    sync::atomic::AtomicBool,
-    sync::Arc,
-    time::Duration,
-};
+use std::{collections::BTreeMap, sync::Arc, time::Duration};
 
-use crossbeam::channel::{Receiver, Sender};
+use crossbeam::channel::Receiver;
 use tokio::{
-    runtime::Runtime,
     sync::RwLock,
     task::{self, JoinHandle},
 };
 
 use async_trait::async_trait;
 
-use kube::{
-    api::ListParams,
-    config::{Kubeconfig, NamedContext},
-    Api, ResourceExt,
-};
+use kube::{api::ListParams, Api, ResourceExt};
 
-use crate::{
-    error::{Error, Result},
-    event::kubernetes::{kube_store::KubeState, network::NetworkPollWorker},
-    panic_set_hook,
-};
+use crate::error::Result;
 
-use self::{
-    api_resources::ApiPollWorker, config::ConfigsPollWorker, event::EventPollWorker,
-    log::LogWorkerBuilder, network::NetworkMessage, pod::PodPollWorker, worker::PollWorker,
-};
+use self::{log::LogWorkerBuilder, network::NetworkMessage, worker::PollWorker};
 
 pub use kube;
 
@@ -205,181 +186,6 @@ pub(super) type ApiResources = Arc<RwLock<Vec<String>>>;
 pub enum WorkerResult {
     ChangedContext(String),
     Terminated,
-}
-
-async fn inner_kube_process(
-    tx: Sender<Event>,
-    rx: Receiver<Event>,
-    is_terminated: Arc<AtomicBool>,
-    kubeconfig: Option<PathBuf>,
-    namespaces: Option<Vec<String>>,
-    context: Option<String>,
-    all_namespaces: bool,
-) -> Result<()> {
-    let kubeconfig = if let Some(path) = kubeconfig {
-        Kubeconfig::read_from(path)?
-    } else {
-        Kubeconfig::read()?
-    };
-
-    let mut context = if let Some(context) = context {
-        context
-    } else if let Some(current_context) = &kubeconfig.current_context {
-        current_context.to_string()
-    } else {
-        "None".to_string()
-    };
-
-    let mut kube_store = KubeStore::try_from_kubeconfig(kubeconfig.clone()).await?;
-
-    if let Some(namespaces) = namespaces {
-        kube_store.update_namespaces(&context, namespaces)?;
-    }
-
-    if all_namespaces {
-        let KubeState { client, .. } = kube_store.get(&context)?.clone();
-
-        let namespaces = namespace_list(client).await;
-
-        kube_store.update_namespaces(&context, namespaces)?;
-    }
-
-    while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
-        let ctx = context.to_string();
-
-        let KubeState {
-            client,
-            namespaces,
-            api_resources,
-        } = kube_store.get(&ctx)?.clone();
-
-        tx.send(Event::Kube(Kube::RestoreContext {
-            context: context.to_string(),
-            namespaces: namespaces.to_owned(),
-        }))?;
-
-        tx.send(Event::Kube(Kube::RestoreAPIs(api_resources.to_vec())))?;
-
-        let shared_namespaces = Arc::new(RwLock::new(namespaces.to_vec()));
-        let shared_api_resources = Arc::new(RwLock::new(api_resources.to_vec()));
-        let shared_api_database = Arc::new(RwLock::new(HashMap::new()));
-
-        let poll_worker = PollWorker {
-            namespaces: shared_namespaces.clone(),
-            tx: tx.clone(),
-            is_terminated: is_terminated.clone(),
-            kube_client: client.clone(),
-        };
-
-        let main_handler = MainWorker {
-            inner: poll_worker.clone(),
-            rx: rx.clone(),
-            contexts: kubeconfig.contexts.clone(),
-            api_resources: shared_api_resources.clone(),
-            api_database: shared_api_database.clone(),
-        }
-        .spawn();
-
-        let pod_handler = PodPollWorker::new(poll_worker.clone()).spawn();
-        let config_handler = ConfigsPollWorker::new(poll_worker.clone()).spawn();
-        let network_handler = NetworkPollWorker::new(poll_worker.clone()).spawn();
-        let event_handler = EventPollWorker::new(poll_worker.clone()).spawn();
-        let apis_handler = ApiPollWorker::new(
-            poll_worker.clone(),
-            shared_api_resources.clone(),
-            shared_api_database,
-        )
-        .spawn();
-
-        let mut handlers = vec![
-            main_handler,
-            pod_handler,
-            config_handler,
-            network_handler,
-            event_handler,
-            apis_handler,
-        ];
-
-        fn abort<T>(handlers: &[JoinHandle<T>]) {
-            for h in handlers {
-                h.abort()
-            }
-        }
-
-        while !handlers.is_empty() {
-            let (ret, _, vec) = select_all(handlers).await;
-
-            handlers = vec;
-
-            match ret {
-                Ok(h) => match h {
-                    Ok(result) => match result {
-                        WorkerResult::ChangedContext(ctx) => {
-                            abort(&handlers);
-
-                            context = ctx;
-
-                            let namespaces = shared_namespaces.read().await;
-                            let api_resources = shared_api_resources.read().await;
-
-                            kube_store.insert(
-                                context.to_string(),
-                                KubeState::new(
-                                    client.clone(),
-                                    namespaces.to_vec(),
-                                    api_resources.to_vec(),
-                                ),
-                            );
-                        }
-                        WorkerResult::Terminated => {}
-                    },
-                    Err(_) => tx.send(Event::Error(Error::Raw("KubeProcess Error".to_string())))?,
-                },
-                Err(_) => {
-                    abort(&handlers);
-                    tx.send(Event::Error(Error::Raw("KubeProcess Error".to_string())))?;
-                }
-            }
-        }
-    }
-
-    Ok(())
-}
-
-pub fn kube_process(
-    tx: Sender<Event>,
-    rx: Receiver<Event>,
-    is_terminated: Arc<AtomicBool>,
-    kubeconfig: Option<PathBuf>,
-    namespaces: Option<Vec<String>>,
-    context: Option<String>,
-    all_namespaces: bool,
-) -> Result<()> {
-    let is_terminated_panic = is_terminated.clone();
-    panic_set_hook!({
-        is_terminated_panic.store(true, std::sync::atomic::Ordering::Relaxed);
-    });
-
-    let rt = Runtime::new()?;
-
-    let is_terminated_rt = is_terminated.clone();
-
-    let ret = rt.block_on(inner_kube_process(
-        tx,
-        rx,
-        is_terminated_rt,
-        kubeconfig,
-        namespaces,
-        context,
-        all_namespaces,
-    ));
-
-    is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
-
-    #[cfg(feature = "logging")]
-    ::log::debug!("Terminated kube event");
-
-    ret
 }
 
 async fn namespace_list(client: KubeClient) -> Vec<String> {
@@ -1083,31 +889,6 @@ pub mod kube_worker {
             } else {
                 Ok(())
             }
-        }
-    }
-
-    #[cfg(test)]
-    mod tests {
-        use super::*;
-
-        use crossbeam::channel::bounded;
-        use pretty_assertions::assert_eq;
-
-        #[test]
-        fn 内部エラーが発生したときis_terminatedをtrueにしてエラーを返す() {
-            let (tx, rx) = bounded::<Event>(1);
-            let is_terminated = Arc::new(AtomicBool::new(false));
-            let config = KubeWorkerConfig::default();
-
-            let worker = KubeWorker::new(tx, rx, is_terminated.clone(), config);
-
-            let result = worker.run();
-
-            assert_eq!(result.is_err(), true);
-            assert_eq!(
-                is_terminated.load(std::sync::atomic::Ordering::Relaxed),
-                true
-            );
         }
     }
 }
