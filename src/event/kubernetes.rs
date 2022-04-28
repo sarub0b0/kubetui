@@ -1224,14 +1224,6 @@ mod kube_store {
             Ok(inner.into())
         }
 
-        pub fn update_namespaces(&mut self, context: &str, namespaces: Vec<String>) -> Result<()> {
-            let KubeState { namespaces: ns, .. } = self.get_mut(context)?;
-
-            *ns = namespaces;
-
-            Ok(())
-        }
-
         pub fn get(&self, context: &str) -> Result<&KubeState> {
             self.inner
                 .get(context)
