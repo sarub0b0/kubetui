@@ -25,9 +25,13 @@ USAGE:
     kubetui [OPTIONS]
 
 OPTIONS:
-    -h, --help                       Print help information
-    -s, --split-mode <SPLIT_MODE>    Window split mode [default: vertical] [possible values: v, h, vertical, horizontal]
-    -V, --version                    Print version information
+    -h, --help                                  Print help information
+    -V, --version                               Print version information
+    -A, --all-namespaces[=<[true|false]>...]    Select all namespaces
+    -c, --context <CONTEXT>                     Context
+    -C, --kubeconfig <KUBECONFIG>               kubeconfig path
+    -n, --namespaces <NAMESPACES>               Namespaces (e.g. -n val1,val2,val3 | -n val1 -n val2 -n val3)
+    -s, --split-mode <v|h>                      Window split mode [possible values: v, h, vertical, horizontal]
 ```
 
 ## Key Bindings
