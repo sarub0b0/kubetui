@@ -25,14 +25,16 @@ use crate::error::{anyhow, Error, Result};
 type BufType = Arc<RwLock<Vec<String>>>;
 type PodType = Arc<RwLock<Pod>>;
 
-#[allow(dead_code)]
-fn write_error(tx: &Sender<Event>, e: Error) -> Result<()> {
-    #[cfg(feature = "logging")]
-    ::log::error!("[log] {}", e.to_string());
+#[derive(Debug)]
+pub enum LogStreamMessage {
+    Request { namespace: String, name: String },
+    Response(Result<Vec<String>>),
+}
 
-    tx.send(Event::Kube(Kube::LogStreamResponse(Err(anyhow!(e)))))?;
-
-    Ok(())
+impl From<LogStreamMessage> for Event {
+    fn from(m: LogStreamMessage) -> Event {
+        Event::Kube(Kube::LogStream(m))
+    }
 }
 
 fn as_ref_container_statuses(pod: &Pod) -> Result<Option<&Vec<ContainerStatus>>> {
@@ -332,7 +334,7 @@ impl Worker for SendMessageWorker {
                 ::log::debug!("log_stream Send log stream {}", buf.len());
 
                 self.tx
-                    .send(Event::Kube(Kube::LogStreamResponse(Ok(buf.clone()))))?;
+                    .send(LogStreamMessage::Response(Ok(buf.clone())).into())?;
 
                 buf.clear();
             }
@@ -350,9 +352,7 @@ impl Worker for FetchLogStreamWorker {
             Ok(p) => self.fetch_log_stream(p).await?,
             Err(err) => self
                 .tx
-                .send(Event::Kube(Kube::LogStreamResponse(Err(anyhow!(
-                    Error::Kube(err)
-                )))))?,
+                .send(LogStreamMessage::Response(Err(anyhow!(Error::Kube(err)))).into())?,
         }
 
         Ok(())
@@ -483,10 +483,9 @@ impl FetchLogStreamWorker {
                             .terminated_description(container, status, &selector)
                             .await?;
 
-                        self.tx
-                            .send(Event::Kube(Kube::LogStreamResponse(Err(anyhow!(
-                                Error::Raw(msg),
-                            )))))?;
+                        self.tx.send(
+                            LogStreamMessage::Response(Err(anyhow!(Error::Raw(msg),))).into(),
+                        )?;
 
                         return Err(anyhow!(PodError::ContainerExitCodeNotZero(
                             container_name,
@@ -596,9 +595,9 @@ impl FetchLogStreamWorker {
                             let container = pod.spec.as_ref().map(|spec| &spec.containers[i]);
 
                             let mut selector = format!(
-                        "involvedObject.name={},involvedObject.namespace={},involvedObject.fieldPath=spec.containers{{{}}}",
-                        worker.pod_name, worker.ns ,status.name
-                    );
+                                "involvedObject.name={},involvedObject.namespace={},involvedObject.fieldPath=spec.containers{{{}}}",
+                                worker.pod_name, worker.ns ,status.name
+                            );
 
                             if let Some(uid) = &pod.metadata.uid {
                                 selector += &format!(",involvedObject.uid={}", uid);
@@ -608,9 +607,9 @@ impl FetchLogStreamWorker {
                                 .terminated_description(container, status, &selector)
                                 .await?;
 
-                            tx.send(Event::Kube(Kube::LogStreamResponse(Err(anyhow!(
-                                Error::Raw(msg),
-                            )))))?;
+                            tx.send(
+                                LogStreamMessage::Response(Err(anyhow!(Error::Raw(msg)))).into(),
+                            )?;
 
                             return Err(anyhow!(PodError::ContainerExitCodeNotZero(
                                 container_name,

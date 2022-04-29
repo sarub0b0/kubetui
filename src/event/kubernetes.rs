@@ -2,7 +2,7 @@ pub mod api_resources;
 mod client;
 pub mod config;
 mod event;
-mod log;
+pub mod log;
 mod metric_type;
 pub mod network;
 mod pod;
@@ -43,7 +43,7 @@ use self::{
     config::{get_config, ConfigMessage},
     context_message::{ContextMessage, ContextRequest, ContextResponse},
     inner::Inner,
-    log::LogWorkerBuilder,
+    log::{LogStreamMessage, LogWorkerBuilder},
     namespace_message::{NamespaceMessage, NamespaceRequest, NamespaceResponse},
     network::{NetworkDescriptionWorker, NetworkMessage},
     worker::{PollWorker, Worker},
@@ -147,19 +147,9 @@ pub enum Kube {
     Event(Result<Vec<String>>),
     // Namespace
     Namespace(NamespaceMessage),
-
-    // GetNamespacesRequest,
-    // GetNamespacesResponse(Vec<String>),
-    // SetNamespacesRequest(Vec<String>),
-    // SetNamespacesResponse(Vec<String>),
     // Pod Status
     Pod(Result<KubeTable>),
-    // Pod Logs
-    LogStreamRequest {
-        namespace: String,
-        name: String,
-    },
-    LogStreamResponse(Result<Vec<String>>),
+    LogStream(LogStreamMessage),
     // ConfigMap & Secret
     Config(ConfigMessage),
     // Network
@@ -408,7 +398,7 @@ impl Worker for MainWorker {
                             }
                         },
 
-                        Kube::LogStreamRequest { namespace, name } => {
+                        Kube::LogStream(LogStreamMessage::Request { namespace, name }) => {
                             if let Some(handler) = log_stream_handler {
                                 handler.abort();
                             }

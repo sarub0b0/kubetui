@@ -4,7 +4,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::clipboard_wrapper::ClipboardContextWrapper;
 
-use crate::event::{kubernetes::*, Event};
+use crate::event::{kubernetes::log::LogStreamMessage, Event};
 
 use crate::action::view_id;
 
@@ -101,10 +101,13 @@ impl<'a> PodTabBuilder<'a> {
                                         .append_title_mut()) =
                                         Some((format!(" : {}", name)).into());
 
-                                    tx.send(Event::Kube(Kube::LogStreamRequest {
-                                        namespace: namespace.to_string(),
-                                        name: name.to_string(),
-                                    }))
+                                    tx.send(
+                                        LogStreamMessage::Request {
+                                            namespace: namespace.to_string(),
+                                            name: name.to_string(),
+                                        }
+                                        .into(),
+                                    )
                                     .unwrap();
 
                                     EventResult::Window(WindowEvent::Continue)

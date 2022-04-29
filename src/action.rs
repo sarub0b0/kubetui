@@ -10,6 +10,7 @@ use crate::{
             api_resources::{ApiMessage, ApiResponse},
             config::ConfigMessage,
             context_message::{ContextMessage, ContextResponse},
+            log::LogStreamMessage,
             namespace_message::{NamespaceMessage, NamespaceResponse},
             network::{NetworkMessage, NetworkResponse},
             yaml::{YamlMessage, YamlResourceListItem, YamlResponse},
@@ -192,10 +193,10 @@ pub fn update_contents(
             update_widget_item_for_table(window, view_id::tab_config_widget_config, configs_table);
         }
 
-        Kube::LogStreamResponse(logs) => {
+        Kube::LogStream(LogStreamMessage::Response(res)) => {
             let widget = window.find_widget_mut(view_id::tab_pod_widget_log);
 
-            match logs {
+            match res {
                 Ok(i) => {
                     let array = i
                         .into_iter()
