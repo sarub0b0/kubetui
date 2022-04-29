@@ -728,8 +728,8 @@ impl FetchLogStreamWorker {
         let mut msg = Vec::new();
 
         let title = format!(" Error {} ", status.name);
-        let msg_header = format!("\n\x1b[31m{:=^1$}\x1b[39m\n", title, 30);
-        let msg_footer = format!("\n\x1b[31m{}\n\x1b[39m", "=".repeat(30));
+        let msg_header = format!("\n\x1b[31m{:=^1$}\x1b[39m\n", title, 50);
+        let msg_footer = format!("\n\x1b[31m{}\n\x1b[39m", "=".repeat(50));
 
         msg.push(msg_header);
 
