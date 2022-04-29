@@ -133,28 +133,19 @@ impl From<Kube> for Event {
 
 #[derive(Debug)]
 pub enum Kube {
-    // Context
     Context(ContextMessage),
-    // apis
     API(ApiMessage),
-    // Context Restore
     RestoreAPIs(Vec<String>),
     RestoreContext {
         context: String,
         namespaces: Vec<String>,
     },
-    // Event
     Event(Result<Vec<String>>),
-    // Namespace
     Namespace(NamespaceMessage),
-    // Pod Status
     Pod(Result<KubeTable>),
     LogStream(LogStreamMessage),
-    // ConfigMap & Secret
     Config(ConfigMessage),
-    // Network
     Network(NetworkMessage),
-    // Yaml
     Yaml(YamlMessage),
 }
 
