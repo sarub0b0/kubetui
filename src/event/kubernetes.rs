@@ -44,6 +44,7 @@ use self::{
     context_message::{ContextMessage, ContextRequest, ContextResponse},
     inner::Inner,
     log::LogWorkerBuilder,
+    namespace_message::{NamespaceMessage, NamespaceRequest, NamespaceResponse},
     network::{NetworkDescriptionWorker, NetworkMessage},
     worker::{PollWorker, Worker},
     yaml::{
@@ -145,11 +146,12 @@ pub enum Kube {
     // Event
     Event(Result<Vec<String>>),
     // Namespace
-    // for multiple namespace
-    GetNamespacesRequest,
-    GetNamespacesResponse(Vec<String>),
-    SetNamespacesRequest(Vec<String>),
-    SetNamespacesResponse(Vec<String>),
+    Namespace(NamespaceMessage),
+
+    // GetNamespacesRequest,
+    // GetNamespacesResponse(Vec<String>),
+    // SetNamespacesRequest(Vec<String>),
+    // SetNamespacesResponse(Vec<String>),
     // Pod Status
     Pod(Result<KubeTable>),
     // Pod Logs
@@ -164,6 +166,42 @@ pub enum Kube {
     Network(NetworkMessage),
     // Yaml
     Yaml(YamlMessage),
+}
+
+pub mod namespace_message {
+    use crate::event::Event;
+
+    use super::Kube;
+
+    #[derive(Debug)]
+    pub enum NamespaceMessage {
+        Request(NamespaceRequest),
+        Response(NamespaceResponse),
+    }
+
+    #[derive(Debug)]
+    pub enum NamespaceRequest {
+        Get,
+        Set(Vec<String>),
+    }
+
+    #[derive(Debug)]
+    pub enum NamespaceResponse {
+        Get(Vec<String>),
+        Set(Vec<String>),
+    }
+
+    impl From<NamespaceRequest> for Event {
+        fn from(n: NamespaceRequest) -> Self {
+            Event::Kube(Kube::Namespace(NamespaceMessage::Request(n)))
+        }
+    }
+
+    impl From<NamespaceResponse> for Event {
+        fn from(n: NamespaceResponse) -> Self {
+            Event::Kube(Kube::Namespace(NamespaceMessage::Response(n)))
+        }
+    }
 }
 
 pub mod context_message {
@@ -345,29 +383,30 @@ impl Worker for MainWorker {
             if let Ok(recv) = task.await {
                 match recv {
                     Ok(Event::Kube(ev)) => match ev {
-                        Kube::SetNamespacesRequest(ns) => {
-                            {
-                                let mut namespace = namespaces.write().await;
-                                *namespace = ns.clone();
+                        Kube::Namespace(NamespaceMessage::Request(req)) => match req {
+                            NamespaceRequest::Get => {
+                                let ns = namespace_list(kube_client.clone()).await;
+                                tx.send(NamespaceResponse::Get(ns).into())?;
                             }
+                            NamespaceRequest::Set(req) => {
+                                {
+                                    let mut namespace = namespaces.write().await;
+                                    *namespace = req.clone();
+                                }
 
-                            if let Some(handler) = log_stream_handler {
-                                handler.abort();
-                                log_stream_handler = None;
+                                if let Some(handler) = log_stream_handler {
+                                    handler.abort();
+                                    log_stream_handler = None;
+                                }
+
+                                if let Some(handler) = network_handler {
+                                    handler.abort();
+                                    network_handler = None;
+                                }
+
+                                tx.send(NamespaceResponse::Set(req).into())?;
                             }
-
-                            if let Some(handler) = network_handler {
-                                handler.abort();
-                                network_handler = None;
-                            }
-
-                            tx.send(Event::Kube(Kube::SetNamespacesResponse(ns)))?;
-                        }
-
-                        Kube::GetNamespacesRequest => {
-                            let res = namespace_list(kube_client.clone()).await;
-                            tx.send(Event::Kube(Kube::GetNamespacesResponse(res)))?;
-                        }
+                        },
 
                         Kube::LogStreamRequest { namespace, name } => {
                             if let Some(handler) = log_stream_handler {

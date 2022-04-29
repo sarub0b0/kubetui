@@ -6,29 +6,32 @@ mod network;
 mod pod;
 mod yaml;
 
-use self::network::{NetworkTab, NetworkTabBuilder};
-use api::*;
-use config::*;
-use context::*;
-use event::*;
-use pod::*;
-use yaml::*;
-
 use std::{cell::RefCell, rc::Rc};
 
+use clipboard::ClipboardProvider;
 use crossbeam::channel::Sender;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tui::{layout::Direction, text::Spans, widgets::Paragraph};
 
 use crate::{
     action::view_id,
-    clipboard_wrapper::{ClipboardContextWrapper, ClipboardProvider},
+    clipboard_wrapper::ClipboardContextWrapper,
     context::{Context, Namespace},
     event::{
-        kubernetes::{context_message::ContextRequest, *},
+        kubernetes::{context_message::ContextRequest, namespace_message::NamespaceRequest},
         Event, UserEvent,
     },
     tui_wrapper::{event::EventResult, widget::Widget, Header, Tab, Window, WindowEvent},
+};
+
+use self::{
+    api::{ApiTab, ApiTabBuilder},
+    config::{ConfigTab, ConfigTabBuilder},
+    context::{ContextPopup, ContextPopupBuilder},
+    event::{EventsTab, EventsTabBuilder},
+    network::{NetworkTab, NetworkTabBuilder},
+    pod::{PodTabBuilder, PodsTab},
+    yaml::{YamlTab, YamlTabBuilder},
 };
 
 pub struct WindowInit {
@@ -66,7 +69,7 @@ impl WindowInit {
                 modifiers: KeyModifiers::SHIFT,
             }),
             move |w| {
-                tx.send(Event::Kube(Kube::GetNamespacesRequest)).unwrap();
+                tx.send(NamespaceRequest::Get.into()).unwrap();
                 w.open_popup(view_id::popup_ns);
                 EventResult::Nop
             },
@@ -74,7 +77,7 @@ impl WindowInit {
 
         let tx = self.tx.clone();
         let builder = builder.action('n', move |w| {
-            tx.send(Event::Kube(Kube::GetNamespacesRequest)).unwrap();
+            tx.send(NamespaceRequest::Get.into()).unwrap();
             w.open_popup(view_id::popup_single_ns);
             EventResult::Nop
         });

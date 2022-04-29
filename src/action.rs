@@ -10,6 +10,7 @@ use crate::{
             api_resources::{ApiMessage, ApiResponse},
             config::ConfigMessage,
             context_message::{ContextMessage, ContextResponse},
+            namespace_message::{NamespaceMessage, NamespaceResponse},
             network::{NetworkMessage, NetworkResponse},
             yaml::{YamlMessage, YamlResourceListItem, YamlResponse},
             Kube, KubeTable, KubeTableRow,
@@ -219,22 +220,23 @@ pub fn update_contents(
             update_widget_item_for_vec(window, view_id::tab_event_widget_event, ev);
         }
 
-        Kube::GetNamespacesResponse(ns) => {
-            window
-                .find_widget_mut(view_id::popup_ns)
-                .update_widget_item(Item::Array(
-                    ns.iter().cloned().map(LiteralItem::from).collect(),
-                ));
-            window
-                .find_widget_mut(view_id::popup_single_ns)
-                .update_widget_item(Item::Array(
-                    ns.iter().cloned().map(LiteralItem::from).collect(),
-                ));
-        }
-
-        Kube::SetNamespacesResponse(ns) => {
-            namespace.update(ns);
-        }
+        Kube::Namespace(NamespaceMessage::Response(res)) => match res {
+            NamespaceResponse::Get(res) => {
+                window
+                    .find_widget_mut(view_id::popup_ns)
+                    .update_widget_item(Item::Array(
+                        res.iter().cloned().map(LiteralItem::from).collect(),
+                    ));
+                window
+                    .find_widget_mut(view_id::popup_single_ns)
+                    .update_widget_item(Item::Array(
+                        res.iter().cloned().map(LiteralItem::from).collect(),
+                    ));
+            }
+            NamespaceResponse::Set(res) => {
+                namespace.update(res);
+            }
+        },
 
         Kube::Context(ContextMessage::Response(res)) => match res {
             ContextResponse::Get(res) => {

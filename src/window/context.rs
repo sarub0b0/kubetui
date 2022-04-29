@@ -1,14 +1,16 @@
 use crossbeam::channel::Sender;
 
-use crate::event::kubernetes::context_message::ContextRequest;
-use crate::event::{kubernetes::*, Event};
-
-use crate::action::view_id;
-
-use crate::tui_wrapper::{
-    event::EventResult,
-    widget::{config::WidgetConfig, MultipleSelect, SingleSelect, Widget},
-    Window,
+use crate::{
+    action::view_id,
+    event::{
+        kubernetes::{context_message::ContextRequest, namespace_message::NamespaceRequest},
+        Event,
+    },
+    tui_wrapper::{
+        event::EventResult,
+        widget::{config::WidgetConfig, MultipleSelect, SingleSelect, Widget},
+        Window,
+    },
 };
 
 pub struct ContextPopupBuilder<'a> {
@@ -55,8 +57,7 @@ impl<'a> ContextPopupBuilder<'a> {
                     items = vec!["None".to_string()];
                 }
 
-                tx.send(Event::Kube(Kube::SetNamespacesRequest(items)))
-                    .unwrap();
+                tx.send(NamespaceRequest::Set(items).into()).unwrap();
 
                 w.widget_clear(view_id::tab_pod_widget_log);
                 w.widget_clear(view_id::tab_config_widget_raw_data);
@@ -110,8 +111,7 @@ impl<'a> ContextPopupBuilder<'a> {
             .widget_config(&WidgetConfig::builder().title("Namespace").build())
             .on_select(move |w: &mut Window, v| {
                 let items = vec![v.item.to_string()];
-                tx.send(Event::Kube(Kube::SetNamespacesRequest(items)))
-                    .unwrap();
+                tx.send(NamespaceRequest::Set(items).into()).unwrap();
 
                 w.close_popup();
 
