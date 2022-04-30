@@ -3,7 +3,7 @@
 [![Release](https://img.shields.io/github/v/release/sarub0b0/kubetui)]()
 [![Test](https://github.com/sarub0b0/kubetui/actions/workflows/test.yml/badge.svg)](https://github.com/sarub0b0/kubetui/actions/workflows/test.yml)
 
-This is a TUI tool for monitoring kubernetes resources. 
+This is a TUI tool for monitoring kubernetes resources.
 
 ![](screenshots/pods-log.png)
 
@@ -11,6 +11,7 @@ This is a TUI tool for monitoring kubernetes resources.
 
 - Pods list and container logs watching
 - ConfigMap and secret watching, and data decoding
+- Network related resources list and description
 - Events watching
 - Specific resources watching (Table / Yaml)
 - Namespace multiple selections
