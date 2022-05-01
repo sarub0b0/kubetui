@@ -41,13 +41,13 @@ General
 
 | Key                                  | Description                                                                    |
 | ------------------------------------ | ------------------------------------------------------------------------------ |
+| <kbd>h</kbd>, <kbd>?</kbd>           | Open the popup for help                                                        |
 | <kbd>n</kbd>                         | Open the popup for selecting the namespace                                     |
 | <kbd>c</kbd>                         | Open the popup for selecting the context                                       |
 | <kbd>Shift+n</kbd>                   | Open the popup for selecting multiple namespaces                               |
 | <kbd>f</kbd>, <kbd>/</kbd>           | Open the popup for selecting multiple api-resources (**only APIs / Yaml tab**) |
 | <kbd>Tab</kbd>, <kbd>Shift+Tab</kbd> | Change the focus of view within the active tab                                 |
 | <kbd>number</kbd>                    | Switch the tab (number: 1~4)                                                   |
-| <kbd>h</kbd>, <kbd>?</kbd>           | Open the popup for help                                                        |
 | <kbd>ESC</kbd>                       | Close the window, or terminate the app (when the popup is not opening)         |
 | <kbd>q</kbd>                         | Terminate the app                                                              |
 
