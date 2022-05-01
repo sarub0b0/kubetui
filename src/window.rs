@@ -2,6 +2,7 @@ mod api;
 mod config;
 mod context;
 mod event;
+mod help;
 mod network;
 mod pod;
 mod yaml;
@@ -29,6 +30,7 @@ use self::{
     config::{ConfigTab, ConfigTabBuilder},
     context::{ContextPopup, ContextPopupBuilder},
     event::{EventsTab, EventsTabBuilder},
+    help::HelpPopup,
     network::{NetworkTab, NetworkTabBuilder},
     pod::{PodTabBuilder, PodsTab},
     yaml::{YamlTab, YamlTabBuilder},
@@ -98,6 +100,13 @@ impl WindowInit {
             EventResult::Nop
         });
 
+        let open_help = move |w: &mut Window| {
+            w.open_popup(view_id::popup_help);
+            EventResult::Nop
+        };
+
+        let builder = builder.action('h', open_help).action('?', open_help);
+
         let builder = builder.action('q', fn_close).action(KeyCode::Esc, fn_close);
 
         let context = self.context.clone();
@@ -152,6 +161,10 @@ impl WindowInit {
             multiple_namespaces: popup_multiple_namespaces,
         } = ContextPopupBuilder::new(&self.tx).build();
 
+        let HelpPopup {
+            content: popup_help,
+        } = HelpPopup::new();
+
         // Init Window
         let tabs = vec![
             tab_pods,
@@ -169,6 +182,7 @@ impl WindowInit {
             popup_apis,
             popup_yaml_kind,
             popup_yaml_name,
+            popup_help,
         ];
 
         (tabs, popups)

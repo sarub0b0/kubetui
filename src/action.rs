@@ -57,6 +57,8 @@ pub mod view_id {
 
     generate_id!(popup_yaml_name);
     generate_id!(popup_yaml_kind);
+
+    generate_id!(popup_help);
 }
 
 macro_rules! error_format {
