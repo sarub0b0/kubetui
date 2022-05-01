@@ -1,5 +1,25 @@
 use tui::style::{Color, Modifier, Style};
 
+pub struct SGR(pub Vec<u8>);
+
+impl From<Vec<u8>> for SGR {
+    fn from(code: Vec<u8>) -> Self {
+        Self(code)
+    }
+}
+
+impl SGR {
+    pub fn new(code: Vec<u8>) -> Self {
+        Self(code)
+    }
+}
+
+impl From<SGR> for Style {
+    fn from(sgr: SGR) -> Self {
+        generate_style_from_ansi_color(sgr.0)
+    }
+}
+
 fn normal_color(n: u8) -> Color {
     match n {
         30 => Color::Black,
