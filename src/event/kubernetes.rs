@@ -597,14 +597,14 @@ mod inner {
                             None
                         }
                     })
-                    .ok_or(anyhow!(format!("Cannot find context {}", context)))?
+                    .ok_or_else(|| anyhow!(format!("Cannot find context {}", context)))?
             } else if let Some(current_context) = &kubeconfig.current_context {
                 current_context.to_string()
             } else {
                 kubeconfig
                     .contexts
                     .first()
-                    .ok_or(anyhow!("Empty contexts"))?
+                    .ok_or_else(|| anyhow!("Empty contexts"))?
                     .name
                     .to_string()
             };
@@ -1051,13 +1051,13 @@ mod kube_store {
         pub fn get(&self, context: &str) -> Result<&KubeState> {
             self.inner
                 .get(context)
-                .ok_or(anyhow!(format!("Cannot get context {}", context)))
+                .ok_or_else(|| anyhow!(format!("Cannot get context {}", context)))
         }
 
         pub fn get_mut(&mut self, context: &str) -> Result<&mut KubeState> {
             self.inner
                 .get_mut(context)
-                .ok_or(anyhow!(format!("Cannot get context {}", context)))
+                .ok_or_else(|| anyhow!(format!("Cannot get context {}", context)))
         }
 
         pub fn insert(&mut self, context: Context, state: KubeState) {
