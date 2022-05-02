@@ -99,6 +99,60 @@ impl RenderTrait for Text {
     }
 }
 
+mod styled_graphemes {
+    use tui::{style::Style, text::StyledGrapheme};
+    use unicode_segmentation::UnicodeSegmentation;
+
+    use crate::{
+        ansi::{AnsiEscapeSequence, TextParser},
+        tui_wrapper::widget::ansi_color::SGR,
+    };
+
+    pub trait StyledGraphemes {
+        fn styled_graphemes(&self) -> Vec<StyledGrapheme<'_>>;
+    }
+
+    impl StyledGraphemes for String {
+        fn styled_graphemes(&self) -> Vec<StyledGrapheme<'_>> {
+            styled_graphemes(self)
+        }
+    }
+
+    impl StyledGraphemes for &'static str {
+        fn styled_graphemes(&self) -> Vec<StyledGrapheme<'static>> {
+            styled_graphemes(self)
+        }
+    }
+
+    /// 一文字単位でスタイルを適用したリストを返す
+    pub fn styled_graphemes(s: &str) -> Vec<StyledGrapheme<'_>> {
+        let mut style = Style::default();
+
+        s.ansi_parse()
+            .filter_map(|p| match p.ty {
+                AnsiEscapeSequence::Chars => Some(StyledGrapheme {
+                    symbol: p.chars,
+                    style,
+                }),
+                AnsiEscapeSequence::SelectGraphicRendition(sgr) => {
+                    style = SGR::from(sgr).into();
+                    None
+                }
+                _ => None,
+            })
+            .flat_map(|sg| {
+                sg.symbol
+                    .graphemes(true)
+                    .map(|g| StyledGrapheme {
+                        symbol: g,
+                        style: sg.style,
+                    })
+                    .collect::<Vec<StyledGrapheme<'_>>>()
+            })
+            .collect()
+    }
+}
+
 /// 文字列を描画するためのモジュール
 /// - 渡された１行ずつのデータを描画する
 /// - 渡された縦横スクロールの位置をもとに描画位置を決定する
