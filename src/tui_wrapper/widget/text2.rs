@@ -195,6 +195,101 @@ mod item {
     }
 }
 
+mod wrap {
+
+    use tui::text::StyledGrapheme;
+
+    /// Itemを折り返しとハイライトを考慮した構造体
+    #[derive(Debug, PartialEq)]
+    pub struct WrappedLine<'a> {
+        /// on_select時に渡すLiteralItemのインデックス = Item.itemのインデックス
+        index: usize,
+
+        /// 折り返しを計算した結果、表示する文字列データ
+        line: &'a [StyledGrapheme<'a>],
+    }
+
+    pub struct Wrap<'a> {
+        /// 折り返し計算をする文字列リスト
+        lines: &'a [Vec<StyledGrapheme<'a>>],
+
+        line_ref: Option<&'a [StyledGrapheme<'a>]>,
+
+        /// 折り返し計算をするlinesのインデックス
+        index: usize,
+
+        /// 折り返し幅
+        wrap_width: Option<usize>,
+    }
+    impl<'a> Wrap<'a> {
+        fn new(lines: &'a [Vec<StyledGrapheme<'a>>], wrap_width: Option<usize>) -> Self {
+            Self {
+                lines,
+                wrap_width,
+                index: 0,
+                line_ref: None,
+            }
+        }
+    }
+
+    impl<'a> Iterator for Wrap<'a> {
+        type Item = WrappedLine<'a>;
+        fn next(&mut self) -> Option<Self::Item> {
+            if let Some(wrap_width) = self.wrap_width {
+                if let Some(line) = self.lines.get(self.index) {
+                    None
+                } else {
+                    None
+                }
+            } else {
+                let index = self.index;
+                self.index += 1;
+
+                self.lines
+                    .get(index)
+                    .map(|line| WrappedLine { index, line })
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use pretty_assertions::assert_eq;
+
+        use crate::tui_wrapper::widget::text2::styled_graphemes::StyledGraphemes;
+
+        use super::*;
+
+        #[test]
+        fn 折り返しなしのときlinesを1行ずつ生成する() {
+            let lines = vec![
+                "abc".styled_graphemes(),
+                "def".styled_graphemes(),
+                "ghi".styled_graphemes(),
+            ];
+            let wrap = Wrap::new(&lines, None);
+
+            let actual = wrap.collect::<Vec<_>>();
+
+            let expected = vec![
+                WrappedLine {
+                    index: 0,
+                    line: &lines[0],
+                },
+                WrappedLine {
+                    index: 1,
+                    line: &lines[1],
+                },
+                WrappedLine {
+                    index: 2,
+                    line: &lines[2],
+                },
+            ];
+
+            assert_eq!(actual, expected);
+        }
+    }
+}
 /// 文字列を描画するためのモジュール
 /// - 渡された１行ずつのデータを描画する
 /// - 渡された縦横スクロールの位置をもとに描画位置を決定する
