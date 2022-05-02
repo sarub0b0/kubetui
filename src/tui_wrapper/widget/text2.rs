@@ -197,6 +197,8 @@ mod item {
 
 mod wrap {
 
+    use std::borrow::Cow;
+
     use tui::text::StyledGrapheme;
 
     /// Itemを折り返しとハイライトを考慮した構造体
@@ -206,7 +208,7 @@ mod wrap {
         index: usize,
 
         /// 折り返しを計算した結果、表示する文字列データ
-        line: &'a [StyledGrapheme<'a>],
+        line: Cow<'a, [StyledGrapheme<'a>]>,
     }
 
     pub struct Wrap<'a> {
@@ -246,9 +248,10 @@ mod wrap {
                 let index = self.index;
                 self.index += 1;
 
-                self.lines
-                    .get(index)
-                    .map(|line| WrappedLine { index, line })
+                self.lines.get(index).map(|line| WrappedLine {
+                    index,
+                    line: Cow::from(line),
+                })
             }
         }
     }
@@ -275,15 +278,15 @@ mod wrap {
             let expected = vec![
                 WrappedLine {
                     index: 0,
-                    line: &lines[0],
+                    line: Cow::from("abc".styled_graphemes()),
                 },
                 WrappedLine {
                     index: 1,
-                    line: &lines[1],
+                    line: Cow::from("def".styled_graphemes()),
                 },
                 WrappedLine {
                     index: 2,
-                    line: &lines[2],
+                    line: Cow::from("ghi".styled_graphemes()),
                 },
             ];
 
