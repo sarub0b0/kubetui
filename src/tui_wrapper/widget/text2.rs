@@ -213,13 +213,14 @@ mod wrap {
         /// 折り返し計算をする文字列リスト
         lines: &'a [Vec<StyledGrapheme<'a>>],
 
-        line_ref: Option<&'a [StyledGrapheme<'a>]>,
-
         /// 折り返し計算をするlinesのインデックス
         index: usize,
 
         /// 折り返し幅
         wrap_width: Option<usize>,
+
+        /// 折り返しが発生したときの残りの文字列
+        line_ref: Option<&'a [StyledGrapheme<'a>]>,
     }
     impl<'a> Wrap<'a> {
         fn new(lines: &'a [Vec<StyledGrapheme<'a>>], wrap_width: Option<usize>) -> Self {
