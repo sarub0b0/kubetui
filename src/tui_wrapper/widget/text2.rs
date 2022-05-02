@@ -105,7 +105,7 @@ mod styled_graphemes {
 
     use crate::{
         ansi::{AnsiEscapeSequence, TextParser},
-        tui_wrapper::widget::ansi_color::SGR,
+        tui_wrapper::widget::ansi_color::Sgr,
     };
 
     pub trait StyledGraphemes {
@@ -135,7 +135,7 @@ mod styled_graphemes {
                     style,
                 }),
                 AnsiEscapeSequence::SelectGraphicRendition(sgr) => {
-                    style = SGR::from(sgr).into();
+                    style = Sgr::from(sgr).into();
                     None
                 }
                 _ => None,

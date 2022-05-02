@@ -1,21 +1,21 @@
 use tui::style::{Color, Modifier, Style};
 
-pub struct SGR(pub Vec<u8>);
+pub struct Sgr(pub Vec<u8>);
 
-impl From<Vec<u8>> for SGR {
+impl From<Vec<u8>> for Sgr {
     fn from(code: Vec<u8>) -> Self {
         Self(code)
     }
 }
 
-impl SGR {
+impl Sgr {
     pub fn new(code: Vec<u8>) -> Self {
         Self(code)
     }
 }
 
-impl From<SGR> for Style {
-    fn from(sgr: SGR) -> Self {
+impl From<Sgr> for Style {
+    fn from(sgr: Sgr) -> Self {
         generate_style_from_ansi_color(sgr.0)
     }
 }
