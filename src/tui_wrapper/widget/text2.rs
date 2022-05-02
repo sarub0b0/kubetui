@@ -129,9 +129,6 @@ mod render {
         block: Block<'a>,
         lines: &'a [&'a [StyledGrapheme<'a>]],
         scroll: Scroll,
-
-        #[doc(hidden)]
-        _non_exhaustive: (),
     }
 
     pub struct RenderBuilder<'a>(Render<'a>);
