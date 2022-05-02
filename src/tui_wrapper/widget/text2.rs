@@ -200,6 +200,7 @@ mod wrap {
     use std::borrow::Cow;
 
     use tui::text::StyledGrapheme;
+    use unicode_width::UnicodeWidthStr;
 
     /// Itemを折り返しとハイライトを考慮した構造体
     #[derive(Debug, PartialEq)]
@@ -211,6 +212,7 @@ mod wrap {
         line: Cow<'a, [StyledGrapheme<'a>]>,
     }
 
+    #[derive(Debug)]
     pub struct Wrap<'a> {
         /// 折り返し計算をする文字列リスト
         lines: &'a [Vec<StyledGrapheme<'a>>],
@@ -222,15 +224,16 @@ mod wrap {
         wrap_width: Option<usize>,
 
         /// 折り返しが発生したときの残りの文字列
-        line_ref: Option<&'a [StyledGrapheme<'a>]>,
+        remaining: Option<&'a [StyledGrapheme<'a>]>,
     }
+
     impl<'a> Wrap<'a> {
         fn new(lines: &'a [Vec<StyledGrapheme<'a>>], wrap_width: Option<usize>) -> Self {
             Self {
                 lines,
                 wrap_width,
                 index: 0,
-                line_ref: None,
+                remaining: None,
             }
         }
     }
@@ -239,8 +242,35 @@ mod wrap {
         type Item = WrappedLine<'a>;
         fn next(&mut self) -> Option<Self::Item> {
             if let Some(wrap_width) = self.wrap_width {
-                if let Some(line) = self.lines.get(self.index) {
-                    None
+                let line = if let Some(remaining) = self.remaining {
+                    Some(remaining)
+                } else {
+                    self.lines.get(self.index).map(|line| line.as_slice())
+                };
+
+                if let Some(line) = line {
+                    let index = self.index;
+
+                    let result = wrap(line, wrap_width);
+
+                    let (wrap, remaining) = match result {
+                        WrapResult::None(line) => (line, None),
+                        WrapResult::Wrap {
+                            wrapped: wrap,
+                            remaining,
+                        } => (wrap, remaining),
+                    };
+
+                    self.remaining = remaining;
+
+                    if self.remaining.is_none() {
+                        self.index += 1;
+                    }
+
+                    Some(WrappedLine {
+                        index,
+                        line: Cow::from(wrap),
+                    })
                 } else {
                     None
                 }
@@ -254,6 +284,36 @@ mod wrap {
                 })
             }
         }
+    }
+
+    #[derive(Debug, PartialEq)]
+    enum WrapResult<'a> {
+        None(&'a [StyledGrapheme<'a>]),
+        Wrap {
+            wrapped: &'a [StyledGrapheme<'a>],
+            remaining: Option<&'a [StyledGrapheme<'a>]>,
+        },
+    }
+
+    fn wrap<'a>(line: &'a [StyledGrapheme<'a>], wrap_width: usize) -> WrapResult {
+        let mut result = WrapResult::None(line);
+
+        let mut sum = 0;
+        for (i, sg) in line.iter().enumerate() {
+            let width = sg.symbol.width();
+
+            if wrap_width < sum + width {
+                result = WrapResult::Wrap {
+                    wrapped: &line[..i],
+                    remaining: Some(&line[i..]),
+                };
+                break;
+            }
+
+            sum += width;
+        }
+
+        result
     }
 
     #[cfg(test)]
@@ -291,6 +351,121 @@ mod wrap {
             ];
 
             assert_eq!(actual, expected);
+        }
+
+        mod wrap {
+            use super::*;
+
+            use pretty_assertions::assert_eq;
+
+            #[test]
+            fn has_remaining() {
+                let line: Vec<StyledGrapheme> = "0123456789".styled_graphemes();
+
+                let result = wrap(&line, 5);
+
+                assert_eq!(
+                    result,
+                    WrapResult::Wrap {
+                        wrapped: &line[..5],
+                        remaining: Some(&line[5..])
+                    }
+                );
+            }
+
+            #[test]
+            fn no_remaining() {
+                let line: Vec<StyledGrapheme> = "0123456789".styled_graphemes();
+
+                let result = wrap(&line, 10);
+
+                assert_eq!(result, WrapResult::None(&line));
+            }
+        }
+
+        mod 半角 {
+            use super::*;
+
+            use pretty_assertions::assert_eq;
+
+            #[test]
+            fn 折り返しのとき指定した幅に収まるリストを返す() {
+                let lines = vec![
+                    "0123456789".styled_graphemes(),
+                    "0123456789".styled_graphemes(),
+                    "0123456789".styled_graphemes(),
+                ];
+                let wrap = Wrap::new(&lines, Some(5));
+
+                let actual = wrap.collect::<Vec<_>>();
+
+                let expected = vec![
+                    WrappedLine {
+                        index: 0,
+                        line: Cow::from("01234".styled_graphemes()),
+                    },
+                    WrappedLine {
+                        index: 0,
+                        line: Cow::from("56789".styled_graphemes()),
+                    },
+                    WrappedLine {
+                        index: 1,
+                        line: Cow::from("01234".styled_graphemes()),
+                    },
+                    WrappedLine {
+                        index: 1,
+                        line: Cow::from("56789".styled_graphemes()),
+                    },
+                    WrappedLine {
+                        index: 2,
+                        line: Cow::from("01234".styled_graphemes()),
+                    },
+                    WrappedLine {
+                        index: 2,
+                        line: Cow::from("56789".styled_graphemes()),
+                    },
+                ];
+
+                assert_eq!(actual, expected);
+            }
+        }
+
+        mod 全角 {
+            use super::*;
+
+            use pretty_assertions::assert_eq;
+
+            #[test]
+            fn 折り返しのとき指定した幅に収まるリストを返す() {
+                let lines = vec![
+                    "一二三四五六七八九十".styled_graphemes(),
+                    "アイウエオかきくけこ".styled_graphemes(),
+                ];
+                let wrap = Wrap::new(&lines, Some(11));
+
+                let actual = wrap.collect::<Vec<_>>();
+
+                let expected = vec![
+                    WrappedLine {
+                        index: 0,
+                        line: Cow::from("一二三四五".styled_graphemes()),
+                    },
+                    WrappedLine {
+                        index: 0,
+                        line: Cow::from("六七八九十".styled_graphemes()),
+                    },
+                    WrappedLine {
+                        index: 1,
+                        line: Cow::from("アイウエオ".styled_graphemes()),
+                    },
+                    WrappedLine {
+                        index: 1,
+                        line: Cow::from("かきくけこ".styled_graphemes()),
+                    },
+                ];
+
+                assert_eq!(actual, expected);
+            }
         }
     }
 }
