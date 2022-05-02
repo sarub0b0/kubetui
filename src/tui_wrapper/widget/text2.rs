@@ -153,6 +153,48 @@ mod styled_graphemes {
     }
 }
 
+mod item {
+
+    use std::ops::Range;
+
+    use tui::text::StyledGrapheme;
+
+    use crate::tui_wrapper::widget::LiteralItem;
+
+    use super::styled_graphemes::StyledGraphemes;
+
+    pub struct HighlightItem<'a> {
+        /// ハイライト開始時のインデックス
+        pub index: usize,
+        /// or
+        /// ハイライト場所のレンジ
+        pub range: Range<usize>,
+
+        /// ハイライト場所の文字列
+        pub item: Vec<StyledGrapheme<'a>>,
+    }
+
+    /// LiteralItem から Vec<StyledGrapheme> に変換する
+    ///
+    /// 文字列をパースしてスタイルを適用する
+    pub struct Item<'a> {
+        /// １行分の文字列
+        item: Vec<StyledGrapheme<'a>>,
+
+        /// ハイライトされた文字列を退避し、ハイライト終了時に戻す
+        take: Option<Vec<HighlightItem<'a>>>,
+    }
+
+    impl<'a> Item<'a> {
+        pub fn new(literal: &'a LiteralItem) -> Self {
+            Self {
+                item: literal.item.styled_graphemes(),
+                take: None,
+            }
+        }
+    }
+}
+
 /// 文字列を描画するためのモジュール
 /// - 渡された１行ずつのデータを描画する
 /// - 渡された縦横スクロールの位置をもとに描画位置を決定する
