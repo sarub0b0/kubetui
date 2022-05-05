@@ -489,13 +489,13 @@ mod render {
     use super::*;
 
     #[derive(Debug, Default, Clone, Copy)]
-    struct Scroll {
-        x: usize,
-        y: usize,
+    pub struct Scroll {
+        pub x: usize,
+        pub y: usize,
     }
 
     #[derive(Debug, Default, Clone)]
-    struct Render<'a> {
+    pub struct Render<'a> {
         block: Block<'a>,
         lines: &'a [&'a [StyledGrapheme<'a>]],
         scroll: Scroll,
@@ -504,28 +504,28 @@ mod render {
     pub struct RenderBuilder<'a>(Render<'a>);
 
     impl<'a> RenderBuilder<'a> {
-        fn block(mut self, block: Block<'a>) -> Self {
+        pub fn block(mut self, block: Block<'a>) -> Self {
             self.0.block = block;
             self
         }
 
-        fn lines(mut self, lines: &'a [&'a [StyledGrapheme<'a>]]) -> Self {
+        pub fn lines(mut self, lines: &'a [&'a [StyledGrapheme<'a>]]) -> Self {
             self.0.lines = lines;
             self
         }
 
-        fn scroll(mut self, scroll: Scroll) -> Self {
+        pub fn scroll(mut self, scroll: Scroll) -> Self {
             self.0.scroll = scroll;
             self
         }
 
-        fn build(self) -> Render<'a> {
+        pub fn build(self) -> Render<'a> {
             self.0
         }
     }
 
     impl<'a> Render<'a> {
-        fn builder() -> RenderBuilder<'a> {
+        pub fn builder() -> RenderBuilder<'a> {
             RenderBuilder(Render::default())
         }
     }
