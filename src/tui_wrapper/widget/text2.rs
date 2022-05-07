@@ -147,17 +147,26 @@ mod styled_graphemes {
 
     pub trait StyledGraphemes {
         fn styled_graphemes(&self) -> Vec<StyledGrapheme<'_>>;
+        fn styled_graphemes_symbols(&self) -> Vec<&'_ str>;
     }
 
     impl StyledGraphemes for String {
         fn styled_graphemes(&self) -> Vec<StyledGrapheme<'_>> {
             styled_graphemes(self)
         }
+
+        fn styled_graphemes_symbols(&self) -> Vec<&'_ str> {
+            styled_graphemes_symbols(self)
+        }
     }
 
-    impl StyledGraphemes for &'static str {
-        fn styled_graphemes(&self) -> Vec<StyledGrapheme<'static>> {
+    impl<'a> StyledGraphemes for &'a str {
+        fn styled_graphemes(&self) -> Vec<StyledGrapheme<'a>> {
             styled_graphemes(self)
+        }
+
+        fn styled_graphemes_symbols(&self) -> Vec<&'_ str> {
+            styled_graphemes_symbols(self)
         }
     }
 
@@ -186,6 +195,16 @@ mod styled_graphemes {
                     })
                     .collect::<Vec<StyledGrapheme<'_>>>()
             })
+            .collect()
+    }
+
+    pub fn styled_graphemes_symbols(s: &str) -> Vec<&'_ str> {
+        s.ansi_parse()
+            .filter_map(|p| match p.ty {
+                AnsiEscapeSequence::Chars => Some(p.chars),
+                _ => None,
+            })
+            .flat_map(|chars| chars.graphemes(true).collect::<Vec<_>>())
             .collect()
     }
 }
