@@ -207,7 +207,7 @@ mod styled_graphemes {
 
 mod item {
 
-    use std::ops::Range;
+    use std::{borrow::Cow, ops::Range};
 
     use tui::text::StyledGrapheme;
 
@@ -215,6 +215,15 @@ mod item {
 
     use super::styled_graphemes::StyledGraphemes;
 
+    /// Itemを折り返しとハイライトを考慮した構造体
+    #[derive(Debug, Default, PartialEq)]
+    pub struct WrappedLine<'a> {
+        /// on_select時に渡すLiteralItemのインデックス = Item.itemのインデックス
+        pub index: usize,
+
+        /// 折り返しを計算した結果、表示する文字列データ
+        pub line: Cow<'a, [StyledGrapheme<'a>]>,
+    }
     pub struct HighlightItem<'a> {
         /// ハイライト開始時のインデックス
         pub index: usize,
@@ -245,119 +254,177 @@ mod item {
             }
         }
     }
+
+    #[cfg(test)]
+    mod tests {
+        use pretty_assertions::assert_eq;
+        use tui::style::Style;
+
+        use super::*;
+
+        #[test]
+        fn 指定された文字列にマッチするときその文字列を退避してハイライトする() {
+            let item = LiteralItem {
+                item: "hello world".to_string(),
+                ..Default::default()
+            };
+            let mut item = Item::new(&item);
+
+            item.highlight_word("hello");
+
+            assert_eq!(
+                item.take,
+                Some(vec![HighlightItem {
+                    index: 0,
+                    range: 0..5,
+                    item: vec![
+                        StyledGrapheme {
+                            symbol: "h",
+                            style: Style::default(),
+                        },
+                        StyledGrapheme {
+                            symbol: "e",
+                            style: Style::default(),
+                        },
+                        StyledGrapheme {
+                            symbol: "l",
+                            style: Style::default(),
+                        },
+                        StyledGrapheme {
+                            symbol: "o",
+                            style: Style::default(),
+                        },
+                        StyledGrapheme {
+                            symbol: "o",
+                            style: Style::default(),
+                        },
+                    ],
+                }])
+            );
+
+            assert_eq!(
+                item.item,
+                vec![
+                    StyledGrapheme {
+                        symbol: "h",
+                        style: Style::default(),
+                    },
+                    StyledGrapheme {
+                        symbol: "e",
+                        style: Style::default(),
+                    },
+                    StyledGrapheme {
+                        symbol: "l",
+                        style: Style::default(),
+                    },
+                    StyledGrapheme {
+                        symbol: "o",
+                        style: Style::default(),
+                    },
+                    StyledGrapheme {
+                        symbol: "o",
+                        style: Style::default(),
+                    },
+                    StyledGrapheme {
+                        symbol: " ",
+                        style: Style::default(),
+                    },
+                    StyledGrapheme {
+                        symbol: "w",
+                        style: Style::default(),
+                    },
+                    StyledGrapheme {
+                        symbol: "o",
+                        style: Style::default(),
+                    },
+                    StyledGrapheme {
+                        symbol: "r",
+                        style: Style::default(),
+                    },
+                    StyledGrapheme {
+                        symbol: "l",
+                        style: Style::default(),
+                    },
+                    StyledGrapheme {
+                        symbol: "d",
+                        style: Style::default(),
+                    },
+                ],
+            );
+        }
+    }
 }
 
 mod wrap {
 
-    use std::borrow::Cow;
-
     use tui::text::StyledGrapheme;
     use unicode_width::UnicodeWidthStr;
-
-    /// Itemを折り返しとハイライトを考慮した構造体
-    #[derive(Debug, PartialEq)]
-    pub struct WrappedLine<'a> {
-        /// on_select時に渡すLiteralItemのインデックス = Item.itemのインデックス
-        index: usize,
-
-        /// 折り返しを計算した結果、表示する文字列データ
-        line: Cow<'a, [StyledGrapheme<'a>]>,
-    }
 
     #[derive(Debug)]
     pub struct Wrap<'a> {
         /// 折り返し計算をする文字列リスト
-        lines: &'a [Vec<StyledGrapheme<'a>>],
-
-        /// 折り返し計算をするlinesのインデックス
-        index: usize,
+        line: &'a [StyledGrapheme<'a>],
 
         /// 折り返し幅
         wrap_width: Option<usize>,
-
-        /// 折り返しが発生したときの残りの文字列
-        remaining: Option<&'a [StyledGrapheme<'a>]>,
     }
 
-    impl<'a> Wrap<'a> {
-        fn new(lines: &'a [Vec<StyledGrapheme<'a>>], wrap_width: Option<usize>) -> Self {
-            Self {
-                lines,
+    pub trait WrapTrait {
+        fn wrap(&self, wrap_width: Option<usize>) -> Wrap;
+    }
+
+    impl WrapTrait for Vec<StyledGrapheme<'_>> {
+        fn wrap(&self, wrap_width: Option<usize>) -> Wrap {
+            Wrap {
+                line: self,
                 wrap_width,
-                index: 0,
-                remaining: None,
             }
         }
     }
 
     impl<'a> Iterator for Wrap<'a> {
-        type Item = WrappedLine<'a>;
+        type Item = &'a [StyledGrapheme<'a>];
         fn next(&mut self) -> Option<Self::Item> {
+            if self.line.is_empty() {
+                return None;
+            }
+
             if let Some(wrap_width) = self.wrap_width {
-                let line = if let Some(remaining) = self.remaining {
-                    Some(remaining)
-                } else {
-                    self.lines.get(self.index).map(|line| line.as_slice())
-                };
+                let WrapResult { wrapped, remaining } = wrap(self.line, wrap_width);
 
-                if let Some(line) = line {
-                    let index = self.index;
+                self.line = remaining;
 
-                    let result = wrap(line, wrap_width);
-
-                    let (wrap, remaining) = match result {
-                        WrapResult::None(line) => (line, None),
-                        WrapResult::Wrap {
-                            wrapped: wrap,
-                            remaining,
-                        } => (wrap, remaining),
-                    };
-
-                    self.remaining = remaining;
-
-                    if self.remaining.is_none() {
-                        self.index += 1;
-                    }
-
-                    Some(WrappedLine {
-                        index,
-                        line: Cow::from(wrap),
-                    })
-                } else {
-                    None
-                }
+                Some(wrapped)
             } else {
-                let index = self.index;
-                self.index += 1;
+                let ret = self.line;
 
-                self.lines.get(index).map(|line| WrappedLine {
-                    index,
-                    line: Cow::from(line),
-                })
+                self.line = &[];
+
+                Some(ret)
             }
         }
     }
 
     #[derive(Debug, PartialEq)]
-    enum WrapResult<'a> {
-        None(&'a [StyledGrapheme<'a>]),
-        Wrap {
-            wrapped: &'a [StyledGrapheme<'a>],
-            remaining: Option<&'a [StyledGrapheme<'a>]>,
-        },
+    struct WrapResult<'a> {
+        wrapped: &'a [StyledGrapheme<'a>],
+        remaining: &'a [StyledGrapheme<'a>],
     }
 
     fn wrap<'a>(line: &'a [StyledGrapheme<'a>], wrap_width: usize) -> WrapResult {
-        let mut result = WrapResult::None(line);
+        let mut result = WrapResult {
+            wrapped: line,
+            remaining: &[],
+        };
 
         let mut sum = 0;
         for (i, sg) in line.iter().enumerate() {
             let width = sg.symbol.width();
 
             if wrap_width < sum + width {
-                result = WrapResult::Wrap {
+                result = WrapResult {
                     wrapped: &line[..i],
-                    remaining: Some(&line[i..]),
+                    remaining: &line[i..],
                 };
                 break;
             }
@@ -378,29 +445,11 @@ mod wrap {
 
         #[test]
         fn 折り返しなしのときlinesを1行ずつ生成する() {
-            let lines = vec![
-                "abc".styled_graphemes(),
-                "def".styled_graphemes(),
-                "ghi".styled_graphemes(),
-            ];
-            let wrap = Wrap::new(&lines, None);
+            let line = "abc".styled_graphemes();
 
-            let actual = wrap.collect::<Vec<_>>();
+            let actual = line.wrap(None).collect::<Vec<_>>();
 
-            let expected = vec![
-                WrappedLine {
-                    index: 0,
-                    line: Cow::from("abc".styled_graphemes()),
-                },
-                WrappedLine {
-                    index: 1,
-                    line: Cow::from("def".styled_graphemes()),
-                },
-                WrappedLine {
-                    index: 2,
-                    line: Cow::from("ghi".styled_graphemes()),
-                },
-            ];
+            let expected = vec!["abc".styled_graphemes()];
 
             assert_eq!(actual, expected);
         }
@@ -418,9 +467,9 @@ mod wrap {
 
                 assert_eq!(
                     result,
-                    WrapResult::Wrap {
+                    WrapResult {
                         wrapped: &line[..5],
-                        remaining: Some(&line[5..])
+                        remaining: &line[5..]
                     }
                 );
             }
@@ -431,7 +480,13 @@ mod wrap {
 
                 let result = wrap(&line, 10);
 
-                assert_eq!(result, WrapResult::None(&line));
+                assert_eq!(
+                    result,
+                    WrapResult {
+                        wrapped: &line,
+                        remaining: &[]
+                    }
+                );
             }
         }
 
@@ -442,41 +497,11 @@ mod wrap {
 
             #[test]
             fn 折り返しのとき指定した幅に収まるリストを返す() {
-                let lines = vec![
-                    "0123456789".styled_graphemes(),
-                    "0123456789".styled_graphemes(),
-                    "0123456789".styled_graphemes(),
-                ];
-                let wrap = Wrap::new(&lines, Some(5));
+                let line = "0123456789".styled_graphemes();
 
-                let actual = wrap.collect::<Vec<_>>();
+                let actual = line.wrap(Some(5)).collect::<Vec<_>>();
 
-                let expected = vec![
-                    WrappedLine {
-                        index: 0,
-                        line: Cow::from("01234".styled_graphemes()),
-                    },
-                    WrappedLine {
-                        index: 0,
-                        line: Cow::from("56789".styled_graphemes()),
-                    },
-                    WrappedLine {
-                        index: 1,
-                        line: Cow::from("01234".styled_graphemes()),
-                    },
-                    WrappedLine {
-                        index: 1,
-                        line: Cow::from("56789".styled_graphemes()),
-                    },
-                    WrappedLine {
-                        index: 2,
-                        line: Cow::from("01234".styled_graphemes()),
-                    },
-                    WrappedLine {
-                        index: 2,
-                        line: Cow::from("56789".styled_graphemes()),
-                    },
-                ];
+                let expected = vec!["01234".styled_graphemes(), "56789".styled_graphemes()];
 
                 assert_eq!(actual, expected);
             }
@@ -489,31 +514,13 @@ mod wrap {
 
             #[test]
             fn 折り返しのとき指定した幅に収まるリストを返す() {
-                let lines = vec![
-                    "一二三四五六七八九十".styled_graphemes(),
-                    "アイウエオかきくけこ".styled_graphemes(),
-                ];
-                let wrap = Wrap::new(&lines, Some(11));
+                let line = "アイウエオかきくけこ".styled_graphemes();
 
-                let actual = wrap.collect::<Vec<_>>();
+                let actual = line.wrap(Some(11)).collect::<Vec<_>>();
 
                 let expected = vec![
-                    WrappedLine {
-                        index: 0,
-                        line: Cow::from("一二三四五".styled_graphemes()),
-                    },
-                    WrappedLine {
-                        index: 0,
-                        line: Cow::from("六七八九十".styled_graphemes()),
-                    },
-                    WrappedLine {
-                        index: 1,
-                        line: Cow::from("アイウエオ".styled_graphemes()),
-                    },
-                    WrappedLine {
-                        index: 1,
-                        line: Cow::from("かきくけこ".styled_graphemes()),
-                    },
+                    "アイウエオ".styled_graphemes(),
+                    "かきくけこ".styled_graphemes(),
                 ];
 
                 assert_eq!(actual, expected);
