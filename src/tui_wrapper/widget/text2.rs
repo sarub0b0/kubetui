@@ -1,3 +1,5 @@
+use std::borrow::{Borrow, Cow};
+
 use crossterm::event::{KeyEvent, MouseEvent};
 use tui::{
     backend::Backend,
@@ -12,7 +14,24 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::tui_wrapper::event::EventResult;
 
-use super::{config::WidgetConfig, Item, RenderTrait, SelectedItem, WidgetTrait};
+use self::{
+    item::{HighlightItem, WrappedLine},
+    render::Render,
+    styled_graphemes::StyledGraphemes,
+};
+
+use super::{config::WidgetConfig, Item, LiteralItem, RenderTrait, SelectedItem, WidgetTrait};
+
+#[derive(Debug, Default)]
+pub struct NewText<'a> {
+    pub id: String,
+    pub widget_config: WidgetConfig,
+    pub chunk: Rect,
+    pub item: Vec<LiteralItem>,
+    pub wrapped: Vec<WrappedLine<'a>>,
+    pub highlight_words: Option<Vec<HighlightItem<'a>>>,
+}
+
 
 struct Text {
     id: String,
@@ -20,7 +39,7 @@ struct Text {
     chunk: Rect,
 }
 
-impl WidgetTrait for Text {
+impl<'a> WidgetTrait for NewText<'_> {
     fn id(&self) -> &str {
         &self.id
     }
@@ -34,7 +53,7 @@ impl WidgetTrait for Text {
     }
 
     fn focusable(&self) -> bool {
-        todo!()
+        true
     }
 
     fn widget_item(&self) -> Option<SelectedItem> {
@@ -81,8 +100,8 @@ impl WidgetTrait for Text {
         todo!()
     }
 
-    fn update_chunk(&mut self, _: Rect) {
-        todo!()
+    fn update_chunk(&mut self, chunk: Rect) {
+        self.chunk = chunk;
     }
 
     fn clear(&mut self) {
@@ -90,12 +109,30 @@ impl WidgetTrait for Text {
     }
 }
 
-impl RenderTrait for Text {
-    fn render<B>(&mut self, _f: &mut Frame<'_, B>, _: bool)
+impl RenderTrait for NewText<'_> {
+    fn render<B>(&mut self, f: &mut Frame<'_, B>, selected: bool)
     where
         B: Backend,
     {
-        todo!()
+        let block = self.widget_config.render_block_with_title(selected);
+
+        let item = vec![
+            WrappedLine {
+                index: 0,
+                line: Cow::from("0123456789".styled_graphemes()),
+            },
+            WrappedLine {
+                index: 1,
+                line: Cow::from("0123456789".styled_graphemes()),
+            },
+        ];
+
+        let lines: Vec<&[StyledGrapheme<'_>]> =
+            item.iter().map(|wrapped| wrapped.line.as_ref()).collect();
+
+        let r = Render::builder().block(block).lines(&lines).build();
+
+        f.render_widget(r, self.chunk);
     }
 }
 
