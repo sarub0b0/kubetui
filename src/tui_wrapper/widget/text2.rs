@@ -33,10 +33,6 @@ pub struct NewText<'a> {
 }
 
 
-struct Text {
-    id: String,
-    widget_config: WidgetConfig,
-    chunk: Rect,
 }
 
 impl<'a> WidgetTrait for NewText<'_> {
