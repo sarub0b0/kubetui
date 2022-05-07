@@ -64,7 +64,7 @@ async-trait = "0.1"
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"
-indoc = "1.0.5"
+indoc = "1.0.6"
 mockall = "0.11.0"
 mockall_double = "0.2.1"
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros"] }
