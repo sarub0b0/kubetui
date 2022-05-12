@@ -133,6 +133,7 @@ impl RenderTrait for NewText<'_> {
 }
 
 mod styled_graphemes {
+
     use tui::{style::Style, text::StyledGrapheme};
     use unicode_segmentation::UnicodeSegmentation;
 
@@ -156,8 +157,18 @@ mod styled_graphemes {
         }
     }
 
-    impl<'a> StyledGraphemes for &'a str {
-        fn styled_graphemes(&self) -> Vec<StyledGrapheme<'a>> {
+    impl StyledGraphemes for &String {
+        fn styled_graphemes(&self) -> Vec<StyledGrapheme<'_>> {
+            styled_graphemes(self)
+        }
+
+        fn styled_graphemes_symbols(&self) -> Vec<&'_ str> {
+            styled_graphemes_symbols(self)
+        }
+    }
+
+    impl StyledGraphemes for &str {
+        fn styled_graphemes(&self) -> Vec<StyledGrapheme<'_>> {
             styled_graphemes(self)
         }
 
