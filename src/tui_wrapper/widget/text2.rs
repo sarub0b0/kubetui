@@ -417,6 +417,104 @@ mod item {
 
         use super::*;
 
+        mod text_item {
+            use pretty_assertions::assert_eq;
+
+            use super::*;
+
+            #[test]
+            fn new() {
+                let item = LiteralItem::new("0123456789", None);
+                let item = TextItem::new(vec![item], Some(5));
+
+                let actual = item.wrapped;
+
+                let expected = vec![
+                    WrappedLine {
+                        index: 0,
+                        line: Cow::Owned("01234".styled_graphemes()),
+                    },
+                    WrappedLine {
+                        index: 0,
+                        line: Cow::Owned("56789".styled_graphemes()),
+                    },
+                ];
+
+                assert_eq!(actual, expected);
+            }
+
+            #[test]
+            fn push() {
+                let item = LiteralItem::new("0123456789", None);
+                let mut item = TextItem::new(vec![item], Some(5));
+                item.push(LiteralItem::new("0123456789", None));
+
+                let actual = item.wrapped;
+
+                let expected = vec![
+                    WrappedLine {
+                        index: 0,
+                        line: Cow::Owned("01234".styled_graphemes()),
+                    },
+                    WrappedLine {
+                        index: 0,
+                        line: Cow::Owned("56789".styled_graphemes()),
+                    },
+                    WrappedLine {
+                        index: 1,
+                        line: Cow::Owned("01234".styled_graphemes()),
+                    },
+                    WrappedLine {
+                        index: 1,
+                        line: Cow::Owned("56789".styled_graphemes()),
+                    },
+                ];
+
+                assert_eq!(actual, expected);
+            }
+
+            #[test]
+            fn extend() {
+                let item = LiteralItem::new("0123456789", None);
+                let mut item = TextItem::new(vec![item], Some(5));
+                item.extend(vec![
+                    LiteralItem::new("0123456789", None),
+                    LiteralItem::new("あいうえ", None),
+                ]);
+
+                let actual = item.wrapped;
+
+                let expected = vec![
+                    WrappedLine {
+                        index: 0,
+                        line: Cow::Owned("01234".styled_graphemes()),
+                    },
+                    WrappedLine {
+                        index: 0,
+                        line: Cow::Owned("56789".styled_graphemes()),
+                    },
+                    WrappedLine {
+                        index: 1,
+                        line: Cow::Owned("01234".styled_graphemes()),
+                    },
+                    WrappedLine {
+                        index: 1,
+                        line: Cow::Owned("56789".styled_graphemes()),
+                    },
+                    WrappedLine {
+                        index: 2,
+                        line: Cow::Owned("あい".styled_graphemes()),
+                    },
+                    WrappedLine {
+                        index: 2,
+                        line: Cow::Owned("うえ".styled_graphemes()),
+                    },
+                ];
+
+                assert_eq!(actual, expected);
+            }
+        }
+
         #[test]
         fn 指定された文字列にマッチするときその文字列を退避してハイライトする() {
             let item = LiteralItem {
