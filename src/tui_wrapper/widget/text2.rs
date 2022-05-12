@@ -1,4 +1,4 @@
-use std::borrow::{Borrow, Cow};
+use std::borrow::Cow;
 
 use crossterm::event::{KeyEvent, MouseEvent};
 use tui::{
@@ -15,7 +15,7 @@ use unicode_width::UnicodeWidthStr;
 use crate::tui_wrapper::event::EventResult;
 
 use self::{
-    item::{HighlightItem, WrappedLine},
+    item::{TextItem, WrappedLine},
     render::Render,
     styled_graphemes::StyledGraphemes,
 };
@@ -28,8 +28,7 @@ pub struct NewText<'a> {
     pub widget_config: WidgetConfig,
     pub chunk: Rect,
     pub item: Vec<LiteralItem>,
-    pub wrapped: Vec<WrappedLine<'a>>,
-    pub highlight_words: Option<Vec<HighlightItem<'a>>>,
+    pub inner_item: TextItem<'a>,
 }
 
 
@@ -217,14 +216,130 @@ mod styled_graphemes {
 }
 
 mod item {
-
-    use std::{borrow::Cow, ops::Range};
-
+    use super::{styled_graphemes::StyledGraphemes, wrap::WrapTrait};
+    use crate::tui_wrapper::widget::LiteralItem;
+    use std::{borrow::Cow, ops::Range, pin::Pin, rc::Rc};
     use tui::text::StyledGrapheme;
 
-    use crate::tui_wrapper::widget::LiteralItem;
+    struct TextItem2 {
+        item: Pin<String>,
+        /// graphemesに分割した文字列リスト
+        graphemes: Vec<StyledGrapheme<'static>>,
+    }
 
-    use super::styled_graphemes::StyledGraphemes;
+    #[derive(Debug, Default)]
+    pub struct TextItem<'a> {
+        pub item: Vec<LiteralItem>,
+        /// graphemesに分割した文字列リスト
+        pub graphemes: Vec<Vec<StyledGrapheme<'a>>>,
+
+        /// 折り返しを考慮した描画のためのデータリスト
+        /// item設定時に生成される
+        pub wrapped: Vec<WrappedLine<'a>>,
+
+        /// ハイライト情報
+        /// - ハイライト箇所の復旧に使用
+        /// - ハイライト箇所へのジャンプに使用
+        pub highlight_words: Option<Vec<HighlightItem<'a>>>,
+
+        /// 折り返しサイズ
+        pub wrap_width: Option<usize>,
+    }
+
+    /// WARNING:
+    /// unsafeを用いて仮実装
+    /// itemが変更されるとき、graphemes, wrapped, highlight_wordsも再生成すること
+    impl TextItem<'_> {
+        pub fn new(item: Vec<LiteralItem>, wrap_width: Option<usize>) -> Self {
+            let graphemes: Vec<Vec<StyledGrapheme>> = unsafe {
+                let graphemes: Vec<Vec<StyledGrapheme>> = item
+                    .iter()
+                    .map(|literal| literal.item.styled_graphemes())
+                    .collect();
+
+                std::mem::transmute(graphemes)
+            };
+
+            let wrapped: Vec<WrappedLine> = unsafe {
+                let wrapped: Vec<WrappedLine> = graphemes
+                    .iter()
+                    .enumerate()
+                    .flat_map(|(i, g)| {
+                        g.wrap(wrap_width)
+                            .map(|w| WrappedLine {
+                                index: i,
+                                line: Cow::Borrowed(w),
+                            })
+                            .collect::<Vec<WrappedLine>>()
+                    })
+                    .collect();
+
+                std::mem::transmute(wrapped)
+            };
+
+            Self {
+                item,
+                graphemes,
+                wrap_width,
+                wrapped,
+                highlight_words: None,
+            }
+        }
+
+        pub fn push(&mut self, item: LiteralItem) {
+            let graphemes: Vec<StyledGrapheme> =
+                unsafe { std::mem::transmute(item.item.styled_graphemes()) };
+
+            let wrapped: Vec<WrappedLine> = unsafe {
+                let wrapped: Vec<WrappedLine> = graphemes
+                    .wrap(self.wrap_width)
+                    .map(|w| WrappedLine {
+                        index: self.item.len(),
+                        line: Cow::Borrowed(w),
+                    })
+                    .collect::<Vec<WrappedLine>>();
+
+                std::mem::transmute(wrapped)
+            };
+
+            self.item.push(item);
+            self.graphemes.push(graphemes);
+            self.wrapped.extend(wrapped);
+        }
+
+        pub fn extend(&mut self, item: Vec<LiteralItem>) {
+            let graphemes: Vec<Vec<StyledGrapheme>> = unsafe {
+                let graphemes: Vec<Vec<StyledGrapheme>> = item
+                    .iter()
+                    .map(|literal| literal.item.styled_graphemes())
+                    .collect();
+
+                std::mem::transmute(graphemes)
+            };
+
+            let wrapped: Vec<WrappedLine> = unsafe {
+                let wrapped: Vec<WrappedLine> = graphemes
+                    .iter()
+                    .enumerate()
+                    .flat_map(|(i, g)| {
+                        g.wrap(self.wrap_width)
+                            .map(|w| WrappedLine {
+                                index: self.item.len() + i,
+                                line: Cow::Borrowed(w),
+                            })
+                            .collect::<Vec<WrappedLine>>()
+                    })
+                    .collect();
+
+                std::mem::transmute(wrapped)
+            };
+
+            self.item.extend(item);
+            self.graphemes.extend(graphemes);
+            self.wrapped.extend(wrapped);
+        }
+    }
+
 
     /// Itemを折り返しとハイライトを考慮した構造体
     #[derive(Debug, Default, PartialEq)]
