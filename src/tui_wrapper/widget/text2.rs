@@ -360,6 +360,12 @@ mod item {
         }
     }
 
+    impl<'a> TextItem<'a> {
+        pub fn wrapped(&self) -> &[WrappedLine<'a>] {
+            &self.wrapped
+        }
+    }
+
     trait Search {
         fn search(&self, s: &[&str]) -> Option<Vec<Range<usize>>>;
     }
