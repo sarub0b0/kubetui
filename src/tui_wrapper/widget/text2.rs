@@ -249,21 +249,21 @@ mod item {
 
     #[derive(Debug, Default)]
     pub struct TextItem<'a> {
-        pub item: Vec<LiteralItem>,
+        item: Vec<LiteralItem>,
         /// graphemesに分割した文字列リスト
-        pub graphemes: Vec<Vec<StyledGrapheme<'a>>>,
+        graphemes: Vec<Vec<StyledGrapheme<'a>>>,
 
         /// 折り返しを考慮した描画のためのデータリスト
         /// item設定時に生成される
-        pub wrapped: Vec<WrappedLine<'a>>,
+        wrapped: Vec<WrappedLine<'a>>,
 
         /// ハイライト情報
         /// - ハイライト箇所の復旧に使用
         /// - ハイライト箇所へのジャンプに使用
-        pub highlight_words: Option<Vec<HighlightItem<'a>>>,
+        highlight_words: Option<Vec<HighlightItem<'a>>>,
 
         /// 折り返しサイズ
-        pub wrap_width: Option<usize>,
+        wrap_width: Option<usize>,
     }
 
     /// WARNING:
