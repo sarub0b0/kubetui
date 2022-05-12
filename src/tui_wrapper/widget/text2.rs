@@ -31,7 +31,27 @@ pub struct NewText<'a> {
     pub inner_item: TextItem<'a>,
 }
 
+/// ワード検索機能
+///
+/// # Features
+///
+/// - マッチした文字列をハイライト
+/// - マッチした文字列に移動
+/// - 検索モード終了時にハイライトを削除
+impl NewText<'_> {
+    pub fn search(&mut self, word: &str) {}
 
+    pub fn search_next(&mut self) {
+        todo!()
+    }
+
+    pub fn search_prev(&mut self) {
+        todo!()
+    }
+
+    pub fn search_cancel(&mut self) {
+        todo!()
+    }
 }
 
 impl<'a> WidgetTrait for NewText<'_> {
@@ -340,6 +360,15 @@ mod item {
         }
     }
 
+    trait Search {
+        fn search(&self, s: &[&str]) -> Option<Vec<Range<usize>>>;
+    }
+
+    impl Search for Vec<&str> {
+        fn search(&self, s: &[&str]) -> Option<Vec<Range<usize>>> {
+            todo!()
+        }
+    }
 
     /// Itemを折り返しとハイライトを考慮した構造体
     #[derive(Debug, Default, PartialEq)]
