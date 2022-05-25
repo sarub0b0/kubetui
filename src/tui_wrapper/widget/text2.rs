@@ -254,7 +254,7 @@ mod item {
     pub struct TextItem<'a> {
         item: Vec<LiteralItem>,
         /// graphemesに分割した文字列リスト
-        graphemes: Vec<Vec<StyledGrapheme<'a>>>,
+        graphemes: Vec<Graphemes<'a>>,
 
         /// 折り返しを考慮した描画のためのデータリスト
         /// item設定時に生成される
@@ -439,6 +439,16 @@ mod item {
             } else {
                 None
             }
+        }
+
+        pub fn wrap(&self, wrap_width: Option<usize>) -> Vec<WrappedLine> {
+            self.item
+                .wrap(wrap_width)
+                .map(|w| WrappedLine {
+                    index: self.index,
+                    line: Cow::Borrowed(w),
+                })
+                .collect()
         }
     }
 
