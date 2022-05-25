@@ -274,10 +274,11 @@ mod item {
     /// itemが変更されるとき、graphemes, wrapped, highlight_wordsも再生成すること
     impl TextItem<'_> {
         pub fn new(item: Vec<LiteralItem>, wrap_width: Option<usize>) -> Self {
-            let graphemes: Vec<Vec<StyledGrapheme>> = unsafe {
-                let graphemes: Vec<Vec<StyledGrapheme>> = item
+            let graphemes: Vec<Graphemes> = unsafe {
+                let graphemes: Vec<Graphemes> = item
                     .iter()
-                    .map(|literal| literal.item.styled_graphemes())
+                    .enumerate()
+                    .map(|(i, literal)| Graphemes::new(i, literal))
                     .collect();
 
                 std::mem::transmute(graphemes)
@@ -288,7 +289,8 @@ mod item {
                     .iter()
                     .enumerate()
                     .flat_map(|(i, g)| {
-                        g.wrap(wrap_width)
+                        g.item
+                            .wrap(wrap_width)
                             .map(|w| WrappedLine {
                                 index: i,
                                 line: Cow::Borrowed(w),
@@ -310,17 +312,11 @@ mod item {
         }
 
         pub fn push(&mut self, item: LiteralItem) {
-            let graphemes: Vec<StyledGrapheme> =
-                unsafe { std::mem::transmute(item.item.styled_graphemes()) };
+            let graphemes: Graphemes =
+                unsafe { std::mem::transmute(Graphemes::new(self.graphemes.len(), &item)) };
 
             let wrapped: Vec<WrappedLine> = unsafe {
-                let wrapped: Vec<WrappedLine> = graphemes
-                    .wrap(self.wrap_width)
-                    .map(|w| WrappedLine {
-                        index: self.item.len(),
-                        line: Cow::Borrowed(w),
-                    })
-                    .collect::<Vec<WrappedLine>>();
+                let wrapped: Vec<WrappedLine> = graphemes.wrap(self.wrap_width);
 
                 std::mem::transmute(wrapped)
             };
@@ -331,10 +327,11 @@ mod item {
         }
 
         pub fn extend(&mut self, item: Vec<LiteralItem>) {
-            let graphemes: Vec<Vec<StyledGrapheme>> = unsafe {
-                let graphemes: Vec<Vec<StyledGrapheme>> = item
+            let graphemes: Vec<Graphemes> = unsafe {
+                let graphemes: Vec<Graphemes> = item
                     .iter()
-                    .map(|literal| literal.item.styled_graphemes())
+                    .enumerate()
+                    .map(|(i, literal)| Graphemes::new(i + self.graphemes.len(), literal))
                     .collect();
 
                 std::mem::transmute(graphemes)
@@ -344,14 +341,7 @@ mod item {
                 let wrapped: Vec<WrappedLine> = graphemes
                     .iter()
                     .enumerate()
-                    .flat_map(|(i, g)| {
-                        g.wrap(self.wrap_width)
-                            .map(|w| WrappedLine {
-                                index: self.item.len() + i,
-                                line: Cow::Borrowed(w),
-                            })
-                            .collect::<Vec<WrappedLine>>()
-                    })
+                    .flat_map(|(i, g)| g.wrap(self.wrap_width))
                     .collect();
 
                 std::mem::transmute(wrapped)
