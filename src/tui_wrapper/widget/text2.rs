@@ -412,7 +412,7 @@ mod item {
     #[cfg(test)]
     mod tests {
         use pretty_assertions::assert_eq;
-        use tui::style::Style;
+        use tui::style::{Modifier, Style};
 
         use super::*;
 
@@ -530,26 +530,11 @@ mod item {
                     index: 0,
                     range: 0..5,
                     item: vec![
-                        StyledGrapheme {
-                            symbol: "h",
-                            style: Style::default(),
-                        },
-                        StyledGrapheme {
-                            symbol: "e",
-                            style: Style::default(),
-                        },
-                        StyledGrapheme {
-                            symbol: "l",
-                            style: Style::default(),
-                        },
-                        StyledGrapheme {
-                            symbol: "o",
-                            style: Style::default(),
-                        },
-                        StyledGrapheme {
-                            symbol: "o",
-                            style: Style::default(),
-                        },
+                        Style::default(),
+                        Style::default(),
+                        Style::default(),
+                        Style::default(),
+                        Style::default(),
                     ],
                 }])
             );
@@ -559,23 +544,23 @@ mod item {
                 vec![
                     StyledGrapheme {
                         symbol: "h",
-                        style: Style::default(),
+                        style: Style::default().add_modifier(Modifier::REVERSED),
                     },
                     StyledGrapheme {
                         symbol: "e",
-                        style: Style::default(),
+                        style: Style::default().add_modifier(Modifier::REVERSED),
                     },
                     StyledGrapheme {
                         symbol: "l",
-                        style: Style::default(),
+                        style: Style::default().add_modifier(Modifier::REVERSED),
                     },
                     StyledGrapheme {
                         symbol: "o",
-                        style: Style::default(),
+                        style: Style::default().add_modifier(Modifier::REVERSED),
                     },
                     StyledGrapheme {
                         symbol: "o",
-                        style: Style::default(),
+                        style: Style::default().add_modifier(Modifier::REVERSED),
                     },
                     StyledGrapheme {
                         symbol: " ",
