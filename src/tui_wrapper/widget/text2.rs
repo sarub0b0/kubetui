@@ -251,6 +251,12 @@ mod item {
     }
 
     #[derive(Debug, Default)]
+    struct Highlights {
+        word: String,
+        item: Vec<Highlight>,
+    }
+
+    #[derive(Debug, Default)]
     pub struct TextItem<'a> {
         item: Vec<LiteralItem>,
         /// graphemesに分割した文字列リスト
@@ -263,7 +269,7 @@ mod item {
         /// ハイライト情報
         /// - ハイライト箇所の復旧に使用
         /// - ハイライト箇所へのジャンプに使用
-        highlight_words: Option<Vec<HighlightItem>>,
+        highlights: Option<Highlights>,
 
         /// 折り返しサイズ
         wrap_width: Option<usize>,
@@ -307,7 +313,7 @@ mod item {
                 graphemes,
                 wrap_width,
                 wrapped,
-                highlight_words: None,
+                highlights: None,
             }
         }
 
