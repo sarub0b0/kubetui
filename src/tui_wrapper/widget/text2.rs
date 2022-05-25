@@ -395,14 +395,14 @@ mod item {
     ///
     /// 文字列をパースしてスタイルを適用する
     #[derive(Debug)]
-    pub struct Item<'a> {
+    pub struct Graphemes<'a> {
         /// 行番号
         index: usize,
         /// １行分の文字列
         item: Vec<StyledGrapheme<'a>>,
     }
 
-    impl<'a> Item<'a> {
+    impl<'a> Graphemes<'a> {
         pub fn new(index: usize, literal: &'a LiteralItem) -> Self {
             Self {
                 index,
@@ -553,7 +553,7 @@ mod item {
                 item: "hello world".to_string(),
                 ..Default::default()
             };
-            let mut item = Item::new(0, &item);
+            let mut item = Graphemes::new(0, &item);
 
             let highlight_words = item.highlight_word("hello");
 
