@@ -368,17 +368,22 @@ mod item {
         /// 折り返しを計算した結果、表示する文字列データ
         pub line: Cow<'a, [StyledGrapheme<'a>]>,
     }
-
     #[derive(Debug, Default, PartialEq)]
     pub struct HighlightItem {
-        /// 行番号
-        index: usize,
-
         /// ハイライト箇所の範囲
         range: Range<usize>,
 
         /// ハイライト前のスタイル
-        pub item: Vec<Style>,
+        item: Vec<Style>,
+    }
+
+    #[derive(Debug, Default)]
+    pub struct Highlight {
+        /// 行番号
+        index: usize,
+
+        /// ハイライトリスト
+        item: Vec<HighlightItem>,
     }
 
     /// LiteralItem から Vec<StyledGrapheme> に変換する
@@ -400,11 +405,11 @@ mod item {
             }
         }
 
-        pub fn highlight_word(&mut self, word: &str) -> Option<Vec<HighlightItem>> {
+        pub fn highlight_word(&mut self, word: &str) -> Option<Highlight> {
             let word = word.styled_graphemes_symbols();
 
             if let Some(ranges) = self.item.search(&word) {
-                let items: Vec<HighlightItem> = ranges
+                let item: Vec<HighlightItem> = ranges
                     .iter()
                     .cloned()
                     .map(|range| {
@@ -417,15 +422,14 @@ mod item {
                             })
                             .collect();
 
-                        HighlightItem {
-                            index: self.index,
-                            range,
-                            item,
-                        }
+                        HighlightItem { range, item }
                     })
                     .collect();
 
-                Some(items)
+                Some(Highlight {
+                    index: self.index,
+                    item,
+                })
             } else {
                 None
             }
@@ -555,12 +559,11 @@ mod item {
             };
             let mut item = Graphemes::new(0, &item);
 
-            let highlight_words = item.highlight_word("hello");
+            let highlight_words = item.highlight_word("hello").unwrap();
 
             assert_eq!(
-                highlight_words.unwrap(),
+                highlight_words.item,
                 vec![HighlightItem {
-                    index: 0,
                     range: 0..5,
                     item: vec![
                         Style::default(),
