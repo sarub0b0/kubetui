@@ -238,8 +238,11 @@ mod styled_graphemes {
 mod item {
     use super::{search::Search, styled_graphemes::StyledGraphemes, wrap::WrapTrait};
     use crate::tui_wrapper::widget::LiteralItem;
-    use std::{borrow::Cow, ops::Range, pin::Pin, rc::Rc};
-    use tui::{style::Style, text::StyledGrapheme};
+    use std::{borrow::Cow, cell::RefCell, ops::Range, pin::Pin, rc::Rc};
+    use tui::{
+        style::{Modifier, Style},
+        text::StyledGrapheme,
+    };
 
     struct TextItem2 {
         item: Pin<String>,
@@ -378,13 +381,13 @@ mod item {
 
     #[derive(Debug, Default, PartialEq)]
     pub struct HighlightItem {
-        /// ハイライト開始時のインデックス
-        pub index: usize,
-        /// or
-        /// ハイライト場所のレンジ
-        pub range: Range<usize>,
+        /// 行番号
+        index: usize,
 
-        /// ハイライト場所の文字列
+        /// ハイライト箇所の範囲
+        range: Range<usize>,
+
+        /// ハイライト前のスタイル
         pub item: Vec<Style>,
     }
 
@@ -393,18 +396,48 @@ mod item {
     /// 文字列をパースしてスタイルを適用する
     #[derive(Debug)]
     pub struct Item<'a> {
+        /// 行番号
+        index: usize,
         /// １行分の文字列
         item: Vec<StyledGrapheme<'a>>,
-
-        /// ハイライトされた文字列を退避し、ハイライト終了時に戻す
-        take: Option<Vec<HighlightItem>>,
     }
 
     impl<'a> Item<'a> {
-        pub fn new(literal: &'a LiteralItem) -> Self {
+        pub fn new(index: usize, literal: &'a LiteralItem) -> Self {
             Self {
+                index,
                 item: literal.item.styled_graphemes(),
-                take: None,
+            }
+        }
+
+        pub fn highlight_word(&mut self, word: &str) -> Option<Vec<HighlightItem>> {
+            let word = word.styled_graphemes_symbols();
+
+            if let Some(ranges) = self.item.search(&word) {
+                let items: Vec<HighlightItem> = ranges
+                    .iter()
+                    .cloned()
+                    .map(|range| {
+                        let item = self.item[range.clone()]
+                            .iter_mut()
+                            .map(|i| {
+                                let ret = i.style;
+                                i.style = i.style.add_modifier(Modifier::REVERSED);
+                                ret
+                            })
+                            .collect();
+
+                        HighlightItem {
+                            index: self.index,
+                            range,
+                            item,
+                        }
+                    })
+                    .collect();
+
+                Some(items)
+            } else {
+                None
             }
         }
     }
@@ -520,13 +553,13 @@ mod item {
                 item: "hello world".to_string(),
                 ..Default::default()
             };
-            let mut item = Item::new(&item);
+            let mut item = Item::new(0, &item);
 
-            item.highlight_word("hello");
+            let highlight_words = item.highlight_word("hello");
 
             assert_eq!(
-                item.take,
-                Some(vec![HighlightItem {
+                highlight_words.unwrap(),
+                vec![HighlightItem {
                     index: 0,
                     range: 0..5,
                     item: vec![
@@ -536,7 +569,7 @@ mod item {
                         Style::default(),
                         Style::default(),
                     ],
-                }])
+                }]
             );
 
             assert_eq!(
@@ -555,7 +588,7 @@ mod item {
                         style: Style::default().add_modifier(Modifier::REVERSED),
                     },
                     StyledGrapheme {
-                        symbol: "o",
+                        symbol: "l",
                         style: Style::default().add_modifier(Modifier::REVERSED),
                     },
                     StyledGrapheme {
