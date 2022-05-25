@@ -386,6 +386,7 @@ mod item {
         pub line: Cow<'a, [StyledGrapheme<'a>]>,
     }
 
+    #[derive(Debug, Default, PartialEq)]
     pub struct HighlightItem {
         /// ハイライト開始時のインデックス
         pub index: usize,
@@ -400,6 +401,7 @@ mod item {
     /// LiteralItem から Vec<StyledGrapheme> に変換する
     ///
     /// 文字列をパースしてスタイルを適用する
+    #[derive(Debug)]
     pub struct Item<'a> {
         /// １行分の文字列
         item: Vec<StyledGrapheme<'a>>,
