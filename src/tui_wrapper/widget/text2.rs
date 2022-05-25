@@ -236,7 +236,7 @@ mod styled_graphemes {
 }
 
 mod item {
-    use super::{styled_graphemes::StyledGraphemes, wrap::WrapTrait};
+    use super::{search::Search, styled_graphemes::StyledGraphemes, wrap::WrapTrait};
     use crate::tui_wrapper::widget::LiteralItem;
     use std::{borrow::Cow, ops::Range, pin::Pin, rc::Rc};
     use tui::{style::Style, text::StyledGrapheme};
@@ -363,16 +363,6 @@ mod item {
     impl<'a> TextItem<'a> {
         pub fn wrapped(&self) -> &[WrappedLine<'a>] {
             &self.wrapped
-        }
-    }
-
-    trait Search {
-        fn search(&self, s: &[&str]) -> Option<Vec<Range<usize>>>;
-    }
-
-    impl Search for Vec<&str> {
-        fn search(&self, s: &[&str]) -> Option<Vec<Range<usize>>> {
-            todo!()
         }
     }
 
@@ -613,6 +603,38 @@ mod item {
                     },
                 ],
             );
+        }
+    }
+}
+
+mod search {
+    use std::ops::Range;
+
+    pub trait Search {
+        fn search(&self, word: &[&str]) -> Option<Vec<Range<usize>>>;
+    }
+
+    impl Search for Vec<&str> {
+        fn search(&self, word: &[&str]) -> Option<Vec<Range<usize>>> {
+            let mut match_list = Vec::new();
+
+            let word_len = word.len();
+            let line_len = self.len();
+            for i in 0..line_len {
+                let range = i..(i + word_len);
+
+                if let Some(target) = self.get(range.clone()) {
+                    if target == word {
+                        match_list.push(range);
+                    }
+                }
+            }
+
+            if !match_list.is_empty() {
+                Some(match_list)
+            } else {
+                None
+            }
         }
     }
 }
