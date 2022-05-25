@@ -239,7 +239,7 @@ mod item {
     use super::{styled_graphemes::StyledGraphemes, wrap::WrapTrait};
     use crate::tui_wrapper::widget::LiteralItem;
     use std::{borrow::Cow, ops::Range, pin::Pin, rc::Rc};
-    use tui::text::StyledGrapheme;
+    use tui::{style::Style, text::StyledGrapheme};
 
     struct TextItem2 {
         item: Pin<String>,
@@ -260,7 +260,7 @@ mod item {
         /// ハイライト情報
         /// - ハイライト箇所の復旧に使用
         /// - ハイライト箇所へのジャンプに使用
-        highlight_words: Option<Vec<HighlightItem<'a>>>,
+        highlight_words: Option<Vec<HighlightItem>>,
 
         /// 折り返しサイズ
         wrap_width: Option<usize>,
@@ -385,7 +385,8 @@ mod item {
         /// 折り返しを計算した結果、表示する文字列データ
         pub line: Cow<'a, [StyledGrapheme<'a>]>,
     }
-    pub struct HighlightItem<'a> {
+
+    pub struct HighlightItem {
         /// ハイライト開始時のインデックス
         pub index: usize,
         /// or
@@ -393,7 +394,7 @@ mod item {
         pub range: Range<usize>,
 
         /// ハイライト場所の文字列
-        pub item: Vec<StyledGrapheme<'a>>,
+        pub item: Vec<Style>,
     }
 
     /// LiteralItem から Vec<StyledGrapheme> に変換する
@@ -404,7 +405,7 @@ mod item {
         item: Vec<StyledGrapheme<'a>>,
 
         /// ハイライトされた文字列を退避し、ハイライト終了時に戻す
-        take: Option<Vec<HighlightItem<'a>>>,
+        take: Option<Vec<HighlightItem>>,
     }
 
     impl<'a> Item<'a> {
