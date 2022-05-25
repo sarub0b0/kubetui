@@ -318,7 +318,7 @@ mod item {
         }
 
         pub fn push(&mut self, item: LiteralItem) {
-            let graphemes: Graphemes =
+            let mut graphemes: Graphemes =
                 unsafe { std::mem::transmute(Graphemes::new(self.graphemes.len(), &item)) };
 
             let wrapped: Vec<WrappedLine> = unsafe {
@@ -327,13 +327,19 @@ mod item {
                 std::mem::transmute(wrapped)
             };
 
+            if let Some(highlights) = &mut self.highlights {
+                if let Some(hls) = graphemes.highlight_word(&highlights.word) {
+                    highlights.item.push(hls);
+                }
+            }
+
             self.item.push(item);
             self.graphemes.push(graphemes);
             self.wrapped.extend(wrapped);
         }
 
         pub fn extend(&mut self, item: Vec<LiteralItem>) {
-            let graphemes: Vec<Graphemes> = unsafe {
+            let mut graphemes: Vec<Graphemes> = unsafe {
                 let graphemes: Vec<Graphemes> = item
                     .iter()
                     .enumerate()
@@ -353,9 +359,46 @@ mod item {
                 std::mem::transmute(wrapped)
             };
 
+            if let Some(highlights) = &mut self.highlights {
+                let hls: Vec<Highlight> = graphemes
+                    .iter_mut()
+                    .filter_map(|g| g.highlight_word(&highlights.word))
+                    .collect();
+
+                highlights.item.extend(hls);
+            }
+
             self.item.extend(item);
             self.graphemes.extend(graphemes);
             self.wrapped.extend(wrapped);
+        }
+
+        pub fn highlight(&mut self, word: &str) {
+            let highlight_words: Vec<_> = self
+                .graphemes
+                .iter_mut()
+                .filter_map(|g| g.highlight_word(word))
+                .collect();
+
+            if !highlight_words.is_empty() {
+                let highlights = Highlights {
+                    word: word.to_string(),
+                    item: highlight_words,
+                };
+
+                self.highlights = Some(highlights);
+            }
+        }
+
+        pub fn clear_highlight(&mut self) {
+            if let Some(highlights) = &mut self.highlights {
+                highlights.item.iter().for_each(|hl| {
+                    let graphemes = &mut self.graphemes[hl.index];
+                    graphemes.clear_highlight(&hl.item);
+                });
+            }
+
+            self.highlights = None;
         }
     }
 
@@ -439,6 +482,15 @@ mod item {
             } else {
                 None
             }
+        }
+
+        pub fn clear_highlight(&mut self, item: &[HighlightItem]) {
+            item.iter().for_each(|HighlightItem { range, item }| {
+                let i = &mut self.item[range.clone()];
+                i.iter_mut().zip(item.iter()).for_each(|(l, r)| {
+                    l.style = *r;
+                });
+            })
         }
 
         pub fn wrap(&self, wrap_width: Option<usize>) -> Vec<WrappedLine> {
