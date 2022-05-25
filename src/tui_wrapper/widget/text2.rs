@@ -595,6 +595,8 @@ mod item {
 mod search {
     use std::ops::Range;
 
+    use tui::text::StyledGrapheme;
+
     pub trait Search {
         fn search(&self, word: &[&str]) -> Option<Vec<Range<usize>>>;
     }
@@ -619,6 +621,99 @@ mod search {
                 Some(match_list)
             } else {
                 None
+            }
+        }
+    }
+
+    impl<'a> Search for Vec<StyledGrapheme<'a>> {
+        fn search(&self, word: &[&str]) -> Option<Vec<Range<usize>>> {
+            let mut match_list = Vec::new();
+
+            let word_len = word.len();
+            let line_len = self.len();
+            for i in 0..line_len {
+                let range = i..(i + word_len);
+
+                if let Some(target) = self.get(range.clone()) {
+                    if target.iter().zip(word.iter()).all(|(t, w)| &t.symbol == w) {
+                        match_list.push(range);
+                    }
+                }
+            }
+
+            if !match_list.is_empty() {
+                Some(match_list)
+            } else {
+                None
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use crate::tui_wrapper::widget::text2::styled_graphemes::StyledGraphemes;
+
+        use super::*;
+
+        mod styled_graphemes {
+            use super::*;
+            use pretty_assertions::assert_eq;
+
+            #[test]
+            fn 指定ワードにマッチしたとき範囲のリストを返す() {
+                let line = "hello world. hello world.".styled_graphemes();
+
+                let word = "hello".styled_graphemes_symbols();
+
+                let actual = line.search(&word);
+
+                let expected = Some(vec![0..5, 13..18]);
+
+                assert_eq!(actual, expected);
+            }
+
+            #[test]
+            fn 指定ワードにマッチしないときnoneを返す() {
+                let line = "hello world. hello world.".styled_graphemes();
+
+                let word = "hogehoge".styled_graphemes_symbols();
+
+                let actual = line.search(&word);
+
+                let expected = None;
+
+                assert_eq!(actual, expected);
+            }
+        }
+
+        mod vec {
+            use super::*;
+            use pretty_assertions::assert_eq;
+
+            #[test]
+            fn 指定ワードにマッチしたとき範囲のリストを返す() {
+                let line = "hello world. hello world.".styled_graphemes_symbols();
+
+                let word = "hello".styled_graphemes_symbols();
+
+                let actual = line.search(&word);
+
+                let expected = Some(vec![0..5, 13..18]);
+
+                assert_eq!(actual, expected);
+            }
+
+            #[test]
+            fn 指定ワードにマッチしないときnoneを返す() {
+                let line = "hello world. hello world.".styled_graphemes_symbols();
+
+                let word = "hogehoge".styled_graphemes_symbols();
+
+                let actual = line.search(&word);
+
+                let expected = None;
+
+                assert_eq!(actual, expected);
             }
         }
     }
