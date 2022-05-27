@@ -754,6 +754,70 @@ mod item {
                     ],
                 );
             }
+
+            #[test]
+            fn ハイライトを削除したときスタイルをもとに戻す() {
+                let item = LiteralItem {
+                    // cSpell: disable-next-line
+                    item: "\x1b[31mhello\x1b[0m world".to_string(),
+                    ..Default::default()
+                };
+                let mut item = Graphemes::new(0, &item);
+
+                let highlight = item.highlight_word("hello").unwrap();
+
+                item.clear_highlight(&highlight.item);
+
+                assert_eq!(
+                    item.item,
+                    vec![
+                        StyledGrapheme {
+                            symbol: "h",
+                            style: Style::default().fg(tui::style::Color::Red),
+                        },
+                        StyledGrapheme {
+                            symbol: "e",
+                            style: Style::default().fg(tui::style::Color::Red),
+                        },
+                        StyledGrapheme {
+                            symbol: "l",
+                            style: Style::default().fg(tui::style::Color::Red),
+                        },
+                        StyledGrapheme {
+                            symbol: "l",
+                            style: Style::default().fg(tui::style::Color::Red),
+                        },
+                        StyledGrapheme {
+                            symbol: "o",
+                            style: Style::default().fg(tui::style::Color::Red),
+                        },
+                        StyledGrapheme {
+                            symbol: " ",
+                            style: Style::reset(),
+                        },
+                        StyledGrapheme {
+                            symbol: "w",
+                            style: Style::reset(),
+                        },
+                        StyledGrapheme {
+                            symbol: "o",
+                            style: Style::reset(),
+                        },
+                        StyledGrapheme {
+                            symbol: "r",
+                            style: Style::reset(),
+                        },
+                        StyledGrapheme {
+                            symbol: "l",
+                            style: Style::reset(),
+                        },
+                        StyledGrapheme {
+                            symbol: "d",
+                            style: Style::reset(),
+                        },
+                    ],
+                );
+            }
         }
     }
 }
