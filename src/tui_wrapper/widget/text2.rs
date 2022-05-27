@@ -438,7 +438,7 @@ mod item {
     /// LiteralItem から Vec<StyledGrapheme> に変換する
     ///
     /// 文字列をパースしてスタイルを適用する
-    #[derive(Debug)]
+    #[derive(Debug, PartialEq)]
     pub struct Graphemes<'a> {
         /// 行番号
         index: usize,
@@ -608,8 +608,78 @@ mod item {
                 assert_eq!(actual, expected);
             }
 
+            #[test]
+            fn highlight() {
+                let mut item = TextItem::new(
+                    vec![
+                        LiteralItem::new("hello world", None),
+                        LiteralItem::new("hoge world", None),
+                    ],
+                    Some(5),
+                );
+
+                item.highlight("world");
+
+                let actual = item.graphemes;
+
+                let mut expected_1 = "hello world".styled_graphemes();
+                expected_1[6].style = expected_1[6].style.add_modifier(Modifier::REVERSED);
+                expected_1[7].style = expected_1[7].style.add_modifier(Modifier::REVERSED);
+                expected_1[8].style = expected_1[8].style.add_modifier(Modifier::REVERSED);
+                expected_1[9].style = expected_1[9].style.add_modifier(Modifier::REVERSED);
+                expected_1[10].style = expected_1[10].style.add_modifier(Modifier::REVERSED);
+
+                let mut expected_2 = "hoge world".styled_graphemes();
+                expected_2[5].style = expected_2[5].style.add_modifier(Modifier::REVERSED);
+                expected_2[6].style = expected_2[6].style.add_modifier(Modifier::REVERSED);
+                expected_2[7].style = expected_2[7].style.add_modifier(Modifier::REVERSED);
+                expected_2[8].style = expected_2[8].style.add_modifier(Modifier::REVERSED);
+                expected_2[9].style = expected_2[9].style.add_modifier(Modifier::REVERSED);
+
+                let expected = vec![
+                    Graphemes {
+                        index: 0,
+                        item: expected_1,
                     },
+                    Graphemes {
+                        index: 1,
+                        item: expected_2,
                     },
+                ];
+
+                assert_eq!(actual, expected);
+            }
+
+            #[test]
+            fn clear_highlight() {
+                let mut item = TextItem::new(
+                    vec![
+                        LiteralItem::new("hello world", None),
+                        LiteralItem::new("hoge world", None),
+                    ],
+                    Some(5),
+                );
+
+                item.highlight("world");
+                item.clear_highlight();
+
+                let actual = item.graphemes;
+
+                let expected_1 = "hello world".styled_graphemes();
+                let expected_2 = "hoge world".styled_graphemes();
+                let expected = vec![
+                    Graphemes {
+                        index: 0,
+                        item: expected_1,
+                    },
+                    Graphemes {
+                        index: 1,
+                        item: expected_2,
+                    },
+                ];
+
+                assert_eq!(actual, expected);
+            }
         }
 
         mod graphemes {
