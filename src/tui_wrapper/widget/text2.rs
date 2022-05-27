@@ -607,81 +607,153 @@ mod item {
 
                 assert_eq!(actual, expected);
             }
+
+                    },
+                    },
         }
 
-        #[test]
-        fn 指定された文字列にマッチするときその文字列を退避してハイライトする() {
-            let item = LiteralItem {
-                item: "hello world".to_string(),
-                ..Default::default()
-            };
-            let mut item = Graphemes::new(0, &item);
+        mod graphemes {
+            use pretty_assertions::assert_eq;
 
-            let highlight_words = item.highlight_word("hello").unwrap();
+            use super::*;
 
-            assert_eq!(
-                highlight_words.item,
-                vec![HighlightItem {
-                    range: 0..5,
-                    item: vec![
-                        Style::default(),
-                        Style::default(),
-                        Style::default(),
-                        Style::default(),
-                        Style::default(),
+            #[test]
+            fn 指定された文字列にマッチするときその文字列を退避してハイライトする() {
+                let item = LiteralItem {
+                    item: "hello world".to_string(),
+                    ..Default::default()
+                };
+                let mut item = Graphemes::new(0, &item);
+
+                let highlight_words = item.highlight_word("hello").unwrap();
+
+                assert_eq!(
+                    highlight_words.item,
+                    vec![HighlightItem {
+                        range: 0..5,
+                        item: vec![
+                            Style::default(),
+                            Style::default(),
+                            Style::default(),
+                            Style::default(),
+                            Style::default(),
+                        ],
+                    }]
+                );
+
+                assert_eq!(
+                    item.item,
+                    vec![
+                        StyledGrapheme {
+                            symbol: "h",
+                            style: Style::default().add_modifier(Modifier::REVERSED),
+                        },
+                        StyledGrapheme {
+                            symbol: "e",
+                            style: Style::default().add_modifier(Modifier::REVERSED),
+                        },
+                        StyledGrapheme {
+                            symbol: "l",
+                            style: Style::default().add_modifier(Modifier::REVERSED),
+                        },
+                        StyledGrapheme {
+                            symbol: "l",
+                            style: Style::default().add_modifier(Modifier::REVERSED),
+                        },
+                        StyledGrapheme {
+                            symbol: "o",
+                            style: Style::default().add_modifier(Modifier::REVERSED),
+                        },
+                        StyledGrapheme {
+                            symbol: " ",
+                            style: Style::default(),
+                        },
+                        StyledGrapheme {
+                            symbol: "w",
+                            style: Style::default(),
+                        },
+                        StyledGrapheme {
+                            symbol: "o",
+                            style: Style::default(),
+                        },
+                        StyledGrapheme {
+                            symbol: "r",
+                            style: Style::default(),
+                        },
+                        StyledGrapheme {
+                            symbol: "l",
+                            style: Style::default(),
+                        },
+                        StyledGrapheme {
+                            symbol: "d",
+                            style: Style::default(),
+                        },
                     ],
-                }]
-            );
+                );
+            }
 
-            assert_eq!(
-                item.item,
-                vec![
-                    StyledGrapheme {
-                        symbol: "h",
-                        style: Style::default().add_modifier(Modifier::REVERSED),
-                    },
-                    StyledGrapheme {
-                        symbol: "e",
-                        style: Style::default().add_modifier(Modifier::REVERSED),
-                    },
-                    StyledGrapheme {
-                        symbol: "l",
-                        style: Style::default().add_modifier(Modifier::REVERSED),
-                    },
-                    StyledGrapheme {
-                        symbol: "l",
-                        style: Style::default().add_modifier(Modifier::REVERSED),
-                    },
-                    StyledGrapheme {
-                        symbol: "o",
-                        style: Style::default().add_modifier(Modifier::REVERSED),
-                    },
-                    StyledGrapheme {
-                        symbol: " ",
-                        style: Style::default(),
-                    },
-                    StyledGrapheme {
-                        symbol: "w",
-                        style: Style::default(),
-                    },
-                    StyledGrapheme {
-                        symbol: "o",
-                        style: Style::default(),
-                    },
-                    StyledGrapheme {
-                        symbol: "r",
-                        style: Style::default(),
-                    },
-                    StyledGrapheme {
-                        symbol: "l",
-                        style: Style::default(),
-                    },
-                    StyledGrapheme {
-                        symbol: "d",
-                        style: Style::default(),
-                    },
-                ],
-            );
+            #[test]
+            fn 指定された文字列にマッチしないときハイライトしない() {
+                let item = LiteralItem {
+                    item: "hello world".to_string(),
+                    ..Default::default()
+                };
+                let mut item = Graphemes::new(0, &item);
+
+                let highlight_words = item.highlight_word("hoge");
+
+                assert_eq!(highlight_words.is_none(), true);
+
+                assert_eq!(
+                    item.item,
+                    vec![
+                        StyledGrapheme {
+                            symbol: "h",
+                            style: Style::default(),
+                        },
+                        StyledGrapheme {
+                            symbol: "e",
+                            style: Style::default(),
+                        },
+                        StyledGrapheme {
+                            symbol: "l",
+                            style: Style::default(),
+                        },
+                        StyledGrapheme {
+                            symbol: "l",
+                            style: Style::default(),
+                        },
+                        StyledGrapheme {
+                            symbol: "o",
+                            style: Style::default(),
+                        },
+                        StyledGrapheme {
+                            symbol: " ",
+                            style: Style::default(),
+                        },
+                        StyledGrapheme {
+                            symbol: "w",
+                            style: Style::default(),
+                        },
+                        StyledGrapheme {
+                            symbol: "o",
+                            style: Style::default(),
+                        },
+                        StyledGrapheme {
+                            symbol: "r",
+                            style: Style::default(),
+                        },
+                        StyledGrapheme {
+                            symbol: "l",
+                            style: Style::default(),
+                        },
+                        StyledGrapheme {
+                            symbol: "d",
+                            style: Style::default(),
+                        },
+                    ],
+                );
+            }
         }
     }
 }
