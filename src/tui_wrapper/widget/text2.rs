@@ -23,7 +23,7 @@ use self::{
 use super::{config::WidgetConfig, Item, LiteralItem, RenderTrait, SelectedItem, WidgetTrait};
 
 #[derive(Debug, Default)]
-pub struct NewText<'a> {
+pub struct Text<'a> {
     pub id: String,
     pub widget_config: WidgetConfig,
     pub chunk: Rect,
@@ -38,7 +38,7 @@ pub struct NewText<'a> {
 /// - マッチした文字列をハイライト
 /// - マッチした文字列に移動
 /// - 検索モード終了時にハイライトを削除
-impl NewText<'_> {
+impl Text<'_> {
     pub fn search(&mut self, word: &str) {}
 
     pub fn search_next(&mut self) {
@@ -54,7 +54,7 @@ impl NewText<'_> {
     }
 }
 
-impl<'a> WidgetTrait for NewText<'_> {
+impl<'a> WidgetTrait for Text<'_> {
     fn id(&self) -> &str {
         &self.id
     }
@@ -124,7 +124,7 @@ impl<'a> WidgetTrait for NewText<'_> {
     }
 }
 
-impl RenderTrait for NewText<'_> {
+impl RenderTrait for Text<'_> {
     fn render<B>(&mut self, f: &mut Frame<'_, B>, selected: bool)
     where
         B: Backend,
