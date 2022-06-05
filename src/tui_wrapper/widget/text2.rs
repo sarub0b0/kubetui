@@ -301,12 +301,6 @@ mod item {
         text::StyledGrapheme,
     };
 
-    struct TextItem2 {
-        item: Pin<String>,
-        /// graphemesに分割した文字列リスト
-        graphemes: Vec<StyledGrapheme<'static>>,
-    }
-
     #[derive(Debug, Default)]
     struct Highlights {
         word: String,
