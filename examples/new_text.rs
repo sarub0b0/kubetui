@@ -12,6 +12,9 @@ use kubetui::tui_wrapper::widget::{text2::Text, LiteralItem, RenderTrait, Widget
 
 // {{{ sample string
 const DATA: &str = r#"
+あいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえお
+012345あいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえお
+あいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえお012345
 apiVersion: v1
 kind: Pod
 metadata:
