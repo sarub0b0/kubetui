@@ -73,3 +73,7 @@ rstest = "0.14.0"
 [[example]]
 name = "stack_view"
 required-features = ["stack-widget"]
+
+[[example]]
+name = "new_text"
+
