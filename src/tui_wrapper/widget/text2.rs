@@ -17,7 +17,7 @@ use crate::tui_wrapper::event::EventResult;
 
 use self::{
     item::{TextItem, WrappedLine},
-    render::Render,
+    render::{Render, Scroll},
     styled_graphemes::StyledGraphemes,
 };
 
@@ -76,12 +76,22 @@ impl TextBuilder {
         ret
     }
 }
+
+#[derive(Derivative)]
+#[derivative(Debug, Default)]
 pub struct Text<'a> {
-    pub id: String,
-    pub widget_config: WidgetConfig,
-    pub chunk: Rect,
-    pub item: Vec<LiteralItem>,
-    pub inner_item: TextItem<'a>,
+    id: String,
+    widget_config: WidgetConfig,
+    item: TextItem<'a>,
+    chunk: Rect,
+    inner_chunk: Rect,
+    wrap: bool,
+    follow: bool,
+    scroll: Scroll,
+    #[derivative(Debug = "ignore")]
+    block_injection: Option<RenderBlockInjection>,
+}
+
 impl Text<'_> {
     pub fn builder() -> TextBuilder {
         Default::default()
