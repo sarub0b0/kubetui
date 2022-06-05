@@ -106,7 +106,9 @@ impl Text<'_> {
 /// - マッチした文字列に移動
 /// - 検索モード終了時にハイライトを削除
 impl Text<'_> {
-    pub fn search(&mut self, word: &str) {}
+    pub fn search(&mut self, word: &str) {
+        self.item.highlight(word);
+    }
 
     pub fn search_next(&mut self) {
         todo!()
@@ -117,7 +119,10 @@ impl Text<'_> {
     }
 
     pub fn search_cancel(&mut self) {
-        todo!()
+        self.item.clear_highlight();
+    }
+}
+
     }
 }
 
