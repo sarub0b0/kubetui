@@ -199,6 +199,11 @@ impl<'a> WidgetTrait for Text<'_> {
 
     fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
+        self.inner_chunk = self.widget_config.block().inner(chunk);
+
+        if self.wrap {
+            self.item.rewrap(self.inner_chunk.width as usize);
+        };
     }
 
     fn clear(&mut self) {
