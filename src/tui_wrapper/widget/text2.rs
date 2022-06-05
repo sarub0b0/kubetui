@@ -327,7 +327,7 @@ mod styled_graphemes {
 mod item {
     use super::{search::Search, styled_graphemes::StyledGraphemes, wrap::WrapTrait};
     use crate::tui_wrapper::widget::LiteralItem;
-    use std::{borrow::Cow, cell::RefCell, ops::Range, pin::Pin, rc::Rc};
+    use std::{borrow::Cow, ops::Range};
     use tui::{
         style::{Modifier, Style},
         text::StyledGrapheme,
@@ -482,6 +482,31 @@ mod item {
             }
 
             self.highlights = None;
+        }
+
+        pub fn rewrap(&mut self, wrap_width: usize) {
+            self.wrap_width = Some(wrap_width);
+
+            let wrapped: Vec<WrappedLine> = unsafe {
+                let wrapped: Vec<WrappedLine> = self
+                    .graphemes
+                    .iter()
+                    .enumerate()
+                    .flat_map(|(i, g)| {
+                        g.item
+                            .wrap(self.wrap_width)
+                            .map(|w| WrappedLine {
+                                index: i,
+                                line: Cow::Borrowed(w),
+                            })
+                            .collect::<Vec<WrappedLine>>()
+                    })
+                    .collect();
+
+                std::mem::transmute(wrapped)
+            };
+
+            self.wrapped = wrapped;
         }
     }
 
