@@ -123,6 +123,12 @@ impl Text<'_> {
     }
 }
 
+impl Text<'_> {
+    pub fn scroll_y_last_index(&self) -> usize {
+        self.item
+            .wrapped()
+            .len()
+            .saturating_sub(self.inner_chunk.height as usize)
     }
 }
 
@@ -155,20 +161,24 @@ impl<'a> WidgetTrait for Text<'_> {
         todo!()
     }
 
-    fn select_next(&mut self, _: usize) {
-        todo!()
+    fn select_next(&mut self, i: usize) {
+        self.scroll.y = self
+            .scroll
+            .y
+            .saturating_add(i)
+            .min(self.scroll_y_last_index());
     }
 
-    fn select_prev(&mut self, _: usize) {
-        todo!()
+    fn select_prev(&mut self, i: usize) {
+        self.scroll.y = self.scroll.y.saturating_sub(i)
     }
 
     fn select_first(&mut self) {
-        todo!()
+        self.scroll.y = 0;
     }
 
     fn select_last(&mut self) {
-        todo!()
+        self.scroll.y = self.scroll_y_last_index();
     }
 
     fn append_widget_item(&mut self, _: Item) {
