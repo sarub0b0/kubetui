@@ -261,6 +261,13 @@ fn main() {
                             text.select_last();
                         }
 
+                        KeyCode::Char('f') => {
+                            text.scroll_right(1);
+                        }
+                        KeyCode::Char('b') => {
+                            text.scroll_left(1);
+                        }
+
                         KeyCode::Tab => {
                             let builder = Text::builder().item(item.clone());
                             if wrap {
