@@ -216,23 +216,25 @@ impl RenderTrait for Text<'_> {
     where
         B: Backend,
     {
-        let block = self.widget_config.render_block_with_title(selected);
+        let block = if let Some(block_injection) = &self.block_injection {
+            (block_injection)(&*self, selected)
+        } else {
+            self.widget_config
+                .render_block_with_title(self.focusable() && selected)
+        };
 
-        let item = vec![
-            WrappedLine {
-                index: 0,
-                line: Cow::from("0123456789".styled_graphemes()),
-            },
-            WrappedLine {
-                index: 1,
-                line: Cow::from("0123456789".styled_graphemes()),
-            },
-        ];
+        let wrapped_lines = self.item.wrapped();
 
-        let lines: Vec<&[StyledGrapheme<'_>]> =
-            item.iter().map(|wrapped| wrapped.line.as_ref()).collect();
+        let lines: Vec<&[StyledGrapheme<'_>]> = wrapped_lines
+            .iter()
+            .map(|wrapped| wrapped.line.as_ref())
+            .collect();
 
-        let r = Render::builder().block(block).lines(&lines).build();
+        let r = Render::builder()
+            .block(block)
+            .lines(&lines)
+            .scroll(self.scroll)
+            .build();
 
         f.render_widget(r, self.chunk);
     }
