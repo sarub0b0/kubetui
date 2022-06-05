@@ -220,12 +220,14 @@ fn main() {
 
     terminal.clear().unwrap();
 
-    let mut text = Text::builder()
-        .item(DATA.lines().map(|l| l.into()).collect::<Vec<LiteralItem>>())
-        .wrap()
-        .build();
+    let item = DATA.lines().map(|l| l.into()).collect::<Vec<LiteralItem>>();
+
+    let mut text = Text::builder().item(item.clone()).build();
+
+    let mut wrap = true;
 
     text.update_chunk(terminal.size().unwrap());
+
     loop {
         terminal
             .draw(|f| {
@@ -259,6 +261,16 @@ fn main() {
                             text.select_last();
                         }
 
+                        KeyCode::Tab => {
+                            let builder = Text::builder().item(item.clone());
+                            if wrap {
+                                text = builder.wrap().build();
+                            } else {
+                                text = builder.build()
+                            }
+
+                            wrap = !wrap;
+                        }
                         _ => {}
                     },
                     Event::Mouse(_) => {}
