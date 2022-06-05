@@ -11,6 +11,7 @@ use kubetui::{
     config::{configure, Config},
     context::{Context, Namespace},
     event::{input::read_key, kubernetes::KubeWorker, tick::tick, Event},
+    signal::signal_handler,
     tui_wrapper::WindowEvent,
     window::WindowInit,
 };
@@ -169,6 +170,8 @@ fn run(config: Config) -> Result<()> {
 fn main() -> Result<()> {
     #[cfg(feature = "logging")]
     logging();
+
+    signal_handler();
 
     let default_hook = panic::take_hook();
 

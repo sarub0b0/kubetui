@@ -5,6 +5,7 @@ pub mod config;
 pub mod context;
 pub mod error;
 pub mod event;
+pub mod signal;
 pub mod tui_wrapper;
 pub mod window;
 
