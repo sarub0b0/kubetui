@@ -124,6 +124,22 @@ impl Text<'_> {
 }
 
 impl Text<'_> {
+    pub fn scroll_right(&mut self, i: usize) {
+        if self.wrap {
+            return;
+        }
+
+        self.scroll.x = self.scroll.x.saturating_add(i);
+    }
+
+    pub fn scroll_left(&mut self, i: usize) {
+        if self.wrap {
+            return;
+        }
+
+        self.scroll.x = self.scroll.x.saturating_sub(i);
+    }
+
     pub fn scroll_y_last_index(&self) -> usize {
         self.item
             .wrapped()
