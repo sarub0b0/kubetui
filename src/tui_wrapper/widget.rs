@@ -1,6 +1,5 @@
 mod ansi_color;
 mod spans;
-mod text2;
 mod wrap;
 
 pub mod complex;
@@ -8,6 +7,7 @@ pub mod config;
 pub mod list;
 pub mod table;
 pub mod text;
+pub mod text2;
 
 use std::collections::BTreeMap;
 
@@ -58,6 +58,12 @@ impl TableItem {
 impl From<String> for LiteralItem {
     fn from(item: String) -> Self {
         Self::new(item, None)
+    }
+}
+
+impl From<&str> for LiteralItem {
+    fn from(item: &str) -> Self {
+        Self::new(item.to_string(), None)
     }
 }
 
