@@ -1,6 +1,7 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, rc::Rc};
 
 use crossterm::event::{KeyEvent, MouseEvent};
+use derivative::*;
 use tui::{
     backend::Backend,
     buffer::Buffer,
@@ -22,13 +23,69 @@ use self::{
 
 use super::{config::WidgetConfig, Item, LiteralItem, RenderTrait, SelectedItem, WidgetTrait};
 
-#[derive(Debug, Default)]
+type RenderBlockInjection = Rc<dyn Fn(&Text, bool) -> Block<'static>>;
+
+#[derive(Derivative)]
+#[derivative(Debug, Default)]
+pub struct TextBuilder {
+    id: String,
+    widget_config: WidgetConfig,
+    item: Vec<LiteralItem>,
+    wrap: bool,
+    follow: bool,
+    #[derivative(Debug = "ignore")]
+    block_injection: Option<RenderBlockInjection>,
+}
+
+impl TextBuilder {
+    pub fn id(mut self, id: impl Into<String>) -> Self {
+        self.id = id.into();
+        self
+    }
+
+    pub fn widget_config(mut self, widget_config: WidgetConfig) -> Self {
+        self.widget_config = widget_config;
+        self
+    }
+
+    pub fn item(mut self, item: impl Into<Vec<LiteralItem>>) -> Self {
+        self.item = item.into();
+        self
+    }
+
+    pub fn wrap(mut self) -> Self {
+        self.wrap = true;
+        self
+    }
+
+    pub fn follow(mut self) -> Self {
+        self.follow = true;
+        self
+    }
+
+    pub fn build(self) -> Text<'static> {
+        let ret = Text {
+            id: self.id,
+            widget_config: self.widget_config,
+            item: TextItem::new(self.item, None),
+            wrap: self.wrap,
+            follow: self.follow,
+            ..Default::default()
+        };
+
+        ret
+    }
+}
 pub struct Text<'a> {
     pub id: String,
     pub widget_config: WidgetConfig,
     pub chunk: Rect,
     pub item: Vec<LiteralItem>,
     pub inner_item: TextItem<'a>,
+impl Text<'_> {
+    pub fn builder() -> TextBuilder {
+        Default::default()
+    }
 }
 
 /// ワード検索機能
