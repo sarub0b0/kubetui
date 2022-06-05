@@ -1,4 +1,4 @@
-use std::{borrow::Cow, rc::Rc};
+use std::rc::Rc;
 
 use crossterm::event::{KeyEvent, MouseEvent};
 use derivative::*;
@@ -16,9 +16,8 @@ use unicode_width::UnicodeWidthStr;
 use crate::tui_wrapper::event::EventResult;
 
 use self::{
-    item::{TextItem, WrappedLine},
+    item::TextItem,
     render::{Render, Scroll},
-    styled_graphemes::StyledGraphemes,
 };
 
 use super::{config::WidgetConfig, Item, LiteralItem, RenderTrait, SelectedItem, WidgetTrait};
@@ -343,7 +342,7 @@ mod styled_graphemes {
 mod item {
     use super::{search::Search, styled_graphemes::StyledGraphemes, wrap::WrapTrait};
     use crate::tui_wrapper::widget::LiteralItem;
-    use std::{borrow::Cow, ops::Range};
+    use std::{borrow::Cow, cell::RefCell, ops::Range, rc::Rc};
     use tui::{
         style::{Modifier, Style},
         text::StyledGrapheme,
@@ -352,7 +351,7 @@ mod item {
     #[derive(Debug, Default)]
     struct Highlights {
         word: String,
-        item: Vec<Highlight>,
+        item: Rc<RefCell<Vec<Highlight>>>,
     }
 
     #[derive(Debug, Default)]
@@ -428,7 +427,8 @@ mod item {
 
             if let Some(highlights) = &mut self.highlights {
                 if let Some(hls) = graphemes.highlight_word(&highlights.word) {
-                    highlights.item.push(hls);
+                    let mut item = highlights.item.borrow_mut();
+                    item.extend(hls);
                 }
             }
 
@@ -451,8 +451,7 @@ mod item {
             let wrapped: Vec<WrappedLine> = unsafe {
                 let wrapped: Vec<WrappedLine> = graphemes
                     .iter()
-                    .enumerate()
-                    .flat_map(|(i, g)| g.wrap(self.wrap_width))
+                    .flat_map(|g| g.wrap(self.wrap_width))
                     .collect();
 
                 std::mem::transmute(wrapped)
@@ -462,9 +461,11 @@ mod item {
                 let hls: Vec<Highlight> = graphemes
                     .iter_mut()
                     .filter_map(|g| g.highlight_word(&highlights.word))
+                    .flatten()
                     .collect();
 
-                highlights.item.extend(hls);
+                let mut item = highlights.item.borrow_mut();
+                item.extend(hls);
             }
 
             self.item.extend(item);
@@ -477,12 +478,13 @@ mod item {
                 .graphemes
                 .iter_mut()
                 .filter_map(|g| g.highlight_word(word))
+                .flatten()
                 .collect();
 
             if !highlight_words.is_empty() {
                 let highlights = Highlights {
                     word: word.to_string(),
-                    item: highlight_words,
+                    item: Rc::new(RefCell::new(highlight_words)),
                 };
 
                 self.highlights = Some(highlights);
@@ -491,9 +493,10 @@ mod item {
 
         pub fn clear_highlight(&mut self) {
             if let Some(highlights) = &mut self.highlights {
-                highlights.item.iter().for_each(|hl| {
+                let item = highlights.item.borrow();
+                item.iter().for_each(|hl| {
                     let graphemes = &mut self.graphemes[hl.index];
-                    graphemes.clear_highlight(&hl.item);
+                    graphemes.clear_highlight(hl);
                 });
             }
 
@@ -541,22 +544,17 @@ mod item {
         /// 折り返しを計算した結果、表示する文字列データ
         pub line: Cow<'a, [StyledGrapheme<'a>]>,
     }
+
     #[derive(Debug, Default, PartialEq)]
-    pub struct HighlightItem {
+    pub struct Highlight {
+        /// 行番号
+        index: usize,
+
         /// ハイライト箇所の範囲
         range: Range<usize>,
 
         /// ハイライト前のスタイル
         item: Vec<Style>,
-    }
-
-    #[derive(Debug, Default)]
-    pub struct Highlight {
-        /// 行番号
-        index: usize,
-
-        /// ハイライトリスト
-        item: Vec<HighlightItem>,
     }
 
     /// LiteralItem から Vec<StyledGrapheme> に変換する
@@ -578,11 +576,11 @@ mod item {
             }
         }
 
-        pub fn highlight_word(&mut self, word: &str) -> Option<Highlight> {
+        pub fn highlight_word(&mut self, word: &str) -> Option<Vec<Highlight>> {
             let word = word.styled_graphemes_symbols();
 
             if let Some(ranges) = self.item.search(&word) {
-                let item: Vec<HighlightItem> = ranges
+                let ret: Vec<Highlight> = ranges
                     .iter()
                     .cloned()
                     .map(|range| {
@@ -595,26 +593,32 @@ mod item {
                             })
                             .collect();
 
-                        HighlightItem { range, item }
+                        Highlight {
+                            index: self.index,
+                            range,
+                            item,
+                        }
                     })
                     .collect();
 
-                Some(Highlight {
-                    index: self.index,
-                    item,
-                })
+                Some(ret)
             } else {
                 None
             }
         }
 
-        pub fn clear_highlight(&mut self, item: &[HighlightItem]) {
-            item.iter().for_each(|HighlightItem { range, item }| {
-                let i = &mut self.item[range.clone()];
-                i.iter_mut().zip(item.iter()).for_each(|(l, r)| {
-                    l.style = *r;
-                });
-            })
+        pub fn clear_highlight(&mut self, item: &Highlight) {
+            let Highlight {
+                index: _,
+                range,
+                item,
+            } = item;
+
+            let i = &mut self.item[range.clone()];
+
+            i.iter_mut().zip(item.iter()).for_each(|(l, r)| {
+                l.style = *r;
+            });
         }
 
         pub fn wrap(&self, wrap_width: Option<usize>) -> Vec<WrappedLine> {
@@ -821,8 +825,9 @@ mod item {
                 let highlight_words = item.highlight_word("hello").unwrap();
 
                 assert_eq!(
-                    highlight_words.item,
-                    vec![HighlightItem {
+                    highlight_words,
+                    vec![Highlight {
+                        index: 0,
                         range: 0..5,
                         item: vec![
                             Style::default(),
@@ -959,7 +964,7 @@ mod item {
 
                 let highlight = item.highlight_word("hello").unwrap();
 
-                item.clear_highlight(&highlight.item);
+                item.clear_highlight(&highlight[0]);
 
                 assert_eq!(
                     item.item,
