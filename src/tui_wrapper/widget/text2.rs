@@ -270,6 +270,7 @@ mod item {
 
     #[derive(Debug, Default)]
     struct Highlights {
+        /// 検索ワード
         word: String,
 
         /// wordにマッチする場所に関するデータ
