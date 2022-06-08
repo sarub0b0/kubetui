@@ -172,11 +172,23 @@ impl<'a> TextItem<'a> {
         self.highlights = None;
     }
 
-    /// 指定したインデックスを選択
-    fn select_index_highlight(&mut self, index: usize) -> Option<usize> {
+    /// Reverseのハイライト状態に戻す
+    fn highlight_normal(&mut self, index: usize) {
         if let Some(highlights) = &mut self.highlights {
-            highlights.index = index;
+            let hl = &highlights.item[index];
 
+            let graphemes = &mut self.graphemes[hl.index].item[hl.range.clone()];
+
+            graphemes
+                .iter_mut()
+                .zip(hl.item.iter())
+                .for_each(|(gs, style)| gs.style = style.add_modifier(Modifier::REVERSED));
+        }
+    }
+
+    /// 指定したインデックスを選択
+    fn highlight_color(&mut self, index: usize) -> Option<usize> {
+        if let Some(highlights) = &mut self.highlights {
             let hl = &highlights.item[index];
 
             let graphemes = &mut self.graphemes[hl.index].item[hl.range.clone()];
@@ -184,6 +196,8 @@ impl<'a> TextItem<'a> {
             graphemes
                 .iter_mut()
                 .for_each(|gs| gs.style = gs.style.fg(Color::Yellow));
+
+            highlights.index = index;
 
             Some(hl.index)
         } else {
@@ -208,7 +222,7 @@ impl<'a> TextItem<'a> {
         };
 
         if let Some(index) = nearest_index {
-            self.select_index_highlight(index)
+            self.highlight_color(index)
         } else {
             None
         }
@@ -219,29 +233,13 @@ impl<'a> TextItem<'a> {
         if let Some(highlights) = &mut self.highlights {
             let index = highlights.index;
 
-            let hl = &highlights.item[index];
+            let item_len = highlights.item.len();
 
-            let graphemes = &mut self.graphemes[hl.index].item[hl.range.clone()];
+            self.highlight_normal(index);
 
-            graphemes
-                .iter_mut()
-                .zip(hl.item.iter())
-                .for_each(|(gs, style)| gs.style = style.add_modifier(Modifier::REVERSED));
+            let index = (index + 1) % item_len;
 
-            let index = (index + 1) % highlights.item.len();
-
-            let hl = &highlights.item[index];
-
-            highlights.index = index;
-
-            let graphemes = &mut self.graphemes[hl.index].item[hl.range.clone()];
-
-            graphemes
-                .iter_mut()
-                .zip(hl.item.iter())
-                .for_each(|(gs, style)| gs.style = gs.style.fg(Color::Yellow));
-
-            return Some(hl.index);
+            self.highlight_color(index)
         } else {
             None
         }
@@ -252,32 +250,17 @@ impl<'a> TextItem<'a> {
         if let Some(highlights) = &mut self.highlights {
             let index = highlights.index;
 
-            let hl = &highlights.item[index];
+            let item_len = highlights.item.len();
 
-            let graphemes = &mut self.graphemes[hl.index].item[hl.range.clone()];
-
-            graphemes
-                .iter_mut()
-                .zip(hl.item.iter())
-                .for_each(|(gs, style)| gs.style = style.add_modifier(Modifier::REVERSED));
+            self.highlight_normal(index);
 
             let index = if index == 0 {
-                highlights.item.len().saturating_sub(1)
+                item_len.saturating_sub(1)
             } else {
                 index.saturating_sub(1)
             };
 
-            let hl = &highlights.item[index];
-
-            highlights.index = index;
-
-            let graphemes = &mut self.graphemes[hl.index].item[hl.range.clone()];
-
-            graphemes
-                .iter_mut()
-                .for_each(|gs| gs.style = gs.style.fg(Color::Yellow));
-
-            Some(hl.index)
+            self.highlight_color(index)
         } else {
             None
         }
