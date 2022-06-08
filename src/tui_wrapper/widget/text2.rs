@@ -262,7 +262,7 @@ impl RenderTrait for Text<'_> {
 mod item {
     use super::{search::Search, styled_graphemes::StyledGraphemes, wrap::WrapTrait};
     use crate::tui_wrapper::widget::LiteralItem;
-    use std::{borrow::Cow, cell::RefCell, ops::Range, rc::Rc};
+    use std::{borrow::Cow, ops::Range};
     use tui::{
         style::{Modifier, Style},
         text::StyledGrapheme,
@@ -271,7 +271,9 @@ mod item {
     #[derive(Debug, Default)]
     struct Highlights {
         word: String,
-        item: Rc<RefCell<Vec<Highlight>>>,
+
+        /// wordにマッチする場所に関するデータ
+        item: Vec<Highlight>,
     }
 
     #[derive(Debug, Default)]
@@ -347,8 +349,7 @@ mod item {
 
             if let Some(highlights) = &mut self.highlights {
                 if let Some(hls) = graphemes.highlight_word(&highlights.word) {
-                    let mut item = highlights.item.borrow_mut();
-                    item.extend(hls);
+                    highlights.item.extend(hls);
                 }
             }
 
@@ -384,8 +385,7 @@ mod item {
                     .flatten()
                     .collect();
 
-                let mut item = highlights.item.borrow_mut();
-                item.extend(hls);
+                highlights.item.extend(hls);
             }
 
             self.item.extend(item);
@@ -404,7 +404,7 @@ mod item {
             if !highlight_words.is_empty() {
                 let highlights = Highlights {
                     word: word.to_string(),
-                    item: Rc::new(RefCell::new(highlight_words)),
+                    item: highlight_words,
                 };
 
                 self.highlights = Some(highlights);
@@ -413,8 +413,7 @@ mod item {
 
         pub fn clear_highlight(&mut self) {
             if let Some(highlights) = &mut self.highlights {
-                let item = highlights.item.borrow();
-                item.iter().for_each(|hl| {
+                highlights.item.iter().for_each(|hl| {
                     let graphemes = &mut self.graphemes[hl.index];
                     graphemes.clear_highlight(hl);
                 });
