@@ -1,7 +1,8 @@
-use std::rc::Rc;
 mod render;
 mod styled_graphemes;
 mod wrap;
+
+use std::rc::Rc;
 
 use crossterm::event::{KeyEvent, MouseEvent};
 use derivative::*;
