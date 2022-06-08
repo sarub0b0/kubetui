@@ -396,7 +396,9 @@ mod item {
             self.graphemes.extend(graphemes);
             self.wrapped.extend(wrapped);
         }
+    }
 
+    impl<'a> TextItem<'a> {
         pub fn highlight(&mut self, word: &str) {
             let highlight_words: Vec<_> = self
                 .graphemes
@@ -427,6 +429,12 @@ mod item {
             self.highlights = None;
         }
 
+
+    impl<'a> TextItem<'a> {
+        pub fn wrapped(&self) -> &[WrappedLine<'a>] {
+            &self.wrapped
+        }
+
         pub fn rewrap(&mut self, wrap_width: usize) {
             self.wrap_width = Some(wrap_width);
 
@@ -450,12 +458,6 @@ mod item {
             };
 
             self.wrapped = wrapped;
-        }
-    }
-
-    impl<'a> TextItem<'a> {
-        pub fn wrapped(&self) -> &[WrappedLine<'a>] {
-            &self.wrapped
         }
     }
 
