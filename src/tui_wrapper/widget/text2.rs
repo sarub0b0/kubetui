@@ -1,5 +1,6 @@
 use std::rc::Rc;
 mod render;
+mod styled_graphemes;
 mod wrap;
 
 use crossterm::event::{KeyEvent, MouseEvent};
