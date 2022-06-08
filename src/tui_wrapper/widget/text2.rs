@@ -274,6 +274,10 @@ mod item {
 
         /// wordにマッチする場所に関するデータ
         item: Vec<Highlight>,
+
+        /// 選択しているインデックス
+        /// Reverseではなく背景色を変える
+        index: usize,
     }
 
     #[derive(Debug, Default)]
@@ -405,6 +409,7 @@ mod item {
                 let highlights = Highlights {
                     word: word.to_string(),
                     item: highlight_words,
+                    index: 0,
                 };
 
                 self.highlights = Some(highlights);
