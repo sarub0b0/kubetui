@@ -118,11 +118,15 @@ impl Text<'_> {
     }
 
     pub fn search_next(&mut self) {
-        todo!()
+        if let Some(index) = self.item.select_next_highlight() {
+            self.scroll.y = self.search_scroll(index);
+        }
     }
 
     pub fn search_prev(&mut self) {
-        todo!()
+        if let Some(index) = self.item.select_prev_highlight() {
+            self.scroll.y = self.search_scroll(index);
+        }
     }
 
     pub fn search_cancel(&mut self) {
