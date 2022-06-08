@@ -269,6 +269,7 @@ fn main() {
                         }
 
                         KeyCode::Tab => {
+                        KeyCode::Enter => {
                             let builder = Text::builder().item(item.clone());
                             if wrap {
                                 text = builder.wrap().build();
