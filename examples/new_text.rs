@@ -267,8 +267,18 @@ fn main() {
                         KeyCode::Char('b') => {
                             text.scroll_left(1);
                         }
-
                         KeyCode::Tab => {
+                            text.search_next();
+                        }
+
+                        KeyCode::BackTab => {
+                            text.search_prev();
+                        }
+
+                        KeyCode::Char(' ') => {
+                            text.search_cancel();
+                        }
+
                         KeyCode::Enter => {
                             let builder = Text::builder().item(item.clone());
                             if wrap {
