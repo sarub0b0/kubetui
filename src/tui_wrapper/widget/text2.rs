@@ -111,6 +111,10 @@ impl Text<'_> {
 impl Text<'_> {
     pub fn search(&mut self, word: &str) {
         self.item.highlight(word);
+
+        if let Some(index) = self.item.select_nearest_highlight(self.scroll.y) {
+            self.scroll.y = self.search_scroll(index);
+        }
     }
 
     pub fn search_next(&mut self) {
@@ -123,6 +127,13 @@ impl Text<'_> {
 
     pub fn search_cancel(&mut self) {
         self.item.clear_highlight();
+    }
+
+    /// 移動したいハイライトが中央になるスクロール位置を返す
+    fn search_scroll(&self, search_index: usize) -> usize {
+        search_index
+            .saturating_sub((self.inner_chunk.height / 2) as usize)
+            .min(self.scroll_y_last_index())
     }
 }
 
