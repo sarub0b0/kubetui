@@ -264,7 +264,7 @@ mod item {
     use crate::tui_wrapper::widget::LiteralItem;
     use std::{borrow::Cow, ops::Range};
     use tui::{
-        style::{Modifier, Style},
+        style::{Color, Modifier, Style},
         text::StyledGrapheme,
     };
 
@@ -429,6 +429,117 @@ mod item {
             self.highlights = None;
         }
 
+        /// 指定したインデックスを選択
+        fn select_index_highlight(&mut self, index: usize) -> Option<usize> {
+            if let Some(highlights) = &mut self.highlights {
+                highlights.index = index;
+
+                let hl = &highlights.item[index];
+
+                let graphemes = &mut self.graphemes[hl.index].item[hl.range.clone()];
+
+                graphemes
+                    .iter_mut()
+                    .for_each(|gs| gs.style = gs.style.fg(Color::Yellow));
+
+                Some(hl.index)
+            } else {
+                None
+            }
+        }
+
+        /// 指定したインデックスに一番近い場所を選択
+        pub fn select_nearest_highlight(&mut self, scroll_index: usize) -> Option<usize> {
+            let nearest_index = if let Some(highlights) = &mut self.highlights {
+                let nearest_index = highlights
+                    .item
+                    .iter()
+                    .enumerate()
+                    .min_by_key(|(_, hl)| hl.index.abs_diff(scroll_index))
+                    .map(|(i, _)| i)
+                    .unwrap();
+
+                Some(nearest_index)
+            } else {
+                None
+            };
+
+            if let Some(index) = nearest_index {
+                self.select_index_highlight(index)
+            } else {
+                None
+            }
+        }
+
+        /// 次のマッチ箇所をハイライト
+        pub fn select_next_highlight(&mut self) -> Option<usize> {
+            if let Some(highlights) = &mut self.highlights {
+                let index = highlights.index;
+
+                let hl = &highlights.item[index];
+
+                let graphemes = &mut self.graphemes[hl.index].item[hl.range.clone()];
+
+                graphemes
+                    .iter_mut()
+                    .zip(hl.item.iter())
+                    .for_each(|(gs, style)| gs.style = style.add_modifier(Modifier::REVERSED));
+
+                let index = (index + 1) % highlights.item.len();
+
+                let hl = &highlights.item[index];
+
+                highlights.index = index;
+
+                let graphemes = &mut self.graphemes[hl.index].item[hl.range.clone()];
+
+                graphemes
+                    .iter_mut()
+                    .zip(hl.item.iter())
+                    .for_each(|(gs, style)| gs.style = gs.style.fg(Color::Yellow));
+
+                return Some(hl.index);
+            } else {
+                None
+            }
+        }
+
+        /// 前のマッチ箇所をハイライト
+        pub fn select_prev_highlight(&mut self) -> Option<usize> {
+            if let Some(highlights) = &mut self.highlights {
+                let index = highlights.index;
+
+                let hl = &highlights.item[index];
+
+                let graphemes = &mut self.graphemes[hl.index].item[hl.range.clone()];
+
+                graphemes
+                    .iter_mut()
+                    .zip(hl.item.iter())
+                    .for_each(|(gs, style)| gs.style = style.add_modifier(Modifier::REVERSED));
+
+                let index = if index == 0 {
+                    highlights.item.len().saturating_sub(1)
+                } else {
+                    index.saturating_sub(1)
+                };
+
+                let hl = &highlights.item[index];
+
+                highlights.index = index;
+
+                let graphemes = &mut self.graphemes[hl.index].item[hl.range.clone()];
+
+                graphemes
+                    .iter_mut()
+                    .for_each(|gs| gs.style = gs.style.fg(Color::Yellow));
+
+                Some(hl.index)
+            } else {
+                None
+            }
+        }
+    }
 
     impl<'a> TextItem<'a> {
         pub fn wrapped(&self) -> &[WrappedLine<'a>] {
