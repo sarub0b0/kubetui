@@ -400,6 +400,8 @@ mod item {
 
     impl<'a> TextItem<'a> {
         pub fn highlight(&mut self, word: &str) {
+            self.clear_highlight();
+
             let highlight_words: Vec<_> = self
                 .graphemes
                 .iter_mut()
