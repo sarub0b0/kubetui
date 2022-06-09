@@ -252,7 +252,7 @@ impl RenderTrait for Text<'_> {
         B: Backend,
     {
         let block = if let Some(block_injection) = &self.block_injection {
-            (block_injection)(&*self, selected)
+            (block_injection)(&*self, self.focusable() && selected)
         } else {
             self.widget_config
                 .render_block(self.focusable() && selected)
