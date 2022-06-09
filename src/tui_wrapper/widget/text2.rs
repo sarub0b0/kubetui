@@ -10,10 +10,10 @@ use derivative::*;
 use tui::{
     backend::Backend,
     buffer::Buffer,
-    layout::Rect,
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::Style,
     text::StyledGrapheme,
-    widgets::{Block, Widget},
+    widgets::{Block, Paragraph, Widget},
     Frame,
 };
 use unicode_width::UnicodeWidthStr;
@@ -25,9 +25,62 @@ use self::{
     render::{Render, Scroll},
 };
 
-use super::{config::WidgetConfig, Item, LiteralItem, RenderTrait, SelectedItem, WidgetTrait};
+use super::{
+    config::WidgetConfig, InputForm, Item, LiteralItem, RenderTrait, SelectedItem, WidgetTrait,
+};
 
 type RenderBlockInjection = Rc<dyn Fn(&Text, bool) -> Block<'static>>;
+
+#[derive(Debug)]
+struct SearchForm<'a> {
+    input_widget: InputForm<'a>,
+    chunks: Vec<Rect>,
+}
+
+impl Default for SearchForm<'_> {
+    fn default() -> Self {
+        Self {
+            input_widget: InputForm::new(WidgetConfig::builder().block(Block::default()).build()),
+            chunks: Default::default(),
+        }
+    }
+}
+
+impl<'a> SearchForm<'a> {
+    fn update_chunk(&mut self, chunk: Rect) {
+        let Rect {
+            x,
+            y: _,
+            width,
+            height,
+        } = chunk;
+
+        self.chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Length(8),
+                Constraint::Length(width.saturating_sub(18 + 1)),
+                Constraint::Length(15),
+            ])
+            .split(Rect::new(x, height.saturating_sub(1), width, 1));
+
+        self.input_widget.update_chunk(self.chunks[1]);
+    }
+
+    fn render<B>(&mut self, f: &mut Frame<'_, B>, status: (usize, usize))
+    where
+        B: Backend,
+    {
+        f.render_widget(Paragraph::new("Search: "), self.chunks[0]);
+
+        self.input_widget.render(f, false);
+
+        f.render_widget(
+            Paragraph::new(format!("[{}/{}]", status.0, status.1)).alignment(Alignment::Right),
+            self.chunks[2],
+        );
+    }
+}
 
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
