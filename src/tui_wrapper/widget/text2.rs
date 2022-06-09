@@ -255,7 +255,7 @@ impl RenderTrait for Text<'_> {
             (block_injection)(&*self, selected)
         } else {
             self.widget_config
-                .render_block_with_title(self.focusable() && selected)
+                .render_block(self.focusable() && selected)
         };
 
         let wrapped_lines = self.item.wrapped();
