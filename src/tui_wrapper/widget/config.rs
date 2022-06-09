@@ -64,14 +64,6 @@ impl WidgetConfig {
         WidgetConfigBuilder::default()
     }
 
-    /// Render Block
-    ///
-    /// Focus:     ─ + Title ───  (BOLD)
-    /// Not focus: ─── Title ───  (DarkGray: title is Raw)
-    pub fn render_block_with_title(&self, focused: bool) -> Block<'static> {
-        self.render_block(focused).title(self.render_title(focused))
-    }
-
     pub fn block(&self) -> &Block {
         &self.block
     }
@@ -130,8 +122,12 @@ impl WidgetConfig {
         title
     }
 
+    /// Render Block
+    ///
+    /// Focus:     ─ + Title ───  (BOLD)
+    /// Not focus: ─── Title ───  (DarkGray: title is Raw)
     pub fn render_block(&self, focused: bool) -> Block<'static> {
-        if self.focusable {
+        let block = if self.focusable {
             if focused {
                 self.block.clone().title_offset(1)
             } else {
@@ -142,6 +138,13 @@ impl WidgetConfig {
             }
         } else {
             self.block.clone().title_offset(3)
+        };
+
+        let title = self.render_title(focused);
+        if title.is_empty() {
+            block
+        } else {
+            block.title(title)
         }
     }
 }

@@ -103,18 +103,18 @@ impl Default for InputForm<'_> {
 }
 
 impl<'a> InputForm<'a> {
-    fn block(&self) -> Block<'static> {
-        self.widget_config
-            .render_block_with_title(false)
-            .title_offset(1)
     }
 
     pub fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
         self.cursor.update_tick();
+    fn block(&self, selected: bool) -> Block<'static> {
+        self.widget_config.render_block(selected).title_offset(1)
+    }
+
 
         let spans = Self::render_content(self.content.as_str(), &self.cursor);
 
-        let widget = Paragraph::new(spans).block(self.block());
+        let widget = Paragraph::new(spans).block(self.block(selected));
 
         f.render_widget(widget, self.chunk);
     }
@@ -147,7 +147,7 @@ impl<'a> InputForm<'a> {
 
     pub fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
-        self.widget.update_chunk(self.block().inner(chunk));
+        self.widget.update_chunk(self.block(false).inner(chunk));
     }
 
     pub fn insert_char(&mut self, c: char) {

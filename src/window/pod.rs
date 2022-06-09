@@ -82,7 +82,7 @@ impl<'a> PodTabBuilder<'a> {
                 *config.append_title_mut() =
                     Some(format!(" [{}/{}]", index, table.items().len()).into());
 
-                config.render_block_with_title(table.focusable() && selected)
+                config.render_block(table.focusable() && selected)
             })
             .on_select(move |w, v| {
                 w.widget_clear(view_id::tab_pod_widget_log);
@@ -131,7 +131,7 @@ impl<'a> PodTabBuilder<'a> {
 
                 *config.title_mut() = format!("Log [{}/{}]", index, text.rows_size()).into();
 
-                config.render_block_with_title(text.focusable() && selected)
+                config.render_block(text.focusable() && selected)
             });
 
         if let Some(cb) = self.clipboard {

@@ -78,7 +78,7 @@ impl<'a> ConfigTabBuilder<'a> {
                 *config.append_title_mut() =
                     Some(format!(" [{}/{}]", index, table.items().len()).into());
 
-                config.render_block_with_title(table.focusable() && selected)
+                config.render_block(table.focusable() && selected)
             })
             .on_select(move |w, v| {
                 w.widget_clear(view_id::tab_config_widget_raw_data);
@@ -125,7 +125,7 @@ impl<'a> ConfigTabBuilder<'a> {
 
                 *config.title_mut() = format!("Raw Data [{}/{}]", index, text.rows_size()).into();
 
-                config.render_block_with_title(text.focusable() && selected)
+                config.render_block(text.focusable() && selected)
             });
 
         if let Some(cb) = self.clipboard {
