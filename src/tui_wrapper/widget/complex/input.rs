@@ -81,7 +81,7 @@ impl Default for Cursor {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct InputForm<'a> {
     content: String,
     cursor: Cursor,
@@ -90,19 +90,12 @@ pub struct InputForm<'a> {
     widget_config: WidgetConfig,
 }
 
-impl Default for InputForm<'_> {
-    fn default() -> Self {
-        Self {
-            content: Default::default(),
-            cursor: Default::default(),
-            widget: Default::default(),
-            chunk: Default::default(),
-            widget_config: WidgetConfig::builder().title("Filter").build(),
-        }
-    }
-}
-
 impl<'a> InputForm<'a> {
+    pub fn new(widget_config: WidgetConfig) -> Self {
+        Self {
+            widget_config,
+            ..Default::default()
+        }
     }
 
     fn block(&self, selected: bool) -> Block<'static> {

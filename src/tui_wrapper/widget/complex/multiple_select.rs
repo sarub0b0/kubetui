@@ -574,6 +574,7 @@ impl MultipleSelectBuilder {
             layout,
             selected_widget,
             block_injection: self.block_injection,
+            input_widget: InputForm::new(WidgetConfig::builder().title("Filter").build()),
             ..Default::default()
         }
     }

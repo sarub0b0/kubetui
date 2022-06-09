@@ -405,6 +405,7 @@ impl SingleSelectBuilder {
             selected_widget,
             callbacks: self.actions,
             block_injection: self.block_injection,
+            input_widget: InputForm::new(WidgetConfig::builder().title("Filter").build()),
             ..Default::default()
         }
     }
