@@ -265,6 +265,14 @@ impl<'a> TextItem<'a> {
             None
         }
     }
+
+    pub fn highlight_status(&self) -> (usize, usize) {
+        if let Some(highlights) = &self.highlights {
+            (highlights.index + 1, highlights.item.len())
+        } else {
+            (0, 0)
+        }
+    }
 }
 
 impl<'a> TextItem<'a> {
