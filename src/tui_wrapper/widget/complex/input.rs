@@ -105,12 +105,16 @@ impl Default for InputForm<'_> {
 impl<'a> InputForm<'a> {
     }
 
-    pub fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
-        self.cursor.update_tick();
     fn block(&self, selected: bool) -> Block<'static> {
         self.widget_config.render_block(selected).title_offset(1)
     }
 
+    pub fn render<B: Backend>(&mut self, f: &mut Frame<B>, selected: bool) {
+        if selected {
+            self.cursor.update_tick();
+        } else {
+            self.cursor.mode = Mode::Hide
+        }
 
         let spans = Self::render_content(self.content.as_str(), &self.cursor);
 

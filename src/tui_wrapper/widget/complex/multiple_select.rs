@@ -611,7 +611,7 @@ impl RenderTrait for MultipleSelect<'_> {
 
         f.render_widget(block, self.chunk);
 
-        self.input_widget.render(f);
+        self.input_widget.render(f, true);
 
         let status = self.selected_widget.status();
         f.render_widget(
