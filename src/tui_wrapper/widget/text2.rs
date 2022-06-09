@@ -145,6 +145,8 @@ pub struct Text<'a> {
     wrap: bool,
     follow: bool,
     scroll: Scroll,
+    search_widget: SearchForm<'a>,
+    search_mode: bool,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
 }
@@ -164,6 +166,13 @@ impl Text<'_> {
 /// - 検索モード終了時にハイライトを削除
 impl Text<'_> {
     pub fn search(&mut self, word: &str) {
+        self.search_mode = true;
+
+        // test
+        word.chars().for_each(|c| {
+            self.search_widget.input_widget.insert_char(c);
+        });
+
         self.item.highlight(word);
 
         if let Some(index) = self.item.select_nearest_highlight(self.scroll.y) {
@@ -184,6 +193,7 @@ impl Text<'_> {
     }
 
     pub fn search_cancel(&mut self) {
+        self.search_mode = false;
         self.item.clear_highlight();
     }
 
@@ -292,6 +302,8 @@ impl<'a> WidgetTrait for Text<'_> {
         if self.wrap {
             self.item.rewrap(self.inner_chunk.width as usize);
         };
+
+        self.search_widget.update_chunk(chunk);
     }
 
     fn clear(&mut self) {
@@ -324,6 +336,23 @@ impl RenderTrait for Text<'_> {
             .scroll(self.scroll)
             .build();
 
-        f.render_widget(r, self.chunk);
+        if self.search_mode {
+            let chunk = {
+                let Rect {
+                    x,
+                    y,
+                    width,
+                    height,
+                } = self.chunk;
+
+                Rect::new(x, y, width, height.saturating_sub(1))
+            };
+
+            f.render_widget(r, chunk);
+
+            self.search_widget.render(f, self.item.highlight_status());
+        } else {
+            f.render_widget(r, self.chunk);
+        }
     }
 }
