@@ -309,7 +309,7 @@ impl RenderTrait for SingleSelect<'_> {
         };
 
         f.render_widget(block, self.chunk);
-        self.input_widget.render(f);
+        self.input_widget.render(f, true);
         self.render_status(f);
         self.selected_widget.render(f);
     }
