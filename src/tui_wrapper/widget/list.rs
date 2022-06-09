@@ -454,7 +454,7 @@ impl RenderTrait for List<'_> {
             (block_injection)(&*self, selected)
         } else {
             self.widget_config
-                .render_block_with_title(self.focusable() && selected)
+                .render_block(self.focusable() && selected)
         };
 
         f.render_stateful_widget(self.widget(block), self.chunk, &mut self.state);

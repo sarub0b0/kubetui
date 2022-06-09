@@ -68,7 +68,7 @@ impl<'a> YamlTabBuilder<'a> {
                 *config.append_title_mut() =
                     Some(format!(" [{}/{}]", index, text.rows_size()).into());
 
-                config.render_block_with_title(text.focusable() && selected)
+                config.render_block(text.focusable() && selected)
             })
             .action('/', open_subwin.clone())
             .action('f', open_subwin)

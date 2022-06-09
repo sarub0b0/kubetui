@@ -604,7 +604,7 @@ impl RenderTrait for MultipleSelect<'_> {
             (block_injection)(&*self, selected)
         } else {
             self.widget_config
-                .render_block_with_title(self.focusable() && selected)
+                .render_block(self.focusable() && selected)
         };
 
         let inner_chunk = block.inner(self.chunk);
