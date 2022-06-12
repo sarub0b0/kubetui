@@ -486,23 +486,31 @@ impl RenderTrait for Text<'_> {
             .scroll(self.scroll)
             .build();
 
-        if self.mode.is_search_input() {
-            let chunk = {
-                let Rect {
-                    x,
-                    y,
-                    width,
-                    height,
-                } = self.chunk;
+        match self.mode {
+            Mode::Normal => {
+                f.render_widget(r, self.chunk);
+            }
 
-                Rect::new(x, y, width, height.saturating_sub(1))
-            };
+            Mode::SearchInput | Mode::SearchConfirm => {
+                let chunk = {
+                    let Rect {
+                        x,
+                        y,
+                        width,
+                        height,
+                    } = self.chunk;
 
-            f.render_widget(r, chunk);
+                    Rect::new(x, y, width, height.saturating_sub(1))
+                };
 
-            self.search_widget.render(f, self.item.highlight_status());
-        } else {
-            f.render_widget(r, self.chunk);
+                f.render_widget(r, chunk);
+
+                self.search_widget.render(
+                    f,
+                    self.mode.is_search_input(),
+                    self.item.highlight_status(),
+                );
+            }
         }
     }
 }
