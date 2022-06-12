@@ -88,6 +88,57 @@ impl<'a> SearchForm<'a> {
     }
 }
 
+#[derive(Debug)]
+enum Mode {
+    /// 通常 （検索フォーム非表示）
+    Normal,
+    /// 検索ワード入力中（検索フォーム表示）
+    SearchInput,
+    /// 検索ワード確定後（検索フォーム表示）
+    SearchConfirm,
+}
+
+impl Default for Mode {
+    fn default() -> Self {
+        Self::Normal
+    }
+}
+
+impl Mode {
+    fn normal(&mut self) {
+        *self = Mode::Normal;
+    }
+
+    fn search_input(&mut self) {
+        *self = Mode::SearchInput;
+    }
+
+    fn search_confirm(&mut self) {
+        *self = Mode::SearchConfirm;
+    }
+
+    fn is_normal(&self) -> bool {
+        match self {
+            Self::Normal => true,
+            _ => false,
+        }
+    }
+
+    fn is_search_input(&self) -> bool {
+        match self {
+            Self::SearchInput => true,
+            _ => false,
+        }
+    }
+
+    fn is_search_confirm(&self) -> bool {
+        match self {
+            Self::SearchConfirm => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
 pub struct TextBuilder {
@@ -163,7 +214,8 @@ pub struct Text<'a> {
     follow: bool,
     scroll: Scroll,
     search_widget: SearchForm<'a>,
-    search_mode: bool,
+    /// 検索中、検索ワード入力中、オフの3つのモード
+    mode: Mode,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
     #[derivative(Debug = "ignore")]
@@ -185,7 +237,7 @@ impl Text<'_> {
 /// - 検索モード終了時にハイライトを削除
 impl Text<'_> {
     pub fn search(&mut self, word: &str) {
-        self.search_mode = true;
+        self.mode.search_confirm();
 
         // test
         word.chars().for_each(|c| {
@@ -212,7 +264,7 @@ impl Text<'_> {
     }
 
     pub fn search_cancel(&mut self) {
-        self.search_mode = false;
+        self.mode.normal();
         self.item.clear_highlight();
     }
 
@@ -363,7 +415,7 @@ impl RenderTrait for Text<'_> {
             .scroll(self.scroll)
             .build();
 
-        if self.search_mode {
+        if self.mode.is_search_input() {
             let chunk = {
                 let Rect {
                     x,
