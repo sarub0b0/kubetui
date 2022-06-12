@@ -5,12 +5,13 @@ mod wrap;
 
 use std::rc::Rc;
 
-use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
+
 use derivative::*;
 use tui::{
     backend::Backend,
     buffer::Buffer,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    layout::{Constraint, Direction, Layout, Rect},
     style::Style,
     text::StyledGrapheme,
     widgets::{Block, Paragraph, Widget},
@@ -36,6 +37,146 @@ use super::{
 };
 
 type RenderBlockInjection = Rc<dyn Fn(&Text, bool) -> Block<'static>>;
+
+mod highlight_content {
+    use tui::text::Spans;
+
+    #[derive(Debug, PartialEq)]
+    pub enum RangeType {
+        Full,
+        StartLine(usize),
+        EndLine(usize),
+        Partial(usize, usize),
+    }
+
+    #[derive(Default, Debug, Copy, Clone)]
+    pub struct HighlightArea {
+        start: (usize, usize),
+        end: (usize, usize),
+    }
+
+    impl HighlightArea {
+        pub fn start(mut self, start: (usize, usize)) -> Self {
+            self.start = start;
+            self
+        }
+
+        pub fn end(mut self, end: (usize, usize)) -> Self {
+            self.end = end;
+            self
+        }
+
+        pub fn update_pos(&mut self, pos: (usize, usize)) {
+            self.end = pos;
+        }
+
+        pub fn highlight_ranges(&self) -> Vec<(usize, RangeType)> {
+            use std::mem::swap;
+
+            let mut area = *self;
+
+            if (area.end.1 < area.start.1)
+                || (area.start.1 == area.end.1 && area.end.0 < area.start.0)
+            {
+                swap(&mut area.start, &mut area.end);
+            }
+
+            let start = area.start.1;
+            let end = area.end.1;
+
+            let mut ret = Vec::new();
+            for i in start..=end {
+                match i {
+                    i if start == i && end == i => {
+                        ret.push((i, RangeType::Partial(area.start.0, area.end.0)));
+                    }
+                    i if start == i => {
+                        ret.push((i, RangeType::StartLine(area.start.0)));
+                    }
+                    i if end == i => {
+                        ret.push((i, RangeType::EndLine(area.end.0)));
+                    }
+                    _ => {
+                        ret.push((i, RangeType::Full));
+                    }
+                }
+            }
+
+            ret
+        }
+    }
+
+    #[derive(Default, Debug, Clone)]
+    pub struct HighlightContent<'a> {
+        pub spans: Vec<Spans<'a>>,
+        pub area: HighlightArea,
+        pub copy_content: Vec<String>,
+        pub follow: bool,
+    }
+
+    #[cfg(test)]
+    mod highlight_area {
+
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn move_up() {
+            let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+
+            area.update_pos((11, 8));
+
+            assert_eq!(
+                area.highlight_ranges(),
+                vec![
+                    (8, RangeType::StartLine(11)),
+                    (9, RangeType::Full),
+                    (10, RangeType::EndLine(10)),
+                ]
+            )
+        }
+
+        #[test]
+        fn move_down() {
+            let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+
+            area.update_pos((10, 12));
+
+            assert_eq!(
+                area.highlight_ranges(),
+                vec![
+                    (10, RangeType::StartLine(10)),
+                    (11, RangeType::Full),
+                    (12, RangeType::EndLine(10)),
+                ]
+            )
+        }
+
+        #[test]
+        fn move_left() {
+            let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+
+            area.update_pos((0, 10));
+
+            assert_eq!(
+                area.highlight_ranges(),
+                vec![(10, RangeType::Partial(0, 10))]
+            )
+        }
+
+        #[test]
+        fn move_right() {
+            let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+
+            area.update_pos((20, 10));
+
+            assert_eq!(
+                area.highlight_ranges(),
+                vec![(10, RangeType::Partial(10, 20))]
+            )
+        }
+    }
+}
 
 #[derive(Debug)]
 struct SearchForm<'a> {
@@ -391,8 +532,21 @@ impl<'a> WidgetTrait for Text<'_> {
         todo!()
     }
 
-    fn on_mouse_event(&mut self, _: MouseEvent) -> EventResult {
-        todo!()
+    fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
+        match ev.kind {
+            MouseEventKind::Down(MouseButton::Left) => {}
+            MouseEventKind::Drag(MouseButton::Left) => {}
+            MouseEventKind::Up(MouseButton::Left) => {}
+            MouseEventKind::ScrollDown => {
+                self.select_next(5);
+            }
+            MouseEventKind::ScrollUp => {
+                self.select_prev(5);
+            }
+            _ => {}
+        }
+
+        EventResult::Nop
     }
 
     fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
