@@ -103,20 +103,23 @@ impl<'a> InputForm<'a> {
     }
 
     pub fn render<B: Backend>(&mut self, f: &mut Frame<B>, selected: bool) {
-        if selected {
-            self.cursor.update_tick();
-        } else {
-            self.cursor.mode = Mode::Hide
-        }
-
-        let spans = Self::render_content(&self.content, &self.cursor);
+        let spans = self.render_content(selected);
 
         let widget = Paragraph::new(spans).block(self.block(selected));
 
         f.render_widget(widget, self.chunk);
     }
 
-    fn render_content(content: &[char], cursor: &Cursor) -> Spans<'a> {
+    pub fn render_content(&mut self, selected: bool) -> Spans<'a> {
+        if selected {
+            self.cursor.update_tick();
+        } else {
+            self.cursor.mode = Mode::Hide
+        }
+
+        let cursor = &self.cursor;
+        let content = &self.content;
+
         match (content.len(), cursor.pos()) {
             (0, _) => Spans::from(Span::styled(
                 cursor.cursor.to_string(),
@@ -327,10 +330,10 @@ mod tests {
 
         #[test]
         fn render_content_empty() {
-            let form = InputForm::default();
+            let mut form = InputForm::default();
 
             assert_eq!(
-                InputForm::render_content(&form.content, &form.cursor),
+                form.render_content(false),
                 Spans::from(Span::styled(
                     " ",
                     Style::default().add_modifier(Modifier::REVERSED)
@@ -346,7 +349,7 @@ mod tests {
             form.insert_char('b');
 
             assert_eq!(
-                InputForm::render_content(&form.content, &form.cursor),
+                form.render_content(false),
                 Spans::from(vec![
                     Span::raw("ab"),
                     Span::styled(" ", Style::default().add_modifier(Modifier::REVERSED))
@@ -363,7 +366,7 @@ mod tests {
             form.back_cursor();
 
             assert_eq!(
-                InputForm::render_content(&form.content, &form.cursor),
+                form.render_content(false),
                 Spans::from(vec![
                     Span::raw("a"),
                     Span::styled("b", Style::default().add_modifier(Modifier::REVERSED))
