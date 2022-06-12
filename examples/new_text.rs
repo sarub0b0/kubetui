@@ -10,10 +10,13 @@ use crossterm::{
 
 use tui::{backend::CrosstermBackend, widgets::Widget, Terminal};
 
-use kubetui::tui_wrapper::{
-    event::EventResult,
-    widget::{text2::Text, LiteralItem, RenderTrait, WidgetTrait},
-    Window, WindowEvent,
+use kubetui::{
+    signal::signal_handler,
+    tui_wrapper::{
+        event::EventResult,
+        widget::{text2::Text, LiteralItem, RenderTrait, WidgetTrait},
+        Window, WindowEvent,
+    },
 };
 
 // {{{ sample string
@@ -230,6 +233,8 @@ fn main() {
 
         default_hook(info);
     }));
+
+    signal_handler();
 
     enable_raw_mode().unwrap();
 
