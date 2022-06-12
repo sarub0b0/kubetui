@@ -1,14 +1,20 @@
 use std::{io::stdout, time::Duration};
 
 use crossterm::{
-    event::{poll, read, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    event::{
+        poll, read, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers,
+    },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
 use tui::{backend::CrosstermBackend, widgets::Widget, Terminal};
 
-use kubetui::tui_wrapper::widget::{text2::Text, LiteralItem, RenderTrait, WidgetTrait};
+use kubetui::tui_wrapper::{
+    event::EventResult,
+    widget::{text2::Text, LiteralItem, RenderTrait, WidgetTrait},
+    Window, WindowEvent,
+};
 
 // {{{ sample string
 const DATA: &str = r#"
@@ -210,7 +216,21 @@ status:
 "#;
 // }}}
 
+use std::io::Write;
 fn main() {
+    let default_hook = std::panic::take_hook();
+
+    std::panic::set_hook(Box::new(move |info| {
+        disable_raw_mode().unwrap();
+        execute!(std::io::stdout(), LeaveAlternateScreen, DisableMouseCapture).unwrap();
+
+        std::io::stderr()
+            .write_all(b"\x1b[31mPanic! disable raw mode\x1b[39m")
+            .unwrap();
+
+        default_hook(info);
+    }));
+
     enable_raw_mode().unwrap();
 
     execute!(stdout(), EnterAlternateScreen, EnableMouseCapture).unwrap();
@@ -222,9 +242,12 @@ fn main() {
 
     let item = DATA.lines().map(|l| l.into()).collect::<Vec<LiteralItem>>();
 
-    let mut text = Text::builder().item(item.clone()).build();
-
-    let mut wrap = true;
+    let mut text = Text::builder()
+        .item(item.clone())
+        .action(KeyCode::Char('q'), |_| {
+            EventResult::Window(WindowEvent::CloseWindow)
+        })
+        .build();
 
     text.update_chunk(terminal.size().unwrap());
 
@@ -237,64 +260,30 @@ fn main() {
             .unwrap();
 
         if poll(Duration::from_millis(200)).unwrap() {
-            match read() {
-                Ok(ev) => match ev {
-                    Event::Key(key) => match key.code {
-                        KeyCode::Char('q') => break,
-                        KeyCode::Char('s') => {
-                            text.search("192.168.65");
-                        }
-                        KeyCode::Char('S') => {
-                            text.search_cancel();
-                        }
-
-                        KeyCode::Char('j') => {
-                            text.select_next(1);
-                        }
-                        KeyCode::Char('k') => {
-                            text.select_prev(1);
-                        }
-                        KeyCode::Char('g') => {
-                            text.select_first();
-                        }
-                        KeyCode::Char('G') => {
-                            text.select_last();
-                        }
-
-                        KeyCode::Char('f') => {
-                            text.scroll_right(1);
-                        }
-                        KeyCode::Char('b') => {
-                            text.scroll_left(1);
-                        }
-                        KeyCode::Tab => {
-                            text.search_next();
-                        }
-
-                        KeyCode::BackTab => {
-                            text.search_prev();
-                        }
-
-                        KeyCode::Char(' ') => {
-                            text.search_cancel();
-                        }
-
-                        KeyCode::Enter => {
-                            let builder = Text::builder().item(item.clone());
-                            if wrap {
-                                text = builder.wrap().build();
-                            } else {
-                                text = builder.build()
+            let result = {
+                match read() {
+                    Ok(ev) => match ev {
+                        Event::Key(key) => match text.on_key_event(key) {
+                            EventResult::Window(w) => w,
+                            EventResult::Callback(Some(cb)) => {
+                                if let EventResult::Window(ev) = (cb)(&mut Window::default()) {
+                                    ev
+                                } else {
+                                    WindowEvent::Continue
+                                }
                             }
+                            _ => WindowEvent::Continue,
+                        },
 
-                            wrap = !wrap;
-                        }
-                        _ => {}
+                        Event::Mouse(_) => WindowEvent::Continue,
+                        Event::Resize(_, _) => WindowEvent::Continue,
                     },
-                    Event::Mouse(_) => {}
-                    Event::Resize(_, _) => {}
-                },
-                Err(_) => break,
+                    Err(_) => break,
+                }
+            };
+
+            if matches!(result, WindowEvent::CloseWindow) {
+                break;
             }
         }
     }
