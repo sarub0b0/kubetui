@@ -73,8 +73,8 @@ impl<'a> SearchForm<'a> {
         self.input_widget.update_chunk(self.chunks[1]);
     }
 
-    fn word(&self) -> &str {
-        &self.input_widget.content()
+    fn word(&self) -> String {
+        self.input_widget.content()
     }
 
     fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
@@ -264,7 +264,7 @@ impl Text<'_> {
             return;
         }
 
-        self.item.highlight(word);
+        self.item.highlight(&word);
 
         if let Some(index) = self.item.select_nearest_highlight(self.scroll.y) {
             self.scroll.y = self.search_scroll(index);
