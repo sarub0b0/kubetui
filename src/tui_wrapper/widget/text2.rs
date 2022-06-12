@@ -5,7 +5,7 @@ mod wrap;
 
 use std::rc::Rc;
 
-use crossterm::event::{KeyEvent, MouseEvent};
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
 use derivative::*;
 use tui::{
     backend::Backend,
@@ -71,6 +71,10 @@ impl<'a> SearchForm<'a> {
             .split(Rect::new(x, height.saturating_sub(1), width, 1));
 
         self.input_widget.update_chunk(self.chunks[1]);
+    }
+
+    fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
+        self.input_widget.on_key_event(ev)
     }
 
     fn render<B>(&mut self, f: &mut Frame<'_, B>, status: (usize, usize))
@@ -370,8 +374,63 @@ impl<'a> WidgetTrait for Text<'_> {
         todo!()
     }
 
-    fn on_key_event(&mut self, _: KeyEvent) -> EventResult {
-        todo!()
+    fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
+        match self.mode {
+            Mode::Normal | Mode::SearchConfirm => match key_event_to_code(ev) {
+                KeyCode::Char('j') | KeyCode::Down => {
+                    self.select_next(1);
+                }
+
+                KeyCode::Char('k') | KeyCode::Up => {
+                    self.select_prev(1);
+                }
+
+                KeyCode::PageDown => {
+                    self.select_next(self.chunk.height as usize);
+                }
+
+                KeyCode::PageUp => {
+                    self.select_prev(self.chunk.height as usize);
+                }
+
+                KeyCode::Char('G') | KeyCode::End => {
+                    self.select_last();
+                }
+
+                KeyCode::Char('g') | KeyCode::Home => {
+                    self.select_first();
+                }
+
+                KeyCode::Left => {
+                    self.scroll_left(1);
+                }
+
+                KeyCode::Right => {
+                    self.scroll_right(1);
+                }
+
+                KeyCode::Char('/') => {
+                    self.mode.search_input();
+                }
+
+                _ => {
+                    if let Some(cb) = self.match_action(UserEvent::Key(ev)) {
+                        return EventResult::Callback(Some(Callback::from(cb)));
+                    }
+                    return EventResult::Ignore;
+                }
+            },
+            Mode::SearchInput => match key_event_to_code(ev) {
+                KeyCode::Enter => {
+                    self.mode.search_confirm();
+                }
+                _ => {
+                    return self.search_widget.on_key_event(ev);
+                }
+            },
+        }
+
+        EventResult::Nop
     }
 
     fn update_chunk(&mut self, chunk: Rect) {
