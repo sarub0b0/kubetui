@@ -73,6 +73,10 @@ impl<'a> SearchForm<'a> {
         self.input_widget.update_chunk(self.chunks[1]);
     }
 
+    fn word(&self) -> &str {
+        &self.input_widget.content()
+    }
+
     fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
         self.input_widget.on_key_event(ev)
     }
@@ -249,13 +253,16 @@ impl Text<'_> {
 /// - マッチした文字列に移動
 /// - 検索モード終了時にハイライトを削除
 impl Text<'_> {
-    pub fn search(&mut self, word: &str) {
+    pub fn search(&mut self) {
         self.mode.search_input();
 
-        // test
-        word.chars().for_each(|c| {
-            self.search_widget.input_widget.insert_char(c);
-        });
+        let word = self.search_widget.word();
+
+        if word.is_empty() {
+            // 入力文字が空の時に1文字だけハイライトが残るのを防ぐため
+            self.item.clear_highlight();
+            return;
+        }
 
         self.item.highlight(word);
 
