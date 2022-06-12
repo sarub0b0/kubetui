@@ -40,37 +40,21 @@ type RenderBlockInjection = Rc<dyn Fn(&Text, bool) -> Block<'static>>;
 #[derive(Debug)]
 struct SearchForm<'a> {
     input_widget: InputForm<'a>,
-    chunks: Vec<Rect>,
+    chunk: Rect,
 }
 
 impl Default for SearchForm<'_> {
     fn default() -> Self {
         Self {
             input_widget: InputForm::new(WidgetConfig::builder().block(Block::default()).build()),
-            chunks: Default::default(),
+            chunk: Default::default(),
         }
     }
 }
 
 impl<'a> SearchForm<'a> {
     fn update_chunk(&mut self, chunk: Rect) {
-        let Rect {
-            x,
-            y: _,
-            width,
-            height,
-        } = chunk;
-
-        self.chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Length(8),
-                Constraint::Length(width.saturating_sub(18 + 1)),
-                Constraint::Length(15),
-            ])
-            .split(Rect::new(x, height.saturating_sub(1), width, 1));
-
-        self.input_widget.update_chunk(self.chunks[1]);
+        self.chunk = chunk;
     }
 
     fn word(&self) -> String {
@@ -85,14 +69,35 @@ impl<'a> SearchForm<'a> {
     where
         B: Backend,
     {
-        f.render_widget(Paragraph::new("Search: "), self.chunks[0]);
+        let Rect {
+            x,
+            y: _,
+            width,
+            height,
+        } = self.chunk;
 
-        self.input_widget.render(f, selected);
+        let header = "Search: ";
 
-        f.render_widget(
-            Paragraph::new(format!("[{}/{}]", status.0, status.1)).alignment(Alignment::Right),
-            self.chunks[2],
-        );
+        let content = self.input_widget.render_content(selected);
+
+        let status = format!(" [{}/{}]", status.0, status.1);
+
+        let content_width = width.saturating_sub(8 + status.width() as u16);
+
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Length(8),
+                Constraint::Length(content_width),
+                Constraint::Length(status.len() as u16),
+            ])
+            .split(Rect::new(x, height, width, 1));
+
+        f.render_widget(Paragraph::new(header), chunks[0]);
+
+        f.render_widget(Paragraph::new(content), chunks[1]);
+
+        f.render_widget(Paragraph::new(status), chunks[2]);
     }
 }
 
@@ -474,6 +479,17 @@ impl<'a> WidgetTrait for Text<'_> {
     }
 
     fn update_chunk(&mut self, chunk: Rect) {
+        let chunk = if self.mode.is_normal() {
+            chunk
+        } else {
+            Rect::new(
+                chunk.x,
+                chunk.y,
+                chunk.width,
+                chunk.height.saturating_sub(1),
+            )
+        };
+
         self.chunk = chunk;
         self.inner_chunk = self.widget_config.block().inner(chunk);
 
@@ -520,18 +536,7 @@ impl RenderTrait for Text<'_> {
             }
 
             Mode::SearchInput | Mode::SearchConfirm => {
-                let chunk = {
-                    let Rect {
-                        x,
-                        y,
-                        width,
-                        height,
-                    } = self.chunk;
-
-                    Rect::new(x, y, width, height.saturating_sub(1))
-                };
-
-                f.render_widget(r, chunk);
+                f.render_widget(r, self.chunk);
 
                 self.search_widget.render(
                     f,
