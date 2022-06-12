@@ -250,7 +250,7 @@ impl Text<'_> {
 /// - 検索モード終了時にハイライトを削除
 impl Text<'_> {
     pub fn search(&mut self, word: &str) {
-        self.mode.search_confirm();
+        self.mode.search_input();
 
         // test
         word.chars().for_each(|c| {
