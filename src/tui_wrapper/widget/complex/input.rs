@@ -83,7 +83,7 @@ impl Default for Cursor {
 
 #[derive(Debug, Default)]
 pub struct InputForm<'a> {
-    content: String,
+    content: Vec<char>,
     cursor: Cursor,
     widget: Text<'a>,
     chunk: Rect,
@@ -109,14 +109,14 @@ impl<'a> InputForm<'a> {
             self.cursor.mode = Mode::Hide
         }
 
-        let spans = Self::render_content(self.content.as_str(), &self.cursor);
+        let spans = Self::render_content(&self.content, &self.cursor);
 
         let widget = Paragraph::new(spans).block(self.block(selected));
 
         f.render_widget(widget, self.chunk);
     }
 
-    fn render_content(content: &str, cursor: &Cursor) -> Spans<'a> {
+    fn render_content(content: &[char], cursor: &Cursor) -> Spans<'a> {
         match (content.len(), cursor.pos()) {
             (0, _) => Spans::from(Span::styled(
                 cursor.cursor.to_string(),
@@ -124,7 +124,7 @@ impl<'a> InputForm<'a> {
             )),
             (len, pos) if pos < len => Spans::from(
                 content
-                    .chars()
+                    .iter()
                     .enumerate()
                     .map(|(i, c)| {
                         if i == pos {
@@ -136,7 +136,7 @@ impl<'a> InputForm<'a> {
                     .collect::<Vec<Span>>(),
             ),
             _ => Spans::from(vec![
-                Span::raw(content.to_string()),
+                Span::raw(content.iter().collect::<String>()),
                 Span::styled(" ", cursor.cursor_style()),
             ]),
         }
@@ -160,12 +160,12 @@ impl<'a> InputForm<'a> {
     }
 
     pub fn remove_chars_before_cursor(&mut self) {
-        self.content = self.content[self.cursor.pos..].to_string();
+        self.content = self.content[self.cursor.pos..].to_vec();
         self.cursor.pos = 0;
     }
 
     pub fn remove_chars_after_cursor(&mut self) {
-        self.content = self.content[..self.cursor.pos].to_string();
+        self.content = self.content[..self.cursor.pos].to_vec();
     }
 
     pub fn forward_cursor(&mut self) {
@@ -177,8 +177,8 @@ impl<'a> InputForm<'a> {
         self.cursor.back();
     }
 
-    pub fn content(&self) -> &str {
-        self.content.as_str()
+    pub fn content(&self) -> String {
+        self.content.iter().collect()
     }
 
     pub fn clear(&mut self) {
@@ -273,32 +273,56 @@ mod tests {
         fn push_char() {
             let mut form = InputForm::default();
 
-            let input = "test";
+            let input: Vec<char> = "test".chars().collect();
 
-            input.chars().for_each(|c| form.insert_char(c));
+            input.into_iter().for_each(|c| form.insert_char(c));
 
-            assert_eq!(input, form.content);
+            assert_eq!("test".chars().collect::<Vec<char>>(), form.content);
         }
 
         #[test]
         fn insert_char() {
             let mut form = InputForm::default();
 
-            let input = "test";
+            let input: Vec<char> = "test".chars().collect();
 
-            input.chars().for_each(|c| form.insert_char(c));
+            input.into_iter().for_each(|c| form.insert_char(c));
 
             form.back_cursor();
 
             form.insert_char('a');
 
-            assert_eq!("tesat", form.content);
+            assert_eq!("tesat".chars().collect::<Vec<char>>(), form.content);
 
             form.forward_cursor();
             form.forward_cursor();
 
             form.insert_char('b');
-            assert_eq!("tesatb", form.content);
+            assert_eq!("tesatb".chars().collect::<Vec<char>>(), form.content);
+        }
+
+        #[test]
+        fn insert_char_fullwidth() {
+            let mut form = InputForm::default();
+
+            let input = "あいうえお";
+
+            input.chars().for_each(|c| form.insert_char(c));
+
+            form.back_cursor();
+
+            form.insert_char('ア');
+
+            assert_eq!("あいうえアお".chars().collect::<Vec<char>>(), form.content);
+
+            form.forward_cursor();
+            form.forward_cursor();
+
+            form.insert_char('イ');
+            assert_eq!(
+                "あいうえアおイ".chars().collect::<Vec<char>>(),
+                form.content
+            );
         }
 
         #[test]
@@ -306,7 +330,7 @@ mod tests {
             let form = InputForm::default();
 
             assert_eq!(
-                InputForm::render_content(form.content.as_str(), &form.cursor),
+                InputForm::render_content(&form.content, &form.cursor),
                 Spans::from(Span::styled(
                     " ",
                     Style::default().add_modifier(Modifier::REVERSED)
@@ -322,7 +346,7 @@ mod tests {
             form.insert_char('b');
 
             assert_eq!(
-                InputForm::render_content(form.content.as_str(), &form.cursor),
+                InputForm::render_content(&form.content, &form.cursor),
                 Spans::from(vec![
                     Span::raw("ab"),
                     Span::styled(" ", Style::default().add_modifier(Modifier::REVERSED))
@@ -339,7 +363,7 @@ mod tests {
             form.back_cursor();
 
             assert_eq!(
-                InputForm::render_content(form.content.as_str(), &form.cursor),
+                InputForm::render_content(&form.content, &form.cursor),
                 Spans::from(vec![
                     Span::raw("a"),
                     Span::styled("b", Style::default().add_modifier(Modifier::REVERSED))
