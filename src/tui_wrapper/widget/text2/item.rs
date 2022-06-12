@@ -195,7 +195,7 @@ impl<'a> TextItem<'a> {
 
             graphemes
                 .iter_mut()
-                .for_each(|gs| gs.style = gs.style.fg(Color::Yellow));
+                .for_each(|gs| gs.style = gs.style.add_modifier(Modifier::SLOW_BLINK));
 
             highlights.index = index;
 
