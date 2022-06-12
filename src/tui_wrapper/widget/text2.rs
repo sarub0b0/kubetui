@@ -77,13 +77,13 @@ impl<'a> SearchForm<'a> {
         self.input_widget.on_key_event(ev)
     }
 
-    fn render<B>(&mut self, f: &mut Frame<'_, B>, status: (usize, usize))
+    fn render<B>(&mut self, f: &mut Frame<'_, B>, selected: bool, status: (usize, usize))
     where
         B: Backend,
     {
         f.render_widget(Paragraph::new("Search: "), self.chunks[0]);
 
-        self.input_widget.render(f, false);
+        self.input_widget.render(f, selected);
 
         f.render_widget(
             Paragraph::new(format!("[{}/{}]", status.0, status.1)).alignment(Alignment::Right),
