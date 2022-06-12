@@ -461,7 +461,11 @@ impl<'a> WidgetTrait for Text<'_> {
                 }
 
                 _ => {
-                    return self.search_widget.on_key_event(ev);
+                    let ev = self.search_widget.on_key_event(ev);
+
+                    self.search();
+
+                    return ev;
                 }
             },
         }
