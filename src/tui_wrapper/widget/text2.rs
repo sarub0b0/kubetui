@@ -429,6 +429,12 @@ impl<'a> WidgetTrait for Text<'_> {
 
                 KeyCode::Char('/') => {
                     self.mode.search_input();
+                Char('n') => {
+                    self.search_next();
+                }
+
+                Char('N') => {
+                    self.search_prev();
                 }
 
                 _ => {
