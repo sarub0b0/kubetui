@@ -283,7 +283,11 @@ fn main() {
                             _ => WindowEvent::Continue,
                         },
 
-                        Event::Mouse(_) => WindowEvent::Continue,
+                        Event::Mouse(ev) => {
+                            text.on_mouse_event(ev);
+
+                            WindowEvent::Continue
+                        }
                         Event::Resize(_, _) => WindowEvent::Continue,
                     },
                     Err(_) => break,
