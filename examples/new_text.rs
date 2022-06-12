@@ -247,6 +247,9 @@ fn main() {
         .action(KeyCode::Char('q'), |_| {
             EventResult::Window(WindowEvent::CloseWindow)
         })
+        .action(KeyCode::Esc, |_| {
+            EventResult::Window(WindowEvent::CloseWindow)
+        })
         .build();
 
     text.update_chunk(terminal.size().unwrap());
