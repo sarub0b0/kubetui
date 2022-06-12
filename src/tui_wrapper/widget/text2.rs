@@ -191,6 +191,14 @@ impl TextBuilder {
         self
     }
 
+    pub fn block_injection<F>(mut self, block_injection: F) -> Self
+    where
+        F: Fn(&Text, bool) -> Block<'static> + 'static,
+    {
+        self.block_injection = Some(Rc::new(block_injection));
+        self
+    }
+
     pub fn build(self) -> Text<'static> {
         let ret = Text {
             id: self.id,
@@ -199,6 +207,7 @@ impl TextBuilder {
             wrap: self.wrap,
             follow: self.follow,
             actions: self.actions,
+            block_injection: self.block_injection,
             ..Default::default()
         };
 
