@@ -18,7 +18,13 @@ use tui::{
 };
 use unicode_width::UnicodeWidthStr;
 
-use crate::tui_wrapper::event::EventResult;
+use crate::{
+    event::UserEvent,
+    tui_wrapper::{
+        event::{Callback, EventResult, InnerCallback},
+        key_event_to_code, Window,
+    },
+};
 
 use self::{
     item::TextItem,
@@ -92,6 +98,8 @@ pub struct TextBuilder {
     follow: bool,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
+    #[derivative(Debug = "ignore")]
+    actions: Vec<(UserEvent, InnerCallback)>,
 }
 
 impl TextBuilder {
@@ -120,6 +128,14 @@ impl TextBuilder {
         self
     }
 
+    pub fn action<F, E: Into<UserEvent>>(mut self, ev: E, cb: F) -> Self
+    where
+        F: Fn(&mut Window) -> EventResult + 'static,
+    {
+        self.actions.push((ev.into(), Rc::new(cb)));
+        self
+    }
+
     pub fn build(self) -> Text<'static> {
         let ret = Text {
             id: self.id,
@@ -127,6 +143,7 @@ impl TextBuilder {
             item: TextItem::new(self.item, None),
             wrap: self.wrap,
             follow: self.follow,
+            actions: self.actions,
             ..Default::default()
         };
 
@@ -149,6 +166,8 @@ pub struct Text<'a> {
     search_mode: bool,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
+    #[derivative(Debug = "ignore")]
+    actions: Vec<(UserEvent, InnerCallback)>,
 }
 
 impl Text<'_> {
@@ -227,6 +246,14 @@ impl Text<'_> {
             .wrapped()
             .len()
             .saturating_sub(self.inner_chunk.height as usize)
+    }
+}
+
+impl Text<'_> {
+    fn match_action(&self, ev: UserEvent) -> Option<InnerCallback> {
+        self.actions
+            .iter()
+            .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb.clone()) } else { None })
     }
 }
 
