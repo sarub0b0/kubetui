@@ -427,8 +427,14 @@ impl<'a> WidgetTrait for Text<'_> {
                     self.scroll_right(1);
                 }
 
-                KeyCode::Char('/') => {
-                    self.mode.search_input();
+                Char('/') => {
+                    self.search();
+                }
+
+                Char('q') | Esc if self.mode.is_search_confirm() => {
+                    self.search_cancel();
+                }
+
                 Char('n') => {
                     self.search_next();
                 }
@@ -449,6 +455,11 @@ impl<'a> WidgetTrait for Text<'_> {
                 Enter => {
                     self.mode.search_confirm();
                 }
+
+                Esc => {
+                    self.search_cancel();
+                }
+
                 _ => {
                     return self.search_widget.on_key_event(ev);
                 }
