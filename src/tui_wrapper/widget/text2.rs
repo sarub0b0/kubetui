@@ -384,37 +384,39 @@ impl<'a> WidgetTrait for Text<'_> {
     }
 
     fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
+        use KeyCode::*;
+
         match self.mode {
             Mode::Normal | Mode::SearchConfirm => match key_event_to_code(ev) {
-                KeyCode::Char('j') | KeyCode::Down => {
+                Char('j') | Down => {
                     self.select_next(1);
                 }
 
-                KeyCode::Char('k') | KeyCode::Up => {
+                Char('k') | Up => {
                     self.select_prev(1);
                 }
 
-                KeyCode::PageDown => {
+                PageDown => {
                     self.select_next(self.chunk.height as usize);
                 }
 
-                KeyCode::PageUp => {
+                PageUp => {
                     self.select_prev(self.chunk.height as usize);
                 }
 
-                KeyCode::Char('G') | KeyCode::End => {
+                Char('G') | End => {
                     self.select_last();
                 }
 
-                KeyCode::Char('g') | KeyCode::Home => {
+                Char('g') | Home => {
                     self.select_first();
                 }
 
-                KeyCode::Left => {
+                Left => {
                     self.scroll_left(1);
                 }
 
-                KeyCode::Right => {
+                Right => {
                     self.scroll_right(1);
                 }
 
@@ -429,8 +431,9 @@ impl<'a> WidgetTrait for Text<'_> {
                     return EventResult::Ignore;
                 }
             },
+
             Mode::SearchInput => match key_event_to_code(ev) {
-                KeyCode::Enter => {
+                Enter => {
                     self.mode.search_confirm();
                 }
                 _ => {
