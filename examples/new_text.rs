@@ -246,7 +246,7 @@ fn main() {
     let item = DATA.lines().map(|l| l.into()).collect::<Vec<String>>();
 
     let mut text = Text::builder()
-        .items(item.clone())
+        .items(item)
         .wrap()
         .action(KeyCode::Char('q'), |_| {
             EventResult::Window(WindowEvent::CloseWindow)

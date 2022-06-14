@@ -8,12 +8,15 @@
 ///
 /// このモジュールではステートを持たないこととし、
 /// 上位のレイヤーでスクロールの位置や折り返しを管理すること
-use tui::style::Modifier;
+use tui::{
+    buffer::Buffer,
+    layout::Rect,
+    style::{Modifier, Style},
+    widgets::{Block, Widget},
+};
+use unicode_width::UnicodeWidthStr;
 
-#[cfg(not(test))]
-use tui::style::Color;
-
-use super::*;
+use super::styled_graphemes::StyledGrapheme;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Scroll {
@@ -106,45 +109,30 @@ struct LineIterator<'a> {
     sum_width_offset: usize,
 }
 
-#[cfg(not(test))]
-const RENDER_LEFT_PADDING: StyledGrapheme = StyledGrapheme {
-    symbol: "<",
-    style: Style {
-        fg: Some(Color::Gray),
-        bg: None,
-        add_modifier: Modifier::empty(),
-        sub_modifier: Modifier::empty(),
-    },
-};
+const RENDER_LEFT_PADDING_SYMBOL: &str = "<";
+const RENDER_RIGHT_PADDING_SYMBOL: &str = ">";
 
-#[cfg(not(test))]
-const RENDER_RIGHT_PADDING: StyledGrapheme = StyledGrapheme {
-    symbol: ">",
-    style: Style {
-        fg: Some(Color::Gray),
-        bg: None,
-        add_modifier: Modifier::empty(),
-        sub_modifier: Modifier::empty(),
-    },
-};
-
-#[cfg(test)]
 const RENDER_LEFT_PADDING: StyledGrapheme = StyledGrapheme {
-    symbol: "<",
+    symbol_ptr: RENDER_LEFT_PADDING_SYMBOL,
     style: Style {
         fg: None,
         bg: None,
+        #[cfg(not(test))]
+        add_modifier: Modifier::DIM,
+        #[cfg(test)]
         add_modifier: Modifier::empty(),
         sub_modifier: Modifier::empty(),
     },
 };
 
-#[cfg(test)]
 const RENDER_RIGHT_PADDING: StyledGrapheme = StyledGrapheme {
-    symbol: ">",
+    symbol_ptr: RENDER_RIGHT_PADDING_SYMBOL,
     style: Style {
         fg: None,
         bg: None,
+        #[cfg(not(test))]
+        add_modifier: Modifier::DIM,
+        #[cfg(test)]
         add_modifier: Modifier::empty(),
         sub_modifier: Modifier::empty(),
     },
@@ -153,6 +141,7 @@ const RENDER_RIGHT_PADDING: StyledGrapheme = StyledGrapheme {
 impl<'a> LineIterator<'a> {
     fn new(line: &'a [StyledGrapheme], scroll: usize, width: usize) -> Self {
         let (n, offset) = Self::start(line, scroll);
+
         Self {
             line,
             scroll,
@@ -224,10 +213,10 @@ impl<'a> Iterator for LineIterator<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    use tui::{backend::TestBackend, buffer::Buffer, layout::Rect, widgets::Borders, Terminal};
+    use tui::{backend::TestBackend, widgets::Borders, Terminal};
     use unicode_segmentation::UnicodeSegmentation;
+
+    use super::*;
 
     const TERMINAL_WIDTH: u16 = 20;
     const TERMINAL_HEIGHT: u16 = 10;
@@ -239,10 +228,7 @@ mod tests {
     impl<'a> StyledGraphemes<'a> for &'a str {
         fn styled_graphemes(&self) -> Vec<StyledGrapheme> {
             self.graphemes(true)
-                .map(|g| StyledGrapheme {
-                    symbol: g,
-                    style: Style::default(),
-                })
+                .map(|g| StyledGrapheme::new(g, Style::default()))
                 .collect::<Vec<_>>()
         }
     }
@@ -717,10 +703,7 @@ mod tests {
 
                         assert_eq!(
                             iter.next(),
-                            Some(&StyledGrapheme {
-                                symbol: "d",
-                                style: Style::default()
-                            })
+                            Some(&StyledGrapheme::new("d", Style::default()))
                         );
                     }
 
@@ -732,10 +715,7 @@ mod tests {
 
                         assert_eq!(
                             iter.last(),
-                            Some(&StyledGrapheme {
-                                symbol: "z",
-                                style: Style::default()
-                            })
+                            Some(&StyledGrapheme::new("z", Style::default()))
                         );
                     }
 
@@ -747,10 +727,7 @@ mod tests {
 
                         assert_eq!(
                             iter.last(),
-                            Some(&StyledGrapheme {
-                                symbol: "w",
-                                style: Style::default()
-                            })
+                            Some(&StyledGrapheme::new("w", Style::default()))
                         );
                     }
                 }
@@ -767,10 +744,7 @@ mod tests {
 
                     macro_rules! styled_grapheme {
                         ($symbol:expr, $style:expr) => {
-                            StyledGrapheme {
-                                symbol: $symbol,
-                                style: $style,
-                            }
+                            StyledGrapheme::new($symbol, $style)
                         };
 
                         ($symbol:expr) => {

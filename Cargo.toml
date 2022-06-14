@@ -9,7 +9,7 @@ repository = "https://github.com/sarub0b0/kubetui"
 keywords = ["kubernetes", "tui", "terminal", "monitor"]
 
 [features]
-default = [ "new-text" ]
+default = []
 logging = [ "log", "log4rs" ]
 mock = []
 mock-failed = []
@@ -78,5 +78,4 @@ required-features = ["stack-widget"]
 
 [[example]]
 name = "new_text"
-required-features = ["new-text"]
 

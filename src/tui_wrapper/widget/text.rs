@@ -355,7 +355,7 @@ impl TextBuilder {
     }
 
     pub fn build(self) -> Text {
-        let ret = Text {
+        Text {
             id: self.id,
             widget_config: self.widget_config,
             item: TextItem::new(self.item, None),
@@ -365,9 +365,7 @@ impl TextBuilder {
             block_injection: self.block_injection,
             clipboard: self.clipboard,
             ..Default::default()
-        };
-
-        ret
+        }
     }
 }
 
