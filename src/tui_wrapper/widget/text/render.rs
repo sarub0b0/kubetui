@@ -24,7 +24,7 @@ pub struct Scroll {
 #[derive(Debug, Default, Clone)]
 pub struct Render<'a> {
     block: Block<'a>,
-    lines: &'a [&'a [StyledGrapheme<'a>]],
+    lines: &'a [&'a [StyledGrapheme]],
     scroll: Scroll,
 }
 
@@ -36,7 +36,7 @@ impl<'a> RenderBuilder<'a> {
         self
     }
 
-    pub fn lines(mut self, lines: &'a [&'a [StyledGrapheme<'a>]]) -> Self {
+    pub fn lines(mut self, lines: &'a [&'a [StyledGrapheme]]) -> Self {
         self.0.lines = lines;
         self
     }
@@ -71,7 +71,9 @@ impl Widget for Render<'_> {
 
             let iter = LineIterator::new(line, self.scroll.x, text_area.width as usize);
 
-            for StyledGrapheme { symbol, style } in iter {
+            for sg in iter {
+                let symbol = sg.symbol();
+                let style = sg.style();
                 buf.get_mut(text_area.left() + x as u16, text_area.top() + y as u16)
                     .set_symbol(symbol)
                     .set_style(*style);
@@ -85,7 +87,7 @@ impl Widget for Render<'_> {
 #[derive(Debug, Default)]
 struct LineIterator<'a> {
     /// 一行分のStyledGraphemeの配列の参照
-    line: &'a [StyledGrapheme<'a>],
+    line: &'a [StyledGrapheme],
 
     /// 右にスクロールする数
     /// 半角文字基準
@@ -105,7 +107,7 @@ struct LineIterator<'a> {
 }
 
 #[cfg(not(test))]
-const RENDER_LEFT_PADDING: StyledGrapheme<'static> = StyledGrapheme {
+const RENDER_LEFT_PADDING: StyledGrapheme = StyledGrapheme {
     symbol: "<",
     style: Style {
         fg: Some(Color::Gray),
@@ -116,7 +118,7 @@ const RENDER_LEFT_PADDING: StyledGrapheme<'static> = StyledGrapheme {
 };
 
 #[cfg(not(test))]
-const RENDER_RIGHT_PADDING: StyledGrapheme<'static> = StyledGrapheme {
+const RENDER_RIGHT_PADDING: StyledGrapheme = StyledGrapheme {
     symbol: ">",
     style: Style {
         fg: Some(Color::Gray),
@@ -127,7 +129,7 @@ const RENDER_RIGHT_PADDING: StyledGrapheme<'static> = StyledGrapheme {
 };
 
 #[cfg(test)]
-const RENDER_LEFT_PADDING: StyledGrapheme<'static> = StyledGrapheme {
+const RENDER_LEFT_PADDING: StyledGrapheme = StyledGrapheme {
     symbol: "<",
     style: Style {
         fg: None,
@@ -138,7 +140,7 @@ const RENDER_LEFT_PADDING: StyledGrapheme<'static> = StyledGrapheme {
 };
 
 #[cfg(test)]
-const RENDER_RIGHT_PADDING: StyledGrapheme<'static> = StyledGrapheme {
+const RENDER_RIGHT_PADDING: StyledGrapheme = StyledGrapheme {
     symbol: ">",
     style: Style {
         fg: None,
@@ -149,7 +151,7 @@ const RENDER_RIGHT_PADDING: StyledGrapheme<'static> = StyledGrapheme {
 };
 
 impl<'a> LineIterator<'a> {
-    fn new(line: &'a [StyledGrapheme<'a>], scroll: usize, width: usize) -> Self {
+    fn new(line: &'a [StyledGrapheme], scroll: usize, width: usize) -> Self {
         let (n, offset) = Self::start(line, scroll);
         Self {
             line,
@@ -161,15 +163,15 @@ impl<'a> LineIterator<'a> {
         }
     }
 
-    fn start(line: &'a [StyledGrapheme<'a>], scroll: usize) -> (usize, usize) {
+    fn start(line: &'a [StyledGrapheme], scroll: usize) -> (usize, usize) {
         let mut sum = 0;
         let mut i = 0;
         for sg in line {
-            if scroll < sum + sg.symbol.width() {
+            if scroll < sum + sg.symbol().width() {
                 break;
             }
 
-            sum += sg.symbol.width();
+            sum += sg.symbol().width();
             i += 1;
         }
 
@@ -187,7 +189,7 @@ impl<'a> LineIterator<'a> {
 /// |あああああああああああああ|
 /// |<ああああああああああああ>|
 impl<'a> Iterator for LineIterator<'a> {
-    type Item = &'a StyledGrapheme<'a>;
+    type Item = &'a StyledGrapheme;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.line.len() <= self.n {
@@ -195,9 +197,9 @@ impl<'a> Iterator for LineIterator<'a> {
         }
 
         let sg = &self.line[self.n];
-        self.sum_width += sg.symbol.width();
+        self.sum_width += sg.symbol().width();
 
-        if sg.symbol.width() == 2
+        if sg.symbol().width() == 2
             && (self.sum_width + self.sum_width_offset).saturating_sub(self.scroll) == 1
         {
             self.n += 1;
@@ -208,7 +210,8 @@ impl<'a> Iterator for LineIterator<'a> {
         if self.sum_width <= self.render_width {
             self.n += 1;
             Some(sg)
-        } else if sg.symbol.width() == 2 && (self.sum_width).saturating_sub(self.render_width) == 1
+        } else if sg.symbol().width() == 2
+            && (self.sum_width).saturating_sub(self.render_width) == 1
         {
             self.n += 1;
             self.sum_width -= 1;
@@ -230,11 +233,11 @@ mod tests {
     const TERMINAL_HEIGHT: u16 = 10;
 
     trait StyledGraphemes<'a> {
-        fn styled_graphemes(&self) -> Vec<StyledGrapheme<'a>>;
+        fn styled_graphemes(&self) -> Vec<StyledGrapheme>;
     }
 
     impl<'a> StyledGraphemes<'a> for &'a str {
-        fn styled_graphemes(&self) -> Vec<StyledGrapheme<'a>> {
+        fn styled_graphemes(&self) -> Vec<StyledGrapheme> {
             self.graphemes(true)
                 .map(|g| StyledGrapheme {
                     symbol: g,
@@ -245,11 +248,11 @@ mod tests {
     }
 
     trait VecStyledGraphemes<'a> {
-        fn styled_graphemes(&self) -> Vec<Vec<StyledGrapheme<'a>>>;
+        fn styled_graphemes(&self) -> Vec<Vec<StyledGrapheme>>;
     }
 
     impl<'a> VecStyledGraphemes<'a> for Vec<&'a str> {
-        fn styled_graphemes(&self) -> Vec<Vec<StyledGrapheme<'a>>> {
+        fn styled_graphemes(&self) -> Vec<Vec<StyledGrapheme>> {
             self.iter()
                 .map(|line| line.styled_graphemes())
                 .collect::<Vec<_>>()

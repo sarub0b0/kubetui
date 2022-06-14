@@ -9,12 +9,13 @@ repository = "https://github.com/sarub0b0/kubetui"
 keywords = ["kubernetes", "tui", "terminal", "monitor"]
 
 [features]
-default = []
+default = [ "new-text" ]
 logging = [ "log", "log4rs" ]
 mock = []
 mock-failed = []
 new-log-stream = []
 stack-widget = []
+new-text = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -62,6 +63,7 @@ thiserror = "1"
 anyhow = "1"
 async-trait = "0.1"
 ctrlc = { version = "3.2.2", features = ["termination"] }
+
 [dev-dependencies]
 pretty_assertions = "1.2.1"
 indoc = "1.0.6"
@@ -76,4 +78,5 @@ required-features = ["stack-widget"]
 
 [[example]]
 name = "new_text"
+required-features = ["new-text"]
 

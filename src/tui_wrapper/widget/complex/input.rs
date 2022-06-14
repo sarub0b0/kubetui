@@ -82,15 +82,14 @@ impl Default for Cursor {
 }
 
 #[derive(Debug, Default)]
-pub struct InputForm<'a> {
+pub struct InputForm {
     content: Vec<char>,
     cursor: Cursor,
-    widget: Text<'a>,
     chunk: Rect,
     widget_config: WidgetConfig,
 }
 
-impl<'a> InputForm<'a> {
+impl InputForm {
     pub fn new(widget_config: WidgetConfig) -> Self {
         Self {
             widget_config,
@@ -104,13 +103,15 @@ impl<'a> InputForm<'a> {
 
     pub fn render<B: Backend>(&mut self, f: &mut Frame<B>, selected: bool) {
         let spans = self.render_content(selected);
+        let block = self.block(selected);
+        let chunk = self.chunk;
 
-        let widget = Paragraph::new(spans).block(self.block(selected));
+        let widget = Paragraph::new(spans).block(block);
 
-        f.render_widget(widget, self.chunk);
+        f.render_widget(widget, chunk);
     }
 
-    pub fn render_content(&mut self, selected: bool) -> Spans<'a> {
+    pub fn render_content(&mut self, selected: bool) -> Spans<'static> {
         if selected {
             self.cursor.update_tick();
         } else {
@@ -147,7 +148,6 @@ impl<'a> InputForm<'a> {
 
     pub fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
-        self.widget.update_chunk(self.block(false).inner(chunk));
     }
 
     pub fn insert_char(&mut self, c: char) {

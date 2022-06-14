@@ -251,7 +251,7 @@ impl<'a> Window<'a> {
         self.tabs[self.focused_tab_index].id()
     }
 
-    pub fn focused_tab(&self) -> &Tab {
+    pub fn focused_tab(&self) -> &Tab<'a> {
         &self.tabs[self.focused_tab_index]
     }
 

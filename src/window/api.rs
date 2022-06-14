@@ -48,7 +48,7 @@ impl<'a> ApiTabBuilder<'a> {
         }
     }
 
-    fn api(&self) -> Text<'static> {
+    fn api(&self) -> Text {
         let tx = self.tx.clone();
 
         let open_subwin = move |w: &mut Window| {
@@ -61,12 +61,11 @@ impl<'a> ApiTabBuilder<'a> {
             .id(view_id::tab_api_widget_api)
             .widget_config(&WidgetConfig::builder().title("API").build())
             .block_injection(|text: &Text, selected: bool| {
-                let (index, _) = text.state().selected();
+                let (index, size) = text.state();
 
                 let mut config = text.widget_config().clone();
 
-                *config.append_title_mut() =
-                    Some(format!(" [{}/{}]", index, text.rows_size()).into());
+                *config.append_title_mut() = Some(format!(" [{}/{}]", index, size).into());
 
                 config.render_block(text.focusable() && selected)
             })

@@ -118,18 +118,18 @@ impl<'a> PodTabBuilder<'a> {
             .build()
     }
 
-    fn log(&self) -> Text<'static> {
+    fn log(&self) -> Text {
         let builder = Text::builder()
             .id(view_id::tab_pod_widget_log)
             .widget_config(&WidgetConfig::builder().title("Log").build())
             .wrap()
             .follow()
             .block_injection(|text: &Text, selected: bool| {
-                let (index, _) = text.state().selected();
+                let (index, size) = text.state();
 
                 let mut config = text.widget_config().clone();
 
-                *config.title_mut() = format!("Log [{}/{}]", index, text.rows_size()).into();
+                *config.title_mut() = format!("Log [{}/{}]", index, size).into();
 
                 config.render_block(text.focusable() && selected)
             });

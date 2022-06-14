@@ -1,10 +1,10 @@
-use super::{styled_graphemes::StyledGraphemes, wrap::WrapTrait};
-use crate::tui_wrapper::widget::LiteralItem;
-use std::{borrow::Cow, ops::Range};
-use tui::{
-    style::{Color, Modifier, Style},
-    text::StyledGrapheme,
+use super::{
+    styled_graphemes::{StyledGrapheme, StyledGraphemes},
+    wrap::WrapTrait,
 };
+use crate::tui_wrapper::widget::LiteralItem;
+use std::ops::Range;
+use tui::style::{Modifier, Style};
 
 use search::Search;
 
@@ -22,14 +22,14 @@ struct Highlights {
 }
 
 #[derive(Debug, Default)]
-pub struct TextItem<'a> {
+pub struct TextItem {
     item: Vec<LiteralItem>,
     /// graphemesに分割した文字列リスト
-    graphemes: Vec<Graphemes<'a>>,
+    graphemes: Vec<Graphemes>,
 
     /// 折り返しを考慮した描画のためのデータリスト
     /// item設定時に生成される
-    wrapped: Vec<WrappedLine<'a>>,
+    wrapped: Vec<WrappedLine>,
 
     /// ハイライト情報
     /// - ハイライト箇所の復旧に使用
@@ -43,35 +43,32 @@ pub struct TextItem<'a> {
 /// WARNING:
 /// unsafeを用いて仮実装
 /// itemが変更されるとき、graphemes, wrapped, highlight_wordsも再生成すること
-impl TextItem<'_> {
+impl TextItem {
     pub fn new(item: Vec<LiteralItem>, wrap_width: Option<usize>) -> Self {
-        let graphemes: Vec<Graphemes> = unsafe {
-            let graphemes: Vec<Graphemes> = item
-                .iter()
-                .enumerate()
-                .map(|(i, literal)| Graphemes::new(i, literal))
-                .collect();
+        // let graphemes: Vec<Graphemes> = unsafe {
+        let graphemes: Vec<Graphemes> = item
+            .iter()
+            .enumerate()
+            .map(|(i, literal)| Graphemes::new(i, literal))
+            .collect();
 
-            std::mem::transmute(graphemes)
-        };
+        // std::mem::transmute(graphemes)
+        // };
 
-        let wrapped: Vec<WrappedLine> = unsafe {
-            let wrapped: Vec<WrappedLine> = graphemes
-                .iter()
-                .enumerate()
-                .flat_map(|(i, g)| {
-                    g.item
-                        .wrap(wrap_width)
-                        .map(|w| WrappedLine {
-                            index: i,
-                            line: Cow::Borrowed(w),
-                        })
-                        .collect::<Vec<WrappedLine>>()
-                })
-                .collect();
+        // let wrapped: Vec<WrappedLine> = unsafe {
+        let wrapped: Vec<WrappedLine> = graphemes
+            .iter()
+            .enumerate()
+            .flat_map(|(i, g)| {
+                g.item
+                    .wrap(wrap_width)
+                    .map(|w| WrappedLine { index: i, line: w })
+                    .collect::<Vec<WrappedLine>>()
+            })
+            .collect();
 
-            std::mem::transmute(wrapped)
-        };
+        // std::mem::transmute(wrapped)
+        // };
 
         Self {
             item,
@@ -83,14 +80,16 @@ impl TextItem<'_> {
     }
 
     pub fn push(&mut self, item: LiteralItem) {
-        let mut graphemes: Graphemes =
-            unsafe { std::mem::transmute(Graphemes::new(self.graphemes.len(), &item)) };
+        // let mut graphemes: Graphemes =
+        //     unsafe { std::mem::transmute(Graphemes::new(self.graphemes.len(), &item)) };
 
-        let wrapped: Vec<WrappedLine> = unsafe {
-            let wrapped: Vec<WrappedLine> = graphemes.wrap(self.wrap_width);
+        let mut graphemes: Graphemes = Graphemes::new(self.graphemes.len(), &item);
 
-            std::mem::transmute(wrapped)
-        };
+        // let wrapped: Vec<WrappedLine> = unsafe {
+        let wrapped: Vec<WrappedLine> = graphemes.wrap(self.wrap_width);
+
+        // std::mem::transmute(wrapped)
+        // };
 
         if let Some(highlights) = &mut self.highlights {
             if let Some(hls) = graphemes.highlight_word(&highlights.word) {
@@ -104,24 +103,24 @@ impl TextItem<'_> {
     }
 
     pub fn extend(&mut self, item: Vec<LiteralItem>) {
-        let mut graphemes: Vec<Graphemes> = unsafe {
-            let graphemes: Vec<Graphemes> = item
-                .iter()
-                .enumerate()
-                .map(|(i, literal)| Graphemes::new(i + self.graphemes.len(), literal))
-                .collect();
+        // let mut graphemes: Vec<Graphemes> = unsafe {
+        let mut graphemes: Vec<Graphemes> = item
+            .iter()
+            .enumerate()
+            .map(|(i, literal)| Graphemes::new(i + self.graphemes.len(), literal))
+            .collect();
 
-            std::mem::transmute(graphemes)
-        };
+        // std::mem::transmute(graphemes)
+        // };
 
-        let wrapped: Vec<WrappedLine> = unsafe {
-            let wrapped: Vec<WrappedLine> = graphemes
-                .iter()
-                .flat_map(|g| g.wrap(self.wrap_width))
-                .collect();
+        // let wrapped: Vec<WrappedLine> = unsafe {
+        let wrapped: Vec<WrappedLine> = graphemes
+            .iter()
+            .flat_map(|g| g.wrap(self.wrap_width))
+            .collect();
 
-            std::mem::transmute(wrapped)
-        };
+        //     std::mem::transmute(wrapped)
+        // };
 
         if let Some(highlights) = &mut self.highlights {
             let hls: Vec<Highlight> = graphemes
@@ -139,7 +138,7 @@ impl TextItem<'_> {
     }
 }
 
-impl<'a> TextItem<'a> {
+impl TextItem {
     pub fn highlight(&mut self, word: &str) {
         self.clear_highlight();
 
@@ -182,7 +181,7 @@ impl<'a> TextItem<'a> {
             graphemes
                 .iter_mut()
                 .zip(hl.item.iter())
-                .for_each(|(gs, style)| gs.style = style.add_modifier(Modifier::REVERSED));
+                .for_each(|(gs, style)| *gs.style_mut() = style.add_modifier(Modifier::REVERSED));
         }
     }
 
@@ -195,7 +194,7 @@ impl<'a> TextItem<'a> {
 
             graphemes
                 .iter_mut()
-                .for_each(|gs| gs.style = gs.style.add_modifier(Modifier::SLOW_BLINK));
+                .for_each(|gs| *gs.style_mut() = gs.style().add_modifier(Modifier::SLOW_BLINK));
 
             highlights.index = index;
 
@@ -275,45 +274,50 @@ impl<'a> TextItem<'a> {
     }
 }
 
-impl<'a> TextItem<'a> {
-    pub fn wrapped(&self) -> &[WrappedLine<'a>] {
+impl TextItem {
+    pub fn wrapped(&self) -> &[WrappedLine] {
         &self.wrapped
     }
 
     pub fn rewrap(&mut self, wrap_width: usize) {
         self.wrap_width = Some(wrap_width);
 
-        let wrapped: Vec<WrappedLine> = unsafe {
-            let wrapped: Vec<WrappedLine> = self
-                .graphemes
-                .iter()
-                .enumerate()
-                .flat_map(|(i, g)| {
-                    g.item
-                        .wrap(self.wrap_width)
-                        .map(|w| WrappedLine {
-                            index: i,
-                            line: Cow::Borrowed(w),
-                        })
-                        .collect::<Vec<WrappedLine>>()
-                })
-                .collect();
-
-            std::mem::transmute(wrapped)
-        };
+        let wrapped: Vec<WrappedLine> = self
+            .graphemes
+            .iter()
+            .enumerate()
+            .flat_map(|(i, g)| {
+                g.item
+                    .wrap(self.wrap_width)
+                    .map(|w| WrappedLine { index: i, line: w })
+                    .collect::<Vec<WrappedLine>>()
+            })
+            .collect();
 
         self.wrapped = wrapped;
     }
 }
 
 /// Itemを折り返しとハイライトを考慮した構造体
-#[derive(Debug, Default, PartialEq)]
-pub struct WrappedLine<'a> {
+#[derive(Debug, PartialEq)]
+pub struct WrappedLine {
     /// on_select時に渡すLiteralItemのインデックス = Item.itemのインデックス
-    pub index: usize,
+    index: usize,
 
     /// 折り返しを計算した結果、表示する文字列データ
-    pub line: Cow<'a, [StyledGrapheme<'a>]>,
+    line: *const [StyledGrapheme],
+}
+
+impl<'a> WrappedLine {
+    #[inline]
+    pub fn index(&self) -> usize {
+        self.index
+    }
+
+    #[inline]
+    pub fn line(&self) -> &[StyledGrapheme] {
+        unsafe { &*self.line }
+    }
 }
 
 #[derive(Debug, Default, PartialEq)]
@@ -332,15 +336,15 @@ pub struct Highlight {
 ///
 /// 文字列をパースしてスタイルを適用する
 #[derive(Debug, PartialEq)]
-pub struct Graphemes<'a> {
+pub struct Graphemes {
     /// 行番号
     index: usize,
     /// １行分の文字列
-    item: Vec<StyledGrapheme<'a>>,
+    item: Vec<StyledGrapheme>,
 }
 
-impl<'a> Graphemes<'a> {
-    pub fn new(index: usize, literal: &'a LiteralItem) -> Self {
+impl Graphemes {
+    pub fn new(index: usize, literal: &LiteralItem) -> Self {
         Self {
             index,
             item: literal.item.styled_graphemes(),
@@ -358,8 +362,8 @@ impl<'a> Graphemes<'a> {
                     let item = self.item[range.clone()]
                         .iter_mut()
                         .map(|i| {
-                            let ret = i.style;
-                            i.style = i.style.add_modifier(Modifier::REVERSED);
+                            let ret = i.style().clone();
+                            *i.style_mut() = i.style().add_modifier(Modifier::REVERSED);
                             ret
                         })
                         .collect();
@@ -388,7 +392,7 @@ impl<'a> Graphemes<'a> {
         let i = &mut self.item[range.clone()];
 
         i.iter_mut().zip(item.iter()).for_each(|(l, r)| {
-            l.style = *r;
+            *l.style_mut() = *r;
         });
     }
 
@@ -397,7 +401,7 @@ impl<'a> Graphemes<'a> {
             .wrap(wrap_width)
             .map(|w| WrappedLine {
                 index: self.index,
-                line: Cow::Borrowed(w),
+                line: w,
             })
             .collect()
     }
@@ -421,14 +425,16 @@ mod tests {
 
             let actual = item.wrapped;
 
+            let expected_lines = vec!["01234".styled_graphemes(), "56789".styled_graphemes()];
+
             let expected = vec![
                 WrappedLine {
                     index: 0,
-                    line: Cow::Owned("01234".styled_graphemes()),
+                    line: &*expected_lines[0],
                 },
                 WrappedLine {
                     index: 0,
-                    line: Cow::Owned("56789".styled_graphemes()),
+                    line: &*expected_lines[1],
                 },
             ];
 
@@ -443,22 +449,29 @@ mod tests {
 
             let actual = item.wrapped;
 
+            let expected_lines = vec![
+                "01234".styled_graphemes(),
+                "56789".styled_graphemes(),
+                "01234".styled_graphemes(),
+                "56789".styled_graphemes(),
+            ];
+
             let expected = vec![
                 WrappedLine {
                     index: 0,
-                    line: Cow::Owned("01234".styled_graphemes()),
+                    line: &*expected_lines[0],
                 },
                 WrappedLine {
                     index: 0,
-                    line: Cow::Owned("56789".styled_graphemes()),
+                    line: &*expected_lines[1],
                 },
                 WrappedLine {
                     index: 1,
-                    line: Cow::Owned("01234".styled_graphemes()),
+                    line: &*expected_lines[2],
                 },
                 WrappedLine {
                     index: 1,
-                    line: Cow::Owned("56789".styled_graphemes()),
+                    line: &*expected_lines[3],
                 },
             ];
 
@@ -476,30 +489,39 @@ mod tests {
 
             let actual = item.wrapped;
 
+            let expected_lines = vec![
+                "01234".styled_graphemes(),
+                "56789".styled_graphemes(),
+                "01234".styled_graphemes(),
+                "56789".styled_graphemes(),
+                "あい".styled_graphemes(),
+                "うえ".styled_graphemes(),
+            ];
+
             let expected = vec![
                 WrappedLine {
                     index: 0,
-                    line: Cow::Owned("01234".styled_graphemes()),
+                    line: &*expected_lines[0],
                 },
                 WrappedLine {
                     index: 0,
-                    line: Cow::Owned("56789".styled_graphemes()),
+                    line: &*expected_lines[1],
                 },
                 WrappedLine {
                     index: 1,
-                    line: Cow::Owned("01234".styled_graphemes()),
+                    line: &*expected_lines[2],
                 },
                 WrappedLine {
                     index: 1,
-                    line: Cow::Owned("56789".styled_graphemes()),
+                    line: &*expected_lines[3],
                 },
                 WrappedLine {
                     index: 2,
-                    line: Cow::Owned("あい".styled_graphemes()),
+                    line: &*expected_lines[4],
                 },
                 WrappedLine {
                     index: 2,
-                    line: Cow::Owned("うえ".styled_graphemes()),
+                    line: &*expected_lines[5],
                 },
             ];
 
@@ -521,18 +543,18 @@ mod tests {
             let actual = item.graphemes;
 
             let mut expected_1 = "hello world".styled_graphemes();
-            expected_1[6].style = expected_1[6].style.add_modifier(Modifier::REVERSED);
-            expected_1[7].style = expected_1[7].style.add_modifier(Modifier::REVERSED);
-            expected_1[8].style = expected_1[8].style.add_modifier(Modifier::REVERSED);
-            expected_1[9].style = expected_1[9].style.add_modifier(Modifier::REVERSED);
-            expected_1[10].style = expected_1[10].style.add_modifier(Modifier::REVERSED);
+            *expected_1[6].style_mut() = expected_1[6].style().add_modifier(Modifier::REVERSED);
+            *expected_1[7].style_mut() = expected_1[7].style().add_modifier(Modifier::REVERSED);
+            *expected_1[8].style_mut() = expected_1[8].style().add_modifier(Modifier::REVERSED);
+            *expected_1[9].style_mut() = expected_1[9].style().add_modifier(Modifier::REVERSED);
+            *expected_1[10].style_mut() = expected_1[10].style().add_modifier(Modifier::REVERSED);
 
             let mut expected_2 = "hoge world".styled_graphemes();
-            expected_2[5].style = expected_2[5].style.add_modifier(Modifier::REVERSED);
-            expected_2[6].style = expected_2[6].style.add_modifier(Modifier::REVERSED);
-            expected_2[7].style = expected_2[7].style.add_modifier(Modifier::REVERSED);
-            expected_2[8].style = expected_2[8].style.add_modifier(Modifier::REVERSED);
-            expected_2[9].style = expected_2[9].style.add_modifier(Modifier::REVERSED);
+            *expected_2[5].style_mut() = expected_2[5].style().add_modifier(Modifier::REVERSED);
+            *expected_2[6].style_mut() = expected_2[6].style().add_modifier(Modifier::REVERSED);
+            *expected_2[7].style_mut() = expected_2[7].style().add_modifier(Modifier::REVERSED);
+            *expected_2[8].style_mut() = expected_2[8].style().add_modifier(Modifier::REVERSED);
+            *expected_2[9].style_mut() = expected_2[9].style().add_modifier(Modifier::REVERSED);
 
             let expected = vec![
                 Graphemes {
@@ -793,7 +815,7 @@ mod tests {
 mod search {
     use std::ops::Range;
 
-    use tui::text::StyledGrapheme;
+    use crate::tui_wrapper::widget::text::styled_graphemes::StyledGrapheme;
 
     pub trait Search {
         fn search(&self, word: &[&str]) -> Option<Vec<Range<usize>>>;
@@ -823,7 +845,7 @@ mod search {
         }
     }
 
-    impl<'a> Search for Vec<StyledGrapheme<'a>> {
+    impl Search for Vec<StyledGrapheme> {
         fn search(&self, word: &[&str]) -> Option<Vec<Range<usize>>> {
             let mut match_list = Vec::new();
 
@@ -833,7 +855,11 @@ mod search {
                 let range = i..(i + word_len);
 
                 if let Some(target) = self.get(range.clone()) {
-                    if target.iter().zip(word.iter()).all(|(t, w)| &t.symbol == w) {
+                    if target
+                        .iter()
+                        .zip(word.iter())
+                        .all(|(t, w)| &t.symbol() == w)
+                    {
                         match_list.push(range);
                     }
                 }
@@ -849,7 +875,7 @@ mod search {
 
     #[cfg(test)]
     mod tests {
-        use crate::tui_wrapper::widget::text2::styled_graphemes::StyledGraphemes;
+        use crate::tui_wrapper::widget::text::styled_graphemes::StyledGraphemes;
 
         use super::*;
 

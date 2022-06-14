@@ -35,19 +35,18 @@ impl<'a> EventsTabBuilder<'a> {
         }
     }
 
-    fn event(&self) -> Text<'static> {
+    fn event(&self) -> Text {
         let builder = Text::builder()
             .id(view_id::tab_event_widget_event)
             .widget_config(&WidgetConfig::builder().title("Event").build())
             .wrap()
             .follow()
             .block_injection(|text: &Text, selected: bool| {
-                let (index, _) = text.state().selected();
+                let (index, size) = text.state();
 
                 let mut config = text.widget_config().clone();
 
-                *config.append_title_mut() =
-                    Some(format!(" [{}/{}]", index, text.rows_size()).into());
+                *config.append_title_mut() = Some(format!(" [{}/{}]", index, size).into());
 
                 config.render_block(text.focusable() && selected)
             });

@@ -6,8 +6,11 @@ pub mod complex;
 pub mod config;
 pub mod list;
 pub mod table;
+
+// #[cfg(not(feature = "new-text"))]
+// pub mod text_old;
+
 pub mod text;
-pub mod text2;
 
 use std::collections::BTreeMap;
 
@@ -192,7 +195,7 @@ pub trait RenderTrait {
 #[derive(Debug)]
 pub enum Widget<'a> {
     List(List<'a>),
-    Text(Text<'a>),
+    Text(Text),
     Table(Table<'a>),
     SingleSelect(SingleSelect<'a>),
     MultipleSelect(MultipleSelect<'a>),
@@ -200,7 +203,7 @@ pub enum Widget<'a> {
 
 impl<'a> Widget<'a> {
     // as_*
-    pub fn as_list(&self) -> &List {
+    pub fn as_list(&self) -> &List<'a> {
         if let Self::List(w) = self {
             w
         } else {
@@ -216,7 +219,7 @@ impl<'a> Widget<'a> {
         }
     }
 
-    pub fn as_table(&self) -> &Table {
+    pub fn as_table(&self) -> &Table<'a> {
         if let Self::Table(w) = self {
             w
         } else {
@@ -224,7 +227,7 @@ impl<'a> Widget<'a> {
         }
     }
 
-    pub fn as_single_select(&self) -> &SingleSelect {
+    pub fn as_single_select(&self) -> &SingleSelect<'a> {
         if let Self::SingleSelect(w) = self {
             w
         } else {
@@ -232,7 +235,7 @@ impl<'a> Widget<'a> {
         }
     }
 
-    pub fn as_multiple_select(&self) -> &MultipleSelect {
+    pub fn as_multiple_select(&self) -> &MultipleSelect<'a> {
         if let Self::MultipleSelect(w) = self {
             w
         } else {
@@ -249,7 +252,7 @@ impl<'a> Widget<'a> {
         }
     }
 
-    pub fn as_mut_text(&mut self) -> &mut Text<'a> {
+    pub fn as_mut_text(&mut self) -> &mut Text {
         if let Self::Text(w) = self {
             w
         } else {
