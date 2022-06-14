@@ -23,7 +23,7 @@ struct Highlights {
 
 #[derive(Debug, Default)]
 pub struct TextItem {
-    item: Vec<LiteralItem>,
+    item: Box<Vec<LiteralItem>>,
     /// graphemesに分割した文字列リスト
     graphemes: Vec<Graphemes>,
 
@@ -45,30 +45,24 @@ pub struct TextItem {
 /// itemが変更されるとき、graphemes, wrapped, highlight_wordsも再生成すること
 impl TextItem {
     pub fn new(item: Vec<LiteralItem>, wrap_width: Option<usize>) -> Self {
-        // let graphemes: Vec<Graphemes> = unsafe {
-        let graphemes: Vec<Graphemes> = item
+        let item = Box::new(item);
+
+        let graphemes: Vec<_> = item
             .iter()
             .enumerate()
             .map(|(i, literal)| Graphemes::new(i, literal))
             .collect();
 
-        // std::mem::transmute(graphemes)
-        // };
-
-        // let wrapped: Vec<WrappedLine> = unsafe {
         let wrapped: Vec<WrappedLine> = graphemes
             .iter()
             .enumerate()
             .flat_map(|(i, g)| {
                 g.item
                     .wrap(wrap_width)
-                    .map(|w| WrappedLine { index: i, line: w })
+                    .map(|w| WrappedLine { index: i, ptr: w })
                     .collect::<Vec<WrappedLine>>()
             })
             .collect();
-
-        // std::mem::transmute(wrapped)
-        // };
 
         Self {
             item,
@@ -80,16 +74,9 @@ impl TextItem {
     }
 
     pub fn push(&mut self, item: LiteralItem) {
-        // let mut graphemes: Graphemes =
-        //     unsafe { std::mem::transmute(Graphemes::new(self.graphemes.len(), &item)) };
-
         let mut graphemes: Graphemes = Graphemes::new(self.graphemes.len(), &item);
 
-        // let wrapped: Vec<WrappedLine> = unsafe {
         let wrapped: Vec<WrappedLine> = graphemes.wrap(self.wrap_width);
-
-        // std::mem::transmute(wrapped)
-        // };
 
         if let Some(highlights) = &mut self.highlights {
             if let Some(hls) = graphemes.highlight_word(&highlights.word) {
@@ -103,24 +90,16 @@ impl TextItem {
     }
 
     pub fn extend(&mut self, item: Vec<LiteralItem>) {
-        // let mut graphemes: Vec<Graphemes> = unsafe {
         let mut graphemes: Vec<Graphemes> = item
             .iter()
             .enumerate()
             .map(|(i, literal)| Graphemes::new(i + self.graphemes.len(), literal))
             .collect();
 
-        // std::mem::transmute(graphemes)
-        // };
-
-        // let wrapped: Vec<WrappedLine> = unsafe {
         let wrapped: Vec<WrappedLine> = graphemes
             .iter()
             .flat_map(|g| g.wrap(self.wrap_width))
             .collect();
-
-        //     std::mem::transmute(wrapped)
-        // };
 
         if let Some(highlights) = &mut self.highlights {
             let hls: Vec<Highlight> = graphemes
@@ -285,13 +264,7 @@ impl TextItem {
         let wrapped: Vec<WrappedLine> = self
             .graphemes
             .iter()
-            .enumerate()
-            .flat_map(|(i, g)| {
-                g.item
-                    .wrap(self.wrap_width)
-                    .map(|w| WrappedLine { index: i, line: w })
-                    .collect::<Vec<WrappedLine>>()
-            })
+            .flat_map(|g| g.wrap(self.wrap_width))
             .collect();
 
         self.wrapped = wrapped;
@@ -305,10 +278,10 @@ pub struct WrappedLine {
     index: usize,
 
     /// 折り返しを計算した結果、表示する文字列データ
-    line: *const [StyledGrapheme],
+    ptr: *const [StyledGrapheme],
 }
 
-impl<'a> WrappedLine {
+impl WrappedLine {
     #[inline]
     pub fn index(&self) -> usize {
         self.index
@@ -316,7 +289,7 @@ impl<'a> WrappedLine {
 
     #[inline]
     pub fn line(&self) -> &[StyledGrapheme] {
-        unsafe { &*self.line }
+        unsafe { &*self.ptr }
     }
 }
 
@@ -335,7 +308,7 @@ pub struct Highlight {
 /// LiteralItem から Vec<StyledGrapheme> に変換する
 ///
 /// 文字列をパースしてスタイルを適用する
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Graphemes {
     /// 行番号
     index: usize,
@@ -401,7 +374,7 @@ impl Graphemes {
             .wrap(wrap_width)
             .map(|w| WrappedLine {
                 index: self.index,
-                line: w,
+                ptr: w,
             })
             .collect()
     }
@@ -425,16 +398,18 @@ mod tests {
 
             let actual = item.wrapped;
 
-            let expected_lines = vec!["01234".styled_graphemes(), "56789".styled_graphemes()];
+            let graphemes = &item.graphemes[0];
+
+            let expected_lines: Vec<*const _> = vec![&graphemes.item[..5], &graphemes.item[5..]];
 
             let expected = vec![
                 WrappedLine {
                     index: 0,
-                    line: &*expected_lines[0],
+                    ptr: expected_lines[0],
                 },
                 WrappedLine {
                     index: 0,
-                    line: &*expected_lines[1],
+                    ptr: expected_lines[1],
                 },
             ];
 
@@ -449,29 +424,29 @@ mod tests {
 
             let actual = item.wrapped;
 
-            let expected_lines = vec![
-                "01234".styled_graphemes(),
-                "56789".styled_graphemes(),
-                "01234".styled_graphemes(),
-                "56789".styled_graphemes(),
+            let expected_lines: Vec<*const _> = vec![
+                &(&item.graphemes[0]).item[..5],
+                &(&item.graphemes[0]).item[5..],
+                &(&item.graphemes[1]).item[..5],
+                &(&item.graphemes[1]).item[5..],
             ];
 
             let expected = vec![
                 WrappedLine {
                     index: 0,
-                    line: &*expected_lines[0],
+                    ptr: expected_lines[0],
                 },
                 WrappedLine {
                     index: 0,
-                    line: &*expected_lines[1],
+                    ptr: expected_lines[1],
                 },
                 WrappedLine {
                     index: 1,
-                    line: &*expected_lines[2],
+                    ptr: expected_lines[2],
                 },
                 WrappedLine {
                     index: 1,
-                    line: &*expected_lines[3],
+                    ptr: expected_lines[3],
                 },
             ];
 
@@ -489,39 +464,39 @@ mod tests {
 
             let actual = item.wrapped;
 
-            let expected_lines = vec![
-                "01234".styled_graphemes(),
-                "56789".styled_graphemes(),
-                "01234".styled_graphemes(),
-                "56789".styled_graphemes(),
-                "あい".styled_graphemes(),
-                "うえ".styled_graphemes(),
+            let expected_lines: Vec<*const _> = vec![
+                &(&item.graphemes[0]).item[..5],
+                &(&item.graphemes[0]).item[5..],
+                &(&item.graphemes[1]).item[..5],
+                &(&item.graphemes[1]).item[5..],
+                &(&item.graphemes[2]).item[..2],
+                &(&item.graphemes[2]).item[2..],
             ];
 
             let expected = vec![
                 WrappedLine {
                     index: 0,
-                    line: &*expected_lines[0],
+                    ptr: expected_lines[0],
                 },
                 WrappedLine {
                     index: 0,
-                    line: &*expected_lines[1],
+                    ptr: expected_lines[1],
                 },
                 WrappedLine {
                     index: 1,
-                    line: &*expected_lines[2],
+                    ptr: expected_lines[2],
                 },
                 WrappedLine {
                     index: 1,
-                    line: &*expected_lines[3],
+                    ptr: expected_lines[3],
                 },
                 WrappedLine {
                     index: 2,
-                    line: &*expected_lines[4],
+                    ptr: expected_lines[4],
                 },
                 WrappedLine {
                     index: 2,
-                    line: &*expected_lines[5],
+                    ptr: expected_lines[5],
                 },
             ];
 
@@ -540,31 +515,44 @@ mod tests {
 
             item.highlight("world");
 
-            let actual = item.graphemes;
-
-            let mut expected_1 = "hello world".styled_graphemes();
-            *expected_1[6].style_mut() = expected_1[6].style().add_modifier(Modifier::REVERSED);
-            *expected_1[7].style_mut() = expected_1[7].style().add_modifier(Modifier::REVERSED);
-            *expected_1[8].style_mut() = expected_1[8].style().add_modifier(Modifier::REVERSED);
-            *expected_1[9].style_mut() = expected_1[9].style().add_modifier(Modifier::REVERSED);
-            *expected_1[10].style_mut() = expected_1[10].style().add_modifier(Modifier::REVERSED);
-
-            let mut expected_2 = "hoge world".styled_graphemes();
-            *expected_2[5].style_mut() = expected_2[5].style().add_modifier(Modifier::REVERSED);
-            *expected_2[6].style_mut() = expected_2[6].style().add_modifier(Modifier::REVERSED);
-            *expected_2[7].style_mut() = expected_2[7].style().add_modifier(Modifier::REVERSED);
-            *expected_2[8].style_mut() = expected_2[8].style().add_modifier(Modifier::REVERSED);
-            *expected_2[9].style_mut() = expected_2[9].style().add_modifier(Modifier::REVERSED);
+            let actual: Vec<(usize, Vec<Style>)> = item
+                .graphemes
+                .iter()
+                .map(|g| (g.index, g.item.iter().map(|i| i.style).collect()))
+                .collect();
 
             let expected = vec![
-                Graphemes {
-                    index: 0,
-                    item: expected_1,
-                },
-                Graphemes {
-                    index: 1,
-                    item: expected_2,
-                },
+                (
+                    0,
+                    vec![
+                        Default::default(),
+                        Default::default(),
+                        Default::default(),
+                        Default::default(),
+                        Default::default(),
+                        Default::default(),
+                        Style::default().add_modifier(Modifier::REVERSED),
+                        Style::default().add_modifier(Modifier::REVERSED),
+                        Style::default().add_modifier(Modifier::REVERSED),
+                        Style::default().add_modifier(Modifier::REVERSED),
+                        Style::default().add_modifier(Modifier::REVERSED),
+                    ],
+                ),
+                (
+                    1,
+                    vec![
+                        Default::default(),
+                        Default::default(),
+                        Default::default(),
+                        Default::default(),
+                        Default::default(),
+                        Style::default().add_modifier(Modifier::REVERSED),
+                        Style::default().add_modifier(Modifier::REVERSED),
+                        Style::default().add_modifier(Modifier::REVERSED),
+                        Style::default().add_modifier(Modifier::REVERSED),
+                        Style::default().add_modifier(Modifier::REVERSED),
+                    ],
+                ),
             ];
 
             assert_eq!(actual, expected);
@@ -583,19 +571,47 @@ mod tests {
             item.highlight("world");
             item.clear_highlight();
 
-            let actual = item.graphemes;
+            let actual: Vec<(usize, Vec<Style>)> = item
+                .graphemes
+                .iter()
+                .map(|g| (g.index, g.item.iter().map(|i| i.style).collect()))
+                .collect();
 
             let expected_1 = "hello world".styled_graphemes();
             let expected_2 = "hoge world".styled_graphemes();
+
             let expected = vec![
-                Graphemes {
-                    index: 0,
-                    item: expected_1,
-                },
-                Graphemes {
-                    index: 1,
-                    item: expected_2,
-                },
+                (
+                    0,
+                    vec![
+                        Style::default(),
+                        Style::default(),
+                        Style::default(),
+                        Style::default(),
+                        Style::default(),
+                        Style::default(),
+                        Style::default(),
+                        Style::default(),
+                        Style::default(),
+                        Style::default(),
+                        Style::default(),
+                    ],
+                ),
+                (
+                    1,
+                    vec![
+                        Style::default(),
+                        Style::default(),
+                        Style::default(),
+                        Style::default(),
+                        Style::default(),
+                        Style::default(),
+                        Style::default(),
+                        Style::default(),
+                        Style::default(),
+                        Style::default(),
+                    ],
+                ),
             ];
 
             assert_eq!(actual, expected);
@@ -632,53 +648,21 @@ mod tests {
                 }]
             );
 
+            let actual: Vec<Style> = item.item.into_iter().map(|i| i.style).collect();
             assert_eq!(
-                item.item,
+                actual,
                 vec![
-                    StyledGrapheme {
-                        symbol: "h",
-                        style: Style::default().add_modifier(Modifier::REVERSED),
-                    },
-                    StyledGrapheme {
-                        symbol: "e",
-                        style: Style::default().add_modifier(Modifier::REVERSED),
-                    },
-                    StyledGrapheme {
-                        symbol: "l",
-                        style: Style::default().add_modifier(Modifier::REVERSED),
-                    },
-                    StyledGrapheme {
-                        symbol: "l",
-                        style: Style::default().add_modifier(Modifier::REVERSED),
-                    },
-                    StyledGrapheme {
-                        symbol: "o",
-                        style: Style::default().add_modifier(Modifier::REVERSED),
-                    },
-                    StyledGrapheme {
-                        symbol: " ",
-                        style: Style::default(),
-                    },
-                    StyledGrapheme {
-                        symbol: "w",
-                        style: Style::default(),
-                    },
-                    StyledGrapheme {
-                        symbol: "o",
-                        style: Style::default(),
-                    },
-                    StyledGrapheme {
-                        symbol: "r",
-                        style: Style::default(),
-                    },
-                    StyledGrapheme {
-                        symbol: "l",
-                        style: Style::default(),
-                    },
-                    StyledGrapheme {
-                        symbol: "d",
-                        style: Style::default(),
-                    },
+                    Style::default().add_modifier(Modifier::REVERSED),
+                    Style::default().add_modifier(Modifier::REVERSED),
+                    Style::default().add_modifier(Modifier::REVERSED),
+                    Style::default().add_modifier(Modifier::REVERSED),
+                    Style::default().add_modifier(Modifier::REVERSED),
+                    Style::default(),
+                    Style::default(),
+                    Style::default(),
+                    Style::default(),
+                    Style::default(),
+                    Style::default(),
                 ],
             );
         }
@@ -689,59 +673,29 @@ mod tests {
                 item: "hello world".to_string(),
                 ..Default::default()
             };
+
             let mut item = Graphemes::new(0, &item);
 
             let highlight_words = item.highlight_word("hoge");
 
             assert_eq!(highlight_words.is_none(), true);
 
+            let actual: Vec<Style> = item.item.into_iter().map(|i| i.style).collect();
+
             assert_eq!(
-                item.item,
+                actual,
                 vec![
-                    StyledGrapheme {
-                        symbol: "h",
-                        style: Style::default(),
-                    },
-                    StyledGrapheme {
-                        symbol: "e",
-                        style: Style::default(),
-                    },
-                    StyledGrapheme {
-                        symbol: "l",
-                        style: Style::default(),
-                    },
-                    StyledGrapheme {
-                        symbol: "l",
-                        style: Style::default(),
-                    },
-                    StyledGrapheme {
-                        symbol: "o",
-                        style: Style::default(),
-                    },
-                    StyledGrapheme {
-                        symbol: " ",
-                        style: Style::default(),
-                    },
-                    StyledGrapheme {
-                        symbol: "w",
-                        style: Style::default(),
-                    },
-                    StyledGrapheme {
-                        symbol: "o",
-                        style: Style::default(),
-                    },
-                    StyledGrapheme {
-                        symbol: "r",
-                        style: Style::default(),
-                    },
-                    StyledGrapheme {
-                        symbol: "l",
-                        style: Style::default(),
-                    },
-                    StyledGrapheme {
-                        symbol: "d",
-                        style: Style::default(),
-                    },
+                    Style::default(),
+                    Style::default(),
+                    Style::default(),
+                    Style::default(),
+                    Style::default(),
+                    Style::default(),
+                    Style::default(),
+                    Style::default(),
+                    Style::default(),
+                    Style::default(),
+                    Style::default(),
                 ],
             );
         }
@@ -759,53 +713,22 @@ mod tests {
 
             item.clear_highlight(&highlight[0]);
 
+            let actual: Vec<Style> = item.item.into_iter().map(|i| i.style).collect();
+
             assert_eq!(
-                item.item,
+                actual,
                 vec![
-                    StyledGrapheme {
-                        symbol: "h",
-                        style: Style::default().fg(tui::style::Color::Red),
-                    },
-                    StyledGrapheme {
-                        symbol: "e",
-                        style: Style::default().fg(tui::style::Color::Red),
-                    },
-                    StyledGrapheme {
-                        symbol: "l",
-                        style: Style::default().fg(tui::style::Color::Red),
-                    },
-                    StyledGrapheme {
-                        symbol: "l",
-                        style: Style::default().fg(tui::style::Color::Red),
-                    },
-                    StyledGrapheme {
-                        symbol: "o",
-                        style: Style::default().fg(tui::style::Color::Red),
-                    },
-                    StyledGrapheme {
-                        symbol: " ",
-                        style: Style::reset(),
-                    },
-                    StyledGrapheme {
-                        symbol: "w",
-                        style: Style::reset(),
-                    },
-                    StyledGrapheme {
-                        symbol: "o",
-                        style: Style::reset(),
-                    },
-                    StyledGrapheme {
-                        symbol: "r",
-                        style: Style::reset(),
-                    },
-                    StyledGrapheme {
-                        symbol: "l",
-                        style: Style::reset(),
-                    },
-                    StyledGrapheme {
-                        symbol: "d",
-                        style: Style::reset(),
-                    },
+                    Style::default().fg(tui::style::Color::Red),
+                    Style::default().fg(tui::style::Color::Red),
+                    Style::default().fg(tui::style::Color::Red),
+                    Style::default().fg(tui::style::Color::Red),
+                    Style::default().fg(tui::style::Color::Red),
+                    Style::reset(),
+                    Style::reset(),
+                    Style::reset(),
+                    Style::reset(),
+                    Style::reset(),
+                    Style::reset(),
                 ],
             );
         }

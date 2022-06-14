@@ -6,10 +6,6 @@ pub mod complex;
 pub mod config;
 pub mod list;
 pub mod table;
-
-// #[cfg(not(feature = "new-text"))]
-// pub mod text_old;
-
 pub mod text;
 
 use std::collections::BTreeMap;

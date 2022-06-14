@@ -8,14 +8,32 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct StyledGrapheme {
-    pub(super) symbol: *const str,
+    pub(super) symbol_ptr: *const str,
     pub(super) style: Style,
+}
+
+impl Default for StyledGrapheme {
+    fn default() -> Self {
+        Self {
+            symbol_ptr: "",
+            style: Default::default(),
+        }
+    }
+}
+
+impl StyledGrapheme {
+    pub fn new(symbol: &str, style: Style) -> Self {
+        Self {
+            symbol_ptr: symbol,
+            style,
+        }
+    }
 }
 
 impl StyledGrapheme {
     #[inline]
     pub fn symbol(&self) -> &str {
-        unsafe { &*self.symbol }
+        unsafe { &*self.symbol_ptr }
     }
 
     #[inline]
@@ -70,10 +88,7 @@ fn styled_graphemes(s: &str) -> Vec<StyledGrapheme> {
 
     s.ansi_parse()
         .filter_map(|p| match p.ty {
-            AnsiEscapeSequence::Chars => Some(StyledGrapheme {
-                symbol: p.chars,
-                style,
-            }),
+            AnsiEscapeSequence::Chars => Some(StyledGrapheme::new(p.chars, style)),
             AnsiEscapeSequence::SelectGraphicRendition(sgr) => {
                 style = Sgr::from(sgr).into();
                 None
@@ -83,10 +98,7 @@ fn styled_graphemes(s: &str) -> Vec<StyledGrapheme> {
         .flat_map(|sg| {
             sg.symbol()
                 .graphemes(true)
-                .map(|g| StyledGrapheme {
-                    symbol: g,
-                    style: sg.style,
-                })
+                .map(|g| StyledGrapheme::new(g, sg.style))
                 .collect::<Vec<StyledGrapheme>>()
         })
         .collect()
