@@ -1,14 +1,12 @@
 use std::{io::stdout, time::Duration};
 
 use crossterm::{
-    event::{
-        poll, read, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers,
-    },
+    event::{poll, read, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
-use tui::{backend::CrosstermBackend, widgets::Widget, Terminal};
+use tui::{backend::CrosstermBackend, layout::Rect, widgets::Widget, Terminal};
 
 use kubetui::{
     signal::signal_handler,
@@ -249,6 +247,7 @@ fn main() {
 
     let mut text = Text::builder()
         .item(item.clone())
+        .wrap()
         .action(KeyCode::Char('q'), |_| {
             EventResult::Window(WindowEvent::CloseWindow)
         })
@@ -262,7 +261,6 @@ fn main() {
     loop {
         terminal
             .draw(|f| {
-                text.update_chunk(f.size());
                 text.render(f, true);
             })
             .unwrap();
@@ -288,7 +286,11 @@ fn main() {
 
                             WindowEvent::Continue
                         }
-                        Event::Resize(_, _) => WindowEvent::Continue,
+                        Event::Resize(w, h) => {
+                            text.update_chunk(Rect::new(0, 0, w, h));
+
+                            WindowEvent::Continue
+                        }
                     },
                     Err(_) => break,
                 }
