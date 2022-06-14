@@ -195,7 +195,7 @@ impl Default for SearchForm<'_> {
 
 impl<'a> SearchForm<'a> {
     fn update_chunk(&mut self, chunk: Rect) {
-        self.chunk = chunk;
+        self.chunk = Rect::new(chunk.x, chunk.y + chunk.height - 1, chunk.width, 1);
     }
 
     fn word(&self) -> String {
@@ -210,20 +210,13 @@ impl<'a> SearchForm<'a> {
     where
         B: Backend,
     {
-        let Rect {
-            x,
-            y: _,
-            width,
-            height,
-        } = self.chunk;
-
         let header = "Search: ";
 
         let content = self.input_widget.render_content(selected);
 
         let status = format!(" [{}/{}]", status.0, status.1);
 
-        let content_width = width.saturating_sub(8 + status.width() as u16);
+        let content_width = self.chunk.width.saturating_sub(8 + status.width() as u16);
 
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
@@ -232,7 +225,7 @@ impl<'a> SearchForm<'a> {
                 Constraint::Length(content_width),
                 Constraint::Length(status.len() as u16),
             ])
-            .split(Rect::new(x, height, width, 1));
+            .split(self.chunk);
 
         f.render_widget(Paragraph::new(header), chunks[0]);
 
@@ -372,7 +365,6 @@ pub struct Text<'a> {
     widget_config: WidgetConfig,
     item: TextItem<'a>,
     chunk: Rect,
-    inner_chunk: Rect,
     wrap: bool,
     follow: bool,
     scroll: Scroll,
@@ -437,7 +429,7 @@ impl Text<'_> {
     /// 移動したいハイライトが中央になるスクロール位置を返す
     fn search_scroll(&self, search_index: usize) -> usize {
         search_index
-            .saturating_sub((self.inner_chunk.height / 2) as usize)
+            .saturating_sub((self.inner_chunk().height / 2) as usize)
             .min(self.scroll_y_last_index())
     }
 }
@@ -463,7 +455,28 @@ impl Text<'_> {
         self.item
             .wrapped()
             .len()
-            .saturating_sub(self.inner_chunk.height as usize)
+            .saturating_sub(self.inner_chunk().height as usize)
+    }
+
+    pub fn chunk(&self) -> Rect {
+        let Rect {
+            x,
+            y,
+            width,
+            height,
+        } = self.chunk;
+
+        if self.mode.is_normal() {
+            self.chunk
+        } else {
+            Rect::new(x, y, width, height.saturating_sub(1))
+        }
+    }
+
+    pub fn inner_chunk(&self) -> Rect {
+        let chunk = self.chunk();
+
+        self.widget_config.block().inner(chunk)
     }
 }
 
@@ -633,22 +646,10 @@ impl<'a> WidgetTrait for Text<'_> {
     }
 
     fn update_chunk(&mut self, chunk: Rect) {
-        let chunk = if self.mode.is_normal() {
-            chunk
-        } else {
-            Rect::new(
-                chunk.x,
-                chunk.y,
-                chunk.width,
-                chunk.height.saturating_sub(1),
-            )
-        };
-
         self.chunk = chunk;
-        self.inner_chunk = self.widget_config.block().inner(chunk);
 
         if self.wrap {
-            self.item.rewrap(self.inner_chunk.width as usize);
+            self.item.rewrap(self.inner_chunk().width as usize);
         };
 
         self.search_widget.update_chunk(chunk);
@@ -686,11 +687,11 @@ impl RenderTrait for Text<'_> {
 
         match self.mode {
             Mode::Normal => {
-                f.render_widget(r, self.chunk);
+                f.render_widget(r, self.chunk());
             }
 
             Mode::SearchInput | Mode::SearchConfirm => {
-                f.render_widget(r, self.chunk);
+                f.render_widget(r, self.chunk());
 
                 self.search_widget.render(
                     f,
