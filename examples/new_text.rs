@@ -12,7 +12,7 @@ use kubetui::{
     signal::signal_handler,
     tui_wrapper::{
         event::EventResult,
-        widget::{text2::Text, LiteralItem, RenderTrait, WidgetTrait},
+        widget::{LiteralItem, RenderTrait, Text, WidgetTrait},
         Window, WindowEvent,
     },
 };
@@ -243,10 +243,10 @@ fn main() {
 
     terminal.clear().unwrap();
 
-    let item = DATA.lines().map(|l| l.into()).collect::<Vec<LiteralItem>>();
+    let item = DATA.lines().map(|l| l.into()).collect::<Vec<String>>();
 
     let mut text = Text::builder()
-        .item(item.clone())
+        .items(item.clone())
         .wrap()
         .action(KeyCode::Char('q'), |_| {
             EventResult::Window(WindowEvent::CloseWindow)

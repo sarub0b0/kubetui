@@ -129,17 +129,16 @@ impl<'a> NetworkTabBuilder<'a> {
             .build()
     }
 
-    fn description(&self) -> Text<'static> {
+    fn description(&self) -> Text {
         let builder = Text::builder()
             .id(view_id::tab_network_widget_description)
             .widget_config(&WidgetConfig::builder().title("Description").build())
             .block_injection(|text: &Text, selected: bool| {
-                let (index, _) = text.state().selected();
+                let (index, size) = text.state();
 
                 let mut config = text.widget_config().clone();
 
-                *config.title_mut() =
-                    format!("Description [{}/{}]", index, text.rows_size()).into();
+                *config.title_mut() = format!("Description [{}/{}]", index, size).into();
 
                 config.render_block(text.focusable() && selected)
             });

@@ -1,21 +1,22 @@
-use tui::text::StyledGrapheme;
 use unicode_width::UnicodeWidthStr;
+
+use super::styled_graphemes::StyledGrapheme;
 
 #[derive(Debug)]
 pub struct Wrap<'a> {
     /// 折り返し計算をする文字列リスト
-    line: &'a [StyledGrapheme<'a>],
+    line: &'a [StyledGrapheme],
 
     /// 折り返し幅
     wrap_width: Option<usize>,
 }
 
-pub trait WrapTrait {
-    fn wrap(&self, wrap_width: Option<usize>) -> Wrap;
+pub trait WrapTrait<'a> {
+    fn wrap(&'a self, wrap_width: Option<usize>) -> Wrap<'a>;
 }
 
-impl WrapTrait for Vec<StyledGrapheme<'_>> {
-    fn wrap(&self, wrap_width: Option<usize>) -> Wrap {
+impl<'a> WrapTrait<'a> for Vec<StyledGrapheme> {
+    fn wrap(&'a self, wrap_width: Option<usize>) -> Wrap<'a> {
         Wrap {
             line: self,
             wrap_width,
@@ -24,7 +25,7 @@ impl WrapTrait for Vec<StyledGrapheme<'_>> {
 }
 
 impl<'a> Iterator for Wrap<'a> {
-    type Item = &'a [StyledGrapheme<'a>];
+    type Item = &'a [StyledGrapheme];
     fn next(&mut self) -> Option<Self::Item> {
         if self.line.is_empty() {
             return None;
@@ -48,11 +49,11 @@ impl<'a> Iterator for Wrap<'a> {
 
 #[derive(Debug, PartialEq)]
 struct WrapResult<'a> {
-    wrapped: &'a [StyledGrapheme<'a>],
-    remaining: &'a [StyledGrapheme<'a>],
+    wrapped: &'a [StyledGrapheme],
+    remaining: &'a [StyledGrapheme],
 }
 
-fn wrap<'a>(line: &'a [StyledGrapheme<'a>], wrap_width: usize) -> WrapResult {
+fn wrap<'a>(line: &'a [StyledGrapheme], wrap_width: usize) -> WrapResult<'a> {
     let mut result = WrapResult {
         wrapped: line,
         remaining: &[],
@@ -60,7 +61,7 @@ fn wrap<'a>(line: &'a [StyledGrapheme<'a>], wrap_width: usize) -> WrapResult {
 
     let mut sum = 0;
     for (i, sg) in line.iter().enumerate() {
-        let width = sg.symbol.width();
+        let width = sg.symbol().width();
 
         if wrap_width < sum + width {
             result = WrapResult {
@@ -80,7 +81,7 @@ fn wrap<'a>(line: &'a [StyledGrapheme<'a>], wrap_width: usize) -> WrapResult {
 mod tests {
     use pretty_assertions::assert_eq;
 
-    use crate::tui_wrapper::widget::text2::styled_graphemes::StyledGraphemes;
+    use crate::tui_wrapper::widget::text::styled_graphemes::StyledGraphemes;
 
     use super::*;
 

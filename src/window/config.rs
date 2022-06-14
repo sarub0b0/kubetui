@@ -113,17 +113,17 @@ impl<'a> ConfigTabBuilder<'a> {
             .build()
     }
 
-    fn raw_data(&self) -> Text<'static> {
+    fn raw_data(&self) -> Text {
         let builder = Text::builder()
             .id(view_id::tab_config_widget_raw_data)
             .widget_config(&WidgetConfig::builder().title("Raw Data").build())
             .wrap()
             .block_injection(|text: &Text, selected: bool| {
-                let (index, _) = text.state().selected();
+                let (index, size) = text.state();
 
                 let mut config = text.widget_config().clone();
 
-                *config.title_mut() = format!("Raw Data [{}/{}]", index, text.rows_size()).into();
+                *config.title_mut() = format!("Raw Data [{}/{}]", index, size).into();
 
                 config.render_block(text.focusable() && selected)
             });

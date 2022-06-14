@@ -112,7 +112,7 @@ impl<'a> Tab<'a> {
         &mut self.widgets[self.focused_widget_index].widget
     }
 
-    pub fn focused_widget(&self) -> &Widget {
+    pub fn focused_widget(&self) -> &Widget<'a> {
         &self.widgets[self.focused_widget_index].widget
     }
 

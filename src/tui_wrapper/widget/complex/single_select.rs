@@ -120,7 +120,7 @@ pub struct SingleSelect<'a> {
     id: String,
     widget_config: WidgetConfig,
     chunk_index: usize,
-    input_widget: InputForm<'a>,
+    input_widget: InputForm,
     selected_widget: SelectForm<'a>,
     layout: Layout,
     chunk: Rect,
