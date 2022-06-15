@@ -554,8 +554,14 @@ impl<'a> WidgetTrait for Text {
         self.scroll.y = self.scroll_y_last_index();
     }
 
-    fn append_widget_item(&mut self, _: Item) {
-        todo!()
+    fn append_widget_item(&mut self, item: Item) {
+        match item {
+            Item::Single(i) => self.item.push(i),
+            Item::Array(i) => self.item.extend(i),
+            _ => {
+                unreachable!()
+            }
+        }
     }
 
     fn update_widget_item(&mut self, _: Item) {
