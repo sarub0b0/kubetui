@@ -564,8 +564,9 @@ impl<'a> WidgetTrait for Text {
         }
     }
 
-    fn update_widget_item(&mut self, _: Item) {
-        todo!()
+    fn update_widget_item(&mut self, item: Item) {
+        let item = item.array();
+        self.item.update(item);
     }
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
