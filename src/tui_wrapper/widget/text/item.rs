@@ -8,7 +8,7 @@ use tui::style::{Modifier, Style};
 
 use search::Search;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 struct Highlights {
     /// 検索ワード
     word: String,
@@ -51,16 +51,7 @@ impl TextItem {
             .map(|(i, literal)| Graphemes::new(i, literal))
             .collect();
 
-        let wrapped: Vec<WrappedLine> = graphemes
-            .iter()
-            .enumerate()
-            .flat_map(|(i, g)| {
-                g.item
-                    .wrap(wrap_width)
-                    .map(|w| WrappedLine { index: i, ptr: w })
-                    .collect::<Vec<WrappedLine>>()
-            })
-            .collect();
+        let wrapped: Vec<WrappedLine> = graphemes.iter().flat_map(|g| g.wrap(wrap_width)).collect();
 
         Self {
             item,
@@ -69,6 +60,19 @@ impl TextItem {
             wrapped,
             highlights: None,
         }
+    }
+
+    pub fn update(&mut self, item: Vec<LiteralItem>) {
+        let wrap_width = self.wrap_width;
+        let highlights = self.highlights.clone();
+
+        let mut new = Self::new(item, wrap_width);
+
+        if let Some(highlights) = highlights {
+            new.highlight(&highlights.word);
+        }
+
+        *self = new;
     }
 
     pub fn push(&mut self, item: LiteralItem) {
@@ -291,9 +295,9 @@ impl WrappedLine {
     }
 }
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Highlight {
-    /// 行番号
+    /// Graphemesのインデックス
     index: usize,
 
     /// ハイライト箇所の範囲
