@@ -23,7 +23,7 @@ struct Highlights {
 
 #[derive(Debug, Default)]
 pub struct TextItem {
-    item: Box<Vec<LiteralItem>>,
+    item: Vec<LiteralItem>,
     /// graphemesに分割した文字列リスト
     graphemes: Vec<Graphemes>,
 
@@ -45,8 +45,6 @@ pub struct TextItem {
 /// itemが変更されるとき、graphemes, wrapped, highlight_wordsも再生成すること
 impl TextItem {
     pub fn new(item: Vec<LiteralItem>, wrap_width: Option<usize>) -> Self {
-        let item = Box::new(item);
-
         let graphemes: Vec<_> = item
             .iter()
             .enumerate()
