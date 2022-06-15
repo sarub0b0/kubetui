@@ -143,7 +143,7 @@ mod tests {
 
             let actual = line.wrap(Some(5)).collect::<Vec<_>>();
 
-            let expected = vec!["01234".styled_graphemes(), "56789".styled_graphemes()];
+            let expected = vec![&line[..5], &line[5..]];
 
             assert_eq!(actual, expected);
         }
@@ -160,10 +160,7 @@ mod tests {
 
             let actual = line.wrap(Some(11)).collect::<Vec<_>>();
 
-            let expected = vec![
-                "アイウエオ".styled_graphemes(),
-                "かきくけこ".styled_graphemes(),
-            ];
+            let expected = vec![&line[..5], &line[5..]];
 
             assert_eq!(actual, expected);
         }

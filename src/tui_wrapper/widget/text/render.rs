@@ -703,7 +703,7 @@ mod tests {
 
                         assert_eq!(
                             iter.next(),
-                            Some(&StyledGrapheme::new("d", Style::default()))
+                            Some(&StyledGrapheme::new(line[3].symbol(), Style::default()))
                         );
                     }
 
@@ -715,7 +715,7 @@ mod tests {
 
                         assert_eq!(
                             iter.last(),
-                            Some(&StyledGrapheme::new("z", Style::default()))
+                            Some(&StyledGrapheme::new(line[25].symbol(), Style::default()))
                         );
                     }
 
@@ -727,7 +727,7 @@ mod tests {
 
                         assert_eq!(
                             iter.last(),
-                            Some(&StyledGrapheme::new("w", Style::default()))
+                            Some(&StyledGrapheme::new(line[22].symbol(), Style::default()))
                         );
                     }
                 }
@@ -736,53 +736,17 @@ mod tests {
                     use super::*;
                     use pretty_assertions::assert_eq;
 
-                    macro_rules! sg {
-                        ($expr:expr) => {
-                            styled_grapheme!($expr)
-                        };
-                    }
-
-                    macro_rules! styled_grapheme {
-                        ($symbol:expr, $style:expr) => {
-                            StyledGrapheme::new($symbol, $style)
-                        };
-
-                        ($symbol:expr) => {
-                            styled_grapheme!($symbol, Style::default())
-                        };
-                    }
-
-                    macro_rules! expected {
-                            ($($value:tt)*) => {
-                                vec![
-                                    $($value)*
-                                ]
-                            };
-                        }
-
                     #[test]
                     fn 行頭に全角文字を表示できるとき全角文字を返す() {
                         let line = "アイウエオかきくけこ".styled_graphemes();
 
                         let iter = LineIterator::new(&line, 0, 30);
 
-                        let actual: Vec<StyledGrapheme> = iter.cloned().collect();
+                        let actual: String = iter.map(|sg| sg.symbol()).collect();
 
-                        assert_eq!(
-                            expected!(
-                                sg!("ア"),
-                                sg!("イ"),
-                                sg!("ウ"),
-                                sg!("エ"),
-                                sg!("オ"),
-                                sg!("か"),
-                                sg!("き"),
-                                sg!("く"),
-                                sg!("け"),
-                                sg!("こ"),
-                            ),
-                            actual,
-                        );
+                        let expected = "アイウエオかきくけこ".to_string();
+
+                        assert_eq!(actual, expected);
                     }
 
                     #[test]
@@ -793,21 +757,11 @@ mod tests {
 
                         let iter = LineIterator::new(&line, 4, 15);
 
-                        let actual: Vec<StyledGrapheme> = iter.cloned().collect();
+                        let actual: String = iter.map(|sg| sg.symbol()).collect();
 
-                        assert_eq!(
-                            expected!(
-                                sg!("ウ"),
-                                sg!("エ"),
-                                sg!("オ"),
-                                sg!("か"),
-                                sg!("き"),
-                                sg!("く"),
-                                sg!("け"),
-                                sg!(">"),
-                            ),
-                            actual,
-                        );
+                        let expected = "ウエオかきくけ>".to_string();
+
+                        assert_eq!(actual, expected);
                     }
 
                     #[test]
@@ -818,22 +772,11 @@ mod tests {
 
                         let iter = LineIterator::new(&line, 3, 30);
 
-                        let actual: Vec<StyledGrapheme> = iter.cloned().collect();
+                        let actual: String = iter.map(|sg| sg.symbol()).collect();
 
-                        assert_eq!(
-                            expected!(
-                                sg!("<"),
-                                sg!("ウ"),
-                                sg!("エ"),
-                                sg!("オ"),
-                                sg!("か"),
-                                sg!("き"),
-                                sg!("く"),
-                                sg!("け"),
-                                sg!("こ"),
-                            ),
-                            actual,
-                        );
+                        let expected = "<ウエオかきくけこ".to_string();
+
+                        assert_eq!(actual, expected);
                     }
                 }
             }
