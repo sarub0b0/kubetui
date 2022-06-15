@@ -679,7 +679,17 @@ impl<'a> WidgetTrait for Text {
     }
 
     fn clear(&mut self) {
-        todo!()
+        self.scroll = Default::default();
+
+        let wrap_width = if self.wrap {
+            Some(self.inner_chunk().width as usize)
+        } else {
+            None
+        };
+
+        self.item = TextItem::new(vec![], wrap_width);
+
+        *(self.widget_config.append_title_mut()) = None;
     }
 }
 
