@@ -68,6 +68,7 @@ impl Widget for Render<'_> {
 
         let start = self.scroll.y;
         let end = text_area.height as usize;
+        let area_width = text_area.width as usize;
 
         for (y, line) in self.lines.iter().skip(start).take(end).enumerate() {
             let mut x = 0;
@@ -82,6 +83,13 @@ impl Widget for Render<'_> {
                     .set_style(*style);
 
                 x += symbol.width()
+            }
+
+            while x < area_width {
+                buf.get_mut(text_area.left() + x as u16, text_area.top() + y as u16)
+                    .set_symbol(" ");
+
+                x += " ".width()
             }
         }
     }
