@@ -66,6 +66,7 @@ impl Filter<BTreeMap<String, String>> for List<Service> {
     }
 }
 
+#[allow(clippy::bool_assert_comparison)]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -91,7 +92,7 @@ mod tests {
                     "
                 };
 
-                serde_yaml::from_str(&yaml).unwrap()
+                serde_yaml::from_str(yaml).unwrap()
             }
 
             #[test]
@@ -151,7 +152,7 @@ mod tests {
                     "
                 };
 
-                serde_yaml::from_str(&yaml).unwrap()
+                serde_yaml::from_str(yaml).unwrap()
             }
 
             #[tokio::test]
@@ -267,7 +268,7 @@ mod tests {
                     "
                 };
 
-                serde_yaml::from_str(&yaml).unwrap()
+                serde_yaml::from_str(yaml).unwrap()
             }
 
             #[test]
@@ -345,7 +346,7 @@ mod tests {
                     "
                 };
 
-                serde_yaml::from_str(&yaml).unwrap()
+                serde_yaml::from_str(yaml).unwrap()
             }
 
             #[tokio::test]

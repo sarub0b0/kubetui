@@ -1156,7 +1156,7 @@ mod kube_store {
                 (
                     "cluster-3".to_string(),
                     KubeState {
-                        client: KubeClient::new(client.clone(), "https://192.168.0.3/"),
+                        client: KubeClient::new(client, "https://192.168.0.3/"),
                         namespaces: vec!["default".to_string()],
                         api_resources: Default::default(),
                     },

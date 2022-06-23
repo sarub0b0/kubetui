@@ -276,9 +276,7 @@ mod tests {
         fn push_char() {
             let mut form = InputForm::default();
 
-            let input: Vec<char> = "test".chars().collect();
-
-            input.into_iter().for_each(|c| form.insert_char(c));
+            "test".chars().for_each(|c| form.insert_char(c));
 
             assert_eq!("test".chars().collect::<Vec<char>>(), form.content);
         }
@@ -287,9 +285,7 @@ mod tests {
         fn insert_char() {
             let mut form = InputForm::default();
 
-            let input: Vec<char> = "test".chars().collect();
-
-            input.into_iter().for_each(|c| form.insert_char(c));
+            "test".chars().for_each(|c| form.insert_char(c));
 
             form.back_cursor();
 

@@ -53,7 +53,7 @@ struct WrapResult<'a> {
     remaining: &'a [StyledGrapheme],
 }
 
-fn wrap<'a>(line: &'a [StyledGrapheme], wrap_width: usize) -> WrapResult {
+fn wrap(line: &[StyledGrapheme], wrap_width: usize) -> WrapResult {
     let mut result = WrapResult {
         wrapped: line,
         remaining: &[],

@@ -380,7 +380,7 @@ mod tests {
             "
         };
 
-        serde_yaml::from_str(&yaml).unwrap()
+        serde_yaml::from_str(yaml).unwrap()
     }
 
     fn ingresses() -> List<Ingress> {
@@ -408,7 +408,7 @@ mod tests {
             "
         };
 
-        serde_yaml::from_str(&yaml).unwrap()
+        serde_yaml::from_str(yaml).unwrap()
     }
 
     fn networkpolicies() -> List<NetworkPolicy> {

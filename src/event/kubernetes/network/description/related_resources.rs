@@ -146,6 +146,7 @@ pub mod label_selector {
     }
 
     #[cfg(test)]
+    #[allow(clippy::bool_assert_comparison)]
     mod tests {
         use super::*;
 
@@ -362,6 +363,7 @@ mod fetch {
         }
     }
 
+    #[allow(clippy::bool_assert_comparison)]
     #[cfg(test)]
     mod tests {
 
@@ -392,7 +394,7 @@ mod fetch {
             "
             };
 
-            serde_yaml::from_str(&yaml).unwrap()
+            serde_yaml::from_str(yaml).unwrap()
         }
 
         fn service() -> List<Service> {
@@ -412,7 +414,7 @@ mod fetch {
             "
             };
 
-            serde_yaml::from_str(&yaml).unwrap()
+            serde_yaml::from_str(yaml).unwrap()
         }
 
         #[tokio::test]
@@ -532,7 +534,7 @@ pub mod to_list_value {
                 "
             };
 
-            serde_yaml::from_str::<List<Pod>>(&yaml).unwrap()
+            serde_yaml::from_str::<List<Pod>>(yaml).unwrap()
         }
 
         fn setup_service_list() -> List<Service> {
@@ -546,7 +548,7 @@ pub mod to_list_value {
                 "
             };
 
-            serde_yaml::from_str::<List<Service>>(&yaml).unwrap()
+            serde_yaml::from_str::<List<Service>>(yaml).unwrap()
         }
 
         #[test]

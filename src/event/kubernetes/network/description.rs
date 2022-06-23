@@ -154,7 +154,7 @@ mod tests {
             "
         };
 
-        serde_yaml::from_str(&yaml).unwrap()
+        serde_yaml::from_str(yaml).unwrap()
     }
 
     mod run {
