@@ -329,7 +329,7 @@ mod tests {
             let mut form = InputForm::default();
 
             assert_eq!(
-                form.render_content(false),
+                form.render_content(true),
                 Spans::from(Span::styled(
                     " ",
                     Style::default().add_modifier(Modifier::REVERSED)
@@ -345,7 +345,7 @@ mod tests {
             form.insert_char('b');
 
             assert_eq!(
-                form.render_content(false),
+                form.render_content(true),
                 Spans::from(vec![
                     Span::raw("ab"),
                     Span::styled(" ", Style::default().add_modifier(Modifier::REVERSED))
@@ -362,7 +362,7 @@ mod tests {
             form.back_cursor();
 
             assert_eq!(
-                form.render_content(false),
+                form.render_content(true),
                 Spans::from(vec![
                     Span::raw("a"),
                     Span::styled("b", Style::default().add_modifier(Modifier::REVERSED))
