@@ -7,7 +7,8 @@ use std::{cell::RefCell, rc::Rc};
 
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 
-use derivative::*;
+use derivative::Derivative;
+
 use tui::{
     backend::Backend,
     buffer::Buffer,
@@ -266,24 +267,15 @@ impl Mode {
     }
 
     fn is_normal(&self) -> bool {
-        match self {
-            Self::Normal => true,
-            _ => false,
-        }
+        matches!(self, Self::Normal)
     }
 
     fn is_search_input(&self) -> bool {
-        match self {
-            Self::SearchInput => true,
-            _ => false,
-        }
+        matches!(self, Self::SearchInput)
     }
 
     fn is_search_confirm(&self) -> bool {
-        match self {
-            Self::SearchConfirm => true,
-            _ => false,
-        }
+        matches!(self, Self::SearchConfirm)
     }
 }
 

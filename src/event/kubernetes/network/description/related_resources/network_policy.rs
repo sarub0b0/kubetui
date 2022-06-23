@@ -70,6 +70,7 @@ impl Filter<Vec<BTreeMap<String, String>>> for List<NetworkPolicy> {
     }
 }
 
+#[allow(clippy::bool_assert_comparison)]
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -12,6 +12,7 @@ pub struct StyledGrapheme {
     pub(super) style: Style,
 }
 
+#[allow(clippy::derivable_impls)]
 impl Default for StyledGrapheme {
     fn default() -> Self {
         Self {

@@ -337,7 +337,7 @@ impl Graphemes {
                     let item = self.item[range.clone()]
                         .iter_mut()
                         .map(|i| {
-                            let ret = i.style().clone();
+                            let ret = *i.style();
                             *i.style_mut() = i.style().add_modifier(Modifier::REVERSED);
                             ret
                         })
@@ -427,10 +427,10 @@ mod tests {
             let actual = item.wrapped;
 
             let expected_lines: Vec<*const _> = vec![
-                &(&item.graphemes[0]).item[..5],
-                &(&item.graphemes[0]).item[5..],
-                &(&item.graphemes[1]).item[..5],
-                &(&item.graphemes[1]).item[5..],
+                &item.graphemes[0].item[..5],
+                &item.graphemes[0].item[5..],
+                &item.graphemes[1].item[..5],
+                &item.graphemes[1].item[5..],
             ];
 
             let expected = vec![
@@ -467,12 +467,12 @@ mod tests {
             let actual = item.wrapped;
 
             let expected_lines: Vec<*const _> = vec![
-                &(&item.graphemes[0]).item[..5],
-                &(&item.graphemes[0]).item[5..],
-                &(&item.graphemes[1]).item[..5],
-                &(&item.graphemes[1]).item[5..],
-                &(&item.graphemes[2]).item[..2],
-                &(&item.graphemes[2]).item[2..],
+                &item.graphemes[0].item[..5],
+                &item.graphemes[0].item[5..],
+                &item.graphemes[1].item[..5],
+                &item.graphemes[1].item[5..],
+                &item.graphemes[2].item[..2],
+                &item.graphemes[2].item[2..],
             ];
 
             let expected = vec![
@@ -578,9 +578,6 @@ mod tests {
                 .iter()
                 .map(|g| (g.index, g.item.iter().map(|i| i.style).collect()))
                 .collect();
-
-            let expected_1 = "hello world".styled_graphemes();
-            let expected_2 = "hoge world".styled_graphemes();
 
             let expected = vec![
                 (

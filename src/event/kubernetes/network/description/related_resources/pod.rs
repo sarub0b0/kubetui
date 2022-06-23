@@ -95,6 +95,7 @@ impl Filter<LabelSelectorWrapper> for List<Pod> {
     }
 }
 
+#[allow(clippy::bool_assert_comparison)]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -122,7 +123,7 @@ mod tests {
                 "
             };
 
-            serde_yaml::from_str(&yaml).unwrap()
+            serde_yaml::from_str(yaml).unwrap()
         }
 
         #[test]
@@ -196,7 +197,7 @@ mod tests {
                 "
             };
 
-            serde_yaml::from_str(&yaml).unwrap()
+            serde_yaml::from_str(yaml).unwrap()
         }
 
         #[tokio::test]
