@@ -362,6 +362,12 @@ impl TextItem {
             (0, 0)
         }
     }
+
+    pub fn highlight_focus_line_number(&self) -> Option<usize> {
+        self.highlights
+            .as_ref()
+            .map(|h| h.item[h.index].line_number)
+    }
 }
 
 impl TextItem {
