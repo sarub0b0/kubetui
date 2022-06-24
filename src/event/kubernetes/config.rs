@@ -284,15 +284,27 @@ impl Iterator for SecretDataToStringIterator<'_> {
     }
 }
 
-fn format_config_key_value(key: &str, value: &str, color: u8) -> String {
-    let newline = if value.contains('\n') { "\n" } else { "" };
-    format!(
-        "\x1b[{color}m{key}:\x1b[39m {newline}{value}",
-        color = color,
-        key = key,
-        value = value,
-        newline = newline
-    )
+fn format_config_key_value(key: &str, value: &str, color: u8) -> Vec<String> {
+    if value.contains('\n') {
+        let mut ret = vec![format!(
+            "\x1b[{color}m{key}:\x1b[39m |",
+            color = color,
+            key = key
+        )];
+
+        let value: Vec<String> = value.lines().map(|l| format!("  {}", l)).collect();
+
+        ret.extend(value);
+
+        ret
+    } else {
+        vec![format!(
+            "\x1b[{color}m{key}:\x1b[39m {value}",
+            color = color,
+            key = key,
+            value = value,
+        )]
+    }
 }
 
 pub async fn get_config(
@@ -311,6 +323,7 @@ pub async fn get_config(
                     .scan(Color::new(), |c, (k, v)| {
                         Some(format_config_key_value(k, v, c.next_color()))
                     })
+                    .flatten()
                     .collect())
             } else {
                 Err(anyhow!(Error::NoneParameter("configmap.data")))
