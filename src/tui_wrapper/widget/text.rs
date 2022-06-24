@@ -30,7 +30,7 @@ use crate::{
 
 use self::{
     item::TextItem,
-    render::{Render, Scroll},
+    render::{Render, RenderLine, Scroll},
     styled_graphemes::StyledGrapheme,
 };
 
@@ -743,8 +743,13 @@ impl RenderTrait for Text {
 
         let wrapped_lines = self.item.wrapped_lines();
 
-        let lines: Vec<&[StyledGrapheme]> =
-            wrapped_lines.iter().map(|wrapped| wrapped.line()).collect();
+        let lines: Vec<RenderLine> = wrapped_lines
+            .iter()
+            .map(|wrapped| RenderLine {
+                index: wrapped.index(),
+                line: wrapped.line(),
+            })
+            .collect();
 
         let r = Render::builder()
             .block(block)
