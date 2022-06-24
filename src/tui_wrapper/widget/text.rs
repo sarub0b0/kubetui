@@ -409,20 +409,47 @@ impl Text {
 
         self.item.highlight(&word);
 
-        if let Some(index) = self.item.select_nearest_highlight(self.scroll.y) {
+        if let Some(index) = self
+            .item
+            .select_nearest_highlight(self.search_nearest_highlight_target_index())
+        {
             self.scroll.y = self.search_scroll(index);
         }
     }
 
+    /// 次のマッチ箇所にスクロールする
+    /// - マッチ箇所がchunk内の場合次のマッチ箇所に移動
+    /// - マッチ箇所がchunk外の場合近いマッチ箇所に移動する
     pub fn search_next(&mut self) {
-        if let Some(index) = self.item.select_next_highlight() {
-            self.scroll.y = self.search_scroll(index);
+        if let Some(focus_line_number) = self.item.highlight_focus_line_number() {
+            let index = if self.within_chunk(focus_line_number) {
+                self.item.select_next_highlight()
+            } else {
+                self.item
+                    .select_nearest_highlight(self.search_nearest_highlight_target_index())
+            };
+
+            if let Some(index) = index {
+                self.scroll.y = self.search_scroll(index);
+            }
         }
     }
 
+    /// 前のマッチ箇所にスクロールする
+    /// - マッチ箇所がchunk内の場合前のマッチ箇所に移動
+    /// - マッチ箇所がchunk外の場合近いマッチ箇所に移動する
     pub fn search_prev(&mut self) {
-        if let Some(index) = self.item.select_prev_highlight() {
-            self.scroll.y = self.search_scroll(index);
+        if let Some(focus_line_number) = self.item.highlight_focus_line_number() {
+            let index = if self.within_chunk(focus_line_number) {
+                self.item.select_prev_highlight()
+            } else {
+                self.item
+                    .select_nearest_highlight(self.search_nearest_highlight_target_index())
+            };
+
+            if let Some(index) = index {
+                self.scroll.y = self.search_scroll(index);
+            }
         }
     }
 
@@ -432,10 +459,26 @@ impl Text {
     }
 
     /// 移動したいハイライトが中央になるスクロール位置を返す
+    /// 画面内に収まる場合はスクロールしない
     fn search_scroll(&self, search_index: usize) -> usize {
-        search_index
-            .saturating_sub((self.inner_chunk().height / 2) as usize)
-            .min(self.scroll_y_last_index())
+        if self.within_chunk(search_index) {
+            self.scroll.y
+        } else {
+            search_index
+                .saturating_sub(((self.inner_chunk().height as f32 * 0.5) as usize) as usize)
+                .min(self.scroll_y_last_index())
+        }
+    }
+
+    fn search_nearest_highlight_target_index(&self) -> usize {
+        self.scroll.y + (self.inner_chunk().height as f32 * 0.5) as usize
+    }
+
+    fn within_chunk(&self, index: usize) -> bool {
+        let min = self.scroll.y;
+        let max = self.scroll.y + self.inner_chunk().height as usize;
+
+        min <= index && index <= max
     }
 }
 
