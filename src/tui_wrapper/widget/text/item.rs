@@ -423,7 +423,7 @@ pub mod inner {
                 })
                 .collect();
 
-            let mut wrapped_lines = Vec::new();
+            self.wrapped_lines.clear();
             let mut line_num = 0;
             self.lines
                 .iter_mut()
@@ -441,15 +441,13 @@ pub mod inner {
 
                     let new_wrapped_lines_len = new_wrapped_lines.len();
 
-                    wrapped_lines.extend(new_wrapped_lines);
+                    self.wrapped_lines.extend(new_wrapped_lines);
 
                     line.wrapped_lines =
-                        &wrapped_lines[line_num..(line_num + new_wrapped_lines_len)];
+                        &self.wrapped_lines[line_num..(line_num + new_wrapped_lines_len)];
 
                     line_num += new_wrapped_lines_len;
                 });
-
-            self.wrapped_lines = wrapped_lines;
 
             if let Some(highlights) = &mut self.highlights {
                 highlights.item.iter_mut().for_each(|hl| {
