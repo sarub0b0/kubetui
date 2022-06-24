@@ -1,4 +1,4 @@
-/// 文字列を描画するためのモジュール
+/// 文字列を描画するためのモジュ&ール
 /// - 渡された１行ずつのデータを描画する
 /// - 渡された縦横スクロールの位置をもとに描画位置を決定する
 ///
@@ -24,10 +24,16 @@ pub struct Scroll {
     pub y: usize,
 }
 
+#[derive(Debug, Default)]
+pub struct RenderLine<'a> {
+    pub index: usize,
+    pub line: &'a [StyledGrapheme],
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct Render<'a> {
     block: Block<'a>,
-    lines: &'a [&'a [StyledGrapheme]],
+    lines: &'a [RenderLine<'a>],
     scroll: Scroll,
 }
 
@@ -39,7 +45,7 @@ impl<'a> RenderBuilder<'a> {
         self
     }
 
-    pub fn lines(mut self, lines: &'a [&'a [StyledGrapheme]]) -> Self {
+    pub fn lines(mut self, lines: &'a [RenderLine<'a>]) -> Self {
         self.0.lines = lines;
         self
     }
@@ -73,7 +79,7 @@ impl Widget for Render<'_> {
         for (y, line) in self.lines.iter().skip(start).take(end).enumerate() {
             let mut x = 0;
 
-            let iter = LineIterator::new(line, self.scroll.x, text_area.width as usize);
+            let iter = LineIterator::new(line.line, self.scroll.x, text_area.width as usize);
 
             for sg in iter {
                 let symbol = sg.symbol();
@@ -83,6 +89,16 @@ impl Widget for Render<'_> {
                     .set_style(*style);
 
                 x += symbol.width()
+            }
+
+            if let Some(next_line) = self.lines.get(y + 1) {
+                if line.index == next_line.index && x < area_width {
+                    buf.get_mut(text_area.left() + x as u16, text_area.top() + y as u16)
+                        .set_symbol(RENDER_RIGHT_PADDING.symbol())
+                        .set_style(RENDER_RIGHT_PADDING.style);
+
+                    x += " ".width()
+                }
             }
 
             while x < area_width {
@@ -274,7 +290,11 @@ mod tests {
 
                     let styled_graphemes = lines.styled_graphemes();
 
-                    let lines = styled_graphemes.iter().map(|l| &l[..]).collect::<Vec<_>>();
+                    let lines = styled_graphemes
+                        .iter()
+                        .enumerate()
+                        .map(|(index, line)| RenderLine { index, line })
+                        .collect::<Vec<_>>();
 
                     let render = Render {
                         block: Block::default().borders(Borders::ALL),
@@ -366,6 +386,76 @@ mod tests {
                     ]
                 )
             }
+
+            #[test]
+            fn 二文字幅の文字で折り返り時にスペースが空くときパディングする() {
+                let (mut terminal, area) = setup_terminal(TERMINAL_WIDTH + 1, TERMINAL_HEIGHT);
+
+                let lines = vec![
+                    "あいうえおかきくけ",
+                    "こ",
+                    "アイウエオカキクケ",
+                    "コ",
+                    "ｱｲｳｴｵｶｷｸｹｺ",
+                    "一二三四五六七八九",
+                ];
+
+                let styled_graphemes = lines.styled_graphemes();
+
+                let lines = vec![
+                    RenderLine {
+                        index: 0,
+                        line: &styled_graphemes[0],
+                    },
+                    RenderLine {
+                        index: 0,
+                        line: &styled_graphemes[1],
+                    },
+                    RenderLine {
+                        index: 1,
+                        line: &styled_graphemes[2],
+                    },
+                    RenderLine {
+                        index: 1,
+                        line: &styled_graphemes[3],
+                    },
+                    RenderLine {
+                        index: 2,
+                        line: &styled_graphemes[4],
+                    },
+                    RenderLine {
+                        index: 3,
+                        line: &styled_graphemes[5],
+                    },
+                ];
+
+                let render = Render {
+                    block: Block::default().borders(Borders::ALL),
+                    lines: &lines,
+                    ..Default::default()
+                };
+
+                terminal
+                    .draw(|f| {
+                        f.render_widget(render, area);
+                    })
+                    .unwrap();
+
+                let expected = Buffer::with_lines(vec![
+                    "┌───────────────────┐",
+                    "│あいうえおかきくけ>│",
+                    "│こ                 │",
+                    "│アイウエオカキクケ>│",
+                    "│コ                 │",
+                    "│ｱｲｳｴｵｶｷｸｹｺ         │",
+                    "│一二三四五六七八九 │",
+                    "│                   │",
+                    "│                   │",
+                    "└───────────────────┘",
+                ]);
+
+                terminal.backend().assert_buffer(&expected);
+            }
         }
     }
 
@@ -387,13 +477,16 @@ mod tests {
 
                         let styled_graphemes = lines.styled_graphemes();
 
-                        let lines = styled_graphemes.iter().map(|l| &l[..]).collect::<Vec<_>>();
+                        let lines = styled_graphemes
+                            .iter()
+                            .enumerate()
+                            .map(|(index, line)| RenderLine { index, line })
+                            .collect::<Vec<_>>();
 
                         let render = Render {
                             block: Block::default().borders(Borders::ALL),
                             lines: &lines,
                             scroll: Scroll { x: 0, y: $scroll },
-                            ..Default::default()
                         };
 
                         terminal
@@ -525,13 +618,16 @@ mod tests {
 
                         let styled_graphemes = lines.styled_graphemes();
 
-                        let lines = styled_graphemes.iter().map(|l| &l[..]).collect::<Vec<_>>();
+                        let lines = styled_graphemes
+                            .iter()
+                            .enumerate()
+                            .map(|(index, line)| RenderLine { index, line })
+                            .collect::<Vec<_>>();
 
                         let render = Render {
                             block: Block::default().borders(Borders::ALL),
                             lines: &lines,
                             scroll: Scroll { x: $scroll, y: 0 },
-                            ..Default::default()
                         };
 
                         terminal
