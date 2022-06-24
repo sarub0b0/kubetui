@@ -29,7 +29,7 @@ use crate::{
 };
 
 use self::{
-    item::TextItem,
+    item::inner::TextItem,
     render::{Render, Scroll},
     styled_graphemes::StyledGrapheme,
 };
@@ -458,7 +458,7 @@ impl Text {
 
     pub fn scroll_y_last_index(&self) -> usize {
         self.item
-            .wrapped()
+            .wrapped_lines()
             .len()
             .saturating_sub(self.inner_chunk().height as usize)
     }
@@ -698,7 +698,7 @@ impl RenderTrait for Text {
                 .render_block(self.focusable() && selected)
         };
 
-        let wrapped_lines = self.item.wrapped();
+        let wrapped_lines = self.item.wrapped_lines();
 
         let lines: Vec<&[StyledGrapheme]> =
             wrapped_lines.iter().map(|wrapped| wrapped.line()).collect();
