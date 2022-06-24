@@ -300,7 +300,9 @@ impl TextItem {
     }
 
     pub fn select_nearest_highlight(&mut self, scroll_index: usize) -> Option<usize> {
-        let nearest_index = if let Some(highlights) = &mut self.highlights {
+        if let Some(highlights) = &mut self.highlights {
+            let index = highlights.index;
+
             let nearest_index = highlights
                 .item
                 .iter()
@@ -309,13 +311,9 @@ impl TextItem {
                 .map(|(i, _)| i)
                 .unwrap();
 
-            Some(nearest_index)
-        } else {
-            None
-        };
+            self.highlight_normal(index);
 
-        if let Some(index) = nearest_index {
-            self.highlight_color(index)
+            self.highlight_color(nearest_index)
         } else {
             None
         }
