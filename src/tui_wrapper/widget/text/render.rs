@@ -16,7 +16,7 @@ use tui::{
 };
 use unicode_width::UnicodeWidthStr;
 
-use super::styled_graphemes::StyledGrapheme;
+use super::{item::WrappedLine, styled_graphemes::StyledGrapheme};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Scroll {
@@ -24,16 +24,10 @@ pub struct Scroll {
     pub y: usize,
 }
 
-#[derive(Debug, Default)]
-pub struct RenderLine<'a> {
-    pub index: usize,
-    pub line: &'a [StyledGrapheme],
-}
-
 #[derive(Debug, Default, Clone)]
 pub struct Render<'a> {
     block: Block<'a>,
-    lines: &'a [RenderLine<'a>],
+    lines: &'a [WrappedLine],
     scroll: Scroll,
 }
 
@@ -45,7 +39,7 @@ impl<'a> RenderBuilder<'a> {
         self
     }
 
-    pub fn lines(mut self, lines: &'a [RenderLine<'a>]) -> Self {
+    pub fn lines(mut self, lines: &'a [WrappedLine]) -> Self {
         self.0.lines = lines;
         self
     }
@@ -79,7 +73,7 @@ impl Widget for Render<'_> {
         for (y, line) in self.lines.iter().skip(start).take(end).enumerate() {
             let mut x = 0;
 
-            let iter = LineIterator::new(line.line, self.scroll.x, text_area.width as usize);
+            let iter = LineIterator::new(line.line(), self.scroll.x, text_area.width as usize);
 
             for sg in iter {
                 let symbol = sg.symbol();
@@ -92,7 +86,7 @@ impl Widget for Render<'_> {
             }
 
             if let Some(next_line) = self.lines.get(y + 1) {
-                if line.index == next_line.index && x < area_width {
+                if line.index() == next_line.index() && x < area_width {
                     buf.get_mut(text_area.left() + x as u16, text_area.top() + y as u16)
                         .set_symbol(RENDER_RIGHT_PADDING.symbol())
                         .set_style(RENDER_RIGHT_PADDING.style);
@@ -290,11 +284,11 @@ mod tests {
 
                     let styled_graphemes = lines.styled_graphemes();
 
-                    let lines = styled_graphemes
+                    let lines: Vec<_> = styled_graphemes
                         .iter()
                         .enumerate()
-                        .map(|(index, line)| RenderLine { index, line })
-                        .collect::<Vec<_>>();
+                        .map(|(i, sg)| WrappedLine::new(i, sg))
+                        .collect();
 
                     let render = Render {
                         block: Block::default().borders(Borders::ALL),
@@ -403,30 +397,12 @@ mod tests {
                 let styled_graphemes = lines.styled_graphemes();
 
                 let lines = vec![
-                    RenderLine {
-                        index: 0,
-                        line: &styled_graphemes[0],
-                    },
-                    RenderLine {
-                        index: 0,
-                        line: &styled_graphemes[1],
-                    },
-                    RenderLine {
-                        index: 1,
-                        line: &styled_graphemes[2],
-                    },
-                    RenderLine {
-                        index: 1,
-                        line: &styled_graphemes[3],
-                    },
-                    RenderLine {
-                        index: 2,
-                        line: &styled_graphemes[4],
-                    },
-                    RenderLine {
-                        index: 3,
-                        line: &styled_graphemes[5],
-                    },
+                    WrappedLine::new(0, &styled_graphemes[0]),
+                    WrappedLine::new(0, &styled_graphemes[1]),
+                    WrappedLine::new(1, &styled_graphemes[2]),
+                    WrappedLine::new(1, &styled_graphemes[3]),
+                    WrappedLine::new(2, &styled_graphemes[4]),
+                    WrappedLine::new(3, &styled_graphemes[5]),
                 ];
 
                 let render = Render {
@@ -477,11 +453,11 @@ mod tests {
 
                         let styled_graphemes = lines.styled_graphemes();
 
-                        let lines = styled_graphemes
+                        let lines: Vec<_> = styled_graphemes
                             .iter()
                             .enumerate()
-                            .map(|(index, line)| RenderLine { index, line })
-                            .collect::<Vec<_>>();
+                            .map(|(i, sg)| WrappedLine::new(i, sg))
+                            .collect();
 
                         let render = Render {
                             block: Block::default().borders(Borders::ALL),
@@ -618,11 +594,11 @@ mod tests {
 
                         let styled_graphemes = lines.styled_graphemes();
 
-                        let lines = styled_graphemes
+                        let lines: Vec<_> = styled_graphemes
                             .iter()
                             .enumerate()
-                            .map(|(index, line)| RenderLine { index, line })
-                            .collect::<Vec<_>>();
+                            .map(|(i, sg)| WrappedLine::new(i, sg))
+                            .collect();
 
                         let render = Render {
                             block: Block::default().borders(Borders::ALL),

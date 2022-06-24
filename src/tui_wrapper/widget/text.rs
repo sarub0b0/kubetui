@@ -11,9 +11,7 @@ use derivative::Derivative;
 
 use tui::{
     backend::Backend,
-    buffer::Buffer,
     layout::{Constraint, Direction, Layout, Rect},
-    style::Style,
     widgets::{Block, Paragraph, Widget},
     Frame,
 };
@@ -30,8 +28,7 @@ use crate::{
 
 use self::{
     item::TextItem,
-    render::{Render, RenderLine, Scroll},
-    styled_graphemes::StyledGrapheme,
+    render::{Render, Scroll},
 };
 
 use super::{
@@ -743,17 +740,9 @@ impl RenderTrait for Text {
 
         let wrapped_lines = self.item.wrapped_lines();
 
-        let lines: Vec<RenderLine> = wrapped_lines
-            .iter()
-            .map(|wrapped| RenderLine {
-                index: wrapped.index(),
-                line: wrapped.line(),
-            })
-            .collect();
-
         let r = Render::builder()
             .block(block)
-            .lines(&lines)
+            .lines(wrapped_lines)
             .scroll(self.scroll)
             .build();
 

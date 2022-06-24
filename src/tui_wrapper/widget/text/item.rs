@@ -548,6 +548,13 @@ pub struct WrappedLine {
 }
 
 impl WrappedLine {
+    pub fn new(line_index: usize, slice: &[StyledGrapheme]) -> Self {
+        Self {
+            line_index,
+            slice_ptr: slice,
+        }
+    }
+
     #[inline]
     pub fn index(&self) -> usize {
         self.line_index
