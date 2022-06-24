@@ -29,7 +29,7 @@ use crate::{
 };
 
 use self::{
-    item::inner::TextItem,
+    item::TextItem,
     render::{Render, Scroll},
     styled_graphemes::StyledGrapheme,
 };
