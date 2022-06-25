@@ -433,7 +433,7 @@ async fn get_api_resources(
                 header_by_api_info(info) + &table.to_print()
             };
 
-            ret.push(data);
+            ret.extend(data.lines().map(ToString::to_string).collect::<Vec<_>>());
             ret.push("".to_string());
         }
     }

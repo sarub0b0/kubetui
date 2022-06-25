@@ -4,7 +4,7 @@ use crossbeam::channel::Receiver;
 
 use crate::{
     context::{Context, Namespace},
-    error::Result,
+    error::{Error, Result},
     event::{
         kubernetes::{
             api_resources::{ApiMessage, ApiResponse},
@@ -174,8 +174,8 @@ fn update_widget_item_for_vec(window: &mut Window, id: &str, vec: Result<Vec<Str
         Ok(i) => {
             widget.update_widget_item(Item::Array(i.into_iter().map(LiteralItem::from).collect()));
         }
-        Err(i) => {
-            widget.update_widget_item(Item::Array(vec![error_format!("{}", i).into()]));
+        Err(e) => {
+            widget.update_widget_item(Item::Array(vec![error_format!("{}", e).into()]));
         }
     }
 }
@@ -209,8 +209,15 @@ pub fn update_contents(
                         .collect();
                     widget.append_widget_item(Item::Array(array));
                 }
-                Err(i) => {
-                    widget.append_widget_item(Item::Array(vec![error_format!("{:?}", i).into()]));
+                Err(e) => {
+                    if let Some(Error::VecRaw(e)) = e.downcast_ref::<Error>() {
+                        widget.update_widget_item(Item::Array(
+                            e.iter().map(|i| LiteralItem::from(i.to_string())).collect(),
+                        ));
+                    } else {
+                        widget
+                            .append_widget_item(Item::Array(vec![error_format!("{:?}", e).into()]));
+                    }
                 }
             }
         }

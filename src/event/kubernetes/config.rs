@@ -214,7 +214,9 @@ struct SecretData(BTreeMap<String, String>);
 
 impl SecretData {
     fn to_string_key_values(&self) -> Vec<String> {
-        SecretDataToStringIterator::new(self.0.iter()).collect()
+        SecretDataToStringIterator::new(self.0.iter())
+            .flat_map(|line| line.lines().map(ToString::to_string).collect::<Vec<_>>())
+            .collect()
     }
 }
 
@@ -234,14 +236,31 @@ impl<'a> SecretDataToStringIterator<'a> {
 
 impl<'a> SecretDataToStringIterator<'a> {
     fn format_utf8(key: &str, value: &str, color: u8) -> String {
-        let newline = if value.contains('\n') { "\n" } else { "" };
-        format!(
-            "\x1b[{color}m{key}:\x1b[39m {newline}{value}",
-            color = color,
-            key = key,
-            value = value,
-            newline = newline
-        )
+        if value.contains('\n') {
+            let mut ret = format!("\x1b[{color}m{key}:\x1b[39m |\n", color = color, key = key);
+
+            value.lines().for_each(|l| {
+                ret += &format!("  {}\n", l);
+            });
+
+            ret
+        } else {
+            format!(
+                "\x1b[{color}m{key}:\x1b[39m {value}",
+                color = color,
+                key = key,
+                value = value,
+            )
+        }
+
+        // let newline = if value.contains('\n') { "\n" } else { "" };
+        // format!(
+        //     "\x1b[{color}m{key}:\x1b[39m {newline}{value}",
+        //     color = color,
+        //     key = key,
+        //     value = value,
+        //     newline = newline
+        // )
     }
 
     fn format_non_utf8(key: &str, value: &str, color: u8) -> String {
