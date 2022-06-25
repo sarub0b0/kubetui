@@ -13,6 +13,8 @@ pub enum Error {
     Kube(#[from] kube::Error),
     #[error("{0}")]
     Raw(String),
+    #[error("{0:?}")]
+    VecRaw(Vec<String>),
     #[error(transparent)]
     IO(#[from] std::io::Error),
 }
@@ -24,6 +26,8 @@ pub enum Error {
     Kube(#[from] kube::Error),
     #[error("{0}")]
     Raw(String),
+    #[error("{0:#?}")]
+    VecRaw(Vec<String>),
     #[error(transparent)]
     IO(#[from] std::io::Error),
     #[error(transparent)]
