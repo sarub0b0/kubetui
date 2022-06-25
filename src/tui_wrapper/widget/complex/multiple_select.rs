@@ -316,16 +316,26 @@ impl<'a> SelectForm<'a> {
     }
 
     fn filter_items(&self, items: &[LiteralItem]) -> Vec<LiteralItem> {
-        let mut ret: Vec<LiteralItem> = items
+        struct MatchedItem {
+            score: i64,
+            item: LiteralItem,
+        }
+
+        let mut ret: Vec<MatchedItem> = items
             .iter()
             .filter_map(|item| {
                 self.matcher
                     .fuzzy_match(&item.item, &self.filter)
-                    .map(|_| item.clone())
+                    .map(|score| MatchedItem {
+                        score,
+                        item: item.clone(),
+                    })
             })
             .collect();
-        ret.sort();
-        ret
+
+        ret.sort_by(|a, b| b.score.cmp(&a.score));
+
+        ret.into_iter().map(|i| i.item).collect()
     }
 
     fn focused_form(&mut self) -> &List<'a> {
