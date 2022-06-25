@@ -89,7 +89,7 @@ async fn get_event_table(client: &KubeClient, namespaces: &[String]) -> Result<V
 
     Ok(ok_only
         .iter()
-        .map(|v| {
+        .flat_map(|v| {
             v.row
                 .iter()
                 .enumerate()
@@ -101,6 +101,9 @@ async fn get_event_table(client: &KubeClient, namespaces: &[String]) -> Result<V
                     }
                     s
                 })
+                .lines()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
         })
         .collect())
 }

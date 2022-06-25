@@ -484,7 +484,7 @@ impl FetchLogStreamWorker {
                             .await?;
 
                         self.tx.send(
-                            LogStreamMessage::Response(Err(anyhow!(Error::Raw(msg),))).into(),
+                            LogStreamMessage::Response(Err(anyhow!(Error::VecRaw(msg),))).into(),
                         )?;
 
                         return Err(anyhow!(PodError::ContainerExitCodeNotZero(
@@ -608,7 +608,7 @@ impl FetchLogStreamWorker {
                                 .await?;
 
                             tx.send(
-                                LogStreamMessage::Response(Err(anyhow!(Error::Raw(msg)))).into(),
+                                LogStreamMessage::Response(Err(anyhow!(Error::VecRaw(msg)))).into(),
                             )?;
 
                             return Err(anyhow!(PodError::ContainerExitCodeNotZero(
@@ -632,7 +632,7 @@ impl FetchLogStreamWorker {
         container: Option<&Container>,
         status: &ContainerStatus,
         selector: &str,
-    ) -> Result<String> {
+    ) -> Result<Vec<String>> {
         fn time_to_string(time: &Time) -> String {
             time.0
                 .with_timezone(&Local)
@@ -756,7 +756,7 @@ impl FetchLogStreamWorker {
 
         msg.push(msg_footer);
 
-        Ok(msg.join("\n"))
+        Ok(msg)
     }
 }
 
