@@ -394,6 +394,8 @@ impl Text {
 /// - 検索モード終了時にハイライトを削除
 impl Text {
     pub fn search(&mut self) {
+        let is_bottom = self.is_bottom();
+
         self.mode.search_input();
 
         let word = self.search_widget.word();
@@ -411,6 +413,10 @@ impl Text {
             .select_nearest_highlight(self.search_nearest_highlight_target_index())
         {
             self.scroll.y = self.search_scroll(index);
+        }
+
+        if is_bottom {
+            self.select_last()
         }
     }
 
@@ -453,6 +459,10 @@ impl Text {
     pub fn search_cancel(&mut self) {
         self.mode.normal();
         self.item.clear_highlight();
+
+        if self.scroll_y_last_index() < self.scroll.y {
+            self.select_last()
+        }
     }
 
     /// 移動したいハイライトが中央になるスクロール位置を返す
