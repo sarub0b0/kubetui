@@ -8,6 +8,16 @@ use tui::style::{Modifier, Style};
 
 use search::Search;
 
+#[inline]
+fn highlight_modifier() -> Modifier {
+    Modifier::DIM | Modifier::REVERSED
+}
+
+#[inline]
+fn focused_highlight_modifier() -> Modifier {
+    Modifier::REVERSED
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Highlight {
     /// Graphemesのインデックス
@@ -276,7 +286,7 @@ impl TextItem {
             graphemes
                 .iter_mut()
                 .zip(hl.styles.iter())
-                .for_each(|(gs, style)| *gs.style_mut() = style.add_modifier(Modifier::REVERSED));
+                .for_each(|(gs, style)| *gs.style_mut() = style.add_modifier(highlight_modifier()));
         }
     }
 
@@ -289,7 +299,10 @@ impl TextItem {
 
             graphemes
                 .iter_mut()
-                .for_each(|gs| *gs.style_mut() = gs.style().add_modifier(Modifier::SLOW_BLINK));
+                .zip(hl.styles.iter())
+                .for_each(|(gs, style)| {
+                    *gs.style_mut() = style.add_modifier(focused_highlight_modifier())
+                });
 
             highlights.index = index;
 
@@ -483,7 +496,7 @@ impl Line {
                         .iter_mut()
                         .map(|i| {
                             let ret = *i.style();
-                            *i.style_mut() = i.style().add_modifier(Modifier::REVERSED);
+                            *i.style_mut() = i.style().add_modifier(highlight_modifier());
                             ret
                         })
                         .collect();
