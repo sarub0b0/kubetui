@@ -398,6 +398,10 @@ impl Text {
 
         self.mode.search_input();
 
+        if is_bottom {
+            self.select_last()
+        }
+
         let word = self.search_widget.word();
 
         if word.is_empty() {
@@ -413,10 +417,6 @@ impl Text {
             .select_nearest_highlight(self.search_nearest_highlight_target_index())
         {
             self.scroll.y = self.search_scroll(index);
-        }
-
-        if is_bottom {
-            self.select_last()
         }
     }
 
