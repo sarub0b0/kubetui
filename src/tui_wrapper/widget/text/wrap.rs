@@ -9,6 +9,10 @@ pub struct Wrap<'a> {
 
     /// 折り返し幅
     wrap_width: Option<usize>,
+
+    /// 空文字のときに1回だけからのStyledGraphemeを返すためのフラグ
+    is_empty: bool,
+    is_returned: bool,
 }
 
 pub trait WrapTrait {
@@ -20,6 +24,8 @@ impl WrapTrait for Vec<StyledGrapheme> {
         Wrap {
             line: &self[..],
             wrap_width,
+            is_empty: self.is_empty(),
+            is_returned: false,
         }
     }
 }
@@ -27,22 +33,31 @@ impl WrapTrait for Vec<StyledGrapheme> {
 impl<'a> Iterator for Wrap<'a> {
     type Item = &'a [StyledGrapheme];
     fn next(&mut self) -> Option<Self::Item> {
-        if self.line.is_empty() {
-            return None;
-        }
-
-        if let Some(wrap_width) = self.wrap_width {
-            let WrapResult { wrapped, remaining } = wrap(self.line, wrap_width);
-
-            self.line = remaining;
-
-            Some(wrapped)
+        if self.is_empty {
+            if self.is_returned {
+                None
+            } else {
+                self.is_returned = true;
+                Some(&[])
+            }
         } else {
-            let ret = self.line;
+            if self.line.is_empty() {
+                return None;
+            }
 
-            self.line = &[];
+            if let Some(wrap_width) = self.wrap_width {
+                let WrapResult { wrapped, remaining } = wrap(self.line, wrap_width);
 
-            Some(ret)
+                self.line = remaining;
+
+                Some(wrapped)
+            } else {
+                let ret = self.line;
+
+                self.line = &[];
+
+                Some(ret)
+            }
         }
     }
 }
