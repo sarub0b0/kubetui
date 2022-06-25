@@ -89,7 +89,11 @@ impl TextItem {
         let mut new = Self::new(item, wrap_width);
 
         if let Some(highlights) = highlights {
+            let prev_line_number = highlights.item[highlights.index].line_number;
+
             new.highlight(&highlights.word);
+
+            new.select_nearest_highlight(prev_line_number);
         }
 
         *self = new;
