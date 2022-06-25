@@ -4,18 +4,18 @@ use super::{
 };
 use crate::tui_wrapper::widget::LiteralItem;
 use std::ops::Range;
-use tui::style::{Modifier, Style};
+use tui::style::{Color, Modifier, Style};
 
 use search::Search;
 
 #[inline]
-fn highlight_modifier() -> Modifier {
-    Modifier::DIM | Modifier::REVERSED
+fn highlight_style(style: Style) -> Style {
+    style.add_modifier(Modifier::REVERSED)
 }
 
 #[inline]
-fn focused_highlight_modifier() -> Modifier {
-    Modifier::REVERSED
+fn focused_highlight_style(style: Style) -> Style {
+    style.fg(Color::Yellow).add_modifier(Modifier::REVERSED)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -286,7 +286,7 @@ impl TextItem {
             graphemes
                 .iter_mut()
                 .zip(hl.styles.iter())
-                .for_each(|(gs, style)| *gs.style_mut() = style.add_modifier(highlight_modifier()));
+                .for_each(|(gs, style)| *gs.style_mut() = highlight_style(*style));
         }
     }
 
@@ -300,9 +300,7 @@ impl TextItem {
             graphemes
                 .iter_mut()
                 .zip(hl.styles.iter())
-                .for_each(|(gs, style)| {
-                    *gs.style_mut() = style.add_modifier(focused_highlight_modifier())
-                });
+                .for_each(|(gs, style)| *gs.style_mut() = focused_highlight_style(*style));
 
             highlights.index = index;
 
@@ -496,7 +494,7 @@ impl Line {
                         .iter_mut()
                         .map(|i| {
                             let ret = *i.style();
-                            *i.style_mut() = i.style().add_modifier(highlight_modifier());
+                            *i.style_mut() = highlight_style(*i.style());
                             ret
                         })
                         .collect();
