@@ -3,7 +3,7 @@ mod render;
 mod styled_graphemes;
 mod wrap;
 
-use std::{cell::RefCell, rc::Rc};
+use std::{borrow::Borrow, cell::RefCell, rc::Rc};
 
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 
@@ -523,6 +523,10 @@ impl Text {
 
         self.widget_config.block().inner(chunk)
     }
+
+    fn is_bottom(&self) -> bool {
+        self.scroll.y == self.scroll_y_last_index()
+    }
 }
 
 impl Text {
@@ -587,6 +591,8 @@ impl<'a> WidgetTrait for Text {
     }
 
     fn append_widget_item(&mut self, item: Item) {
+        let is_bottom = self.is_bottom();
+
         match item {
             Item::Single(i) => self.item.push(i),
             Item::Array(i) => self.item.extend(i),
@@ -594,11 +600,21 @@ impl<'a> WidgetTrait for Text {
                 unreachable!()
             }
         }
+
+        if self.follow && is_bottom {
+            self.select_last()
+        }
     }
 
     fn update_widget_item(&mut self, item: Item) {
+        let is_bottom = self.is_bottom();
+
         let item = item.array();
         self.item.update(item);
+
+        if self.follow && is_bottom {
+            self.select_last()
+        }
     }
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
@@ -702,6 +718,8 @@ impl<'a> WidgetTrait for Text {
     }
 
     fn update_chunk(&mut self, chunk: Rect) {
+        let is_bottom = self.is_bottom();
+
         self.chunk = chunk;
 
         if self.wrap {
@@ -709,6 +727,14 @@ impl<'a> WidgetTrait for Text {
         };
 
         self.search_widget.update_chunk(chunk);
+
+        if self.follow && is_bottom {
+            self.select_last()
+        }
+
+        if self.scroll_y_last_index() < self.scroll.y || is_bottom {
+            self.select_last()
+        }
     }
 
     fn clear(&mut self) {
