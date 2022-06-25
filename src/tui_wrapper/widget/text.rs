@@ -679,11 +679,11 @@ impl<'a> WidgetTrait for Text {
                     self.search_cancel();
                 }
 
-                Char('n') => {
+                Char('n') if !self.mode.is_normal() => {
                     self.search_next();
                 }
 
-                Char('N') => {
+                Char('N') if !self.mode.is_normal() => {
                     self.search_prev();
                 }
 
