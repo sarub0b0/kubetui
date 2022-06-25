@@ -9,13 +9,15 @@ use tui::style::{Color, Modifier, Style};
 use search::Search;
 
 #[inline]
-fn highlight_style(style: Style) -> Style {
-    style.add_modifier(Modifier::REVERSED)
+fn highlight_style() -> Style {
+    Style::default().add_modifier(Modifier::REVERSED)
 }
 
 #[inline]
-fn focused_highlight_style(style: Style) -> Style {
-    style.fg(Color::Yellow).add_modifier(Modifier::REVERSED)
+fn focused_highlight_style() -> Style {
+    Style::default()
+        .fg(Color::Yellow)
+        .add_modifier(Modifier::REVERSED)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -289,8 +291,7 @@ impl TextItem {
 
             graphemes
                 .iter_mut()
-                .zip(hl.styles.iter())
-                .for_each(|(gs, style)| *gs.style_mut() = highlight_style(*style));
+                .for_each(|gs| *gs.style_mut() = highlight_style());
         }
     }
 
@@ -303,8 +304,7 @@ impl TextItem {
 
             graphemes
                 .iter_mut()
-                .zip(hl.styles.iter())
-                .for_each(|(gs, style)| *gs.style_mut() = focused_highlight_style(*style));
+                .for_each(|gs| *gs.style_mut() = focused_highlight_style());
 
             highlights.index = index;
 
@@ -498,7 +498,7 @@ impl Line {
                         .iter_mut()
                         .map(|i| {
                             let ret = *i.style();
-                            *i.style_mut() = highlight_style(*i.style());
+                            *i.style_mut() = highlight_style();
                             ret
                         })
                         .collect();
