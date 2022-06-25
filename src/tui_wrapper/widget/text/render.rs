@@ -85,13 +85,13 @@ impl Widget for Render<'_> {
                 x += symbol.width()
             }
 
-            if let Some(next_line) = self.lines.get(y + 1) {
+            if let Some(next_line) = self.lines.get(start + y + 1) {
                 if line.index() == next_line.index() && x < area_width {
                     buf.get_mut(text_area.left() + x as u16, text_area.top() + y as u16)
                         .set_symbol(RENDER_RIGHT_PADDING.symbol())
                         .set_style(RENDER_RIGHT_PADDING.style);
 
-                    x += " ".width()
+                    x += 1
                 }
             }
 
