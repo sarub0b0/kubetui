@@ -1,5 +1,5 @@
 apt:
-	apt-get install -y libxcb-shape0-dev libxcb-render0-dev libxcb-xfixes0-dev
+	apt-get install -y libxcb-shape0-dev libxcb-render0-dev libxcb-xfixes0-dev libssl-dev pkg-config
 
 build:
 	cargo build ${FLAGS}
