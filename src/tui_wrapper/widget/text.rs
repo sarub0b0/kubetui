@@ -3,7 +3,7 @@ mod render;
 mod styled_graphemes;
 mod wrap;
 
-use std::{borrow::Borrow, cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 
@@ -27,6 +27,7 @@ use crate::{
 };
 
 use self::{
+    highlight_content::{HighlightArea, HighlightContent, Point},
     item::TextItem,
     render::{Render, Scroll},
 };
@@ -38,62 +39,82 @@ use super::{
 type RenderBlockInjection = Rc<dyn Fn(&Text, bool) -> Block<'static>>;
 
 mod highlight_content {
-    use tui::text::Spans;
 
     #[derive(Debug, PartialEq)]
     pub enum RangeType {
+        /// ..
         Full,
+        /// start..
         StartLine(usize),
+        /// ..end
         EndLine(usize),
+        /// start..end
         Partial(usize, usize),
     }
 
     #[derive(Default, Debug, Copy, Clone)]
+    pub struct Point {
+        pub x: usize,
+        pub y: usize,
+    }
+
+    /// ハイライトの開始位置を終了位置を管理
+    /// 絶対位置
+    #[derive(Default, Debug, Copy, Clone)]
     pub struct HighlightArea {
-        start: (usize, usize),
-        end: (usize, usize),
+        /// x, y
+        start: Point,
+        /// x, y
+        end: Point,
     }
 
     impl HighlightArea {
-        pub fn start(mut self, start: (usize, usize)) -> Self {
-            self.start = start;
+        pub fn new() -> Self {
+            Self::default()
+        }
+
+        pub fn start(mut self, x: usize, y: usize) -> Self {
+            self.start = Point { x, y };
             self
         }
 
-        pub fn end(mut self, end: (usize, usize)) -> Self {
-            self.end = end;
+        pub fn end(mut self, x: usize, y: usize) -> Self {
+            self.end = Point { x, y };
             self
         }
 
-        pub fn update_pos(&mut self, pos: (usize, usize)) {
-            self.end = pos;
+        pub fn update_pos(&mut self, x: usize, y: usize) {
+            self.end = Point { x, y };
         }
 
+        /// 行ごとのハイライトの範囲
+        ///
+        /// 行番号と範囲の種類を返す
         pub fn highlight_ranges(&self) -> Vec<(usize, RangeType)> {
             use std::mem::swap;
 
             let mut area = *self;
 
-            if (area.end.1 < area.start.1)
-                || (area.start.1 == area.end.1 && area.end.0 < area.start.0)
+            if (area.end.y < area.start.y)
+                || (area.start.y == area.end.y && area.end.x < area.start.x)
             {
                 swap(&mut area.start, &mut area.end);
             }
 
-            let start = area.start.1;
-            let end = area.end.1;
+            let start = area.start.y;
+            let end = area.end.y;
 
             let mut ret = Vec::new();
             for i in start..=end {
                 match i {
                     i if start == i && end == i => {
-                        ret.push((i, RangeType::Partial(area.start.0, area.end.0)));
+                        ret.push((i, RangeType::Partial(area.start.x, area.end.x)));
                     }
                     i if start == i => {
-                        ret.push((i, RangeType::StartLine(area.start.0)));
+                        ret.push((i, RangeType::StartLine(area.start.x)));
                     }
                     i if end == i => {
-                        ret.push((i, RangeType::EndLine(area.end.0)));
+                        ret.push((i, RangeType::EndLine(area.end.x)));
                     }
                     _ => {
                         ret.push((i, RangeType::Full));
@@ -103,13 +124,45 @@ mod highlight_content {
 
             ret
         }
+
+        fn area(&self) -> Self {
+            use std::mem::swap;
+
+            let mut area = *self;
+
+            if (area.end.y < area.start.y)
+                || (area.start.y == area.end.y && area.end.x < area.start.x)
+            {
+                swap(&mut area.start, &mut area.end);
+            }
+
+            area
+        }
+
+        pub fn contains(&self, p: Point) -> bool {
+            let area = self.area();
+
+            let start = area.start;
+            let end = area.end;
+
+            if start.y <= p.y && p.y <= end.y {
+                if start.y == p.y && p.x < start.x {
+                    false
+                } else {
+                    !(end.y == p.y && end.x.saturating_sub(1) < p.x)
+                }
+            } else {
+                false
+            }
+        }
     }
 
     #[derive(Default, Debug, Clone)]
-    pub struct HighlightContent<'a> {
-        pub spans: Vec<Spans<'a>>,
+    pub struct HighlightContent {
+        /// 範囲選択されている座標
         pub area: HighlightArea,
-        pub copy_content: Vec<String>,
+
+        /// D&Dの間followをとめるためにTextItemに設定されているfollowを保存する
         pub follow: bool,
     }
 
@@ -121,9 +174,9 @@ mod highlight_content {
 
         #[test]
         fn move_up() {
-            let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+            let mut area = HighlightArea::default().start(10, 10).end(10, 10);
 
-            area.update_pos((11, 8));
+            area.update_pos(11, 8);
 
             assert_eq!(
                 area.highlight_ranges(),
@@ -137,9 +190,9 @@ mod highlight_content {
 
         #[test]
         fn move_down() {
-            let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+            let mut area = HighlightArea::default().start(10, 10).end(10, 10);
 
-            area.update_pos((10, 12));
+            area.update_pos(10, 12);
 
             assert_eq!(
                 area.highlight_ranges(),
@@ -153,9 +206,9 @@ mod highlight_content {
 
         #[test]
         fn move_left() {
-            let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+            let mut area = HighlightArea::default().start(10, 10).end(10, 10);
 
-            area.update_pos((0, 10));
+            area.update_pos(0, 10);
 
             assert_eq!(
                 area.highlight_ranges(),
@@ -165,9 +218,9 @@ mod highlight_content {
 
         #[test]
         fn move_right() {
-            let mut area = HighlightArea::default().start((10, 10)).end((10, 10));
+            let mut area = HighlightArea::default().start(10, 10).end(10, 10);
 
-            area.update_pos((20, 10));
+            area.update_pos(20, 10);
 
             assert_eq!(
                 area.highlight_ranges(),
@@ -371,6 +424,7 @@ pub struct Text {
     search_widget: SearchForm,
     /// 検索中、検索ワード入力中、オフの3つのモード
     mode: Mode,
+    highlight_content: Option<HighlightContent>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
     #[derivative(Debug = "ignore")]
@@ -551,6 +605,23 @@ impl Text {
     }
 }
 
+impl Text {
+    fn mouse_pos(&self, col: u16, row: u16) -> Point {
+        let inner_chunk = self.inner_chunk();
+        Point {
+            x: col.saturating_sub(inner_chunk.left()) as usize,
+            y: row.saturating_sub(inner_chunk.top()) as usize,
+        }
+    }
+
+    /// カーソル位置からWrappedLineのインデックスとStyleGraphemeのインデックスを求める
+    fn wrapped_line_indexes(&self, col: u16, row: u16) -> (usize, usize) {
+        let p = self.mouse_pos(col, row);
+
+        (0, p.y + self.scroll.y)
+    }
+}
+
 impl<'a> WidgetTrait for Text {
     fn id(&self) -> &str {
         &self.id
@@ -628,10 +699,44 @@ impl<'a> WidgetTrait for Text {
     }
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
+        if self.item.is_empty() {
+            return EventResult::Nop;
+        }
+
+        let pos = self.mouse_pos(ev.column, ev.row);
+
+        #[cfg(feature = "logging")]
+        ::log::debug!("Text: on_mouse_event: {:?}", pos);
+
         match ev.kind {
-            MouseEventKind::Down(MouseButton::Left) => {}
-            MouseEventKind::Drag(MouseButton::Left) => {}
-            MouseEventKind::Up(MouseButton::Left) => {}
+            MouseEventKind::Down(MouseButton::Left) => {
+                // posに該当するWrappedLineとStyleGraphemeのインデックスを探す
+
+                let (x, y) = (pos.x + self.scroll.x, pos.y + self.scroll.y);
+
+                let area = HighlightArea::new().start(x, y).end(x, y);
+
+                self.highlight_content = Some(HighlightContent {
+                    area,
+                    follow: self.follow,
+                });
+
+                self.follow = false;
+            }
+
+            MouseEventKind::Drag(MouseButton::Left) => {
+                if let Some(highlight_content) = &mut self.highlight_content {
+                    let (x, y) = (pos.x + self.scroll.x, pos.y + self.scroll.y);
+                    highlight_content.area = highlight_content.area.end(x, y);
+                }
+            }
+
+            // ハイライトの削除とクリップボードに保存
+            MouseEventKind::Up(MouseButton::Left) => {
+                if let Some(highlight_content) = &mut self.highlight_content {}
+
+                self.highlight_content = None;
+            }
             MouseEventKind::ScrollDown => {
                 self.select_next(5);
             }
@@ -776,11 +881,16 @@ impl RenderTrait for Text {
 
         let wrapped_lines = self.item.wrapped_lines();
 
-        let r = Render::builder()
+        let mut builder = Render::builder()
             .block(block)
             .lines(wrapped_lines)
-            .scroll(self.scroll)
-            .build();
+            .scroll(self.scroll);
+
+        if let Some(highlight_content) = &self.highlight_content {
+            builder = builder.highlight_area(Some(highlight_content.area));
+        }
+
+        let r = builder.build();
 
         match self.mode {
             Mode::Normal => {
