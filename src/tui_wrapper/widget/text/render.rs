@@ -276,7 +276,7 @@ mod tests {
         mod 枠あり {
             use super::*;
 
-            macro_rules! test {
+            macro_rules! render_test {
                 ($terminal_width:expr, $terminal_height:expr, $lines:expr, $expected:expr) => {{
                     let (mut terminal, area) = setup_terminal($terminal_width, $terminal_height);
 
@@ -310,7 +310,7 @@ mod tests {
 
             #[test]
             fn 文字列がない場合は枠のみを描画する() {
-                test!(
+                render_test!(
                     TERMINAL_WIDTH,
                     TERMINAL_HEIGHT,
                     vec![],
@@ -332,7 +332,7 @@ mod tests {
             #[test]
             fn 文字列が収まらない場合は収まる分だけ描画する() {
                 // cSpell:ignore abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqr
-                test!(
+                render_test!(
                     TERMINAL_WIDTH,
                     TERMINAL_HEIGHT,
                     vec![
@@ -357,7 +357,7 @@ mod tests {
 
             #[test]
             fn 二文字幅を含む文字列は枠内に収まるよう描画する() {
-                test!(
+                render_test!(
                     TERMINAL_WIDTH + 1,
                     TERMINAL_HEIGHT,
                     vec![
@@ -444,7 +444,7 @@ mod tests {
             mod 下にスクロール {
                 use super::*;
 
-                macro_rules! test {
+                macro_rules! render_test {
                     ($terminal_width:expr, $terminal_height:expr, $lines:expr, $expected:expr, $scroll:literal) => {{
                         let (mut terminal, area) =
                             setup_terminal($terminal_width, $terminal_height);
@@ -463,6 +463,7 @@ mod tests {
                             block: Block::default().borders(Borders::ALL),
                             lines: &lines,
                             scroll: Scroll { x: 0, y: $scroll },
+                            ..Default::default()
                         };
 
                         terminal
@@ -479,7 +480,7 @@ mod tests {
 
                 #[test]
                 fn 文字列の範囲外にスクロールしたとき何も描画しない() {
-                    test!(
+                    render_test!(
                         TERMINAL_WIDTH,
                         TERMINAL_HEIGHT,
                         vec![
@@ -505,7 +506,7 @@ mod tests {
 
                 #[test]
                 fn 指定した数だけスクロールする() {
-                    test!(
+                    render_test!(
                         TERMINAL_WIDTH,
                         TERMINAL_HEIGHT,
                         vec![
@@ -542,7 +543,7 @@ mod tests {
 
                 #[test]
                 fn 文字列の最後尾をいくつか描画できる() {
-                    test!(
+                    render_test!(
                         TERMINAL_WIDTH,
                         TERMINAL_HEIGHT,
                         vec![
@@ -585,7 +586,7 @@ mod tests {
             mod 右にスクロール {
                 use super::*;
 
-                macro_rules! test {
+                macro_rules! render_test {
                     ($terminal_width:expr, $terminal_height:expr, $lines:expr, $expected:expr, $scroll:literal) => {{
                         let (mut terminal, area) =
                             setup_terminal($terminal_width, $terminal_height);
@@ -604,6 +605,7 @@ mod tests {
                             block: Block::default().borders(Borders::ALL),
                             lines: &lines,
                             scroll: Scroll { x: $scroll, y: 0 },
+                            ..Default::default()
                         };
 
                         terminal
@@ -620,7 +622,7 @@ mod tests {
 
                 #[test]
                 fn 文字列の範囲外にスクロールしたとき何も描画しない() {
-                    test!(
+                    render_test!(
                         TERMINAL_WIDTH,
                         TERMINAL_HEIGHT,
                         vec![
@@ -647,7 +649,7 @@ mod tests {
                 #[test]
                 fn 指定した数だけスクロールする() {
                     // cSpell:ignore cdefghijklmnopqrst
-                    test!(
+                    render_test!(
                         TERMINAL_WIDTH,
                         TERMINAL_HEIGHT,
                         vec![
@@ -684,7 +686,7 @@ mod tests {
 
                 #[test]
                 fn 行頭で全角文字を表示する幅が足りないとき不等号を表示する() {
-                    test!(
+                    render_test!(
                         TERMINAL_WIDTH + 1,
                         TERMINAL_HEIGHT,
                         vec![
@@ -711,7 +713,7 @@ mod tests {
 
                 #[test]
                 fn 行末で全角文字を表示する幅が足りないとき不等号を表示する() {
-                    test!(
+                    render_test!(
                         TERMINAL_WIDTH + 1,
                         TERMINAL_HEIGHT,
                         vec![
