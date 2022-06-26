@@ -245,6 +245,10 @@ impl TextItem {
 
         (lines, wrapped_lines)
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.lines.is_empty()
+    }
 }
 
 impl TextItem {

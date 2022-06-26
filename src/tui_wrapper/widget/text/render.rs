@@ -16,7 +16,11 @@ use tui::{
 };
 use unicode_width::UnicodeWidthStr;
 
-use super::{item::WrappedLine, styled_graphemes::StyledGrapheme};
+use super::{
+    highlight_content::{HighlightArea, Point},
+    item::WrappedLine,
+    styled_graphemes::StyledGrapheme,
+};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Scroll {
@@ -29,6 +33,7 @@ pub struct Render<'a> {
     block: Block<'a>,
     lines: &'a [WrappedLine],
     scroll: Scroll,
+    highlight_area: Option<HighlightArea>,
 }
 
 pub struct RenderBuilder<'a>(Render<'a>);
@@ -46,6 +51,11 @@ impl<'a> RenderBuilder<'a> {
 
     pub fn scroll(mut self, scroll: Scroll) -> Self {
         self.0.scroll = scroll;
+        self
+    }
+
+    pub fn highlight_area(mut self, highlight_area: Option<HighlightArea>) -> Self {
+        self.0.highlight_area = highlight_area;
         self
     }
 
@@ -73,14 +83,31 @@ impl Widget for Render<'_> {
         for (y, line) in self.lines.iter().skip(start).take(end).enumerate() {
             let mut x = 0;
 
-            let iter = LineIterator::new(line.line(), self.scroll.x, text_area.width as usize);
+            let iter = LineIterator::new(line.line(), self.scroll.x, text_area.width as usize)
+                .collect::<Vec<_>>();
 
-            for sg in iter {
+            #[cfg(feature = "logging")]
+            {
+                let line = iter.iter().map(|sg| sg.symbol()).collect::<Vec<&str>>();
+                ::log::debug!("Text::render {:#?}", line);
+            }
+
+            for sg in iter.iter() {
                 let symbol = sg.symbol();
-                let style = sg.style();
+                let mut style = *sg.style();
+
+                if let Some(highlight_area) = self.highlight_area {
+                    if highlight_area.contains(Point {
+                        x: x as usize + self.scroll.x,
+                        y: y as usize + self.scroll.y,
+                    }) {
+                        style = style.add_modifier(Modifier::REVERSED);
+                    }
+                }
+
                 buf.get_mut(text_area.left() + x as u16, text_area.top() + y as u16)
                     .set_symbol(symbol)
-                    .set_style(*style);
+                    .set_style(style);
 
                 x += symbol.width()
             }
@@ -205,22 +232,20 @@ impl<'a> Iterator for LineIterator<'a> {
 
         let sg = &self.line[self.n];
         self.sum_width += sg.symbol().width();
+        self.n += 1;
 
         if sg.symbol().width() == 2
             && (self.sum_width + self.sum_width_offset).saturating_sub(self.scroll) == 1
         {
-            self.n += 1;
             self.sum_width -= 1;
             return Some(&RENDER_LEFT_PADDING);
         }
 
         if self.sum_width <= self.render_width {
-            self.n += 1;
             Some(sg)
         } else if sg.symbol().width() == 2
             && (self.sum_width).saturating_sub(self.render_width) == 1
         {
-            self.n += 1;
             self.sum_width -= 1;
             Some(&RENDER_RIGHT_PADDING)
         } else {
