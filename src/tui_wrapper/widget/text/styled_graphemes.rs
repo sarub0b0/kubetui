@@ -99,6 +99,7 @@ fn styled_graphemes(s: &str) -> Vec<StyledGrapheme> {
         .flat_map(|sg| {
             sg.symbol()
                 .graphemes(true)
+                .filter(|g| *g != "\n")
                 .map(|g| StyledGrapheme::new(g, sg.style))
                 .collect::<Vec<StyledGrapheme>>()
         })
@@ -111,6 +112,11 @@ fn styled_graphemes_symbols(s: &str) -> Vec<&'_ str> {
             AnsiEscapeSequence::Chars => Some(p.chars),
             _ => None,
         })
-        .flat_map(|chars| chars.graphemes(true).collect::<Vec<_>>())
+        .flat_map(|chars| {
+            chars
+                .graphemes(true)
+                .filter(|g| *g != "\n")
+                .collect::<Vec<_>>()
+        })
         .collect()
 }
