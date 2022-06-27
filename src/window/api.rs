@@ -69,7 +69,6 @@ impl<'a> ApiTabBuilder<'a> {
 
                 config.render_block(text.focusable() && selected)
             })
-            .action('/', open_subwin.clone())
             .action('f', open_subwin);
 
         if let Some(cb) = self.clipboard {

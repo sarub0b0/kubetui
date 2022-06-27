@@ -122,7 +122,7 @@ const RIGHT_HELP_TEXT: &[HelpBlock] = &[
         ],
     },
     HelpBlock {
-        title: "Input form",
+        title: "Input Form",
         bindings: &[
             KeyBindings {
                 keys: &["Ctrl-a", "Home"],
@@ -153,9 +153,26 @@ const RIGHT_HELP_TEXT: &[HelpBlock] = &[
     HelpBlock {
         title: "API / Yaml Tab",
         bindings: &[KeyBindings {
-            keys: &["f", "/"],
+            keys: &["f"],
             desc: "open select popup",
         }],
+    },
+    HelpBlock {
+        title: "Search (Only text view)",
+        bindings: &[
+            KeyBindings {
+                keys: &["/"],
+                desc: "open",
+            },
+            KeyBindings {
+                keys: &["q", "Esc"],
+                desc: "close",
+            },
+            KeyBindings {
+                keys: &["n", "N"],
+                desc: "goto next/prev match",
+            },
+        ],
     },
 ];
 
