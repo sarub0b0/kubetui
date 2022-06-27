@@ -162,15 +162,19 @@ const RIGHT_HELP_TEXT: &[HelpBlock] = &[
         bindings: &[
             KeyBindings {
                 keys: &["/"],
-                desc: "open",
+                desc: "enable search mode",
             },
             KeyBindings {
                 keys: &["q", "Esc"],
-                desc: "close",
+                desc: "disable search mode",
+            },
+            KeyBindings {
+                keys: &["Enter"],
+                desc: "confirm search word",
             },
             KeyBindings {
                 keys: &["n", "N"],
-                desc: "goto next/prev match",
+                desc: "goto next/prev word",
             },
         ],
     },
