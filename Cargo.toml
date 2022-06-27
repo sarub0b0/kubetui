@@ -64,8 +64,6 @@ anyhow = "1"
 async-trait = "0.1"
 ctrlc = { version = "3.2.2", features = ["termination"] }
 
-xcb = "1"
-
 [dev-dependencies]
 pretty_assertions = "1.2.1"
 indoc = "1.0.6"
