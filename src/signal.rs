@@ -1,5 +1,3 @@
-use std::io::Write;
-
 use crossterm::{
     cursor::Show,
     event::DisableMouseCapture,

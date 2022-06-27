@@ -567,6 +567,7 @@ pub struct WrappedLine {
 }
 
 impl WrappedLine {
+    #[cfg(test)]
     pub fn new(line_index: usize, slice: &[StyledGrapheme]) -> Self {
         Self {
             line_index,

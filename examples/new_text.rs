@@ -6,20 +6,19 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
-use tui::{backend::CrosstermBackend, layout::Rect, widgets::Widget, Terminal};
+use tui::{backend::CrosstermBackend, layout::Rect, Terminal};
 
 use kubetui::{
     signal::signal_handler,
     tui_wrapper::{
         event::EventResult,
-        widget::{LiteralItem, RenderTrait, Text, WidgetTrait},
+        widget::{RenderTrait, Text, WidgetTrait},
         Window, WindowEvent,
     },
 };
 
 // {{{ sample string
-const DATA: &str = r#"
-あいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえお
+const DATA: &str = r#"あいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえお
 012345あいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえお
 あいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえお012345
 apiVersion: v1

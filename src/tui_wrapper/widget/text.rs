@@ -13,7 +13,7 @@ use derivative::Derivative;
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
-    widgets::{Block, Paragraph, Widget},
+    widgets::{Block, Paragraph},
     Frame,
 };
 use unicode_width::UnicodeWidthStr;
@@ -40,18 +40,6 @@ use super::{
 type RenderBlockInjection = Rc<dyn Fn(&Text, bool) -> Block<'static>>;
 
 mod highlight_content {
-
-    #[derive(Debug, PartialEq)]
-    pub enum RangeType {
-        /// ..
-        Full,
-        /// start..
-        StartLine(usize),
-        /// ..end
-        EndLine(usize),
-        /// start..end
-        Partial(usize, usize),
-    }
 
     #[derive(Default, Debug, Copy, Clone)]
     pub struct Point {
@@ -82,48 +70,6 @@ mod highlight_content {
         pub fn end(mut self, x: usize, y: usize) -> Self {
             self.end = Point { x, y };
             self
-        }
-
-        pub fn update_pos(&mut self, x: usize, y: usize) {
-            self.end = Point { x, y };
-        }
-
-        /// 行ごとのハイライトの範囲
-        ///
-        /// 行番号と範囲の種類を返す
-        pub fn highlight_ranges(&self) -> Vec<(usize, RangeType)> {
-            use std::mem::swap;
-
-            let mut area = *self;
-
-            if (area.end.y < area.start.y)
-                || (area.start.y == area.end.y && area.end.x < area.start.x)
-            {
-                swap(&mut area.start, &mut area.end);
-            }
-
-            let start = area.start.y;
-            let end = area.end.y;
-
-            let mut ret = Vec::new();
-            for i in start..=end {
-                match i {
-                    i if start == i && end == i => {
-                        ret.push((i, RangeType::Partial(area.start.x, area.end.x)));
-                    }
-                    i if start == i => {
-                        ret.push((i, RangeType::StartLine(area.start.x)));
-                    }
-                    i if end == i => {
-                        ret.push((i, RangeType::EndLine(area.end.x)));
-                    }
-                    _ => {
-                        ret.push((i, RangeType::Full));
-                    }
-                }
-            }
-
-            ret
         }
 
         pub fn area(&self) -> Self {
@@ -165,69 +111,6 @@ mod highlight_content {
 
         /// D&Dの間followをとめるためにTextItemに設定されているfollowを保存する
         pub follow: bool,
-    }
-
-    #[cfg(test)]
-    mod highlight_area {
-
-        use super::*;
-        use pretty_assertions::assert_eq;
-
-        #[test]
-        fn move_up() {
-            let mut area = HighlightArea::default().start(10, 10).end(10, 10);
-
-            area.update_pos(11, 8);
-
-            assert_eq!(
-                area.highlight_ranges(),
-                vec![
-                    (8, RangeType::StartLine(11)),
-                    (9, RangeType::Full),
-                    (10, RangeType::EndLine(10)),
-                ]
-            )
-        }
-
-        #[test]
-        fn move_down() {
-            let mut area = HighlightArea::default().start(10, 10).end(10, 10);
-
-            area.update_pos(10, 12);
-
-            assert_eq!(
-                area.highlight_ranges(),
-                vec![
-                    (10, RangeType::StartLine(10)),
-                    (11, RangeType::Full),
-                    (12, RangeType::EndLine(10)),
-                ]
-            )
-        }
-
-        #[test]
-        fn move_left() {
-            let mut area = HighlightArea::default().start(10, 10).end(10, 10);
-
-            area.update_pos(0, 10);
-
-            assert_eq!(
-                area.highlight_ranges(),
-                vec![(10, RangeType::Partial(0, 10))]
-            )
-        }
-
-        #[test]
-        fn move_right() {
-            let mut area = HighlightArea::default().start(10, 10).end(10, 10);
-
-            area.update_pos(20, 10);
-
-            assert_eq!(
-                area.highlight_ranges(),
-                vec![(10, RangeType::Partial(10, 20))]
-            )
-        }
     }
 }
 
@@ -613,13 +496,6 @@ impl Text {
             x: col.saturating_sub(inner_chunk.left()) as usize,
             y: row.saturating_sub(inner_chunk.top()) as usize,
         }
-    }
-
-    /// カーソル位置からWrappedLineのインデックスとStyleGraphemeのインデックスを求める
-    fn wrapped_line_indexes(&self, col: u16, row: u16) -> (usize, usize) {
-        let p = self.mouse_pos(col, row);
-
-        (0, p.y + self.scroll.y)
     }
 }
 
