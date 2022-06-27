@@ -5,6 +5,7 @@ mod wrap;
 
 use std::{cell::RefCell, rc::Rc};
 
+use clipboard::ClipboardProvider;
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 
 use derivative::Derivative;
@@ -63,9 +64,9 @@ mod highlight_content {
     #[derive(Default, Debug, Copy, Clone)]
     pub struct HighlightArea {
         /// x, y
-        start: Point,
+        pub start: Point,
         /// x, y
-        end: Point,
+        pub end: Point,
     }
 
     impl HighlightArea {
@@ -125,7 +126,7 @@ mod highlight_content {
             ret
         }
 
-        fn area(&self) -> Self {
+        pub fn area(&self) -> Self {
             use std::mem::swap;
 
             let mut area = *self;
@@ -705,9 +706,6 @@ impl<'a> WidgetTrait for Text {
 
         let pos = self.mouse_pos(ev.column, ev.row);
 
-        #[cfg(feature = "logging")]
-        ::log::debug!("Text: on_mouse_event: {:?}", pos);
-
         match ev.kind {
             MouseEventKind::Down(MouseButton::Left) => {
                 // posに該当するWrappedLineとStyleGraphemeのインデックスを探す
@@ -733,7 +731,76 @@ impl<'a> WidgetTrait for Text {
 
             // ハイライトの削除とクリップボードに保存
             MouseEventKind::Up(MouseButton::Left) => {
-                if let Some(highlight_content) = &mut self.highlight_content {}
+                if let Some(highlight_content) = &mut self.highlight_content {
+                    let area = highlight_content.area.area();
+
+                    let lines = &self.item.wrapped_lines();
+
+                    let mut contents = String::new();
+
+                    let start = area.start;
+                    let end = area.end;
+
+                    for i in start.y..=end.y {
+                        let line = &lines[i];
+
+                        match i {
+                            i if start.y == i && end.y == i => {
+                                let len = line.line().len().saturating_sub(1);
+                                let start = start.x.min(len);
+                                let end = end.x.min(len);
+
+                                contents += &line.line()[start..=end]
+                                    .iter()
+                                    .map(|l| l.symbol())
+                                    .collect::<String>();
+                            }
+                            i if start.y == i => {
+                                let len = line.line().len().saturating_sub(1);
+                                let start = start.x;
+
+                                if len < start {
+                                    continue;
+                                }
+
+                                contents += &line.line()[start..]
+                                    .iter()
+                                    .map(|l| l.symbol())
+                                    .collect::<String>();
+                            }
+                            i if end.y == i => {
+                                let len = line.line().len().saturating_sub(1);
+                                let end = end.x.min(len);
+
+                                contents += &line.line()[..=end]
+                                    .iter()
+                                    .map(|l| l.symbol())
+                                    .collect::<String>();
+                            }
+                            _ => {
+                                contents +=
+                                    &line.line().iter().map(|l| l.symbol()).collect::<String>();
+                            }
+                        }
+
+                        if i != end.y {
+                            if let Some(next) = lines.get(i + 1) {
+                                if line.index() != next.index() {
+                                    contents.push('\n');
+                                }
+                            }
+                        }
+                    }
+
+                    if let Some(clipboard) = &mut self.clipboard {
+                        clipboard
+                            .borrow_mut()
+                            .set_contents(contents)
+                            .expect("Error: clipboard set contents")
+                    }
+
+                    self.follow = highlight_content.follow;
+                }
 
                 self.highlight_content = None;
             }

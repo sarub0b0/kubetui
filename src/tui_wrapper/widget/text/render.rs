@@ -86,12 +86,6 @@ impl Widget for Render<'_> {
             let iter = LineIterator::new(line.line(), self.scroll.x, text_area.width as usize)
                 .collect::<Vec<_>>();
 
-            #[cfg(feature = "logging")]
-            {
-                let line = iter.iter().map(|sg| sg.symbol()).collect::<Vec<&str>>();
-                ::log::debug!("Text::render {:#?}", line);
-            }
-
             for sg in iter.iter() {
                 let symbol = sg.symbol();
                 let mut style = *sg.style();
