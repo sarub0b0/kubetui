@@ -16,7 +16,8 @@ This is a TUI tool for monitoring kubernetes resources.
 - Specific resources watching (Table / Yaml)
 - Namespace multiple selections
 - Context selection
-- Support unix like key bindings
+- Search mode
+- Support clipboard (only mouse action)
 - Support mouse event
 
 ## Command Option
@@ -43,9 +44,13 @@ General
 | ------------------------------------ | ------------------------------------------------------------------------------ |
 | <kbd>h</kbd>, <kbd>?</kbd>           | Open the popup for help                                                        |
 | <kbd>n</kbd>                         | Open the popup for selecting the namespace                                     |
+| <kbd>N</kbd>                         | Open the popup for selecting the namespaces                                    |
 | <kbd>c</kbd>                         | Open the popup for selecting the context                                       |
 | <kbd>Shift+n</kbd>                   | Open the popup for selecting multiple namespaces                               |
-| <kbd>f</kbd>, <kbd>/</kbd>           | Open the popup for selecting multiple api-resources (**only APIs / Yaml tab**) |
+| <kbd>f</kbd>                         | Open the popup for selecting multiple api-resources (**only APIs / Yaml tab**) |
+| <kbd>/</kbd>                         | Enable search mode (**only text view**)                                        |
+| <kbd>n</kbd> ,<kbd>N</kbd>           | Goto next / previous match (**when search mode is enabled**)                   |
+| <kbd>q</kbd> ,<kbd>Esc</kbd>         | Disable search mode (**when search mode is enabled**)                          |
 | <kbd>Tab</kbd>, <kbd>Shift+Tab</kbd> | Change the focus of view within the active tab                                 |
 | <kbd>number</kbd>                    | Switch the tab (number: 1~4)                                                   |
 | <kbd>ESC</kbd>                       | Close the window, or terminate the app (when the popup is not opening)         |
