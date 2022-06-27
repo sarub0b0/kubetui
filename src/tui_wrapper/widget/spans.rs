@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use tui::{
     style::Style,
     text::{Span, Spans},
