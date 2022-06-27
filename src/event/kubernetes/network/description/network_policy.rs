@@ -160,6 +160,7 @@ mod extract {
                     ..Default::default()
                 },
                 spec: self.spec.clone(),
+                status: None,
             }
         }
     }
