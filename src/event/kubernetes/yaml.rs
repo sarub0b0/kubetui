@@ -194,7 +194,7 @@ pub mod fetch_resource_list {
                         item.metadata.name.map(|name| YamlResourceListItem {
                             namespace: self.ns.to_string(),
                             name: name.to_string(),
-                            kind: self.kind.to_string(),
+                            kind: self.api.resource_full_name(),
                             value: name,
                         })
                     })
