@@ -158,6 +158,14 @@ impl APIInfo {
             format!("apis/{}/{}", self.api_group, self.api_group_version)
         }
     }
+
+    pub fn resource_full_name(&self) -> String {
+        if self.api_group.is_empty() {
+            self.api_resource.name.to_string()
+        } else {
+            format!("{}.{}", self.api_resource.name, self.api_group)
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -266,11 +274,7 @@ fn convert_api_database(api_info_list: &[APIInfo]) -> InnerApiDatabase {
     let mut db: HashMap<String, APIInfo> = HashMap::new();
 
     for info in api_info_list {
-        let api_name = if info.api_group.is_empty() {
-            info.api_resource.name.to_string()
-        } else {
-            format!("{}.{}", info.api_resource.name, info.api_group)
-        };
+        let api_name = info.resource_full_name();
 
         let mut is_insert = false;
         if db.contains_key(&api_name) {
