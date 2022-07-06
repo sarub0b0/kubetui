@@ -615,7 +615,10 @@ impl<'a> WidgetTrait for Text {
                     let mut contents = String::new();
 
                     let start = area.start;
-                    let end = area.end;
+                    let end = Point {
+                        x: area.end.x,
+                        y: area.end.y.min(lines.len().saturating_sub(1)),
+                    };
 
                     for i in start.y..=end.y {
                         let line = &lines[i];
