@@ -53,7 +53,7 @@ where
 
         let related_ingresses: Option<List<Ingress>> =
             RelatedClient::new(self.client, &self.namespace)
-                .related_resources(&vec![service.name()])
+                .related_resources(&vec![service.name_any()])
                 .await?;
 
         let related_pods: Option<List<Pod>> = if let Some(ServiceSpec {

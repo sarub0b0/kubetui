@@ -501,7 +501,11 @@ pub mod to_list_value {
 
     impl<R: ResourceList> ToListValue for R {
         fn to_list_value(&self) -> Option<Value> {
-            let ret: Vec<Value> = self.list().iter().map(|r| Value::from(r.name())).collect();
+            let ret: Vec<Value> = self
+                .list()
+                .iter()
+                .map(|r| Value::from(r.name_any()))
+                .collect();
             if !ret.is_empty() {
                 Some(ret.into())
             } else {

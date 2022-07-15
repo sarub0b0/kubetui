@@ -19,7 +19,7 @@ impl Filter<Vec<String>> for List<Service> {
         let ret: Vec<Service> = self
             .items
             .iter()
-            .filter(|svc| arg.iter().any(|name| &svc.name() == name))
+            .filter(|svc| arg.iter().any(|name| &svc.name_any() == name))
             .cloned()
             .collect();
 

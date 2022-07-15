@@ -248,7 +248,7 @@ async fn namespace_list(client: KubeClient) -> Vec<String> {
     let lp = ListParams::default();
     let ns_list = namespaces.list(&lp).await.unwrap();
 
-    ns_list.iter().map(|ns| ns.name()).collect()
+    ns_list.iter().map(|ns| ns.name_any()).collect()
 }
 
 #[derive(Debug, Default, Clone)]
@@ -659,7 +659,7 @@ mod inner {
                 let lp = ListParams::default();
                 let list = api.list(&lp).await?;
 
-                let vec: Vec<String> = list.iter().map(|ns| ns.name()).collect();
+                let vec: Vec<String> = list.iter().map(|ns| ns.name_any()).collect();
 
                 *state_namespaces = vec;
             }

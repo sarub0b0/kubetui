@@ -51,7 +51,7 @@ impl<'a, C: KubeClientRequest> Fetch<'a, C> for PodDescriptionWorker<'a, C> {
             .await?;
 
         let related_ingresses: Option<List<Ingress>> = if let Some(services) = &related_services {
-            let services = services.items.iter().map(|svc| svc.name()).collect();
+            let services = services.items.iter().map(|svc| svc.name_any()).collect();
 
             RelatedClient::new(self.client, &self.namespace)
                 .related_resources::<Ingress, _>(&services)
