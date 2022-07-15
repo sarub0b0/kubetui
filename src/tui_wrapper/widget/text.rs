@@ -96,7 +96,7 @@ mod highlight_content {
                 if start.y == p.y && p.x < start.x {
                     false
                 } else {
-                    !(end.y == p.y && end.x.saturating_sub(1) < p.x)
+                    !(end.y == p.y && end.x < p.x)
                 }
             } else {
                 false
