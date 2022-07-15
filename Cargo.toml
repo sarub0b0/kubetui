@@ -27,7 +27,7 @@ clap = { version = "3", features = ["wrap_help", "derive", "cargo"] }
 nom = "7.1.1"
 
 # clipboard
-clipboard = "0.5"
+clipboard = { git = "https://github.com/sarub0b0/rust-clipboard.git" }
 base64 = "0.13"
 wsl = "0.1"
 
