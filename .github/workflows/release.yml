@@ -81,7 +81,7 @@ jobs:
           mkdir /tmp/build
           cd /tmp/build
 
-          curl -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_1k.tar.gz | tar --strip-components=1 -xzf -
+          curl -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_1q.tar.gz | tar --strip-components=1 -xzf -
 
           export CC=musl-gcc
 
