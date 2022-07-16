@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
 
@@ -37,7 +37,7 @@ jobs:
 
       - run: cargo build --release --target $env:TARGET
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: ${{ env.TARGET }}
           path: target/${{ env.TARGET }}/release/kubetui.exe
@@ -58,7 +58,7 @@ jobs:
       OPENSSL_STATIC: true
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install Packages
         run: |
@@ -108,7 +108,7 @@ jobs:
           fi
           cargo build --release --target ${{ matrix.target }}
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.target }}
           path: target/${{ matrix.target }}/release/kubetui
@@ -121,7 +121,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -130,7 +130,7 @@ jobs:
 
       - run: cargo build --release --target $TARGET
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: ${{ env.TARGET }}
           path: target/${{ env.TARGET }}/release/kubetui
@@ -161,12 +161,12 @@ jobs:
 
     steps:
       - name: Download binaries
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: ${{ matrix.target }}
 
       - name: Upload binaries to release
-        uses: svenstaro/upload-release-action@v2
+        uses: svenstaro/upload-release-action@v3
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ${{ matrix.artifact_name }}
