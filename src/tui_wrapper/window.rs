@@ -13,7 +13,10 @@ use tui::{
 
 use unicode_width::UnicodeWidthStr;
 
-use crate::event::{kubernetes::Kube, UserEvent};
+use crate::{
+    event::{kubernetes::Kube, UserEvent},
+    logger,
+};
 
 use super::{
     event::{EventResult, InnerCallback},
@@ -212,8 +215,7 @@ impl<'a> Window<'a> {
 
     pub fn match_callback(&self, ev: UserEvent) -> Option<InnerCallback> {
         self.callbacks.iter().find_map(|(cb_ev, cb)| {
-            #[cfg(feature = "logging")]
-            log::debug!("match_callback {:?} <=> {:?}", ev, cb_ev);
+            logger!(debug, "match_callback {:?} <=> {:?}", ev, cb_ev);
 
             if *cb_ev == ev {
                 Some(cb.clone())

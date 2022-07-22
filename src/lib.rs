@@ -5,9 +5,7 @@ pub mod config;
 pub mod context;
 pub mod error;
 pub mod event;
+pub mod logging;
 pub mod signal;
 pub mod tui_wrapper;
 pub mod window;
-
-#[cfg(feature = "logging")]
-pub mod logging;

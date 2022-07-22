@@ -11,6 +11,7 @@ use kubetui::{
     config::{configure, Config},
     context::{Context, Namespace},
     event::{input::read_key, kubernetes::KubeWorker, tick::tick, Event},
+    logging::Logger,
     signal::signal_handler,
     tui_wrapper::WindowEvent,
     window::WindowInit,
@@ -28,9 +29,6 @@ use std::{
 use tui::{
     backend::Backend, backend::CrosstermBackend, layout::Rect, Terminal, TerminalOptions, Viewport,
 };
-
-#[cfg(feature = "logging")]
-use kubetui::logging::logging;
 
 macro_rules! enable_raw_mode {
     () => {
@@ -168,9 +166,6 @@ fn run(config: Config) -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    #[cfg(feature = "logging")]
-    logging();
-
     signal_handler();
 
     let default_hook = panic::take_hook();
@@ -185,6 +180,10 @@ fn main() -> Result<()> {
 
     let config = configure();
 
+    if config.logging {
+        Logger::init()?;
+    }
+
     enable_raw_mode!();
 
     let result = run(config);
@@ -192,4 +191,6 @@ fn main() -> Result<()> {
     disable_raw_mode!();
 
     result
+
+    // Ok(())
 }

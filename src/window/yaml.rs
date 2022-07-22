@@ -5,6 +5,7 @@ use crate::{
     action::view_id,
     clipboard_wrapper::ClipboardContextWrapper,
     event::{kubernetes::yaml::YamlRequest, Event},
+    logger,
     tui_wrapper::{
         event::EventResult,
         tab::WidgetData,
@@ -87,8 +88,7 @@ impl<'a> YamlTabBuilder<'a> {
             .id(view_id::popup_yaml_kind)
             .widget_config(&WidgetConfig::builder().title("Kind").build())
             .on_select(move |w, v| {
-                #[cfg(feature = "logging")]
-                ::log::info!("[subwin_yaml_kind] Select Item: {:?}", v);
+                logger!(info, "Select Item: {:?}", v);
 
                 w.close_popup();
 
@@ -109,8 +109,7 @@ impl<'a> YamlTabBuilder<'a> {
             .id(view_id::popup_yaml_name)
             .widget_config(&WidgetConfig::builder().title("Name").build())
             .on_select(move |w, v| {
-                #[cfg(feature = "logging")]
-                ::log::info!("[subwin_yaml_name] Select Item: {:?}", v);
+                logger!(info, "Select Item: {:?}", v);
 
                 w.close_popup();
 

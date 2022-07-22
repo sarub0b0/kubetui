@@ -3,9 +3,9 @@ use std::sync::{
     Arc,
 };
 
-use crate::panic_set_hook;
+use crate::{logger, panic_set_hook};
 
-use super::*;
+use super::Event;
 use anyhow::Result;
 use crossbeam::channel::Sender;
 
@@ -13,6 +13,8 @@ use tokio::runtime::Runtime;
 use tokio::time;
 
 pub fn tick(tx: Sender<Event>, rate: time::Duration, is_terminated: Arc<AtomicBool>) -> Result<()> {
+    logger!(info, "Start tick event");
+
     let is_terminated_panic = is_terminated.clone();
     panic_set_hook!({
         is_terminated_panic.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -36,8 +38,7 @@ pub fn tick(tx: Sender<Event>, rate: time::Duration, is_terminated: Arc<AtomicBo
 
     is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
 
-    #[cfg(feature = "logging")]
-    log::debug!("Terminated tick event");
+    logger!(info, "Terminated tick event");
 
     ret
 }

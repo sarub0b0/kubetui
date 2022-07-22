@@ -107,8 +107,11 @@ pub mod fetch_resource_list {
     mod not_namespaced {
         use anyhow::Result;
 
-        use crate::event::kubernetes::{
-            api_resources::APIInfo, client::KubeClientRequest, yaml::YamlResourceListItem,
+        use crate::{
+            event::kubernetes::{
+                api_resources::APIInfo, client::KubeClientRequest, yaml::YamlResourceListItem,
+            },
+            logger,
         };
 
         use super::List;
@@ -126,11 +129,11 @@ pub mod fetch_resource_list {
 
             pub(super) async fn fetch(&self) -> Result<Vec<YamlResourceListItem>> {
                 let path = format!("{}/{}", self.api.api_url(), self.kind);
+                logger!(info, "Fetching resource [{}]", path);
 
                 let res: List = self.client.request(&path).await?;
 
-                #[cfg(feature = "logging")]
-                ::log::debug!("Fetch Resource List {:#?}", res);
+                logger!(info, "Fetched resource - {:?}", res);
 
                 Ok(res
                     .items
@@ -151,8 +154,11 @@ pub mod fetch_resource_list {
     mod single_namespace {
         use anyhow::Result;
 
-        use crate::event::kubernetes::{
-            api_resources::APIInfo, client::KubeClientRequest, yaml::YamlResourceListItem,
+        use crate::{
+            event::kubernetes::{
+                api_resources::APIInfo, client::KubeClientRequest, yaml::YamlResourceListItem,
+            },
+            logger,
         };
 
         use super::List;
@@ -182,10 +188,11 @@ pub mod fetch_resource_list {
                     self.kind
                 );
 
+                logger!(info, "Fetching resource [{}]", path);
+
                 let res: List = self.client.request(&path).await?;
 
-                #[cfg(feature = "logging")]
-                ::log::debug!("Fetch Resource List {:#?}", res);
+                logger!(info, "Fetched resource - {:?}", res);
 
                 Ok(res
                     .items
@@ -346,6 +353,8 @@ pub mod fetch_resource_list {
 }
 
 pub mod worker {
+    use crate::logger;
+
     use super::*;
 
     #[derive(Debug, Clone)]
@@ -430,6 +439,14 @@ pub mod worker {
         name: String,
         ns: String,
     ) -> Result<Vec<String>> {
+        logger!(
+            info,
+            "Fetching resource target [kind={} ns={} name={}]",
+            kind,
+            ns,
+            name
+        );
+
         let api = api_database
             .get(&kind)
             .ok_or_else(|| Error::Raw(format!("Can't get {} from API Database", kind)))?;
@@ -442,10 +459,11 @@ pub mod worker {
             format!("{}/{}/{}", api.api_url(), kind, name)
         };
 
+        logger!(info, "Fetching resource [{}]", path);
+
         let res = client.request_text(&path).await?;
 
-        #[cfg(feature = "logging")]
-        ::log::debug!("Fetch Resource yaml {}", res);
+        logger!(info, "Fetched resource - {}", res);
 
         // yaml dataに変換
         let yaml_data: serde_yaml::Value = serde_json::from_str(&res)?;

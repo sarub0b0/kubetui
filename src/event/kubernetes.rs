@@ -33,7 +33,7 @@ use tokio::{
     task::{self, JoinHandle},
 };
 
-use crate::panic_set_hook;
+use crate::{logger, panic_set_hook};
 
 use self::{
     api_resources::{
@@ -288,6 +288,8 @@ impl KubeWorker {
     }
 
     pub fn run(&self) -> Result<()> {
+        logger!(info, "Start tick event");
+
         let is_terminated_panic = self.is_terminated.clone();
         panic_set_hook!({
             is_terminated_panic.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -309,8 +311,7 @@ impl KubeWorker {
             }
         };
 
-        #[cfg(feature = "logging")]
-        ::log::debug!("Terminated tick event");
+        logger!(info, "Terminated tick event");
 
         if let Err(e) = ret {
             self.is_terminated

@@ -53,6 +53,10 @@ pub struct Config {
     /// kubeconfig path
     #[clap(short = 'C', long, display_order = 1000)]
     pub kubeconfig: Option<PathBuf>,
+
+    /// Logging
+    #[clap(short = 'l', long, parse(from_flag), display_order = 1000)]
+    pub logging: bool,
 }
 
 impl Config {

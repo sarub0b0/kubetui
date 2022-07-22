@@ -6,16 +6,18 @@ use std::{
     time::Duration,
 };
 
-use crate::panic_set_hook;
-
-use super::*;
+use crate::{logger, panic_set_hook};
 
 use anyhow::Result;
 use crossbeam::channel::Sender;
 
 use crossterm::event::{poll, read, Event as CEvent};
 
+use super::{Event, UserEvent};
+
 pub fn read_key(tx: Sender<Event>, is_terminated: Arc<AtomicBool>) -> Result<()> {
+    logger!(info, "Start read-key event");
+
     let is_terminated_panic = is_terminated.clone();
     panic_set_hook!({
         is_terminated_panic.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -26,8 +28,7 @@ pub fn read_key(tx: Sender<Event>, is_terminated: Arc<AtomicBool>) -> Result<()>
             if let Ok(true) = poll(Duration::from_secs(1)) {
                 let ev = read()?;
 
-                #[cfg(feature = "logging")]
-                log::debug!("{:?}", ev);
+                logger!(debug, "{:?}", ev);
 
                 match ev {
                     CEvent::Key(ev) => tx.send(Event::User(UserEvent::Key(ev)))?,
@@ -42,8 +43,7 @@ pub fn read_key(tx: Sender<Event>, is_terminated: Arc<AtomicBool>) -> Result<()>
 
     is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
 
-    #[cfg(feature = "logging")]
-    log::debug!("Terminated read-key event");
+    logger!(info, "Terminated read-key event");
 
     ret
 }

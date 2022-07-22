@@ -4,7 +4,10 @@ use serde::de::DeserializeOwned;
 use http::header::{HeaderValue, ACCEPT};
 use kube::{api::Request, Client};
 
-use crate::error::{anyhow, Error, Result};
+use crate::{
+    error::{anyhow, Error, Result},
+    logger,
+};
 
 const TABLE_REQUEST_HEADER: &str = "application/json;as=Table;v=v1;g=meta.k8s.io,application/json;as=Table;v=v1beta1;g=meta.k8s.io,application/json";
 
@@ -55,8 +58,7 @@ impl KubeClient {
             .headers_mut()
             .insert(ACCEPT, HeaderValue::from_str(header)?);
 
-        #[cfg(feature = "logging")]
-        ::log::debug!("HTTP request {:?}", request);
+        logger!(debug, "HTTP request {:?}", request);
 
         let ret = self.client.request(request).await;
 
@@ -91,8 +93,7 @@ impl KubeClientRequest for KubeClient {
             .headers_mut()
             .insert(ACCEPT, HeaderValue::from_str("application/json")?);
 
-        #[cfg(feature = "logging")]
-        ::log::debug!("HTTP request {:?}", request);
+        logger!(debug, "HTTP request {:?}", request);
 
         let ret = self.client.request_text(request).await;
 

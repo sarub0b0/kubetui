@@ -56,11 +56,3 @@ macro_rules! panic_set_hook {
         }));
     };
 }
-
-// #[macro_export]
-// macro_rules! log {
-//     ($($arg:tt)+) => {
-//         #[cfg(feature = "logging")]
-//         ::log::error!($($arg)+);
-//     };
-// }

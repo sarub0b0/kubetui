@@ -13,9 +13,12 @@ use tui::{
 
 use unicode_width::UnicodeWidthStr;
 
-use crate::tui_wrapper::{
-    event::{Callback, EventResult},
-    key_event_to_code, Window,
+use crate::{
+    logger,
+    tui_wrapper::{
+        event::{Callback, EventResult},
+        key_event_to_code, Window,
+    },
 };
 
 use super::{
@@ -650,9 +653,9 @@ impl RenderTrait for Table<'_> {
 
         f.render_stateful_widget(widget, self.chunk, &mut self.state);
 
-        #[cfg(feature = "logging")]
-        log::debug!(
-            "table::state selected {:?}, offset {} ",
+        logger!(
+            debug,
+            "selected {:?}, offset {} ",
             self.state.selected(),
             self.state.offset()
         );
