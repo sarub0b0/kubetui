@@ -152,6 +152,7 @@ mod inner_item {
 }
 
 type RenderBlockInjection = Rc<dyn Fn(&List, bool) -> Block<'static>>;
+type OnSelectCallback = Rc<dyn Fn(&mut Window, &LiteralItem) -> EventResult>;
 
 use inner_item::InnerItem;
 #[derive(Derivative)]
@@ -164,7 +165,7 @@ pub struct List<'a> {
     chunk: Rect,
     inner_chunk: Rect,
     #[derivative(Debug = "ignore")]
-    on_select: Option<Rc<dyn Fn(&mut Window, &LiteralItem) -> EventResult>>,
+    on_select: Option<OnSelectCallback>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
 }
@@ -177,7 +178,7 @@ pub struct ListBuilder {
     items: Vec<LiteralItem>,
     state: ListState,
     #[derivative(Debug = "ignore")]
-    on_select: Option<Rc<dyn Fn(&mut Window, &LiteralItem) -> EventResult>>,
+    on_select: Option<OnSelectCallback>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
 }
@@ -245,7 +246,7 @@ impl<'a> List<'a> {
 
     pub fn on_select_mut(
         &mut self,
-    ) -> &mut Option<Rc<dyn Fn(&mut Window, &LiteralItem) -> EventResult>> {
+    ) -> &mut Option<OnSelectCallback> {
         &mut self.on_select
     }
 

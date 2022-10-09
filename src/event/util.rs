@@ -19,7 +19,7 @@ pub fn age(duration: Duration) -> String {
     if 0 < minutes {
         return format!("{}m", minutes);
     }
-    return format!("{}s", seconds);
+    format!("{}s", seconds)
 }
 
 #[allow(dead_code)]
