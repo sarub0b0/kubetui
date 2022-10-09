@@ -290,6 +290,7 @@ fn main() {
 
                             WindowEvent::Continue
                         }
+                        _ => WindowEvent::Continue,
                     },
                     Err(_) => break,
                 }
