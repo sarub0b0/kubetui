@@ -66,10 +66,7 @@ impl WindowInit {
         // Configure Action
         let tx = self.tx.clone();
         let builder = builder.action(
-            UserEvent::Key(KeyEvent {
-                code: KeyCode::Char('N'),
-                modifiers: KeyModifiers::SHIFT,
-            }),
+            UserEvent::Key(KeyEvent::new(KeyCode::Char('N'), KeyModifiers::SHIFT)),
             move |w| {
                 tx.send(NamespaceRequest::Get.into()).unwrap();
                 w.open_popup(view_id::popup_ns);
