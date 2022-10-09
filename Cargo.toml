@@ -20,7 +20,7 @@ new-text = []
 
 [dependencies]
 crossbeam = "0.8"
-clap = { version = "3", features = ["wrap_help", "derive", "cargo"] }
+clap = { version = "4", features = ["wrap_help", "derive", "cargo"] }
 
 # ansi
 nom = "7.1.1"
