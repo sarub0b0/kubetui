@@ -84,12 +84,11 @@ async fn wait_container_log(
             ContainerType::InitContainer => pod
                 .spec
                 .as_ref()
-                .map(|spec| {
+                .and_then(|spec| {
                     spec.init_containers
                         .as_ref()
                         .map(|c| c[container_index].name.to_string())
                 })
-                .flatten()
                 .unwrap_or_else(|| "unknown".to_string()),
 
             ContainerType::Container => pod

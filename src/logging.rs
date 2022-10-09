@@ -16,7 +16,7 @@ pub static LOGGER_ENABLED: OnceCell<bool> = OnceCell::new();
 #[macro_export]
 macro_rules! logger {
     ($level:ident, $($arg:tt)+) => {
-        if let Some(true) = crate::logging::LOGGER_ENABLED.get() {
+        if let Some(true) = $crate::logging::LOGGER_ENABLED.get() {
             ::log::$level!($($arg)+);
         }
     };

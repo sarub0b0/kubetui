@@ -4,7 +4,7 @@ mod parser;
 
 use parser::parse;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum AnsiEscapeSequence {
     Chars,
     Escape,
@@ -34,7 +34,7 @@ pub enum AnsiEscapeSequence {
     NotSupported,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq,Eq)]
 pub struct Text<'a> {
     pub chars: &'a str,
     pub ty: AnsiEscapeSequence,

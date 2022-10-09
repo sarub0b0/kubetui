@@ -325,6 +325,8 @@ impl RenderTrait for SingleSelect<'_> {
     }
 }
 
+type OnSelectCallback = Box<dyn Fn(&mut Window, &LiteralItem) -> EventResult>;
+
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
 pub struct SingleSelectBuilder {
@@ -333,7 +335,7 @@ pub struct SingleSelectBuilder {
     #[derivative(Debug = "ignore")]
     actions: Vec<(UserEvent, InnerCallback)>,
     #[derivative(Debug = "ignore")]
-    on_select: Option<Box<dyn Fn(&mut Window, &LiteralItem) -> EventResult>>,
+    on_select: Option<OnSelectCallback>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
     #[derivative(Debug = "ignore")]

@@ -499,7 +499,7 @@ impl Text {
     }
 }
 
-impl<'a> WidgetTrait for Text {
+impl WidgetTrait for Text {
     fn id(&self) -> &str {
         &self.id
     }

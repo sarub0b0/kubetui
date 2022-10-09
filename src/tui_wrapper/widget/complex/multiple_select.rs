@@ -478,6 +478,7 @@ impl<'a> SelectForm<'a> {
 
 type RenderBlockInjection = Rc<dyn Fn(&MultipleSelect, bool) -> Block<'static>>;
 type RenderBlockInjectionForList = Box<dyn Fn(&List, bool) -> Block<'static>>;
+type OnSelectCallback = Box<dyn Fn(&mut Window, &LiteralItem) -> EventResult>;
 
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
@@ -485,9 +486,9 @@ pub struct MultipleSelectBuilder {
     id: String,
     widget_config: WidgetConfig,
     #[derivative(Debug = "ignore")]
-    on_select_list: Option<Box<dyn Fn(&mut Window, &LiteralItem) -> EventResult>>,
+    on_select_list: Option<OnSelectCallback>,
     #[derivative(Debug = "ignore")]
-    on_select_selected: Option<Box<dyn Fn(&mut Window, &LiteralItem) -> EventResult>>,
+    on_select_selected: Option<OnSelectCallback>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
     #[derivative(Debug = "ignore")]
