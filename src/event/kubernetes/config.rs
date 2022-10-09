@@ -10,7 +10,7 @@ use std::{
 };
 
 use futures::future::try_join_all;
-use k8s_openapi::api::core::v1::ConfigMap;
+use k8s_openapi::{api::core::v1::ConfigMap, NamespaceResourceScope};
 
 use kube::{api::ObjectMeta, Api};
 
@@ -183,6 +183,7 @@ struct Secret {
 
 impl kube::Resource for Secret {
     type DynamicType = ();
+    type Scope = NamespaceResourceScope;
 
     fn kind(_: &Self::DynamicType) -> std::borrow::Cow<'_, str> {
         "Secret".into()
