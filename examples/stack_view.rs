@@ -84,6 +84,7 @@ fn main() {
                 },
                 Event::Mouse(_) => {}
                 Event::Resize(_, _) => {}
+                _ => {}
             },
             Err(_) => break,
         }
