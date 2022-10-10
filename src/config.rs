@@ -1,61 +1,72 @@
 use std::{path::PathBuf, str::FromStr};
 
-use clap::Parser;
+use clap::{
+    builder::{PossibleValuesParser, TypedValueParser},
+    Parser, ValueEnum,
+};
 
 use tui::layout::Direction;
 
 use crate::event::kubernetes::KubeWorkerConfig;
 
 #[derive(Parser, Debug, Clone)]
-#[clap(author, version, about)]
+#[command(author, version, about, long_about = None)]
 pub struct Config {
     /// Window split mode
-    #[clap(
+    #[arg(
         short,
         long,
-        name = "v|h",
-        possible_values = ["v", "h", "vertical", "horizontal"],
+        value_name = "v|h",
         display_order = 1000,
+        value_parser = PossibleValuesParser::new(["v", "h", "vertical", "horizontal"]).map(|s| s.parse::<DirectionWrapper>().unwrap()),
         )]
     pub split_mode: Option<DirectionWrapper>,
 
     /// Namespaces (e.g. -n val1,val2,val3 | -n val1 -n val2 -n val3)
-    #[clap(
+    #[arg(
         short,
         long,
-        conflicts_with = "all-namespaces",
+        conflicts_with = "all_namespaces",
         value_delimiter = ',',
         display_order = 1000
     )]
     pub namespaces: Option<Vec<String>>,
 
     /// Context
-    #[clap(short, long, display_order = 1000)]
+    #[arg(short, long, display_order = 1000)]
     pub context: Option<String>,
 
     /// Select all namespaces
-    #[clap(
+    //
+    // bool型だと下記エラーが出てうまく行かないため、専用のenumを定義して対処する
+    // boolで行ける方法が分かり次第修正する。
+    //
+    // ```sh
+    // thread 'main' panicked at 'assertion failed: `(left == right)`
+    //   left: `true`,
+    //  right: `false`: Argument all_namespaces: mismatch between `num_args` (0..=1) and `takes_value`', /Users/kohashimoto/.cargo/registry/src/github.com-1ecc6299db9ec823/clap-4.0.11/src/builder/debug_asserts.rs:769:5
+    // note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+    // ```
+    #[arg(
         short = 'A',
         long,
-        parse(try_from_str),
-        default_value_t = false,
-        value_name = "[true|false]",
-        possible_values = ["false", "true"],
-        min_values = 0,
+        value_name = "true|false",
+        num_args = 0..=1,
         require_equals = true,
+        default_value_t = AllNamespaces::False,
         default_missing_value = "true",
-        hide_default_value = true,
         hide_possible_values = true,
-        display_order = 1000,
-        )]
-    pub all_namespaces: bool,
+        value_enum,
+        display_order = 1000
+    )]
+    pub all_namespaces: AllNamespaces,
 
     /// kubeconfig path
-    #[clap(short = 'C', long, display_order = 1000)]
+    #[arg(short = 'C', long, display_order = 1000)]
     pub kubeconfig: Option<PathBuf>,
 
     /// Logging
-    #[clap(short = 'l', long, parse(from_flag), display_order = 1000)]
+    #[arg(short = 'l', long, display_order = 1000)]
     pub logging: bool,
 }
 
@@ -83,8 +94,32 @@ impl Config {
             kubeconfig,
             namespaces,
             context,
-            all_namespaces,
+            all_namespaces: all_namespaces.into(),
         }
+    }
+}
+
+#[derive(Debug, ValueEnum, Clone, Copy, PartialEq, Eq)]
+pub enum AllNamespaces {
+    True,
+    False,
+}
+
+impl From<AllNamespaces> for bool {
+    fn from(e: AllNamespaces) -> Self {
+        match e {
+            AllNamespaces::True => true,
+            AllNamespaces::False => false,
+        }
+    }
+}
+
+impl std::fmt::Display for AllNamespaces {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.to_possible_value()
+            .expect("no values are skipped")
+            .get_name()
+            .fmt(f)
     }
 }
 
@@ -123,6 +158,24 @@ impl FromStr for DirectionWrapper {
 
 pub fn configure() -> Config {
     Config::parse()
+
+    // let cmd = Command::new("kubetui")
+    //     .arg(
+    //         Arg::new("all-namespaces")
+    //             .short('A')
+    //             .long("all-namespaces")
+    //             .value_name("true|false")
+    //             .value_parser(value_parser!(bool))
+    //             .num_args(0..=1)
+    //             .require_equals(true)
+    //             .default_missing_value("true"),
+    //     )
+    //     .get_matches();
+    //
+    // dbg!(cmd.get_one::<bool>("all-namespaces"));
+    // dbg!(Config::parse());
+    //
+    // std::process::exit(0);
 }
 
 #[cfg(test)]
@@ -130,7 +183,7 @@ mod tests {
     use super::*;
 
     mod split_mode {
-        use clap::ErrorKind;
+        use clap::error::ErrorKind;
         use pretty_assertions::assert_eq;
 
         use super::*;
@@ -149,7 +202,7 @@ mod tests {
     }
 
     mod namespace {
-        use clap::ErrorKind;
+        use clap::error::ErrorKind;
         use pretty_assertions::assert_eq;
         use rstest::rstest;
 
@@ -158,7 +211,7 @@ mod tests {
         #[test]
         fn 値を設定しないとエラーを返す() {
             let parse = Config::try_parse_from(["kubetui", "-n"]);
-            assert_eq!(parse.unwrap_err().kind(), ErrorKind::EmptyValue)
+            assert_eq!(parse.unwrap_err().kind(), ErrorKind::InvalidValue)
         }
 
         #[test]
@@ -190,7 +243,7 @@ mod tests {
         }
     }
     mod all_namespace {
-        use clap::ErrorKind;
+        use clap::error::ErrorKind;
         use pretty_assertions::assert_eq;
         use rstest::rstest;
 
@@ -203,9 +256,9 @@ mod tests {
         }
 
         #[rstest]
-        #[case::is_true(true)]
-        #[case::is_false(false)]
-        fn 設定した値になる(#[case] value: bool) {
+        #[case::is_true(AllNamespaces::True)]
+        #[case::is_false(AllNamespaces::False)]
+        fn 設定した値になる(#[case] value: AllNamespaces) {
             let parse = Config::try_parse_from(["kubetui", &format!("--all-namespaces={}", value)])
                 .unwrap();
             assert_eq!(parse.all_namespaces, value)
@@ -214,7 +267,7 @@ mod tests {
         #[test]
         fn 値が設定されていないときtrueを設定する() {
             let parse = Config::try_parse_from(["kubetui", "-A"]).unwrap();
-            assert_eq!(parse.all_namespaces, true)
+            assert_eq!(parse.all_namespaces, AllNamespaces::True)
         }
 
         #[test]
