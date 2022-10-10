@@ -23,17 +23,19 @@ This is a TUI tool for monitoring kubernetes resources.
 ## Command Option
 
 ```sh
-USAGE:
-    kubetui [OPTIONS]
+kubernetes terminal user interface
 
-OPTIONS:
-    -h, --help                                  Print help information
-    -V, --version                               Print version information
-    -A, --all-namespaces[=<[true|false]>...]    Select all namespaces
-    -c, --context <CONTEXT>                     Context
-    -C, --kubeconfig <KUBECONFIG>               kubeconfig path
-    -n, --namespaces <NAMESPACES>               Namespaces (e.g. -n val1,val2,val3 | -n val1 -n val2 -n val3)
-    -s, --split-mode <v|h>                      Window split mode [possible values: v, h, vertical, horizontal]
+Usage: kubetui [OPTIONS]
+
+Options:
+  -h, --help                           Print help information
+  -V, --version                        Print version information
+  -A, --all-namespaces[=<true|false>]  Select all namespaces [default: false]
+  -c, --context <CONTEXT>              Context
+  -C, --kubeconfig <KUBECONFIG>        kubeconfig path
+  -l, --logging                        Logging
+  -n, --namespaces <NAMESPACES>        Namespaces (e.g. -n val1,val2,val3 | -n val1 -n val2 -n val3)
+  -s, --split-mode <v|h>               Window split mode [possible values: v, h, vertical, horizontal]
 ```
 
 ## Key Bindings
