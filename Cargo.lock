@@ -840,7 +840,7 @@ dependencies = [
 
 [[package]]
 name = "kubetui"
-version = "0.11.3"
+version = "0.11.4"
 dependencies = [
  "anyhow",
  "async-trait",
