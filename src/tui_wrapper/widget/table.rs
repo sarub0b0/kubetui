@@ -390,7 +390,7 @@ impl<'a> Table<'a> {
     }
 
     // リストの下に空行があるとき、空行がなくなるようoffsetを調整する
-    fn update_offset(&mut self) {
+    fn adjust_offset(&mut self) {
         let shown_item_len = self.items.rows.len().saturating_sub(self.state.offset());
         let showable_height = self.showable_height();
         if shown_item_len < showable_height {
@@ -480,7 +480,7 @@ impl WidgetTrait for Table<'_> {
                     self.state.select(Some(new_len - 1));
                 }
 
-                self.update_offset();
+                self.adjust_offset();
             }
 
             // アイテムが増えた場合
@@ -599,7 +599,7 @@ impl WidgetTrait for Table<'_> {
 
         self.items.update_rows(self.max_width());
 
-        self.update_offset();
+        self.adjust_offset();
 
         self.update_row_bounds();
     }
