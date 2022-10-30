@@ -381,13 +381,20 @@ impl<'a> Table<'a> {
             .collect();
     }
 
+    fn showable_height(&self) -> usize {
+        self.inner_chunk.height.saturating_sub(2) as usize
+    }
+
+    fn max_offset(&self) -> usize {
+        self.items.rows.len().saturating_sub(self.showable_height())
+    }
+
     // リストの下に空行があるとき、空行がなくなるようoffsetを調整する
     fn update_offset(&mut self) {
-        let show_items_len = self.items.rows.len().saturating_sub(self.state.offset());
-        let show_height = self.inner_chunk.height.saturating_sub(2) as usize;
-        if show_items_len < show_height {
-            self.state
-                .update_offset(self.items.rows.len().saturating_sub(show_height));
+        let shown_item_len = self.items.rows.len().saturating_sub(self.state.offset());
+        let showable_height = self.showable_height();
+        if shown_item_len < showable_height {
+            self.state.update_offset(self.max_offset());
         }
     }
 }
