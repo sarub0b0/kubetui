@@ -911,7 +911,7 @@ mod tests {
                     })
                     .unwrap();
 
-                assert_eq!((table.state.selected(), table.state.offset()), (Some(2), 2));
+                assert_eq!((table.state.selected(), table.state.offset()), (Some(2), 0));
             }
         }
 
