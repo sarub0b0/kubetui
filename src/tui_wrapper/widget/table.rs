@@ -380,6 +380,16 @@ impl<'a> Table<'a> {
             })
             .collect();
     }
+
+    // リストの下に空行があるとき、空行がなくなるようoffsetを調整する
+    fn update_offset(&mut self) {
+        let show_items_len = self.items.rows.len().saturating_sub(self.state.offset());
+        let show_height = self.inner_chunk.height.saturating_sub(2) as usize;
+        if show_items_len < show_height {
+            self.state
+                .update_offset(self.items.rows.len().saturating_sub(show_height));
+        }
+    }
 }
 
 impl WidgetTrait for Table<'_> {
@@ -463,16 +473,7 @@ impl WidgetTrait for Table<'_> {
                     self.state.select(Some(new_len - 1));
                 }
 
-                #[cfg(feature = "scroll-improve")]
-                // 選択中アイテムのみ表示されたら、スクロールして選択中アイテムを一番下に表示する
-                if let Some(select) = self.state.selected() {
-                    // Headerとスペース分を引く
-                    if select.saturating_sub(self.state.offset().saturating_sub(2)) <= 1 {
-                        self.state.update_offset(
-                            new_len.saturating_sub(self.inner_chunk.height as usize),
-                        );
-                    }
-                }
+                self.update_offset();
             }
 
             // アイテムが増えた場合
@@ -590,6 +591,8 @@ impl WidgetTrait for Table<'_> {
         self.inner_chunk = self.widget_config.block().inner(chunk);
 
         self.items.update_rows(self.max_width());
+
+        self.update_offset();
 
         self.update_row_bounds();
     }
