@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::clipboard_wrapper::ClipboardContextWrapper;
+use crate::clipboard_wrapper::Clipboard;
 
 use crate::action::view_id;
 
@@ -12,7 +12,7 @@ use crate::tui_wrapper::{
 
 pub struct EventsTabBuilder<'a> {
     title: &'a str,
-    clipboard: &'a Option<Rc<RefCell<ClipboardContextWrapper>>>,
+    clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
 }
 
 pub struct EventsTab {
@@ -20,10 +20,7 @@ pub struct EventsTab {
 }
 
 impl<'a> EventsTabBuilder<'a> {
-    pub fn new(
-        title: &'a str,
-        clipboard: &'a Option<Rc<RefCell<ClipboardContextWrapper>>>,
-    ) -> Self {
+    pub fn new(title: &'a str, clipboard: &'a Option<Rc<RefCell<Clipboard>>>) -> Self {
         Self { title, clipboard }
     }
 

@@ -2,7 +2,7 @@ use crossbeam::channel::Sender;
 
 use std::{cell::RefCell, rc::Rc};
 
-use crate::clipboard_wrapper::ClipboardContextWrapper;
+use crate::clipboard_wrapper::Clipboard;
 
 use crate::event::{kubernetes::log::LogStreamMessage, Event};
 
@@ -20,7 +20,7 @@ use tui::layout::{Constraint, Direction, Layout};
 pub struct PodTabBuilder<'a> {
     title: &'a str,
     tx: &'a Sender<Event>,
-    clipboard: &'a Option<Rc<RefCell<ClipboardContextWrapper>>>,
+    clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
     split_mode: Direction,
 }
 
@@ -32,7 +32,7 @@ impl<'a> PodTabBuilder<'a> {
     pub fn new(
         title: &'static str,
         tx: &'a Sender<Event>,
-        clipboard: &'a Option<Rc<RefCell<ClipboardContextWrapper>>>,
+        clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
         split_mode: Direction,
     ) -> Self {
         PodTabBuilder {

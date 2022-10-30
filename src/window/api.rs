@@ -4,7 +4,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     action::view_id,
-    clipboard_wrapper::ClipboardContextWrapper,
+    clipboard_wrapper::Clipboard,
     event::kubernetes::api_resources::ApiRequest,
     event::Event,
     tui_wrapper::{
@@ -18,7 +18,7 @@ use crate::{
 pub struct ApiTabBuilder<'a> {
     title: &'a str,
     tx: &'a Sender<Event>,
-    clipboard: &'a Option<Rc<RefCell<ClipboardContextWrapper>>>,
+    clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
 }
 
 pub struct ApiTab {
@@ -30,7 +30,7 @@ impl<'a> ApiTabBuilder<'a> {
     pub fn new(
         title: &'static str,
         tx: &'a Sender<Event>,
-        clipboard: &'a Option<Rc<RefCell<ClipboardContextWrapper>>>,
+        clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
     ) -> Self {
         Self {
             title,

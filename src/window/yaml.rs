@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     action::view_id,
-    clipboard_wrapper::ClipboardContextWrapper,
+    clipboard_wrapper::Clipboard,
     event::{kubernetes::yaml::YamlRequest, Event},
     logger,
     tui_wrapper::{
@@ -18,7 +18,7 @@ use crate::{
 pub struct YamlTabBuilder<'a> {
     title: &'static str,
     tx: &'a Sender<Event>,
-    clipboard: &'a Option<Rc<RefCell<ClipboardContextWrapper>>>,
+    clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
 }
 
 pub struct YamlTab {
@@ -31,7 +31,7 @@ impl<'a> YamlTabBuilder<'a> {
     pub fn new(
         title: &'static str,
         tx: &'a Sender<Event>,
-        clipboard: &'a Option<Rc<RefCell<ClipboardContextWrapper>>>,
+        clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
     ) -> Self {
         Self {
             title,

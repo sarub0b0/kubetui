@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     action::view_id,
-    clipboard_wrapper::ClipboardContextWrapper,
+    clipboard_wrapper::Clipboard,
     event::{
         kubernetes::network::{NetworkRequest, RequestData},
         Event,
@@ -24,7 +24,7 @@ pub struct NetworkTab {
 pub struct NetworkTabBuilder<'a> {
     title: &'a str,
     tx: &'a Sender<Event>,
-    clipboard: &'a Option<Rc<RefCell<ClipboardContextWrapper>>>,
+    clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
     split_mode: Direction,
 }
 
@@ -32,7 +32,7 @@ impl<'a> NetworkTabBuilder<'a> {
     pub fn new(
         title: &'static str,
         tx: &'a Sender<Event>,
-        clipboard: &'a Option<Rc<RefCell<ClipboardContextWrapper>>>,
+        clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
         split_mode: Direction,
     ) -> Self {
         Self {
