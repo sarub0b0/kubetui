@@ -34,15 +34,9 @@ pub fn read_key(tx: Sender<Event>, is_terminated: Arc<AtomicBool>) -> Result<()>
                     CEvent::Key(ev) => tx.send(Event::User(UserEvent::Key(ev)))?,
                     CEvent::Mouse(ev) => tx.send(Event::User(UserEvent::Mouse(ev)))?,
                     CEvent::Resize(w, h) => tx.send(Event::User(UserEvent::Resize(w, h)))?,
-                    CEvent::FocusGained => {
-                        unreachable!()
-                    }
-                    CEvent::FocusLost => {
-                        unreachable!()
-                    }
-                    CEvent::Paste(_) => {
-                        unreachable!()
-                    }
+                    CEvent::FocusGained => {}
+                    CEvent::FocusLost => {}
+                    CEvent::Paste(_) => {}
                 }
             }
         }
