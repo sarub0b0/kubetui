@@ -9,14 +9,13 @@ mod yaml;
 
 use std::{cell::RefCell, rc::Rc};
 
-use clipboard::ClipboardProvider;
 use crossbeam::channel::Sender;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tui::{layout::Direction, text::Spans, widgets::Paragraph};
 
 use crate::{
     action::view_id,
-    clipboard_wrapper::ClipboardContextWrapper,
+    clipboard_wrapper::Clipboard,
     context::{Context, Namespace},
     event::{
         kubernetes::{context_message::ContextRequest, namespace_message::NamespaceRequest},
@@ -124,7 +123,7 @@ impl WindowInit {
     }
 
     fn tabs_popups(&self) -> (Vec<Tab<'static>>, Vec<Widget<'static>>) {
-        let clipboard = match ClipboardContextWrapper::new() {
+        let clipboard = match Clipboard::new() {
             Ok(cb) => Some(Rc::new(RefCell::new(cb))),
             Err(_) => None,
         };

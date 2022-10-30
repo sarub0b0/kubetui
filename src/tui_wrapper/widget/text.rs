@@ -5,7 +5,6 @@ mod wrap;
 
 use std::{cell::RefCell, rc::Rc};
 
-use clipboard::ClipboardProvider;
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 
 use derivative::Derivative;
@@ -19,8 +18,9 @@ use tui::{
 use unicode_width::UnicodeWidthStr;
 
 use crate::{
-    clipboard_wrapper::ClipboardContextWrapper,
+    clipboard_wrapper::Clipboard,
     event::UserEvent,
+    logger,
     tui_wrapper::{
         event::{Callback, EventResult, InnerCallback},
         key_event_to_code, Window,
@@ -226,7 +226,7 @@ pub struct TextBuilder {
     #[derivative(Debug = "ignore")]
     actions: Vec<(UserEvent, InnerCallback)>,
     #[derivative(Debug = "ignore")]
-    clipboard: Option<Rc<RefCell<ClipboardContextWrapper>>>,
+    clipboard: Option<Rc<RefCell<Clipboard>>>,
 }
 
 impl TextBuilder {
@@ -275,7 +275,7 @@ impl TextBuilder {
         self
     }
 
-    pub fn clipboard(mut self, clipboard: Rc<RefCell<ClipboardContextWrapper>>) -> Self {
+    pub fn clipboard(mut self, clipboard: Rc<RefCell<Clipboard>>) -> Self {
         self.clipboard = Some(clipboard);
         self
     }
@@ -314,7 +314,7 @@ pub struct Text {
     #[derivative(Debug = "ignore")]
     actions: Vec<(UserEvent, InnerCallback)>,
     #[derivative(Debug = "ignore")]
-    clipboard: Option<Rc<RefCell<ClipboardContextWrapper>>>,
+    clipboard: Option<Rc<RefCell<Clipboard>>>,
 }
 
 impl Text {
@@ -672,10 +672,8 @@ impl WidgetTrait for Text {
                     }
 
                     if let Some(clipboard) = &mut self.clipboard {
-                        clipboard
-                            .borrow_mut()
-                            .set_contents(contents)
-                            .expect("Error: clipboard set contents")
+                        logger!(info, "Clipboard saved '{}'", contents);
+                        clipboard.borrow_mut().set_contents(contents).unwrap()
                     }
 
                     self.follow = highlight_content.follow;
