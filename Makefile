@@ -1,23 +1,24 @@
 apt:
 	apt-get install -y libxcb-shape0-dev libxcb-render0-dev libxcb-xfixes0-dev libssl-dev pkg-config
 
-build:
-	cargo build ${FLAGS}
 
-run:
-	cargo run ${FLAGS}
+test/bin/kind:
+	mkdir -p test/bin
+	curl -Lo test/bin/kind https://kind.sigs.k8s.io/dl/v0.17.0/kind-linux-amd64
+	chmod +x test/bin/kind
 
-debug:
-	RUST_LOG=debug cargo run
+create-kind: test/bin/kind
+	test/bin/kind create cluster --name kubetui
 
-e2e-test: build re-deploy
-	RUST_LOG=debug target/debug/kubetui
-.PHONY: e2e-test
+delete-kind: test/bin/kind
+	test/bin/kind delete cluster --name kubetui
 
-re-deploy: purge deploy
 
-deploy:
-	-kubectl apply -f examples/manifests
+deploy: 
+	-kubectl apply -f test/manifests
 
 purge:
-	-kubectl delete -f examples/manifests
+	-kubectl delete -f test/manifests
+
+clean: purge delete-kind
+

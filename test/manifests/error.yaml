@@ -1,0 +1,98 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kubetui-error-init
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: init-0
+          image: alpine
+          command:
+            - sh
+            - -c
+          args:
+            - "echo hoge; exit 1"
+        - name: init-1
+          image: alpine
+          command:
+            - sh
+            - -c
+          args:
+            - "echo hoge; exit 1"
+      containers:
+        - name: app
+          image: alpine
+          command:
+            - sh
+            - -c
+          args:
+            - "echo hoge; exit 1"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kubetui-error
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: init-0
+          image: alpine
+          command:
+            - sh
+            - -c
+          args:
+            - "echo hoge; exit 0"
+        - name: init-1
+          image: alpine
+          command:
+            - sh
+            - -c
+          args:
+            - "echo hoge; exit 0"
+      containers:
+        - name: app
+          image: alpine
+          command:
+            - sh
+            - -c
+          args:
+            - "echo hoge; exit 1"
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kubetui-error-command
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: init-0
+          image: alpine
+          command:
+            - echo
+          args:
+            - hoge
+        - name: init-1
+          image: alpine
+          command:
+            - sh
+            - -c
+          args:
+            - "echo hoge; exit 0"
+      containers:
+        - name: app
+          image: alpine
+          command:
+            - sh
+            - -c
+          args:
+            - "echo hoge; exit 1"

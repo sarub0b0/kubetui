@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubetui-container-state
+spec:
+  selector:
+    matchLabels: # or matchExpressions:
+      app: kubetui-container-state
+  template:
+    metadata:
+      labels:
+        app: kubetui-container-state
+    spec:
+      initContainers:
+        - name: init-0
+          image: alpine
+          command:
+            - sh
+            - -c
+          args:
+            - "for i in `seq 0 10`; do echo $i; sleep 2; done && exit 0"
+        - name: init-1
+          image: alpine
+          command:
+            - sh
+            - -c
+          args:
+            - "for i in `seq 0 10`; do echo $i; sleep 2; done && exit 0"
+      containers:
+        - name: app
+          image: alpine
+          command:
+            - sh
+            - -c
+          args:
+            - "while true; do date; sleep 1; done && exit 0"
