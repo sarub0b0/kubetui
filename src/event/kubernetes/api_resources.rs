@@ -126,9 +126,16 @@ impl Worker for ApiPollWorker {
             if tick_rate < last_tick.elapsed() {
                 last_tick = Instant::now();
 
-                let mut db = api_database.write().await;
-
-                *db = fetch_api_database(kube_client).await?;
+                match fetch_api_database(kube_client).await {
+                    Ok(fetched_db) => {
+                        let mut db = api_database.write().await;
+                        *db = fetched_db;
+                    }
+                    Err(err) => {
+                        tx.send(ApiResponse::Poll(Err(err)).into()).unwrap();
+                        continue;
+                    }
+                }
             }
 
             let db = api_database.read().await;
