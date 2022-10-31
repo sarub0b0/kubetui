@@ -123,10 +123,7 @@ impl WindowInit {
     }
 
     fn tabs_popups(&self) -> (Vec<Tab<'static>>, Vec<Widget<'static>>) {
-        let clipboard = match Clipboard::new() {
-            Ok(cb) => Some(Rc::new(RefCell::new(cb))),
-            Err(_) => None,
-        };
+        let clipboard = Some(Rc::new(RefCell::new(Clipboard::new())));
 
         let PodsTab { tab: tab_pods } =
             PodTabBuilder::new("Pod", &self.tx, &clipboard, self.split_mode.clone()).build();
