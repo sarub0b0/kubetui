@@ -1,5 +1,5 @@
-apt:
-	apt-get install -y libxcb-shape0-dev libxcb-render0-dev libxcb-xfixes0-dev libssl-dev pkg-config
+package-install:
+	apt-get install -y libssl-dev pkg-config
 
 
 test/bin/kind:
