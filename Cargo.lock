@@ -1306,9 +1306,9 @@ dependencies = [
 
 [[package]]
 name = "num_cpus"
-version = "1.13.1"
+version = "1.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19e64526ebdee182341572e50e9ad03965aa510cd94427a4549448f285e957a1"
+checksum = "f6058e64324c71e02bc2b150e4f3bc8286db6c83092132ffa3f6b1eab0f9def5"
 dependencies = [
  "hermit-abi",
  "libc",
@@ -2101,7 +2101,7 @@ checksum = "59547bce71d9c38b83d9c0e92b6066c4253371f15005def0c30d9657f50c7642"
 [[package]]
 name = "tui"
 version = "0.19.0"
-source = "git+https://github.com/sarub0b0/tui-rs.git#6323aada1896ed5783e8785737d5bd2405d95dd9"
+source = "git+https://github.com/sarub0b0/tui-rs.git#3e1aa31b9dadd5a1aac4cb3e20aa852c67abab45"
 dependencies = [
  "bitflags",
  "cassowary",
