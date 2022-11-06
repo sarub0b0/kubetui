@@ -7,6 +7,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  OPENSSL_VERSION: OpenSSL_1_1_1s
 
 jobs:
   build-windows:
@@ -81,7 +82,7 @@ jobs:
           mkdir /tmp/build
           cd /tmp/build
 
-          curl -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_1s.tar.gz | tar --strip-components=1 -xzf -
+          curl -L https://github.com/openssl/openssl/archive/${{ env.OPENSSL_VERSION }}.tar.gz | tar --strip-components=1 -xzf -
 
           export CC=musl-gcc
 
@@ -116,8 +117,18 @@ jobs:
   build-macos:
     runs-on: macos-latest
 
+    strategy:
+      matrix:
+        target:
+          - rust: x86_64-apple-darwin
+            openssl: darwin64-x86_64-cc
+          - rust: aarch64-apple-darwin
+            openssl: darwin64-arm64-cc
     env:
-      TARGET: x86_64-apple-darwin
+      OPENSSL_DIR: /tmp/openssl
+      OPENSSL_INCLUDE_DIR: /tmp/openssl/include
+      OPENSSL_LIB_DIR: /tmp/openssl/lib
+      OPENSSL_STATIC: true
 
     steps:
       - name: Checkout
@@ -125,15 +136,31 @@ jobs:
 
       - uses: actions-rs/toolchain@v1
         with:
+          profile: minimal
           toolchain: stable
           override: true
+          target: ${{ matrix.target.rust }}
 
-      - run: cargo build --release --target $TARGET
+
+      - name: Make OpenSSL
+        run: |
+          mkdir /tmp/openssl-build
+          cd /tmp/openssl-build
+
+          curl -L https://github.com/openssl/openssl/archive/${{ env.OPENSSL_VERSION }}.tar.gz | tar --strip-components=1 -xzf -
+
+          ./Configure ${{ matrix.target.openssl }} --prefix=$OPENSSL_DIR -fPIC no-shared
+
+          make depend
+          make -j
+          make install_sw
+
+      - run: cargo build --release --target ${{ matrix.target.rust }}
 
       - uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.TARGET }}
-          path: target/${{ env.TARGET }}/release/kubetui
+          name: ${{ matrix.target.rust }}
+          path: target/${{ matrix.target.rust }}/release/kubetui
 
   release:
     strategy:
@@ -151,6 +178,9 @@ jobs:
           - target: x86_64-apple-darwin
             artifact_name: kubetui
             asset_name: kubetui-x86_64-apple-darwin
+          - target: aarch64-apple-darwin
+            artifact_name: kubetui
+            asset_name: kubetui-aarch64-apple-darwin
 
     runs-on: ubuntu-latest
 
