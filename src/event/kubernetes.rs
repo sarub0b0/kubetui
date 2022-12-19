@@ -1011,7 +1011,9 @@ mod kube_store {
                     });
 
                     let user = auth_infos.iter().find_map(|auth_info| {
-                        if auth_info.name == context.context.user {
+                        let Some(kube::config::Context{ref user, ..}) = context.context else {return None};
+
+                        if &auth_info.name == user {
                             Some(auth_info.name.to_string())
                         } else {
                             None
