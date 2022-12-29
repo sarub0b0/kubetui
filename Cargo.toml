@@ -62,7 +62,7 @@ anyhow = "1"
 
 
 ctrlc = { version = "3.2.4", features = ["termination"] }
-once_cell = "1.16.0"
+once_cell = "1.17.0"
 
 [dev-dependencies]
 pretty_assertions = "1.3.0"
