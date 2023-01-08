@@ -26,7 +26,7 @@ clap = { version = "4", features = ["wrap_help", "derive", "cargo"] }
 nom = "7.1.2"
 
 # clipboard
-base64 = "0.20"
+base64 = "0.21"
 wsl = "0.1"
 arboard = "3.2.0"
 
