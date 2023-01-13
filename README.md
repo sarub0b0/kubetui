@@ -101,6 +101,14 @@ Popup window (exist input form)
 | <kbd>Ctrl+e</kbd>                       | <kbd>End</kbd>    |
 | <kbd>Ctrl+[</kbd>                       | <kbd>Esc</kbd>    |
 
+## Contributing
+
+Bug reports and pull requests are welcome.
+
+## License
+
+This software is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+
 ## Screenshots
 
 ### Watch Resources
