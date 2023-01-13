@@ -7,6 +7,10 @@ This is a TUI tool for monitoring kubernetes resources.
 
 ![](screenshots/pods-log.png)
 
+## Installation
+
+Please download a binary from [github release](https://github.com/sarub0b0/kubetui/releases).
+
 ## Features
 
 - Pods list and container logs watching
