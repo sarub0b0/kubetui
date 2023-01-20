@@ -1,5 +1,6 @@
 mod ansi_color;
 mod spans;
+mod styled_graphemes;
 mod wrap;
 
 pub mod complex;

@@ -16,10 +16,11 @@ use tui::{
 };
 use unicode_width::UnicodeWidthStr;
 
+use crate::tui_wrapper::widget::styled_graphemes::StyledGrapheme;
+
 use super::{
     highlight_content::{HighlightArea, Point},
     item::WrappedLine,
-    styled_graphemes::StyledGrapheme,
 };
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -92,8 +93,8 @@ impl Widget for Render<'_> {
 
                 if let Some(highlight_area) = self.highlight_area {
                     if highlight_area.contains(Point {
-                        x: x as usize + self.scroll.x,
-                        y: y as usize + self.scroll.y,
+                        x: x + self.scroll.x,
+                        y: y + self.scroll.y,
                     }) {
                         style = style.add_modifier(Modifier::REVERSED);
                     }
@@ -252,6 +253,8 @@ impl<'a> Iterator for LineIterator<'a> {
 mod tests {
     use tui::{backend::TestBackend, widgets::Borders, Terminal};
     use unicode_segmentation::UnicodeSegmentation;
+
+    use crate::tui_wrapper::widget::styled_graphemes::StyledGrapheme;
 
     use super::*;
 
@@ -793,6 +796,8 @@ mod tests {
                 }
 
                 mod iteration {
+                    use crate::tui_wrapper::widget::styled_graphemes::StyledGrapheme;
+
                     use super::*;
                     use pretty_assertions::assert_eq;
 

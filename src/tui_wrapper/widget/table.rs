@@ -17,7 +17,9 @@ use crate::{
     logger,
     tui_wrapper::{
         event::{Callback, EventResult},
-        key_event_to_code, Window,
+        key_event_to_code,
+        widget::styled_graphemes,
+        Window,
     },
 };
 
@@ -650,9 +652,26 @@ impl RenderTrait for Table<'_> {
 
         let constraints = constraints(&self.items.digits);
 
+        let highlight_style = if let Some(item) = self.selected_item() {
+            let mut style = Style::default().add_modifier(Modifier::REVERSED);
+
+            if let Some(item) = item.item.first() {
+                let sg = styled_graphemes::styled_graphemes(item);
+
+                if let Some(first) = sg.first() {
+                    if let Some(fg) = first.style().fg {
+                        style = Style::default().fg(fg).add_modifier(Modifier::REVERSED);
+                    }
+                }
+            }
+            style
+        } else {
+            Style::default().add_modifier(Modifier::REVERSED)
+        };
+
         let mut widget = TTable::new(self.items.widget_rows.iter().cloned().map(|row| row.row))
             .block(block)
-            .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+            .highlight_style(highlight_style)
             .highlight_symbol(HIGHLIGHT_SYMBOL)
             .column_spacing(COLUMN_SPACING)
             .widths(&constraints);

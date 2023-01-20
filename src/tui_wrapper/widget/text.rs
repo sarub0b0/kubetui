@@ -1,6 +1,5 @@
 mod item;
 mod render;
-mod styled_graphemes;
 mod wrap;
 
 use std::{cell::RefCell, rc::Rc};
@@ -410,7 +409,7 @@ impl Text {
             self.scroll.y
         } else {
             search_index
-                .saturating_sub(((self.inner_chunk().height as f32 * 0.5) as usize) as usize)
+                .saturating_sub((self.inner_chunk().height as f32 * 0.5) as usize)
                 .min(self.scroll_y_last_index())
         }
     }
