@@ -36,6 +36,7 @@ const ROW_START_INDEX: usize = 2;
 
 type InnerCallback = Rc<dyn Fn(&mut Window, &TableItem) -> EventResult>;
 type RenderBlockInjection = Rc<dyn Fn(&Table, bool) -> Block<'static>>;
+type RenderHighlightInjection = Rc<dyn Fn(Option<&TableItem>) -> Style>;
 
 #[derive(Debug, Default)]
 struct InnerItemBuilder {
@@ -253,6 +254,8 @@ pub struct TableBuilder {
     on_select: Option<InnerCallback>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
+    #[derivative(Debug = "ignore")]
+    highlight_injection: Option<RenderHighlightInjection>,
 }
 
 impl TableBuilder {
@@ -293,6 +296,14 @@ impl TableBuilder {
         self
     }
 
+    pub fn highlight_injection<F>(mut self, highlight_injection: F) -> Self
+    where
+        F: Fn(Option<&TableItem>) -> Style + 'static,
+    {
+        self.highlight_injection = Some(Rc::new(highlight_injection));
+        self
+    }
+
     pub fn show_status(mut self) -> Self {
         self.show_status = true;
         self
@@ -306,6 +317,7 @@ impl TableBuilder {
             state: self.state,
             show_status: self.show_status,
             block_injection: self.block_injection,
+            highlight_injection: self.highlight_injection,
             ..Default::default()
         };
 
@@ -336,6 +348,8 @@ pub struct Table<'a> {
     on_select: Option<InnerCallback>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
+    #[derivative(Debug = "ignore")]
+    highlight_injection: Option<RenderHighlightInjection>,
 }
 
 impl<'a> Table<'a> {
@@ -652,7 +666,9 @@ impl RenderTrait for Table<'_> {
 
         let constraints = constraints(&self.items.digits);
 
-        let highlight_style = if let Some(item) = self.selected_item() {
+        let highlight_style = if let Some(highlight_injection) = &self.highlight_injection {
+            highlight_injection(self.selected_item().as_deref())
+        } else if let Some(item) = self.selected_item() {
             let mut style = Style::default().add_modifier(Modifier::REVERSED);
 
             if let Some(item) = item.item.first() {
