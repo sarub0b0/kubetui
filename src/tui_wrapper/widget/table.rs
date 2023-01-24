@@ -17,7 +17,9 @@ use crate::{
     logger,
     tui_wrapper::{
         event::{Callback, EventResult},
-        key_event_to_code, Window,
+        key_event_to_code,
+        widget::styled_graphemes,
+        Window,
     },
 };
 
@@ -34,6 +36,7 @@ const ROW_START_INDEX: usize = 2;
 
 type InnerCallback = Rc<dyn Fn(&mut Window, &TableItem) -> EventResult>;
 type RenderBlockInjection = Rc<dyn Fn(&Table, bool) -> Block<'static>>;
+type RenderHighlightInjection = Rc<dyn Fn(Option<&TableItem>) -> Style>;
 
 #[derive(Debug, Default)]
 struct InnerItemBuilder {
@@ -251,6 +254,8 @@ pub struct TableBuilder {
     on_select: Option<InnerCallback>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
+    #[derivative(Debug = "ignore")]
+    highlight_injection: Option<RenderHighlightInjection>,
 }
 
 impl TableBuilder {
@@ -291,6 +296,14 @@ impl TableBuilder {
         self
     }
 
+    pub fn highlight_injection<F>(mut self, highlight_injection: F) -> Self
+    where
+        F: Fn(Option<&TableItem>) -> Style + 'static,
+    {
+        self.highlight_injection = Some(Rc::new(highlight_injection));
+        self
+    }
+
     pub fn show_status(mut self) -> Self {
         self.show_status = true;
         self
@@ -304,6 +317,7 @@ impl TableBuilder {
             state: self.state,
             show_status: self.show_status,
             block_injection: self.block_injection,
+            highlight_injection: self.highlight_injection,
             ..Default::default()
         };
 
@@ -334,6 +348,8 @@ pub struct Table<'a> {
     on_select: Option<InnerCallback>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
+    #[derivative(Debug = "ignore")]
+    highlight_injection: Option<RenderHighlightInjection>,
 }
 
 impl<'a> Table<'a> {
@@ -636,6 +652,29 @@ impl<'a> Table<'a> {
     }
 }
 
+impl<'a> Table<'a> {
+    fn render_highlight_style(&self) -> Style {
+        if let Some(highlight_injection) = &self.highlight_injection {
+            highlight_injection(self.selected_item().as_deref())
+        } else if let Some(item) = self.selected_item() {
+            let mut style = Style::default().add_modifier(Modifier::REVERSED);
+
+            if let Some(item) = item.item.first() {
+                let sg = styled_graphemes::styled_graphemes(item);
+
+                if let Some(first) = sg.first() {
+                    if let Some(fg) = first.style().fg {
+                        style = Style::default().fg(fg).add_modifier(Modifier::REVERSED);
+                    }
+                }
+            }
+            style
+        } else {
+            Style::default().add_modifier(Modifier::REVERSED)
+        }
+    }
+}
+
 impl RenderTrait for Table<'_> {
     fn render<B>(&mut self, f: &mut Frame<'_, B>, selected: bool)
     where
@@ -650,9 +689,11 @@ impl RenderTrait for Table<'_> {
 
         let constraints = constraints(&self.items.digits);
 
+        let highlight_style = self.render_highlight_style();
+
         let mut widget = TTable::new(self.items.widget_rows.iter().cloned().map(|row| row.row))
             .block(block)
-            .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+            .highlight_style(highlight_style)
             .highlight_symbol(HIGHLIGHT_SYMBOL)
             .column_spacing(COLUMN_SPACING)
             .widths(&constraints);

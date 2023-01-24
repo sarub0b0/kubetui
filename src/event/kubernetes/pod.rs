@@ -94,8 +94,21 @@ async fn get_pods_per_namespace(
 
                 let name = row[0].clone();
 
+                let color = match row[2].as_str() {
+                    s if s == "Completed" || s.contains("Evicted") => Some(90),
+                    s if s.contains("BackOff") || s.contains("Err") || s.contains("Unknown") => {
+                        Some(31)
+                    }
+                    _ => None,
+                };
+
                 if insert_ns {
                     row.insert(0, ns.to_string())
+                }
+
+                if let Some(color) = color {
+                    row.iter_mut()
+                        .for_each(|r| *r = format!("\x1b[{}m{}\x1b[0m", color, r))
                 }
 
                 KubeTableRow {

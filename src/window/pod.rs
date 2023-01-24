@@ -87,33 +87,22 @@ impl<'a> PodTabBuilder<'a> {
             .on_select(move |w, v| {
                 w.widget_clear(view_id::tab_pod_widget_log);
 
-                v.metadata.as_ref().map_or(EventResult::Ignore, |metadata| {
-                    metadata
-                        .get("namespace")
-                        .as_ref()
-                        .map_or(EventResult::Ignore, |namespace| {
-                            metadata
-                                .get("name")
-                                .as_ref()
-                                .map_or(EventResult::Ignore, |name| {
-                                    *(w.find_widget_mut(view_id::tab_pod_widget_log)
-                                        .widget_config_mut()
-                                        .append_title_mut()) =
-                                        Some((format!(" : {}", name)).into());
+                let Some(ref metadata) = v.metadata else {return EventResult::Ignore};
+                let Some(ref namespace) = metadata.get("namespace") else {return EventResult::Ignore};
 
-                                    tx.send(
-                                        LogStreamMessage::Request {
-                                            namespace: namespace.to_string(),
-                                            name: name.to_string(),
-                                        }
-                                        .into(),
-                                    )
-                                    .unwrap();
+                let Some(ref name) = metadata.get("name") else {return EventResult::Ignore};
 
-                                    EventResult::Window(WindowEvent::Continue)
-                                })
-                        })
-                })
+                *(w.find_widget_mut(view_id::tab_pod_widget_log).widget_config_mut().append_title_mut()) = Some((format!(" : {}", name)).into());
+
+                tx.send(
+                    LogStreamMessage::Request {
+                        namespace: namespace.to_string(),
+                        name: name.to_string(),
+                    }
+                    .into(),)
+                    .unwrap();
+
+                EventResult::Window(WindowEvent::Continue)
             })
             .build()
     }

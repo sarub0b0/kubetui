@@ -22,6 +22,8 @@ use crate::{
     event::util::color::Color,
 };
 
+use base64::{engine::general_purpose, Engine};
+
 #[derive(Debug)]
 pub enum ConfigMessage {
     List(Result<KubeTable>),
@@ -288,7 +290,7 @@ impl Iterator for SecretDataToStringIterator<'_> {
     fn next(&mut self) -> std::option::Option<<Self as Iterator>::Item> {
         if let Some((k, v)) = self.iter.next() {
             let c = self.color.next_color();
-            match base64::decode(v) {
+            match general_purpose::STANDARD.decode(v) {
                 Ok(decoded_data) => {
                     if let Ok(utf8_data) = String::from_utf8(decoded_data) {
                         Some(Self::format_utf8(k, &utf8_data, c))

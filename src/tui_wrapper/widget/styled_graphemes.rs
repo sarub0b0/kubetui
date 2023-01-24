@@ -84,7 +84,7 @@ impl StyledGraphemes for &str {
 }
 
 /// 一文字単位でスタイルを適用したリストを返す
-fn styled_graphemes(s: &str) -> Vec<StyledGrapheme> {
+pub fn styled_graphemes(s: &str) -> Vec<StyledGrapheme> {
     let mut style = Style::default();
 
     s.ansi_parse()

@@ -1,8 +1,8 @@
-use super::{
+use super::wrap::WrapTrait;
+use crate::tui_wrapper::widget::{
     styled_graphemes::{StyledGrapheme, StyledGraphemes},
-    wrap::WrapTrait,
+    LiteralItem,
 };
-use crate::tui_wrapper::widget::LiteralItem;
 use std::ops::Range;
 use tui::style::{Color, Modifier, Style};
 
@@ -981,7 +981,7 @@ mod tests {
 mod search {
     use std::ops::Range;
 
-    use crate::tui_wrapper::widget::text::styled_graphemes::StyledGrapheme;
+    use crate::tui_wrapper::widget::styled_graphemes::StyledGrapheme;
 
     pub trait Search {
         fn search(&self, word: &[&str]) -> Option<Vec<Range<usize>>>;
@@ -1041,11 +1041,12 @@ mod search {
 
     #[cfg(test)]
     mod tests {
-        use crate::tui_wrapper::widget::text::styled_graphemes::StyledGraphemes;
+        use crate::tui_wrapper::widget::styled_graphemes::StyledGraphemes;
 
         use super::*;
 
         mod styled_graphemes {
+
             use super::*;
             use pretty_assertions::assert_eq;
 
