@@ -652,21 +652,9 @@ impl<'a> Table<'a> {
     }
 }
 
-impl RenderTrait for Table<'_> {
-    fn render<B>(&mut self, f: &mut Frame<'_, B>, selected: bool)
-    where
-        B: Backend,
-    {
-        let block = if let Some(block_injection) = &self.block_injection {
-            (block_injection)(&*self, selected)
-        } else {
-            self.widget_config
-                .render_block(self.focusable() && selected)
-        };
-
-        let constraints = constraints(&self.items.digits);
-
-        let highlight_style = if let Some(highlight_injection) = &self.highlight_injection {
+impl<'a> Table<'a> {
+    fn render_highlight_style(&self) -> Style {
+        if let Some(highlight_injection) = &self.highlight_injection {
             highlight_injection(self.selected_item().as_deref())
         } else if let Some(item) = self.selected_item() {
             let mut style = Style::default().add_modifier(Modifier::REVERSED);
@@ -683,7 +671,25 @@ impl RenderTrait for Table<'_> {
             style
         } else {
             Style::default().add_modifier(Modifier::REVERSED)
+        }
+    }
+}
+
+impl RenderTrait for Table<'_> {
+    fn render<B>(&mut self, f: &mut Frame<'_, B>, selected: bool)
+    where
+        B: Backend,
+    {
+        let block = if let Some(block_injection) = &self.block_injection {
+            (block_injection)(&*self, selected)
+        } else {
+            self.widget_config
+                .render_block(self.focusable() && selected)
         };
+
+        let constraints = constraints(&self.items.digits);
+
+        let highlight_style = self.render_highlight_style();
 
         let mut widget = TTable::new(self.items.widget_rows.iter().cloned().map(|row| row.row))
             .block(block)
