@@ -654,6 +654,8 @@ impl WidgetTrait for Table<'_> {
                 _ => {
                     let ev = self.filter_widget.on_key_event(ev);
 
+                    // TODO: 文字入力中にリアルタイムにフィルタリングする
+
                     return ev;
                 }
             },
