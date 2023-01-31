@@ -49,7 +49,7 @@ pub struct TableBuilder {
     header: Vec<String>,
     items: Vec<TableItem>,
     state: TableState,
-    filtered_index: usize,
+    filtered_key: String,
     #[derivative(Debug = "ignore")]
     on_select: Option<InnerCallback>,
     #[derivative(Debug = "ignore")]
@@ -80,8 +80,8 @@ impl TableBuilder {
         self
     }
 
-    pub fn filtered_key(mut self, key: usize) -> Self {
-        self.filtered_index = key.into();
+    pub fn filtered_key(mut self, key: impl Into<String>) -> Self {
+        self.filtered_key = key.into();
         self
     }
 
@@ -121,7 +121,7 @@ impl TableBuilder {
             on_select: self.on_select,
             state: self.state,
             show_status: self.show_status,
-            filtered_index: self.filtered_index,
+            filtered_key: self.filtered_key,
             block_injection: self.block_injection,
             highlight_injection: self.highlight_injection,
             ..Default::default()
@@ -252,7 +252,7 @@ pub struct Table<'a> {
     inner_chunk: Rect,
     row_bounds: Vec<(usize, usize)>,
     filter_widget: FilterForm,
-    filtered_index: usize,
+    filtered_key: String,
     mode: Mode,
     #[derivative(Debug = "ignore")]
     matcher: SkimMatcherV2,
@@ -363,7 +363,7 @@ impl<'a> Table<'a> {
                 .cloned()
                 .filter_map(|item| {
                     self.matcher
-                        .fuzzy_match(&item.item[self.filtered_index], &filter_word)
+                        .fuzzy_match(&item.item[self.filtered_index()], &filter_word)
                         .map(|score| MatchedItem { score, item })
                 })
                 .collect();
@@ -403,6 +403,14 @@ impl<'a> Table<'a> {
         }
 
         self.update_row_bounds();
+    }
+
+    fn filtered_index(&self) -> usize {
+        self.items
+            .header
+            .iter()
+            .position(|header| header == &self.filtered_key)
+            .unwrap_or(0)
     }
 }
 
@@ -493,7 +501,7 @@ impl WidgetTrait for Table<'_> {
                 .cloned()
                 .filter_map(|item| {
                     self.matcher
-                        .fuzzy_match(&item.item[self.filtered_index], &filter_word)
+                        .fuzzy_match(&item.item[self.filtered_index()], &filter_word)
                         .map(|score| MatchedItem { score, item })
                 })
                 .collect();
