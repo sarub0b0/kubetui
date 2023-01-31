@@ -66,6 +66,7 @@ impl<'a> ConfigTabBuilder<'a> {
         Table::builder()
             .id(view_id::tab_config_widget_config)
             .widget_config(&WidgetConfig::builder().title("Config").build())
+            .filtered_key("NAME")
             .block_injection(|table: &Table| {
                 let index = if let Some(index) = table.state().selected() {
                     index + 1

@@ -70,6 +70,7 @@ impl<'a> PodTabBuilder<'a> {
         Table::builder()
             .id(view_id::tab_pod_widget_pod)
             .widget_config(&WidgetConfig::builder().title("Pod").build())
+            .filtered_key("NAME")
             .block_injection(|table: &Table| {
                 let index = if let Some(index) = table.state().selected() {
                     index + 1
