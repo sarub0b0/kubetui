@@ -1,5 +1,6 @@
 use tui::style::Style;
 use unicode_segmentation::UnicodeSegmentation;
+use unicode_width::UnicodeWidthStr;
 
 use crate::{
     ansi::{AnsiEscapeSequence, TextParser},
@@ -51,6 +52,7 @@ impl StyledGrapheme {
 pub trait StyledGraphemes {
     fn styled_graphemes(&self) -> Vec<StyledGrapheme>;
     fn styled_graphemes_symbols(&self) -> Vec<&str>;
+    fn styled_graphemes_width(&self) -> usize;
 }
 
 impl StyledGraphemes for String {
@@ -60,6 +62,10 @@ impl StyledGraphemes for String {
 
     fn styled_graphemes_symbols(&self) -> Vec<&str> {
         styled_graphemes_symbols(self)
+    }
+
+    fn styled_graphemes_width(&self) -> usize {
+        styled_graphemes_symbols(self).concat().width()
     }
 }
 
@@ -71,6 +77,10 @@ impl StyledGraphemes for &String {
     fn styled_graphemes_symbols(&self) -> Vec<&str> {
         styled_graphemes_symbols(self)
     }
+
+    fn styled_graphemes_width(&self) -> usize {
+        styled_graphemes_symbols(self).concat().width()
+    }
 }
 
 impl StyledGraphemes for &str {
@@ -80,6 +90,10 @@ impl StyledGraphemes for &str {
 
     fn styled_graphemes_symbols(&self) -> Vec<&str> {
         styled_graphemes_symbols(self)
+    }
+
+    fn styled_graphemes_width(&self) -> usize {
+        styled_graphemes_symbols(self).concat().width()
     }
 }
 

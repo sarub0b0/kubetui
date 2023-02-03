@@ -11,8 +11,6 @@ use tui::{
     Frame,
 };
 
-use unicode_width::UnicodeWidthStr;
-
 use crate::{
     logger,
     tui_wrapper::{
@@ -25,6 +23,7 @@ use crate::{
 
 use super::{
     spans::generate_spans_line,
+    styled_graphemes::StyledGraphemes,
     SelectedItem, TableItem,
     {config::WidgetConfig, wrap::wrap_line},
     {Item, RenderTrait, WidgetTrait},
@@ -191,14 +190,21 @@ impl<'a> InnerItem<'a> {
         }
 
         self.digits = if self.header.is_empty() {
-            self.rows[0].item.iter().map(|i| i.width()).collect()
+            self.rows[0]
+                .item
+                .iter()
+                .map(|i| i.styled_graphemes_width())
+                .collect()
         } else {
-            self.header.iter().map(|h| h.width()).collect()
+            self.header
+                .iter()
+                .map(|h| h.styled_graphemes_width())
+                .collect()
         };
 
         for row in &self.rows {
             for (i, col) in row.item.iter().enumerate() {
-                let len = col.len();
+                let len = col.styled_graphemes_width();
                 if self.digits.len() < i {
                     break;
                 }
@@ -704,6 +710,8 @@ impl RenderTrait for Table<'_> {
 
         f.render_stateful_widget(widget, self.chunk, &mut self.state);
 
+        logger!(debug, "{:?}", self.items);
+
         logger!(
             debug,
             "selected {:?}, offset {} ",
@@ -725,6 +733,24 @@ mod tests {
     use tui::{backend::TestBackend, Terminal};
 
     use super::*;
+
+    mod カラムの幅 {
+        use super::*;
+
+        #[test]
+        fn 表示する文字列幅でカラム幅を計算する() {
+            let item = InnerItem::builder()
+                .header(["\x1b[0mA".to_string(), "B".to_string()])
+                .rows([TableItem::new(
+                    ["abc".to_string(), "\x1b[31mabc\x1b[0m".to_string()],
+                    None,
+                )])
+                .max_width(usize::MAX)
+                .build();
+
+            assert_eq!(item.digits, vec![3, 3])
+        }
+    }
 
     mod 選択アイテムの切り替え {
         use super::*;
