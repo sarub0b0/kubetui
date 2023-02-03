@@ -805,6 +805,7 @@ impl WidgetTrait for Text {
         };
 
         self.item = TextItem::new(vec![], wrap_width);
+        self.search_cancel();
 
         *(self.widget_config.append_title_mut()) = None;
     }
