@@ -445,36 +445,45 @@ impl WidgetTrait for Table<'_> {
     }
 
     fn select_next(&mut self, index: usize) {
-        let i = match self.state.selected() {
-            Some(i) => {
-                if self.items.len().saturating_sub(1) <= i + index {
-                    self.items.len().saturating_sub(1)
-                } else {
-                    i + index
-                }
-            }
-            None => 0,
-        };
+        if self.items.is_empty() {
+            return;
+        }
 
-        self.state.select(Some(i));
+        let current = self.state.selected().unwrap_or(0);
+
+        let selected = (current + index).min(self.items.len().saturating_sub(1));
+
+        self.state.select(Some(selected));
     }
 
     fn select_prev(&mut self, index: usize) {
-        let i = self.state.selected().unwrap_or(0);
+        if self.items.is_empty() {
+            return;
+        }
 
-        self.state.select(Some(i.saturating_sub(index)));
+        let current = self.state.selected().unwrap_or(0);
+
+        let selected = current
+            .saturating_sub(index)
+            .min(self.items.len().saturating_sub(1));
+
+        self.state.select(Some(selected));
     }
 
     fn select_first(&mut self) {
+        if self.items.is_empty() {
+            return;
+        }
+
         self.state.select(Some(0))
     }
 
     fn select_last(&mut self) {
         if self.items.is_empty() {
-            self.state.select(Some(0));
-        } else {
-            self.state.select(Some(self.items.len() - 1))
+            return;
         }
+
+        self.state.select(Some(self.items.len().saturating_sub(1)))
     }
 
     fn append_widget_item(&mut self, _: Item) {
@@ -754,7 +763,6 @@ mod tests {
 
     mod 選択アイテムの切り替え {
         use super::*;
-        use pretty_assertions::assert_eq;
 
         #[test]
         fn 初期値は1つ目のアイテムを選択() {
@@ -771,38 +779,174 @@ mod tests {
             assert_eq!(table.state.selected(), Some(0))
         }
 
-        #[test]
-        fn 次のアイテムを選択_1() {
-            let mut table = Table::builder()
-                .items([
-                    TableItem::new(vec!["Item-0".to_string(), "Item-0".to_string()], None),
-                    TableItem::new(vec!["Item-1".to_string(), "Item-1".to_string()], None),
-                    TableItem::new(vec!["Item-2".to_string(), "Item-2".to_string()], None),
-                    TableItem::new(vec!["Item-3".to_string(), "Item-3".to_string()], None),
-                    TableItem::new(vec!["Item-4".to_string(), "Item-4".to_string()], None),
-                ])
-                .build();
+        mod select_next {
+            use super::*;
+            use pretty_assertions::assert_eq;
 
-            table.select_next(1);
+            #[test]
+            fn アイテムが空のとき未選択() {
+                let mut table = Table::builder().build();
 
-            assert_eq!(table.state.selected(), Some(1))
+                table.select_next(1);
+
+                assert_eq!(table.state.selected(), None)
+            }
+
+            #[test]
+            fn 指定した数分増加したインデックスのアイテムを選択() {
+                let mut table = Table::builder()
+                    .items([
+                        TableItem::new(vec!["Item-0".to_string(), "Item-0".to_string()], None),
+                        TableItem::new(vec!["Item-1".to_string(), "Item-1".to_string()], None),
+                        TableItem::new(vec!["Item-2".to_string(), "Item-2".to_string()], None),
+                        TableItem::new(vec!["Item-3".to_string(), "Item-3".to_string()], None),
+                        TableItem::new(vec!["Item-4".to_string(), "Item-4".to_string()], None),
+                    ])
+                    .build();
+
+                table.select_next(1);
+
+                assert_eq!(table.state.selected(), Some(1));
+
+                table.select_next(2);
+
+                assert_eq!(table.state.selected(), Some(3));
+            }
+
+            #[test]
+            fn アイテム数を超えて選択できない() {
+                let mut table = Table::builder()
+                    .items([
+                        TableItem::new(vec!["Item-0".to_string(), "Item-0".to_string()], None),
+                        TableItem::new(vec!["Item-1".to_string(), "Item-1".to_string()], None),
+                        TableItem::new(vec!["Item-2".to_string(), "Item-2".to_string()], None),
+                        TableItem::new(vec!["Item-3".to_string(), "Item-3".to_string()], None),
+                        TableItem::new(vec!["Item-4".to_string(), "Item-4".to_string()], None),
+                    ])
+                    .build();
+
+                table.select_next(100);
+
+                assert_eq!(table.state.selected(), Some(4));
+            }
         }
 
-        #[test]
-        fn 次のアイテムを選択_3() {
-            let mut table = Table::builder()
-                .items([
-                    TableItem::new(vec!["Item-0".to_string(), "Item-0".to_string()], None),
-                    TableItem::new(vec!["Item-1".to_string(), "Item-1".to_string()], None),
-                    TableItem::new(vec!["Item-2".to_string(), "Item-2".to_string()], None),
-                    TableItem::new(vec!["Item-3".to_string(), "Item-3".to_string()], None),
-                    TableItem::new(vec!["Item-4".to_string(), "Item-4".to_string()], None),
-                ])
-                .build();
+        mod select_prev {
+            use super::*;
+            use pretty_assertions::assert_eq;
 
-            table.select_next(3);
+            #[test]
+            fn アイテムが空のとき未選択() {
+                let mut table = Table::builder().build();
 
-            assert_eq!(table.state.selected(), Some(3))
+                table.select_prev(1);
+
+                assert_eq!(table.state.selected(), None)
+            }
+
+            #[test]
+            fn 指定した数分減算したインデックスのアイテムを選択() {
+                let mut table = Table::builder()
+                    .items([
+                        TableItem::new(vec!["Item-0".to_string(), "Item-0".to_string()], None),
+                        TableItem::new(vec!["Item-1".to_string(), "Item-1".to_string()], None),
+                        TableItem::new(vec!["Item-2".to_string(), "Item-2".to_string()], None),
+                        TableItem::new(vec!["Item-3".to_string(), "Item-3".to_string()], None),
+                        TableItem::new(vec!["Item-4".to_string(), "Item-4".to_string()], None),
+                    ])
+                    .build();
+
+                table.state.select(Some(4));
+
+                table.select_prev(1);
+
+                assert_eq!(table.state.selected(), Some(3));
+
+                table.select_prev(2);
+
+                assert_eq!(table.state.selected(), Some(1));
+            }
+
+            #[test]
+            fn インデックスは0より小さい値を選択できない() {
+                let mut table = Table::builder()
+                    .items([
+                        TableItem::new(vec!["Item-0".to_string(), "Item-0".to_string()], None),
+                        TableItem::new(vec!["Item-1".to_string(), "Item-1".to_string()], None),
+                        TableItem::new(vec!["Item-2".to_string(), "Item-2".to_string()], None),
+                        TableItem::new(vec!["Item-3".to_string(), "Item-3".to_string()], None),
+                        TableItem::new(vec!["Item-4".to_string(), "Item-4".to_string()], None),
+                    ])
+                    .build();
+
+                table.select_prev(100);
+
+                assert_eq!(table.state.selected(), Some(0));
+            }
+        }
+
+        mod select_first {
+            use super::*;
+            use pretty_assertions::assert_eq;
+
+            #[test]
+            fn アイテムが空のとき未選択() {
+                let mut table = Table::builder().build();
+
+                table.select_first();
+
+                assert_eq!(table.state.selected(), None)
+            }
+
+            #[test]
+            fn インデックス0のアイテムを選択() {
+                let mut table = Table::builder()
+                    .items([
+                        TableItem::new(vec!["Item-0".to_string(), "Item-0".to_string()], None),
+                        TableItem::new(vec!["Item-1".to_string(), "Item-1".to_string()], None),
+                        TableItem::new(vec!["Item-2".to_string(), "Item-2".to_string()], None),
+                        TableItem::new(vec!["Item-3".to_string(), "Item-3".to_string()], None),
+                        TableItem::new(vec!["Item-4".to_string(), "Item-4".to_string()], None),
+                    ])
+                    .build();
+
+                table.state.select(Some(4));
+
+                table.select_first();
+
+                assert_eq!(table.state.selected(), Some(0))
+            }
+        }
+
+        mod select_last {
+            use super::*;
+            use pretty_assertions::assert_eq;
+
+            #[test]
+            fn アイテムが空のとき未選択() {
+                let mut table = Table::builder().build();
+
+                table.select_last();
+
+                assert_eq!(table.state.selected(), None)
+            }
+
+            #[test]
+            fn 一番下のアイテムを選択() {
+                let mut table = Table::builder()
+                    .items([
+                        TableItem::new(vec!["Item-0".to_string(), "Item-0".to_string()], None),
+                        TableItem::new(vec!["Item-1".to_string(), "Item-1".to_string()], None),
+                        TableItem::new(vec!["Item-2".to_string(), "Item-2".to_string()], None),
+                        TableItem::new(vec!["Item-3".to_string(), "Item-3".to_string()], None),
+                        TableItem::new(vec!["Item-4".to_string(), "Item-4".to_string()], None),
+                    ])
+                    .build();
+
+                table.select_last();
+
+                assert_eq!(table.state.selected(), Some(4))
+            }
         }
     }
 
