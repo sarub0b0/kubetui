@@ -472,7 +472,7 @@ impl Text {
     }
 
     fn is_bottom(&self) -> bool {
-        self.scroll.y == self.scroll_y_last_index()
+        self.scroll_y_last_index() <= self.scroll.y
     }
 }
 
@@ -570,6 +570,10 @@ impl WidgetTrait for Text {
         self.item.update(item);
 
         if self.follow && is_bottom {
+            self.select_last()
+        }
+
+        if self.is_bottom() {
             self.select_last()
         }
     }
@@ -849,6 +853,78 @@ impl RenderTrait for Text {
                     self.mode.is_search_input(),
                     self.item.highlight_status(),
                 );
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod スクロール {
+        use super::*;
+
+        mod アイテム更新 {
+            use super::*;
+
+            mod アイテム減少 {
+                use super::*;
+
+                #[test]
+                fn 最大スクロール位置がアイテム数より大きいときスクロール位置を調整() {
+                    // --------
+                    // |0
+                    // |1
+                    // |2
+                    // |3
+                    // |4
+                    // --------
+                    let mut text = Text::builder()
+                        .items([
+                            "0".to_string(),
+                            "1".to_string(),
+                            "2".to_string(),
+                            "3".to_string(),
+                            "4".to_string(),
+                            "5".to_string(),
+                            "6".to_string(),
+                            "7".to_string(),
+                            "8".to_string(),
+                            "9".to_string(),
+                        ])
+                        .build();
+
+                    text.update_chunk(Rect::new(0, 0, 10, 7));
+
+                    text.select_last();
+
+                    // --------
+                    // |5
+                    // |6
+                    // |7
+                    // |8
+                    // |9
+                    // --------
+                    assert_eq!(text.scroll.y, 5);
+
+                    text.update_widget_item(Item::Array(vec![
+                        LiteralItem::new("0", None),
+                        LiteralItem::new("1", None),
+                        LiteralItem::new("2", None),
+                        LiteralItem::new("3", None),
+                        LiteralItem::new("4", None),
+                    ]));
+
+                    // --------
+                    // |0
+                    // |1
+                    // |2
+                    // |3
+                    // |4
+                    // --------
+                    assert_eq!(text.scroll.y, 0);
+                }
             }
         }
     }
