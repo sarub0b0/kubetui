@@ -349,3 +349,47 @@ impl Deref for Digits {
         &self.0
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod filtered_index {
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn headerにfiltered_keyに一致する要素があるとき要素のインデックスを返す() {
+            let item = InnerItem::builder()
+                .header(
+                    ["FOO", "BAR", "BAZ"]
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>(),
+                )
+                .filtered_key("BAR")
+                .build();
+
+            let actual = item.filtered_index();
+
+            assert_eq!(actual, 1);
+        }
+
+        #[test]
+        fn headerにfiltered_keyに一致する要素がないとき0を返す() {
+            let item = InnerItem::builder()
+                .header(
+                    ["FOO", "BAR", "BAZ"]
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>(),
+                )
+                .filtered_key("HOGE")
+                .build();
+
+            let actual = item.filtered_index();
+
+            assert_eq!(actual, 0);
+        }
+    }
+}
