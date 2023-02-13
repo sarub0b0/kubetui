@@ -1,36 +1,33 @@
+mod filter_form;
 mod item;
-
-use std::rc::Rc;
 
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use derivative::*;
-
-use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
+use std::rc::Rc;
 use tui::{
     backend::Backend,
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Constraint, Rect},
     style::{Modifier, Style},
     text::{Span, Spans},
-    widgets::{Block, BorderType, Borders, Paragraph, Table as TuiTable, TableState},
+    widgets::{Table as TuiTable, TableState},
     Frame,
 };
+
+use filter_form::FilterForm;
+use item::InnerItem;
 
 use crate::{
     logger,
     tui_wrapper::{
         event::{Callback, EventResult},
-        key_event_to_code,
-        widget::{config::Title, styled_graphemes},
-        Window,
+        key_event_to_code, Window,
     },
 };
 
 use super::{
-    config::WidgetConfig,
-    InputForm, SelectedItem, TableItem, {Item, RenderTrait, WidgetTrait},
+    config::{Title, WidgetConfig},
+    styled_graphemes, Item, RenderTrait, SelectedItem, TableItem, WidgetTrait,
 };
-
-use item::InnerItem;
 
 const COLUMN_SPACING: u16 = 3;
 const HIGHLIGHT_SYMBOL: &str = " ";
@@ -121,15 +118,16 @@ impl TableBuilder {
             on_select: self.on_select,
             state: self.state,
             show_status: self.show_status,
-            filtered_key: self.filtered_key,
             block_injection: self.block_injection,
             highlight_injection: self.highlight_injection,
+            filtered_key: self.filtered_key.clone(),
             ..Default::default()
         };
 
         table.items = InnerItem::builder()
             .header(self.header)
-            .rows(self.items)
+            .items(self.items)
+            .filtered_key(self.filtered_key)
             .build();
 
         table.update_row_bounds();
@@ -139,72 +137,9 @@ impl TableBuilder {
 }
 
 #[derive(Debug)]
-struct FilterForm {
-    input_widget: InputForm,
-    chunk: Rect,
-}
-
-impl Default for FilterForm {
-    fn default() -> Self {
-        Self {
-            input_widget: InputForm::new(WidgetConfig::default()),
-            chunk: Default::default(),
-        }
-    }
-}
-
-impl FilterForm {
-    fn update_chunk(&mut self, chunk: Rect) {
-        self.chunk = Rect::new(chunk.x, chunk.y, chunk.width, 3);
-    }
-
-    fn word(&self) -> String {
-        self.input_widget.content()
-    }
-
-    fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
-        self.input_widget.on_key_event(ev)
-    }
-
-    fn render<B>(&mut self, f: &mut Frame<'_, B>, selected: bool)
-    where
-        B: Backend,
-    {
-        let header = "Filter: ";
-
-        let content = self.input_widget.render_content(selected);
-
-        let content_width = self.chunk.width.saturating_sub(8);
-
-        let block = Block::default()
-            .border_type(BorderType::Plain)
-            .borders(Borders::ALL);
-
-        let inner_chunk = block.inner(self.chunk);
-
-        let chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Length(8), Constraint::Length(content_width)])
-            .split(inner_chunk);
-
-        f.render_widget(block, self.chunk);
-
-        f.render_widget(Paragraph::new(header), chunks[0]);
-
-        f.render_widget(Paragraph::new(content), chunks[1]);
-    }
-}
-
-struct MatchedItem {
-    score: i64,
-    item: TableItem,
-}
-
-#[derive(Debug)]
 enum Mode {
     Normal,
     FilterInput,
-    FilterConfirm,
 }
 
 impl Default for Mode {
@@ -222,20 +157,13 @@ impl Mode {
         *self = Self::FilterInput;
     }
 
-    fn filter_confirm(&mut self) {
-        *self = Self::FilterConfirm;
-    }
-
+    #[allow(dead_code)]
     fn is_normal(&self) -> bool {
         matches!(self, Self::Normal)
     }
 
     fn is_filter_input(&self) -> bool {
         matches!(self, Self::FilterInput)
-    }
-
-    fn is_filter_confirm(&self) -> bool {
-        matches!(self, Self::FilterConfirm)
     }
 }
 
@@ -254,8 +182,6 @@ pub struct Table<'a> {
     filter_widget: FilterForm,
     filtered_key: String,
     mode: Mode,
-    #[derivative(Debug = "ignore")]
-    matcher: SkimMatcherV2,
     #[derivative(Debug = "ignore")]
     on_select: Option<InnerCallback>,
     #[derivative(Debug = "ignore")]
@@ -288,7 +214,8 @@ impl<'a> Table<'a> {
     pub fn update_header_and_rows(&mut self, header: &[String], rows: &[TableItem]) {
         self.items = InnerItem::builder()
             .header(header)
-            .rows(rows)
+            .items(rows)
+            .filtered_key(self.filtered_key.clone())
             .max_width(self.max_width())
             .build();
 
@@ -322,7 +249,7 @@ impl<'a> Table<'a> {
 
     // リストの下に空行があるとき、空行がなくなるようoffsetを調整する
     fn adjust_offset(&mut self) {
-        let shown_item_len = self.items.items().len().saturating_sub(self.state.offset());
+        let shown_item_len = self.items.len().saturating_sub(self.state.offset());
         let showable_height = self.showable_height();
         if shown_item_len < showable_height {
             self.state.update_offset(self.max_offset());
@@ -338,7 +265,7 @@ impl<'a> Table<'a> {
         } = self.chunk;
 
         match self.mode {
-            Mode::Normal | Mode::FilterConfirm => self.chunk,
+            Mode::Normal => self.chunk,
             Mode::FilterInput => {
                 let filter_hight = 3;
                 Rect::new(
@@ -351,42 +278,27 @@ impl<'a> Table<'a> {
         }
     }
 
-    fn filter(&mut self) {
+    fn filter_items(&mut self) {
         let old_len = self.items.len();
 
-        let filtered_items = if self.mode.is_filter_confirm() {
-            let filter_word = self.filter_widget.word();
+        self.items.update_filter(self.filter_widget.word());
 
-            let mut filtered_items: Vec<MatchedItem> = self
-                .items()
-                .iter()
-                .cloned()
-                .filter_map(|item| {
-                    self.matcher
-                        .fuzzy_match(&item.item[self.filtered_index()], &filter_word)
-                        .map(|score| MatchedItem { score, item })
-                })
-                .collect();
+        self.adjust_selected(old_len, self.items.len());
 
-            filtered_items.sort_by(|a, b| b.score.cmp(&a.score));
+        self.update_row_bounds();
+    }
 
-            Item::Table(filtered_items.into_iter().map(|i| i.item).collect())
-        } else {
-            Item::Table(self.items().to_vec())
-        };
-
-        self.items.update_items(filtered_items.table());
-
-        match self.items.len() {
+    fn adjust_selected(&mut self, prev: usize, next: usize) {
+        match next {
             // アイテムがなくなったとき
             0 => self.state = Default::default(),
 
             // アイテムが減った場合
-            new_len if new_len < old_len => {
+            next if next < prev => {
                 // 選択中アイテムインデックスよりもアイテムが減少したとき一番下のアイテムを選択する
 
                 if let Some(selected) = self.state.selected() {
-                    if new_len <= selected {
+                    if next <= selected {
                         self.select_last();
                     }
                 }
@@ -401,16 +313,6 @@ impl<'a> Table<'a> {
                 }
             }
         }
-
-        self.update_row_bounds();
-    }
-
-    fn filtered_index(&self) -> usize {
-        self.items
-            .header
-            .iter()
-            .position(|header| header == &self.filtered_key)
-            .unwrap_or(0)
     }
 }
 
@@ -491,54 +393,9 @@ impl WidgetTrait for Table<'_> {
     fn update_widget_item(&mut self, items: Item) {
         let old_len = self.items.len();
 
-        let items = items.table();
+        self.items.update_items(items.table());
 
-        let filtered_items = if self.mode.is_filter_confirm() {
-            let filter_word = self.filter_widget.word();
-            let mut filtered_items: Vec<MatchedItem> = self
-                .items()
-                .iter()
-                .cloned()
-                .filter_map(|item| {
-                    self.matcher
-                        .fuzzy_match(&item.item[self.filtered_index()], &filter_word)
-                        .map(|score| MatchedItem { score, item })
-                })
-                .collect();
-
-            filtered_items.sort_by(|a, b| b.score.cmp(&a.score));
-
-            filtered_items.into_iter().map(|i| i.item).collect()
-        } else {
-            items
-        };
-
-        self.items.update_items(filtered_items);
-
-        match self.items.len() {
-            // アイテムがなくなったとき
-            0 => self.state = Default::default(),
-
-            // アイテムが減った場合
-            new_len if new_len < old_len => {
-                // 選択中アイテムインデックスよりもアイテムが減少したとき一番下のアイテムを選択する
-
-                if let Some(selected) = self.state.selected() {
-                    if new_len <= selected {
-                        self.select_last();
-                    }
-                }
-
-                self.adjust_offset();
-            }
-
-            // アイテムが増えた場合
-            _ => {
-                if self.state.selected().is_none() {
-                    self.state.select(Some(0));
-                }
-            }
-        }
+        self.adjust_selected(old_len, self.items.len());
 
         self.update_row_bounds();
     }
@@ -603,7 +460,7 @@ impl WidgetTrait for Table<'_> {
 
     fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
         match self.mode {
-            Mode::Normal | Mode::FilterConfirm => match key_event_to_code(ev) {
+            Mode::Normal => match key_event_to_code(ev) {
                 KeyCode::Char('j') | KeyCode::Down | KeyCode::PageDown => {
                     self.select_next(1);
                 }
@@ -639,12 +496,7 @@ impl WidgetTrait for Table<'_> {
 
             Mode::FilterInput => match key_event_to_code(ev) {
                 KeyCode::Enter => {
-                    if self.filter_widget.word().is_empty() {
-                        self.mode.normal();
-                    } else {
-                        self.mode.filter_confirm();
-                        self.filter();
-                    }
+                    self.mode.normal();
                 }
 
                 KeyCode::Esc => {
@@ -654,7 +506,7 @@ impl WidgetTrait for Table<'_> {
                 _ => {
                     let ev = self.filter_widget.on_key_event(ev);
 
-                    // TODO: 文字入力中にリアルタイムにフィルタリングする
+                    self.filter_items();
 
                     return ev;
                 }
@@ -679,7 +531,12 @@ impl WidgetTrait for Table<'_> {
 
     fn clear(&mut self) {
         self.state = TableState::default();
-        self.items = InnerItem::builder().max_width(self.max_width()).build();
+
+        self.items = InnerItem::builder()
+            .max_width(self.max_width())
+            .filtered_key(self.filtered_key.clone())
+            .build();
+
         self.row_bounds = Vec::default();
 
         *(self.widget_config.append_title_mut()) = None;
@@ -744,7 +601,7 @@ impl RenderTrait for Table<'_> {
         };
 
         if let Some(appended_title) = widget_config.append_title_mut().as_mut() {
-            if self.mode.is_filter_confirm() {
+            if !self.filter_widget.word().is_empty() {
                 let mut spans = appended_title.spans().0;
 
                 spans.push(Span::from(format!(" ({})", self.filter_widget.word())));
@@ -759,7 +616,7 @@ impl RenderTrait for Table<'_> {
 
         let highlight_style = self.render_highlight_style();
 
-        let mut widget = TuiTable::new(self.items.rendered_rows())
+        let mut widget = TuiTable::new(self.items.to_rendered_rows())
             .block(block)
             .highlight_style(highlight_style)
             .highlight_symbol(HIGHLIGHT_SYMBOL)
@@ -807,7 +664,7 @@ mod tests {
         fn 表示する文字列幅でカラム幅を計算する() {
             let item = InnerItem::builder()
                 .header(["\x1b[0mA".to_string(), "B".to_string()])
-                .rows([TableItem::new(
+                .items([TableItem::new(
                     ["abc".to_string(), "\x1b[31mabc\x1b[0m".to_string()],
                     None,
                 )])
@@ -1151,6 +1008,7 @@ mod tests {
         }
 
         mod アイテム削除時 {
+
             use super::*;
             use pretty_assertions::assert_eq;
 

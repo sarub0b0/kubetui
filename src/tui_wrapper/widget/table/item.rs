@@ -1,12 +1,17 @@
 use std::ops::Deref;
 
+use derivative::*;
+use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use tui::{
     style::{Color, Style},
     widgets::{Cell, Row},
 };
 
-use crate::tui_wrapper::widget::{
-    spans::generate_spans_line, styled_graphemes::StyledGraphemes, wrap::wrap_line, TableItem,
+use crate::{
+    logger,
+    tui_wrapper::widget::{
+        spans::generate_spans_line, styled_graphemes::StyledGraphemes, wrap::wrap_line, TableItem,
+    },
 };
 
 use super::COLUMN_SPACING;
@@ -17,8 +22,9 @@ const ITEM_BOTTOM_MARGIN: u16 = 1;
 #[derive(Debug, Default)]
 pub struct InnerItemBuilder {
     header: Vec<String>,
-    rows: Vec<TableItem>,
+    items: Vec<TableItem>,
     max_width: usize,
+    filtered_key: String,
 }
 
 impl InnerItemBuilder {
@@ -27,8 +33,8 @@ impl InnerItemBuilder {
         self
     }
 
-    pub fn rows(mut self, rows: impl Into<Vec<TableItem>>) -> Self {
-        self.rows = rows.into();
+    pub fn items(mut self, items: impl Into<Vec<TableItem>>) -> Self {
+        self.items = items.into();
         self
     }
 
@@ -37,10 +43,17 @@ impl InnerItemBuilder {
         self
     }
 
+    pub fn filtered_key(mut self, key: impl Into<String>) -> Self {
+        self.filtered_key = key.into();
+        self
+    }
+
     pub fn build(self) -> InnerItem<'static> {
         let mut inner_item = InnerItem {
             header: Header::new(self.header),
-            original_items: self.rows,
+            original_items: self.items.clone(),
+            filtered_items: self.items,
+            filtered_key: self.filtered_key,
             ..Default::default()
         };
 
@@ -56,14 +69,20 @@ pub struct InnerRow<'a> {
     pub height: usize,
 }
 
-#[derive(Debug, Default)]
+#[derive(Derivative)]
+#[derivative(Debug, Default)]
 pub struct InnerItem<'a> {
     header: Header<'a>,
     original_items: Vec<TableItem>,
+    filtered_items: Vec<TableItem>,
     rendered_items: Vec<InnerRow<'a>>,
+    item_margin: u16,
     digits: Digits,
     max_width: usize,
-    item_margin: u16,
+    filtered_key: String,
+    filtered_word: String,
+    #[derivative(Debug = "ignore")]
+    matcher: SkimMatcherV2,
 }
 
 impl<'a> InnerItem<'a> {
@@ -72,11 +91,11 @@ impl<'a> InnerItem<'a> {
     }
 
     pub fn len(&self) -> usize {
-        self.original_items.len()
+        self.filtered_items.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.original_items.is_empty()
+        self.filtered_items.is_empty()
     }
 
     pub fn header(&self) -> &Header {
@@ -84,19 +103,15 @@ impl<'a> InnerItem<'a> {
     }
 
     pub fn items(&self) -> &[TableItem] {
-        &self.original_items
+        &self.filtered_items
     }
 
     pub fn rendered_items(&self) -> &[InnerRow] {
         &self.rendered_items
     }
 
-    pub fn rendered_rows(&self) -> Vec<Row> {
-        self.rendered_items
-            .iter()
-            .cloned()
-            .map(|item| item.row)
-            .collect()
+    pub fn to_rendered_rows(&self) -> Vec<Row> {
+        self.rendered_items.iter().cloned().map(|i| i.row).collect()
     }
 
     pub fn digits(&self) -> &[usize] {
@@ -109,6 +124,7 @@ impl<'a> InnerItem<'a> {
 
     pub fn update_items(&mut self, item: Vec<TableItem>) {
         self.original_items = item;
+        self.inner_filter_items();
         self.inner_update_rendered_items();
     }
 
@@ -116,11 +132,44 @@ impl<'a> InnerItem<'a> {
         self.max_width = max_width;
         self.inner_update_rendered_items();
     }
+
+    pub fn update_filter(&mut self, word: impl Into<String>) {
+        self.filtered_word = word.into();
+        self.inner_filter_items();
+        self.inner_update_rendered_items();
+    }
 }
 
 impl<'a> InnerItem<'a> {
+    fn inner_filter_items(&mut self) {
+        #[derive(Debug)]
+        struct MatchedItem {
+            score: i64,
+            item: TableItem,
+        }
+
+        if self.filtered_word.is_empty() {
+            self.filtered_items = self.original_items.clone();
+        } else {
+            let mut filtered_items: Vec<MatchedItem> = self
+                .original_items
+                .iter()
+                .cloned()
+                .filter_map(|item| {
+                    self.matcher
+                        .fuzzy_match(&item.item[self.filtered_index()], &self.filtered_word)
+                        .map(|score| MatchedItem { score, item })
+                })
+                .collect();
+
+            filtered_items.sort_by(|a, b| b.score.cmp(&a.score));
+
+            self.filtered_items = filtered_items.into_iter().map(|i| i.item).collect();
+        }
+    }
+
     fn inner_update_rendered_items(&mut self) {
-        self.digits = Digits::new(&self.original_items, &self.header.original, self.max_width);
+        self.digits = Digits::new(&self.filtered_items, &self.header.original, self.max_width);
 
         if self.digits.is_empty() {
             return;
@@ -129,7 +178,7 @@ impl<'a> InnerItem<'a> {
         let mut need_margin = false;
 
         self.rendered_items = self
-            .original_items
+            .filtered_items
             .iter()
             .map(|row| {
                 let mut row_height = 1;
@@ -175,6 +224,24 @@ impl<'a> InnerItem<'a> {
         } else {
             self.item_margin = 0;
         }
+    }
+
+    fn filtered_index(&self) -> usize {
+        let index = self
+            .header
+            .original
+            .iter()
+            .position(|header| header == &self.filtered_key)
+            .unwrap_or(0);
+
+        logger!(
+            debug,
+            "[table] header={:?} filtered_key={}",
+            self.header.original,
+            index
+        );
+
+        index
     }
 }
 
