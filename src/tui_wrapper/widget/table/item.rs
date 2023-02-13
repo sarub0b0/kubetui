@@ -156,8 +156,11 @@ impl<'a> InnerItem<'a> {
                 .iter()
                 .cloned()
                 .filter_map(|item| {
+                    let choice = item.item[self.filtered_index()]
+                        .styled_graphemes_symbols()
+                        .concat();
                     self.matcher
-                        .fuzzy_match(&item.item[self.filtered_index()], &self.filtered_word)
+                        .fuzzy_match(&choice, &self.filtered_word)
                         .map(|score| MatchedItem { score, item })
                 })
                 .collect();
