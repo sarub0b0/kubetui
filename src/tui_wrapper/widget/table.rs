@@ -5,6 +5,7 @@ use std::rc::Rc;
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use derivative::*;
 
+use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
@@ -48,6 +49,7 @@ pub struct TableBuilder {
     header: Vec<String>,
     items: Vec<TableItem>,
     state: TableState,
+    filtered_index: usize,
     #[derivative(Debug = "ignore")]
     on_select: Option<InnerCallback>,
     #[derivative(Debug = "ignore")]
@@ -75,6 +77,11 @@ impl TableBuilder {
 
     pub fn header(mut self, header: impl Into<Vec<String>>) -> Self {
         self.header = header.into();
+        self
+    }
+
+    pub fn filtered_key(mut self, key: usize) -> Self {
+        self.filtered_index = key.into();
         self
     }
 
@@ -114,6 +121,7 @@ impl TableBuilder {
             on_select: self.on_select,
             state: self.state,
             show_status: self.show_status,
+            filtered_index: self.filtered_index,
             block_injection: self.block_injection,
             highlight_injection: self.highlight_injection,
             ..Default::default()
@@ -187,6 +195,11 @@ impl FilterForm {
     }
 }
 
+struct MatchedItem {
+    score: i64,
+    item: TableItem,
+}
+
 #[derive(Debug)]
 enum Mode {
     Normal,
@@ -239,7 +252,10 @@ pub struct Table<'a> {
     inner_chunk: Rect,
     row_bounds: Vec<(usize, usize)>,
     filter_widget: FilterForm,
+    filtered_index: usize,
     mode: Mode,
+    #[derivative(Debug = "ignore")]
+    matcher: SkimMatcherV2,
     #[derivative(Debug = "ignore")]
     on_select: Option<InnerCallback>,
     #[derivative(Debug = "ignore")]
@@ -334,6 +350,60 @@ impl<'a> Table<'a> {
             }
         }
     }
+
+    fn filter(&mut self) {
+        let old_len = self.items.len();
+
+        let filtered_items = if self.mode.is_filter_confirm() {
+            let filter_word = self.filter_widget.word();
+
+            let mut filtered_items: Vec<MatchedItem> = self
+                .items()
+                .iter()
+                .cloned()
+                .filter_map(|item| {
+                    self.matcher
+                        .fuzzy_match(&item.item[self.filtered_index], &filter_word)
+                        .map(|score| MatchedItem { score, item })
+                })
+                .collect();
+
+            filtered_items.sort_by(|a, b| b.score.cmp(&a.score));
+
+            Item::Table(filtered_items.into_iter().map(|i| i.item).collect())
+        } else {
+            Item::Table(self.items().to_vec())
+        };
+
+        self.items.update_items(filtered_items.table());
+
+        match self.items.len() {
+            // アイテムがなくなったとき
+            0 => self.state = Default::default(),
+
+            // アイテムが減った場合
+            new_len if new_len < old_len => {
+                // 選択中アイテムインデックスよりもアイテムが減少したとき一番下のアイテムを選択する
+
+                if let Some(selected) = self.state.selected() {
+                    if new_len <= selected {
+                        self.select_last();
+                    }
+                }
+
+                self.adjust_offset();
+            }
+
+            // アイテムが増えた場合
+            _ => {
+                if self.state.selected().is_none() {
+                    self.state.select(Some(0));
+                }
+            }
+        }
+
+        self.update_row_bounds();
+    }
 }
 
 impl WidgetTrait for Table<'_> {
@@ -413,7 +483,29 @@ impl WidgetTrait for Table<'_> {
     fn update_widget_item(&mut self, items: Item) {
         let old_len = self.items.len();
 
-        self.items.update_items(items.table());
+        let items = items.table();
+
+        let filtered_items = if self.mode.is_filter_confirm() {
+            let filter_word = self.filter_widget.word();
+            let mut filtered_items: Vec<MatchedItem> = self
+                .items()
+                .iter()
+                .cloned()
+                .filter_map(|item| {
+                    self.matcher
+                        .fuzzy_match(&item.item[self.filtered_index], &filter_word)
+                        .map(|score| MatchedItem { score, item })
+                })
+                .collect();
+
+            filtered_items.sort_by(|a, b| b.score.cmp(&a.score));
+
+            filtered_items.into_iter().map(|i| i.item).collect()
+        } else {
+            items
+        };
+
+        self.items.update_items(filtered_items);
 
         match self.items.len() {
             // アイテムがなくなったとき
@@ -422,8 +514,11 @@ impl WidgetTrait for Table<'_> {
             // アイテムが減った場合
             new_len if new_len < old_len => {
                 // 選択中アイテムインデックスよりもアイテムが減少したとき一番下のアイテムを選択する
-                if new_len <= self.state.selected().unwrap_or(0) {
-                    self.state.select(Some(new_len - 1));
+
+                if let Some(selected) = self.state.selected() {
+                    if new_len <= selected {
+                        self.select_last();
+                    }
                 }
 
                 self.adjust_offset();
@@ -540,6 +635,7 @@ impl WidgetTrait for Table<'_> {
                         self.mode.normal();
                     } else {
                         self.mode.filter_confirm();
+                        self.filter();
                     }
                 }
 
