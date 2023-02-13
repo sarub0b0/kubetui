@@ -69,67 +69,6 @@ pub struct InnerRow<'a> {
     pub height: usize,
 }
 
-struct Digits(Vec<usize>);
-
-impl Digits {
-    fn update(Self(digits): &mut Self, items: &[TableItem], header: &[String], max_width: usize) {
-        if items.is_empty() {
-            return;
-        }
-
-        *digits = if header.is_empty() {
-            items[0]
-                .item
-                .iter()
-                .map(|i| i.styled_graphemes_width())
-                .collect()
-        } else {
-            header.iter().map(|h| h.styled_graphemes_width()).collect()
-        };
-
-        for row in items {
-            for (i, col) in row.item.iter().enumerate() {
-                let len = col.styled_graphemes_width();
-                if digits.len() < i {
-                    break;
-                }
-
-                if digits[i] < len {
-                    digits[i] = len
-                }
-            }
-        }
-
-        let sum_width = digits.iter().sum::<usize>()
-            + (COLUMN_SPACING as usize * digits.len().saturating_sub(1));
-
-        if max_width < sum_width {
-            let index_of_longest_digits = digits
-                .iter()
-                .enumerate()
-                .max_by_key(|(_, l)| *l)
-                .unwrap_or((0, &0))
-                .0;
-
-            let sum_width: usize = digits
-                .iter()
-                .enumerate()
-                .filter_map(|(i, w)| {
-                    if i == index_of_longest_digits {
-                        None
-                    } else {
-                        Some(w)
-                    }
-                })
-                .sum();
-
-            digits[index_of_longest_digits] = max_width.saturating_sub(
-                (COLUMN_SPACING as usize * digits.len().saturating_sub(1)) + sum_width,
-            );
-        }
-    }
-}
-
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
 pub struct InnerItem<'a> {
