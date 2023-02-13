@@ -44,7 +44,7 @@ impl InnerItemBuilder {
             ..Default::default()
         };
 
-        inner_item.update_rows(self.max_width);
+        inner_item.update_max_width(self.max_width);
 
         inner_item
     }
@@ -93,24 +93,19 @@ impl<'a> InnerItem<'a> {
 
     pub fn update_items(&mut self, item: Vec<TableItem>) {
         self.original_items = item;
-        self.inner_update_rows();
+        self.inner_update_rendered_items();
     }
 
-    pub fn update_rows(&mut self, max_width: usize) {
+    pub fn update_max_width(&mut self, max_width: usize) {
         self.max_width = max_width;
-
-        self.inner_update_rows();
+        self.inner_update_rendered_items();
     }
 }
 
 impl<'a> InnerItem<'a> {
-    fn inner_update_rows(&mut self) {
+    fn inner_update_rendered_items(&mut self) {
         self.digits = Digits::new(&self.original_items, &self.header.original, self.max_width);
 
-        self.inner_update_widget_rows();
-    }
-
-    fn inner_update_widget_rows(&mut self) {
         if self.digits.is_empty() {
             return;
         }

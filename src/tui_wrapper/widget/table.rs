@@ -419,7 +419,7 @@ impl WidgetTrait for Table<'_> {
         self.chunk = chunk;
         self.inner_chunk = self.widget_config.block().inner(chunk);
 
-        self.items.update_rows(self.max_width());
+        self.items.update_max_width(self.max_width());
 
         self.adjust_offset();
 
