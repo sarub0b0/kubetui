@@ -155,7 +155,7 @@ impl<'a> Table<'a> {
     }
 
     pub fn items(&self) -> &[TableItem] {
-        &self.items.rows
+        &self.items.original_items
     }
 
     pub fn state(&self) -> &TableState {
@@ -163,7 +163,7 @@ impl<'a> Table<'a> {
     }
 
     pub fn equal_header(&self, header: &[String]) -> bool {
-        self.items.header == header
+        self.items.original_header == header
     }
 
     fn max_width(&self) -> usize {
@@ -184,7 +184,7 @@ impl<'a> Table<'a> {
         let bottom_margin = self.items.bottom_margin as usize;
         self.row_bounds = self
             .items
-            .widget_rows
+            .rendered_items
             .iter()
             .scan(0, |sum, row| {
                 let b = (*sum, *sum + row.height.saturating_sub(1));
@@ -199,12 +199,19 @@ impl<'a> Table<'a> {
     }
 
     fn max_offset(&self) -> usize {
-        self.items.rows.len().saturating_sub(self.showable_height())
+        self.items
+            .original_items
+            .len()
+            .saturating_sub(self.showable_height())
     }
 
     // リストの下に空行があるとき、空行がなくなるようoffsetを調整する
     fn adjust_offset(&mut self) {
-        let shown_item_len = self.items.rows.len().saturating_sub(self.state.offset());
+        let shown_item_len = self
+            .items
+            .original_items
+            .len()
+            .saturating_sub(self.state.offset());
         let showable_height = self.showable_height();
         if shown_item_len < showable_height {
             self.state.update_offset(self.max_offset());
@@ -224,7 +231,7 @@ impl WidgetTrait for Table<'_> {
     fn widget_item(&self) -> Option<SelectedItem> {
         self.state
             .selected()
-            .map(|i| self.items.rows[i].clone().into())
+            .map(|i| self.items.original_items[i].clone().into())
     }
 
     fn chunk(&self) -> Rect {
@@ -336,7 +343,7 @@ impl WidgetTrait for Table<'_> {
                 let offset_bound = self.row_bounds[offset_index];
                 let offset_row = offset_bound.0;
 
-                let header_margin = if self.items.header.is_empty() {
+                let header_margin = if self.items.original_header.is_empty() {
                     0
                 } else {
                     ROW_START_INDEX
@@ -447,7 +454,7 @@ impl<'a> Table<'a> {
     fn selected_item(&self) -> Option<Rc<TableItem>> {
         self.state
             .selected()
-            .map(|i| Rc::new(self.items.rows[i].clone()))
+            .map(|i| Rc::new(self.items.original_items[i].clone()))
     }
 }
 
@@ -490,15 +497,16 @@ impl RenderTrait for Table<'_> {
 
         let highlight_style = self.render_highlight_style();
 
-        let mut widget = TuiTable::new(self.items.widget_rows.iter().cloned().map(|row| row.row))
-            .block(block)
-            .highlight_style(highlight_style)
-            .highlight_symbol(HIGHLIGHT_SYMBOL)
-            .column_spacing(COLUMN_SPACING)
-            .widths(&constraints);
+        let mut widget =
+            TuiTable::new(self.items.rendered_items.iter().cloned().map(|row| row.row))
+                .block(block)
+                .highlight_style(highlight_style)
+                .highlight_symbol(HIGHLIGHT_SYMBOL)
+                .column_spacing(COLUMN_SPACING)
+                .widths(&constraints);
 
-        if !self.items.header.is_empty() {
-            widget = widget.header(self.items.header_row.clone());
+        if !self.items.original_header.is_empty() {
+            widget = widget.header(self.items.rendered_header.clone());
         }
 
         f.render_stateful_widget(widget, self.chunk, &mut self.state);

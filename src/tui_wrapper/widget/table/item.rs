@@ -36,14 +36,14 @@ impl InnerItemBuilder {
 
     pub fn build(self) -> InnerItem<'static> {
         let mut inner_item = InnerItem {
-            header: self.header,
-            rows: self.rows,
+            original_header: self.header,
+            original_items: self.rows,
             ..Default::default()
         };
 
-        inner_item.header_row = Row::new(
+        inner_item.rendered_header = Row::new(
             inner_item
-                .header
+                .original_header
                 .iter()
                 .cloned()
                 .map(|h| Cell::from(h).style(Style::default().fg(Color::DarkGray))),
@@ -64,10 +64,10 @@ pub struct InnerRow<'a> {
 
 #[derive(Debug, Default)]
 pub struct InnerItem<'a> {
-    pub header: Vec<String>,
-    pub header_row: Row<'a>,
-    pub rows: Vec<TableItem>,
-    pub widget_rows: Vec<InnerRow<'a>>,
+    pub original_header: Vec<String>,
+    pub rendered_header: Row<'a>,
+    pub original_items: Vec<TableItem>,
+    pub rendered_items: Vec<InnerRow<'a>>,
     pub bottom_margin: u16,
     digits: Digits,
     pub max_width: usize,
@@ -79,11 +79,11 @@ impl<'a> InnerItem<'a> {
     }
 
     pub fn len(&self) -> usize {
-        self.rows.len()
+        self.original_items.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.rows.is_empty()
+        self.original_items.is_empty()
     }
 
     pub fn digits(&self) -> &[usize] {
@@ -91,7 +91,7 @@ impl<'a> InnerItem<'a> {
     }
 
     pub fn update_item(&mut self, item: Item) {
-        self.rows = item.table();
+        self.original_items = item.table();
         self.inner_update_rows();
     }
 
@@ -102,7 +102,7 @@ impl<'a> InnerItem<'a> {
     }
 
     fn inner_update_rows(&mut self) {
-        self.digits = Digits::new(&self.rows, &self.header, self.max_width);
+        self.digits = Digits::new(&self.original_items, &self.original_header, self.max_width);
 
         self.inner_update_widget_rows();
     }
@@ -114,8 +114,8 @@ impl<'a> InnerItem<'a> {
 
         let mut need_margin = false;
 
-        self.widget_rows = self
-            .rows
+        self.rendered_items = self
+            .original_items
             .iter()
             .map(|row| {
                 let mut row_height = 1;
@@ -147,8 +147,8 @@ impl<'a> InnerItem<'a> {
             .collect();
 
         if need_margin {
-            self.widget_rows = self
-                .widget_rows
+            self.rendered_items = self
+                .rendered_items
                 .iter()
                 .cloned()
                 .map(|r| InnerRow {
