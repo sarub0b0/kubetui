@@ -9,7 +9,7 @@ use tui::{
     backend::Backend,
     layout::{Constraint, Rect},
     style::{Modifier, Style},
-    widgets::{Block, Table as TTable, TableState},
+    widgets::{Block, Table as TuiTable, TableState},
     Frame,
 };
 
@@ -490,7 +490,7 @@ impl RenderTrait for Table<'_> {
 
         let highlight_style = self.render_highlight_style();
 
-        let mut widget = TTable::new(self.items.widget_rows.iter().cloned().map(|row| row.row))
+        let mut widget = TuiTable::new(self.items.widget_rows.iter().cloned().map(|row| row.row))
             .block(block)
             .highlight_style(highlight_style)
             .highlight_symbol(HIGHLIGHT_SYMBOL)
