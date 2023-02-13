@@ -62,7 +62,7 @@ pub struct InnerItem<'a> {
     pub original_items: Vec<TableItem>,
     pub rendered_items: Vec<InnerRow<'a>>,
     digits: Digits,
-    pub max_width: usize,
+    max_width: usize,
     item_margin: u16,
 }
 
