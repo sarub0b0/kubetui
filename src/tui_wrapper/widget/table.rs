@@ -163,7 +163,7 @@ impl<'a> Table<'a> {
     }
 
     pub fn equal_header(&self, header: &[String]) -> bool {
-        self.items.original_header == header
+        self.items.header() == header
     }
 
     fn max_width(&self) -> usize {
@@ -343,7 +343,7 @@ impl WidgetTrait for Table<'_> {
                 let offset_bound = self.row_bounds[offset_index];
                 let offset_row = offset_bound.0;
 
-                let header_margin = if self.items.original_header.is_empty() {
+                let header_margin = if self.items.header().is_empty() {
                     0
                 } else {
                     ROW_START_INDEX
@@ -505,8 +505,8 @@ impl RenderTrait for Table<'_> {
                 .column_spacing(COLUMN_SPACING)
                 .widths(&constraints);
 
-        if !self.items.original_header.is_empty() {
-            widget = widget.header(self.items.rendered_header.clone());
+        if !self.items.header().is_empty() {
+            widget = widget.header(self.items.rendered_header());
         }
 
         f.render_stateful_widget(widget, self.chunk, &mut self.state);

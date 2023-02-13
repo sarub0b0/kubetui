@@ -64,8 +64,8 @@ pub struct InnerRow<'a> {
 
 #[derive(Debug, Default)]
 pub struct InnerItem<'a> {
-    pub original_header: Vec<String>,
-    pub rendered_header: Row<'a>,
+    original_header: Vec<String>,
+    rendered_header: Row<'a>,
     pub original_items: Vec<TableItem>,
     pub rendered_items: Vec<InnerRow<'a>>,
     pub bottom_margin: u16,
@@ -86,6 +86,14 @@ impl<'a> InnerItem<'a> {
         self.original_items.is_empty()
     }
 
+    pub fn header(&self) -> &[String] {
+        &self.original_header
+    }
+
+    pub fn rendered_header(&self) -> Row {
+        self.rendered_header.clone()
+    }
+
     pub fn digits(&self) -> &[usize] {
         &self.digits
     }
@@ -100,7 +108,9 @@ impl<'a> InnerItem<'a> {
 
         self.inner_update_rows();
     }
+}
 
+impl<'a> InnerItem<'a> {
     fn inner_update_rows(&mut self) {
         self.digits = Digits::new(&self.original_items, &self.original_header, self.max_width);
 
