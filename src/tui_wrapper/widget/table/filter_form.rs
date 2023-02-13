@@ -43,7 +43,7 @@ impl FilterForm {
     where
         B: Backend,
     {
-        let header = "Filter: ";
+        let header = "FILTER: ";
 
         let content = self.input_widget.render_content(selected);
 
