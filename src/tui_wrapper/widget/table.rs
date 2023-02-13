@@ -163,7 +163,7 @@ impl<'a> Table<'a> {
     }
 
     pub fn equal_header(&self, header: &[String]) -> bool {
-        self.items.header() == header
+        self.items.header().original() == header
     }
 
     fn max_width(&self) -> usize {
@@ -181,14 +181,14 @@ impl<'a> Table<'a> {
     }
 
     fn update_row_bounds(&mut self) {
-        let bottom_margin = self.items.bottom_margin as usize;
+        let item_margin = self.items.item_margin() as usize;
         self.row_bounds = self
             .items
             .rendered_items
             .iter()
             .scan(0, |sum, row| {
                 let b = (*sum, *sum + row.height.saturating_sub(1));
-                *sum += row.height + bottom_margin;
+                *sum += row.height + item_margin;
                 Some(b)
             })
             .collect();
@@ -506,7 +506,7 @@ impl RenderTrait for Table<'_> {
                 .widths(&constraints);
 
         if !self.items.header().is_empty() {
-            widget = widget.header(self.items.rendered_header());
+            widget = widget.header(self.items.header().rendered());
         }
 
         f.render_stateful_widget(widget, self.chunk, &mut self.state);

@@ -11,6 +11,9 @@ use crate::tui_wrapper::widget::{
 
 use super::COLUMN_SPACING;
 
+const HEADER_BOTTOM_MARGIN: u16 = 1;
+const ITEM_BOTTOM_MARGIN: u16 = 1;
+
 #[derive(Debug, Default)]
 pub struct InnerItemBuilder {
     header: Vec<String>,
@@ -36,19 +39,10 @@ impl InnerItemBuilder {
 
     pub fn build(self) -> InnerItem<'static> {
         let mut inner_item = InnerItem {
-            original_header: self.header,
+            header: Header::new(self.header),
             original_items: self.rows,
             ..Default::default()
         };
-
-        inner_item.rendered_header = Row::new(
-            inner_item
-                .original_header
-                .iter()
-                .cloned()
-                .map(|h| Cell::from(h).style(Style::default().fg(Color::DarkGray))),
-        )
-        .bottom_margin(1);
 
         inner_item.update_rows(self.max_width);
 
@@ -64,13 +58,12 @@ pub struct InnerRow<'a> {
 
 #[derive(Debug, Default)]
 pub struct InnerItem<'a> {
-    original_header: Vec<String>,
-    rendered_header: Row<'a>,
+    header: Header<'a>,
     pub original_items: Vec<TableItem>,
     pub rendered_items: Vec<InnerRow<'a>>,
-    pub bottom_margin: u16,
     digits: Digits,
     pub max_width: usize,
+    item_margin: u16,
 }
 
 impl<'a> InnerItem<'a> {
@@ -86,16 +79,16 @@ impl<'a> InnerItem<'a> {
         self.original_items.is_empty()
     }
 
-    pub fn header(&self) -> &[String] {
-        &self.original_header
-    }
-
-    pub fn rendered_header(&self) -> Row {
-        self.rendered_header.clone()
+    pub fn header(&self) -> &Header {
+        &self.header
     }
 
     pub fn digits(&self) -> &[usize] {
         &self.digits
+    }
+
+    pub fn item_margin(&self) -> u16 {
+        self.item_margin
     }
 
     pub fn update_items(&mut self, item: Vec<TableItem>) {
@@ -112,7 +105,7 @@ impl<'a> InnerItem<'a> {
 
 impl<'a> InnerItem<'a> {
     fn inner_update_rows(&mut self) {
-        self.digits = Digits::new(&self.original_items, &self.original_header, self.max_width);
+        self.digits = Digits::new(&self.original_items, &self.header.original, self.max_width);
 
         self.inner_update_widget_rows();
     }
@@ -162,15 +155,48 @@ impl<'a> InnerItem<'a> {
                 .iter()
                 .cloned()
                 .map(|r| InnerRow {
-                    row: r.row.bottom_margin(1),
+                    row: r.row.bottom_margin(ITEM_BOTTOM_MARGIN),
                     ..r
                 })
                 .collect();
 
-            self.bottom_margin = 1;
+            self.item_margin = ITEM_BOTTOM_MARGIN;
         } else {
-            self.bottom_margin = 0;
+            self.item_margin = 0;
         }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct Header<'a> {
+    original: Vec<String>,
+    rendered: Row<'a>,
+}
+
+impl Header<'_> {
+    fn new(header: Vec<String>) -> Self {
+        let rendered = Row::new(header.iter().cloned().map(|h| {
+            Cell::from(h.styled_graphemes_symbols().concat())
+                .style(Style::default().fg(Color::DarkGray))
+        }))
+        .bottom_margin(HEADER_BOTTOM_MARGIN);
+
+        Self {
+            original: header,
+            rendered,
+        }
+    }
+
+    pub fn original(&self) -> &[String] {
+        &self.original
+    }
+
+    pub fn rendered(&self) -> Row {
+        self.rendered.clone()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.original.is_empty()
     }
 }
 
