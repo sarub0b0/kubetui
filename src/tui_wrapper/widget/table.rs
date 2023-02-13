@@ -1,3 +1,5 @@
+mod item;
+
 use std::rc::Rc;
 
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
@@ -6,8 +8,8 @@ use derivative::*;
 use tui::{
     backend::Backend,
     layout::{Constraint, Rect},
-    style::{Color, Modifier, Style},
-    widgets::{Block, Cell, Row, Table as TTable, TableState},
+    style::{Modifier, Style},
+    widgets::{Block, Table as TuiTable, TableState},
     Frame,
 };
 
@@ -22,12 +24,11 @@ use crate::{
 };
 
 use super::{
-    spans::generate_spans_line,
-    styled_graphemes::StyledGraphemes,
-    SelectedItem, TableItem,
-    {config::WidgetConfig, wrap::wrap_line},
-    {Item, RenderTrait, WidgetTrait},
+    config::WidgetConfig,
+    SelectedItem, TableItem, {Item, RenderTrait, WidgetTrait},
 };
+
+use item::InnerItem;
 
 const COLUMN_SPACING: u16 = 3;
 const HIGHLIGHT_SYMBOL: &str = " ";
@@ -36,216 +37,6 @@ const ROW_START_INDEX: usize = 2;
 type InnerCallback = Rc<dyn Fn(&mut Window, &TableItem) -> EventResult>;
 type RenderBlockInjection = Rc<dyn Fn(&Table, bool) -> Block<'static>>;
 type RenderHighlightInjection = Rc<dyn Fn(Option<&TableItem>) -> Style>;
-
-#[derive(Debug, Default)]
-struct InnerItemBuilder {
-    header: Vec<String>,
-    rows: Vec<TableItem>,
-    max_width: usize,
-}
-
-impl InnerItemBuilder {
-    fn header(mut self, header: impl Into<Vec<String>>) -> Self {
-        self.header = header.into();
-        self
-    }
-
-    fn rows(mut self, rows: impl Into<Vec<TableItem>>) -> Self {
-        self.rows = rows.into();
-        self
-    }
-
-    fn max_width(mut self, max_width: usize) -> Self {
-        self.max_width = max_width;
-        self
-    }
-
-    fn build(self) -> InnerItem<'static> {
-        let mut inner_item = InnerItem {
-            header: self.header,
-            rows: self.rows,
-            ..Default::default()
-        };
-
-        inner_item.header_row = Row::new(
-            inner_item
-                .header
-                .iter()
-                .cloned()
-                .map(|h| Cell::from(h).style(Style::default().fg(Color::DarkGray))),
-        )
-        .bottom_margin(1);
-
-        inner_item.update_rows(self.max_width);
-
-        inner_item
-    }
-}
-
-#[derive(Debug, Default, Clone)]
-struct InnerRow<'a> {
-    row: Row<'a>,
-    height: usize,
-}
-
-#[derive(Debug, Default)]
-struct InnerItem<'a> {
-    header: Vec<String>,
-    header_row: Row<'a>,
-    rows: Vec<TableItem>,
-    widget_rows: Vec<InnerRow<'a>>,
-    bottom_margin: u16,
-    digits: Vec<usize>,
-    max_width: usize,
-}
-
-impl<'a> InnerItem<'a> {
-    fn builder() -> InnerItemBuilder {
-        InnerItemBuilder::default()
-    }
-
-    fn len(&self) -> usize {
-        self.rows.len()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.rows.is_empty()
-    }
-
-    fn update_item(&mut self, item: Item) {
-        self.rows = item.table();
-        self.inner_update_rows();
-    }
-
-    fn update_rows(&mut self, max_width: usize) {
-        self.max_width = max_width;
-
-        self.inner_update_rows();
-    }
-
-    fn inner_update_rows(&mut self) {
-        self.update_digits();
-        self.inner_update_widget_rows();
-    }
-
-    fn inner_update_widget_rows(&mut self) {
-        if self.digits.is_empty() {
-            return;
-        }
-
-        let mut need_margin = false;
-
-        self.widget_rows = self
-            .rows
-            .iter()
-            .map(|row| {
-                let mut row_height = 1;
-
-                let cells: Vec<Cell> = row
-                    .item
-                    .iter()
-                    .cloned()
-                    .enumerate()
-                    .map(|(i, cell)| {
-                        let wrapped = wrap_line(&cell, self.digits[i]);
-
-                        let wrapped_len = wrapped.len();
-                        if row_height < wrapped_len {
-                            need_margin = true;
-
-                            row_height = wrapped_len;
-                        }
-
-                        Cell::from(generate_spans_line(&wrapped))
-                    })
-                    .collect();
-
-                InnerRow {
-                    row: Row::new(cells).height(row_height as u16),
-                    height: row_height,
-                }
-            })
-            .collect();
-
-        if need_margin {
-            self.widget_rows = self
-                .widget_rows
-                .iter()
-                .cloned()
-                .map(|r| InnerRow {
-                    row: r.row.bottom_margin(1),
-                    ..r
-                })
-                .collect();
-
-            self.bottom_margin = 1;
-        } else {
-            self.bottom_margin = 0;
-        }
-    }
-
-    fn update_digits(&mut self) {
-        if self.rows.is_empty() {
-            return;
-        }
-
-        self.digits = if self.header.is_empty() {
-            self.rows[0]
-                .item
-                .iter()
-                .map(|i| i.styled_graphemes_width())
-                .collect()
-        } else {
-            self.header
-                .iter()
-                .map(|h| h.styled_graphemes_width())
-                .collect()
-        };
-
-        for row in &self.rows {
-            for (i, col) in row.item.iter().enumerate() {
-                let len = col.styled_graphemes_width();
-                if self.digits.len() < i {
-                    break;
-                }
-
-                if self.digits[i] < len {
-                    self.digits[i] = len
-                }
-            }
-        }
-
-        let sum_width = self.digits.iter().sum::<usize>()
-            + (COLUMN_SPACING as usize * self.digits.len().saturating_sub(1));
-
-        if self.max_width < sum_width {
-            let index_of_longest_digits = self
-                .digits
-                .iter()
-                .enumerate()
-                .max_by_key(|(_, l)| *l)
-                .unwrap_or((0, &0))
-                .0;
-
-            let sum_width: usize = self
-                .digits
-                .iter()
-                .enumerate()
-                .filter_map(|(i, w)| {
-                    if i == index_of_longest_digits {
-                        None
-                    } else {
-                        Some(w)
-                    }
-                })
-                .sum();
-
-            self.digits[index_of_longest_digits] = self.max_width.saturating_sub(
-                (COLUMN_SPACING as usize * self.digits.len().saturating_sub(1)) + sum_width,
-            );
-        }
-    }
-}
 
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
@@ -364,7 +155,7 @@ impl<'a> Table<'a> {
     }
 
     pub fn items(&self) -> &[TableItem] {
-        &self.items.rows
+        self.items.items()
     }
 
     pub fn state(&self) -> &TableState {
@@ -372,7 +163,7 @@ impl<'a> Table<'a> {
     }
 
     pub fn equal_header(&self, header: &[String]) -> bool {
-        self.items.header == header
+        self.items.header().original() == header
     }
 
     fn max_width(&self) -> usize {
@@ -390,14 +181,14 @@ impl<'a> Table<'a> {
     }
 
     fn update_row_bounds(&mut self) {
-        let bottom_margin = self.items.bottom_margin as usize;
+        let item_margin = self.items.item_margin() as usize;
         self.row_bounds = self
             .items
-            .widget_rows
+            .rendered_items()
             .iter()
             .scan(0, |sum, row| {
                 let b = (*sum, *sum + row.height.saturating_sub(1));
-                *sum += row.height + bottom_margin;
+                *sum += row.height + item_margin;
                 Some(b)
             })
             .collect();
@@ -408,12 +199,15 @@ impl<'a> Table<'a> {
     }
 
     fn max_offset(&self) -> usize {
-        self.items.rows.len().saturating_sub(self.showable_height())
+        self.items
+            .items()
+            .len()
+            .saturating_sub(self.showable_height())
     }
 
     // リストの下に空行があるとき、空行がなくなるようoffsetを調整する
     fn adjust_offset(&mut self) {
-        let shown_item_len = self.items.rows.len().saturating_sub(self.state.offset());
+        let shown_item_len = self.items.items().len().saturating_sub(self.state.offset());
         let showable_height = self.showable_height();
         if shown_item_len < showable_height {
             self.state.update_offset(self.max_offset());
@@ -433,7 +227,7 @@ impl WidgetTrait for Table<'_> {
     fn widget_item(&self) -> Option<SelectedItem> {
         self.state
             .selected()
-            .map(|i| self.items.rows[i].clone().into())
+            .map(|i| self.items.items()[i].clone().into())
     }
 
     fn chunk(&self) -> Rect {
@@ -498,7 +292,7 @@ impl WidgetTrait for Table<'_> {
     fn update_widget_item(&mut self, items: Item) {
         let old_len = self.items.len();
 
-        self.items.update_item(items);
+        self.items.update_items(items.table());
 
         match self.items.len() {
             // アイテムがなくなったとき
@@ -545,7 +339,7 @@ impl WidgetTrait for Table<'_> {
                 let offset_bound = self.row_bounds[offset_index];
                 let offset_row = offset_bound.0;
 
-                let header_margin = if self.items.header.is_empty() {
+                let header_margin = if self.items.header().is_empty() {
                     0
                 } else {
                     ROW_START_INDEX
@@ -559,13 +353,6 @@ impl WidgetTrait for Table<'_> {
                             let b = (
                                 b.0.saturating_sub(offset_row) + header_margin,
                                 b.1.saturating_sub(offset_row) + header_margin,
-                            );
-
-                            #[cfg(feature = "logging")]
-                            log::debug!(
-                                "table::on_mouse_event Mouse {:?}, row_bounds {:?} ",
-                                ev,
-                                b
                             );
 
                             b.0 <= row && row <= b.1
@@ -628,7 +415,7 @@ impl WidgetTrait for Table<'_> {
         self.chunk = chunk;
         self.inner_chunk = self.widget_config.block().inner(chunk);
 
-        self.items.update_rows(self.max_width());
+        self.items.update_max_width(self.max_width());
 
         self.adjust_offset();
 
@@ -663,7 +450,7 @@ impl<'a> Table<'a> {
     fn selected_item(&self) -> Option<Rc<TableItem>> {
         self.state
             .selected()
-            .map(|i| Rc::new(self.items.rows[i].clone()))
+            .map(|i| Rc::new(self.items.items()[i].clone()))
     }
 }
 
@@ -702,19 +489,19 @@ impl RenderTrait for Table<'_> {
                 .render_block(self.focusable() && selected)
         };
 
-        let constraints = constraints(&self.items.digits);
+        let constraints = constraints(self.items.digits());
 
         let highlight_style = self.render_highlight_style();
 
-        let mut widget = TTable::new(self.items.widget_rows.iter().cloned().map(|row| row.row))
+        let mut widget = TuiTable::new(self.items.rendered_rows())
             .block(block)
             .highlight_style(highlight_style)
             .highlight_symbol(HIGHLIGHT_SYMBOL)
             .column_spacing(COLUMN_SPACING)
             .widths(&constraints);
 
-        if !self.items.header.is_empty() {
-            widget = widget.header(self.items.header_row.clone());
+        if !self.items.header().is_empty() {
+            widget = widget.header(self.items.header().rendered());
         }
 
         f.render_stateful_widget(widget, self.chunk, &mut self.state);
@@ -757,7 +544,7 @@ mod tests {
                 .max_width(usize::MAX)
                 .build();
 
-            assert_eq!(item.digits, vec![3, 3])
+            assert_eq!(item.digits(), vec![3, 3])
         }
     }
 
@@ -1058,39 +845,6 @@ mod tests {
         mod アイテム減少時 {
             use super::*;
             use pretty_assertions::assert_eq;
-
-            #[cfg(feature = "scroll-improve")]
-            #[test]
-            fn チャンク内に収まるとき全アイテムを表示して一番下のアイテムを選択する() {
-                let TestData {
-                    mut table,
-                    mut terminal,
-                } = setup();
-
-                table.select_last();
-
-                terminal
-                    .draw(|f| {
-                        table.render(f, false);
-                    })
-                    .unwrap();
-
-                assert_eq!((table.state.selected(), table.state.offset()), (Some(9), 7));
-
-                table.update_widget_item(Item::DoubleArray(vec![
-                    vec!["Item-0".to_string(), "Item-0".to_string()],
-                    vec!["Item-1".to_string(), "Item-1".to_string()],
-                    vec!["Item-2".to_string(), "Item-2".to_string()],
-                ]));
-
-                terminal
-                    .draw(|f| {
-                        table.render(f, false);
-                    })
-                    .unwrap();
-
-                assert_eq!((table.state.selected(), table.state.offset()), (Some(2), 0));
-            }
 
             #[test]
             fn 選択中アイテムインデックスよりもアイテム数が減少したとき一番下のアイテムを選択する()
