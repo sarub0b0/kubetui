@@ -1,7 +1,6 @@
-use std::ops::Deref;
-
 use derivative::*;
-use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
+use fuzzy_matcher::skim::SkimMatcherV2;
+use std::{cmp::Reverse, ops::Deref};
 use tui::{
     style::{Color, Style},
     widgets::{Cell, Row},
@@ -140,32 +139,48 @@ impl<'a> InnerItem<'a> {
     }
 }
 
+#[derive(Debug)]
+struct MatchedItem {
+    score: i64,
+    item: TableItem,
+}
+
 impl<'a> InnerItem<'a> {
     fn inner_filter_items(&mut self) {
-        #[derive(Debug)]
-        struct MatchedItem {
-            score: i64,
-            item: TableItem,
-        }
-
         if self.filtered_word.is_empty() {
             self.filtered_items = self.original_items.clone();
         } else {
-            let mut filtered_items: Vec<MatchedItem> = self
-                .original_items
-                .iter()
-                .cloned()
-                .filter_map(|item| {
-                    let choice = item.item[self.filtered_index()]
-                        .styled_graphemes_symbols()
-                        .concat();
-                    self.matcher
-                        .fuzzy_match(&choice, &self.filtered_word)
-                        .map(|score| MatchedItem { score, item })
-                })
-                .collect();
+            let patterns = self.filtered_word.split(' ');
 
-            filtered_items.sort_by(|a, b| b.score.cmp(&a.score));
+            let mut filtered_items: Vec<MatchedItem> = Vec::new();
+
+            for pattern in patterns {
+                if pattern.is_empty() {
+                    continue;
+                }
+
+                let mut matched_items: Vec<MatchedItem> = self
+                    .original_items
+                    .iter()
+                    .cloned()
+                    .filter_map(|item| {
+                        let choice = item.item[self.filtered_index()]
+                            .styled_graphemes_symbols()
+                            .concat();
+                        self.matcher
+                            .fuzzy(&choice, pattern, false)
+                            .map(|(score, _)| MatchedItem { score, item })
+                    })
+                    .collect();
+
+                filtered_items.append(&mut matched_items);
+            }
+
+            filtered_items.sort_by(|a, b| a.item.item.cmp(&b.item.item));
+
+            filtered_items.dedup_by(|a, b| a.item.item.eq(&b.item.item));
+
+            filtered_items.sort_by_key(|item| Reverse(item.score));
 
             self.filtered_items = filtered_items.into_iter().map(|i| i.item).collect();
         }
