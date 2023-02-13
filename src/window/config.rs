@@ -66,19 +66,19 @@ impl<'a> ConfigTabBuilder<'a> {
         Table::builder()
             .id(view_id::tab_config_widget_config)
             .widget_config(&WidgetConfig::builder().title("Config").build())
-            .block_injection(|table: &Table, selected: bool| {
+            .block_injection(|table: &Table| {
                 let index = if let Some(index) = table.state().selected() {
                     index + 1
                 } else {
                     0
                 };
 
-                let mut config = table.widget_config().clone();
+                let mut widget_config = table.widget_config().clone();
 
-                *config.append_title_mut() =
+                *widget_config.append_title_mut() =
                     Some(format!(" [{}/{}]", index, table.items().len()).into());
 
-                config.render_block(table.focusable() && selected)
+                widget_config
             })
             .on_select(move |w, v| {
                 w.widget_clear(view_id::tab_config_widget_raw_data);

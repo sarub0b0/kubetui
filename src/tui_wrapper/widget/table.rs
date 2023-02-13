@@ -7,9 +7,10 @@ use derivative::*;
 
 use tui::{
     backend::Backend,
-    layout::{Constraint, Rect},
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
-    widgets::{Block, Table as TuiTable, TableState},
+    text::{Span, Spans},
+    widgets::{Block, BorderType, Borders, Paragraph, Table as TuiTable, TableState},
     Frame,
 };
 
@@ -18,14 +19,14 @@ use crate::{
     tui_wrapper::{
         event::{Callback, EventResult},
         key_event_to_code,
-        widget::styled_graphemes,
+        widget::{config::Title, styled_graphemes},
         Window,
     },
 };
 
 use super::{
     config::WidgetConfig,
-    SelectedItem, TableItem, {Item, RenderTrait, WidgetTrait},
+    InputForm, SelectedItem, TableItem, {Item, RenderTrait, WidgetTrait},
 };
 
 use item::InnerItem;
@@ -35,7 +36,7 @@ const HIGHLIGHT_SYMBOL: &str = " ";
 const ROW_START_INDEX: usize = 2;
 
 type InnerCallback = Rc<dyn Fn(&mut Window, &TableItem) -> EventResult>;
-type RenderBlockInjection = Rc<dyn Fn(&Table, bool) -> Block<'static>>;
+type RenderBlockInjection = Rc<dyn Fn(&Table) -> WidgetConfig>;
 type RenderHighlightInjection = Rc<dyn Fn(Option<&TableItem>) -> Style>;
 
 #[derive(Derivative)]
@@ -87,7 +88,7 @@ impl TableBuilder {
 
     pub fn block_injection<F>(mut self, block_injection: F) -> Self
     where
-        F: Fn(&Table, bool) -> Block<'static> + 'static,
+        F: Fn(&Table) -> WidgetConfig + 'static,
     {
         self.block_injection = Some(Rc::new(block_injection));
         self
@@ -129,6 +130,102 @@ impl TableBuilder {
     }
 }
 
+#[derive(Debug)]
+struct FilterForm {
+    input_widget: InputForm,
+    chunk: Rect,
+}
+
+impl Default for FilterForm {
+    fn default() -> Self {
+        Self {
+            input_widget: InputForm::new(WidgetConfig::default()),
+            chunk: Default::default(),
+        }
+    }
+}
+
+impl FilterForm {
+    fn update_chunk(&mut self, chunk: Rect) {
+        self.chunk = Rect::new(chunk.x, chunk.y, chunk.width, 3);
+    }
+
+    fn word(&self) -> String {
+        self.input_widget.content()
+    }
+
+    fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
+        self.input_widget.on_key_event(ev)
+    }
+
+    fn render<B>(&mut self, f: &mut Frame<'_, B>, selected: bool)
+    where
+        B: Backend,
+    {
+        let header = "Filter: ";
+
+        let content = self.input_widget.render_content(selected);
+
+        let content_width = self.chunk.width.saturating_sub(8);
+
+        let block = Block::default()
+            .border_type(BorderType::Plain)
+            .borders(Borders::ALL);
+
+        let inner_chunk = block.inner(self.chunk);
+
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Length(8), Constraint::Length(content_width)])
+            .split(inner_chunk);
+
+        f.render_widget(block, self.chunk);
+
+        f.render_widget(Paragraph::new(header), chunks[0]);
+
+        f.render_widget(Paragraph::new(content), chunks[1]);
+    }
+}
+
+#[derive(Debug)]
+enum Mode {
+    Normal,
+    FilterInput,
+    FilterConfirm,
+}
+
+impl Default for Mode {
+    fn default() -> Self {
+        Self::Normal
+    }
+}
+
+impl Mode {
+    fn normal(&mut self) {
+        *self = Self::Normal;
+    }
+
+    fn filter_input(&mut self) {
+        *self = Self::FilterInput;
+    }
+
+    fn filter_confirm(&mut self) {
+        *self = Self::FilterConfirm;
+    }
+
+    fn is_normal(&self) -> bool {
+        matches!(self, Self::Normal)
+    }
+
+    fn is_filter_input(&self) -> bool {
+        matches!(self, Self::FilterInput)
+    }
+
+    fn is_filter_confirm(&self) -> bool {
+        matches!(self, Self::FilterConfirm)
+    }
+}
+
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
 pub struct Table<'a> {
@@ -141,6 +238,8 @@ pub struct Table<'a> {
     chunk: Rect,
     inner_chunk: Rect,
     row_bounds: Vec<(usize, usize)>,
+    filter_widget: FilterForm,
+    mode: Mode,
     #[derivative(Debug = "ignore")]
     on_select: Option<InnerCallback>,
     #[derivative(Debug = "ignore")]
@@ -211,6 +310,28 @@ impl<'a> Table<'a> {
         let showable_height = self.showable_height();
         if shown_item_len < showable_height {
             self.state.update_offset(self.max_offset());
+        }
+    }
+
+    fn chunk(&self) -> Rect {
+        let Rect {
+            x,
+            y,
+            width,
+            height,
+        } = self.chunk;
+
+        match self.mode {
+            Mode::Normal | Mode::FilterConfirm => self.chunk,
+            Mode::FilterInput => {
+                let filter_hight = 3;
+                Rect::new(
+                    x,
+                    y + filter_hight,
+                    width,
+                    height.saturating_sub(filter_hight),
+                )
+            }
         }
     }
 }
@@ -378,34 +499,60 @@ impl WidgetTrait for Table<'_> {
     }
 
     fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
-        match key_event_to_code(ev) {
-            KeyCode::Char('j') | KeyCode::Down | KeyCode::PageDown => {
-                self.select_next(1);
-            }
+        match self.mode {
+            Mode::Normal | Mode::FilterConfirm => match key_event_to_code(ev) {
+                KeyCode::Char('j') | KeyCode::Down | KeyCode::PageDown => {
+                    self.select_next(1);
+                }
 
-            KeyCode::Char('k') | KeyCode::Up | KeyCode::PageUp => {
-                self.select_prev(1);
-            }
+                KeyCode::Char('k') | KeyCode::Up | KeyCode::PageUp => {
+                    self.select_prev(1);
+                }
 
-            KeyCode::Char('G') | KeyCode::End => {
-                self.select_last();
-            }
+                KeyCode::Char('G') | KeyCode::End => {
+                    self.select_last();
+                }
 
-            KeyCode::Char('g') | KeyCode::Home => {
-                self.select_first();
-            }
+                KeyCode::Char('g') | KeyCode::Home => {
+                    self.select_first();
+                }
 
-            KeyCode::Enter => {
-                return EventResult::Callback(self.on_select_callback());
-            }
+                KeyCode::Char('/') => {
+                    self.mode.filter_input();
+                }
 
-            KeyCode::Char(_) => {
-                return EventResult::Ignore;
-            }
+                KeyCode::Enter => {
+                    return EventResult::Callback(self.on_select_callback());
+                }
 
-            _ => {
-                return EventResult::Ignore;
-            }
+                KeyCode::Char(_) => {
+                    return EventResult::Ignore;
+                }
+
+                _ => {
+                    return EventResult::Ignore;
+                }
+            },
+
+            Mode::FilterInput => match key_event_to_code(ev) {
+                KeyCode::Enter => {
+                    if self.filter_widget.word().is_empty() {
+                        self.mode.normal();
+                    } else {
+                        self.mode.filter_confirm();
+                    }
+                }
+
+                KeyCode::Esc => {
+                    self.mode.normal();
+                }
+
+                _ => {
+                    let ev = self.filter_widget.on_key_event(ev);
+
+                    return ev;
+                }
+            },
         }
 
         EventResult::Nop
@@ -420,6 +567,8 @@ impl WidgetTrait for Table<'_> {
         self.adjust_offset();
 
         self.update_row_bounds();
+
+        self.filter_widget.update_chunk(chunk);
     }
 
     fn clear(&mut self) {
@@ -482,12 +631,23 @@ impl RenderTrait for Table<'_> {
     where
         B: Backend,
     {
-        let block = if let Some(block_injection) = &self.block_injection {
-            (block_injection)(&*self, selected)
+        let mut widget_config = if let Some(block_injection) = &self.block_injection {
+            (block_injection)(&*self)
         } else {
-            self.widget_config
-                .render_block(self.focusable() && selected)
+            self.widget_config.clone()
         };
+
+        if let Some(appended_title) = widget_config.append_title_mut().as_mut() {
+            if self.mode.is_filter_confirm() {
+                let mut spans = appended_title.spans().0;
+
+                spans.push(Span::from(format!(" ({})", self.filter_widget.word())));
+
+                *appended_title = Title::from(Spans::from(spans));
+            }
+        }
+
+        let block = widget_config.render_block(self.focusable() && selected);
 
         let constraints = constraints(self.items.digits());
 
@@ -504,7 +664,11 @@ impl RenderTrait for Table<'_> {
             widget = widget.header(self.items.header().rendered());
         }
 
-        f.render_stateful_widget(widget, self.chunk, &mut self.state);
+        f.render_stateful_widget(widget, self.chunk(), &mut self.state);
+
+        if self.mode.is_filter_input() {
+            self.filter_widget.render(f, self.mode.is_filter_input())
+        }
 
         logger!(debug, "{:?}", self.items);
 
