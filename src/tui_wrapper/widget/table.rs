@@ -486,7 +486,7 @@ impl RenderTrait for Table<'_> {
                 .render_block(self.focusable() && selected)
         };
 
-        let constraints = constraints(&self.items.digits);
+        let constraints = constraints(self.items.digits());
 
         let highlight_style = self.render_highlight_style();
 
@@ -541,7 +541,7 @@ mod tests {
                 .max_width(usize::MAX)
                 .build();
 
-            assert_eq!(item.digits, vec![3, 3])
+            assert_eq!(item.digits(), vec![3, 3])
         }
     }
 

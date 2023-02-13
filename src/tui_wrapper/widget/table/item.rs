@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use tui::{
     style::{Color, Style},
     widgets::{Cell, Row},
@@ -67,7 +69,7 @@ pub struct InnerItem<'a> {
     pub rows: Vec<TableItem>,
     pub widget_rows: Vec<InnerRow<'a>>,
     pub bottom_margin: u16,
-    pub digits: Vec<usize>,
+    digits: Digits,
     pub max_width: usize,
 }
 
@@ -84,6 +86,10 @@ impl<'a> InnerItem<'a> {
         self.rows.is_empty()
     }
 
+    pub fn digits(&self) -> &[usize] {
+        &self.digits
+    }
+
     pub fn update_item(&mut self, item: Item) {
         self.rows = item.table();
         self.inner_update_rows();
@@ -96,7 +102,8 @@ impl<'a> InnerItem<'a> {
     }
 
     fn inner_update_rows(&mut self) {
-        self.update_digits();
+        self.digits = Digits::new(&self.rows, &self.header, self.max_width);
+
         self.inner_update_widget_rows();
     }
 
@@ -155,52 +162,52 @@ impl<'a> InnerItem<'a> {
             self.bottom_margin = 0;
         }
     }
+}
 
-    fn update_digits(&mut self) {
-        if self.rows.is_empty() {
-            return;
+#[derive(Debug, Default)]
+struct Digits(Vec<usize>);
+
+impl Digits {
+    fn new(items: &[TableItem], header: &[String], max_width: usize) -> Self {
+        if items.is_empty() {
+            return Self::default();
         }
 
-        self.digits = if self.header.is_empty() {
-            self.rows[0]
+        let mut digits: Vec<usize> = if header.is_empty() {
+            items[0]
                 .item
                 .iter()
                 .map(|i| i.styled_graphemes_width())
                 .collect()
         } else {
-            self.header
-                .iter()
-                .map(|h| h.styled_graphemes_width())
-                .collect()
+            header.iter().map(|h| h.styled_graphemes_width()).collect()
         };
 
-        for row in &self.rows {
+        for row in items {
             for (i, col) in row.item.iter().enumerate() {
                 let len = col.styled_graphemes_width();
-                if self.digits.len() < i {
+                if digits.len() < i {
                     break;
                 }
 
-                if self.digits[i] < len {
-                    self.digits[i] = len
+                if digits[i] < len {
+                    digits[i] = len
                 }
             }
         }
 
-        let sum_width = self.digits.iter().sum::<usize>()
-            + (COLUMN_SPACING as usize * self.digits.len().saturating_sub(1));
+        let sum_width = digits.iter().sum::<usize>()
+            + (COLUMN_SPACING as usize * digits.len().saturating_sub(1));
 
-        if self.max_width < sum_width {
-            let index_of_longest_digits = self
-                .digits
+        if max_width < sum_width {
+            let index_of_longest_digits = digits
                 .iter()
                 .enumerate()
                 .max_by_key(|(_, l)| *l)
                 .unwrap_or((0, &0))
                 .0;
 
-            let sum_width: usize = self
-                .digits
+            let sum_width: usize = digits
                 .iter()
                 .enumerate()
                 .filter_map(|(i, w)| {
@@ -212,9 +219,19 @@ impl<'a> InnerItem<'a> {
                 })
                 .sum();
 
-            self.digits[index_of_longest_digits] = self.max_width.saturating_sub(
-                (COLUMN_SPACING as usize * self.digits.len().saturating_sub(1)) + sum_width,
+            digits[index_of_longest_digits] = max_width.saturating_sub(
+                (COLUMN_SPACING as usize * digits.len().saturating_sub(1)) + sum_width,
             );
         }
+
+        Self(digits)
+    }
+}
+
+impl Deref for Digits {
+    type Target = Vec<usize>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
