@@ -296,7 +296,7 @@ impl WidgetTrait for Table<'_> {
     fn update_widget_item(&mut self, items: Item) {
         let old_len = self.items.len();
 
-        self.items.update_item(items);
+        self.items.update_items(items.table());
 
         match self.items.len() {
             // アイテムがなくなったとき

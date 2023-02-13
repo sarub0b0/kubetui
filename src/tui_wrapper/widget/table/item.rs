@@ -6,7 +6,7 @@ use tui::{
 };
 
 use crate::tui_wrapper::widget::{
-    spans::generate_spans_line, styled_graphemes::StyledGraphemes, wrap::wrap_line, Item, TableItem,
+    spans::generate_spans_line, styled_graphemes::StyledGraphemes, wrap::wrap_line, TableItem,
 };
 
 use super::COLUMN_SPACING;
@@ -90,8 +90,8 @@ impl<'a> InnerItem<'a> {
         &self.digits
     }
 
-    pub fn update_item(&mut self, item: Item) {
-        self.original_items = item.table();
+    pub fn update_items(&mut self, item: Vec<TableItem>) {
+        self.original_items = item;
         self.inner_update_rows();
     }
 
