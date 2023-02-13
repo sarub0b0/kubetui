@@ -352,13 +352,6 @@ impl WidgetTrait for Table<'_> {
                                 b.1.saturating_sub(offset_row) + header_margin,
                             );
 
-                            #[cfg(feature = "logging")]
-                            log::debug!(
-                                "table::on_mouse_event Mouse {:?}, row_bounds {:?} ",
-                                ev,
-                                b
-                            );
-
                             b.0 <= row && row <= b.1
                         })
                 {
@@ -849,39 +842,6 @@ mod tests {
         mod アイテム減少時 {
             use super::*;
             use pretty_assertions::assert_eq;
-
-            #[cfg(feature = "scroll-improve")]
-            #[test]
-            fn チャンク内に収まるとき全アイテムを表示して一番下のアイテムを選択する() {
-                let TestData {
-                    mut table,
-                    mut terminal,
-                } = setup();
-
-                table.select_last();
-
-                terminal
-                    .draw(|f| {
-                        table.render(f, false);
-                    })
-                    .unwrap();
-
-                assert_eq!((table.state.selected(), table.state.offset()), (Some(9), 7));
-
-                table.update_widget_item(Item::DoubleArray(vec![
-                    vec!["Item-0".to_string(), "Item-0".to_string()],
-                    vec!["Item-1".to_string(), "Item-1".to_string()],
-                    vec!["Item-2".to_string(), "Item-2".to_string()],
-                ]));
-
-                terminal
-                    .draw(|f| {
-                        table.render(f, false);
-                    })
-                    .unwrap();
-
-                assert_eq!((table.state.selected(), table.state.offset()), (Some(2), 0));
-            }
 
             #[test]
             fn 選択中アイテムインデックスよりもアイテム数が減少したとき一番下のアイテムを選択する()
