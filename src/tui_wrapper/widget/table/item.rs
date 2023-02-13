@@ -59,8 +59,8 @@ pub struct InnerRow<'a> {
 #[derive(Debug, Default)]
 pub struct InnerItem<'a> {
     header: Header<'a>,
-    pub original_items: Vec<TableItem>,
-    pub rendered_items: Vec<InnerRow<'a>>,
+    original_items: Vec<TableItem>,
+    rendered_items: Vec<InnerRow<'a>>,
     digits: Digits,
     max_width: usize,
     item_margin: u16,
@@ -81,6 +81,22 @@ impl<'a> InnerItem<'a> {
 
     pub fn header(&self) -> &Header {
         &self.header
+    }
+
+    pub fn items(&self) -> &[TableItem] {
+        &self.original_items
+    }
+
+    pub fn rendered_items(&self) -> &[InnerRow] {
+        &self.rendered_items
+    }
+
+    pub fn rendered_rows(&self) -> Vec<Row> {
+        self.rendered_items
+            .iter()
+            .cloned()
+            .map(|item| item.row)
+            .collect()
     }
 
     pub fn digits(&self) -> &[usize] {

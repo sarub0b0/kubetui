@@ -155,7 +155,7 @@ impl<'a> Table<'a> {
     }
 
     pub fn items(&self) -> &[TableItem] {
-        &self.items.original_items
+        self.items.items()
     }
 
     pub fn state(&self) -> &TableState {
@@ -184,7 +184,7 @@ impl<'a> Table<'a> {
         let item_margin = self.items.item_margin() as usize;
         self.row_bounds = self
             .items
-            .rendered_items
+            .rendered_items()
             .iter()
             .scan(0, |sum, row| {
                 let b = (*sum, *sum + row.height.saturating_sub(1));
@@ -200,18 +200,14 @@ impl<'a> Table<'a> {
 
     fn max_offset(&self) -> usize {
         self.items
-            .original_items
+            .items()
             .len()
             .saturating_sub(self.showable_height())
     }
 
     // リストの下に空行があるとき、空行がなくなるようoffsetを調整する
     fn adjust_offset(&mut self) {
-        let shown_item_len = self
-            .items
-            .original_items
-            .len()
-            .saturating_sub(self.state.offset());
+        let shown_item_len = self.items.items().len().saturating_sub(self.state.offset());
         let showable_height = self.showable_height();
         if shown_item_len < showable_height {
             self.state.update_offset(self.max_offset());
@@ -231,7 +227,7 @@ impl WidgetTrait for Table<'_> {
     fn widget_item(&self) -> Option<SelectedItem> {
         self.state
             .selected()
-            .map(|i| self.items.original_items[i].clone().into())
+            .map(|i| self.items.items()[i].clone().into())
     }
 
     fn chunk(&self) -> Rect {
@@ -454,7 +450,7 @@ impl<'a> Table<'a> {
     fn selected_item(&self) -> Option<Rc<TableItem>> {
         self.state
             .selected()
-            .map(|i| Rc::new(self.items.original_items[i].clone()))
+            .map(|i| Rc::new(self.items.items()[i].clone()))
     }
 }
 
@@ -497,13 +493,12 @@ impl RenderTrait for Table<'_> {
 
         let highlight_style = self.render_highlight_style();
 
-        let mut widget =
-            TuiTable::new(self.items.rendered_items.iter().cloned().map(|row| row.row))
-                .block(block)
-                .highlight_style(highlight_style)
-                .highlight_symbol(HIGHLIGHT_SYMBOL)
-                .column_spacing(COLUMN_SPACING)
-                .widths(&constraints);
+        let mut widget = TuiTable::new(self.items.rendered_rows())
+            .block(block)
+            .highlight_style(highlight_style)
+            .highlight_symbol(HIGHLIGHT_SYMBOL)
+            .column_spacing(COLUMN_SPACING)
+            .widths(&constraints);
 
         if !self.items.header().is_empty() {
             widget = widget.header(self.items.header().rendered());
