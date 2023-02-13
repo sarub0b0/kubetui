@@ -1,3 +1,5 @@
+mod item;
+
 use std::rc::Rc;
 
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
@@ -6,8 +8,8 @@ use derivative::*;
 use tui::{
     backend::Backend,
     layout::{Constraint, Rect},
-    style::{Color, Modifier, Style},
-    widgets::{Block, Cell, Row, Table as TTable, TableState},
+    style::{Modifier, Style},
+    widgets::{Block, Table as TTable, TableState},
     Frame,
 };
 
@@ -22,12 +24,11 @@ use crate::{
 };
 
 use super::{
-    spans::generate_spans_line,
-    styled_graphemes::StyledGraphemes,
-    SelectedItem, TableItem,
-    {config::WidgetConfig, wrap::wrap_line},
-    {Item, RenderTrait, WidgetTrait},
+    config::WidgetConfig,
+    SelectedItem, TableItem, {Item, RenderTrait, WidgetTrait},
 };
+
+use item::InnerItem;
 
 const COLUMN_SPACING: u16 = 3;
 const HIGHLIGHT_SYMBOL: &str = " ";
@@ -36,216 +37,6 @@ const ROW_START_INDEX: usize = 2;
 type InnerCallback = Rc<dyn Fn(&mut Window, &TableItem) -> EventResult>;
 type RenderBlockInjection = Rc<dyn Fn(&Table, bool) -> Block<'static>>;
 type RenderHighlightInjection = Rc<dyn Fn(Option<&TableItem>) -> Style>;
-
-#[derive(Debug, Default)]
-struct InnerItemBuilder {
-    header: Vec<String>,
-    rows: Vec<TableItem>,
-    max_width: usize,
-}
-
-impl InnerItemBuilder {
-    fn header(mut self, header: impl Into<Vec<String>>) -> Self {
-        self.header = header.into();
-        self
-    }
-
-    fn rows(mut self, rows: impl Into<Vec<TableItem>>) -> Self {
-        self.rows = rows.into();
-        self
-    }
-
-    fn max_width(mut self, max_width: usize) -> Self {
-        self.max_width = max_width;
-        self
-    }
-
-    fn build(self) -> InnerItem<'static> {
-        let mut inner_item = InnerItem {
-            header: self.header,
-            rows: self.rows,
-            ..Default::default()
-        };
-
-        inner_item.header_row = Row::new(
-            inner_item
-                .header
-                .iter()
-                .cloned()
-                .map(|h| Cell::from(h).style(Style::default().fg(Color::DarkGray))),
-        )
-        .bottom_margin(1);
-
-        inner_item.update_rows(self.max_width);
-
-        inner_item
-    }
-}
-
-#[derive(Debug, Default, Clone)]
-struct InnerRow<'a> {
-    row: Row<'a>,
-    height: usize,
-}
-
-#[derive(Debug, Default)]
-struct InnerItem<'a> {
-    header: Vec<String>,
-    header_row: Row<'a>,
-    rows: Vec<TableItem>,
-    widget_rows: Vec<InnerRow<'a>>,
-    bottom_margin: u16,
-    digits: Vec<usize>,
-    max_width: usize,
-}
-
-impl<'a> InnerItem<'a> {
-    fn builder() -> InnerItemBuilder {
-        InnerItemBuilder::default()
-    }
-
-    fn len(&self) -> usize {
-        self.rows.len()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.rows.is_empty()
-    }
-
-    fn update_item(&mut self, item: Item) {
-        self.rows = item.table();
-        self.inner_update_rows();
-    }
-
-    fn update_rows(&mut self, max_width: usize) {
-        self.max_width = max_width;
-
-        self.inner_update_rows();
-    }
-
-    fn inner_update_rows(&mut self) {
-        self.update_digits();
-        self.inner_update_widget_rows();
-    }
-
-    fn inner_update_widget_rows(&mut self) {
-        if self.digits.is_empty() {
-            return;
-        }
-
-        let mut need_margin = false;
-
-        self.widget_rows = self
-            .rows
-            .iter()
-            .map(|row| {
-                let mut row_height = 1;
-
-                let cells: Vec<Cell> = row
-                    .item
-                    .iter()
-                    .cloned()
-                    .enumerate()
-                    .map(|(i, cell)| {
-                        let wrapped = wrap_line(&cell, self.digits[i]);
-
-                        let wrapped_len = wrapped.len();
-                        if row_height < wrapped_len {
-                            need_margin = true;
-
-                            row_height = wrapped_len;
-                        }
-
-                        Cell::from(generate_spans_line(&wrapped))
-                    })
-                    .collect();
-
-                InnerRow {
-                    row: Row::new(cells).height(row_height as u16),
-                    height: row_height,
-                }
-            })
-            .collect();
-
-        if need_margin {
-            self.widget_rows = self
-                .widget_rows
-                .iter()
-                .cloned()
-                .map(|r| InnerRow {
-                    row: r.row.bottom_margin(1),
-                    ..r
-                })
-                .collect();
-
-            self.bottom_margin = 1;
-        } else {
-            self.bottom_margin = 0;
-        }
-    }
-
-    fn update_digits(&mut self) {
-        if self.rows.is_empty() {
-            return;
-        }
-
-        self.digits = if self.header.is_empty() {
-            self.rows[0]
-                .item
-                .iter()
-                .map(|i| i.styled_graphemes_width())
-                .collect()
-        } else {
-            self.header
-                .iter()
-                .map(|h| h.styled_graphemes_width())
-                .collect()
-        };
-
-        for row in &self.rows {
-            for (i, col) in row.item.iter().enumerate() {
-                let len = col.styled_graphemes_width();
-                if self.digits.len() < i {
-                    break;
-                }
-
-                if self.digits[i] < len {
-                    self.digits[i] = len
-                }
-            }
-        }
-
-        let sum_width = self.digits.iter().sum::<usize>()
-            + (COLUMN_SPACING as usize * self.digits.len().saturating_sub(1));
-
-        if self.max_width < sum_width {
-            let index_of_longest_digits = self
-                .digits
-                .iter()
-                .enumerate()
-                .max_by_key(|(_, l)| *l)
-                .unwrap_or((0, &0))
-                .0;
-
-            let sum_width: usize = self
-                .digits
-                .iter()
-                .enumerate()
-                .filter_map(|(i, w)| {
-                    if i == index_of_longest_digits {
-                        None
-                    } else {
-                        Some(w)
-                    }
-                })
-                .sum();
-
-            self.digits[index_of_longest_digits] = self.max_width.saturating_sub(
-                (COLUMN_SPACING as usize * self.digits.len().saturating_sub(1)) + sum_width,
-            );
-        }
-    }
-}
 
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
