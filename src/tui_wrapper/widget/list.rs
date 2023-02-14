@@ -25,92 +25,6 @@ mod inner_item {
     use super::Item;
     use tui::widgets::ListItem;
 
-    #[cfg(feature = "dynamic_item")]
-    mod item {
-        use tui::{text::Text, widgets::ListItem};
-
-        // TODO ウィジェットのアイテムをジェネリクス化する方法を検証中
-        #[derive(Debug, Default)]
-        pub struct InnerItem<'a, Item: Into<Text<'a>> + Clone> {
-            item: Vec<Item>,
-            list: Vec<ListItem<'a>>,
-        }
-
-        impl<'a, Item> InnerItem<'a, Item>
-        where
-            Item: Into<Text<'a>> + Clone,
-        {
-            pub fn new(item: Vec<Item>) -> Self {
-                Self {
-                    item: item.to_vec(),
-                    list: item.clone().into_iter().map(ListItem::new).collect(),
-                }
-            }
-
-            pub fn items(&self) -> &Vec<Item> {
-                &self.item
-            }
-
-            pub fn as_items(&self) -> &[Item] {
-                &self.item
-            }
-
-            #[allow(dead_code)]
-            pub fn list_item(&self) -> &Vec<ListItem> {
-                &self.list
-            }
-
-            pub fn as_widget_items(&self) -> &[ListItem<'a>] {
-                &self.list
-            }
-
-            pub fn update_item(&mut self, item: &[Item]) {
-                self.item = item.to_vec();
-
-                self.list = self.item.clone().into_iter().map(ListItem::new).collect();
-            }
-
-            pub fn len(&self) -> usize {
-                self.item.len()
-            }
-
-            pub fn is_empty(&self) -> bool {
-                self.item.is_empty()
-            }
-        }
-
-        #[cfg(test)]
-        mod tests {
-            use tui::text::Spans;
-
-            use super::*;
-
-            #[test]
-            fn initialize() {
-                #[derive(Clone, Default)]
-                struct Item(&'static str, &'static str);
-
-                impl<'a> Into<Text<'a>> for Item {
-                    fn into(self) -> Text<'a> {
-                        let text = format!("{} {}", self.0, self.1);
-                        Text::from(text)
-                    }
-                }
-
-                let item = vec![
-                    Item("hoge", "hoge"),
-                    Item("hoge", "hoge"),
-                    Item("hoge", "hoge"),
-                    Item("hoge", "hoge"),
-                ];
-
-                let inner = InnerItem::new(item);
-
-                assert_eq!(4, inner.len());
-            }
-        }
-    }
-
     #[derive(Debug, Default)]
     pub struct InnerItem<'a> {
         items: Vec<LiteralItem>,
@@ -196,7 +110,9 @@ impl ListBuilder {
 
     pub fn items(mut self, items: impl Into<Vec<LiteralItem>>) -> Self {
         self.items = items.into();
-        self.state.select(Some(0));
+        if !self.items.is_empty() {
+            self.state.select(Some(0));
+        }
         self
     }
 
@@ -244,9 +160,7 @@ impl<'a> List<'a> {
         &self.state
     }
 
-    pub fn on_select_mut(
-        &mut self,
-    ) -> &mut Option<OnSelectCallback> {
+    pub fn on_select_mut(&mut self) -> &mut Option<OnSelectCallback> {
         &mut self.on_select
     }
 
@@ -255,6 +169,30 @@ impl<'a> List<'a> {
             .block(block)
             .style(Style::default())
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+    }
+
+    fn adjust_selected(&mut self, prev: usize, next: usize) {
+        match next {
+            // アイテムがなくなったとき
+            0 => self.state = Default::default(),
+
+            // アイテムが減った場合
+            next if next < prev => {
+                // 選択中アイテムインデックスよりもアイテムが減少したとき一番下のアイテムを選択する
+                if let Some(selected) = self.state.selected() {
+                    if next <= selected {
+                        self.select_last()
+                    }
+                }
+            }
+
+            // アイテムが増えた場合
+            _ => {
+                if self.state.selected().is_none() {
+                    self.state.select(Some(0))
+                }
+            }
+        }
     }
 }
 
@@ -268,14 +206,9 @@ impl<'a> WidgetTrait for List<'a> {
     }
 
     fn widget_item(&self) -> Option<SelectedItem> {
-        self.state.selected().map(|i| {
-            let item = self.items.items()[i].clone();
-
-            SelectedItem::Literal {
-                metadata: item.metadata,
-                item: item.item,
-            }
-        })
+        self.state
+            .selected()
+            .and_then(|index| self.items().get(index).map(|item| item.clone().into()))
     }
 
     fn chunk(&self) -> Rect {
@@ -283,45 +216,51 @@ impl<'a> WidgetTrait for List<'a> {
     }
 
     fn select_index(&mut self, index: usize) {
-        let i = if self.items.len() <= index {
-            self.items.len().saturating_sub(1)
-        } else {
-            index
-        };
-        self.state.select(Some(i));
+        let selected = index.min(self.items.len().saturating_sub(1));
+
+        self.state.select(Some(selected));
     }
 
     fn select_next(&mut self, index: usize) {
-        let i = match self.state.selected() {
-            Some(i) => {
-                if self.items.len().saturating_sub(1) < i + index {
-                    self.items.len().saturating_sub(1)
-                } else {
-                    i + index
-                }
-            }
-            None => 0,
-        };
+        if self.items.is_empty() {
+            return;
+        }
 
-        self.state.select(Some(i));
+        let current = self.state.selected().unwrap_or(0);
+
+        let selected = (current + index).min(self.items.len().saturating_sub(1));
+
+        self.state.select(Some(selected));
     }
 
     fn select_prev(&mut self, index: usize) {
-        let i = self.state.selected().unwrap_or(0).saturating_sub(index);
+        if self.items.is_empty() {
+            return;
+        }
 
-        self.state.select(Some(i));
+        let current = self.state.selected().unwrap_or(0);
+
+        let selected = current
+            .saturating_sub(index)
+            .min(self.items.len().saturating_sub(1));
+
+        self.state.select(Some(selected));
     }
 
     fn select_first(&mut self) {
+        if self.items.is_empty() {
+            return;
+        }
+
         self.state.select(Some(0));
     }
 
     fn select_last(&mut self) {
         if self.items.is_empty() {
-            self.state.select(Some(0));
-        } else {
-            self.state.select(Some(self.items.len() - 1))
+            return;
         }
+
+        self.state.select(Some(self.items.len().saturating_sub(1)))
     }
 
     fn append_widget_item(&mut self, _: Item) {
@@ -333,19 +272,7 @@ impl<'a> WidgetTrait for List<'a> {
 
         self.items.update_item(items);
 
-        match self.items.len() {
-            0 => self.state = Default::default(),
-            new_len if new_len < old_len => {
-                if new_len <= self.state.selected().unwrap_or(0) {
-                    self.state.select(Some(new_len - 1));
-                }
-            }
-            _ => {
-                if self.state.selected().is_none() {
-                    self.state.select(Some(0))
-                }
-            }
-        }
+        self.adjust_selected(old_len, self.items.len());
     }
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
@@ -445,7 +372,7 @@ impl<'a> List<'a> {
     fn selected_item(&self) -> Option<Rc<LiteralItem>> {
         self.state
             .selected()
-            .map(|i| Rc::new(self.items.items()[i].clone()))
+            .and_then(|index| self.items().get(index).map(|item| Rc::new(item.clone())))
     }
 }
 
