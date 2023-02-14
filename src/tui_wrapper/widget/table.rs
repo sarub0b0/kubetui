@@ -212,6 +212,8 @@ impl<'a> Table<'a> {
     }
 
     pub fn update_header_and_rows(&mut self, header: &[String], rows: &[TableItem]) {
+        let old_len = self.items.len();
+
         self.items = InnerItem::builder()
             .header(header)
             .items(rows)
@@ -219,7 +221,9 @@ impl<'a> Table<'a> {
             .max_width(self.max_width())
             .build();
 
-        self.update_widget_item(Item::Table(rows.to_vec()));
+        self.adjust_selected(old_len, self.items.len());
+
+        self.update_row_bounds();
     }
 
     fn update_row_bounds(&mut self) {
