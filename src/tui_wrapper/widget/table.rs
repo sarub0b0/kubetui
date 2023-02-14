@@ -68,7 +68,9 @@ impl TableBuilder {
 
     pub fn items(mut self, items: impl Into<Vec<TableItem>>) -> Self {
         self.items = items.into();
-        self.state.select(Some(0));
+        if !self.items.is_empty() {
+            self.state.select(Some(0));
+        }
         self
     }
 
@@ -212,6 +214,8 @@ impl<'a> Table<'a> {
     }
 
     pub fn update_header_and_rows(&mut self, header: &[String], rows: &[TableItem]) {
+        let old_len = self.items.len();
+
         self.items = InnerItem::builder()
             .header(header)
             .items(rows)
@@ -219,7 +223,9 @@ impl<'a> Table<'a> {
             .max_width(self.max_width())
             .build();
 
-        self.update_widget_item(Item::Table(rows.to_vec()));
+        self.adjust_selected(old_len, self.items.len());
+
+        self.update_row_bounds();
     }
 
     fn update_row_bounds(&mut self) {
@@ -326,9 +332,9 @@ impl WidgetTrait for Table<'_> {
     }
 
     fn widget_item(&self) -> Option<SelectedItem> {
-        self.state
+        self.state()
             .selected()
-            .map(|i| self.items.items()[i].clone().into())
+            .and_then(|index| self.items().get(index).map(|item| item.clone().into()))
     }
 
     fn chunk(&self) -> Rect {
@@ -562,7 +568,7 @@ impl<'a> Table<'a> {
     fn selected_item(&self) -> Option<Rc<TableItem>> {
         self.state
             .selected()
-            .map(|i| Rc::new(self.items.items()[i].clone()))
+            .and_then(|index| self.items().get(index).map(|item| Rc::new(item.clone())))
     }
 }
 
