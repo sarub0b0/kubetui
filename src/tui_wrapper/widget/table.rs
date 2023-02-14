@@ -68,7 +68,9 @@ impl TableBuilder {
 
     pub fn items(mut self, items: impl Into<Vec<TableItem>>) -> Self {
         self.items = items.into();
-        self.state.select(Some(0));
+        if !self.items.is_empty() {
+            self.state.select(Some(0));
+        }
         self
     }
 
