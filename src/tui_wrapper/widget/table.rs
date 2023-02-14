@@ -332,9 +332,9 @@ impl WidgetTrait for Table<'_> {
     }
 
     fn widget_item(&self) -> Option<SelectedItem> {
-        self.state
+        self.state()
             .selected()
-            .map(|i| self.items.items()[i].clone().into())
+            .and_then(|index| self.items().get(index).map(|item| item.clone().into()))
     }
 
     fn chunk(&self) -> Rect {
@@ -568,7 +568,7 @@ impl<'a> Table<'a> {
     fn selected_item(&self) -> Option<Rc<TableItem>> {
         self.state
             .selected()
-            .map(|i| Rc::new(self.items.items()[i].clone()))
+            .and_then(|index| self.items().get(index).map(|item| Rc::new(item.clone())))
     }
 }
 
