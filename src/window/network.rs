@@ -83,49 +83,44 @@ impl<'a> NetworkTabBuilder<'a> {
             })
             .on_select(move |w, v| {
                 w.widget_clear(view_id::tab_network_widget_description);
-                v.metadata.as_ref().map_or(EventResult::Ignore, |metadata| {
-                    metadata
-                        .get("namespace")
-                        .map_or(EventResult::Ignore, |namespace| {
-                            metadata.get("name").map_or(EventResult::Ignore, |name| {
-                                metadata.get("kind").map_or(EventResult::Ignore, |kind| {
-                                    *(w.find_widget_mut(view_id::tab_network_widget_description)
-                                        .widget_config_mut()
-                                        .append_title_mut()) =
-                                        Some((format!(" : {}", name)).into());
 
-                                    let request_data = RequestData {
-                                        namespace: namespace.to_string(),
-                                        name: name.to_string(),
-                                    };
+                let Some(metadata) = v.metadata.as_ref() else { return EventResult::Ignore };
 
-                                    match kind.as_str() {
-                                        "Pod" => {
-                                            tx.send(NetworkRequest::Pod(request_data).into())
-                                                .unwrap();
-                                        }
-                                        "Service" => {
-                                            tx.send(NetworkRequest::Service(request_data).into())
-                                                .unwrap();
-                                        }
-                                        "Ingress" => {
-                                            tx.send(NetworkRequest::Ingress(request_data).into())
-                                                .unwrap();
-                                        }
-                                        "NetworkPolicy" => {
-                                            tx.send(
-                                                NetworkRequest::NetworkPolicy(request_data).into(),
-                                            )
-                                            .unwrap();
-                                        }
-                                        _ => {}
-                                    }
+                let Some(namespace) = metadata.get("namespace") else { return EventResult::Ignore };
 
-                                    EventResult::Window(WindowEvent::Continue)
-                                })
-                            })
-                        })
-                })
+                let Some(name) = metadata.get("name") else { return EventResult::Ignore };
+
+                let Some(kind) = metadata.get("kind") else { return EventResult::Ignore };
+
+                *(w.find_widget_mut(view_id::tab_network_widget_description)
+                    .widget_config_mut()
+                    .append_title_mut()) = Some((format!(" : {}", name)).into());
+
+                let request_data = RequestData {
+                    namespace: namespace.to_string(),
+                    name: name.to_string(),
+                };
+
+                match kind.as_str() {
+                    "Pod" => {
+                        tx.send(NetworkRequest::Pod(request_data).into()).unwrap();
+                    }
+                    "Service" => {
+                        tx.send(NetworkRequest::Service(request_data).into())
+                            .unwrap();
+                    }
+                    "Ingress" => {
+                        tx.send(NetworkRequest::Ingress(request_data).into())
+                            .unwrap();
+                    }
+                    "NetworkPolicy" => {
+                        tx.send(NetworkRequest::NetworkPolicy(request_data).into())
+                            .unwrap();
+                    }
+                    _ => {}
+                }
+
+                EventResult::Window(WindowEvent::Continue)
             })
             .build()
     }

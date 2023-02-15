@@ -84,32 +84,29 @@ impl<'a> ConfigTabBuilder<'a> {
             .on_select(move |w, v| {
                 w.widget_clear(view_id::tab_config_widget_raw_data);
 
-                v.metadata.as_ref().map_or(EventResult::Ignore, |metadata| {
-                    metadata
-                        .get("namespace")
-                        .map_or(EventResult::Ignore, |namespace| {
-                            metadata.get("name").map_or(EventResult::Ignore, |name| {
-                                metadata.get("kind").map_or(EventResult::Ignore, |kind| {
-                                    *(w.find_widget_mut(view_id::tab_config_widget_raw_data)
-                                        .widget_config_mut()
-                                        .append_title_mut()) =
-                                        Some((format!(" : {}", name)).into());
+                let Some(metadata) = v.metadata.as_ref() else { return EventResult::Ignore };
 
-                                    tx.send(
-                                        ConfigMessage::DataRequest {
-                                            namespace: namespace.to_string(),
-                                            kind: kind.to_string(),
-                                            name: name.to_string(),
-                                        }
-                                        .into(),
-                                    )
-                                    .unwrap();
+                let Some(namespace) = metadata.get("namespace") else { return EventResult::Ignore };
 
-                                    EventResult::Window(WindowEvent::Continue)
-                                })
-                            })
-                        })
-                })
+                let Some(name) = metadata.get("name") else { return EventResult::Ignore };
+
+                let Some(kind) = metadata.get("kind") else { return EventResult::Ignore };
+
+                *(w.find_widget_mut(view_id::tab_config_widget_raw_data)
+                    .widget_config_mut()
+                    .append_title_mut()) = Some((format!(" : {}", name)).into());
+
+                tx.send(
+                    ConfigMessage::DataRequest {
+                        namespace: namespace.to_string(),
+                        kind: kind.to_string(),
+                        name: name.to_string(),
+                    }
+                    .into(),
+                )
+                .unwrap();
+
+                EventResult::Window(WindowEvent::Continue)
             })
             .build()
     }

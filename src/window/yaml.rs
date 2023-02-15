@@ -113,27 +113,25 @@ impl<'a> YamlTabBuilder<'a> {
 
                 w.close_popup();
 
-                v.metadata.as_ref().map_or(EventResult::Ignore, |metadata| {
-                    metadata
-                        .get("namespace")
-                        .map_or(EventResult::Ignore, |namespace| {
-                            metadata.get("kind").map_or(EventResult::Ignore, |kind| {
-                                metadata.get("name").map_or(EventResult::Ignore, |name| {
-                                    tx.send(
-                                        YamlRequest::Yaml {
-                                            kind: kind.to_string(),
-                                            name: name.to_string(),
-                                            namespace: namespace.to_string(),
-                                        }
-                                        .into(),
-                                    )
-                                    .unwrap();
+                let Some(metadata) = v.metadata.as_ref() else { return EventResult::Ignore };
 
-                                    EventResult::Nop
-                                })
-                            })
-                        })
-                })
+                let Some(namespace) = metadata.get("namespace") else { return EventResult::Ignore };
+
+                let Some(kind) = metadata.get("kind") else { return EventResult::Ignore };
+
+                let Some(name) = metadata.get("name") else { return EventResult::Ignore };
+
+                tx.send(
+                    YamlRequest::Yaml {
+                        kind: kind.to_string(),
+                        name: name.to_string(),
+                        namespace: namespace.to_string(),
+                    }
+                    .into(),
+                )
+                .unwrap();
+
+                EventResult::Nop
             })
             .build()
     }
