@@ -362,167 +362,171 @@ impl Worker for MainWorker {
 
             let task = tokio::task::spawn_blocking(move || rx.recv_timeout(Duration::from_secs(1)));
 
-            if let Ok(recv) = task.await {
-                match recv {
-                    Ok(Event::Kube(ev)) => match ev {
-                        Kube::Namespace(NamespaceMessage::Request(req)) => match req {
-                            NamespaceRequest::Get => {
-                                let ns = namespace_list(kube_client.clone()).await;
-                                tx.send(NamespaceResponse::Get(ns).into())?;
+            let Ok(recv) = task.await else { continue };
+
+            match recv {
+                Ok(Event::Kube(ev)) => match ev {
+                    Kube::Namespace(NamespaceMessage::Request(req)) => match req {
+                        NamespaceRequest::Get => {
+                            let ns = namespace_list(kube_client.clone()).await;
+                            tx.send(NamespaceResponse::Get(ns).into())?;
+                        }
+                        NamespaceRequest::Set(req) => {
+                            {
+                                let mut namespace = namespaces.write().await;
+                                *namespace = req.clone();
                             }
-                            NamespaceRequest::Set(req) => {
-                                {
-                                    let mut namespace = namespaces.write().await;
-                                    *namespace = req.clone();
-                                }
 
-                                if let Some(handler) = log_stream_handler {
-                                    handler.abort();
-                                    log_stream_handler = None;
-                                }
-
-                                if let Some(handler) = network_handler {
-                                    handler.abort();
-                                    network_handler = None;
-                                }
-
-                                tx.send(NamespaceResponse::Set(req).into())?;
-                            }
-                        },
-
-                        Kube::LogStream(LogStreamMessage::Request { namespace, name }) => {
                             if let Some(handler) = log_stream_handler {
                                 handler.abort();
+                                log_stream_handler = None;
                             }
 
-                            log_stream_handler = Some(
-                                LogWorkerBuilder::new(tx, kube_client.clone(), namespace, name)
-                                    .build()
-                                    .spawn(),
-                            );
+                            if let Some(handler) = network_handler {
+                                handler.abort();
+                                network_handler = None;
+                            }
 
-                            task::yield_now().await;
+                            if let Some(handler) = yaml_handler {
+                                handler.abort();
+                                yaml_handler = None;
+                            }
+
+                            tx.send(NamespaceResponse::Set(req).into())?;
+                        }
+                    },
+
+                    Kube::LogStream(LogStreamMessage::Request { namespace, name }) => {
+                        if let Some(handler) = log_stream_handler {
+                            handler.abort();
                         }
 
-                        Kube::Config(ConfigMessage::DataRequest {
-                            namespace,
-                            kind,
-                            name,
-                        }) => {
-                            let raw =
-                                get_config(kube_client.clone(), &namespace, &kind, &name).await;
-                            tx.send(ConfigMessage::DataResponse(raw).into())?;
-                        }
+                        log_stream_handler = Some(
+                            LogWorkerBuilder::new(tx, kube_client.clone(), namespace, name)
+                                .build()
+                                .spawn(),
+                        );
 
-                        Kube::API(ApiMessage::Request(req)) => {
-                            use ApiRequest::*;
-                            match req {
-                                Get => {
-                                    let db = api_database.read().await;
-                                    let apis = apis_list_from_api_database(&db);
-                                    tx.send(ApiResponse::Get(Ok(apis)).into())?;
-                                }
-                                Set(req) => {
-                                    let mut api_resources = api_resources.write().await;
-                                    *api_resources = req.clone();
-                                    // tx.send(ApiResponse::Get(Ok(req.clone())).into())?;
-                                }
+                        task::yield_now().await;
+                    }
+
+                    Kube::Config(ConfigMessage::DataRequest {
+                        namespace,
+                        kind,
+                        name,
+                    }) => {
+                        let raw = get_config(kube_client.clone(), &namespace, &kind, &name).await;
+                        tx.send(ConfigMessage::DataResponse(raw).into())?;
+                    }
+
+                    Kube::API(ApiMessage::Request(req)) => {
+                        use ApiRequest::*;
+                        match req {
+                            Get => {
+                                let db = api_database.read().await;
+                                let apis = apis_list_from_api_database(&db);
+                                tx.send(ApiResponse::Get(Ok(apis)).into())?;
+                            }
+                            Set(req) => {
+                                let mut api_resources = api_resources.write().await;
+                                *api_resources = req.clone();
+                                // tx.send(ApiResponse::Get(Ok(req.clone())).into())?;
                             }
                         }
+                    }
 
-                        Kube::Context(ContextMessage::Request(req)) => match req {
-                            ContextRequest::Get => {
-                                tx.send(ContextResponse::Get(contexts.to_vec()).into())?
+                    Kube::Context(ContextMessage::Request(req)) => match req {
+                        ContextRequest::Get => {
+                            tx.send(ContextResponse::Get(contexts.to_vec()).into())?
+                        }
+                        ContextRequest::Set(req) => {
+                            if let Some(h) = log_stream_handler {
+                                h.abort();
                             }
-                            ContextRequest::Set(req) => {
-                                if let Some(h) = log_stream_handler {
-                                    h.abort();
-                                }
 
-                                if let Some(h) = network_handler {
-                                    h.abort();
-                                }
-
-                                if let Some(h) = yaml_handler {
-                                    h.abort();
-                                }
-
-                                return Ok(WorkerResult::ChangedContext(req));
+                            if let Some(h) = network_handler {
+                                h.abort();
                             }
-                        },
 
-                        Kube::Yaml(YamlMessage::Request(ev)) => {
-                            use YamlRequest::*;
-                            match ev {
-                                APIs => {
-                                    let db = api_database.read().await;
-                                    let apis = apis_list_from_api_database(&db);
+                            if let Some(h) = yaml_handler {
+                                h.abort();
+                            }
 
-                                    tx.send(YamlResponse::APIs(Ok(apis)).into())?
+                            return Ok(WorkerResult::ChangedContext(req));
+                        }
+                    },
+
+                    Kube::Yaml(YamlMessage::Request(ev)) => {
+                        use YamlRequest::*;
+                        match ev {
+                            APIs => {
+                                let db = api_database.read().await;
+                                let apis = apis_list_from_api_database(&db);
+
+                                tx.send(YamlResponse::APIs(Ok(apis)).into())?
+                            }
+                            Resource(req) => {
+                                let db = api_database.read().await;
+                                let ns = namespaces.read().await;
+
+                                let fetched_data =
+                                    FetchResourceList::new(kube_client, req, &db, &ns)
+                                        .fetch()
+                                        .await;
+
+                                tx.send(YamlResponse::Resource(fetched_data).into())?
+                            }
+                            Yaml {
+                                kind,
+                                name,
+                                namespace,
+                            } => {
+                                if let Some(handler) = yaml_handler {
+                                    handler.abort();
                                 }
-                                Resource(req) => {
-                                    let db = api_database.read().await;
-                                    let ns = namespaces.read().await;
 
-                                    let fetched_data =
-                                        FetchResourceList::new(kube_client, req, &db, &ns)
-                                            .fetch()
-                                            .await;
-
-                                    tx.send(YamlResponse::Resource(fetched_data).into())?
-                                }
-                                Yaml {
+                                let req = YamlWorkerRequest {
                                     kind,
                                     name,
                                     namespace,
-                                } => {
-                                    if let Some(handler) = yaml_handler {
-                                        handler.abort();
-                                    }
+                                };
 
-                                    let req = YamlWorkerRequest {
-                                        kind,
-                                        name,
-                                        namespace,
-                                    };
-
-                                    yaml_handler = Some(
-                                        YamlWorker::new(
-                                            is_terminated.clone(),
-                                            tx,
-                                            kube_client.clone(),
-                                            api_database.clone(),
-                                            req,
-                                        )
-                                        .spawn(),
-                                    );
-                                    task::yield_now().await;
-                                }
+                                yaml_handler = Some(
+                                    YamlWorker::new(
+                                        is_terminated.clone(),
+                                        tx,
+                                        kube_client.clone(),
+                                        api_database.clone(),
+                                        req,
+                                    )
+                                    .spawn(),
+                                );
+                                task::yield_now().await;
                             }
                         }
+                    }
 
-                        Kube::Network(NetworkMessage::Request(req)) => {
-                            if let Some(handler) = network_handler {
-                                handler.abort();
-                            }
-
-                            network_handler = Some(
-                                NetworkDescriptionWorker::new(
-                                    is_terminated.clone(),
-                                    tx,
-                                    kube_client.clone(),
-                                    req,
-                                )
-                                .spawn(),
-                            );
-
-                            task::yield_now().await;
+                    Kube::Network(NetworkMessage::Request(req)) => {
+                        if let Some(handler) = network_handler {
+                            handler.abort();
                         }
-                        _ => unreachable!(),
-                    },
-                    Ok(_) => unreachable!(),
-                    Err(_) => {}
-                }
+
+                        network_handler = Some(
+                            NetworkDescriptionWorker::new(
+                                is_terminated.clone(),
+                                tx,
+                                kube_client.clone(),
+                                req,
+                            )
+                            .spawn(),
+                        );
+
+                        task::yield_now().await;
+                    }
+                    _ => unreachable!(),
+                },
+                Ok(_) => unreachable!(),
+                Err(_) => {}
             }
         }
 
