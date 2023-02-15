@@ -155,10 +155,6 @@ impl<'a> InnerItem<'a> {
             let mut filtered_items: Vec<MatchedItem> = Vec::new();
 
             for pattern in patterns {
-                if pattern.is_empty() {
-                    continue;
-                }
-
                 let mut matched_items: Vec<MatchedItem> = self
                     .original_items
                     .iter()
