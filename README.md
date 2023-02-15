@@ -74,11 +74,11 @@ Options:
 
 #### Text view
 
-| Key                          | Description                                           |
-| ---------------------------- | ----------------------------------------------------- |
-| <kbd>/</kbd>                 | Activate search mode                                  |
-| <kbd>Enter</kbd>             | Confirm input                                         |
-| <kbd>q</kbd> ,<kbd>Esc</kbd> | Disable search mode (**when search mode is enabled**) |
+| Key                          | Description                                                              |
+| ---------------------------- | ------------------------------------------------------------------------ |
+| <kbd>/</kbd>                 | Activate search mode, open search form                                   |
+| <kbd>Enter</kbd>             | Confirm input                                                            |
+| <kbd>q</kbd>, <kbd>Esc</kbd> | Disable search mode, close search form (**when search mode is enabled**) |
 
 **Search mode**
 
@@ -89,10 +89,10 @@ Options:
 
 #### Table view
 
-| Key              | Description          |
-| ---------------- | -------------------- |
-| <kbd>/</kbd>     | Activate filter mode |
-| <kbd>Enter</kbd> | Confirm input        |
+| Key                              | Description       |
+| -------------------------------- | ----------------- |
+| <kbd>/</kbd>                     | Open filter form  |
+| <kbd>Enter</kbd>, <kbd>ESC</kbd> | Close filter form |
 
 #### Popup
 
