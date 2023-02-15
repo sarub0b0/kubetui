@@ -84,8 +84,8 @@ Options:
 
 | Key                          | Description                |
 | ---------------------------- | -------------------------- |
-| <kbd>n</kbd> ,<kbd>N</kbd>   | Goto next / previous match |
-| <kbd>q</kbd> ,<kbd>Esc</kbd> | Disable search mode        |
+| <kbd>n</kbd>, <kbd>N</kbd>   | Goto next / previous match |
+| <kbd>q</kbd>, <kbd>Esc</kbd> | Disable search mode        |
 
 #### Table view
 
