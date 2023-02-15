@@ -49,6 +49,31 @@ const LEFT_HELP_TEXT: &[HelpBlock] = &[
         ],
     },
     HelpBlock {
+        title: "View Control",
+        bindings: &[
+            KeyBindings {
+                keys: &["j", "k", "Down", "Up"],
+                desc: "goto next/previous line",
+            },
+            KeyBindings {
+                keys: &["PgDn", "PgUp"],
+                desc: "scroll upward/downward",
+            },
+            KeyBindings {
+                keys: &["Left", "Right"],
+                desc: "scroll horizontal",
+            },
+            KeyBindings {
+                keys: &["g"],
+                desc: "goto first line",
+            },
+            KeyBindings {
+                keys: &["G"],
+                desc: "goto last line",
+            },
+        ],
+    },
+    HelpBlock {
         title: "Remap Keys",
         bindings: &[
             KeyBindings {
@@ -96,31 +121,6 @@ const LEFT_HELP_TEXT: &[HelpBlock] = &[
 ];
 
 const RIGHT_HELP_TEXT: &[HelpBlock] = &[
-    HelpBlock {
-        title: "View Control",
-        bindings: &[
-            KeyBindings {
-                keys: &["j", "k", "Down", "Up"],
-                desc: "goto next/previous line",
-            },
-            KeyBindings {
-                keys: &["PgDn", "PgUp"],
-                desc: "scroll upward/downward",
-            },
-            KeyBindings {
-                keys: &["Left", "Right"],
-                desc: "scroll horizontal",
-            },
-            KeyBindings {
-                keys: &["g"],
-                desc: "goto first line",
-            },
-            KeyBindings {
-                keys: &["G"],
-                desc: "goto last line",
-            },
-        ],
-    },
     HelpBlock {
         title: "Input Form",
         bindings: &[
@@ -175,6 +175,19 @@ const RIGHT_HELP_TEXT: &[HelpBlock] = &[
             KeyBindings {
                 keys: &["n", "N"],
                 desc: "goto next/prev word",
+            },
+        ],
+    },
+    HelpBlock {
+        title: "Filter (Only table view)",
+        bindings: &[
+            KeyBindings {
+                keys: &["/"],
+                desc: "open filter form",
+            },
+            KeyBindings {
+                keys: &["Enter", "Esc"],
+                desc: "close filter form",
             },
         ],
     },
