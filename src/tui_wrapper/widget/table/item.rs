@@ -150,31 +150,27 @@ impl<'a> InnerItem<'a> {
         if self.filtered_word.is_empty() {
             self.filtered_items = self.original_items.clone();
         } else {
-            let patterns = self.filtered_word.split(' ');
+            let mut filtered_items: Vec<MatchedItem> = self
+                .original_items
+                .iter()
+                .filter_map(|item| {
+                    let choice = item.item[self.filtered_index()]
+                        .styled_graphemes_symbols()
+                        .concat();
 
-            let mut filtered_items: Vec<MatchedItem> = Vec::new();
-
-            for pattern in patterns {
-                let mut matched_items: Vec<MatchedItem> = self
-                    .original_items
-                    .iter()
-                    .cloned()
-                    .filter_map(|item| {
-                        let choice = item.item[self.filtered_index()]
-                            .styled_graphemes_symbols()
-                            .concat();
-                        self.matcher
-                            .fuzzy(&choice, pattern, false)
-                            .map(|(score, _)| MatchedItem { score, item })
-                    })
-                    .collect();
-
-                filtered_items.append(&mut matched_items);
-            }
-
-            filtered_items.sort_by(|a, b| a.item.item.cmp(&b.item.item));
-
-            filtered_items.dedup_by(|a, b| a.item.item.eq(&b.item.item));
+                    self.filtered_word
+                        .split(' ')
+                        .filter_map(|pattern| {
+                            self.matcher
+                                .fuzzy(&choice, pattern, false)
+                                .map(|(score, _)| MatchedItem {
+                                    score,
+                                    item: item.clone(),
+                                })
+                        })
+                        .max_by_key(|matched| matched.score)
+                })
+                .collect();
 
             filtered_items.sort_by_key(|item| Reverse(item.score));
 
