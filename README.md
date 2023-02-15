@@ -23,6 +23,7 @@ Please download a binary from [github release](https://github.com/sarub0b0/kubet
 - Search mode
 - Support clipboard (only mouse action)
 - Support mouse event
+- Items filtering (multiple words with space delimited)
 
 ## Command Option
 
@@ -44,25 +45,22 @@ Options:
 
 ## Key Bindings
 
-General
+### General
 
-| Key                                  | Description                                                                    |
-| ------------------------------------ | ------------------------------------------------------------------------------ |
-| <kbd>h</kbd>, <kbd>?</kbd>           | Open the popup for help                                                        |
-| <kbd>n</kbd>                         | Open the popup for selecting the namespace                                     |
-| <kbd>N</kbd>                         | Open the popup for selecting the namespaces                                    |
-| <kbd>c</kbd>                         | Open the popup for selecting the context                                       |
-| <kbd>Shift+n</kbd>                   | Open the popup for selecting multiple namespaces                               |
-| <kbd>f</kbd>                         | Open the popup for selecting multiple api-resources (**only APIs / Yaml tab**) |
-| <kbd>/</kbd>                         | Enable search mode (**only text view**)                                        |
-| <kbd>n</kbd> ,<kbd>N</kbd>           | Goto next / previous match (**when search mode is enabled**)                   |
-| <kbd>q</kbd> ,<kbd>Esc</kbd>         | Disable search mode (**when search mode is enabled**)                          |
-| <kbd>Tab</kbd>, <kbd>Shift+Tab</kbd> | Change the focus of view within the active tab                                 |
-| <kbd>number</kbd>                    | Switch the tab (number: 1~4)                                                   |
-| <kbd>ESC</kbd>                       | Close the window, or terminate the app (when the popup is not opening)         |
-| <kbd>q</kbd>                         | Terminate the app                                                              |
+| Key                                  | Description                                                            |
+| ------------------------------------ | ---------------------------------------------------------------------- |
+| <kbd>h</kbd>, <kbd>?</kbd>           | Open the popup for help                                                |
+| <kbd>n</kbd>                         | Open the popup for selecting the namespace                             |
+| <kbd>N</kbd>                         | Open the popup for selecting the namespaces                            |
+| <kbd>c</kbd>                         | Open the popup for selecting the context                               |
+| <kbd>Shift+n</kbd>                   | Open the popup for selecting multiple namespaces                       |
+| <kbd>Tab</kbd>, <kbd>Shift+Tab</kbd> | Change the focus of view within the active tab                         |
+| <kbd>number</kbd>                    | Switch the tab (number: 1~6)                                           |
+| <kbd>ESC</kbd>                       | Close the window, or terminate the app (when the popup is not opening) |
+| <kbd>q</kbd>                         | Terminate the app                                                      |
+| <kbd>f</kbd>                 | Open the popup for selecting multiple api-resources (**only APIs / Yaml tab**) |
 
-View control
+### View control
 
 | Key                                                                                                  | Description                                        |
 | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
@@ -71,7 +69,31 @@ View control
 | <kbd>g</kbd>                                                                                         | Go to the first item / Go to the top of the view   |
 | <kbd>G</kbd>                                                                                         | Go to the last item / Go to the bottom of the view |
 
-Popup window (exist input form)
+### View specific
+
+#### Text view
+
+| Key                          | Description                                                                    |
+| ---------------------------- | ------------------------------------------------------------------------------ |
+| <kbd>/</kbd>                 | Activate search mode                                                           |
+| <kbd>Enter</kbd>             | Confirm input                                                                  |
+| <kbd>q</kbd> ,<kbd>Esc</kbd> | Disable search mode (**when search mode is enabled**)                          |
+
+**Search mode**
+
+| Key                          | Description                                                                    |
+| ---------------------------- | ------------------------------------------------------------------------------ |
+| <kbd>n</kbd> ,<kbd>N</kbd>           | Goto next / previous match           |
+| <kbd>q</kbd> ,<kbd>Esc</kbd>         | Disable search mode                   |
+
+#### Table view
+
+| Key              | Description          |
+| ---------------- | -------------------- |
+| <kbd>/</kbd>     | Activate filter mode |
+| <kbd>Enter</kbd> | Confirm input        |
+
+#### Popup
 
 | Key                                                                  | Description                                                            |
 | -------------------------------------------------------------------- | ---------------------------------------------------------------------- |
@@ -79,12 +101,16 @@ Popup window (exist input form)
 | <kbd>Tab</kbd>, <kbd>Shift+Tab</kbd>                                 | Change the focus of view within the active tab                         |
 | <kbd>Enter</kbd>                                                     | Select item, and trigger event                                         |
 | <kbd>ESC</kbd>                                                       | Close the window, or terminate the app (when the popup is not opening) |
-| Input form                                                           |                                                                        |
-| <kbd>Home</kbd>                                                      | Move the cursor to the start                                           |
-| <kbd>End</kbd>                                                       | Move the cursor to the end                                             |
-| <kbd>Ctrl+w</kbd>                                                    | Delete the text from the cursor position to the start                  |
-| <kbd>Ctrl+k</kbd>                                                    | Delete the text from the cursor position to the end                    |
-| <kbd>Left</kbd>, <kbd>Right</kbd>                                    | Move the cursor to a (back, forward) character                         |
+
+#### Input form
+
+| Key                               | Description                                           |
+| --------------------------------- | ----------------------------------------------------- |
+| <kbd>Home</kbd>                   | Move the cursor to the start                          |
+| <kbd>End</kbd>                    | Move the cursor to the end                            |
+| <kbd>Ctrl+w</kbd>                 | Delete the text from the cursor position to the start |
+| <kbd>Ctrl+k</kbd>                 | Delete the text from the cursor position to the end   |
+| <kbd>Left</kbd>, <kbd>Right</kbd> | Move the cursor to a (back, forward) character        |
 
 ## Key map
 
