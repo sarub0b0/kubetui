@@ -176,3 +176,7 @@ This software is available as open source under the terms of the [MIT License](h
 ### Search word
 
 ![](screenshots/search.png)
+
+### Help
+
+![](screenshots/help.png)
