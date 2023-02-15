@@ -20,10 +20,10 @@ Please download a binary from [github release](https://github.com/sarub0b0/kubet
 - Specific resources watching (Table / Yaml)
 - Namespace multiple selections
 - Context selection
-- Search mode
 - Support clipboard (only mouse action)
 - Support mouse event
-- Items filtering (multiple words with space delimited)
+- Search word
+- Filter items (multiple words with space delimited)
 
 ## Command Option
 
@@ -47,18 +47,18 @@ Options:
 
 ### General
 
-| Key                                  | Description                                                            |
-| ------------------------------------ | ---------------------------------------------------------------------- |
-| <kbd>h</kbd>, <kbd>?</kbd>           | Open the popup for help                                                |
-| <kbd>n</kbd>                         | Open the popup for selecting the namespace                             |
-| <kbd>N</kbd>                         | Open the popup for selecting the namespaces                            |
-| <kbd>c</kbd>                         | Open the popup for selecting the context                               |
-| <kbd>Shift+n</kbd>                   | Open the popup for selecting multiple namespaces                       |
-| <kbd>Tab</kbd>, <kbd>Shift+Tab</kbd> | Change the focus of view within the active tab                         |
-| <kbd>number</kbd>                    | Switch the tab (number: 1~6)                                           |
-| <kbd>ESC</kbd>                       | Close the window, or terminate the app (when the popup is not opening) |
-| <kbd>q</kbd>                         | Terminate the app                                                      |
-| <kbd>f</kbd>                 | Open the popup for selecting multiple api-resources (**only APIs / Yaml tab**) |
+| Key                                  | Description                                                                    |
+| ------------------------------------ | ------------------------------------------------------------------------------ |
+| <kbd>h</kbd>, <kbd>?</kbd>           | Open the popup for help                                                        |
+| <kbd>n</kbd>                         | Open the popup for selecting the namespace                                     |
+| <kbd>N</kbd>                         | Open the popup for selecting the namespaces                                    |
+| <kbd>c</kbd>                         | Open the popup for selecting the context                                       |
+| <kbd>Shift+n</kbd>                   | Open the popup for selecting multiple namespaces                               |
+| <kbd>Tab</kbd>, <kbd>Shift+Tab</kbd> | Change the focus of view within the active tab                                 |
+| <kbd>number</kbd>                    | Switch the tab (number: 1~6)                                                   |
+| <kbd>ESC</kbd>                       | Close the window, or terminate the app (when the popup is not opening)         |
+| <kbd>q</kbd>                         | Terminate the app                                                              |
+| <kbd>f</kbd>                         | Open the popup for selecting multiple api-resources (**only APIs / Yaml tab**) |
 
 ### View control
 
@@ -73,18 +73,18 @@ Options:
 
 #### Text view
 
-| Key                          | Description                                                                    |
-| ---------------------------- | ------------------------------------------------------------------------------ |
-| <kbd>/</kbd>                 | Activate search mode                                                           |
-| <kbd>Enter</kbd>             | Confirm input                                                                  |
-| <kbd>q</kbd> ,<kbd>Esc</kbd> | Disable search mode (**when search mode is enabled**)                          |
+| Key                          | Description                                           |
+| ---------------------------- | ----------------------------------------------------- |
+| <kbd>/</kbd>                 | Activate search mode                                  |
+| <kbd>Enter</kbd>             | Confirm input                                         |
+| <kbd>q</kbd> ,<kbd>Esc</kbd> | Disable search mode (**when search mode is enabled**) |
 
 **Search mode**
 
-| Key                          | Description                                                                    |
-| ---------------------------- | ------------------------------------------------------------------------------ |
-| <kbd>n</kbd> ,<kbd>N</kbd>           | Goto next / previous match           |
-| <kbd>q</kbd> ,<kbd>Esc</kbd>         | Disable search mode                   |
+| Key                          | Description                |
+| ---------------------------- | -------------------------- |
+| <kbd>n</kbd> ,<kbd>N</kbd>   | Goto next / previous match |
+| <kbd>q</kbd> ,<kbd>Esc</kbd> | Disable search mode        |
 
 #### Table view
 
@@ -140,33 +140,33 @@ This software is available as open source under the terms of the [MIT License](h
 ### Watch Resources
 
 1. pods list / container logs
-![](screenshots/pods-log.png)
+   ![](screenshots/pods-log.png)
 
 1. ConfigMap / Secret
-![](screenshots/configs.png)
+   ![](screenshots/configs.png)
 
 1. Network
-![](screenshots/network.png)
+   ![](screenshots/network.png)
 
 1. Events
-![](screenshots/events.png)
+   ![](screenshots/events.png)
 
 1. APIs
-![](screenshots/apis.png)
+   ![](screenshots/apis.png)
 
 1. Yaml
-![](screenshots/yaml.png)
+   ![](screenshots/yaml.png)
 
 ### Select Items
 
 1. Select namespace
-![](screenshots/select-namespace.png)
+   ![](screenshots/select-namespace.png)
 
 1. Select namespaces (multiple)
-![](screenshots/select-multiple-namespaces.png)
+   ![](screenshots/select-multiple-namespaces.png)
 
 1. Select apis
-![](screenshots/select-apis.png)
+   ![](screenshots/select-apis.png)
 
 ### Filter items
 
