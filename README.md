@@ -50,6 +50,7 @@ Options:
 | Key                                  | Description                                                                    |
 | ------------------------------------ | ------------------------------------------------------------------------------ |
 | <kbd>h</kbd>, <kbd>?</kbd>           | Open the popup for help                                                        |
+| <kbd>Enter</kbd>                     | Select item, and trigger event                                                 |
 | <kbd>n</kbd>                         | Open the popup for selecting the namespace                                     |
 | <kbd>N</kbd>                         | Open the popup for selecting the namespaces                                    |
 | <kbd>c</kbd>                         | Open the popup for selecting the context                                       |
