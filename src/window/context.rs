@@ -61,8 +61,10 @@ impl<'a> ContextPopupBuilder<'a> {
 
                 w.widget_clear(view_id::tab_pod_widget_log);
                 w.widget_clear(view_id::tab_config_widget_raw_data);
+                w.widget_clear(view_id::tab_network_widget_description);
                 w.widget_clear(view_id::tab_event_widget_event);
                 w.widget_clear(view_id::tab_api_widget_api);
+                w.widget_clear(view_id::tab_yaml_widget_yaml);
 
                 EventResult::Nop
             })
@@ -83,8 +85,10 @@ impl<'a> ContextPopupBuilder<'a> {
 
                 w.widget_clear(view_id::tab_pod_widget_log);
                 w.widget_clear(view_id::tab_config_widget_raw_data);
+                w.widget_clear(view_id::tab_network_widget_description);
                 w.widget_clear(view_id::tab_event_widget_event);
                 w.widget_clear(view_id::tab_api_widget_api);
+                w.widget_clear(view_id::tab_yaml_widget_yaml);
 
                 let widget = w
                     .find_widget_mut(view_id::popup_ns)
@@ -117,8 +121,10 @@ impl<'a> ContextPopupBuilder<'a> {
 
                 w.widget_clear(view_id::tab_pod_widget_log);
                 w.widget_clear(view_id::tab_config_widget_raw_data);
+                w.widget_clear(view_id::tab_network_widget_description);
                 w.widget_clear(view_id::tab_event_widget_event);
                 w.widget_clear(view_id::tab_api_widget_api);
+                w.widget_clear(view_id::tab_yaml_widget_yaml);
 
                 let widget = w
                     .find_widget_mut(view_id::popup_ns)
