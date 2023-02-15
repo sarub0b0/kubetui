@@ -139,36 +139,39 @@ This software is available as open source under the terms of the [MIT License](h
 
 ### Watch Resources
 
-pods list / log
-
+1. pods list / container logs
 ![](screenshots/pods-log.png)
 
-ConfigMap / Secret
-
+1. ConfigMap / Secret
 ![](screenshots/configs.png)
 
-Events
+1. Network
+![](screenshots/network.png)
 
+1. Events
 ![](screenshots/events.png)
 
-APIs
-
+1. APIs
 ![](screenshots/apis.png)
 
-Yaml
-
+1. Yaml
 ![](screenshots/yaml.png)
 
 ### Select Items
 
-Select namespaces (single)
-
+1. Select namespace
 ![](screenshots/select-namespace.png)
 
-Select namespaces (multiple)
-
+1. Select namespaces (multiple)
 ![](screenshots/select-multiple-namespaces.png)
 
-Select apis
-
+1. Select apis
 ![](screenshots/select-apis.png)
+
+### Filter items
+
+![](screenshots/filter.png)
+
+### Search word
+
+![](screenshots/search.png)
