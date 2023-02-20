@@ -223,6 +223,8 @@ impl<'a> Table<'a> {
             .max_width(self.max_width())
             .build();
 
+        self.items.update_filter(self.filter_widget.word());
+
         self.adjust_selected(old_len, self.items.len());
 
         self.update_row_bounds();
