@@ -983,9 +983,9 @@ dependencies = [
 
 [[package]]
 name = "kube"
-version = "0.79.0"
+version = "0.80.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1e74b6c3633982788dc51a02a356113b4b74e0db48929b2c7447cb57919b8ae"
+checksum = "414d80c69906a91e8ecf4ae16d0fb504e19aa6b099135d35d85298b4e4be3ed3"
 dependencies = [
  "k8s-openapi",
  "kube-client",
@@ -994,9 +994,9 @@ dependencies = [
 
 [[package]]
 name = "kube-client"
-version = "0.79.0"
+version = "0.80.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80e9065963ad9966fea4a977efaf1eb22381b56ef4882ef19155869649669dfc"
+checksum = "6dc5ae0b9148b4e2ebb0dabda06a0cd65b1eed2f41d792d49787841a68050283"
 dependencies = [
  "base64 0.20.0",
  "bytes",
@@ -1029,9 +1029,9 @@ dependencies = [
 
 [[package]]
 name = "kube-core"
-version = "0.79.0"
+version = "0.80.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "381a6982f9f48aec74022ae3e7012f990e2d9893bdafc9d4fb2c58521899440d"
+checksum = "98331c6f1354893f7c50da069e43a3fd1c84e55bbedc7765d9db22ec3291d07d"
 dependencies = [
  "chrono",
  "form_urlencoded",
