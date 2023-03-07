@@ -1,6 +1,5 @@
 use derivative::*;
-use fuzzy_matcher::skim::SkimMatcherV2;
-use std::{cmp::Reverse, ops::Deref};
+use std::ops::Deref;
 use tui::{
     style::{Color, Style},
     widgets::{Cell, Row},
@@ -80,8 +79,6 @@ pub struct InnerItem<'a> {
     max_width: usize,
     filtered_key: String,
     filtered_word: String,
-    #[derivative(Debug = "ignore")]
-    matcher: SkimMatcherV2,
 }
 
 impl<'a> InnerItem<'a> {
@@ -139,42 +136,29 @@ impl<'a> InnerItem<'a> {
     }
 }
 
-#[derive(Debug)]
-struct MatchedItem {
-    score: i64,
-    item: TableItem,
-}
-
 impl<'a> InnerItem<'a> {
     fn inner_filter_items(&mut self) {
-        if self.filtered_word.is_empty() {
-            self.filtered_items = self.original_items.clone();
+        self.filtered_items = if self.filtered_word.is_empty() {
+            self.original_items.clone()
         } else {
-            let mut filtered_items: Vec<MatchedItem> = self
-                .original_items
+            self.original_items
                 .iter()
                 .filter_map(|item| {
                     let choice = item.item[self.filtered_index()]
                         .styled_graphemes_symbols()
                         .concat();
 
-                    self.filtered_word
+                    if self
+                        .filtered_word
                         .split(' ')
-                        .filter_map(|pattern| {
-                            self.matcher
-                                .fuzzy(&choice, pattern, false)
-                                .map(|(score, _)| MatchedItem {
-                                    score,
-                                    item: item.clone(),
-                                })
-                        })
-                        .max_by_key(|matched| matched.score)
+                        .any(|pattern| choice.contains(pattern))
+                    {
+                        Some(item.clone())
+                    } else {
+                        None
+                    }
                 })
-                .collect();
-
-            filtered_items.sort_by_key(|item| Reverse(item.score));
-
-            self.filtered_items = filtered_items.into_iter().map(|i| i.item).collect();
+                .collect()
         }
     }
 
