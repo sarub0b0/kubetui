@@ -11,7 +11,7 @@ use crate::{logger, panic_set_hook};
 use anyhow::Result;
 use crossbeam::channel::Sender;
 
-use crossterm::event::{poll, read, Event as CEvent};
+use crossterm::event::{poll, read, Event as CEvent, KeyEvent, KeyEventKind};
 
 use super::{Event, UserEvent};
 
@@ -31,7 +31,15 @@ pub fn read_key(tx: Sender<Event>, is_terminated: Arc<AtomicBool>) -> Result<()>
                 logger!(debug, "{:?}", ev);
 
                 match ev {
-                    CEvent::Key(ev) => tx.send(Event::User(UserEvent::Key(ev)))?,
+                    CEvent::Key(ev) => {
+                        if let KeyEvent {
+                            kind: KeyEventKind::Press | KeyEventKind::Repeat,
+                            ..
+                        } = ev
+                        {
+                            tx.send(Event::User(UserEvent::Key(ev)))?
+                        }
+                    }
                     CEvent::Mouse(ev) => tx.send(Event::User(UserEvent::Mouse(ev)))?,
                     CEvent::Resize(w, h) => tx.send(Event::User(UserEvent::Resize(w, h)))?,
                     CEvent::FocusGained => {}
