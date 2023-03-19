@@ -63,7 +63,7 @@ mod inner {
 
         #[allow(dead_code)]
         pub fn items(&self) -> Vec<&LiteralItem> {
-            self.items.iter().map(|(k, _)| k).collect()
+            self.items.keys().collect()
         }
 
         pub fn selected_items(&self) -> Vec<LiteralItem> {
