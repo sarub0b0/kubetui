@@ -1,5 +1,6 @@
 pub mod api_resources;
 mod client;
+mod color;
 pub mod config;
 mod event;
 pub mod log;
@@ -40,7 +41,7 @@ use self::{
         apis_list_from_api_database, ApiDatabase, ApiMessage, ApiRequest, ApiResponse,
     },
     client::KubeClient,
-    config::{get_config, ConfigMessage},
+    config::{ConfigMessage, ConfigsDataWorker},
     context_message::{ContextMessage, ContextRequest, ContextResponse},
     inner::Inner,
     log::{LogStreamMessage, LogWorkerBuilder},
@@ -338,6 +339,7 @@ impl Worker for MainWorker {
 
     async fn run(&self) -> Self::Output {
         let mut log_stream_handler: Option<Handlers> = None;
+        let mut config_handler: Option<JoinHandle<Result<()>>> = None;
         let mut network_handler: Option<JoinHandle<Result<()>>> = None;
         let mut yaml_handler: Option<JoinHandle<Result<()>>> = None;
 
@@ -410,13 +412,22 @@ impl Worker for MainWorker {
                         task::yield_now().await;
                     }
 
-                    Kube::Config(ConfigMessage::DataRequest {
-                        namespace,
-                        kind,
-                        name,
-                    }) => {
-                        let raw = get_config(kube_client.clone(), &namespace, &kind, &name).await;
-                        tx.send(ConfigMessage::DataResponse(raw).into())?;
+                    Kube::Config(ConfigMessage::Request(req)) => {
+                        if let Some(handler) = config_handler {
+                            handler.abort();
+                        }
+
+                        config_handler = Some(
+                            ConfigsDataWorker::new(
+                                is_terminated.clone(),
+                                tx,
+                                kube_client.clone(),
+                                req,
+                            )
+                            .spawn(),
+                        );
+
+                        task::yield_now().await;
                     }
 
                     Kube::API(ApiMessage::Request(req)) => {

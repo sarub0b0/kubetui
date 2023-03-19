@@ -1,5 +1,5 @@
 use super::{client::KubeClient, Event, Handlers, Kube, Worker};
-use crate::{error::PodError, event::util::color::Color, logger};
+use crate::{error::PodError, event::kubernetes::color::Color, logger};
 
 use async_trait::async_trait;
 use chrono::Local;
