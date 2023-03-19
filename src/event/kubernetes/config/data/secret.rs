@@ -72,7 +72,7 @@ struct Iter<'a> {
     color: Color,
 }
 
-impl<'a> Iter<'a> {
+impl Iter<'_> {
     fn format_utf8(key: &str, value: &str, color: u8) -> String {
         if value.contains('\n') {
             let mut ret = format!("\x1b[{color}m{key}:\x1b[39m |\n", color = color, key = key);
@@ -110,17 +110,15 @@ impl<'a> Iter<'a> {
 impl Iterator for Iter<'_> {
     type Item = String;
     fn next(&mut self) -> std::option::Option<<Self as Iterator>::Item> {
-        if let Some((k, v)) = self.iter.next() {
-            let c = self.color.next_color();
+        let Some((key, ByteString(value))) = self.iter.next() else { return None; };
 
-            if let Ok(utf8_data) = String::from_utf8(v.0.to_vec()) {
-                Some(Self::format_utf8(k, &utf8_data, c))
-            } else {
-                let base64_encoded = general_purpose::STANDARD.encode(&v.0);
-                Some(Self::format_non_utf8(k, &base64_encoded, c))
-            }
+        let color = self.color.next_color();
+
+        if let Ok(utf8_data) = String::from_utf8(value.to_vec()) {
+            Some(Self::format_utf8(key, &utf8_data, color))
         } else {
-            None
+            let base64_encoded = general_purpose::STANDARD.encode(value);
+            Some(Self::format_non_utf8(key, &base64_encoded, color))
         }
     }
 }
