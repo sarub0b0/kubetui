@@ -70,7 +70,7 @@ indoc = "2.0.1"
 mockall = "0.11.3"
 mockall_double = "0.3.0"
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros"] }
-rstest = "0.16.0"
+rstest = "0.17.0"
 
 [[example]]
 name = "stack_view"
