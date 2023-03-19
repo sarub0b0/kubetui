@@ -2,9 +2,8 @@ use std::collections::{btree_map, BTreeMap};
 
 use async_trait::async_trait;
 use base64::{engine::general_purpose, Engine};
-use k8s_openapi::NamespaceResourceScope;
-use kube::{core::ObjectMeta, Api};
-use serde::Deserialize;
+use k8s_openapi::{api::core::v1::Secret, ByteString};
+use kube::Api;
 
 use crate::{
     error::Result,
@@ -34,6 +33,7 @@ impl<'a> Fetch<'a> for SecretDataWorker<'a> {
         let target = list.get(&self.name).await?;
 
         if let Some(data) = target.data {
+            let data = SecretData(data);
             Ok(data.to_string_key_values())
         } else {
             Ok(vec!["no data".into()])
@@ -41,43 +41,8 @@ impl<'a> Fetch<'a> for SecretDataWorker<'a> {
     }
 }
 
-#[derive(Debug, Default, Clone, Deserialize)]
-struct Secret {
-    metadata: ObjectMeta,
-    data: Option<SecretData>,
-}
-
-impl kube::Resource for Secret {
-    type DynamicType = ();
-    type Scope = NamespaceResourceScope;
-
-    fn kind(_: &Self::DynamicType) -> std::borrow::Cow<'_, str> {
-        "Secret".into()
-    }
-
-    fn group(_: &Self::DynamicType) -> std::borrow::Cow<'_, str> {
-        "".into()
-    }
-
-    fn version(_: &Self::DynamicType) -> std::borrow::Cow<'_, str> {
-        "v1".into()
-    }
-
-    fn plural(_: &Self::DynamicType) -> std::borrow::Cow<'_, str> {
-        "secrets".into()
-    }
-
-    fn meta(&self) -> &ObjectMeta {
-        &self.metadata
-    }
-
-    fn meta_mut(&mut self) -> &mut ObjectMeta {
-        &mut self.metadata
-    }
-}
-
-#[derive(Debug, Default, Clone, Deserialize)]
-struct SecretData(BTreeMap<String, String>);
+#[derive(Debug, Default)]
+struct SecretData(BTreeMap<String, ByteString>);
 
 impl SecretData {
     fn to_string_key_values(&self) -> Vec<String> {
@@ -103,7 +68,7 @@ impl SecretData {
 }
 
 struct Iter<'a> {
-    iter: btree_map::Iter<'a, String, String>,
+    iter: btree_map::Iter<'a, String, ByteString>,
     color: Color,
 }
 
@@ -131,10 +96,6 @@ impl<'a> Iter<'a> {
         Self::format_error(key, value, "Can't output a non-UTF8 value", color)
     }
 
-    fn format_decode_error(key: &str, value: &str, err: &str, color: u8) -> String {
-        Self::format_error(key, value, &format!("\x1b[31m{}\x1b[39m", err), color)
-    }
-
     fn format_error(key: &str, value: &str, err: &str, color: u8) -> String {
         format!(
             "\x1b[{color}m{key}:\x1b[39m {error}\n[base64-encoded] {value}",
@@ -152,15 +113,11 @@ impl Iterator for Iter<'_> {
         if let Some((k, v)) = self.iter.next() {
             let c = self.color.next_color();
 
-            match general_purpose::STANDARD.decode(v) {
-                Ok(decoded_data) => {
-                    if let Ok(utf8_data) = String::from_utf8(decoded_data) {
-                        Some(Self::format_utf8(k, &utf8_data, c))
-                    } else {
-                        Some(Self::format_non_utf8(k, v, c))
-                    }
-                }
-                Err(err) => Some(Self::format_decode_error(k, v, &err.to_string(), c)),
+            if let Ok(utf8_data) = String::from_utf8(v.0.to_vec()) {
+                Some(Self::format_utf8(k, &utf8_data, c))
+            } else {
+                let base64_encoded = general_purpose::STANDARD.encode(&v.0);
+                Some(Self::format_non_utf8(k, &base64_encoded, c))
             }
         } else {
             None
