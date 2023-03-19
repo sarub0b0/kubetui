@@ -1,8 +1,18 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, time};
 
-use crate::event::kubernetes::KubeTableRow;
+use async_trait::async_trait;
+use futures::future::try_join_all;
 
-use super::*;
+use crate::{
+    error::Result,
+    event::kubernetes::{
+        v1_table::{get_resource_per_namespace, insert_ns, TableRow},
+        worker::{PollWorker, Worker},
+        KubeTable, KubeTableRow, WorkerResult,
+    },
+};
+
+use super::NetworkResponse;
 
 #[derive(Clone)]
 pub struct NetworkPollWorker {
@@ -15,7 +25,7 @@ impl NetworkPollWorker {
     }
 }
 
-#[async_trait]
+#[async_trait()]
 impl Worker for NetworkPollWorker {
     type Output = Result<WorkerResult>;
 

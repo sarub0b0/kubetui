@@ -4,7 +4,10 @@ use std::{cell::RefCell, rc::Rc};
 use crate::{
     action::view_id,
     clipboard_wrapper::Clipboard,
-    event::{kubernetes::config::ConfigMessage, Event},
+    event::{
+        kubernetes::config::{ConfigRequest, RequestData},
+        Event,
+    },
     tui_wrapper::{
         event::EventResult,
         tab::WidgetData,
@@ -96,15 +99,21 @@ impl<'a> ConfigTabBuilder<'a> {
                     .widget_config_mut()
                     .append_title_mut()) = Some((format!(" : {}", name)).into());
 
-                tx.send(
-                    ConfigMessage::DataRequest {
-                        namespace: namespace.to_string(),
-                        kind: kind.to_string(),
-                        name: name.to_string(),
+                let request_data = RequestData {
+                    namespace: namespace.to_string(),
+                    name: name.to_string(),
+                };
+
+                match kind.as_str() {
+                    "ConfigMap" => {
+                        tx.send(ConfigRequest::ConfigMap(request_data).into())
+                            .unwrap();
                     }
-                    .into(),
-                )
-                .unwrap();
+                    "Secret" => {
+                        tx.send(ConfigRequest::Secret(request_data).into()).unwrap();
+                    }
+                    _ => {}
+                }
 
                 EventResult::Window(WindowEvent::Continue)
             })

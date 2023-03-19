@@ -191,10 +191,6 @@ pub fn update_contents(
             update_widget_item_for_table(window, view_id::tab_pod_widget_pod, pods_table);
         }
 
-        Kube::Config(ConfigMessage::List(configs_table)) => {
-            update_widget_item_for_table(window, view_id::tab_config_widget_config, configs_table);
-        }
-
         Kube::LogStream(LogStreamMessage::Response(res)) => {
             let widget = window.find_widget_mut(view_id::tab_pod_widget_log);
 
@@ -222,8 +218,17 @@ pub fn update_contents(
             }
         }
 
-        Kube::Config(ConfigMessage::DataResponse(raw)) => {
-            update_widget_item_for_vec(window, view_id::tab_config_widget_raw_data, raw);
+        Kube::Config(ConfigMessage::Response(res)) => {
+            use crate::event::kubernetes::config::ConfigResponse::*;
+
+            match res {
+                Table(list) => {
+                    update_widget_item_for_table(window, view_id::tab_config_widget_config, list);
+                }
+                Data(data) => {
+                    update_widget_item_for_vec(window, view_id::tab_config_widget_raw_data, data);
+                }
+            }
         }
 
         Kube::Event(ev) => {

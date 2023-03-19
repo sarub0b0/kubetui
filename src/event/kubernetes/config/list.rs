@@ -3,6 +3,7 @@ use std::{collections::BTreeMap, time};
 use crate::{
     error::Result,
     event::kubernetes::{
+        client::KubeClient,
         v1_table::{get_resource_per_namespace, insert_ns, TableRow},
         worker::{PollWorker, Worker},
         KubeTable, KubeTableRow, WorkerResult,
@@ -11,7 +12,7 @@ use crate::{
 use async_trait::async_trait;
 use futures::future::try_join_all;
 
-use super::{ConfigMessage, KubeClient};
+use super::ConfigResponse;
 
 #[derive(Clone)]
 pub struct ConfigsPollWorker {
@@ -48,7 +49,7 @@ impl Worker for ConfigsPollWorker {
 
             let table = fetch_configs(kube_client, &namespaces).await;
 
-            tx.send(ConfigMessage::List(table).into())?;
+            tx.send(ConfigResponse::Table(table).into())?;
         }
         Ok(WorkerResult::Terminated)
     }

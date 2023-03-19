@@ -4,19 +4,9 @@ mod list;
 pub use description::*;
 pub use list::*;
 
-use std::time;
-
-use async_trait::async_trait;
-
-use futures::future::try_join_all;
-
 use crate::{error::Result, event::Event};
 
-use super::{
-    v1_table::{get_resource_per_namespace, insert_ns, TableRow},
-    worker::{PollWorker, Worker},
-    Kube, KubeTable, WorkerResult,
-};
+use super::{Kube, KubeTable};
 
 #[derive(Debug, Clone)]
 pub struct RequestData {
