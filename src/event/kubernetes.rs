@@ -384,6 +384,11 @@ impl Worker for MainWorker {
                                 log_stream_handler = None;
                             }
 
+                            if let Some(h) = config_handler {
+                                h.abort();
+                                config_handler = None;
+                            }
+
                             if let Some(handler) = network_handler {
                                 handler.abort();
                                 network_handler = None;
@@ -452,6 +457,10 @@ impl Worker for MainWorker {
                         }
                         ContextRequest::Set(req) => {
                             if let Some(h) = log_stream_handler {
+                                h.abort();
+                            }
+
+                            if let Some(h) = config_handler {
                                 h.abort();
                             }
 
