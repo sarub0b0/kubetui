@@ -384,8 +384,8 @@ impl Worker for MainWorker {
                                 log_stream_handler = None;
                             }
 
-                            if let Some(h) = config_handler {
-                                h.abort();
+                            if let Some(handler) = config_handler {
+                                handler.abort();
                                 config_handler = None;
                             }
 
