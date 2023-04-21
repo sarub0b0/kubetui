@@ -16,7 +16,7 @@ use k8s_openapi::{
 };
 
 use kube::{
-    api::{ListParams, LogParams, WatchEvent},
+    api::{ListParams, LogParams, WatchEvent, WatchParams},
     Api, ResourceExt,
 };
 
@@ -361,7 +361,7 @@ impl Worker for WatchPodStatusWorker {
     async fn run(&self) -> Self::Output {
         let pod_api: Api<Pod> = Api::namespaced(self.client.as_client().clone(), &self.ns);
 
-        let lp = ListParams::default()
+        let lp = WatchParams::default()
             .fields(&format!("metadata.name={}", self.pod_name))
             .timeout(180);
 
