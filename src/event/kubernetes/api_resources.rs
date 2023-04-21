@@ -5,23 +5,20 @@ use super::{
     {v1_table::*, ApiResources},
     {Event, Kube},
 };
-
 use super::{metric_type::*, WorkerResult};
 use crate::error::Result;
 
+use async_trait::async_trait;
+use futures::future::try_join_all;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{
-    APIGroupList, APIResource, APIResourceList, APIVersions, GroupVersionForDiscovery,
+    APIGroupList, APIResource, APIVersions, GroupVersionForDiscovery,
 };
-use k8s_openapi::Resource;
-
+use kube::core::TypeMeta;
+use serde::Deserialize;
+use serde_json::Value as JsonValue;
+use std::collections::HashMap;
 use std::{sync::Arc, time};
 use tokio::{sync::RwLock, time::Instant};
-
-use futures::future::try_join_all;
-use serde_json::Value as JsonValue;
-
-use async_trait::async_trait;
-use std::collections::HashMap;
 
 #[derive(Debug)]
 pub enum ApiRequest {
@@ -244,6 +241,15 @@ fn can_get_request(api: &APIResource) -> bool {
     api.verbs.contains(&"list".to_string())
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+struct APIResourceList {
+    types: Option<TypeMeta>,
+    group_version: String,
+    resources: Vec<APIResource>,
+}
+
 async fn api_resource_list_to_api_info_list(
     client: &KubeClient,
     gv: &GroupVersion,
@@ -256,7 +262,7 @@ async fn api_resource_list_to_api_info_list(
         .filter(|resource| can_get_request(resource))
         .map(|resource| APIInfo {
             api_group: gv.group.to_string(),
-            api_version: APIResourceList::API_VERSION.to_string(),
+            api_version: resource.version.clone().unwrap_or_default(),
             api_group_version: gv.version.to_string(),
             api_resource: resource.clone(),
             preferred_version: gv.preferred_version,
