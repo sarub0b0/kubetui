@@ -676,7 +676,9 @@ impl WidgetTrait for Text {
 
                     if let Some(clipboard) = &mut self.clipboard {
                         logger!(info, "Clipboard saved '{}'", contents);
-                        clipboard.borrow_mut().set_contents(contents).unwrap()
+                        if let Err(e) = clipboard.borrow_mut().set_contents(contents) {
+                            logger!(error, "Clipboard Error '{}'", e);
+                        }
                     }
 
                     self.follow = highlight_content.follow;
