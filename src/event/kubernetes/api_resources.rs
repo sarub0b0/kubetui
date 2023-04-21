@@ -11,7 +11,7 @@ use crate::error::Result;
 use async_trait::async_trait;
 use futures::future::try_join_all;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{
-    APIGroupList, APIResource, APIVersions, GroupVersionForDiscovery,
+    APIGroupList, APIResource, APIVersions,
 };
 use kube::core::TypeMeta;
 use serde::Deserialize;
@@ -151,7 +151,6 @@ pub struct APIInfo {
     pub api_group: String,
     pub api_group_version: String,
     pub api_resource: APIResource,
-    pub preferred_version: Option<bool>,
 }
 
 impl APIInfo {
@@ -176,7 +175,6 @@ impl APIInfo {
 struct GroupVersion {
     group: String,
     version: String,
-    preferred_version: Option<bool>,
 }
 
 impl GroupVersion {
@@ -189,13 +187,6 @@ impl GroupVersion {
     }
 }
 
-fn is_preferred_version(
-    version: &str,
-    preferred_version: &Option<GroupVersionForDiscovery>,
-) -> Option<bool> {
-    preferred_version.as_ref().map(|gv| gv.version == version)
-}
-
 async fn get_all_api_info(client: &KubeClient) -> Result<Vec<APIInfo>> {
     let mut group_versions = Vec::new();
 
@@ -205,19 +196,21 @@ async fn get_all_api_info(client: &KubeClient) -> Result<Vec<APIInfo>> {
         group_versions.push(GroupVersion {
             group: String::default(),
             version: v.to_string(),
-            preferred_version: None,
         })
     });
 
-    let api_group_list: APIGroupList = client.request("apis").await?;
+    let api_groups: APIGroupList = client.request("apis").await?;
 
-    api_group_list.groups.iter().for_each(|group| {
-        group.versions.iter().for_each(|gv| {
-            group_versions.push(GroupVersion {
-                group: group.name.to_string(),
-                version: gv.version.to_string(),
-                preferred_version: is_preferred_version(&gv.version, &group.preferred_version),
-            })
+    api_groups.groups.iter().for_each(|group| {
+        let gv = group
+            .preferred_version
+            .as_ref()
+            .or_else(|| group.versions.first())
+            .expect("preferred or versions exists");
+
+        group_versions.push(GroupVersion {
+            group: group.name.to_string(),
+            version: gv.version.to_string(),
         })
     });
 
@@ -265,7 +258,6 @@ async fn api_resource_list_to_api_info_list(
             api_version: resource.version.clone().unwrap_or_default(),
             api_group_version: gv.version.to_string(),
             api_resource: resource.clone(),
-            preferred_version: gv.preferred_version,
         })
         .collect())
 }
@@ -289,20 +281,7 @@ fn convert_api_database(api_info_list: &[APIInfo]) -> InnerApiDatabase {
     for info in api_info_list {
         let api_name = info.resource_full_name();
 
-        let mut is_insert = false;
-        if db.contains_key(&api_name) {
-            if let Some(pv) = info.preferred_version {
-                if pv {
-                    is_insert = true;
-                }
-            }
-        } else {
-            is_insert = true;
-        }
-
-        if is_insert {
-            db.insert(api_name, info.clone());
-        }
+        db.entry(api_name).or_insert_with(|| info.clone());
     }
 
     db
