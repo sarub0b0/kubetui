@@ -20,7 +20,7 @@ use crate::{
 
 use super::{
     event::{EventResult, InnerCallback},
-    util::{child_window_chunk, key_event_to_code, MousePosition, RectContainsPoint},
+    util::{self, child_window_chunk, key_event_to_code},
     widget::{RenderTrait, Widget, WidgetTrait},
     Tab,
 };
@@ -447,9 +447,8 @@ impl Window<'_> {
             }
         }
 
-        let pos = ev.position();
+        let pos = (ev.column, ev.row);
         let focused_view_id = self.focused_widget_id().to_string();
-        // let mut focus_id = None;
 
         // - マウスのカーソル位置によらずフォーカスしているビューにイベントを渡す
         // - クリックしたときにフォーカスを変更する
@@ -476,7 +475,7 @@ impl Window<'_> {
             return EventResult::Ignore;
         }
 
-        let pos = ev.position();
+        let pos = util::mouse_pos(ev);
 
         let chunk = Self::tab_block().inner(self.tab_chunk());
         let divider_width = 1;
@@ -491,7 +490,7 @@ impl Window<'_> {
 
             let title_chunk = Rect::new(x, y, w, h);
 
-            if title_chunk.contains_point(pos) {
+            if util::contains(title_chunk, pos) {
                 self.focus_tab(i + 1);
                 break;
             }
@@ -506,16 +505,16 @@ impl Window<'_> {
     }
 
     fn component_at_cursor(&mut self, pos: (u16, u16)) -> Component {
-        if self.tab_chunk().contains_point(pos) {
+        if util::contains(self.tab_chunk(), pos) {
             return Component::Tab;
         }
 
-        if self.chunks()[self.layout_index.contents].contains_point(pos) {
+        if util::contains(self.chunks()[self.layout_index.contents], pos) {
             if let Some(w) = self
                 .focused_tab_mut()
                 .as_mut_widgets()
                 .iter_mut()
-                .find(|w| w.chunk().contains_point(pos))
+                .find(|w| util::contains(w.chunk(), pos))
             {
                 return Component::Widget(w.id().to_owned());
             }

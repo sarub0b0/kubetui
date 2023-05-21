@@ -20,7 +20,7 @@ use crate::{
     event::UserEvent,
     tui_wrapper::{
         event::{EventResult, InnerCallback},
-        util::{MousePosition, RectContainsPoint},
+        util::contains,
         widget::*,
         Window,
     },
@@ -251,13 +251,13 @@ impl WidgetTrait for SingleSelect<'_> {
     }
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
-        let pos = ev.position();
+        let pos = (ev.column, ev.row);
 
         let chunks = &self.inner_chunks;
 
-        if chunks[LAYOUT_INDEX_FOR_INPUT_FORM].contains_point(pos) {
+        if contains(chunks[LAYOUT_INDEX_FOR_INPUT_FORM], pos) {
             self.input_widget.on_mouse_event(ev)
-        } else if chunks[LAYOUT_INDEX_FOR_SELECT_FORM].contains_point(pos) {
+        } else if contains(chunks[LAYOUT_INDEX_FOR_SELECT_FORM], pos) {
             self.selected_widget.on_mouse_event(ev)
         } else {
             EventResult::Nop
