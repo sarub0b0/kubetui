@@ -19,7 +19,7 @@ use crate::{
     event::UserEvent,
     ui::{
         event::{EventResult, InnerCallback},
-        util::{MousePosition, RectContainsPoint},
+        util::RectContainsPoint,
         widget::*,
         Window,
     },
@@ -268,7 +268,7 @@ impl WidgetTrait for SingleSelect<'_> {
     }
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
-        let pos = ev.position();
+        let pos = (ev.column, ev.row);
 
         let chunks = &self.inner_chunks;
 
