@@ -389,6 +389,12 @@ pub enum WindowEvent {
     ResizeWindow(u16, u16),
 }
 
+enum Component {
+    Tab,
+    Widget(String),
+    None,
+}
+
 // Event
 impl Window<'_> {
     pub fn on_event(&mut self, ev: UserEvent) -> EventResult {
@@ -443,41 +449,31 @@ impl Window<'_> {
 
         let pos = ev.position();
         let focused_view_id = self.focused_widget_id().to_string();
-        let mut focus_widget_id = None;
+        // let mut focus_id = None;
 
-        let result = if self.tab_chunk().contains_point(pos) {
-            self.on_click_tab(ev);
-            EventResult::Nop
-        } else if self.chunks()[self.layout_index.contents].contains_point(pos) {
-            if let Some(w) = self
-                .focused_tab_mut()
-                .as_mut_widgets()
-                .iter_mut()
-                .find(|w| w.chunk().contains_point(pos))
-            {
-                focus_widget_id = if w.id() != focused_view_id {
-                    Some(w.id().to_string())
-                } else {
-                    None
-                };
-                w.on_mouse_event(ev)
-            } else {
-                EventResult::Ignore
-            }
-        } else {
-            EventResult::Ignore
-        };
-
-        if let Some(id) = focus_widget_id {
-            self.focus_widget(&id);
+        // - マウスのカーソル位置によらずフォーカスしているビューにイベントを渡す
+        // - クリックしたときにフォーカスを変更する
+        match ev.kind {
+            #[rustfmt::skip]
+            MouseEventKind::Down(MouseButton::Left) => {
+                match self.component_at_cursor(pos) {
+                    Component::Tab => {
+                        self.on_click_tab(ev)
+                    }
+                    Component::Widget(id) => {
+                        self.focus_widget(&id);
+                        self.find_widget_mut(&id).on_mouse_event(ev)
+                    }
+                    Component::None => EventResult::Ignore,
+                }
+            },
+            _ => self.find_widget_mut(&focused_view_id).on_mouse_event(ev),
         }
-
-        result
     }
 
-    fn on_click_tab(&mut self, ev: MouseEvent) {
+    fn on_click_tab(&mut self, ev: MouseEvent) -> EventResult {
         if ev.kind != MouseEventKind::Down(MouseButton::Left) {
-            return;
+            return EventResult::Ignore;
         }
 
         let pos = ev.position();
@@ -505,5 +501,26 @@ impl Window<'_> {
                 .saturating_add(w)
                 .saturating_add(divider_width);
         }
+
+        EventResult::Nop
+    }
+
+    fn component_at_cursor(&mut self, pos: (u16, u16)) -> Component {
+        if self.tab_chunk().contains_point(pos) {
+            return Component::Tab;
+        }
+
+        if self.chunks()[self.layout_index.contents].contains_point(pos) {
+            if let Some(w) = self
+                .focused_tab_mut()
+                .as_mut_widgets()
+                .iter_mut()
+                .find(|w| w.chunk().contains_point(pos))
+            {
+                return Component::Widget(w.id().to_owned());
+            }
+        }
+
+        Component::None
     }
 }
