@@ -1,21 +1,19 @@
 use crossbeam::channel::Sender;
-
+use crossterm::event::KeyCode;
 use std::{cell::RefCell, rc::Rc};
-
-use crate::clipboard_wrapper::Clipboard;
-
-use crate::event::{kubernetes::log::LogStreamMessage, Event};
-
-use crate::action::view_id;
-
-use crate::tui_wrapper::{
-    event::EventResult,
-    tab::WidgetData,
-    widget::{config::WidgetConfig, Table, Text, WidgetTrait},
-    Tab, WindowEvent,
-};
-
 use tui::layout::{Constraint, Direction, Layout};
+
+use crate::{
+    action::view_id,
+    clipboard_wrapper::Clipboard,
+    event::{kubernetes::log::LogStreamMessage, Event, UserEvent},
+    tui_wrapper::{
+        event::EventResult,
+        tab::WidgetData,
+        widget::{config::WidgetConfig, Item, Table, Text, WidgetTrait},
+        Tab, Window, WindowEvent,
+    },
+};
 
 pub struct PodTabBuilder<'a> {
     title: &'a str,
@@ -111,6 +109,15 @@ impl<'a> PodTabBuilder<'a> {
     }
 
     fn log(&self) -> Text {
+        let add_newline = move |w: &mut Window| {
+            let w = w.find_widget_mut(view_id::tab_pod_widget_log);
+
+            w.select_last();
+            w.append_widget_item(Item::Single("".into()));
+
+            EventResult::Nop
+        };
+
         let builder = Text::builder()
             .id(view_id::tab_pod_widget_log)
             .widget_config(&WidgetConfig::builder().title("Log").build())
@@ -124,7 +131,8 @@ impl<'a> PodTabBuilder<'a> {
                 *config.title_mut() = format!("Log [{}/{}]", index, size).into();
 
                 config.render_block(text.focusable() && selected)
-            });
+            })
+            .action(UserEvent::from(KeyCode::Enter), add_newline);
 
         if let Some(cb) = self.clipboard {
             builder.clipboard(cb.clone())
