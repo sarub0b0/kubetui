@@ -33,7 +33,7 @@ pub fn mouse_pos(ev: MouseEvent) -> (u16, u16) {
 #[inline]
 pub fn contains(chunk: Rect, point: (u16, u16)) -> bool {
     let (px, py) = point;
-    (chunk.left() <= px && px <= chunk.right()) && (chunk.top() <= py && py <= chunk.bottom())
+    (chunk.left() <= px && px < chunk.right()) && (chunk.top() <= py && py < chunk.bottom())
 }
 
 pub fn child_window_chunk(width_rate: u16, height_rate: u16, chunk: Rect) -> Rect {
