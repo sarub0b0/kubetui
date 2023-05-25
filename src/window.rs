@@ -1,8 +1,8 @@
-mod api;
 mod config;
 mod context;
 mod event;
 mod help;
+mod list;
 mod network;
 mod pod;
 mod yaml;
@@ -25,11 +25,11 @@ use crate::{
 };
 
 use self::{
-    api::{ApiTab, ApiTabBuilder},
     config::{ConfigTab, ConfigTabBuilder},
     context::{ContextPopup, ContextPopupBuilder},
     event::{EventsTab, EventsTabBuilder},
     help::HelpPopup,
+    list::{ListTab, ListTabBuilder},
     network::{NetworkTab, NetworkTabBuilder},
     pod::{PodTabBuilder, PodsTab},
     yaml::{YamlTab, YamlTabBuilder},
@@ -137,10 +137,10 @@ impl WindowInit {
 
         let EventsTab { tab: tab_events } = EventsTabBuilder::new("Event", &clipboard).build();
 
-        let ApiTab {
-            tab: tab_apis,
-            popup: popup_apis,
-        } = ApiTabBuilder::new("API", &self.tx, &clipboard).build();
+        let ListTab {
+            tab: tab_list,
+            popup: popup_list,
+        } = ListTabBuilder::new("List", &self.tx, &clipboard).build();
 
         let YamlTab {
             tab: tab_yaml,
@@ -164,7 +164,7 @@ impl WindowInit {
             tab_configs,
             tab_network,
             tab_events,
-            tab_apis,
+            tab_list,
             tab_yaml,
         ];
 
@@ -172,7 +172,7 @@ impl WindowInit {
             popup_context,
             popup_single_namespace,
             popup_multiple_namespaces,
-            popup_apis,
+            popup_list,
             popup_yaml_kind,
             popup_yaml_name,
             popup_help,

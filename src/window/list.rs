@@ -15,18 +15,18 @@ use crate::{
     },
 };
 
-pub struct ApiTabBuilder<'a> {
+pub struct ListTabBuilder<'a> {
     title: &'a str,
     tx: &'a Sender<Event>,
     clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
 }
 
-pub struct ApiTab {
+pub struct ListTab {
     pub tab: Tab<'static>,
     pub popup: Widget<'static>,
 }
 
-impl<'a> ApiTabBuilder<'a> {
+impl<'a> ListTabBuilder<'a> {
     pub fn new(
         title: &'static str,
         tx: &'a Sender<Event>,
@@ -39,27 +39,27 @@ impl<'a> ApiTabBuilder<'a> {
         }
     }
 
-    pub fn build(self) -> ApiTab {
-        let api = self.api();
+    pub fn build(self) -> ListTab {
+        let list = self.list();
 
-        ApiTab {
-            tab: Tab::new(view_id::tab_api, self.title, [WidgetData::new(api)]),
+        ListTab {
+            tab: Tab::new(view_id::tab_list, self.title, [WidgetData::new(list)]),
             popup: self.popup().into(),
         }
     }
 
-    fn api(&self) -> Text {
+    fn list(&self) -> Text {
         let tx = self.tx.clone();
 
         let open_subwin = move |w: &mut Window| {
             tx.send(ApiRequest::Get.into()).unwrap();
-            w.open_popup(view_id::popup_api);
+            w.open_popup(view_id::popup_list);
             EventResult::Nop
         };
 
         let builder = Text::builder()
-            .id(view_id::tab_api_widget_api)
-            .widget_config(&WidgetConfig::builder().title("API").build())
+            .id(view_id::tab_list_widget_list)
+            .widget_config(&WidgetConfig::builder().title("List").build())
             .block_injection(|text: &Text, selected: bool| {
                 let (index, size) = text.state();
 
@@ -83,20 +83,20 @@ impl<'a> ApiTabBuilder<'a> {
         let tx = self.tx.clone();
 
         MultipleSelect::builder()
-            .id(view_id::popup_api)
-            .widget_config(&WidgetConfig::builder().title("API").build())
+            .id(view_id::popup_list)
+            .widget_config(&WidgetConfig::builder().title("List").build())
             .on_select(move |w, _| {
                 let widget = w
-                    .find_widget_mut(view_id::popup_api)
+                    .find_widget_mut(view_id::popup_list)
                     .as_mut_multiple_select();
 
                 if let Some(SelectedItem::Array(item)) = widget.widget_item() {
-                    let apis = item.iter().map(|i| i.item.to_string()).collect();
-                    tx.send(ApiRequest::Set(apis).into()).unwrap();
+                    let list = item.iter().map(|i| i.item.to_string()).collect();
+                    tx.send(ApiRequest::Set(list).into()).unwrap();
                 }
 
                 if widget.selected_items().is_empty() {
-                    w.widget_clear(view_id::tab_api_widget_api)
+                    w.widget_clear(view_id::tab_list_widget_list)
                 }
 
                 EventResult::Nop

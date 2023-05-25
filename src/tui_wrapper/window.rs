@@ -285,7 +285,7 @@ impl<'a> Window<'a> {
     }
 
     fn tab_title_format(index: usize, title: &str) -> String {
-        format!("{}: {} ", index + 1, title)
+        format!("{}: {}", index + 1, title)
     }
 
     fn tab_block() -> Block<'a> {
