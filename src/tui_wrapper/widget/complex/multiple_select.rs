@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::tui_wrapper::{
     event::EventResult,
-    util::{contains, key_event_to_code, mouse_pos},
+    util::{key_event_to_code, MousePosition, RectContainsPoint},
     widget::*,
     Window,
 };
@@ -456,14 +456,14 @@ impl<'a> SelectForm<'a> {
     }
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
-        let pos = mouse_pos(ev);
+        let pos = ev.position();
 
         let (chunks, _) = self.chunks_and_arrow();
 
-        if contains(chunks[0], pos) {
+        if chunks[0].contains_point(pos) {
             self.focus(0);
             self.list_widget.on_mouse_event(ev)
-        } else if contains(chunks[2], pos) {
+        } else if chunks[2].contains_point(pos) {
             self.focus(1);
             self.selected_widget.on_mouse_event(ev)
         } else {
@@ -725,9 +725,9 @@ impl WidgetTrait for MultipleSelect<'_> {
 
         let chunks = &self.inner_chunks;
 
-        let ret = if contains(chunks[LAYOUT_INDEX_FOR_INPUT_FORM], pos) {
+        let ret = if chunks[LAYOUT_INDEX_FOR_INPUT_FORM].contains_point(pos) {
             self.input_widget.on_mouse_event(ev)
-        } else if contains(chunks[LAYOUT_INDEX_FOR_SELECT_FORM], pos) {
+        } else if chunks[LAYOUT_INDEX_FOR_SELECT_FORM].contains_point(pos) {
             self.selected_widget.on_mouse_event(ev)
         } else {
             EventResult::Nop
