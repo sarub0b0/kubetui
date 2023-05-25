@@ -25,15 +25,25 @@ pub fn key_event_to_code(key: KeyEvent) -> KeyCode {
         _ => key.code,
     }
 }
-#[inline]
-pub fn mouse_pos(ev: MouseEvent) -> (u16, u16) {
-    (ev.column, ev.row)
+
+pub trait MousePosition {
+    fn position(&self) -> (u16, u16);
 }
 
-#[inline]
-pub fn contains(chunk: Rect, point: (u16, u16)) -> bool {
-    let (px, py) = point;
-    (chunk.left() <= px && px < chunk.right()) && (chunk.top() <= py && py < chunk.bottom())
+impl MousePosition for MouseEvent {
+    fn position(&self) -> (u16, u16) {
+        (self.column, self.row)
+    }
+}
+
+pub trait RectContainsPoint {
+    fn contains_point(&self, point: (u16, u16)) -> bool;
+}
+
+impl RectContainsPoint for Rect {
+    fn contains_point(&self, (x, y): (u16, u16)) -> bool {
+        (self.left() <= x && x < self.right()) && (self.top() <= y && y < self.bottom())
+    }
 }
 
 pub fn child_window_chunk(width_rate: u16, height_rate: u16, chunk: Rect) -> Rect {

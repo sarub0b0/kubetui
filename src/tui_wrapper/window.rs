@@ -20,7 +20,7 @@ use crate::{
 
 use super::{
     event::{EventResult, InnerCallback},
-    util::{self, child_window_chunk, key_event_to_code},
+    util::{child_window_chunk, key_event_to_code, MousePosition, RectContainsPoint},
     widget::{RenderTrait, Widget, WidgetTrait},
     Tab,
 };
@@ -445,15 +445,15 @@ impl Window<'_> {
         let focused_view_id = self.focused_widget_id().to_string();
         let mut focus_widget_id = None;
 
-        let result = if util::contains(self.tab_chunk(), pos) {
+        let result = if self.tab_chunk().contains_point(pos) {
             self.on_click_tab(ev);
             EventResult::Nop
-        } else if util::contains(self.chunks()[self.layout_index.contents], pos) {
+        } else if self.chunks()[self.layout_index.contents].contains_point(pos) {
             if let Some(w) = self
                 .focused_tab_mut()
                 .as_mut_widgets()
                 .iter_mut()
-                .find(|w| util::contains(w.chunk(), pos))
+                .find(|w| w.chunk().contains_point(pos))
             {
                 focus_widget_id = if w.id() != focused_view_id {
                     Some(w.id().to_string())
@@ -480,7 +480,7 @@ impl Window<'_> {
             return;
         }
 
-        let pos = util::mouse_pos(ev);
+        let pos = ev.position();
 
         let chunk = Self::tab_block().inner(self.tab_chunk());
         let divider_width = 1;
@@ -495,7 +495,7 @@ impl Window<'_> {
 
             let title_chunk = Rect::new(x, y, w, h);
 
-            if util::contains(title_chunk, pos) {
+            if title_chunk.contains_point(pos) {
                 self.focus_tab(i + 1);
                 break;
             }
