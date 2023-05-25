@@ -63,7 +63,7 @@ impl<'a> ContextPopupBuilder<'a> {
                 w.widget_clear(view_id::tab_config_widget_raw_data);
                 w.widget_clear(view_id::tab_network_widget_description);
                 w.widget_clear(view_id::tab_event_widget_event);
-                w.widget_clear(view_id::tab_api_widget_api);
+                w.widget_clear(view_id::tab_list_widget_list);
                 w.widget_clear(view_id::tab_yaml_widget_yaml);
 
                 EventResult::Nop
@@ -87,7 +87,7 @@ impl<'a> ContextPopupBuilder<'a> {
                 w.widget_clear(view_id::tab_config_widget_raw_data);
                 w.widget_clear(view_id::tab_network_widget_description);
                 w.widget_clear(view_id::tab_event_widget_event);
-                w.widget_clear(view_id::tab_api_widget_api);
+                w.widget_clear(view_id::tab_list_widget_list);
                 w.widget_clear(view_id::tab_yaml_widget_yaml);
 
                 let widget = w
@@ -97,7 +97,7 @@ impl<'a> ContextPopupBuilder<'a> {
                 widget.unselect_all();
 
                 let widget = w
-                    .find_widget_mut(view_id::popup_api)
+                    .find_widget_mut(view_id::popup_list)
                     .as_mut_multiple_select();
 
                 widget.unselect_all();
@@ -123,7 +123,7 @@ impl<'a> ContextPopupBuilder<'a> {
                 w.widget_clear(view_id::tab_config_widget_raw_data);
                 w.widget_clear(view_id::tab_network_widget_description);
                 w.widget_clear(view_id::tab_event_widget_event);
-                w.widget_clear(view_id::tab_api_widget_api);
+                w.widget_clear(view_id::tab_list_widget_list);
                 w.widget_clear(view_id::tab_yaml_widget_yaml);
 
                 let widget = w

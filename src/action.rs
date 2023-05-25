@@ -45,14 +45,14 @@ pub mod view_id {
     generate_id!(tab_network_widget_description);
     generate_id!(tab_event);
     generate_id!(tab_event_widget_event);
-    generate_id!(tab_api);
-    generate_id!(tab_api_widget_api);
+    generate_id!(tab_list);
+    generate_id!(tab_list_widget_list);
     generate_id!(tab_yaml);
     generate_id!(tab_yaml_widget_yaml);
 
     generate_id!(popup_ctx);
     generate_id!(popup_ns);
-    generate_id!(popup_api);
+    generate_id!(popup_list);
     generate_id!(popup_single_ns);
 
     generate_id!(popup_yaml_name);
@@ -277,25 +277,25 @@ pub fn update_contents(
                 .select_all();
         }
 
-        Kube::RestoreAPIs(apis) => {
+        Kube::RestoreAPIs(list) => {
             let w = window
-                .find_widget_mut(view_id::popup_api)
+                .find_widget_mut(view_id::popup_list)
                 .as_mut_multiple_select();
 
-            for api in apis {
-                w.select_item(&api.into());
+            for l in list {
+                w.select_item(&l.into());
             }
         }
 
         Kube::API(ApiMessage::Response(res)) => {
             use ApiResponse::*;
             match res {
-                Get(api) => {
-                    update_widget_item_for_vec(window, view_id::popup_api, api);
+                Get(list) => {
+                    update_widget_item_for_vec(window, view_id::popup_list, list);
                 }
                 Set(_) => {}
-                Poll(api) => {
-                    update_widget_item_for_vec(window, view_id::tab_api_widget_api, api);
+                Poll(list) => {
+                    update_widget_item_for_vec(window, view_id::tab_list_widget_list, list);
                 }
             }
         }
