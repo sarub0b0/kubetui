@@ -113,7 +113,7 @@ impl<'a> PodTabBuilder<'a> {
             let w = w.find_widget_mut(view_id::tab_pod_widget_log);
 
             w.select_last();
-            w.append_widget_item(Item::Single("".into()));
+            w.append_widget_item(Item::Single(Default::default()));
 
             EventResult::Nop
         };
