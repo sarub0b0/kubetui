@@ -850,24 +850,4 @@ impl Worker for FetchLogStream {
 
         Ok(())
     }
-
-    #[cfg(feature = "mock")]
-    async fn run(&self) -> Self::Output {
-        async {
-            let stream = vec!["line 0", "line 1", "line 2", "line 3", "line 4"];
-
-            for s in stream {
-                let mut buf = self.buf.write().await;
-                buf.push(s.to_string());
-            }
-        }
-        .await;
-
-        Err(anyhow!(Error::Mock("follow_container_log_stream failed")))
-    }
-
-    #[cfg(feature = "mock-failed")]
-    async fn run(&self) -> Self::Output {
-        Err(anyhow!(Error::Mock("follow_container_log_stream failed")))
-    }
 }

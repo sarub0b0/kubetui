@@ -77,7 +77,6 @@ impl Worker for PodPollWorker {
     }
 }
 
-#[cfg(not(any(feature = "mock", feature = "mock-failed")))]
 async fn get_pods_per_namespace(
     client: &KubeClient,
     namespaces: &[String],
@@ -121,70 +120,6 @@ async fn get_pods_per_namespace(
         )
     }))
     .await
-}
-
-#[cfg(feature = "mock")]
-async fn get_pods_per_namespace(
-    _: &Client,
-    _: &str,
-    namespaces: &[String],
-) -> Result<Vec<Vec<Vec<String>>>> {
-    if insert_ns(namespaces) {
-        let ret = namespaces
-            .iter()
-            .enumerate()
-            .map(|(i, ns)| {
-                vec![
-                    vec![
-                        ns.to_string(),
-                        "test-0".to_string(),
-                        "1/1".to_string(),
-                        "Running".to_string(),
-                        "10d".to_string(),
-                    ],
-                    vec![
-                        ns.to_string(),
-                        "test-1".to_string(),
-                        "2/2".to_string(),
-                        "Running".to_string(),
-                        "10d".to_string(),
-                    ],
-                ]
-            })
-            .collect();
-        Ok(ret)
-    } else {
-        Ok(vec![vec![
-            vec![
-                "mock-test-0".to_string(),
-                "1/1".to_string(),
-                "Running".to_string(),
-                "10d".to_string(),
-            ],
-            vec![
-                "mock-test-1".to_string(),
-                "1/1".to_string(),
-                "Running".to_string(),
-                "11d".to_string(),
-            ],
-            vec![
-                "mock-test-2".to_string(),
-                "1/1".to_string(),
-                "Running".to_string(),
-                "13d".to_string(),
-            ],
-        ]])
-    }
-}
-
-#[cfg(feature = "mock-failed")]
-async fn get_pods_per_namespace(
-    _: &Client,
-    _: &str,
-    _: &[String],
-) -> Result<Vec<Vec<Vec<String>>>> {
-    use crate::error::{anyhow, Error};
-    Err(anyhow!(Error::Mock("Mock get_pods_per_namespace failed")))
 }
 
 async fn get_pod_info(client: &KubeClient, namespaces: &[String]) -> Result<KubeTable> {
