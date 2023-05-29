@@ -26,7 +26,8 @@ wsl = "0.1"
 arboard = "3.2.0"
 
 # tui
-tui = { git = "https://github.com/sarub0b0/tui-rs.git", features = ["crossterm"], version = "*" }
+# tui = { git = "https://github.com/sarub0b0/tui-rs.git", features = ["crossterm"], version = "*" }
+tui = { package = "ratatui" }
 unicode-segmentation = "1.10"
 unicode-width = "0.1"
 rayon = "1.7"

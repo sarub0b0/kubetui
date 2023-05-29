@@ -260,7 +260,7 @@ impl<'a> Table<'a> {
         let shown_item_len = self.items.len().saturating_sub(self.state.offset());
         let showable_height = self.showable_height();
         if shown_item_len < showable_height {
-            self.state.update_offset(self.max_offset());
+            *self.state.offset_mut() = self.max_offset();
         }
     }
 

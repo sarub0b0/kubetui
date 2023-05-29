@@ -85,20 +85,10 @@ fn run(config: Config) -> Result<()> {
     let namespace = Rc::new(RefCell::new(Namespace::new()));
     let context = Rc::new(RefCell::new(Context::new()));
 
-    // TODO: 画面サイズ変更時にクラッシュする問題の解決
-    //
-    // Terminal::new()の場合は、terminal.draw実行時にautoresizeを実行してバッファを更新する。
-    // そのため、リサイズイベント時に使用したサイズとterminal.draw実行時のサイズに差がでで
-    // クラッシュすることがある。
-    // 応急処置として、ドキュメントにはUNSTABLEとあるがdraw実行時のautoresizeを無効にする
-    // オプションを使用する。
-    //
-    // UNSTABLE CODE
-    let chunk = backend.size()?;
     let mut terminal = Terminal::with_options(
         backend,
         TerminalOptions {
-            viewport: Viewport::fixed(chunk),
+            viewport: Viewport::Fullscreen,
         },
     )?;
 
@@ -121,7 +111,7 @@ fn run(config: Config) -> Result<()> {
             }
             WindowEvent::ResizeWindow(w, h) => {
                 let chunk = Rect::new(0, 0, w, h);
-                terminal.resize(chunk)?;
+                terminal.autoresize()?;
                 window.update_chunks(chunk);
             }
             WindowEvent::UpdateContents(ev) => {

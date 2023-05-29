@@ -129,15 +129,14 @@ impl WidgetConfig {
     pub fn render_block(&self, focused: bool) -> Block<'static> {
         let block = if self.focusable {
             if focused {
-                self.block.clone().title_offset(1)
+                self.block.clone()
             } else {
                 self.block
                     .clone()
                     .border_style(Style::default().fg(Color::DarkGray))
-                    .title_offset(3)
             }
         } else {
-            self.block.clone().title_offset(3)
+            self.block.clone()
         };
 
         let title = self.render_title(focused);

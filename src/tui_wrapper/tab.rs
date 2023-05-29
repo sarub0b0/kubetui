@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use super::widget::*;
 
 use tui::{
@@ -73,7 +75,7 @@ impl<'a> Tab<'a> {
         &self.title
     }
 
-    pub fn chunks(&self, tab_size: Rect) -> Vec<Rect> {
+    pub fn chunks(&self, tab_size: Rect) -> Rc<[Rect]> {
         self.layout.split(tab_size)
     }
 

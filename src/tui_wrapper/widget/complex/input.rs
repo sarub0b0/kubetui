@@ -98,7 +98,7 @@ impl InputForm {
     }
 
     fn block(&self, selected: bool) -> Block<'static> {
-        self.widget_config.render_block(selected).title_offset(1)
+        self.widget_config.render_block(selected)
     }
 
     pub fn render<B: Backend>(&mut self, f: &mut Frame<B>, selected: bool) {

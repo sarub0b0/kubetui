@@ -125,7 +125,7 @@ type RenderBlockInjection = Rc<dyn Fn(&SingleSelect, bool) -> Block<'static>>;
 type RenderBlockInjectionForList = Box<dyn Fn(&List, bool) -> Block<'static>>;
 
 #[derive(Derivative)]
-#[derivative(Debug, Default)]
+#[derivative(Debug)]
 pub struct SingleSelect<'a> {
     id: String,
     widget_config: WidgetConfig,
@@ -134,11 +134,28 @@ pub struct SingleSelect<'a> {
     selected_widget: SelectForm<'a>,
     layout: Layout,
     chunk: Rect,
-    inner_chunks: Vec<Rect>,
+    inner_chunks: Rc<[Rect]>,
     #[derivative(Debug = "ignore")]
     callbacks: Vec<(UserEvent, InnerCallback)>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
+}
+
+impl Default for SingleSelect<'_> {
+    fn default() -> Self {
+        Self {
+            id: Default::default(),
+            widget_config: Default::default(),
+            chunk_index: Default::default(),
+            input_widget: Default::default(),
+            selected_widget: Default::default(),
+            layout: Default::default(),
+            chunk: Default::default(),
+            inner_chunks: Rc::new([Rect::default()]),
+            callbacks: Default::default(),
+            block_injection: Default::default(),
+        }
+    }
 }
 
 impl<'a> SingleSelect<'a> {
