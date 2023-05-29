@@ -3,15 +3,15 @@ mod item;
 
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use derivative::*;
-use std::rc::Rc;
 use ratatui::{
     backend::Backend,
     layout::{Constraint, Rect},
     style::{Modifier, Style},
-    text::{Span, Spans},
+    text::{Line, Span},
     widgets::{Table as TuiTable, TableState},
     Frame,
 };
+use std::rc::Rc;
 
 use filter_form::FilterForm;
 use item::InnerItem;
@@ -610,11 +610,11 @@ impl RenderTrait for Table<'_> {
 
         if let Some(appended_title) = widget_config.append_title_mut().as_mut() {
             if !self.filter_widget.word().is_empty() {
-                let mut spans = appended_title.spans().0;
+                let mut spans = appended_title.spans().spans;
 
                 spans.push(Span::from(format!(" ({})", self.filter_widget.word())));
 
-                *appended_title = Title::from(Spans::from(spans));
+                *appended_title = Title::from(Line::from(spans));
             }
         }
 

@@ -2,7 +2,7 @@
 
 use ratatui::{
     style::Style,
-    text::{Span, Spans},
+    text::{Line, Span},
 };
 
 use super::ansi_color::*;
@@ -11,21 +11,21 @@ use crate::ansi::{AnsiEscapeSequence, TextParser};
 
 use rayon::prelude::*;
 
-pub fn generate_spans<'a>(multi_lines: &[Vec<String>]) -> Vec<Spans<'a>> {
+pub fn generate_spans<'a>(multi_lines: &[Vec<String>]) -> Vec<Line<'a>> {
     multi_lines
         .par_iter()
         .flat_map(|lines| generate_spans_line(lines))
         .collect()
 }
 
-pub fn generate_spans_line<'a>(lines: &[String]) -> Vec<Spans<'a>> {
+pub fn generate_spans_line<'a>(lines: &[String]) -> Vec<Line<'a>> {
     let mut style = Style::default();
 
     lines
         .iter()
         .map(|line| {
             if line.is_empty() {
-                return Spans::from(Span::styled("", Style::default()));
+                return Line::from(Span::styled("", Style::default()));
             }
             let mut span_vec: Vec<Span> = vec![];
 
@@ -47,9 +47,9 @@ pub fn generate_spans_line<'a>(lines: &[String]) -> Vec<Spans<'a>> {
                 }
             }
 
-            Spans::from(span_vec)
+            Line::from(span_vec)
         })
-        .collect::<Vec<Spans>>()
+        .collect::<Vec<Line>>()
 }
 #[cfg(test)]
 mod tests {
@@ -92,10 +92,10 @@ mod tests {
         );
 
         let expected = vec![
-            Spans::from("> taskbox@0.1.0 start /app"),
-            Spans::from("> react-scripts start"),
-            Spans::from(""),
-            Spans::from(vec![
+            Line::from("> taskbox@0.1.0 start /app"),
+            Line::from("> react-scripts start"),
+            Line::from(""),
+            Line::from(vec![
                 Span::styled("ℹ", Style::default().fg(Color::Blue)),
                 Span::styled(" ", Style::default().fg(Color::Reset)),
                 Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
@@ -104,8 +104,8 @@ mod tests {
                     Style::default().fg(Color::Reset),
                 ),
             ]),
-            Spans::from(Span::styled(".1.157.9/", Style::default().fg(Color::Reset))),
-            Spans::from(vec![
+            Line::from(Span::styled(".1.157.9/", Style::default().fg(Color::Reset))),
+            Line::from(vec![
                 Span::styled("ℹ", Style::default().fg(Color::Blue)),
                 Span::styled(" ", Style::default().fg(Color::Reset)),
                 Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
@@ -114,7 +114,7 @@ mod tests {
                     Style::default().fg(Color::Reset),
                 ),
             ]),
-            Spans::from(vec![
+            Line::from(vec![
                 Span::styled("ℹ", Style::default().fg(Color::Blue)),
                 Span::styled(" ", Style::default().fg(Color::Reset)),
                 Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
@@ -123,11 +123,11 @@ mod tests {
                     Style::default().fg(Color::Reset),
                 ),
             ]),
-            Spans::from(Span::styled(
+            Line::from(Span::styled(
                 "ved from /app/public",
                 Style::default().fg(Color::Reset),
             )),
-            Spans::from(vec![
+            Line::from(vec![
                 Span::styled("ℹ", Style::default().fg(Color::Blue)),
                 Span::styled(" ", Style::default().fg(Color::Reset)),
                 Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
@@ -136,21 +136,21 @@ mod tests {
                     Style::default().fg(Color::Reset),
                 ),
             ]),
-            Spans::from("Starting the development server..."),
-            Spans::from(""),
-            Spans::from("Compiled successfully!"),
-            Spans::from(""),
-            Spans::from("You can now view taskbox in the browser."),
-            Spans::from(""),
-            Spans::from("  Local:            http://localhost:300"),
-            Spans::from("0"),
-            Spans::from("  On Your Network:  http://10.1.157.9:30"),
-            Spans::from("00"),
-            Spans::from(""),
-            Spans::from("Note that the development build is not o"),
-            Spans::from("ptimized."),
-            Spans::from("To create a production build, use npm ru"),
-            Spans::from("n build."),
+            Line::from("Starting the development server..."),
+            Line::from(""),
+            Line::from("Compiled successfully!"),
+            Line::from(""),
+            Line::from("You can now view taskbox in the browser."),
+            Line::from(""),
+            Line::from("  Local:            http://localhost:300"),
+            Line::from("0"),
+            Line::from("  On Your Network:  http://10.1.157.9:30"),
+            Line::from("00"),
+            Line::from(""),
+            Line::from("Note that the development build is not o"),
+            Line::from("ptimized."),
+            Line::from("To create a production build, use npm ru"),
+            Line::from("n build."),
         ];
 
         let result = generate_spans(&wrapped);
@@ -169,7 +169,7 @@ mod tests {
 
             assert_eq!(
                 generate_spans(&text),
-                vec![Spans::from(vec![
+                vec![Line::from(vec![
                     Span::raw("hoge"),
                     Span::styled("hoge", Style::default().fg(Color::Yellow)),
                     Span::styled("", Style::default().fg(Color::Reset)),
@@ -183,7 +183,7 @@ mod tests {
 
             assert_eq!(
                 generate_spans(&text),
-                vec![Spans::from(vec![
+                vec![Line::from(vec![
                     Span::styled(
                         "hoge",
                         Style::default()
@@ -201,7 +201,7 @@ mod tests {
 
             assert_eq!(
                 generate_spans(&text),
-                vec![Spans::from(vec![
+                vec![Line::from(vec![
                     Span::styled("hoge", Style::default().fg(Color::Indexed(33))),
                     Span::styled("", Style::default().fg(Color::Reset)),
                 ])]
@@ -214,7 +214,7 @@ mod tests {
 
             assert_eq!(
                 generate_spans(&text),
-                vec![Spans::from(vec![
+                vec![Line::from(vec![
                     Span::styled(
                         "hoge",
                         Style::default()
@@ -232,7 +232,7 @@ mod tests {
 
             assert_eq!(
                 generate_spans(&text),
-                vec![Spans::from(vec![
+                vec![Line::from(vec![
                     Span::styled("hoge", Style::default().fg(Color::Rgb(33, 10, 10))),
                     Span::styled("", Style::default().fg(Color::Reset)),
                 ])]
@@ -245,7 +245,7 @@ mod tests {
 
             assert_eq!(
                 generate_spans(&text),
-                vec![Spans::from(vec![
+                vec![Line::from(vec![
                     Span::styled(
                         "hoge",
                         Style::default()
@@ -263,7 +263,7 @@ mod tests {
 
             assert_eq!(
                 generate_spans(&text),
-                vec![Spans::from(vec![
+                vec![Line::from(vec![
                     Span::styled("hoge", Style::default().bg(Color::Yellow)),
                     Span::styled("", Style::default().bg(Color::Reset)),
                 ])]
@@ -276,7 +276,7 @@ mod tests {
 
             assert_eq!(
                 generate_spans(&text),
-                vec![Spans::from(vec![
+                vec![Line::from(vec![
                     Span::styled(
                         "hoge",
                         Style::default()
@@ -291,7 +291,7 @@ mod tests {
 
             assert_eq!(
                 generate_spans(&text),
-                vec![Spans::from(vec![
+                vec![Line::from(vec![
                     Span::styled(
                         "hoge",
                         Style::default()
@@ -309,7 +309,7 @@ mod tests {
 
             assert_eq!(
                 generate_spans(&text),
-                vec![Spans::from(vec![
+                vec![Line::from(vec![
                     Span::styled("hoge", Style::default().bg(Color::Indexed(33))),
                     Span::styled("", Style::default().bg(Color::Reset)),
                 ])]
@@ -322,7 +322,7 @@ mod tests {
 
             assert_eq!(
                 generate_spans(&text),
-                vec![Spans::from(vec![
+                vec![Line::from(vec![
                     Span::styled(
                         "hoge",
                         Style::default()
@@ -337,7 +337,7 @@ mod tests {
 
             assert_eq!(
                 generate_spans(&text),
-                vec![Spans::from(vec![
+                vec![Line::from(vec![
                     Span::styled(
                         "hoge",
                         Style::default()
@@ -355,7 +355,7 @@ mod tests {
 
             assert_eq!(
                 generate_spans(&text),
-                vec![Spans::from(vec![
+                vec![Line::from(vec![
                     Span::styled("hoge", Style::default().bg(Color::Rgb(33, 10, 10))),
                     Span::styled("", Style::default().bg(Color::Reset)),
                 ])]
@@ -368,7 +368,7 @@ mod tests {
 
             assert_eq!(
                 generate_spans(&text),
-                vec![Spans::from(vec![
+                vec![Line::from(vec![
                     Span::styled(
                         "hoge",
                         Style::default()
@@ -383,7 +383,7 @@ mod tests {
 
             assert_eq!(
                 generate_spans(&text),
-                vec![Spans::from(vec![
+                vec![Line::from(vec![
                     Span::styled(
                         "hoge",
                         Style::default()
@@ -414,22 +414,22 @@ mod tests {
             assert_eq!(
                 generate_spans(&wrapped),
                 vec![
-                    Spans::from(vec![
+                    Line::from(vec![
                         Span::styled(" ", Style::default().bg(Color::Rgb(0, 0, 0))),
                         Span::styled(" ", Style::default().bg(Color::Rgb(1, 0, 0))),
                         Span::styled(" ", Style::default().bg(Color::Rgb(2, 0, 0)))
                     ]),
-                    Spans::from(vec![
+                    Line::from(vec![
                         Span::styled(" ", Style::default().bg(Color::Rgb(3, 0, 0))),
                         Span::styled(" ", Style::default().bg(Color::Rgb(4, 0, 0))),
                         Span::styled(" ", Style::default().bg(Color::Rgb(5, 0, 0))),
                     ]),
-                    Spans::from(vec![
+                    Line::from(vec![
                         Span::styled(" ", Style::default().bg(Color::Rgb(6, 0, 0))),
                         Span::styled(" ", Style::default().bg(Color::Rgb(7, 0, 0))),
                         Span::styled(" ", Style::default().bg(Color::Rgb(8, 0, 0))),
                     ]),
-                    Spans::from(vec![
+                    Line::from(vec![
                         Span::styled(" ", Style::default().bg(Color::Rgb(9, 0, 0))),
                         Span::styled(" ", Style::default().bg(Color::Rgb(10, 0, 0))),
                         Span::styled("", Style::reset())
@@ -447,11 +447,11 @@ mod tests {
             assert_eq!(
                 generate_spans(&wrapped),
                 vec![
-                    Spans::from(vec![Span::styled(
+                    Line::from(vec![Span::styled(
                         "aaaaaaaaaa",
                         Style::default().fg(Color::Red)
                     )]),
-                    Spans::from(vec![
+                    Line::from(vec![
                         Span::styled("aaaaa", Style::default().fg(Color::Red)),
                         Span::styled("", Style::reset())
                     ]),

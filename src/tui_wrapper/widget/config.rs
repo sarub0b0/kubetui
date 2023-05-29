@@ -2,7 +2,7 @@ use std::{borrow::Cow, fmt::Display};
 
 use ratatui::{
     style::{Color, Modifier, Style},
-    text::{Span, Spans},
+    text::{Line, Span},
     widgets::{Block, BorderType, Borders},
 };
 
@@ -93,10 +93,10 @@ impl WidgetConfig {
             return Vec::new();
         }
 
-        let mut title = self.title.spans().0;
+        let mut title = self.title.spans().spans;
 
         if let Some(append) = &self.append_title {
-            title.append(&mut append.spans().0);
+            title.append(&mut append.spans().spans);
         }
 
         title.push(" ".into());
@@ -151,16 +151,16 @@ impl WidgetConfig {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Title {
     Raw(String),
-    Spans(Spans<'static>),
+    Line(Line<'static>),
     Span(Span<'static>),
 }
 
 impl Title {
-    pub fn spans(&self) -> Spans<'static> {
+    pub fn spans(&self) -> Line<'static> {
         match self {
-            Title::Raw(title) => Spans::from(title.to_string()),
-            Title::Spans(title) => title.clone(),
-            Title::Span(title) => Spans::from(title.clone()),
+            Title::Raw(title) => Line::from(title.to_string()),
+            Title::Line(title) => title.clone(),
+            Title::Span(title) => Line::from(title.clone()),
         }
     }
 }
@@ -169,11 +169,11 @@ impl Display for Title {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Title::Raw(title) => write!(f, "{}", title),
-            Title::Spans(title) => write!(
+            Title::Line(title) => write!(
                 f,
                 "{}",
                 title
-                    .0
+                    .spans
                     .iter()
                     .cloned()
                     .map(|span| span.content)
@@ -211,13 +211,13 @@ impl From<&String> for Title {
 
 impl From<Span<'static>> for Title {
     fn from(title: Span<'static>) -> Self {
-        Self::Spans(title.into())
+        Self::Line(title.into())
     }
 }
 
-impl From<Spans<'static>> for Title {
-    fn from(title: Spans<'static>) -> Self {
-        Self::Spans(title)
+impl From<Line<'static>> for Title {
+    fn from(title: Line<'static>) -> Self {
+        Self::Line(title)
     }
 }
 
