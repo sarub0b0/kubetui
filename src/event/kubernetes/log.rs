@@ -828,17 +828,30 @@ impl Worker for FetchLogStream {
 
         let mut logs = self.pod_api.log_stream(&self.pod_name, &lp).await?.boxed();
 
-        while let Some(line) = logs.try_next().await? {
+        while let Some(bytes) = logs.try_next().await? {
             let mut buf = self.buf.write().await;
-            buf.push(format!("{}{}", prefix, String::from_utf8_lossy(&line)));
+
+            let logs = String::from_utf8_lossy(&bytes);
 
             logger!(
                 debug,
                 "Container log stream [{}:{}] - {}",
                 self.pod_name,
                 self.container_name,
-                String::from_utf8_lossy(&line)
+                logs
             );
+
+            for line in logs.lines() {
+                buf.push(format!("{}{}", prefix, line));
+
+                logger!(
+                    debug,
+                    "Container log stream [{}:{}] - {}",
+                    self.pod_name,
+                    self.container_name,
+                    line
+                );
+            }
         }
 
         logger!(
