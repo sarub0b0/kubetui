@@ -1,11 +1,14 @@
 use anyhow::Result;
+
 use crossbeam::channel::{bounded, Receiver, Sender};
+
 use crossterm::{
     cursor::Show,
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+
 use kubetui::{
     action::{update_contents, window_action},
     config::{configure, Config},
@@ -16,6 +19,7 @@ use kubetui::{
     tui_wrapper::WindowEvent,
     window::WindowInit,
 };
+
 use std::{
     cell::RefCell,
     io, panic,
@@ -26,9 +30,8 @@ use std::{
     },
     thread, time,
 };
-use tui::{
-    backend::Backend, backend::CrosstermBackend, layout::Rect, Terminal, TerminalOptions, Viewport,
-};
+
+use ratatui::{backend::CrosstermBackend, layout::Rect, Terminal, TerminalOptions, Viewport};
 
 macro_rules! enable_raw_mode {
     () => {

@@ -3,8 +3,8 @@ use crate::tui_wrapper::widget::{
     styled_graphemes::{StyledGrapheme, StyledGraphemes},
     LiteralItem,
 };
+use ratatui::style::{Color, Modifier, Style};
 use std::ops::Range;
-use tui::style::{Color, Modifier, Style};
 
 use search::Search;
 
@@ -598,7 +598,7 @@ impl Default for WrappedLine {
 
 #[cfg(test)]
 mod tests {
-    use tui::style::{Modifier, Style};
+    use ratatui::style::{Modifier, Style};
 
     use super::*;
 
@@ -961,11 +961,11 @@ mod tests {
             assert_eq!(
                 actual,
                 vec![
-                    Style::default().fg(tui::style::Color::Red),
-                    Style::default().fg(tui::style::Color::Red),
-                    Style::default().fg(tui::style::Color::Red),
-                    Style::default().fg(tui::style::Color::Red),
-                    Style::default().fg(tui::style::Color::Red),
+                    Style::default().fg(ratatui::style::Color::Red),
+                    Style::default().fg(ratatui::style::Color::Red),
+                    Style::default().fg(ratatui::style::Color::Red),
+                    Style::default().fg(ratatui::style::Color::Red),
+                    Style::default().fg(ratatui::style::Color::Red),
                     Style::reset(),
                     Style::reset(),
                     Style::reset(),

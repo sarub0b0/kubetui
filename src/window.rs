@@ -11,7 +11,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crossbeam::channel::Sender;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use tui::{layout::Direction, text::Spans, widgets::Paragraph};
+use ratatui::{layout::Direction, text::Spans, widgets::Paragraph};
 
 use crate::{
     action::view_id,

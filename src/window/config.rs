@@ -11,11 +11,11 @@ use crate::{
     tui_wrapper::{
         event::EventResult,
         tab::WidgetData,
-        tui::layout::{Constraint, Direction, Layout},
         widget::{config::WidgetConfig, Table, Text, WidgetTrait},
         Tab, WindowEvent,
     },
 };
+use ratatui::layout::{Constraint, Direction, Layout};
 
 pub struct ConfigTabBuilder<'a> {
     title: &'static str,

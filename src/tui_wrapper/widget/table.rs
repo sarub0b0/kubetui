@@ -4,7 +4,7 @@ mod item;
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use derivative::*;
 use std::rc::Rc;
-use tui::{
+use ratatui::{
     backend::Backend,
     layout::{Constraint, Rect},
     style::{Modifier, Style},
@@ -661,7 +661,7 @@ fn constraints(digits: &[usize]) -> Vec<Constraint> {
 
 #[cfg(test)]
 mod tests {
-    use tui::{backend::TestBackend, Terminal};
+    use ratatui::{backend::TestBackend, Terminal};
 
     use super::*;
 

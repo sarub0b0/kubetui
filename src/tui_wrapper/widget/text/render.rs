@@ -8,7 +8,7 @@
 ///
 /// このモジュールではステートを持たないこととし、
 /// 上位のレイヤーでスクロールの位置や折り返しを管理すること
-use tui::{
+use ratatui::{
     buffer::Buffer,
     layout::Rect,
     style::{Modifier, Style},
@@ -251,7 +251,7 @@ impl<'a> Iterator for LineIterator<'a> {
 
 #[cfg(test)]
 mod tests {
-    use tui::{backend::TestBackend, widgets::Borders, Terminal};
+    use ratatui::{backend::TestBackend, widgets::Borders, Terminal};
     use unicode_segmentation::UnicodeSegmentation;
 
     use crate::tui_wrapper::widget::styled_graphemes::StyledGrapheme;

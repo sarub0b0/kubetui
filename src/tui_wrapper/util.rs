@@ -1,5 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
-use tui::layout::{Constraint, Direction, Layout, Rect};
+
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 
 pub fn key_event_to_code(key: KeyEvent) -> KeyCode {
     use KeyCode::*;

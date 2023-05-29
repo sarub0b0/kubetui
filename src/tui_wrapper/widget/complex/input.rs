@@ -1,7 +1,8 @@
-use std::time::{Duration, Instant};
+use crate::tui_wrapper::{event::EventResult, key_event_to_code, widget::*};
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use tui::{
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
+
+use ratatui::{
     backend::Backend,
     layout::Rect,
     style::*,
@@ -10,8 +11,7 @@ use tui::{
     Frame,
 };
 
-use crate::tui_wrapper::{event::EventResult, key_event_to_code, widget::*};
-use crossterm::event::MouseEvent;
+use std::time::{Duration, Instant};
 
 #[derive(Debug)]
 enum Mode {

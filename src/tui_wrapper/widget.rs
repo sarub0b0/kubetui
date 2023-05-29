@@ -9,21 +9,22 @@ pub mod list;
 pub mod table;
 pub mod text;
 
-use std::collections::BTreeMap;
-
 pub use complex::*;
 pub use list::*;
 pub use table::*;
 pub use text::*;
 
-use crossterm::event::{KeyEvent, MouseEvent};
-use tui::{backend::Backend, layout::Rect, Frame};
-
 use self::config::WidgetConfig;
 
 use super::event::EventResult;
 
+use crossterm::event::{KeyEvent, MouseEvent};
+
 use enum_dispatch::enum_dispatch;
+
+use ratatui::{backend::Backend, layout::Rect, Frame};
+
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct LiteralItem {

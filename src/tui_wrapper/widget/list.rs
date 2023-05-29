@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use tui::{
+use ratatui::{
     backend::Backend,
     layout::Rect,
     style::{Modifier, Style},
@@ -9,6 +9,7 @@ use tui::{
 };
 
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
+
 use derivative::*;
 
 use super::{config::WidgetConfig, Item, LiteralItem, RenderTrait, SelectedItem, WidgetTrait};
@@ -23,7 +24,7 @@ mod inner_item {
     use crate::tui_wrapper::widget::LiteralItem;
 
     use super::Item;
-    use tui::widgets::ListItem;
+    use ratatui::widgets::ListItem;
 
     #[derive(Debug, Default)]
     pub struct InnerItem<'a> {

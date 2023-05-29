@@ -1,4 +1,4 @@
-use tui::style::Style;
+use ratatui::style::Style;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 

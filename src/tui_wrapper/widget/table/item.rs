@@ -1,6 +1,6 @@
 use derivative::*;
 use std::ops::Deref;
-use tui::{
+use ratatui::{
     style::{Color, Style},
     widgets::{Cell, Row},
 };
