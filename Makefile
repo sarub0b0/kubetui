@@ -4,7 +4,7 @@ package-install:
 
 test/bin/kind:
 	mkdir -p test/bin
-	curl -Lo test/bin/kind https://kind.sigs.k8s.io/dl/v0.17.0/kind-linux-amd64
+	curl -Lo test/bin/kind https://kind.sigs.k8s.io/dl/v0.19.0/kind-linux-amd64
 	chmod +x test/bin/kind
 
 create-kind: test/bin/kind
