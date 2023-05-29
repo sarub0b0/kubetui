@@ -586,6 +586,7 @@ impl MultipleSelectBuilder {
             selected_widget,
             block_injection: self.block_injection,
             input_widget: InputForm::new(WidgetConfig::builder().title("Filter").build()),
+            inner_chunks: Rc::new([]),
             ..Default::default()
         }
     }
@@ -596,7 +597,7 @@ const LAYOUT_INDEX_FOR_STATUS: usize = 1;
 const LAYOUT_INDEX_FOR_SELECT_FORM: usize = 2;
 
 #[derive(Derivative)]
-#[derivative(Debug, Default)]
+#[derivative(Debug)]
 pub struct MultipleSelect<'a> {
     id: String,
     widget_config: WidgetConfig,
@@ -605,9 +606,25 @@ pub struct MultipleSelect<'a> {
     selected_widget: SelectForm<'a>,
     layout: Layout,
     chunk: Rect,
-    inner_chunks: Vec<Rect>,
+    inner_chunks: Rc<[Rect]>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
+}
+
+impl Default for MultipleSelect<'_> {
+    fn default() -> Self {
+        Self {
+            id: Default::default(),
+            widget_config: Default::default(),
+            chunk_index: Default::default(),
+            input_widget: Default::default(),
+            selected_widget: Default::default(),
+            layout: Default::default(),
+            chunk: Default::default(),
+            inner_chunks: Rc::new([Rect::default()]),
+            block_injection: Default::default(),
+        }
+    }
 }
 
 impl RenderTrait for MultipleSelect<'_> {

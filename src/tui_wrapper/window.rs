@@ -195,7 +195,7 @@ impl<'a> Window<'a> {
         })
     }
 
-    fn chunks(&self) -> Vec<Rect> {
+    fn chunks(&self) -> Rc<[Rect]> {
         self.layout.split(self.chunk)
     }
 
