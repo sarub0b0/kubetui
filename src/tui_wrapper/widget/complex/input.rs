@@ -6,7 +6,7 @@ use ratatui::{
     backend::Backend,
     layout::Rect,
     style::*,
-    text::{Span, Spans},
+    text::{Line, Span},
     widgets::{Block, Paragraph},
     Frame,
 };
@@ -111,7 +111,7 @@ impl InputForm {
         f.render_widget(widget, chunk);
     }
 
-    pub fn render_content(&mut self, selected: bool) -> Spans<'static> {
+    pub fn render_content(&mut self, selected: bool) -> Line<'static> {
         if selected {
             self.cursor.update_tick();
         } else {
@@ -122,11 +122,11 @@ impl InputForm {
         let content = &self.content;
 
         match (content.len(), cursor.pos()) {
-            (0, _) => Spans::from(Span::styled(
+            (0, _) => Line::from(Span::styled(
                 cursor.cursor.to_string(),
                 cursor.cursor_style(),
             )),
-            (len, pos) if pos < len => Spans::from(
+            (len, pos) if pos < len => Line::from(
                 content
                     .iter()
                     .enumerate()
@@ -139,7 +139,7 @@ impl InputForm {
                     })
                     .collect::<Vec<Span>>(),
             ),
-            _ => Spans::from(vec![
+            _ => Line::from(vec![
                 Span::raw(content.iter().collect::<String>()),
                 Span::styled(" ", cursor.cursor_style()),
             ]),
@@ -330,7 +330,7 @@ mod tests {
 
             assert_eq!(
                 form.render_content(true),
-                Spans::from(Span::styled(
+                Line::from(Span::styled(
                     " ",
                     Style::default().add_modifier(Modifier::REVERSED)
                 ))
@@ -346,7 +346,7 @@ mod tests {
 
             assert_eq!(
                 form.render_content(true),
-                Spans::from(vec![
+                Line::from(vec![
                     Span::raw("ab"),
                     Span::styled(" ", Style::default().add_modifier(Modifier::REVERSED))
                 ])
@@ -363,7 +363,7 @@ mod tests {
 
             assert_eq!(
                 form.render_content(true),
-                Spans::from(vec![
+                Line::from(vec![
                     Span::raw("a"),
                     Span::styled("b", Style::default().add_modifier(Modifier::REVERSED))
                 ])

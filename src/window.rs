@@ -11,7 +11,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crossbeam::channel::Sender;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ratatui::{layout::Direction, text::Spans, widgets::Paragraph};
+use ratatui::{layout::Direction, text::Line, widgets::Paragraph};
 
 use crate::{
     action::view_id,
@@ -112,8 +112,8 @@ impl WindowInit {
             let context = context.borrow();
             let namespaces = namespaces.borrow();
             Paragraph::new(vec![
-                Spans::from(format!(" ctx: {}", context)),
-                Spans::from(format!(" ns: {}", namespaces)),
+                Line::from(format!(" ctx: {}", context)),
+                Line::from(format!(" ns: {}", namespaces)),
             ])
         });
 

@@ -6,7 +6,7 @@ use ratatui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
-    text::Spans,
+    text::Line,
     widgets::{Block, Clear, Paragraph, Tabs},
     Frame,
 };
@@ -48,7 +48,7 @@ struct WindowLayoutIndex {
 }
 
 pub enum HeaderContent<'a> {
-    Static(Vec<Spans<'a>>),
+    Static(Vec<Line<'a>>),
     Callback(HeaderCallback),
 }
 
@@ -65,7 +65,7 @@ pub struct Header<'a> {
 }
 
 impl<'a> Header<'a> {
-    pub fn new_static(height: u16, content: Vec<Spans<'a>>) -> Self {
+    pub fn new_static(height: u16, content: Vec<Line<'a>>) -> Self {
         debug_assert!(0 < height, "Header height must be greater than 0");
 
         Self {
@@ -200,11 +200,11 @@ impl<'a> Window<'a> {
     }
 
     pub fn widget(&self) -> Tabs {
-        let titles: Vec<Spans> = self
+        let titles: Vec<Line> = self
             .tabs
             .iter()
             .enumerate()
-            .map(|(i, t)| Spans::from(Self::tab_title_format(i, t.title())))
+            .map(|(i, t)| Line::from(Self::tab_title_format(i, t.title())))
             .collect();
 
         Tabs::new(titles)
