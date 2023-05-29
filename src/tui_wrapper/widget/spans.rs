@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use tui::{
+use ratatui::{
     style::Style,
     text::{Span, Spans},
 };
@@ -55,7 +55,7 @@ pub fn generate_spans_line<'a>(lines: &[String]) -> Vec<Spans<'a>> {
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
-    use tui::style::{Color, Modifier, Style};
+    use ratatui::style::{Color, Modifier, Style};
 
     use super::super::wrap::wrap;
 

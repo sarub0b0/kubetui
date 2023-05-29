@@ -1,7 +1,7 @@
 use crossbeam::channel::Sender;
 use crossterm::event::KeyCode;
 use std::{cell::RefCell, rc::Rc};
-use tui::layout::{Constraint, Direction, Layout};
+use ratatui::layout::{Constraint, Direction, Layout};
 
 use crate::{
     action::view_id,

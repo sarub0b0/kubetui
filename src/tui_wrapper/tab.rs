@@ -1,12 +1,12 @@
-use std::rc::Rc;
-
 use super::widget::*;
 
-use tui::{
+use ratatui::{
     backend::Backend,
     layout::{Constraint, Layout, Rect},
     Frame,
 };
+
+use std::rc::Rc;
 
 pub struct WidgetData<'a> {
     chunk_index: usize,

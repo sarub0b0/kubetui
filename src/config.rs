@@ -1,13 +1,10 @@
-use std::{path::PathBuf, str::FromStr};
-
+use crate::event::kubernetes::KubeWorkerConfig;
 use clap::{
     builder::{PossibleValuesParser, TypedValueParser},
     Parser, ValueEnum,
 };
-
-use tui::layout::Direction;
-
-use crate::event::kubernetes::KubeWorkerConfig;
+use ratatui::layout::Direction;
+use std::{path::PathBuf, str::FromStr};
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]

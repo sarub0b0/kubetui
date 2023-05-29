@@ -1,18 +1,17 @@
 use crossterm::event::{KeyEvent, MouseEvent};
 
-use tui::{
+use ratatui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
-    widgets::Paragraph,
+    widgets::{Block, Paragraph},
     Frame,
 };
 
 use derivative::*;
-use std::rc::Rc;
-use tui::widgets::Block;
 
-use fuzzy_matcher::skim::SkimMatcherV2;
-use fuzzy_matcher::FuzzyMatcher;
+use std::rc::Rc;
+
+use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 
 use super::input::InputForm;
 

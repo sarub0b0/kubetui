@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use super::input::InputForm;
 
 use crate::tui_wrapper::{
     event::EventResult,
@@ -6,8 +6,14 @@ use crate::tui_wrapper::{
     widget::*,
     Window,
 };
+
 use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
-use tui::{
+
+use derivative::*;
+
+use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
+
+use ratatui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::*,
@@ -16,14 +22,9 @@ use tui::{
     Frame,
 };
 
-use fuzzy_matcher::skim::SkimMatcherV2;
-use fuzzy_matcher::FuzzyMatcher;
+use std::rc::Rc;
 
 use unicode_width::UnicodeWidthStr;
-
-use derivative::*;
-
-use super::input::InputForm;
 
 mod inner {
     use std::collections::HashMap;
