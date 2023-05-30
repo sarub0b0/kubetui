@@ -805,7 +805,6 @@ struct FetchLogStream {
 impl Worker for FetchLogStream {
     type Output = Result<()>;
 
-    #[cfg(not(any(feature = "mock", feature = "mock-failed")))]
     async fn run(&self) -> Self::Output {
         logger!(
             info,
