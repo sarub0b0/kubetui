@@ -33,7 +33,8 @@ use self::{
 };
 
 use super::{
-    config::WidgetConfig, InputForm, Item, LiteralItem, RenderTrait, SelectedItem, WidgetTrait,
+    config::WidgetConfig, styled_graphemes::StyledGrapheme, InputForm, Item, LiteralItem,
+    RenderTrait, SelectedItem, WidgetTrait,
 };
 
 type RenderBlockInjection = Rc<dyn Fn(&Text, bool) -> Block<'static>>;
@@ -625,43 +626,50 @@ impl WidgetTrait for Text {
 
                     for i in start.y..=end.y {
                         let line = &lines[i];
+                        let len = line.line().len().saturating_sub(1);
 
                         match i {
                             i if start.y == i && end.y == i => {
-                                let len = line.line().len().saturating_sub(1);
                                 let start = start.x.min(len);
                                 let end = end.x.min(len);
 
-                                contents += &line.line()[start..=end]
-                                    .iter()
-                                    .map(|l| l.symbol())
-                                    .collect::<String>();
+                                if let Some(content) = line.line().get(start..=end) {
+                                    contents += &content
+                                        .iter()
+                                        .map(StyledGrapheme::symbol)
+                                        .collect::<String>();
+                                }
                             }
                             i if start.y == i => {
-                                let len = line.line().len().saturating_sub(1);
                                 let start = start.x;
 
                                 if len < start {
                                     continue;
                                 }
 
-                                contents += &line.line()[start..]
-                                    .iter()
-                                    .map(|l| l.symbol())
-                                    .collect::<String>();
+                                if let Some(content) = line.line().get(start..) {
+                                    contents += &content
+                                        .iter()
+                                        .map(StyledGrapheme::symbol)
+                                        .collect::<String>();
+                                }
                             }
                             i if end.y == i => {
-                                let len = line.line().len().saturating_sub(1);
                                 let end = end.x.min(len);
 
-                                contents += &line.line()[..=end]
-                                    .iter()
-                                    .map(|l| l.symbol())
-                                    .collect::<String>();
+                                if let Some(content) = line.line().get(..=end) {
+                                    contents += &content
+                                        .iter()
+                                        .map(StyledGrapheme::symbol)
+                                        .collect::<String>();
+                                }
                             }
                             _ => {
-                                contents +=
-                                    &line.line().iter().map(|l| l.symbol()).collect::<String>();
+                                contents += &line
+                                    .line()
+                                    .iter()
+                                    .map(StyledGrapheme::symbol)
+                                    .collect::<String>();
                             }
                         }
 
