@@ -827,8 +827,8 @@ impl Worker for FetchLogStream {
         let mut line_buffer = None;
 
         // NOTE:
-        // ログが行区切りで取得できないため、行区切りになるように処理を追加する。
-        // 受信したBytesの最後が改行コードでない場合に、line_bufferに保存し次のループ時に先頭に追加する。
+        // ログが行区切りで取得できないため、行区切りになるように処理する。
+        // 受信したBytesの最後が改行コードでない場合に、中途半端な最終行をline_bufferに保存し次のループ時に先頭に追加する。
         while let Some(bytes) = logs.try_next().await? {
             let logs = String::from_utf8_lossy(&bytes);
 
