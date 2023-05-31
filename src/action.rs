@@ -204,19 +204,19 @@ pub fn update_contents(
                             item: convert_tabs_to_spaces(i),
                         })
                         .collect();
+
                     widget.append_widget_item(Item::Array(array));
                 }
                 Err(e) => {
-                    if let Some(Error::VecRaw(e)) = e.downcast_ref::<Error>() {
-                        widget.append_widget_item(Item::Array(
-                            e.iter()
-                                .map(|i| LiteralItem::from(convert_tabs_to_spaces(i)))
-                                .collect(),
-                        ));
-                    } else {
-                        widget
-                            .append_widget_item(Item::Array(vec![error_format!("{:?}", e).into()]));
-                    }
+                    widget.append_widget_item(Item::Array(
+                        format!("{:?}", e)
+                            .lines()
+                            .map(|l| LiteralItem {
+                                metadata: None,
+                                item: error_format!("{}", l),
+                            })
+                            .collect(),
+                    ));
                 }
             }
         }

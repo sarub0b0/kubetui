@@ -42,7 +42,7 @@ use self::{
     config::{ConfigMessage, ConfigsDataWorker},
     context_message::{ContextMessage, ContextRequest, ContextResponse},
     inner::Inner,
-    log::{LogStreamMessage, LogWorkerBuilder},
+    log::{LogHandlers, LogStreamMessage, LogWorkerBuilder},
     namespace_message::{NamespaceMessage, NamespaceRequest, NamespaceResponse},
     network::{NetworkDescriptionWorker, NetworkMessage},
     worker::{PollWorker, Worker},
@@ -224,15 +224,6 @@ pub mod context_message {
     }
 }
 
-#[derive(Default, Debug)]
-pub struct Handlers(Vec<JoinHandle<Result<()>>>);
-
-impl Handlers {
-    fn abort(&self) {
-        self.0.iter().for_each(|j| j.abort());
-    }
-}
-
 pub(super) type TargetNamespaces = Vec<String>;
 pub(super) type SharedTargetNamespaces = Arc<RwLock<TargetNamespaces>>;
 
@@ -339,7 +330,7 @@ impl Worker for MainWorker {
     type Output = Result<WorkerResult>;
 
     async fn run(&self) -> Self::Output {
-        let mut log_stream_handler: Option<Handlers> = None;
+        let mut log_stream_handler: Option<LogHandlers> = None;
         let mut config_handler: Option<JoinHandle<Result<()>>> = None;
         let mut network_handler: Option<JoinHandle<Result<()>>> = None;
         let mut yaml_handler: Option<JoinHandle<Result<()>>> = None;

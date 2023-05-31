@@ -1,26 +1,20 @@
-use super::{client::KubeClient, Event, Handlers, Kube, Worker};
-use crate::{error::PodError, event::kubernetes::color::Color, logger};
-
+use super::{client::KubeClient, Event, Kube, Worker};
+use crate::{event::kubernetes::color::Color, logger};
+use anyhow::{anyhow, bail, Result};
 use async_trait::async_trait;
 use chrono::Local;
-use futures::{future::try_join_all, StreamExt, TryStreamExt};
-use tokio::sync::RwLock;
-
-use std::{sync::Arc, time};
-
 use crossbeam::channel::Sender;
-
+use futures::{future::try_join_all, StreamExt, TryStreamExt};
 use k8s_openapi::{
     api::core::v1::{Container, ContainerState, ContainerStatus, Event as v1Event, Pod},
     apimachinery::pkg::apis::meta::v1::Time,
 };
-
 use kube::{
     api::{ListParams, LogParams, WatchEvent, WatchParams},
     Api, ResourceExt,
 };
-
-use crate::error::{anyhow, Error, Result};
+use std::{sync::Arc, time};
+use tokio::{sync::RwLock, task::JoinHandle};
 
 type BufType = Arc<RwLock<Vec<String>>>;
 type PodType = Arc<RwLock<Pod>>;
@@ -41,7 +35,7 @@ fn as_ref_container_statuses(pod: &Pod) -> Result<Option<&Vec<ContainerStatus>>>
     if let Some(status) = &pod.status {
         Ok(status.container_statuses.as_ref())
     } else {
-        Err(anyhow!(Error::Raw("PodStatus is None".into())))
+        bail!("PodStatus is None")
     }
 }
 
@@ -49,7 +43,7 @@ fn as_ref_init_container_statuses(pod: &Pod) -> Result<Option<&Vec<ContainerStat
     if let Some(status) = &pod.status {
         Ok(status.init_container_statuses.as_ref())
     } else {
-        Err(anyhow!(Error::Raw("PodStatus is None".into())))
+        bail!("PodStatus is None")
     }
 }
 
@@ -293,6 +287,7 @@ pub struct LogWorker {
 
 #[derive(Clone)]
 struct WatchPodStatusWorker {
+    tx: Sender<Event>,
     client: KubeClient,
     ns: String,
     pod_name: String,
@@ -316,9 +311,18 @@ struct FetchLogStreamWorker {
     buf: BufType,
 }
 
+#[derive(Default, Debug)]
+pub struct LogHandlers(Vec<JoinHandle<()>>);
+
+impl LogHandlers {
+    pub fn abort(&self) {
+        self.0.iter().for_each(|j| j.abort());
+    }
+}
+
 impl LogWorker {
-    pub fn spawn(&self) -> Handlers {
-        Handlers(vec![
+    pub fn spawn(&self) -> LogHandlers {
+        LogHandlers(vec![
             self.to_send_message_worker().spawn(),
             self.to_watch_pod_status_worker().spawn(),
             self.to_fetch_log_stream_worker().spawn(),
@@ -327,6 +331,7 @@ impl LogWorker {
 
     fn to_watch_pod_status_worker(&self) -> WatchPodStatusWorker {
         WatchPodStatusWorker {
+            tx: self.tx.clone(),
             client: self.client.clone(),
             ns: self.ns.clone(),
             pod_name: self.pod_name.clone(),
@@ -357,8 +362,18 @@ impl LogWorker {
 
 #[async_trait]
 impl Worker for WatchPodStatusWorker {
-    type Output = Result<()>;
+    type Output = ();
     async fn run(&self) -> Self::Output {
+        if let Err(err) = self.run().await {
+            self.tx
+                .send(LogStreamMessage::Response(Err(err)).into())
+                .expect("Failed to send LogStreamMessage::Response");
+        }
+    }
+}
+
+impl WatchPodStatusWorker {
+    async fn run(&self) -> Result<()> {
         let pod_api: Api<Pod> = Api::namespaced(self.client.as_client().clone(), &self.ns);
 
         let lp = WatchParams::default()
@@ -377,14 +392,13 @@ impl Worker for WatchPodStatusWorker {
                 WatchEvent::Error(err) => return Err(anyhow!(err)),
             }
         }
-
         Ok(())
     }
 }
 
 #[async_trait]
 impl Worker for SendMessageWorker {
-    type Output = Result<()>;
+    type Output = ();
     async fn run(&self) -> Self::Output {
         let mut interval = tokio::time::interval(time::Duration::from_millis(200));
 
@@ -394,9 +408,8 @@ impl Worker for SendMessageWorker {
 
             if !buf.is_empty() {
                 self.tx
-                    .send(LogStreamMessage::Response(Ok(buf.clone())).into())?;
-
-                buf.clear();
+                    .send(LogStreamMessage::Response(Ok(std::mem::take(&mut buf))).into())
+                    .expect("Failed to send LogStreamMessage::Response");
             }
         }
     }
@@ -404,16 +417,23 @@ impl Worker for SendMessageWorker {
 
 #[async_trait]
 impl Worker for FetchLogStreamWorker {
-    type Output = Result<()>;
+    type Output = ();
     async fn run(&self) -> Self::Output {
+        if let Err(err) = self.run().await {
+            self.tx
+                .send(LogStreamMessage::Response(Err(err)).into())
+                .expect("Failed to send LogStreamMessage::Response");
+        }
+    }
+}
+
+impl FetchLogStreamWorker {
+    async fn run(&self) -> Result<()> {
         let pod_api: Api<Pod> = Api::namespaced(self.client.as_client().clone(), &self.ns);
 
-        match pod_api.get(&self.pod_name).await {
-            Ok(p) => self.fetch_log_stream(p).await?,
-            Err(err) => self
-                .tx
-                .send(LogStreamMessage::Response(Err(anyhow!(Error::Kube(err)))).into())?,
-        }
+        let pod = pod_api.get(&self.pod_name).await?;
+
+        self.fetch_log_stream(pod).await?;
 
         Ok(())
     }
@@ -528,14 +548,11 @@ impl FetchLogStreamWorker {
                             .terminated_description(container, status, &selector)
                             .await?;
 
-                        self.tx.send(
-                            LogStreamMessage::Response(Err(anyhow!(Error::VecRaw(msg),))).into(),
-                        )?;
+                        self.tx
+                            .send(LogStreamMessage::Response(Ok(msg)).into())
+                            .expect("Failed to send LogStreamMessage::Response");
 
-                        return Err(anyhow!(PodError::ContainerExitCodeNotZero(
-                            container_name,
-                            vec![]
-                        )));
+                        return Ok(());
                     }
                 }
             }
@@ -640,14 +657,8 @@ impl FetchLogStreamWorker {
                                 .terminated_description(container, status, &selector)
                                 .await?;
 
-                            tx.send(
-                                LogStreamMessage::Response(Err(anyhow!(Error::VecRaw(msg)))).into(),
-                            )?;
-
-                            return Err(anyhow!(PodError::ContainerExitCodeNotZero(
-                                container_name,
-                                vec![]
-                            )));
+                            tx.send(LogStreamMessage::Response(Ok(msg)).into())
+                                .expect("Failed to send LogStreamMessage::Response");
                         }
                     }
                     Ok(())
