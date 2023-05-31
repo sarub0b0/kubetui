@@ -208,7 +208,7 @@ pub fn update_contents(
                 }
                 Err(e) => {
                     if let Some(Error::VecRaw(e)) = e.downcast_ref::<Error>() {
-                        widget.update_widget_item(Item::Array(
+                        widget.append_widget_item(Item::Array(
                             e.iter()
                                 .map(|i| LiteralItem::from(convert_tabs_to_spaces(i)))
                                 .collect(),
