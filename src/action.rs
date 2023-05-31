@@ -20,6 +20,7 @@ use crate::{
     },
     tui_wrapper::{
         event::{exec_to_window_event, EventResult},
+        util::chars::convert_tabs_to_spaces,
         widget::{Item, LiteralItem, TableItem, WidgetTrait},
         Window, WindowEvent,
     },
@@ -200,7 +201,7 @@ pub fn update_contents(
                         .into_iter()
                         .map(|i| LiteralItem {
                             metadata: None,
-                            item: i,
+                            item: convert_tabs_to_spaces(i),
                         })
                         .collect();
                     widget.append_widget_item(Item::Array(array));
@@ -208,7 +209,9 @@ pub fn update_contents(
                 Err(e) => {
                     if let Some(Error::VecRaw(e)) = e.downcast_ref::<Error>() {
                         widget.update_widget_item(Item::Array(
-                            e.iter().map(|i| LiteralItem::from(i.to_string())).collect(),
+                            e.iter()
+                                .map(|i| LiteralItem::from(convert_tabs_to_spaces(i)))
+                                .collect(),
                         ));
                     } else {
                         widget
