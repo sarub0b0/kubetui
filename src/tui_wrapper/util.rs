@@ -68,3 +68,67 @@ pub fn child_window_chunk(width_rate: u16, height_rate: u16, chunk: Rect) -> Rec
         ])
         .split(chunk[1])[1]
 }
+
+pub mod chars {
+    use unicode_segmentation::UnicodeSegmentation;
+    use unicode_width::UnicodeWidthStr;
+
+    const TAB_WIDTH: usize = 8;
+
+    pub fn convert_tabs_to_spaces<T: AsRef<str>>(s: T) -> String {
+        let s = s.as_ref();
+
+        if !s.contains('\t') {
+            return s.to_owned();
+        }
+
+        let mut result = String::with_capacity(s.len());
+
+        let mut width = 0;
+        for s in s.graphemes(true) {
+            match s {
+                "\t" => {
+                    let spaces = TAB_WIDTH - (width % TAB_WIDTH);
+                    result.push_str(&" ".repeat(spaces));
+                    width += spaces;
+                }
+                _ => {
+                    result.push_str(s);
+                    width += s.width();
+                }
+            }
+        }
+
+        result
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use pretty_assertions::assert_eq;
+        use rstest::rstest;
+
+        #[rustfmt::skip]
+        #[rstest]
+        #[case("1\t1",        "1       1")]
+        #[case("12\t1",       "12      1")]
+        #[case("123\t1",      "123     1")]
+        #[case("1234\t1",     "1234    1")]
+        #[case("12345\t1",    "12345   1")]
+        #[case("123456\t1",   "123456  1")]
+        #[case("1234567\t1",  "1234567 1")]
+        #[case("12345678\t1", "12345678        1")]
+        #[case("1\t\t1",      "1               1")]
+        fn contains_tab_chars(#[case] input: &str, #[case] expected: &str) {
+            assert_eq!(convert_tabs_to_spaces(input), expected)
+        }
+
+        #[test]
+        fn not_contains_tab_chars() {
+            let input = "hello";
+            let expected = "hello";
+
+            assert_eq!(convert_tabs_to_spaces(input), expected);
+        }
+    }
+}
