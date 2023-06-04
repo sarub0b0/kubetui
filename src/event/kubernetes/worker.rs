@@ -7,7 +7,7 @@ use tokio::task::JoinHandle;
 
 use crate::event::Event;
 
-use super::{KubeClient, Namespaces};
+use super::{KubeClient, SharedTargetNamespaces};
 
 #[async_trait]
 pub trait Worker {
@@ -29,6 +29,6 @@ pub trait Worker {
 pub struct PollWorker {
     pub is_terminated: Arc<AtomicBool>,
     pub tx: Sender<Event>,
-    pub namespaces: Namespaces,
+    pub shared_target_namespaces: SharedTargetNamespaces,
     pub kube_client: KubeClient,
 }

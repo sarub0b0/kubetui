@@ -139,7 +139,7 @@ pub enum Kube {
     RestoreAPIs(Vec<String>),
     RestoreContext {
         context: String,
-        namespaces: Vec<String>,
+        namespaces: TargetNamespaces,
     },
     Event(Result<Vec<String>>),
     Namespace(NamespaceMessage),
@@ -153,7 +153,7 @@ pub enum Kube {
 pub mod namespace_message {
     use crate::event::Event;
 
-    use super::Kube;
+    use super::{Kube, TargetNamespaces};
 
     #[derive(Debug)]
     pub enum NamespaceMessage {
@@ -164,13 +164,13 @@ pub mod namespace_message {
     #[derive(Debug)]
     pub enum NamespaceRequest {
         Get,
-        Set(Vec<String>),
+        Set(TargetNamespaces),
     }
 
     #[derive(Debug)]
     pub enum NamespaceResponse {
-        Get(Vec<String>),
-        Set(Vec<String>),
+        Get(TargetNamespaces),
+        Set(TargetNamespaces),
     }
 
     impl From<NamespaceRequest> for Event {
@@ -235,7 +235,8 @@ impl Handlers {
     }
 }
 
-pub(super) type Namespaces = Arc<RwLock<Vec<String>>>;
+pub(super) type TargetNamespaces = Vec<String>;
+pub(super) type SharedTargetNamespaces = Arc<RwLock<TargetNamespaces>>;
 pub(super) type ApiResources = Arc<RwLock<Vec<String>>>;
 
 #[derive(Clone)]
@@ -244,7 +245,7 @@ pub enum WorkerResult {
     Terminated,
 }
 
-async fn namespace_list(client: KubeClient) -> Vec<String> {
+async fn fetch_all_namespaces(client: KubeClient) -> Vec<String> {
     let namespaces: Api<Namespace> = Api::all(client.as_client().clone());
     let lp = ListParams::default();
     let ns_list = namespaces.list(&lp).await.unwrap();
@@ -255,7 +256,7 @@ async fn namespace_list(client: KubeClient) -> Vec<String> {
 #[derive(Debug, Default, Clone)]
 pub struct KubeWorkerConfig {
     pub kubeconfig: Option<PathBuf>,
-    pub namespaces: Option<Vec<String>>,
+    pub target_namespaces: Option<TargetNamespaces>,
     pub context: Option<String>,
     pub all_namespaces: bool,
 }
@@ -352,7 +353,7 @@ impl Worker for MainWorker {
         } = self;
 
         let PollWorker {
-            namespaces,
+            shared_target_namespaces,
             tx,
             is_terminated,
             kube_client,
@@ -370,13 +371,13 @@ impl Worker for MainWorker {
                 Ok(Event::Kube(ev)) => match ev {
                     Kube::Namespace(NamespaceMessage::Request(req)) => match req {
                         NamespaceRequest::Get => {
-                            let ns = namespace_list(kube_client.clone()).await;
+                            let ns = fetch_all_namespaces(kube_client.clone()).await;
                             tx.send(NamespaceResponse::Get(ns).into())?;
                         }
                         NamespaceRequest::Set(req) => {
                             {
-                                let mut namespace = namespaces.write().await;
-                                *namespace = req.clone();
+                                let mut target_namespaces = shared_target_namespaces.write().await;
+                                *target_namespaces = req.clone();
                             }
 
                             if let Some(handler) = log_stream_handler {
@@ -487,12 +488,16 @@ impl Worker for MainWorker {
                             }
                             Resource(req) => {
                                 let db = api_database.read().await;
-                                let ns = namespaces.read().await;
+                                let target_namespaces = shared_target_namespaces.read().await;
 
-                                let fetched_data =
-                                    FetchResourceList::new(kube_client, req, &db, &ns)
-                                        .fetch()
-                                        .await;
+                                let fetched_data = FetchResourceList::new(
+                                    kube_client,
+                                    req,
+                                    &db,
+                                    &target_namespaces,
+                                )
+                                .fetch()
+                                .await;
 
                                 tx.send(YamlResponse::Resource(fetched_data).into())?
                             }
@@ -567,12 +572,7 @@ mod inner {
     use anyhow::{anyhow, Result};
     use crossbeam::channel::{Receiver, Sender};
     use futures::future::select_all;
-    use k8s_openapi::api::core::v1::Namespace;
-    use kube::{
-        api::ListParams,
-        config::{Kubeconfig, KubeconfigError},
-        Api, ResourceExt,
-    };
+    use kube::config::{Kubeconfig, KubeconfigError};
     use tokio::{sync::RwLock, task::JoinHandle};
 
     use crate::{
@@ -592,6 +592,7 @@ mod inner {
     };
 
     use super::{
+        fetch_all_namespaces,
         kube_store::{KubeState, KubeStore},
         Kube, {KubeWorker, KubeWorkerConfig},
     };
@@ -657,7 +658,7 @@ mod inner {
 
             let KubeWorkerConfig {
                 kubeconfig,
-                namespaces,
+                target_namespaces,
                 context,
                 all_namespaces,
             } = config;
@@ -670,23 +671,18 @@ mod inner {
 
             let KubeState {
                 client: state_client,
-                namespaces: state_namespaces,
+                target_namespaces: state_of_target_namespaces,
                 ..
             } = store.get_mut(&context)?;
 
-            if let Some(namespaces) = namespaces {
-                *state_namespaces = namespaces;
+            if let Some(namespaces) = target_namespaces {
+                *state_of_target_namespaces = namespaces;
             }
 
             if all_namespaces {
-                let api: Api<Namespace> = Api::all(state_client.as_client().clone());
+                let target_namespaces = fetch_all_namespaces(state_client.clone()).await;
 
-                let lp = ListParams::default();
-                let list = api.list(&lp).await?;
-
-                let vec: Vec<String> = list.iter().map(|ns| ns.name_any()).collect();
-
-                *state_namespaces = vec;
+                *state_of_target_namespaces = target_namespaces;
             }
 
             Ok(Self {
@@ -712,23 +708,23 @@ mod inner {
             while !is_terminated.load(Ordering::Relaxed) {
                 let KubeState {
                     client,
-                    namespaces,
+                    target_namespaces,
                     api_resources,
                 } = store.get(&context)?.clone();
 
                 tx.send(Event::Kube(Kube::RestoreContext {
                     context: context.to_string(),
-                    namespaces: namespaces.to_vec(),
+                    namespaces: target_namespaces.to_vec(),
                 }))?;
 
                 tx.send(Event::Kube(Kube::RestoreAPIs(api_resources.to_vec())))?;
 
-                let shared_namespaces = Arc::new(RwLock::new(namespaces.to_vec()));
+                let shared_target_namespaces = Arc::new(RwLock::new(target_namespaces.to_vec()));
                 let shared_api_resources = Arc::new(RwLock::new(api_resources.to_vec()));
                 let shared_api_database = Arc::new(RwLock::new(HashMap::new()));
 
                 let poll_worker = PollWorker {
-                    namespaces: shared_namespaces.clone(),
+                    shared_target_namespaces: shared_target_namespaces.clone(),
                     tx: tx.clone(),
                     is_terminated: is_terminated.clone(),
                     kube_client: client.clone(),
@@ -784,14 +780,14 @@ mod inner {
                                 WorkerResult::ChangedContext(ctx) => {
                                     abort(&handlers);
 
-                                    let namespaces = shared_namespaces.read().await;
+                                    let target_namespaces = shared_target_namespaces.read().await;
                                     let api_resources = shared_api_resources.read().await;
 
                                     store.insert(
                                         context.to_string(),
                                         KubeState::new(
                                             client.clone(),
-                                            namespaces.to_vec(),
+                                            target_namespaces.to_vec(),
                                             api_resources.to_vec(),
                                         ),
                                     );
@@ -968,26 +964,26 @@ mod kube_store {
         Client, Config,
     };
 
-    use super::client::KubeClient;
+    use super::{client::KubeClient, TargetNamespaces};
 
     pub type Context = String;
 
     #[derive(Clone)]
     pub struct KubeState {
         pub client: KubeClient,
-        pub namespaces: Vec<String>,
+        pub target_namespaces: TargetNamespaces,
         pub api_resources: Vec<String>,
     }
 
     impl KubeState {
         pub fn new(
             client: KubeClient,
-            namespaces: Vec<String>,
+            target_namespaces: TargetNamespaces,
             api_resources: Vec<String>,
         ) -> Self {
             Self {
                 client,
-                namespaces,
+                target_namespaces,
                 api_resources,
             }
         }
@@ -1009,8 +1005,8 @@ mod kube_store {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             write!(
                 f,
-                "KubeStore {{ client: _, namespaces: {:?}, api_resources: {:?} }}",
-                self.namespaces, self.api_resources
+                "KubeStore {{ client: _, target_namespaces: {:?}, api_resources: {:?} }}",
+                self.target_namespaces, self.api_resources
             )
         }
     }
@@ -1053,7 +1049,7 @@ mod kube_store {
                     let config = Config::from_custom_kubeconfig(config.clone(), &options).await?;
 
                     let cluster_url: String = config.cluster_url.to_string();
-                    let namespace = config.default_namespace.to_string();
+                    let target_namespace = config.default_namespace.to_string();
 
                     let client = Client::try_from(config)?;
 
@@ -1063,7 +1059,7 @@ mod kube_store {
                         context.name.to_string(),
                         KubeState {
                             client: kube_client,
-                            namespaces: vec![namespace],
+                            target_namespaces: vec![target_namespace],
                             api_resources: vec![],
                         },
                     ))
@@ -1100,7 +1096,7 @@ mod kube_store {
 
         impl PartialEq for KubeState {
             fn eq(&self, rhs: &Self) -> bool {
-                self.namespaces == rhs.namespaces
+                self.target_namespaces == rhs.target_namespaces
                     && self.api_resources == rhs.api_resources
                     && self.client.as_server_url() == rhs.client.as_server_url()
             }
@@ -1168,7 +1164,7 @@ mod kube_store {
                     "cluster-1".to_string(),
                     KubeState {
                         client: KubeClient::new(client.clone(), "https://192.168.0.1/"),
-                        namespaces: vec!["ns-1".to_string()],
+                        target_namespaces: vec!["ns-1".to_string()],
                         api_resources: Default::default(),
                     },
                 ),
@@ -1176,7 +1172,7 @@ mod kube_store {
                     "cluster-2".to_string(),
                     KubeState {
                         client: KubeClient::new(client.clone(), "https://192.168.0.2/"),
-                        namespaces: vec!["ns-2".to_string()],
+                        target_namespaces: vec!["ns-2".to_string()],
                         api_resources: Default::default(),
                     },
                 ),
@@ -1184,7 +1180,7 @@ mod kube_store {
                     "cluster-3".to_string(),
                     KubeState {
                         client: KubeClient::new(client, "https://192.168.0.3/"),
-                        namespaces: vec!["default".to_string()],
+                        target_namespaces: vec!["default".to_string()],
                         api_resources: Default::default(),
                     },
                 ),

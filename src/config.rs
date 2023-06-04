@@ -89,7 +89,7 @@ impl Config {
 
         KubeWorkerConfig {
             kubeconfig,
-            namespaces,
+            target_namespaces: namespaces,
             context,
             all_namespaces: all_namespaces.into(),
         }

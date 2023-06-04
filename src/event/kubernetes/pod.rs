@@ -60,16 +60,16 @@ impl Worker for PodPollWorker {
                 PollWorker {
                     is_terminated,
                     tx,
-                    namespaces,
+                    shared_target_namespaces,
                     kube_client,
                 },
         } = self;
 
         while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
             interval.tick().await;
-            let namespaces = namespaces.read().await;
+            let target_namespaces = shared_target_namespaces.read().await;
 
-            let pod_info = get_pod_info(kube_client, &namespaces).await;
+            let pod_info = get_pod_info(kube_client, &target_namespaces).await;
 
             tx.send(Event::Kube(Kube::Pod(pod_info))).unwrap();
         }

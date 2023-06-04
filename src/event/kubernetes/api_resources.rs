@@ -10,9 +10,7 @@ use crate::error::Result;
 
 use async_trait::async_trait;
 use futures::future::try_join_all;
-use k8s_openapi::apimachinery::pkg::apis::meta::v1::{
-    APIGroupList, APIResource, APIVersions,
-};
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::{APIGroupList, APIResource, APIVersions};
 use kube::core::TypeMeta;
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
@@ -93,7 +91,7 @@ impl Worker for ApiPollWorker {
                 PollWorker {
                     is_terminated,
                     tx,
-                    namespaces,
+                    shared_target_namespaces,
                     kube_client,
                 },
             api_resources,
@@ -113,7 +111,7 @@ impl Worker for ApiPollWorker {
 
         while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
             interval.tick().await;
-            let namespaces = namespaces.read().await;
+            let target_namespaces = shared_target_namespaces.read().await;
             let apis = api_resources.read().await;
 
             if apis.is_empty() {
@@ -136,7 +134,7 @@ impl Worker for ApiPollWorker {
             }
 
             let db = api_database.read().await;
-            let result = get_api_resources(kube_client, &namespaces, &apis, &db).await;
+            let result = get_api_resources(kube_client, &target_namespaces, &apis, &db).await;
 
             tx.send(ApiResponse::Poll(result).into()).unwrap();
         }
