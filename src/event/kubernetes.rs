@@ -136,7 +136,7 @@ impl From<Kube> for Event {
 pub enum Kube {
     Context(ContextMessage),
     API(ApiMessage),
-    RestoreAPIs(Vec<String>),
+    RestoreAPIs(TargetApiResources),
     RestoreContext {
         context: String,
         namespaces: TargetNamespaces,
@@ -237,7 +237,9 @@ impl Handlers {
 
 pub(super) type TargetNamespaces = Vec<String>;
 pub(super) type SharedTargetNamespaces = Arc<RwLock<TargetNamespaces>>;
-pub(super) type ApiResources = Arc<RwLock<Vec<String>>>;
+
+pub(super) type TargetApiResources = Vec<String>;
+pub(super) type SharedTargetApiResources = Arc<RwLock<TargetApiResources>>;
 
 #[derive(Clone)]
 pub enum WorkerResult {
@@ -330,7 +332,7 @@ struct MainWorker {
     inner: PollWorker,
     rx: Receiver<Event>,
     contexts: Vec<String>,
-    api_resources: ApiResources,
+    shared_target_api_resources: SharedTargetApiResources,
     api_database: ApiDatabase,
 }
 
@@ -348,7 +350,7 @@ impl Worker for MainWorker {
             inner: poll_worker,
             rx,
             contexts,
-            api_resources,
+            shared_target_api_resources,
             api_database,
         } = self;
 
@@ -445,8 +447,9 @@ impl Worker for MainWorker {
                                 tx.send(ApiResponse::Get(Ok(apis)).into())?;
                             }
                             Set(req) => {
-                                let mut api_resources = api_resources.write().await;
-                                *api_resources = req.clone();
+                                let mut taret_api_resources =
+                                    shared_target_api_resources.write().await;
+                                *taret_api_resources = req.clone();
                                 // tx.send(ApiResponse::Get(Ok(req.clone())).into())?;
                             }
                         }
@@ -709,7 +712,7 @@ mod inner {
                 let KubeState {
                     client,
                     target_namespaces,
-                    api_resources,
+                    target_api_resources,
                 } = store.get(&context)?.clone();
 
                 tx.send(Event::Kube(Kube::RestoreContext {
@@ -717,10 +720,13 @@ mod inner {
                     namespaces: target_namespaces.to_vec(),
                 }))?;
 
-                tx.send(Event::Kube(Kube::RestoreAPIs(api_resources.to_vec())))?;
+                tx.send(Event::Kube(Kube::RestoreAPIs(
+                    target_api_resources.to_vec(),
+                )))?;
 
                 let shared_target_namespaces = Arc::new(RwLock::new(target_namespaces.to_vec()));
-                let shared_api_resources = Arc::new(RwLock::new(api_resources.to_vec()));
+                let shared_target_api_resources =
+                    Arc::new(RwLock::new(target_api_resources.to_vec()));
                 let shared_api_database = Arc::new(RwLock::new(HashMap::new()));
 
                 let poll_worker = PollWorker {
@@ -738,7 +744,7 @@ mod inner {
                         .iter()
                         .map(|ctx| ctx.name.to_string())
                         .collect(),
-                    api_resources: shared_api_resources.clone(),
+                    shared_target_api_resources: shared_target_api_resources.clone(),
                     api_database: shared_api_database.clone(),
                 }
                 .spawn();
@@ -749,7 +755,7 @@ mod inner {
                 let event_handler = EventPollWorker::new(poll_worker.clone()).spawn();
                 let apis_handler = ApiPollWorker::new(
                     poll_worker.clone(),
-                    shared_api_resources.clone(),
+                    shared_target_api_resources.clone(),
                     shared_api_database,
                 )
                 .spawn();
@@ -781,14 +787,15 @@ mod inner {
                                     abort(&handlers);
 
                                     let target_namespaces = shared_target_namespaces.read().await;
-                                    let api_resources = shared_api_resources.read().await;
+                                    let target_api_resources =
+                                        shared_target_api_resources.read().await;
 
                                     store.insert(
                                         context.to_string(),
                                         KubeState::new(
                                             client.clone(),
                                             target_namespaces.to_vec(),
-                                            api_resources.to_vec(),
+                                            target_api_resources.to_vec(),
                                         ),
                                     );
 
@@ -964,7 +971,7 @@ mod kube_store {
         Client, Config,
     };
 
-    use super::{client::KubeClient, TargetNamespaces};
+    use super::{client::KubeClient, TargetApiResources, TargetNamespaces};
 
     pub type Context = String;
 
@@ -972,19 +979,19 @@ mod kube_store {
     pub struct KubeState {
         pub client: KubeClient,
         pub target_namespaces: TargetNamespaces,
-        pub api_resources: Vec<String>,
+        pub target_api_resources: TargetApiResources,
     }
 
     impl KubeState {
         pub fn new(
             client: KubeClient,
             target_namespaces: TargetNamespaces,
-            api_resources: Vec<String>,
+            target_api_resources: TargetApiResources,
         ) -> Self {
             Self {
                 client,
                 target_namespaces,
-                api_resources,
+                target_api_resources,
             }
         }
     }
@@ -1005,8 +1012,8 @@ mod kube_store {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             write!(
                 f,
-                "KubeStore {{ client: _, target_namespaces: {:?}, api_resources: {:?} }}",
-                self.target_namespaces, self.api_resources
+                "KubeStore {{ client: _, target_namespaces: {:?}, target_api_resources: {:?} }}",
+                self.target_namespaces, self.target_api_resources
             )
         }
     }
@@ -1060,7 +1067,7 @@ mod kube_store {
                         KubeState {
                             client: kube_client,
                             target_namespaces: vec![target_namespace],
-                            api_resources: vec![],
+                            target_api_resources: vec![],
                         },
                     ))
                 }))
@@ -1097,7 +1104,7 @@ mod kube_store {
         impl PartialEq for KubeState {
             fn eq(&self, rhs: &Self) -> bool {
                 self.target_namespaces == rhs.target_namespaces
-                    && self.api_resources == rhs.api_resources
+                    && self.target_api_resources == rhs.target_api_resources
                     && self.client.as_server_url() == rhs.client.as_server_url()
             }
         }
@@ -1165,7 +1172,7 @@ mod kube_store {
                     KubeState {
                         client: KubeClient::new(client.clone(), "https://192.168.0.1/"),
                         target_namespaces: vec!["ns-1".to_string()],
-                        api_resources: Default::default(),
+                        target_api_resources: Default::default(),
                     },
                 ),
                 (
@@ -1173,7 +1180,7 @@ mod kube_store {
                     KubeState {
                         client: KubeClient::new(client.clone(), "https://192.168.0.2/"),
                         target_namespaces: vec!["ns-2".to_string()],
-                        api_resources: Default::default(),
+                        target_api_resources: Default::default(),
                     },
                 ),
                 (
@@ -1181,7 +1188,7 @@ mod kube_store {
                     KubeState {
                         client: KubeClient::new(client, "https://192.168.0.3/"),
                         target_namespaces: vec!["default".to_string()],
-                        api_resources: Default::default(),
+                        target_api_resources: Default::default(),
                     },
                 ),
             ])

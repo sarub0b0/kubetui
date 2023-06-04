@@ -2,7 +2,7 @@ use super::{
     client::KubeClientRequest,
     worker::{PollWorker, Worker},
     KubeClient,
-    {v1_table::*, ApiResources},
+    {v1_table::*, SharedTargetApiResources},
     {Event, Kube},
 };
 use super::{metric_type::*, WorkerResult};
@@ -67,15 +67,19 @@ pub type InnerApiDatabase = HashMap<String, APIInfo>;
 #[derive(Clone)]
 pub struct ApiPollWorker {
     inner: PollWorker,
-    api_resources: ApiResources,
+    shared_target_api_resources: SharedTargetApiResources,
     api_database: ApiDatabase,
 }
 
 impl ApiPollWorker {
-    pub fn new(inner: PollWorker, api_resources: ApiResources, api_database: ApiDatabase) -> Self {
+    pub fn new(
+        inner: PollWorker,
+        shared_target_api_resources: SharedTargetApiResources,
+        api_database: ApiDatabase,
+    ) -> Self {
         Self {
             inner,
-            api_resources,
+            shared_target_api_resources,
             api_database,
         }
     }
@@ -94,7 +98,7 @@ impl Worker for ApiPollWorker {
                     shared_target_namespaces,
                     kube_client,
                 },
-            api_resources,
+            shared_target_api_resources,
             api_database,
         } = self;
 
@@ -112,9 +116,9 @@ impl Worker for ApiPollWorker {
         while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
             interval.tick().await;
             let target_namespaces = shared_target_namespaces.read().await;
-            let apis = api_resources.read().await;
+            let target_api_resources = shared_target_api_resources.read().await;
 
-            if apis.is_empty() {
+            if target_api_resources.is_empty() {
                 continue;
             }
 
@@ -134,7 +138,9 @@ impl Worker for ApiPollWorker {
             }
 
             let db = api_database.read().await;
-            let result = get_api_resources(kube_client, &target_namespaces, &apis, &db).await;
+            let result =
+                get_api_resources(kube_client, &target_namespaces, &target_api_resources, &db)
+                    .await;
 
             tx.send(ApiResponse::Poll(result).into()).unwrap();
         }
