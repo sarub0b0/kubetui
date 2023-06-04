@@ -61,26 +61,26 @@ impl From<ApiMessage> for Event {
     }
 }
 
-pub type ApiDatabase = Arc<RwLock<InnerApiDatabase>>;
-pub type InnerApiDatabase = HashMap<String, APIInfo>;
+pub type ApiResources = HashMap<String, APIInfo>;
+pub type SharedApiResources = Arc<RwLock<ApiResources>>;
 
 #[derive(Clone)]
 pub struct ApiPollWorker {
     inner: PollWorker,
     shared_target_api_resources: SharedTargetApiResources,
-    api_database: ApiDatabase,
+    shared_api_resources: SharedApiResources,
 }
 
 impl ApiPollWorker {
     pub fn new(
         inner: PollWorker,
         shared_target_api_resources: SharedTargetApiResources,
-        api_database: ApiDatabase,
+        shared_api_resources: SharedApiResources,
     ) -> Self {
         Self {
             inner,
             shared_target_api_resources,
-            api_database,
+            shared_api_resources,
         }
     }
 }
@@ -99,13 +99,13 @@ impl Worker for ApiPollWorker {
                     kube_client,
                 },
             shared_target_api_resources,
-            api_database,
+            shared_api_resources,
         } = self;
 
         {
-            let mut db = api_database.write().await;
+            let mut api_resources = shared_api_resources.write().await;
 
-            *db = fetch_api_database(kube_client).await?;
+            *api_resources = fetch_api_resources(kube_client).await?;
         }
 
         let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
@@ -125,10 +125,10 @@ impl Worker for ApiPollWorker {
             if tick_rate < last_tick.elapsed() {
                 last_tick = Instant::now();
 
-                match fetch_api_database(kube_client).await {
-                    Ok(fetched_db) => {
-                        let mut db = api_database.write().await;
-                        *db = fetched_db;
+                match fetch_api_resources(kube_client).await {
+                    Ok(fetched) => {
+                        let mut api_resources = shared_api_resources.write().await;
+                        *api_resources = fetched;
                     }
                     Err(err) => {
                         tx.send(ApiResponse::Poll(Err(err)).into()).unwrap();
@@ -137,10 +137,14 @@ impl Worker for ApiPollWorker {
                 }
             }
 
-            let db = api_database.read().await;
-            let result =
-                get_api_resources(kube_client, &target_namespaces, &target_api_resources, &db)
-                    .await;
+            let api_resources = shared_api_resources.read().await;
+            let result = get_api_resources(
+                kube_client,
+                &target_namespaces,
+                &target_api_resources,
+                &api_resources,
+            )
+            .await;
 
             tx.send(ApiResponse::Poll(result).into()).unwrap();
         }
@@ -266,29 +270,31 @@ async fn api_resource_list_to_api_info_list(
         .collect())
 }
 
-pub async fn fetch_api_database(client: &KubeClient) -> Result<InnerApiDatabase> {
+pub async fn fetch_api_resources(client: &KubeClient) -> Result<ApiResources> {
     let api_info_list = get_all_api_info(client).await?;
-    Ok(convert_api_database(&api_info_list))
+    Ok(convert_api_resources(&api_info_list))
 }
 
-pub fn apis_list_from_api_database(db: &InnerApiDatabase) -> Vec<String> {
-    let mut ret: Vec<String> = db.iter().map(|(k, _)| k.to_string()).collect();
+pub fn api_resources_to_vec(api_resources: &ApiResources) -> Vec<String> {
+    let mut ret: Vec<String> = api_resources.iter().map(|(k, _)| k.to_string()).collect();
 
     ret.sort();
 
     ret
 }
 
-fn convert_api_database(api_info_list: &[APIInfo]) -> InnerApiDatabase {
-    let mut db: HashMap<String, APIInfo> = HashMap::new();
+fn convert_api_resources(api_info_list: &[APIInfo]) -> ApiResources {
+    let mut api_resources: ApiResources = ApiResources::new();
 
     for info in api_info_list {
         let api_name = info.resource_full_name();
 
-        db.entry(api_name).or_insert_with(|| info.clone());
+        api_resources
+            .entry(api_name)
+            .or_insert_with(|| info.clone());
     }
 
-    db
+    api_resources
 }
 
 fn merge_tables(fetch_data: Vec<FetchData>, insert_ns: bool) -> Table {
@@ -404,13 +410,13 @@ async fn get_table_cluster_resource(client: &KubeClient, path: &str) -> Result<T
 async fn get_api_resources(
     client: &KubeClient,
     namespaces: &[String],
-    apis: &[String],
-    db: &InnerApiDatabase,
+    target_api_resources: &[String],
+    api_resources: &ApiResources,
 ) -> Result<Vec<String>> {
     let mut ret = Vec::new();
 
-    for api in apis {
-        if let Some(info) = db.get(api) {
+    for api in target_api_resources {
+        if let Some(info) = api_resources.get(api) {
             let table = if info.api_resource.namespaced {
                 get_table_namespaced_resource(
                     client,

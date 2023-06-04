@@ -6,7 +6,7 @@ use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use serde::Deserialize;
 
 use super::{
-    api_resources::{ApiDatabase, InnerApiDatabase},
+    api_resources::{ApiResources, SharedApiResources},
     client::KubeClientRequest,
     worker::Worker,
     Kube,
@@ -85,6 +85,7 @@ impl From<YamlMessage> for Event {
 
 pub mod fetch_resource_list {
     use crate::event::kubernetes::yaml::fetch_resource_list::not_namespaced::FetchResourceListNotNamespaced;
+    use crate::event::kubernetes::TargetNamespaces;
 
     use self::multiple_namespace::FetchResourceListMultipleNamespaces;
 
@@ -285,22 +286,22 @@ pub mod fetch_resource_list {
     pub struct FetchResourceList<'a, C: KubeClientRequest> {
         client: &'a C,
         req: String,
-        namespaces: &'a [String],
-        api_database: &'a InnerApiDatabase,
+        target_namespaces: &'a TargetNamespaces,
+        api_resources: &'a ApiResources,
     }
 
     impl<'a, C: KubeClientRequest> FetchResourceList<'a, C> {
         pub fn new(
             client: &'a C,
             req: String,
-            api_database: &'a InnerApiDatabase,
-            namespaces: &'a [String],
+            api_resources: &'a ApiResources,
+            target_namespaces: &'a TargetNamespaces,
         ) -> Self {
             Self {
                 client,
                 req,
-                api_database,
-                namespaces,
+                api_resources,
+                target_namespaces,
             }
         }
 
@@ -316,16 +317,16 @@ pub mod fetch_resource_list {
             let kind = &self.req;
 
             let api = self
-                .api_database
+                .api_resources
                 .get(kind)
-                .ok_or_else(|| Error::Raw(format!("Can't get {} from API Database", kind)))?;
+                .ok_or_else(|| Error::Raw(format!("Can't get {} from API resource", kind)))?;
 
             let kind = &api.api_resource.name;
             let list = if api.api_resource.namespaced {
-                if self.namespaces.len() == 1 {
+                if self.target_namespaces.len() == 1 {
                     FetchResourceListSingleNamespace::new(
                         self.client,
-                        &self.namespaces[0],
+                        &self.target_namespaces[0],
                         api,
                         kind,
                     )
@@ -334,7 +335,7 @@ pub mod fetch_resource_list {
                 } else {
                     FetchResourceListMultipleNamespaces::new(
                         self.client,
-                        self.namespaces,
+                        self.target_namespaces,
                         api,
                         kind,
                     )
@@ -373,7 +374,7 @@ pub mod worker {
         tx: Sender<Event>,
         client: C,
         req: YamlWorkerRequest,
-        api_database: ApiDatabase,
+        shared_api_resources: SharedApiResources,
     }
 
     impl<C: KubeClientRequest> YamlWorker<C> {
@@ -381,7 +382,7 @@ pub mod worker {
             is_terminated: Arc<AtomicBool>,
             tx: Sender<Event>,
             client: C,
-            api_database: ApiDatabase,
+            shared_api_resources: SharedApiResources,
             req: YamlWorkerRequest,
         ) -> Self {
             Self {
@@ -389,7 +390,7 @@ pub mod worker {
                 tx,
                 client,
                 req,
-                api_database,
+                shared_api_resources,
             }
         }
     }
@@ -413,11 +414,11 @@ pub mod worker {
             {
                 interval.tick().await;
 
-                let db = self.api_database.read().await;
+                let api_resources = self.shared_api_resources.read().await;
 
                 let fetched_data = fetch_resource_yaml(
                     &self.client,
-                    &db,
+                    &api_resources,
                     kind.to_string(),
                     name.to_string(),
                     namespace.to_string(),
@@ -434,7 +435,7 @@ pub mod worker {
     /// 選択されているリソースのyamlを取得する
     pub async fn fetch_resource_yaml<C: KubeClientRequest>(
         client: &C,
-        api_database: &InnerApiDatabase,
+        api_resources: &ApiResources,
         kind: String,
         name: String,
         ns: String,
@@ -447,9 +448,9 @@ pub mod worker {
             name
         );
 
-        let api = api_database
+        let api = api_resources
             .get(&kind)
-            .ok_or_else(|| Error::Raw(format!("Can't get {} from API Database", kind)))?;
+            .ok_or_else(|| Error::Raw(format!("Can't get {} from API resource", kind)))?;
 
         // json string data
         let kind = &api.api_resource.name;

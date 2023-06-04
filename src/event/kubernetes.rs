@@ -38,7 +38,7 @@ use crate::{logger, panic_set_hook};
 
 use self::{
     api_resources::{
-        apis_list_from_api_database, ApiDatabase, ApiMessage, ApiRequest, ApiResponse,
+        api_resources_to_vec, ApiMessage, ApiRequest, ApiResponse, SharedApiResources,
     },
     client::KubeClient,
     config::{ConfigMessage, ConfigsDataWorker},
@@ -333,7 +333,7 @@ struct MainWorker {
     rx: Receiver<Event>,
     contexts: Vec<String>,
     shared_target_api_resources: SharedTargetApiResources,
-    api_database: ApiDatabase,
+    shared_api_resources: SharedApiResources,
 }
 
 #[async_trait]
@@ -351,7 +351,7 @@ impl Worker for MainWorker {
             rx,
             contexts,
             shared_target_api_resources,
-            api_database,
+            shared_api_resources,
         } = self;
 
         let PollWorker {
@@ -442,9 +442,9 @@ impl Worker for MainWorker {
                         use ApiRequest::*;
                         match req {
                             Get => {
-                                let db = api_database.read().await;
-                                let apis = apis_list_from_api_database(&db);
-                                tx.send(ApiResponse::Get(Ok(apis)).into())?;
+                                let api_resources = shared_api_resources.read().await;
+                                let vec = api_resources_to_vec(&api_resources);
+                                tx.send(ApiResponse::Get(Ok(vec)).into())?;
                             }
                             Set(req) => {
                                 let mut taret_api_resources =
@@ -484,19 +484,19 @@ impl Worker for MainWorker {
                         use YamlRequest::*;
                         match ev {
                             APIs => {
-                                let db = api_database.read().await;
-                                let apis = apis_list_from_api_database(&db);
+                                let api_resources = shared_api_resources.read().await;
+                                let vec = api_resources_to_vec(&api_resources);
 
-                                tx.send(YamlResponse::APIs(Ok(apis)).into())?
+                                tx.send(YamlResponse::APIs(Ok(vec)).into())?
                             }
                             Resource(req) => {
-                                let db = api_database.read().await;
+                                let api_resources = shared_api_resources.read().await;
                                 let target_namespaces = shared_target_namespaces.read().await;
 
                                 let fetched_data = FetchResourceList::new(
                                     kube_client,
                                     req,
-                                    &db,
+                                    &api_resources,
                                     &target_namespaces,
                                 )
                                 .fetch()
@@ -524,7 +524,7 @@ impl Worker for MainWorker {
                                         is_terminated.clone(),
                                         tx,
                                         kube_client.clone(),
-                                        api_database.clone(),
+                                        shared_api_resources.clone(),
                                         req,
                                     )
                                     .spawn(),
@@ -564,7 +564,6 @@ impl Worker for MainWorker {
 
 mod inner {
     use std::{
-        collections::HashMap,
         path::PathBuf,
         sync::{
             atomic::{AtomicBool, Ordering},
@@ -582,7 +581,7 @@ mod inner {
         error::Error,
         event::{
             kubernetes::{
-                api_resources::ApiPollWorker,
+                api_resources::{ApiPollWorker, SharedApiResources},
                 config::ConfigsPollWorker,
                 event::EventPollWorker,
                 network::NetworkPollWorker,
@@ -727,7 +726,7 @@ mod inner {
                 let shared_target_namespaces = Arc::new(RwLock::new(target_namespaces.to_vec()));
                 let shared_target_api_resources =
                     Arc::new(RwLock::new(target_api_resources.to_vec()));
-                let shared_api_database = Arc::new(RwLock::new(HashMap::new()));
+                let shared_api_resources = SharedApiResources::default();
 
                 let poll_worker = PollWorker {
                     shared_target_namespaces: shared_target_namespaces.clone(),
@@ -745,7 +744,7 @@ mod inner {
                         .map(|ctx| ctx.name.to_string())
                         .collect(),
                     shared_target_api_resources: shared_target_api_resources.clone(),
-                    api_database: shared_api_database.clone(),
+                    shared_api_resources: shared_api_resources.clone(),
                 }
                 .spawn();
 
@@ -756,7 +755,7 @@ mod inner {
                 let apis_handler = ApiPollWorker::new(
                     poll_worker.clone(),
                     shared_target_api_resources.clone(),
-                    shared_api_database,
+                    shared_api_resources,
                 )
                 .spawn();
 
