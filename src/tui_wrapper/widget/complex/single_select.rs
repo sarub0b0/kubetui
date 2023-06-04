@@ -51,7 +51,7 @@ impl<'a> SelectForm<'a> {
             .iter()
             .filter_map(|item| {
                 self.matcher
-                    .fuzzy_match(&item.item, &self.filter)
+                    .fuzzy_match(&item.item.styled_graphemes_symbols().concat(), &self.filter)
                     .map(|score| MatchedItem {
                         score,
                         item: item.clone(),
@@ -450,7 +450,7 @@ mod tests {
         let mut select_form = SelectForm::default();
 
         select_form.update_widget_item(Item::Array(vec![
-            "abb".to_string().into(),
+            "\x1b[90mabb\x1b[39m".to_string().into(),
             "abc".to_string().into(),
             "hoge".to_string().into(),
         ]));
@@ -459,7 +459,10 @@ mod tests {
 
         let res = select_form.list_widget.items().clone();
 
-        let expected: Vec<LiteralItem> = vec!["abb".to_string().into(), "abc".to_string().into()];
+        let expected: Vec<LiteralItem> = vec![
+            "\x1b[90mabb\x1b[39m".to_string().into(),
+            "abc".to_string().into(),
+        ];
 
         assert_eq!(res, expected)
     }
