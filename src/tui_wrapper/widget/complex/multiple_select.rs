@@ -27,13 +27,13 @@ use std::rc::Rc;
 use unicode_width::UnicodeWidthStr;
 
 mod inner {
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
 
     use crate::tui_wrapper::widget::LiteralItem;
 
     #[derive(Debug, Default)]
     pub struct SelectItems {
-        items: HashMap<LiteralItem, bool>,
+        items: BTreeMap<LiteralItem, bool>,
     }
 
     impl SelectItems {
@@ -83,8 +83,8 @@ mod inner {
             self.items.values_mut().for_each(|v| *v = false);
         }
 
-        fn filter_items(items: &HashMap<LiteralItem, bool>, selected: bool) -> Vec<LiteralItem> {
-            let mut ret: Vec<LiteralItem> = items
+        fn filter_items(items: &BTreeMap<LiteralItem, bool>, selected: bool) -> Vec<LiteralItem> {
+            items
                 .iter()
                 .filter_map(|(k, v)| {
                     if *v == selected {
@@ -93,10 +93,7 @@ mod inner {
                         None
                     }
                 })
-                .collect();
-
-            ret.sort();
-            ret
+                .collect()
         }
 
         #[allow(dead_code)]

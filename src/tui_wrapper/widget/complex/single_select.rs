@@ -9,7 +9,7 @@ use ratatui::{
 
 use derivative::*;
 
-use std::rc::Rc;
+use std::{collections::BTreeSet, rc::Rc};
 
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 
@@ -28,7 +28,7 @@ use crate::{
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
 struct SelectForm<'a> {
-    list_items: Vec<LiteralItem>,
+    list_items: BTreeSet<LiteralItem>,
     list_widget: List<'a>,
     filter: String,
     chunk: Rect,
@@ -41,7 +41,7 @@ impl<'a> SelectForm<'a> {
         self.list_widget.render(f, true);
     }
 
-    fn filter_items(&self, items: &[LiteralItem]) -> Vec<LiteralItem> {
+    fn filter_items(&self, items: &BTreeSet<LiteralItem>) -> Vec<LiteralItem> {
         struct MatchedItem {
             score: i64,
             item: LiteralItem,
@@ -70,7 +70,8 @@ impl<'a> SelectForm<'a> {
     }
 
     fn update_widget_item(&mut self, items: Item) {
-        self.list_items = items.clone().array();
+        self.list_items = items.clone().array().into_iter().collect();
+
         self.list_widget.update_widget_item(items);
 
         let filter = self.filter.clone();
