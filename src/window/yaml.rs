@@ -92,8 +92,13 @@ impl<'a> YamlTabBuilder<'a> {
 
                 w.close_popup();
 
-                tx.send(YamlRequest::Resource(v.item.to_string()).into())
-                    .unwrap();
+                let Some(metadata) = v.metadata.as_ref() else { unreachable!() };
+
+                let Some(key) = metadata.get("key") else { unreachable!() };
+
+                let Ok(kind) = serde_json::from_str(key) else { unreachable!() };
+
+                tx.send(YamlRequest::Resource(kind).into()).unwrap();
 
                 w.open_popup(view_id::popup_yaml_name);
 
@@ -113,17 +118,19 @@ impl<'a> YamlTabBuilder<'a> {
 
                 w.close_popup();
 
-                let Some(metadata) = v.metadata.as_ref() else { return EventResult::Ignore };
+                let Some(metadata) = v.metadata.as_ref() else { unreachable!() };
 
-                let Some(namespace) = metadata.get("namespace") else { return EventResult::Ignore };
+                let Some(namespace) = metadata.get("namespace") else { unreachable!() };
 
-                let Some(kind) = metadata.get("kind") else { return EventResult::Ignore };
+                let Some(name) = metadata.get("name") else { unreachable!() };
 
-                let Some(name) = metadata.get("name") else { return EventResult::Ignore };
+                let Some(key) = metadata.get("key") else { unreachable!() };
+
+                let Ok(kind) = serde_json::from_str(key) else { unreachable!() };
 
                 tx.send(
                     YamlRequest::Yaml {
-                        kind: kind.to_string(),
+                        kind,
                         name: name.to_string(),
                         namespace: namespace.to_string(),
                     }

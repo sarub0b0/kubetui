@@ -37,7 +37,7 @@ impl Worker for ConfigsPollWorker {
                 PollWorker {
                     is_terminated,
                     tx,
-                    namespaces,
+                    shared_target_namespaces,
                     kube_client,
                 },
         } = self;
@@ -45,9 +45,9 @@ impl Worker for ConfigsPollWorker {
         while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
             interval.tick().await;
 
-            let namespaces = namespaces.read().await;
+            let target_namespaces = shared_target_namespaces.read().await;
 
-            let table = fetch_configs(kube_client, &namespaces).await;
+            let table = fetch_configs(kube_client, &target_namespaces).await;
 
             tx.send(ConfigResponse::Table(table).into())?;
         }
