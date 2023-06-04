@@ -24,9 +24,9 @@ use enum_dispatch::enum_dispatch;
 
 use ratatui::{backend::Backend, layout::Rect, Frame};
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, hash::Hash};
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Default, Hash, PartialEq, Eq)]
 pub struct LiteralItem {
     pub metadata: Option<BTreeMap<String, String>>,
     pub item: String,
@@ -38,6 +38,18 @@ impl LiteralItem {
             item: item.into(),
             metadata,
         }
+    }
+}
+
+impl Ord for LiteralItem {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.item.cmp(&other.item)
+    }
+}
+
+impl PartialOrd for LiteralItem {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.item.partial_cmp(&other.item)
     }
 }
 
