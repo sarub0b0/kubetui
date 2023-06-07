@@ -1,14 +1,14 @@
 use derivative::*;
-use std::ops::Deref;
 use ratatui::{
     style::{Color, Style},
     widgets::{Cell, Row},
 };
+use std::ops::Deref;
 
 use crate::{
     logger,
     tui_wrapper::widget::{
-        spans::generate_spans_line, styled_graphemes::StyledGraphemes, wrap::wrap_line, TableItem,
+        spans::generate_spans_lines, styled_graphemes::StyledGraphemes, wrap::wrap_line, TableItem,
     },
 };
 
@@ -192,7 +192,7 @@ impl<'a> InnerItem<'a> {
                             row_height = wrapped_len;
                         }
 
-                        Cell::from(generate_spans_line(&wrapped))
+                        Cell::from(generate_spans_lines(&wrapped))
                     })
                     .collect();
 

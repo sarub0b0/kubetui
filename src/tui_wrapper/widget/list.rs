@@ -21,7 +21,7 @@ use crate::tui_wrapper::{
 
 mod inner_item {
 
-    use crate::tui_wrapper::widget::LiteralItem;
+    use crate::tui_wrapper::widget::{spans::generate_spans_line, LiteralItem};
 
     use super::Item;
     use ratatui::widgets::ListItem;
@@ -44,11 +44,12 @@ mod inner_item {
 
         pub fn update_item(&mut self, item: Item) {
             self.items = item.array();
+
             self.list_item = self
                 .items
                 .iter()
                 .cloned()
-                .map(|item| ListItem::new(item.item))
+                .map(|literal_item| ListItem::new(generate_spans_line(literal_item.item)))
                 .collect();
         }
 

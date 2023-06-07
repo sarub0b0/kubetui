@@ -285,8 +285,20 @@ pub fn update_contents(
                 .find_widget_mut(view_id::popup_list)
                 .as_mut_multiple_select();
 
-            for l in list {
-                w.select_item(&l.into());
+            for key in list {
+                let Ok(json) = serde_json::to_string(&key) else { unreachable!() };
+
+                let metadata = BTreeMap::from([("key".into(), json)]);
+
+                let item = if key.is_api() || key.is_preferred_version() {
+                    key.to_string()
+                } else {
+                    format!("\x1b[90m{}\x1b[39m", key)
+                };
+
+                let literal_item = LiteralItem::new(item, Some(metadata));
+
+                w.select_item(&literal_item);
             }
         }
 
@@ -294,7 +306,34 @@ pub fn update_contents(
             use ApiResponse::*;
             match res {
                 Get(list) => {
-                    update_widget_item_for_vec(window, view_id::popup_list, list);
+                    let widget = window.find_widget_mut(view_id::popup_list);
+                    match list {
+                        Ok(i) => {
+                            let items = i
+                                .into_iter()
+                                .map(|key| {
+                                    let Ok(json) = serde_json::to_string(&key) else { unreachable!() };
+                                    let metadata = BTreeMap::from([("key".into(), json)]);
+
+                                    let item = if key.is_api() || key.is_preferred_version() {
+                                        key.to_string()
+                                    } else {
+                                        format!("\x1b[90m{}\x1b[39m", key)
+                                    };
+
+
+                                    LiteralItem::new(item, Some(metadata))
+                                })
+                                .collect();
+
+                            widget.update_widget_item(Item::Array(items));
+                        }
+                        Err(e) => {
+                            widget.update_widget_item(Item::Array(vec![
+                                error_format!("{}", e).into()
+                            ]));
+                        }
+                    }
                 }
                 Set(_) => {}
                 Poll(list) => {
@@ -307,15 +346,42 @@ pub fn update_contents(
             use YamlResponse::*;
             match ev {
                 APIs(res) => {
-                    update_widget_item_for_vec(window, view_id::popup_yaml_kind, res);
+                    let widget = window.find_widget_mut(view_id::popup_yaml_kind);
+                    match res {
+                        Ok(vec) => {
+                            let items = vec
+                                .into_iter()
+                                .map(|key | {
+                                    let Ok(json) = serde_json::to_string(&key) else { unreachable!() };
+
+                                    let metadata = BTreeMap::from([("key".into(), json)]);
+
+                                    let item = if key.is_api() || key.is_preferred_version() {
+                                        key.to_string()
+                                    } else {
+                                        format!("\x1b[90m{}\x1b[39m", key)
+                                    };
+
+                                    LiteralItem::new(item, Some(metadata))
+                                })
+                                .collect();
+
+                            widget.update_widget_item(Item::Array(items));
+                        }
+                        Err(e) => {
+                            widget.update_widget_item(Item::Array(vec![
+                                error_format!("{}", e).into()
+                            ]));
+                        }
+                    }
                 }
 
                 Resource(res) => {
                     let widget = window.find_widget_mut(view_id::popup_yaml_name);
+
                     match res {
-                        Ok(i) => {
-                            widget.update_widget_item(Item::Array(
-                                i.items
+                        Ok(list) => {
+                            let items = list.items
                                     .into_iter()
                                     .map(
                                         |YamlResourceListItem {
@@ -323,17 +389,24 @@ pub fn update_contents(
                                              name,
                                              kind,
                                              value,
-                                         }| LiteralItem {
-                                            metadata: Some(BTreeMap::from([
+                                         }| {
+                                            let Ok(json) = serde_json::to_string(&kind) else { unreachable!() };
+
+                                            let metadata = BTreeMap::from([
                                                 ("namespace".to_string(), namespace),
                                                 ("name".to_string(), name),
-                                                ("kind".to_string(), kind),
-                                            ])),
-                                            item: value,
+                                                ("key".into(), json),
+                                            ]);
+
+                                            LiteralItem {
+                                                metadata: Some(metadata),
+                                                item: value,
+                                            }
                                         },
                                     )
-                                    .collect(),
-                            ));
+                                    .collect();
+
+                            widget.update_widget_item(Item::Array(items));
                         }
                         Err(i) => {
                             widget.update_widget_item(Item::Array(vec![

@@ -60,9 +60,9 @@ const POLLING_RESOURCES: [[&str; 3]; 4] = [
 
 impl NetworkPollWorker {
     async fn polling(&self) -> Result<KubeTable> {
-        let namespaces = self.inner.namespaces.read().await;
+        let target_namespaces = self.inner.shared_target_namespaces.read().await;
         let mut table = KubeTable {
-            header: if namespaces.len() == 1 {
+            header: if target_namespaces.len() == 1 {
                 ["KIND", "NAME", "AGE"]
                     .iter()
                     .map(ToString::to_string)
@@ -76,11 +76,10 @@ impl NetworkPollWorker {
             ..Default::default()
         };
 
-        let jobs =
-            try_join_all(POLLING_RESOURCES.iter().map(|&[kind, plural, api]| {
-                self.fetch_per_namespace(&namespaces, kind, api, plural)
-            }))
-            .await?;
+        let jobs = try_join_all(POLLING_RESOURCES.iter().map(|&[kind, plural, api]| {
+            self.fetch_per_namespace(&target_namespaces, kind, api, plural)
+        }))
+        .await?;
 
         table.update_rows(jobs.into_iter().flatten().collect());
 

@@ -90,8 +90,20 @@ impl<'a> ListTabBuilder<'a> {
                     .find_widget_mut(view_id::popup_list)
                     .as_mut_multiple_select();
 
-                if let Some(SelectedItem::Array(item)) = widget.widget_item() {
-                    let list = item.iter().map(|i| i.item.to_string()).collect();
+                if let Some(SelectedItem::Array(items)) = widget.widget_item() {
+                    let list = items
+                        .iter()
+                        .map(|item| {
+                            let Some(metadata) = &item.metadata else { unreachable!() };
+
+                            let Some(key) = metadata.get("key") else { unreachable!() };
+
+                            let Ok(key) = serde_json::from_str(key) else { unreachable!() };
+
+                            key
+                        })
+                        .collect();
+
                     tx.send(ApiRequest::Set(list).into()).unwrap();
                 }
 

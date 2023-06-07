@@ -32,7 +32,7 @@ impl Worker for EventPollWorker {
                 PollWorker {
                     is_terminated,
                     tx,
-                    namespaces,
+                    shared_target_namespaces,
                     kube_client,
                 },
         } = self;
@@ -40,9 +40,9 @@ impl Worker for EventPollWorker {
         let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
         while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
             interval.tick().await;
-            let ns = namespaces.read().await;
+            let target_namespaces = shared_target_namespaces.read().await;
 
-            let event_list = get_event_table(kube_client, &ns).await;
+            let event_list = get_event_table(kube_client, &target_namespaces).await;
 
             tx.send(Event::Kube(Kube::Event(event_list))).unwrap();
         }

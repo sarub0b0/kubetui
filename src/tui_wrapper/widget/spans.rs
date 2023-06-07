@@ -11,46 +11,61 @@ use crate::ansi::{AnsiEscapeSequence, TextParser};
 
 use rayon::prelude::*;
 
-pub fn generate_spans<'a>(multi_lines: &[Vec<String>]) -> Vec<Line<'a>> {
+pub fn generate_spans_lines_for_multiline<'a>(multi_lines: &[Vec<String>]) -> Vec<Line<'a>> {
     multi_lines
         .par_iter()
-        .flat_map(|lines| generate_spans_line(lines))
+        .flat_map(|lines| generate_spans_lines(lines))
         .collect()
 }
 
-pub fn generate_spans_line<'a>(lines: &[String]) -> Vec<Line<'a>> {
+pub fn generate_spans_line<'a>(line: impl AsRef<str>) -> Line<'a> {
+    let mut style = Style::default();
+    inner::generate_spans_line(line, &mut style)
+}
+
+pub fn generate_spans_lines<'a>(lines: &[String]) -> Vec<Line<'a>> {
     let mut style = Style::default();
 
     lines
         .iter()
-        .map(|line| {
-            if line.is_empty() {
-                return Line::from(Span::styled("", Style::default()));
-            }
-            let mut span_vec: Vec<Span> = vec![];
-
-            let mut iter = line.ansi_parse().peekable();
-
-            while let Some(parsed) = iter.next() {
-                match parsed.ty {
-                    AnsiEscapeSequence::Chars => {
-                        span_vec.push(Span::styled(parsed.chars.to_string(), style));
-                    }
-                    AnsiEscapeSequence::SelectGraphicRendition(color) => {
-                        style = generate_style_from_ansi_color(color);
-
-                        if iter.peek().is_none() {
-                            span_vec.push(Span::styled("", style));
-                        }
-                    }
-                    _ => {}
-                }
-            }
-
-            Line::from(span_vec)
-        })
-        .collect::<Vec<Line>>()
+        .map(|line| inner::generate_spans_line(line, &mut style))
+        .collect()
 }
+
+mod inner {
+    use super::*;
+
+    pub fn generate_spans_line<'a>(line: impl AsRef<str>, style: &mut Style) -> Line<'a> {
+        let line = line.as_ref();
+
+        if line.is_empty() {
+            return Line::from(Span::styled("", Style::default()));
+        }
+
+        let mut span_vec: Vec<Span> = vec![];
+
+        let mut iter = line.ansi_parse().peekable();
+
+        while let Some(parsed) = iter.next() {
+            match parsed.ty {
+                AnsiEscapeSequence::Chars => {
+                    span_vec.push(Span::styled(parsed.chars.to_string(), *style));
+                }
+                AnsiEscapeSequence::SelectGraphicRendition(color) => {
+                    *style = generate_style_from_ansi_color(color);
+
+                    if iter.peek().is_none() {
+                        span_vec.push(Span::styled("", *style));
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        Line::from(span_vec)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -153,7 +168,7 @@ mod tests {
             Line::from("n build."),
         ];
 
-        let result = generate_spans(&wrapped);
+        let result = generate_spans_lines_for_multiline(&wrapped);
         for (i, l) in result.iter().enumerate() {
             assert_eq!(*l, expected[i]);
         }
@@ -168,7 +183,7 @@ mod tests {
             let text = vec![vec!["hoge\x1b[33mhoge\x1b[39m".to_string()]];
 
             assert_eq!(
-                generate_spans(&text),
+                generate_spans_lines_for_multiline(&text),
                 vec![Line::from(vec![
                     Span::raw("hoge"),
                     Span::styled("hoge", Style::default().fg(Color::Yellow)),
@@ -182,7 +197,7 @@ mod tests {
             let text = vec![vec!["\x1b[1;33mhoge\x1b[39m".to_string()]];
 
             assert_eq!(
-                generate_spans(&text),
+                generate_spans_lines_for_multiline(&text),
                 vec![Line::from(vec![
                     Span::styled(
                         "hoge",
@@ -200,7 +215,7 @@ mod tests {
             let text = vec![vec!["\x1b[38;5;33mhoge\x1b[39m".to_string()]];
 
             assert_eq!(
-                generate_spans(&text),
+                generate_spans_lines_for_multiline(&text),
                 vec![Line::from(vec![
                     Span::styled("hoge", Style::default().fg(Color::Indexed(33))),
                     Span::styled("", Style::default().fg(Color::Reset)),
@@ -213,7 +228,7 @@ mod tests {
             let text = vec![vec!["\x1b[1;38;5;33mhoge\x1b[39m".to_string()]];
 
             assert_eq!(
-                generate_spans(&text),
+                generate_spans_lines_for_multiline(&text),
                 vec![Line::from(vec![
                     Span::styled(
                         "hoge",
@@ -231,7 +246,7 @@ mod tests {
             let text = vec![vec!["\x1b[38;2;33;10;10mhoge\x1b[39m".to_string()]];
 
             assert_eq!(
-                generate_spans(&text),
+                generate_spans_lines_for_multiline(&text),
                 vec![Line::from(vec![
                     Span::styled("hoge", Style::default().fg(Color::Rgb(33, 10, 10))),
                     Span::styled("", Style::default().fg(Color::Reset)),
@@ -244,7 +259,7 @@ mod tests {
             let text = vec![vec!["\x1b[1;38;2;33;10;10mhoge\x1b[39m".to_string()]];
 
             assert_eq!(
-                generate_spans(&text),
+                generate_spans_lines_for_multiline(&text),
                 vec![Line::from(vec![
                     Span::styled(
                         "hoge",
@@ -262,7 +277,7 @@ mod tests {
             let text = vec![vec!["\x1b[43mhoge\x1b[49m".to_string()]];
 
             assert_eq!(
-                generate_spans(&text),
+                generate_spans_lines_for_multiline(&text),
                 vec![Line::from(vec![
                     Span::styled("hoge", Style::default().bg(Color::Yellow)),
                     Span::styled("", Style::default().bg(Color::Reset)),
@@ -275,7 +290,7 @@ mod tests {
             let text = vec![vec!["\x1b[1;43mhoge\x1b[49m".to_string()]];
 
             assert_eq!(
-                generate_spans(&text),
+                generate_spans_lines_for_multiline(&text),
                 vec![Line::from(vec![
                     Span::styled(
                         "hoge",
@@ -290,7 +305,7 @@ mod tests {
             let text = vec![vec!["\x1b[43;1mhoge\x1b[49m".to_string()]];
 
             assert_eq!(
-                generate_spans(&text),
+                generate_spans_lines_for_multiline(&text),
                 vec![Line::from(vec![
                     Span::styled(
                         "hoge",
@@ -308,7 +323,7 @@ mod tests {
             let text = vec![vec!["\x1b[48;5;33mhoge\x1b[49m".to_string()]];
 
             assert_eq!(
-                generate_spans(&text),
+                generate_spans_lines_for_multiline(&text),
                 vec![Line::from(vec![
                     Span::styled("hoge", Style::default().bg(Color::Indexed(33))),
                     Span::styled("", Style::default().bg(Color::Reset)),
@@ -321,7 +336,7 @@ mod tests {
             let text = vec![vec!["\x1b[1;48;5;33mhoge\x1b[49m".to_string()]];
 
             assert_eq!(
-                generate_spans(&text),
+                generate_spans_lines_for_multiline(&text),
                 vec![Line::from(vec![
                     Span::styled(
                         "hoge",
@@ -336,7 +351,7 @@ mod tests {
             let text = vec![vec!["\x1b[48;5;33;1mhoge\x1b[49m".to_string()]];
 
             assert_eq!(
-                generate_spans(&text),
+                generate_spans_lines_for_multiline(&text),
                 vec![Line::from(vec![
                     Span::styled(
                         "hoge",
@@ -354,7 +369,7 @@ mod tests {
             let text = vec![vec!["\x1b[48;2;33;10;10mhoge\x1b[49m".to_string()]];
 
             assert_eq!(
-                generate_spans(&text),
+                generate_spans_lines_for_multiline(&text),
                 vec![Line::from(vec![
                     Span::styled("hoge", Style::default().bg(Color::Rgb(33, 10, 10))),
                     Span::styled("", Style::default().bg(Color::Reset)),
@@ -367,7 +382,7 @@ mod tests {
             let text = vec![vec!["\x1b[1;48;2;33;10;10mhoge\x1b[49m".to_string()]];
 
             assert_eq!(
-                generate_spans(&text),
+                generate_spans_lines_for_multiline(&text),
                 vec![Line::from(vec![
                     Span::styled(
                         "hoge",
@@ -382,7 +397,7 @@ mod tests {
             let text = vec![vec!["\x1b[48;2;33;10;10;1mhoge\x1b[49m".to_string()]];
 
             assert_eq!(
-                generate_spans(&text),
+                generate_spans_lines_for_multiline(&text),
                 vec![Line::from(vec![
                     Span::styled(
                         "hoge",
@@ -412,7 +427,7 @@ mod tests {
             );
 
             assert_eq!(
-                generate_spans(&wrapped),
+                generate_spans_lines_for_multiline(&wrapped),
                 vec![
                     Line::from(vec![
                         Span::styled(" ", Style::default().bg(Color::Rgb(0, 0, 0))),
@@ -445,7 +460,7 @@ mod tests {
             let wrapped = wrap(&text, 10);
 
             assert_eq!(
-                generate_spans(&wrapped),
+                generate_spans_lines_for_multiline(&wrapped),
                 vec![
                     Line::from(vec![Span::styled(
                         "aaaaaaaaaa",

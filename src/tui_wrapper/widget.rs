@@ -14,7 +14,7 @@ pub use list::*;
 pub use table::*;
 pub use text::*;
 
-use self::config::WidgetConfig;
+use self::{config::WidgetConfig, styled_graphemes::StyledGraphemes};
 
 use super::event::EventResult;
 
@@ -43,13 +43,17 @@ impl LiteralItem {
 
 impl Ord for LiteralItem {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.item.cmp(&other.item)
+        let lhs = self.item.styled_graphemes_symbols().concat();
+        let rhs = other.item.styled_graphemes_symbols().concat();
+        lhs.cmp(&rhs)
     }
 }
 
 impl PartialOrd for LiteralItem {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.item.partial_cmp(&other.item)
+        let lhs = self.item.styled_graphemes_symbols().concat();
+        let rhs = other.item.styled_graphemes_symbols().concat();
+        lhs.partial_cmp(&rhs)
     }
 }
 
