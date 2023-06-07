@@ -71,7 +71,8 @@ impl Worker for PodPollWorker {
 
             let pod_info = get_pod_info(kube_client, &target_namespaces).await;
 
-            tx.send(Event::Kube(Kube::Pod(pod_info))).unwrap();
+            tx.send(Event::Kube(Kube::Pod(pod_info)))
+                .expect("Failed to Kube::Pod");
         }
         Ok(WorkerResult::Terminated)
     }

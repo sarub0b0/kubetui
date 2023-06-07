@@ -49,7 +49,8 @@ impl Worker for ConfigsPollWorker {
 
             let table = fetch_configs(kube_client, &target_namespaces).await;
 
-            tx.send(ConfigResponse::Table(table).into())?;
+            tx.send(ConfigResponse::Table(table).into())
+                .expect("Failed to send ConfigResponse::Yable");
         }
         Ok(WorkerResult::Terminated)
     }

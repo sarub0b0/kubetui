@@ -40,7 +40,8 @@ impl Worker for NetworkPollWorker {
 
             let table = self.polling().await;
 
-            tx.send(NetworkResponse::List(table).into())?;
+            tx.send(NetworkResponse::List(table).into())
+                .expect("Failed to send NetworkResponse::List");
         }
 
         Ok(WorkerResult::Terminated)

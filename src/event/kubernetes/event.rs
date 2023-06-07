@@ -44,7 +44,8 @@ impl Worker for EventPollWorker {
 
             let event_list = get_event_table(kube_client, &target_namespaces).await;
 
-            tx.send(Event::Kube(Kube::Event(event_list))).unwrap();
+            tx.send(Event::Kube(Kube::Event(event_list)))
+                .expect("Failed to send Kube::Event");
         }
 
         Ok(WorkerResult::Terminated)

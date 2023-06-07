@@ -431,7 +431,9 @@ pub mod worker {
                 )
                 .await;
 
-                self.tx.send(YamlResponse::Yaml(fetched_data).into())?;
+                self.tx
+                    .send(YamlResponse::Yaml(fetched_data).into())
+                    .expect("Failed to send YamlResponse::Yaml");
             }
 
             Ok(())

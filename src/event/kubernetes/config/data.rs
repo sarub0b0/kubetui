@@ -53,7 +53,9 @@ impl Worker for ConfigsDataWorker {
         };
 
         if let Err(e) = ret {
-            self.tx.send(ConfigResponse::Data(Err(e)).into())?;
+            self.tx
+                .send(ConfigResponse::Data(Err(e)).into())
+                .expect("Failed to send ConfigResponse::Data");
         }
 
         Ok(())
@@ -88,7 +90,9 @@ impl ConfigsDataWorker {
 
             let fetched_data = worker.fetch().await;
 
-            self.tx.send(ConfigResponse::Data(fetched_data).into())?;
+            self.tx
+                .send(ConfigResponse::Data(fetched_data).into())
+                .expect("Failed to send ConfigResponse::Data");
         }
 
         Ok(())

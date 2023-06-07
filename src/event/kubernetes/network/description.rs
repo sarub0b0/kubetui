@@ -90,7 +90,9 @@ where
         };
 
         if let Err(e) = ret {
-            self.tx.send(NetworkResponse::Yaml(Err(e)).into())?;
+            self.tx
+                .send(NetworkResponse::Yaml(Err(e)).into())
+                .expect("Failed to send NetworkResponse::Yaml");
         }
         Ok(())
     }
@@ -118,7 +120,9 @@ where
 
             let fetched_data = worker.fetch().await;
 
-            self.tx.send(NetworkResponse::Yaml(fetched_data).into())?;
+            self.tx
+                .send(NetworkResponse::Yaml(fetched_data).into())
+                .expect("Failed to send NetworkResponse::Yaml");
         }
 
         Ok(())
