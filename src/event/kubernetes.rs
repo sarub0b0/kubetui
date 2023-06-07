@@ -37,9 +37,7 @@ use tokio::{
 use crate::{logger, panic_set_hook};
 
 use self::{
-    api_resources::{
-        api_resources_to_vec, ApiDBKey, ApiMessage, ApiRequest, ApiResponse, SharedApiResources,
-    },
+    api_resources::{ApiMessage, ApiRequest, ApiResource, ApiResponse, SharedApiResources},
     client::KubeClient,
     config::{ConfigMessage, ConfigsDataWorker},
     context_message::{ContextMessage, ContextRequest, ContextResponse},
@@ -238,7 +236,7 @@ impl Handlers {
 pub(super) type TargetNamespaces = Vec<String>;
 pub(super) type SharedTargetNamespaces = Arc<RwLock<TargetNamespaces>>;
 
-pub(super) type TargetApiResources = Vec<ApiDBKey>;
+pub(super) type TargetApiResources = Vec<ApiResource>;
 pub(super) type SharedTargetApiResources = Arc<RwLock<TargetApiResources>>;
 
 #[derive(Clone)]
@@ -443,14 +441,12 @@ impl Worker for MainWorker {
                         match req {
                             Get => {
                                 let api_resources = shared_api_resources.read().await;
-                                let vec = api_resources_to_vec(&api_resources);
-                                tx.send(ApiResponse::Get(Ok(vec)).into())?;
+                                tx.send(ApiResponse::Get(Ok(api_resources.to_vec())).into())?;
                             }
                             Set(req) => {
                                 let mut taret_api_resources =
                                     shared_target_api_resources.write().await;
                                 *taret_api_resources = req.clone();
-                                // tx.send(ApiResponse::Get(Ok(req.clone())).into())?;
                             }
                         }
                     }
@@ -485,9 +481,8 @@ impl Worker for MainWorker {
                         match ev {
                             APIs => {
                                 let api_resources = shared_api_resources.read().await;
-                                let vec = api_resources_to_vec(&api_resources);
 
-                                tx.send(YamlResponse::APIs(Ok(vec)).into())?
+                                tx.send(YamlResponse::APIs(Ok(api_resources.to_vec())).into())?
                             }
                             Resource(req) => {
                                 let api_resources = shared_api_resources.read().await;

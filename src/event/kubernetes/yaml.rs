@@ -6,7 +6,7 @@ use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use serde::Deserialize;
 
 use super::{
-    api_resources::{ApiDBKey, ApiResources, SharedApiResources},
+    api_resources::{ApiResource, ApiResources, SharedApiResources},
     client::KubeClientRequest,
     worker::Worker,
     Kube,
@@ -18,7 +18,7 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct YamlResourceListItem {
-    pub kind: ApiDBKey,
+    pub kind: ApiResource,
     pub name: String,
     pub namespace: String,
     pub value: String,
@@ -38,9 +38,9 @@ impl YamlResourceList {
 #[derive(Debug)]
 pub enum YamlRequest {
     APIs,
-    Resource(ApiDBKey),
+    Resource(ApiResource),
     Yaml {
-        kind: ApiDBKey,
+        kind: ApiResource,
         name: String,
         namespace: String,
     },
@@ -54,7 +54,7 @@ impl From<YamlRequest> for Event {
 
 #[derive(Debug)]
 pub enum YamlResponse {
-    APIs(Result<Vec<ApiDBKey>>),
+    APIs(Result<Vec<ApiResource>>),
     Resource(Result<YamlResourceList>),
     Yaml(Result<Vec<String>>),
 }
@@ -84,7 +84,7 @@ impl From<YamlMessage> for Event {
 }
 
 pub mod fetch_resource_list {
-    use crate::event::kubernetes::api_resources::ApiDBKey;
+    use crate::event::kubernetes::api_resources::ApiResource;
     use crate::event::kubernetes::yaml::fetch_resource_list::not_namespaced::FetchResourceListNotNamespaced;
     use crate::event::kubernetes::TargetNamespaces;
 
@@ -111,9 +111,7 @@ pub mod fetch_resource_list {
 
         use crate::{
             event::kubernetes::{
-                api_resources::{ApiDBKey, ApiDBValue},
-                client::KubeClientRequest,
-                yaml::YamlResourceListItem,
+                api_resources::ApiResource, client::KubeClientRequest, yaml::YamlResourceListItem,
             },
             logger,
         };
@@ -122,17 +120,17 @@ pub mod fetch_resource_list {
 
         pub(super) struct FetchResourceListNotNamespaced<'a, C: KubeClientRequest> {
             client: &'a C,
-            api: &'a ApiDBValue,
+            api: &'a ApiResource,
             kind: &'a str,
         }
 
         impl<'a, C: KubeClientRequest> FetchResourceListNotNamespaced<'a, C> {
-            pub(super) fn new(client: &'a C, api: &'a ApiDBValue, kind: &'a str) -> Self {
+            pub(super) fn new(client: &'a C, api: &'a ApiResource, kind: &'a str) -> Self {
                 Self { client, api, kind }
             }
 
             pub(super) async fn fetch(&self) -> Result<Vec<YamlResourceListItem>> {
-                let path = format!("{}/{}", self.api.api_url(), self.kind);
+                let path = format!("{}/{}", self.api.group_version_url(), self.kind);
                 logger!(info, "Fetching resource [{}]", path);
 
                 let res: List = self.client.request(&path).await?;
@@ -146,7 +144,7 @@ pub mod fetch_resource_list {
                         item.metadata.name.map(|name| YamlResourceListItem {
                             namespace: "".to_string(),
                             name: name.to_string(),
-                            kind: ApiDBKey::from(self.api.clone()),
+                            kind: self.api.clone(),
                             value: name,
                         })
                     })
@@ -160,9 +158,7 @@ pub mod fetch_resource_list {
 
         use crate::{
             event::kubernetes::{
-                api_resources::{ApiDBKey, ApiDBValue},
-                client::KubeClientRequest,
-                yaml::YamlResourceListItem,
+                api_resources::ApiResource, client::KubeClientRequest, yaml::YamlResourceListItem,
             },
             logger,
         };
@@ -172,7 +168,7 @@ pub mod fetch_resource_list {
         pub(super) struct FetchResourceListSingleNamespace<'a, C: KubeClientRequest> {
             client: &'a C,
             ns: &'a str,
-            api: &'a ApiDBValue,
+            api: &'a ApiResource,
             kind: &'a str,
         }
 
@@ -180,7 +176,7 @@ pub mod fetch_resource_list {
             pub(super) fn new(
                 client: &'a C,
                 ns: &'a str,
-                api: &'a ApiDBValue,
+                api: &'a ApiResource,
                 kind: &'a str,
             ) -> Self {
                 Self {
@@ -194,7 +190,7 @@ pub mod fetch_resource_list {
             pub(super) async fn fetch(&self) -> Result<Vec<YamlResourceListItem>> {
                 let path = format!(
                     "{}/namespaces/{}/{}",
-                    self.api.api_url(),
+                    self.api.group_version_url(),
                     self.ns,
                     self.kind
                 );
@@ -212,7 +208,7 @@ pub mod fetch_resource_list {
                         item.metadata.name.map(|name| YamlResourceListItem {
                             namespace: self.ns.to_string(),
                             name: name.to_string(),
-                            kind: ApiDBKey::from(self.api.clone()),
+                            kind: self.api.clone(),
                             value: name,
                         })
                     })
@@ -228,7 +224,7 @@ pub mod fetch_resource_list {
         use unicode_segmentation::UnicodeSegmentation;
 
         use crate::event::kubernetes::{
-            api_resources::ApiDBValue, client::KubeClientRequest, yaml::YamlResourceListItem,
+            api_resources::ApiResource, client::KubeClientRequest, yaml::YamlResourceListItem,
         };
 
         use super::single_namespace::FetchResourceListSingleNamespace;
@@ -236,7 +232,7 @@ pub mod fetch_resource_list {
         pub(super) struct FetchResourceListMultipleNamespaces<'a, C: KubeClientRequest> {
             client: &'a C,
             namespaces: &'a [String],
-            api: &'a ApiDBValue,
+            api: &'a ApiResource,
             kind: &'a str,
         }
 
@@ -244,7 +240,7 @@ pub mod fetch_resource_list {
             pub(super) fn new(
                 client: &'a C,
                 namespaces: &'a [String],
-                api: &'a ApiDBValue,
+                api: &'a ApiResource,
                 kind: &'a str,
             ) -> Self {
                 Self {
@@ -295,7 +291,7 @@ pub mod fetch_resource_list {
 
     pub struct FetchResourceList<'a, C: KubeClientRequest> {
         client: &'a C,
-        req: ApiDBKey,
+        req: ApiResource,
         target_namespaces: &'a TargetNamespaces,
         api_resources: &'a ApiResources,
     }
@@ -303,7 +299,7 @@ pub mod fetch_resource_list {
     impl<'a, C: KubeClientRequest> FetchResourceList<'a, C> {
         pub fn new(
             client: &'a C,
-            req: ApiDBKey,
+            req: ApiResource,
             api_resources: &'a ApiResources,
             target_namespaces: &'a TargetNamespaces,
         ) -> Self {
@@ -331,8 +327,8 @@ pub mod fetch_resource_list {
                 .get(kind)
                 .ok_or_else(|| Error::Raw(format!("Can't get {} from API resource", kind)))?;
 
-            let kind = &api.api_resource.name;
-            let list = if api.api_resource.namespaced {
+            let kind = &api.name();
+            let list = if api.is_namespaced() {
                 if self.target_namespaces.len() == 1 {
                     FetchResourceListSingleNamespace::new(
                         self.client,
@@ -364,14 +360,14 @@ pub mod fetch_resource_list {
 }
 
 pub mod worker {
-    use crate::{event::kubernetes::api_resources::ApiDBKey, logger};
+    use crate::{event::kubernetes::api_resources::ApiResource, logger};
 
     use super::*;
 
     #[derive(Debug, Clone)]
     pub struct YamlWorkerRequest {
         pub namespace: String,
-        pub kind: ApiDBKey,
+        pub kind: ApiResource,
         pub name: String,
     }
 
@@ -446,7 +442,7 @@ pub mod worker {
     pub async fn fetch_resource_yaml<C: KubeClientRequest>(
         client: &C,
         api_resources: &ApiResources,
-        kind: &ApiDBKey,
+        kind: &ApiResource,
         name: String,
         ns: String,
     ) -> Result<Vec<String>> {
@@ -462,11 +458,17 @@ pub mod worker {
             .get(kind)
             .ok_or_else(|| Error::Raw(format!("Can't get {} from API resource", kind)))?;
         // json string data
-        let kind = &api.api_resource.name;
-        let path = if api.api_resource.namespaced {
-            format!("{}/namespaces/{}/{}/{}", api.api_url(), ns, kind, name)
+        let kind = api.name();
+        let path = if api.is_namespaced() {
+            format!(
+                "{}/namespaces/{}/{}/{}",
+                api.group_version_url(),
+                ns,
+                kind,
+                name
+            )
         } else {
-            format!("{}/{}/{}", api.api_url(), kind, name)
+            format!("{}/{}/{}", api.group_version_url(), kind, name)
         };
 
         logger!(info, "Fetching resource [{}]", path);
