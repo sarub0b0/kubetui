@@ -580,7 +580,7 @@ impl<'a> FetchTargetApiResources<'a> {
 mod tests {
     use super::*;
 
-    mod database {
+    mod api_resource {
         use super::*;
         use pretty_assertions::assert_eq;
         use rstest::rstest;
@@ -590,8 +590,7 @@ mod tests {
         #[case(ApiResource::Apis { name: "horizontalpodautoscalers".into(), group: "autoscaling".into(), version: "v2".into(), preferred_version: true, namespaced: true }, "horizontalpodautoscalers.autoscaling (*v2)")]
         #[case(ApiResource::Apis { name: "horizontalpodautoscalers".into(), group: "autoscaling".into(), version: "v1".into(), preferred_version: false, namespaced: true }, "horizontalpodautoscalers.autoscaling (v1)")]
         #[test]
-        fn feature(#[case] key: ApiResource, #[case] expected: &str) {
-            println!("{}", key);
+        fn to_string(#[case] key: ApiResource, #[case] expected: &str) {
             assert_eq!(key.to_string(), expected)
         }
     }
