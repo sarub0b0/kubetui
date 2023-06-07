@@ -4,7 +4,7 @@ use crossbeam::channel::Receiver;
 
 use crate::{
     context::{Context, Namespace},
-    error::{Error, Result},
+    error::Result,
     event::{
         kubernetes::{
             api_resources::{ApiMessage, ApiResponse},
