@@ -64,8 +64,19 @@ pub mod view_id {
 
 macro_rules! error_format {
     ($fmt:literal, $($arg:tt)*) => {
-        format!(concat!("\x1b[31m", $fmt,"\x1b[39m"), $($arg)*)
+        format!(concat!("\x1b[31m[kubetui] ", $fmt,"\x1b[39m"), $($arg)*)
+    };
+}
 
+macro_rules! error_lines {
+    ($err:ident) => {
+        format!("{:?}", $err)
+            .lines()
+            .map(|line| LiteralItem {
+                item: error_format!("{}", line),
+                metadata: None,
+            })
+            .collect::<Vec<_>>()
     };
 }
 
@@ -163,7 +174,7 @@ fn update_widget_item_for_table(window: &mut Window, id: &str, table: Result<Kub
             }
         }
         Err(e) => {
-            let rows: Vec<TableItem> = vec![vec![error_format!("{}", e)].into()];
+            let rows: Vec<TableItem> = vec![vec![error_format!("{:?}", e)].into()];
             w.update_header_and_rows(&["ERROR".to_string()], &rows);
         }
     }
@@ -176,7 +187,7 @@ fn update_widget_item_for_vec(window: &mut Window, id: &str, vec: Result<Vec<Str
             widget.update_widget_item(Item::Array(i.into_iter().map(LiteralItem::from).collect()));
         }
         Err(e) => {
-            widget.update_widget_item(Item::Array(vec![error_format!("{}", e).into()]));
+            widget.update_widget_item(Item::Array(error_lines!(e)));
         }
     }
 }
@@ -208,15 +219,7 @@ pub fn update_contents(
                     widget.append_widget_item(Item::Array(array));
                 }
                 Err(e) => {
-                    widget.append_widget_item(Item::Array(
-                        format!("{:?}", e)
-                            .lines()
-                            .map(|l| LiteralItem {
-                                metadata: None,
-                                item: error_format!("{}", l),
-                            })
-                            .collect(),
-                    ));
+                    widget.append_widget_item(Item::Array(error_lines!(e)));
                 }
             }
         }
@@ -329,9 +332,7 @@ pub fn update_contents(
                             widget.update_widget_item(Item::Array(items));
                         }
                         Err(e) => {
-                            widget.update_widget_item(Item::Array(vec![
-                                error_format!("{}", e).into()
-                            ]));
+                            widget.update_widget_item(Item::Array(error_lines!(e)));
                         }
                     }
                 }
@@ -369,9 +370,7 @@ pub fn update_contents(
                             widget.update_widget_item(Item::Array(items));
                         }
                         Err(e) => {
-                            widget.update_widget_item(Item::Array(vec![
-                                error_format!("{}", e).into()
-                            ]));
+                            widget.update_widget_item(Item::Array(error_lines!(e)));
                         }
                     }
                 }
@@ -408,10 +407,8 @@ pub fn update_contents(
 
                             widget.update_widget_item(Item::Array(items));
                         }
-                        Err(i) => {
-                            widget.update_widget_item(Item::Array(vec![
-                                error_format!("{}", i).into()
-                            ]));
+                        Err(e) => {
+                            widget.update_widget_item(Item::Array(error_lines!(e)));
                         }
                     }
                 }
