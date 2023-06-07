@@ -233,18 +233,6 @@ impl Worker for ApiPollWorker {
             shared_api_resources,
         } = self;
 
-        {
-            match fetch_api_resources(kube_client).await {
-                Ok(fetched) => {
-                    let mut api_resources = shared_api_resources.write().await;
-                    *api_resources = fetched;
-                }
-                Err(err) => {
-                    tx.send(ApiResponse::Poll(Err(err)).into()).unwrap();
-                }
-            }
-        }
-
         let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
 
         let mut last_tick = Instant::now();
@@ -252,6 +240,7 @@ impl Worker for ApiPollWorker {
 
         while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
             interval.tick().await;
+
             if tick_rate < last_tick.elapsed() {
                 last_tick = Instant::now();
 
@@ -261,7 +250,8 @@ impl Worker for ApiPollWorker {
                         *api_resources = fetched;
                     }
                     Err(err) => {
-                        tx.send(ApiResponse::Poll(Err(err)).into()).unwrap();
+                        tx.send(ApiResponse::Poll(Err(err)).into())
+                            .expect("Failed to send ApiResponse::Poll");
                         continue;
                     }
                 }
@@ -282,7 +272,8 @@ impl Worker for ApiPollWorker {
             .fetch_table()
             .await;
 
-            tx.send(ApiResponse::Poll(result).into()).unwrap();
+            tx.send(ApiResponse::Poll(result).into())
+                .expect("Failed to send ApiResponse::Poll");
         }
 
         Ok(WorkerResult::Terminated)
