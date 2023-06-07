@@ -218,7 +218,7 @@ impl ApiPollWorker {
 
 #[async_trait]
 impl Worker for ApiPollWorker {
-    type Output = Result<WorkerResult>;
+    type Output = WorkerResult;
 
     async fn run(&self) -> Self::Output {
         let Self {
@@ -297,7 +297,7 @@ impl Worker for ApiPollWorker {
                 .expect("Failed to send ApiResponse::Poll");
         }
 
-        Ok(WorkerResult::Terminated)
+        WorkerResult::Terminated
     }
 }
 

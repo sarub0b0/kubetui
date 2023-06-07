@@ -25,7 +25,7 @@ impl EventPollWorker {
 
 #[async_trait]
 impl Worker for EventPollWorker {
-    type Output = Result<WorkerResult>;
+    type Output = WorkerResult;
     async fn run(&self) -> Self::Output {
         let Self {
             inner:
@@ -48,7 +48,7 @@ impl Worker for EventPollWorker {
                 .expect("Failed to send Kube::Event");
         }
 
-        Ok(WorkerResult::Terminated)
+        WorkerResult::Terminated
     }
 }
 

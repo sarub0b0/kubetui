@@ -70,7 +70,7 @@ impl<C> Worker for NetworkDescriptionWorker<C>
 where
     C: KubeClientRequest,
 {
-    type Output = Result<()>;
+    type Output = ();
 
     async fn run(&self) -> Self::Output {
         let ret = match &self.req {
@@ -94,7 +94,6 @@ where
                 .send(NetworkResponse::Yaml(Err(e)).into())
                 .expect("Failed to send NetworkResponse::Yaml");
         }
-        Ok(())
     }
 }
 

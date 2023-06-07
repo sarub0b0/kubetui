@@ -44,7 +44,7 @@ impl ConfigsDataWorker {
 
 #[async_trait]
 impl Worker for ConfigsDataWorker {
-    type Output = Result<()>;
+    type Output = ();
 
     async fn run(&self) -> Self::Output {
         let ret = match &self.req {
@@ -57,8 +57,6 @@ impl Worker for ConfigsDataWorker {
                 .send(ConfigResponse::Data(Err(e)).into())
                 .expect("Failed to send ConfigResponse::Data");
         }
-
-        Ok(())
     }
 }
 
