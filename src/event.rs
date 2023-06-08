@@ -16,6 +16,8 @@ pub enum UserEvent {
     Key(KeyEvent),
     Mouse(MouseEvent),
     Resize(u16, u16),
+    FocusGained,
+    FocusLost,
 }
 
 impl UserEvent {
@@ -32,6 +34,12 @@ impl From<char> for UserEvent {
 impl From<KeyCode> for UserEvent {
     fn from(code: KeyCode) -> Self {
         UserEvent::Key(KeyEvent::from(code))
+    }
+}
+
+impl From<UserEvent> for Event {
+    fn from(value: UserEvent) -> Self {
+        Self::User(value)
     }
 }
 
