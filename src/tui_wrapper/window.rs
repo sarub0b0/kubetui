@@ -5,8 +5,8 @@ use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKin
 use ratatui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
-    text::Line,
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
     widgets::{Block, Clear, Paragraph, Tabs},
     Frame,
 };
@@ -31,6 +31,7 @@ type HeaderCallback = Rc<dyn Fn() -> Paragraph<'static>>;
 pub struct Window<'a> {
     tabs: Vec<Tab<'a>>,
     focused_tab_index: usize,
+    focusable_tab_index: Option<usize>,
     layout: Layout,
     chunk: Rect,
     callbacks: Vec<(UserEvent, InnerCallback)>,
@@ -204,7 +205,21 @@ impl<'a> Window<'a> {
             .tabs
             .iter()
             .enumerate()
-            .map(|(i, t)| Line::from(Self::tab_title_format(i, t.title())))
+            .map(|(index, tab)| {
+                if self
+                    .focusable_tab_index
+                    .is_some_and(|idx| idx == index && idx != self.focused_tab_index)
+                {
+                    Line::from(Span::styled(
+                        Self::tab_title_format(index, tab.title()),
+                        Style::default()
+                            .fg(Color::DarkGray)
+                            .add_modifier(Modifier::REVERSED),
+                    ))
+                } else {
+                    Line::from(Self::tab_title_format(index, tab.title()))
+                }
+            })
             .collect();
 
         Tabs::new(titles)
@@ -285,7 +300,7 @@ impl<'a> Window<'a> {
     }
 
     fn tab_title_format(index: usize, title: &str) -> String {
-        format!("{}: {}", index + 1, title)
+        format!("{}: {} ", index + 1, title)
     }
 
     fn tab_block() -> Block<'a> {
@@ -382,6 +397,12 @@ impl<'a> Window<'a> {
     }
 }
 
+enum AreaKind {
+    Tab,
+    Widgets,
+    OutSide,
+}
+
 pub enum WindowEvent {
     CloseWindow,
     Continue,
@@ -396,6 +417,14 @@ impl Window<'_> {
             UserEvent::Key(ev) => self.on_key_event(ev),
             UserEvent::Mouse(ev) => self.on_mouse_event(ev),
             UserEvent::Resize(w, h) => EventResult::Window(WindowEvent::ResizeWindow(w, h)),
+            UserEvent::FocusLost => {
+                self.focusable_tab_index = None;
+                EventResult::Nop
+            }
+            UserEvent::FocusGained => {
+                self.focusable_tab_index = None;
+                EventResult::Nop
+            }
         }
     }
 
@@ -434,6 +463,16 @@ impl Window<'_> {
         EventResult::Nop
     }
 
+    fn area_kind_by_cursor_position(&self, pos: (u16, u16)) -> AreaKind {
+        if self.tab_chunk().contains_point(pos) {
+            AreaKind::Tab
+        } else if self.chunks()[self.layout_index.contents].contains_point(pos) {
+            AreaKind::Widgets
+        } else {
+            AreaKind::OutSide
+        }
+    }
+
     pub fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         if let Some(id) = &self.open_popup_id {
             if let Some(popup) = self.popups.iter_mut().find(|w| w.id() == id) {
@@ -445,27 +484,37 @@ impl Window<'_> {
         let focused_view_id = self.focused_widget_id().to_string();
         let mut focus_widget_id = None;
 
-        let result = if self.tab_chunk().contains_point(pos) {
-            self.on_click_tab(ev);
-            EventResult::Nop
-        } else if self.chunks()[self.layout_index.contents].contains_point(pos) {
-            if let Some(w) = self
-                .focused_tab_mut()
-                .as_mut_widgets()
-                .iter_mut()
-                .find(|w| w.chunk().contains_point(pos))
-            {
-                focus_widget_id = if w.id() != focused_view_id {
-                    Some(w.id().to_string())
+        let result = match self.area_kind_by_cursor_position(pos) {
+            AreaKind::Tab => {
+                self.on_tab_area_mouse_event(ev);
+
+                EventResult::Nop
+            }
+            AreaKind::Widgets => {
+                self.focusable_tab_index = None;
+
+                if let Some(w) = self
+                    .focused_tab_mut()
+                    .as_mut_widgets()
+                    .iter_mut()
+                    .find(|w| w.chunk().contains_point(pos))
+                {
+                    focus_widget_id = if w.id() != focused_view_id {
+                        Some(w.id().to_string())
+                    } else {
+                        None
+                    };
+
+                    w.on_mouse_event(ev)
                 } else {
-                    None
-                };
-                w.on_mouse_event(ev)
-            } else {
+                    EventResult::Ignore
+                }
+            }
+            AreaKind::OutSide => {
+                self.focusable_tab_index = None;
+
                 EventResult::Ignore
             }
-        } else {
-            EventResult::Ignore
         };
 
         if let Some(id) = focus_widget_id {
@@ -475,11 +524,7 @@ impl Window<'_> {
         result
     }
 
-    fn on_click_tab(&mut self, ev: MouseEvent) {
-        if ev.kind != MouseEventKind::Down(MouseButton::Left) {
-            return;
-        }
-
+    fn on_tab_area_mouse_event(&mut self, ev: MouseEvent) {
         let pos = ev.position();
 
         let chunk = Self::tab_block().inner(self.tab_chunk());
@@ -495,9 +540,20 @@ impl Window<'_> {
 
             let title_chunk = Rect::new(x, y, w, h);
 
-            if title_chunk.contains_point(pos) {
-                self.focus_tab(i + 1);
-                break;
+            match ev.kind {
+                MouseEventKind::Down(MouseButton::Left) => {
+                    if title_chunk.contains_point(pos) {
+                        self.focus_tab(i + 1);
+                        break;
+                    }
+                }
+                MouseEventKind::Moved => {
+                    if title_chunk.contains_point(pos) {
+                        self.focusable_tab_index = Some(i);
+                        break;
+                    }
+                }
+                _ => {}
             }
 
             x = x
