@@ -2,7 +2,10 @@ use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 
 use http::header::{HeaderValue, ACCEPT};
-use kube::{api::Request, Client};
+use kube::{
+    api::{GetParams, Request},
+    Client,
+};
 
 use crate::{
     error::{anyhow, Error, Result},
@@ -52,7 +55,7 @@ impl KubeClient {
     {
         let request = Request::new(&self.server_url);
 
-        let mut request = request.get(remove_slash(path))?;
+        let mut request = request.get(remove_slash(path), &GetParams::any())?;
 
         request
             .headers_mut()
@@ -87,7 +90,7 @@ impl KubeClientRequest for KubeClient {
     async fn request_text(&self, path: &str) -> Result<String> {
         let request = Request::new(&self.server_url);
 
-        let mut request = request.get(remove_slash(path))?;
+        let mut request = request.get(remove_slash(path), &GetParams::any())?;
 
         request
             .headers_mut()
