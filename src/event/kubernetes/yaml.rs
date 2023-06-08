@@ -403,7 +403,7 @@ pub mod worker {
 
     #[async_trait::async_trait]
     impl<C: KubeClientRequest> Worker for YamlWorker<C> {
-        type Output = Result<()>;
+        type Output = ();
 
         async fn run(&self) -> Self::Output {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(3));
@@ -431,10 +431,10 @@ pub mod worker {
                 )
                 .await;
 
-                self.tx.send(YamlResponse::Yaml(fetched_data).into())?;
+                self.tx
+                    .send(YamlResponse::Yaml(fetched_data).into())
+                    .expect("Failed to send YamlResponse::Yaml");
             }
-
-            Ok(())
         }
     }
 

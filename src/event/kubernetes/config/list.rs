@@ -27,7 +27,7 @@ impl ConfigsPollWorker {
 
 #[async_trait]
 impl Worker for ConfigsPollWorker {
-    type Output = Result<WorkerResult>;
+    type Output = WorkerResult;
 
     async fn run(&self) -> Self::Output {
         let mut interval = tokio::time::interval(time::Duration::from_secs(1));
@@ -49,9 +49,11 @@ impl Worker for ConfigsPollWorker {
 
             let table = fetch_configs(kube_client, &target_namespaces).await;
 
-            tx.send(ConfigResponse::Table(table).into())?;
+            tx.send(ConfigResponse::Table(table).into())
+                .expect("Failed to send ConfigResponse::Yable");
         }
-        Ok(WorkerResult::Terminated)
+
+        WorkerResult::Terminated
     }
 }
 

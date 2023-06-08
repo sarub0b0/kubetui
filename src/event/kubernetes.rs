@@ -42,7 +42,7 @@ use self::{
     config::{ConfigMessage, ConfigsDataWorker},
     context_message::{ContextMessage, ContextRequest, ContextResponse},
     inner::Inner,
-    log::{LogStreamMessage, LogWorkerBuilder},
+    log::{LogHandlers, LogStreamMessage, LogWorkerBuilder},
     namespace_message::{NamespaceMessage, NamespaceRequest, NamespaceResponse},
     network::{NetworkDescriptionWorker, NetworkMessage},
     worker::{PollWorker, Worker},
@@ -224,15 +224,6 @@ pub mod context_message {
     }
 }
 
-#[derive(Default, Debug)]
-pub struct Handlers(Vec<JoinHandle<Result<()>>>);
-
-impl Handlers {
-    fn abort(&self) {
-        self.0.iter().for_each(|j| j.abort());
-    }
-}
-
 pub(super) type TargetNamespaces = Vec<String>;
 pub(super) type SharedTargetNamespaces = Arc<RwLock<TargetNamespaces>>;
 
@@ -336,13 +327,13 @@ struct MainWorker {
 
 #[async_trait]
 impl Worker for MainWorker {
-    type Output = Result<WorkerResult>;
+    type Output = WorkerResult;
 
     async fn run(&self) -> Self::Output {
-        let mut log_stream_handler: Option<Handlers> = None;
-        let mut config_handler: Option<JoinHandle<Result<()>>> = None;
-        let mut network_handler: Option<JoinHandle<Result<()>>> = None;
-        let mut yaml_handler: Option<JoinHandle<Result<()>>> = None;
+        let mut log_stream_handler: Option<LogHandlers> = None;
+        let mut config_handler: Option<JoinHandle<()>> = None;
+        let mut network_handler: Option<JoinHandle<()>> = None;
+        let mut yaml_handler: Option<JoinHandle<()>> = None;
 
         let MainWorker {
             inner: poll_worker,
@@ -372,7 +363,8 @@ impl Worker for MainWorker {
                     Kube::Namespace(NamespaceMessage::Request(req)) => match req {
                         NamespaceRequest::Get => {
                             let ns = fetch_all_namespaces(kube_client.clone()).await;
-                            tx.send(NamespaceResponse::Get(ns).into())?;
+                            tx.send(NamespaceResponse::Get(ns).into())
+                                .expect("Failed to send NamespaceResponse::Get");
                         }
                         NamespaceRequest::Set(req) => {
                             {
@@ -400,7 +392,8 @@ impl Worker for MainWorker {
                                 yaml_handler = None;
                             }
 
-                            tx.send(NamespaceResponse::Set(req).into())?;
+                            tx.send(NamespaceResponse::Set(req).into())
+                                .expect("Failed to send NamespaceResponse:Set");
                         }
                     },
 
@@ -441,7 +434,8 @@ impl Worker for MainWorker {
                         match req {
                             Get => {
                                 let api_resources = shared_api_resources.read().await;
-                                tx.send(ApiResponse::Get(Ok(api_resources.to_vec())).into())?;
+                                tx.send(ApiResponse::Get(Ok(api_resources.to_vec())).into())
+                                    .expect("Failed to send ApiResponse::Get");
                             }
                             Set(req) => {
                                 let mut taret_api_resources =
@@ -452,9 +446,9 @@ impl Worker for MainWorker {
                     }
 
                     Kube::Context(ContextMessage::Request(req)) => match req {
-                        ContextRequest::Get => {
-                            tx.send(ContextResponse::Get(contexts.to_vec()).into())?
-                        }
+                        ContextRequest::Get => tx
+                            .send(ContextResponse::Get(contexts.to_vec()).into())
+                            .expect("Failed to send ContextResponse::Get"),
                         ContextRequest::Set(req) => {
                             if let Some(h) = log_stream_handler {
                                 h.abort();
@@ -472,7 +466,7 @@ impl Worker for MainWorker {
                                 h.abort();
                             }
 
-                            return Ok(WorkerResult::ChangedContext(req));
+                            return WorkerResult::ChangedContext(req);
                         }
                     },
 
@@ -482,7 +476,8 @@ impl Worker for MainWorker {
                             APIs => {
                                 let api_resources = shared_api_resources.read().await;
 
-                                tx.send(YamlResponse::APIs(Ok(api_resources.to_vec())).into())?
+                                tx.send(YamlResponse::APIs(Ok(api_resources.to_vec())).into())
+                                    .expect("Failed to send YamlResponse::Apis");
                             }
                             Resource(req) => {
                                 let api_resources = shared_api_resources.read().await;
@@ -497,7 +492,8 @@ impl Worker for MainWorker {
                                 .fetch()
                                 .await;
 
-                                tx.send(YamlResponse::Resource(fetched_data).into())?
+                                tx.send(YamlResponse::Resource(fetched_data).into())
+                                    .expect("Failed to send YamlResponse::Resource");
                             }
                             Yaml {
                                 kind,
@@ -553,7 +549,7 @@ impl Worker for MainWorker {
             }
         }
 
-        Ok(WorkerResult::Terminated)
+        WorkerResult::Terminated
     }
 }
 
@@ -775,35 +771,32 @@ mod inner {
                     handlers = vec;
 
                     match ret {
-                        Ok(h) => match h {
-                            Ok(result) => match result {
-                                WorkerResult::ChangedContext(ctx) => {
-                                    abort(&handlers);
+                        Ok(handler) => match handler {
+                            WorkerResult::ChangedContext(ctx) => {
+                                abort(&handlers);
 
-                                    let target_namespaces = shared_target_namespaces.read().await;
-                                    let target_api_resources =
-                                        shared_target_api_resources.read().await;
+                                let target_namespaces = shared_target_namespaces.read().await;
+                                let target_api_resources = shared_target_api_resources.read().await;
 
-                                    store.insert(
-                                        context.to_string(),
-                                        KubeState::new(
-                                            client.clone(),
-                                            target_namespaces.to_vec(),
-                                            target_api_resources.to_vec(),
-                                        ),
-                                    );
+                                store.insert(
+                                    context.to_string(),
+                                    KubeState::new(
+                                        client.clone(),
+                                        target_namespaces.to_vec(),
+                                        target_api_resources.to_vec(),
+                                    ),
+                                );
 
-                                    context = ctx;
-                                }
-                                WorkerResult::Terminated => {}
-                            },
-                            Err(_) => {
-                                tx.send(Event::Error(Error::Raw("KubeProcess Error".to_string())))?
+                                context = ctx;
                             }
+                            WorkerResult::Terminated => {}
                         },
-                        Err(_) => {
+                        Err(e) => {
                             abort(&handlers);
-                            tx.send(Event::Error(Error::Raw("KubeProcess Error".to_string())))?;
+                            tx.send(Event::Error(Error::Raw(format!(
+                                "KubeProcess Error: {:?}",
+                                e
+                            ))))?;
                         }
                     }
                 }

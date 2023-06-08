@@ -70,7 +70,7 @@ impl<C> Worker for NetworkDescriptionWorker<C>
 where
     C: KubeClientRequest,
 {
-    type Output = Result<()>;
+    type Output = ();
 
     async fn run(&self) -> Self::Output {
         let ret = match &self.req {
@@ -90,9 +90,10 @@ where
         };
 
         if let Err(e) = ret {
-            self.tx.send(NetworkResponse::Yaml(Err(e)).into())?;
+            self.tx
+                .send(NetworkResponse::Yaml(Err(e)).into())
+                .expect("Failed to send NetworkResponse::Yaml");
         }
-        Ok(())
     }
 }
 
@@ -118,7 +119,9 @@ where
 
             let fetched_data = worker.fetch().await;
 
-            self.tx.send(NetworkResponse::Yaml(fetched_data).into())?;
+            self.tx
+                .send(NetworkResponse::Yaml(fetched_data).into())
+                .expect("Failed to send NetworkResponse::Yaml");
         }
 
         Ok(())
@@ -213,7 +216,7 @@ mod tests {
 
             is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
 
-            assert!(handle.await.unwrap().is_ok());
+            assert!(handle.await.is_ok());
         }
 
         #[tokio::test(flavor = "multi_thread")]
@@ -264,7 +267,7 @@ mod tests {
 
             is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
 
-            let ret = handle.await.unwrap();
+            let ret = handle.await;
 
             assert!(ret.is_ok())
         }
@@ -452,7 +455,7 @@ mod tests {
 
             drop(rx);
 
-            let ret = handle.await.unwrap();
+            let ret = handle.await;
 
             assert_eq!(ret.is_err(), true)
         }

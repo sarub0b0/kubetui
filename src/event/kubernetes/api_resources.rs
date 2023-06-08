@@ -218,7 +218,7 @@ impl ApiPollWorker {
 
 #[async_trait]
 impl Worker for ApiPollWorker {
-    type Output = Result<WorkerResult>;
+    type Output = WorkerResult;
 
     async fn run(&self) -> Self::Output {
         let Self {
@@ -233,15 +233,14 @@ impl Worker for ApiPollWorker {
             shared_api_resources,
         } = self;
 
-        {
-            match fetch_api_resources(kube_client).await {
-                Ok(fetched) => {
-                    let mut api_resources = shared_api_resources.write().await;
-                    *api_resources = fetched;
-                }
-                Err(err) => {
-                    tx.send(ApiResponse::Poll(Err(err)).into()).unwrap();
-                }
+        match fetch_api_resources(kube_client).await {
+            Ok(fetched) => {
+                let mut api_resources = shared_api_resources.write().await;
+                *api_resources = fetched;
+            }
+            Err(err) => {
+                tx.send(ApiResponse::Poll(Err(err)).into())
+                    .expect("Failed to send ApiResponse::Poll");
             }
         }
 
@@ -250,8 +249,11 @@ impl Worker for ApiPollWorker {
         let mut last_tick = Instant::now();
         let tick_rate = time::Duration::from_secs(10);
 
+        let mut is_error = false;
+
         while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
             interval.tick().await;
+
             if tick_rate < last_tick.elapsed() {
                 last_tick = Instant::now();
 
@@ -259,9 +261,18 @@ impl Worker for ApiPollWorker {
                     Ok(fetched) => {
                         let mut api_resources = shared_api_resources.write().await;
                         *api_resources = fetched;
+
+                        // Clear error
+                        if is_error {
+                            is_error = false;
+                            tx.send(ApiResponse::Poll(Ok(Default::default())).into())
+                                .expect("Failed to send ApiResponse::Poll");
+                        }
                     }
                     Err(err) => {
-                        tx.send(ApiResponse::Poll(Err(err)).into()).unwrap();
+                        tx.send(ApiResponse::Poll(Err(err)).into())
+                            .expect("Failed to send ApiResponse::Poll");
+                        is_error = true;
                         continue;
                     }
                 }
@@ -282,10 +293,11 @@ impl Worker for ApiPollWorker {
             .fetch_table()
             .await;
 
-            tx.send(ApiResponse::Poll(result).into()).unwrap();
+            tx.send(ApiResponse::Poll(result).into())
+                .expect("Failed to send ApiResponse::Poll");
         }
 
-        Ok(WorkerResult::Terminated)
+        WorkerResult::Terminated
     }
 }
 

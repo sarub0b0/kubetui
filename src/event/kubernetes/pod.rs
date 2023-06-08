@@ -50,7 +50,7 @@ impl PodPollWorker {
 
 #[async_trait]
 impl Worker for PodPollWorker {
-    type Output = Result<WorkerResult>;
+    type Output = WorkerResult;
 
     async fn run(&self) -> Self::Output {
         let mut interval = tokio::time::interval(time::Duration::from_secs(1));
@@ -71,9 +71,11 @@ impl Worker for PodPollWorker {
 
             let pod_info = get_pod_info(kube_client, &target_namespaces).await;
 
-            tx.send(Event::Kube(Kube::Pod(pod_info))).unwrap();
+            tx.send(Event::Kube(Kube::Pod(pod_info)))
+                .expect("Failed to Kube::Pod");
         }
-        Ok(WorkerResult::Terminated)
+
+        WorkerResult::Terminated
     }
 }
 

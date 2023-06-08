@@ -27,7 +27,7 @@ impl NetworkPollWorker {
 
 #[async_trait()]
 impl Worker for NetworkPollWorker {
-    type Output = Result<WorkerResult>;
+    type Output = WorkerResult;
 
     async fn run(&self) -> Self::Output {
         let mut interval = tokio::time::interval(time::Duration::from_secs(1));
@@ -40,10 +40,11 @@ impl Worker for NetworkPollWorker {
 
             let table = self.polling().await;
 
-            tx.send(NetworkResponse::List(table).into())?;
+            tx.send(NetworkResponse::List(table).into())
+                .expect("Failed to send NetworkResponse::List");
         }
 
-        Ok(WorkerResult::Terminated)
+        WorkerResult::Terminated
     }
 }
 
