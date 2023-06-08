@@ -81,7 +81,7 @@ macro_rules! error_lines {
 }
 
 pub fn window_action(window: &mut Window, rx: &Receiver<Event>) -> WindowEvent {
-    match rx.recv().unwrap() {
+    match rx.recv().expect("Failed to recv") {
         Event::User(ev) => match window.on_event(ev) {
             EventResult::Nop => {}
 
@@ -242,18 +242,30 @@ pub fn update_contents(
         }
 
         Kube::Namespace(NamespaceMessage::Response(res)) => match res {
-            NamespaceResponse::Get(res) => {
-                window
-                    .find_widget_mut(view_id::popup_ns)
-                    .update_widget_item(Item::Array(
-                        res.iter().cloned().map(LiteralItem::from).collect(),
-                    ));
-                window
-                    .find_widget_mut(view_id::popup_single_ns)
-                    .update_widget_item(Item::Array(
-                        res.iter().cloned().map(LiteralItem::from).collect(),
-                    ));
-            }
+            NamespaceResponse::Get(res) => match res {
+                Ok(namespaces) => {
+                    window
+                        .find_widget_mut(view_id::popup_ns)
+                        .update_widget_item(Item::Array(
+                            namespaces.iter().cloned().map(LiteralItem::from).collect(),
+                        ));
+                    window
+                        .find_widget_mut(view_id::popup_single_ns)
+                        .update_widget_item(Item::Array(
+                            namespaces.iter().cloned().map(LiteralItem::from).collect(),
+                        ));
+                }
+                Err(err) => {
+                    let err = error_lines!(err);
+                    window
+                        .find_widget_mut(view_id::popup_ns)
+                        .update_widget_item(Item::Array(err.to_vec()));
+
+                    window
+                        .find_widget_mut(view_id::popup_single_ns)
+                        .update_widget_item(Item::Array(err));
+                }
+            },
             NamespaceResponse::Set(res) => {
                 namespace.update(res);
             }

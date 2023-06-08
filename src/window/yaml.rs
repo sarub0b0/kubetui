@@ -53,7 +53,8 @@ impl<'a> YamlTabBuilder<'a> {
         let tx = self.tx.clone();
 
         let open_subwin = move |w: &mut Window| {
-            tx.send(YamlRequest::APIs.into()).unwrap();
+            tx.send(YamlRequest::APIs.into())
+                .expect("YamlRequest::APIs");
             w.open_popup(view_id::popup_yaml_kind);
             EventResult::Nop
         };
@@ -98,7 +99,8 @@ impl<'a> YamlTabBuilder<'a> {
 
                 let Ok(kind) = serde_json::from_str(key) else { unreachable!() };
 
-                tx.send(YamlRequest::Resource(kind).into()).unwrap();
+                tx.send(YamlRequest::Resource(kind).into())
+                    .expect("Failed to send YamlRequest::Resource");
 
                 w.open_popup(view_id::popup_yaml_name);
 
@@ -136,7 +138,7 @@ impl<'a> YamlTabBuilder<'a> {
                     }
                     .into(),
                 )
-                .unwrap();
+                .expect("Failed to send YamlRequest::Yaml");
 
                 EventResult::Nop
             })

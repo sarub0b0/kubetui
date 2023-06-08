@@ -107,10 +107,11 @@ impl<'a> ConfigTabBuilder<'a> {
                 match kind.as_str() {
                     "ConfigMap" => {
                         tx.send(ConfigRequest::ConfigMap(request_data).into())
-                            .unwrap();
+                            .expect("Failed to ConfigRequest::ConfigMap");
                     }
                     "Secret" => {
-                        tx.send(ConfigRequest::Secret(request_data).into()).unwrap();
+                        tx.send(ConfigRequest::Secret(request_data).into())
+                            .expect("Failed to send ConfigRequest::Secret");
                     }
                     _ => {}
                 }

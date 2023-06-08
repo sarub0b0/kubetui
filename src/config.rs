@@ -15,7 +15,7 @@ pub struct Config {
         long,
         value_name = "v|h",
         display_order = 1000,
-        value_parser = PossibleValuesParser::new(["v", "h", "vertical", "horizontal"]).map(|s| s.parse::<DirectionWrapper>().unwrap()),
+        value_parser = PossibleValuesParser::new(["v", "h", "vertical", "horizontal"]).map(|s| s.parse::<DirectionWrapper>().expect("invalid value")),
         )]
     pub split_mode: Option<DirectionWrapper>,
 

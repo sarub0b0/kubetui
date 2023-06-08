@@ -57,7 +57,8 @@ impl<'a> ContextPopupBuilder<'a> {
                     items = vec!["None".to_string()];
                 }
 
-                tx.send(NamespaceRequest::Set(items).into()).unwrap();
+                tx.send(NamespaceRequest::Set(items).into())
+                    .expect("Failed to send NamespaceRequest::Set");
 
                 w.widget_clear(view_id::tab_pod_widget_log);
                 w.widget_clear(view_id::tab_config_widget_raw_data);
@@ -79,7 +80,8 @@ impl<'a> ContextPopupBuilder<'a> {
             .on_select(move |w: &mut Window, v| {
                 let item = v.item.to_string();
 
-                tx.send(ContextRequest::Set(item).into()).unwrap();
+                tx.send(ContextRequest::Set(item).into())
+                    .expect("Failed to send ContextRequest::Set");
 
                 w.close_popup();
 
@@ -115,7 +117,8 @@ impl<'a> ContextPopupBuilder<'a> {
             .widget_config(&WidgetConfig::builder().title("Namespace").build())
             .on_select(move |w: &mut Window, v| {
                 let items = vec![v.item.to_string()];
-                tx.send(NamespaceRequest::Set(items).into()).unwrap();
+                tx.send(NamespaceRequest::Set(items).into())
+                    .expect("Failed to send NamespaceRequest::Set");
 
                 w.close_popup();
 

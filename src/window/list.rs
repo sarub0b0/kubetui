@@ -52,7 +52,8 @@ impl<'a> ListTabBuilder<'a> {
         let tx = self.tx.clone();
 
         let open_subwin = move |w: &mut Window| {
-            tx.send(ApiRequest::Get.into()).unwrap();
+            tx.send(ApiRequest::Get.into())
+                .expect("Failed to send ApiRequest::Get");
             w.open_popup(view_id::popup_list);
             EventResult::Nop
         };
@@ -104,7 +105,8 @@ impl<'a> ListTabBuilder<'a> {
                         })
                         .collect();
 
-                    tx.send(ApiRequest::Set(list).into()).unwrap();
+                    tx.send(ApiRequest::Set(list).into())
+                        .expect("Failed to send ApiRequest::Set");
                 }
 
                 if widget.selected_items().is_empty() {

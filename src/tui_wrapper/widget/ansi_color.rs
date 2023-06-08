@@ -122,17 +122,17 @@ pub fn generate_style_from_ansi_color(codes: Vec<u8>) -> Style {
         // ESC[ 48;2;⟨r⟩;⟨g⟩;⟨b⟩ m Select RGB background color
         style = match code {
             // foreground
-            38 => match iter.next().unwrap() {
+            38 => match iter.next().expect("invalid value") {
                 2 => {
                     let (r, g, b) = (
-                        iter.next().unwrap(),
-                        iter.next().unwrap(),
-                        iter.next().unwrap(),
+                        iter.next().expect("invalid value"),
+                        iter.next().expect("invalid value"),
+                        iter.next().expect("invalid value"),
                     );
                     style.fg(Color::Rgb(*r, *g, *b))
                 }
                 5 => {
-                    let n = iter.next().unwrap();
+                    let n = iter.next().expect("invalid value");
                     style.fg(Color::Indexed(*n))
                 }
                 _ => {
@@ -140,17 +140,17 @@ pub fn generate_style_from_ansi_color(codes: Vec<u8>) -> Style {
                 }
             },
             // background
-            48 => match iter.next().unwrap() {
+            48 => match iter.next().expect("invalid value") {
                 2 => {
                     let (r, g, b) = (
-                        iter.next().unwrap(),
-                        iter.next().unwrap(),
-                        iter.next().unwrap(),
+                        iter.next().expect("invalid value"),
+                        iter.next().expect("invalid value"),
+                        iter.next().expect("invalid value"),
                     );
                     style.bg(Color::Rgb(*r, *g, *b))
                 }
                 5 => {
-                    let n = iter.next().unwrap();
+                    let n = iter.next().expect("invalid value");
                     style.bg(Color::Indexed(*n))
                 }
                 _ => {

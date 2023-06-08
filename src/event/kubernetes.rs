@@ -150,6 +150,7 @@ pub enum Kube {
 
 pub mod namespace_message {
     use crate::event::Event;
+    use anyhow::Result;
 
     use super::{Kube, TargetNamespaces};
 
@@ -167,7 +168,7 @@ pub mod namespace_message {
 
     #[derive(Debug)]
     pub enum NamespaceResponse {
-        Get(TargetNamespaces),
+        Get(Result<TargetNamespaces>),
         Set(TargetNamespaces),
     }
 
@@ -236,12 +237,12 @@ pub enum WorkerResult {
     Terminated,
 }
 
-async fn fetch_all_namespaces(client: KubeClient) -> Vec<String> {
+async fn fetch_all_namespaces(client: KubeClient) -> Result<Vec<String>> {
     let namespaces: Api<Namespace> = Api::all(client.as_client().clone());
     let lp = ListParams::default();
-    let ns_list = namespaces.list(&lp).await.unwrap();
+    let ns_list = namespaces.list(&lp).await?;
 
-    ns_list.iter().map(|ns| ns.name_any()).collect()
+    Ok(ns_list.iter().map(|ns| ns.name_any()).collect())
 }
 
 #[derive(Debug, Default, Clone)]
@@ -673,7 +674,7 @@ mod inner {
             }
 
             if all_namespaces {
-                let target_namespaces = fetch_all_namespaces(state_client.clone()).await;
+                let target_namespaces = fetch_all_namespaces(state_client.clone()).await?;
 
                 *state_of_target_namespaces = target_namespaces;
             }

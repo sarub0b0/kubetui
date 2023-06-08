@@ -104,19 +104,20 @@ impl<'a> NetworkTabBuilder<'a> {
 
                 match kind.as_str() {
                     "Pod" => {
-                        tx.send(NetworkRequest::Pod(request_data).into()).unwrap();
+                        tx.send(NetworkRequest::Pod(request_data).into())
+                            .expect("Failed to send NetworkRequest::Pod");
                     }
                     "Service" => {
                         tx.send(NetworkRequest::Service(request_data).into())
-                            .unwrap();
+                            .expect("Failed to send NetworkRequest::Service");
                     }
                     "Ingress" => {
                         tx.send(NetworkRequest::Ingress(request_data).into())
-                            .unwrap();
+                            .expect("Failed to send NetworkRequest::Ingress");
                     }
                     "NetworkPolicy" => {
                         tx.send(NetworkRequest::NetworkPolicy(request_data).into())
-                            .unwrap();
+                            .expect("Failed to send NetworkRequest::NetworkPolicy");
                     }
                     _ => {}
                 }

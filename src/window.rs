@@ -67,7 +67,8 @@ impl WindowInit {
         let builder = builder.action(
             UserEvent::Key(KeyEvent::new(KeyCode::Char('N'), KeyModifiers::SHIFT)),
             move |w| {
-                tx.send(NamespaceRequest::Get.into()).unwrap();
+                tx.send(NamespaceRequest::Get.into())
+                    .expect("Failed to send NamespaceRequest::Get");
                 w.open_popup(view_id::popup_ns);
                 EventResult::Nop
             },
@@ -75,7 +76,8 @@ impl WindowInit {
 
         let tx = self.tx.clone();
         let builder = builder.action('n', move |w| {
-            tx.send(NamespaceRequest::Get.into()).unwrap();
+            tx.send(NamespaceRequest::Get.into())
+                .expect("Failed to send NamespaceRequest::Get");
             w.open_popup(view_id::popup_single_ns);
             EventResult::Nop
         });
@@ -91,7 +93,8 @@ impl WindowInit {
 
         let tx = self.tx.clone();
         let builder = builder.action('c', move |w| {
-            tx.send(ContextRequest::Get.into()).unwrap();
+            tx.send(ContextRequest::Get.into())
+                .expect("Failed to send ContextRequest::Get");
             w.open_popup(view_id::popup_ctx);
             EventResult::Nop
         });

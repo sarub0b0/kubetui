@@ -328,7 +328,7 @@ impl TextItem {
                 .enumerate()
                 .min_by_key(|(_, hl)| hl.line_number.abs_diff(scroll_index))
                 .map(|(i, _)| i)
-                .unwrap();
+                .unwrap_or(0);
 
             self.highlight_normal(index);
 

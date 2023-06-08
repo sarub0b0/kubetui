@@ -1,7 +1,7 @@
 use crossbeam::channel::Sender;
 use crossterm::event::KeyCode;
-use std::{cell::RefCell, rc::Rc};
 use ratatui::layout::{Constraint, Direction, Layout};
+use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     action::view_id,
@@ -101,7 +101,7 @@ impl<'a> PodTabBuilder<'a> {
                         name: name.to_string(),
                     }
                     .into(),)
-                    .unwrap();
+                    .expect("Failed to send LogStreamMessage::Request");
 
                 EventResult::Window(WindowEvent::Continue)
             })
