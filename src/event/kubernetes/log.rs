@@ -783,7 +783,7 @@ impl FetchLogStreamWorker {
         container_status(&mut msg, status);
 
         let event: Api<v1Event> = Api::namespaced(self.client.as_client().clone(), &self.ns);
-        let lp = ListParams::default().fields(selector);
+        let lp = ListParams::default().match_any().fields(selector);
 
         let event_result = event.list(&lp).await?;
 

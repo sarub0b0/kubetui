@@ -239,7 +239,7 @@ pub enum WorkerResult {
 
 async fn fetch_all_namespaces(client: KubeClient) -> Result<Vec<String>> {
     let namespaces: Api<Namespace> = Api::all(client.as_client().clone());
-    let lp = ListParams::default();
+    let lp = ListParams::default().match_any();
     let ns_list = namespaces.list(&lp).await?;
 
     Ok(ns_list.iter().map(|ns| ns.name_any()).collect())
