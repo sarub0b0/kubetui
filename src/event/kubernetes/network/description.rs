@@ -216,7 +216,7 @@ mod tests {
 
             is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
 
-            assert!(handle.await.unwrap().is_ok());
+            assert!(handle.await.is_ok());
         }
 
         #[tokio::test(flavor = "multi_thread")]
@@ -267,7 +267,7 @@ mod tests {
 
             is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
 
-            let ret = handle.await.unwrap();
+            let ret = handle.await;
 
             assert!(ret.is_ok())
         }
@@ -455,7 +455,7 @@ mod tests {
 
             drop(rx);
 
-            let ret = handle.await.unwrap();
+            let ret = handle.await;
 
             assert_eq!(ret.is_err(), true)
         }
