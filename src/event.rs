@@ -3,8 +3,6 @@ pub mod tick;
 
 pub mod kubernetes;
 
-mod util;
-
 use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
 
 use crate::error::Error;
