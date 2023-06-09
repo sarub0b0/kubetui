@@ -48,13 +48,13 @@ jobs:
           --target ${{ matrix.target }}
 
       - uses: actions/upload-artifact@v3
-        if: matrix.os == "windows-latest"
+        if: ${{ matrix.os }} == "windows-latest"
         with:
           name: ${{  matrix.target }}
           path: target/${{ matrix.target }}/release/kubetui.exe
 
       - uses: actions/upload-artifact@v3
-        if: matrix.os != "windows-latest"
+        if: ${{ matrix.os }} != "windows-latest"
         with:
-          name: ${{  matrix.target }}
+          name: ${{ matrix.target }}
           path: target/${{ matrix.target }}/release/kubetui
