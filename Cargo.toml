@@ -9,8 +9,8 @@ repository = "https://github.com/sarub0b0/kubetui"
 keywords = ["kubernetes", "tui", "terminal", "monitor"]
 
 [features]
-default = ["kube/openssl-tls"]
-rustls-tls = ["kube/rustls-tls"]
+default = ["kube/rustls-tls"]
+openssl-tls = ["kube/openssl-tls"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
