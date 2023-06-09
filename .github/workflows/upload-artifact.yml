@@ -1,0 +1,58 @@
+name: Upload Test Binary
+
+on:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            target: aarch64-apple-darwin
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install musl-tools
+        if: ${{ matrix.target }} == "x86_64-unknown-linux-musl"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build
+        run: >-
+          cargo build --release 
+          --no-default-features --features rustls-tls 
+          --target ${{ matrix.target }}
+
+      - uses: actions/upload-artifact@v3
+        if: matrix.os == "windows-latest"
+        with:
+          name: ${{  matrix.target }}
+          path: target/${{ matrix.target }}/release/kubetui.exe
+
+      - uses: actions/upload-artifact@v3
+        if: matrix.os != "windows-latest"
+        with:
+          name: ${{  matrix.target }}
+          path: target/${{ matrix.target }}/release/kubetui
