@@ -50,7 +50,7 @@ fn inner(tx: Sender<Event>, is_terminated: Arc<AtomicBool>) -> Result<()> {
                     }
                 }
                 CEvent::Mouse(ev) => tx.send(Event::User(UserEvent::Mouse(ev)))?,
-                CEvent::Resize(w, h) => tx.send(Event::User(UserEvent::Resize(w, h)))?,
+                CEvent::Resize(..) => {}
                 CEvent::FocusGained => tx.send(UserEvent::FocusGained.into())?,
                 CEvent::FocusLost => tx.send(UserEvent::FocusLost.into())?,
                 CEvent::Paste(_) => {}

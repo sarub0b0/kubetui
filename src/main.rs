@@ -31,7 +31,7 @@ use std::{
     thread, time,
 };
 
-use ratatui::{backend::CrosstermBackend, layout::Rect, Terminal, TerminalOptions, Viewport};
+use ratatui::{backend::CrosstermBackend, Terminal, TerminalOptions, Viewport};
 
 macro_rules! enable_raw_mode {
     () => {
@@ -99,7 +99,6 @@ fn run(config: Config) -> Result<()> {
         WindowInit::new(split_mode, tx_main, context.clone(), namespace.clone()).build();
 
     terminal.clear()?;
-    window.update_chunks(terminal.size()?);
 
     while !is_terminated.load(Ordering::Relaxed) {
         terminal.draw(|f| {
@@ -111,11 +110,6 @@ fn run(config: Config) -> Result<()> {
             WindowEvent::CloseWindow => {
                 is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
                 // break
-            }
-            WindowEvent::ResizeWindow(w, h) => {
-                let chunk = Rect::new(0, 0, w, h);
-                terminal.autoresize()?;
-                window.update_chunks(chunk);
             }
             WindowEvent::UpdateContents(ev) => {
                 update_contents(

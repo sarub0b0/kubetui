@@ -13,7 +13,6 @@ use self::kubernetes::Kube;
 pub enum UserEvent {
     Key(KeyEvent),
     Mouse(MouseEvent),
-    Resize(u16, u16),
     FocusGained,
     FocusLost,
 }
