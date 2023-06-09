@@ -45,6 +45,14 @@ impl<'a> Iterator for Wrap<'a> {
                 return None;
             }
 
+            if self.wrap_width.is_some_and(|w| w == 0) {
+                let ret = self.line;
+
+                self.line = &[];
+
+                return Some(ret);
+            }
+
             if let Some(wrap_width) = self.wrap_width {
                 let WrapResult { wrapped, remaining } = wrap(self.line, wrap_width);
 
