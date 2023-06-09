@@ -1,7 +1,9 @@
 name: Upload Test Binary
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - ci
 
 env:
   CARGO_TERM_COLOR: always
