@@ -34,7 +34,7 @@ pub enum AnsiEscapeSequence {
     NotSupported,
 }
 
-#[derive(Debug, PartialEq,Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Text<'a> {
     pub chars: &'a str,
     pub ty: AnsiEscapeSequence,
