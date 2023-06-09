@@ -100,7 +100,7 @@ fn color_3_4bit(style: Style, code: u8) -> Style {
 pub fn generate_style_from_ansi_color(codes: Vec<u8>) -> Style {
     let mut style = Style::default();
 
-    let mut iter = codes.iter();
+    let mut iter = codes.into_iter();
     while let Some(code) = iter.next() {
         //////////////////////////////
         // 8bit, 24bit
@@ -122,47 +122,49 @@ pub fn generate_style_from_ansi_color(codes: Vec<u8>) -> Style {
         // ESC[ 48;2;⟨r⟩;⟨g⟩;⟨b⟩ m Select RGB background color
         style = match code {
             // foreground
-            38 => match iter.next().expect("invalid value") {
-                2 => {
-                    let (r, g, b) = (
-                        iter.next().expect("invalid value"),
-                        iter.next().expect("invalid value"),
-                        iter.next().expect("invalid value"),
-                    );
-                    style.fg(Color::Rgb(*r, *g, *b))
-                }
-                5 => {
-                    let n = iter.next().expect("invalid value");
-                    style.fg(Color::Indexed(*n))
-                }
-                _ => {
-                    unreachable!()
-                }
+            38 => match iter.next() {
+                Some(n) => match n {
+                    2 => {
+                        let (r, g, b) = (
+                            iter.next().unwrap_or_default(),
+                            iter.next().unwrap_or_default(),
+                            iter.next().unwrap_or_default(),
+                        );
+                        style.fg(Color::Rgb(r, g, b))
+                    }
+                    5 => {
+                        let n = iter.next().unwrap_or_default();
+                        style.fg(Color::Indexed(n))
+                    }
+                    _ => style,
+                },
+                None => style,
             },
             // background
-            48 => match iter.next().expect("invalid value") {
-                2 => {
-                    let (r, g, b) = (
-                        iter.next().expect("invalid value"),
-                        iter.next().expect("invalid value"),
-                        iter.next().expect("invalid value"),
-                    );
-                    style.bg(Color::Rgb(*r, *g, *b))
-                }
-                5 => {
-                    let n = iter.next().expect("invalid value");
-                    style.bg(Color::Indexed(*n))
-                }
-                _ => {
-                    unreachable!()
-                }
+            48 => match iter.next() {
+                Some(n) => match n {
+                    2 => {
+                        let (r, g, b) = (
+                            iter.next().unwrap_or_default(),
+                            iter.next().unwrap_or_default(),
+                            iter.next().unwrap_or_default(),
+                        );
+                        style.bg(Color::Rgb(r, g, b))
+                    }
+                    5 => {
+                        let n = iter.next().unwrap_or_default();
+                        style.bg(Color::Indexed(n))
+                    }
+                    _ => style,
+                },
+                None => style,
             },
 
             //////////////////////////////
             // 3bit, 4bit
             //////////////////////////////
             0 => Style::reset(),
-            _ => color_3_4bit(style, *code),
+            _ => color_3_4bit(style, code),
         };
     }
     style
