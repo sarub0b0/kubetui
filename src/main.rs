@@ -99,9 +99,12 @@ fn run(config: Config) -> Result<()> {
         WindowInit::new(split_mode, tx_main, context.clone(), namespace.clone()).build();
 
     terminal.clear()?;
-    window.update_chunks(terminal.size()?);
 
     while !is_terminated.load(Ordering::Relaxed) {
+        terminal.draw(|f| {
+            window.render(f);
+        })?;
+
         match window_action(&mut window, &rx_main) {
             WindowEvent::Continue => {}
             WindowEvent::CloseWindow => {
@@ -117,10 +120,6 @@ fn run(config: Config) -> Result<()> {
                 );
             }
         }
-
-        terminal.draw(|f| {
-            window.render(f);
-        })?;
     }
 
     match read_key_handler.join() {
