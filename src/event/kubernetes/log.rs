@@ -380,7 +380,7 @@ impl WatchPodStatusWorker {
             .fields(&format!("metadata.name={}", self.pod_name))
             .timeout(180);
 
-        let mut watch = pod_api.watch(&lp, "0").await?.boxed();
+        let mut watch = pod_api.watch(&lp, "").await?.boxed();
 
         while let Some(status) = watch.try_next().await? {
             match status {
