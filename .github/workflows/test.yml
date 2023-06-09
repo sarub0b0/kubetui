@@ -24,10 +24,5 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install Packages
-        run: |
-          sudo apt-get update
-          sudo apt-get install libssl-dev libxcb-shape0-dev libxcb-xfixes0-dev xorg-dev
-
       - name: Run tests
         run: cargo test --all
