@@ -1,9 +1,9 @@
-name: Release
+name: Upload Test Binary
 
 on:
   push:
-    tags:
-      - "*"
+    branches:
+      - ci
 
 env:
   CARGO_TERM_COLOR: always
@@ -205,54 +205,3 @@ jobs:
         with:
           name: ${{ matrix.target }}-openssl
           path: target/${{ matrix.target }}/release/kubetui
-
-  release:
-    strategy:
-      matrix:
-        target:
-          - x86_64-unknown-linux-gnu
-          - x86_64-unknown-linux-musl
-          - x86_64-pc-windows-msvc
-          - x86_64-apple-darwin
-          - aarch64-apple-darwin
-        feature:
-          - openssl
-          - rustls
-        include:
-          - target: x86_64-unknown-linux-gnu
-            artifact_name: kubetui
-
-          - target: x86_64-unknown-linux-musl
-            artifact_name: kubetui
-
-          - target: x86_64-pc-windows-msvc
-            artifact_name: kubetui.exe
-            file_ext: .exe
-
-          - target: x86_64-apple-darwin
-            artifact_name: kubetui
-
-          - target: aarch64-apple-darwin
-            artifact_name: kubetui
-
-    runs-on: ubuntu-latest
-
-    needs:
-      - build-windows
-      - build-linux
-      - build-macos
-      - build
-
-    steps:
-      - name: Download binaries
-        uses: actions/download-artifact@v3
-        with:
-          name: ${{ matrix.target }}-${{ matrix.feature }}
-
-      - name: Upload binaries to release
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{ matrix.artifact_name }}
-          asset_name: kubetui-${{ matrix.target }}-${{ matrix.feature }}${{ matrix.file_ext }}
-          tag: ${{ github.ref }}
