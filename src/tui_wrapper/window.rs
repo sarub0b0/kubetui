@@ -39,6 +39,7 @@ pub struct Window<'a> {
     open_popup_id: Option<String>,
     header: Option<Header<'a>>,
     layout_index: WindowLayoutIndex,
+    last_known_size: Rect,
 }
 
 #[derive(Default)]
@@ -360,6 +361,14 @@ impl<'a> Window<'a> {
 // Render
 impl<'a> Window<'a> {
     pub fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
+        let size = f.size();
+
+        if self.last_known_size != size {
+            self.update_chunks(size);
+
+            self.last_known_size = size;
+        }
+
         self.render_tab(f);
 
         self.render_header(f);
@@ -407,7 +416,6 @@ pub enum WindowEvent {
     CloseWindow,
     Continue,
     UpdateContents(Kube),
-    ResizeWindow(u16, u16),
 }
 
 // Event
@@ -416,7 +424,6 @@ impl Window<'_> {
         match ev {
             UserEvent::Key(ev) => self.on_key_event(ev),
             UserEvent::Mouse(ev) => self.on_mouse_event(ev),
-            UserEvent::Resize(w, h) => EventResult::Window(WindowEvent::ResizeWindow(w, h)),
             UserEvent::FocusLost => {
                 self.focusable_tab_index = None;
                 EventResult::Nop
