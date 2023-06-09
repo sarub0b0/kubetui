@@ -862,15 +862,15 @@ impl Worker for FetchLogStream {
             let mut buf = self.buf.write().await;
 
             for line in lines {
-                if let Some(remaning) = line_buffer.take() {
-                    buf.push(format!("{}{}{}", prefix, remaning, line));
+                if let Some(remaining) = line_buffer.take() {
+                    buf.push(format!("{}{}{}", prefix, remaining, line));
 
                     logger!(
                         debug,
                         "Container log stream [{}:{}] - remaining: {}",
                         self.pod_name,
                         self.container_name,
-                        remaning,
+                        remaining,
                     );
                     logger!(
                         debug,
@@ -892,8 +892,8 @@ impl Worker for FetchLogStream {
                 }
             }
 
-            if let Some(remaning) = remaining {
-                line_buffer = Some(remaning);
+            if let Some(remaining) = remaining {
+                line_buffer = Some(remaining);
             }
         }
 

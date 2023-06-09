@@ -16,14 +16,11 @@ use super::Event;
 use std::{
     collections::BTreeMap,
     path::PathBuf,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
+    sync::{atomic::AtomicBool, Arc},
     time::Duration,
 };
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use async_trait::async_trait;
 use crossbeam::channel::{Receiver, Sender};
 use k8s_openapi::api::core::v1::Namespace;
@@ -292,17 +289,9 @@ impl KubeWorker {
         let ret: Result<()> = match Runtime::new() {
             Ok(rt) => match rt.block_on(Self::inner(self.clone())) {
                 Ok(_) => Ok(()),
-                Err(e) => {
-                    self.is_terminated.store(true, Ordering::Relaxed);
-
-                    bail!("{}", e)
-                }
+                Err(e) => Err(e),
             },
-            Err(e) => {
-                self.is_terminated
-                    .store(true, std::sync::atomic::Ordering::Relaxed);
-                bail!("failed to create runtime: {}", e)
-            }
+            Err(e) => Err(e.into()),
         };
 
         logger!(info, "Terminated tick event");
@@ -310,7 +299,8 @@ impl KubeWorker {
         if let Err(e) = ret {
             self.is_terminated
                 .store(true, std::sync::atomic::Ordering::Relaxed);
-            bail!("{:?}", e)
+
+            Err(e)
         } else {
             Ok(())
         }
@@ -439,9 +429,9 @@ impl Worker for MainWorker {
                                     .expect("Failed to send ApiResponse::Get");
                             }
                             Set(req) => {
-                                let mut taret_api_resources =
+                                let mut target_api_resources =
                                     shared_target_api_resources.write().await;
-                                *taret_api_resources = req.clone();
+                                *target_api_resources = req.clone();
                             }
                         }
                     }

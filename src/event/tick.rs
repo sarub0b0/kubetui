@@ -20,25 +20,27 @@ pub fn tick(tx: Sender<Event>, rate: time::Duration, is_terminated: Arc<AtomicBo
         is_terminated_panic.store(true, std::sync::atomic::Ordering::Relaxed);
     });
 
-    let rt = Runtime::new()?;
-
-    let is_terminated_rt = is_terminated.clone();
-
-    let ret: Result<()> = rt.block_on(async move {
-        let mut interval = time::interval(rate);
-
-        while !is_terminated_rt.load(Ordering::Relaxed) {
-            interval.tick().await;
-
-            tx.send(Event::Tick)?;
-        }
-
-        Ok(())
-    });
+    let ret = inner(tx, rate, is_terminated.clone());
 
     is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
 
     logger!(info, "Terminated tick event");
 
     ret
+}
+
+fn inner(tx: Sender<Event>, rate: time::Duration, is_terminated: Arc<AtomicBool>) -> Result<()> {
+    let rt = Runtime::new()?;
+
+    rt.block_on(async move {
+        let mut interval = time::interval(rate);
+
+        while !is_terminated.load(Ordering::Relaxed) {
+            interval.tick().await;
+
+            tx.send(Event::Tick)?;
+        }
+
+        Ok(())
+    })
 }
