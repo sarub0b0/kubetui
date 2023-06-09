@@ -1068,7 +1068,6 @@ dependencies = [
  "futures",
  "fuzzy-matcher",
  "http",
- "hyper",
  "indoc",
  "k8s-openapi",
  "kube",
@@ -1089,7 +1088,6 @@ dependencies = [
  "tokio",
  "unicode-segmentation",
  "unicode-width",
- "wsl",
 ]
 
 [[package]]
@@ -2377,12 +2375,6 @@ name = "windows_x86_64_msvc"
 version = "0.48.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1a515f5799fe4961cb532f983ce2b23082366b898e52ffbce459c86f67c8378a"
-
-[[package]]
-name = "wsl"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8dab7ac864710bdea6594becbea5b5050333cf34fefb0dc319567eb347950d4"
 
 [[package]]
 name = "x11rb"
