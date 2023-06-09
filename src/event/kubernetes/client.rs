@@ -55,7 +55,7 @@ impl KubeClient {
     {
         let request = Request::new(&self.server_url);
 
-        let mut request = request.get(remove_slash(path), &GetParams::any())?;
+        let mut request = request.get(remove_slash(path), &GetParams::default())?;
 
         request
             .headers_mut()
@@ -90,7 +90,7 @@ impl KubeClientRequest for KubeClient {
     async fn request_text(&self, path: &str) -> Result<String> {
         let request = Request::new(&self.server_url);
 
-        let mut request = request.get(remove_slash(path), &GetParams::any())?;
+        let mut request = request.get(remove_slash(path), &GetParams::default())?;
 
         request
             .headers_mut()
