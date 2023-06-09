@@ -24,5 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - uses: dtolnay/rust-toolchain@stable
+
       - name: Run tests
         run: cargo test --all
