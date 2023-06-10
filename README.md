@@ -3,31 +3,61 @@
 [![Release](https://img.shields.io/github/v/release/sarub0b0/kubetui)]()
 [![Test](https://github.com/sarub0b0/kubetui/actions/workflows/test.yml/badge.svg)](https://github.com/sarub0b0/kubetui/actions/workflows/test.yml)
 
-This is a TUI tool for monitoring kubernetes resources.
+Kubetui is a terminal user interface (TUI) tool designed for monitoring Kubernetes resources.  
+It provides an easy-to-use interface for developers and operators to access important information about their applications and infrastructure.
 
-![](screenshots/pods-log.png)
+<img src="assets/demo.gif" alt="demo" width="90%" />
+
+<details>
+<summary>Table of Contents</summary>
+
+- [Installation](#installation)
+- [Features](#features)
+- [Usage](#usage)
+- [Key Bindings](#key-bindings)
+  - [General](#general)
+  - [Key Map](#key-map)
+  - [View Control](#view-control)
+  - [Text View](#text-view)
+  - [Search Mode](#search-mode)
+  - [Table View](#table-view)
+  - [Popup](#popup)
+  - [Input Form](#input-form)
+- [Contributing](#contributing)
+- [License](#license)
+
+</details>
 
 ## Installation
 
-Please download a binary from [github release](https://github.com/sarub0b0/kubetui/releases).
+To install kubetui, download the binary from the [github release page](https://github.com/sarub0b0/kubetui/releases).
 
 ## Features
 
-- Pods list and container logs watching
-- ConfigMap and secret watching, and data decoding
-- Network related resources list and description
-- Events watching
-- Specific resources watching (Table / Yaml)
-- Namespace multiple selections
-- Context selection
-- Support clipboard (only mouse action)
-- Support mouse event
-- Search word
-- Filter items (multiple words with space delimited)
+Kubetui offers the following features to help you monitor and manage your Kubernetes resources:
 
-## Command Option
+- **Pods List and Container Logs**: Easily view a list of pods and their container logs.
+- **ConfigMap and Secret Watching**: Monitor ConfigMaps and secrets, and decode their data.
+- **Network-related Resources**: Explore a list of network-related resources and their descriptions.
+- **Events Watching**: Stay updated with a real-time view of Kubernetes events.
+- **Specific Resources Watching (List / YAML)**: View specific resources in list or YAML format.
+- **Namespace Multiple Selections**: Select and view multiple namespaces simultaneously.
+- **Context Selection**: Change the Kubernetes context you want to operate on.
+- **Clipboard Support (Text Copy)**: Copy text conveniently using mouse actions.
+- **Mouse Event Support**: Leverage mouse events for a smoother user experience.
+- **Search Functionality**: Easily search for specific keywords within the interface.
+- **Item Filtering**: Filter items based on multiple keywords separated by spaces.
+
+Overall, kubetui is a powerful tool designed to provide a safe and efficient way to access and monitor your Kubernetes resources. With its user-friendly interface and comprehensive features, it simplifies the process of managing your applications and infrastructure.
+
+## Usage
 
 ```sh
+kubetui
+```
+
+```sh
+$ kubetui -h
 kubernetes terminal user interface
 
 Usage: kubetui [OPTIONS]
@@ -47,73 +77,20 @@ Options:
 
 ### General
 
-| Key                                  | Description                                                                    |
-| ------------------------------------ | ------------------------------------------------------------------------------ |
-| <kbd>h</kbd>, <kbd>?</kbd>           | Open the popup for help                                                        |
-| <kbd>Enter</kbd>                     | Select item, and trigger event                                                 |
-| <kbd>n</kbd>                         | Open the popup for selecting the namespace                                     |
-| <kbd>N</kbd>                         | Open the popup for selecting the namespaces                                    |
-| <kbd>c</kbd>                         | Open the popup for selecting the context                                       |
-| <kbd>Shift+n</kbd>                   | Open the popup for selecting multiple namespaces                               |
-| <kbd>Tab</kbd>, <kbd>Shift+Tab</kbd> | Change the focus of view within the active tab                                 |
-| <kbd>number</kbd>                    | Switch the tab (number: 1~6)                                                   |
-| <kbd>ESC</kbd>                       | Close the window, or terminate the app (when the popup is not opening)         |
-| <kbd>q</kbd>                         | Terminate the app                                                              |
-| <kbd>f</kbd>                         | Open the popup for selecting multiple api-resources (**only APIs / Yaml tab**) |
+| Key                                  | Description                                                        |
+| ------------------------------------ | ------------------------------------------------------------------ |
+| <kbd>h</kbd>, <kbd>?</kbd>           | Open the popup for help                                            |
+| <kbd>Enter</kbd>                     | Select an item and trigger an event                                |
+| <kbd>n</kbd>                         | Open the popup for selecting the namespace                         |
+| <kbd>N</kbd>                         | Open the popup for selecting multiple namespaces                   |
+| <kbd>c</kbd>                         | Open the popup for selecting the context                           |
+| <kbd>Tab</kbd>, <kbd>Shift+Tab</kbd> | Change the focus of the view within the active tab                 |
+| <kbd>number</kbd>                    | Switch to the tab (number: 1~6)                                    |
+| <kbd>ESC</kbd>                       | Close the window or terminate the app (when the popup is not open) |
+| <kbd>q</kbd>                         | Terminate the app                                                  |
+| <kbd>f</kbd>                         | Open the popup for selecting multiple API resources                |
 
-### View control
-
-| Key                                                                                                  | Description                                        |
-| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| <kbd>j</kbd>, <kbd>k</kbd>,<br> <kbd>Down</kbd>, <kbd>Up</kbd>,<br> <kbd>PgDn</kbd>, <kbd>PgUp</kbd> | Change the item to select / Scroll the view        |
-| <kbd>Left</kbd>, <kbd>Right</kbd>                                                                    | Scroll horizontally on the view                    |
-| <kbd>g</kbd>                                                                                         | Go to the first item / Go to the top of the view   |
-| <kbd>G</kbd>                                                                                         | Go to the last item / Go to the bottom of the view |
-
-### View specific
-
-#### Text view
-
-| Key                          | Description                                                              |
-| ---------------------------- | ------------------------------------------------------------------------ |
-| <kbd>/</kbd>                 | Activate search mode, open search form                                   |
-| <kbd>Enter</kbd>             | Confirm input                                                            |
-| <kbd>q</kbd>, <kbd>Esc</kbd> | Disable search mode, close search form (**when search mode is enabled**) |
-
-**Search mode**
-
-| Key                          | Description                |
-| ---------------------------- | -------------------------- |
-| <kbd>n</kbd>, <kbd>N</kbd>   | Goto next / previous match |
-| <kbd>q</kbd>, <kbd>Esc</kbd> | Disable search mode        |
-
-#### Table view
-
-| Key                              | Description       |
-| -------------------------------- | ----------------- |
-| <kbd>/</kbd>                     | Open filter form  |
-| <kbd>Enter</kbd>, <kbd>ESC</kbd> | Close filter form |
-
-#### Popup
-
-| Key                                                                  | Description                                                            |
-| -------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| <kbd>Down</kbd>, <kbd>Up</kbd>,<br> <kbd>PgDn</kbd>, <kbd>PgUp</kbd> | Change the item to select / Scroll the view                            |
-| <kbd>Tab</kbd>, <kbd>Shift+Tab</kbd>                                 | Change the focus of view within the active tab                         |
-| <kbd>Enter</kbd>                                                     | Select item, and trigger event                                         |
-| <kbd>ESC</kbd>                                                       | Close the window, or terminate the app (when the popup is not opening) |
-
-#### Input form
-
-| Key                               | Description                                           |
-| --------------------------------- | ----------------------------------------------------- |
-| <kbd>Home</kbd>                   | Move the cursor to the start                          |
-| <kbd>End</kbd>                    | Move the cursor to the end                            |
-| <kbd>Ctrl+w</kbd>                 | Delete the text from the cursor position to the start |
-| <kbd>Ctrl+k</kbd>                 | Delete the text from the cursor position to the end   |
-| <kbd>Left</kbd>, <kbd>Right</kbd> | Move the cursor to a (back, forward) character        |
-
-## Key map
+### Key Map
 
 | Source                                  | Destination       |
 | --------------------------------------- | ----------------- |
@@ -128,6 +105,56 @@ Options:
 | <kbd>Ctrl+e</kbd>                       | <kbd>End</kbd>    |
 | <kbd>Ctrl+[</kbd>                       | <kbd>Esc</kbd>    |
 
+### View Control
+
+| Key                                                                                          | Description                                        |
+| -------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| <kbd>j</kbd>, <kbd>k</kbd>, <kbd>Down</kbd>, <kbd>Up</kbd>, <kbd>PgDn</kbd>, <kbd>PgUp</kbd> | Change the selected item / Scroll the view         |
+| <kbd>Left</kbd>, <kbd>Right</kbd>                                                            | Scroll horizontally in the view                    |
+| <kbd>g</kbd>                                                                                 | Go to the first item / Go to the top of the view   |
+| <kbd>G</kbd>                                                                                 | Go to the last item / Go to the bottom of the view |
+
+### Text View
+
+| Key                          | Description                                                                    |
+| ---------------------------- | ------------------------------------------------------------------------------ |
+| <kbd>/</kbd>                 | Activate search mode and open the search form                                  |
+| <kbd>Enter</kbd>             | Confirm the input                                                              |
+| <kbd>q</kbd>, <kbd>Esc</kbd> | Disable search mode and close the search form (**when search mode is active**) |
+
+### Search Mode
+
+| Key                          | Description                     |
+| ---------------------------- | ------------------------------- |
+| <kbd>n</kbd>, <kbd>N</kbd>   | Go to the next / previous match |
+| <kbd>q</kbd>, <kbd>Esc</kbd> | Disable search mode             |
+
+### Table View
+
+| Key                              | Description           |
+| -------------------------------- | --------------------- |
+| <kbd>/</kbd>                     | Open the filter form  |
+| <kbd>Enter</kbd>, <kbd>ESC</kbd> | Close the filter form |
+
+### Popup
+
+| Key                                                              | Description                                                        |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------ |
+| <kbd>Down</kbd>, <kbd>Up</kbd>, <kbd>PgDn</kbd>, <kbd>PgUp</kbd> | Change the selected item / Scroll the view                         |
+| <kbd>Tab</kbd>, <kbd>Shift+Tab</kbd>                             | Change the focus of the view within the active tab                 |
+| <kbd>Enter</kbd>                                                 | Select an item and trigger an event                                |
+| <kbd>ESC</kbd>                                                   | Close the window or terminate the app (when the popup is not open) |
+
+### Input Form
+
+| Key                               | Description                                      |
+| --------------------------------- | ------------------------------------------------ |
+| <kbd>Home</kbd>                   | Move the cursor to the beginning                 |
+| <kbd>End</kbd>                    | Move the cursor to the end                       |
+| <kbd>Ctrl+w</kbd>                 | Delete text from the cursor to the beginning     |
+| <kbd>Ctrl+k</kbd>                 | Delete text from the cursor to the end           |
+| <kbd>Left</kbd>, <kbd>Right</kbd> | Move the cursor to the previous / next character |
+
 ## Contributing
 
 Bug reports and pull requests are welcome.
@@ -135,48 +162,3 @@ Bug reports and pull requests are welcome.
 ## License
 
 This software is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
-
-## Screenshots
-
-### Watch Resources
-
-1. pods list / container logs
-   ![](screenshots/pods-log.png)
-
-1. ConfigMap / Secret
-   ![](screenshots/configs.png)
-
-1. Network
-   ![](screenshots/network.png)
-
-1. Events
-   ![](screenshots/events.png)
-
-1. APIs
-   ![](screenshots/apis.png)
-
-1. Yaml
-   ![](screenshots/yaml.png)
-
-### Select Items
-
-1. Select namespace
-   ![](screenshots/select-namespace.png)
-
-1. Select namespaces (multiple)
-   ![](screenshots/select-multiple-namespaces.png)
-
-1. Select apis
-   ![](screenshots/select-apis.png)
-
-### Filter items
-
-![](screenshots/filter.png)
-
-### Search word
-
-![](screenshots/search.png)
-
-### Help
-
-![](screenshots/help.png)
