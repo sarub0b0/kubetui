@@ -7,7 +7,7 @@ license = "MIT"
 description = "An intuitive Terminal User Interface (TUI) tool for real-time monitoring and exploration of Kubernetes resources."
 repository = "https://github.com/sarub0b0/kubetui"
 keywords = ["kubernetes", "tui", "terminal", "monitor"]
-exclude = ["assets/*", "test/*", "Makefile", "shell.nix", "screenshots/*"]
+exclude = ["assets/*", "test/*", "Makefile", "shell.nix", "screenshots/*", ".taplo.toml"]
 
 [features]
 default = ["kube/rustls-tls"]
