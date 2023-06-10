@@ -30,7 +30,27 @@ It provides an easy-to-use interface for developers and operators to access impo
 
 ## Installation
 
-To install kubetui, download the binary from the [github release page](https://github.com/sarub0b0/kubetui/releases).
+To install Kubetui, you can use the following methods:
+
+1. **Using `cargo install`:** Kubetui is available on [crates.io](https://crates.io/crates/kubetui), the official Rust package registry. Install it by running the following command:
+
+   ```shell
+   # Install with rustls version
+   cargo install kubetui
+   ```
+
+   or
+
+   ```shell
+   # Install with openssl version
+   cargo install kubetui --no-default-features --features openssl-tls
+   ```
+
+   Make sure you have [Rust](https://www.rust-lang.org/tools/install) and [Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html) installed before running the command. If you choose the OpenSSL version, you will need to have the OpenSSL library installed as well.
+
+2. **Downloading the binary:** Alternatively, you can download the precompiled binary from the [GitHub Release page](https://github.com/sarub0b0/kubetui/releases) that matches your operating system. Once downloaded, you can run the binary directly without any additional installation steps.
+
+Choose the method that suits your needs and preferences.
 
 ## Features
 
