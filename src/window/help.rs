@@ -151,7 +151,7 @@ const RIGHT_HELP_TEXT: &[HelpBlock] = &[
         ],
     },
     HelpBlock {
-        title: "API / Yaml Tab",
+        title: "List / Yaml Tab",
         bindings: &[KeyBindings {
             keys: &["f"],
             desc: "open select popup",
@@ -190,6 +190,13 @@ const RIGHT_HELP_TEXT: &[HelpBlock] = &[
                 desc: "close filter form",
             },
         ],
+    },
+    HelpBlock {
+        title: "Log",
+        bindings: &[KeyBindings {
+            keys: &["Enter"],
+            desc: "insert blank line",
+        }],
     },
 ];
 
