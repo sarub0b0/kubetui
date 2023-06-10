@@ -6,8 +6,6 @@
 Kubetui is a terminal user interface (TUI) tool designed for monitoring Kubernetes resources.  
 It provides an easy-to-use interface for developers and operators to access important information about their applications and infrastructure.
 
-<img src="assets/demo.gif" alt="demo" width="90%" />
-
 <details>
 <summary>Table of Contents</summary>
 
@@ -27,6 +25,8 @@ It provides an easy-to-use interface for developers and operators to access impo
 - [License](#license)
 
 </details>
+
+<img src="assets/demo.gif" alt="demo" width="90%" />
 
 ## Installation
 
