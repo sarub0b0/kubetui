@@ -28,6 +28,13 @@ It provides an easy-to-use interface for developers and operators to access impo
 
 ![Demo](./assets/demo.gif)
 
+<details>
+<summary>Demo slow version</summary>
+
+![Demo slow version](./assets/demo-slow.gif)
+
+</details>
+
 ## Installation
 
 To install Kubetui, you can use the following methods:
