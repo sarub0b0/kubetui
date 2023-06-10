@@ -26,7 +26,7 @@ It provides an easy-to-use interface for developers and operators to access impo
 
 </details>
 
-<img src="assets/demo.gif" alt="demo" width="90%" />
+![Demo](./assets/demo.gif)
 
 ## Installation
 
