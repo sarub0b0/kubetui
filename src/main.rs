@@ -16,7 +16,7 @@ use kubetui::{
     event::{input::read_key, kubernetes::KubeWorker, tick::tick, Event},
     logging::Logger,
     signal::signal_handler,
-    tui_wrapper::WindowEvent,
+    ui::WindowEvent,
     window::WindowInit,
 };
 

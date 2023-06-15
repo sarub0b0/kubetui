@@ -1,5 +1,5 @@
 use super::wrap::WrapTrait;
-use crate::tui_wrapper::widget::{
+use crate::ui::widget::{
     styled_graphemes::{StyledGrapheme, StyledGraphemes},
     LiteralItem,
 };
@@ -981,7 +981,7 @@ mod tests {
 mod search {
     use std::ops::Range;
 
-    use crate::tui_wrapper::widget::styled_graphemes::StyledGrapheme;
+    use crate::ui::widget::styled_graphemes::StyledGrapheme;
 
     pub trait Search {
         fn search(&self, word: &[&str]) -> Option<Vec<Range<usize>>>;
@@ -1041,7 +1041,7 @@ mod search {
 
     #[cfg(test)]
     mod tests {
-        use crate::tui_wrapper::widget::styled_graphemes::StyledGraphemes;
+        use crate::ui::widget::styled_graphemes::StyledGraphemes;
 
         use super::*;
 

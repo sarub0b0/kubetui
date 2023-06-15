@@ -4,7 +4,7 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::{
     ansi::{AnsiEscapeSequence, TextParser},
-    tui_wrapper::widget::ansi_color::Sgr,
+    ui::widget::ansi_color::Sgr,
 };
 
 #[derive(Debug, Clone, PartialEq)]

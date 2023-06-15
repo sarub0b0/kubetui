@@ -7,7 +7,7 @@ use std::ops::Deref;
 
 use crate::{
     logger,
-    tui_wrapper::widget::{
+    ui::widget::{
         spans::generate_spans_lines, styled_graphemes::StyledGraphemes, wrap::wrap_line, TableItem,
     },
 };

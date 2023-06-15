@@ -6,7 +6,7 @@ use crate::{
     clipboard_wrapper::Clipboard,
     event::{kubernetes::yaml::YamlRequest, Event},
     logger,
-    tui_wrapper::{
+    ui::{
         event::EventResult,
         tab::WidgetChunk,
         widget::Widget,

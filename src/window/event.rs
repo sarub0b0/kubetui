@@ -4,7 +4,7 @@ use crate::clipboard_wrapper::Clipboard;
 
 use crate::action::view_id;
 
-use crate::tui_wrapper::{
+use crate::ui::{
     tab::WidgetChunk,
     widget::{config::WidgetConfig, Text, WidgetTrait},
     Tab,

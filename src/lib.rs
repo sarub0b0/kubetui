@@ -7,5 +7,5 @@ pub mod error;
 pub mod event;
 pub mod logging;
 pub mod signal;
-pub mod tui_wrapper;
+pub mod ui;
 pub mod window;

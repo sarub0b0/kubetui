@@ -6,7 +6,7 @@ use crate::{
         kubernetes::{context_message::ContextRequest, namespace_message::NamespaceRequest},
         Event,
     },
-    tui_wrapper::{
+    ui::{
         event::EventResult,
         widget::{config::WidgetConfig, MultipleSelect, SingleSelect, Widget},
         Window,

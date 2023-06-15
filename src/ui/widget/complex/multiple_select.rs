@@ -1,6 +1,6 @@
 use super::input::InputForm;
 
-use crate::tui_wrapper::{
+use crate::ui::{
     event::EventResult,
     util::{key_event_to_code, MousePosition, RectContainsPoint},
     widget::*,
@@ -29,7 +29,7 @@ use unicode_width::UnicodeWidthStr;
 mod inner {
     use std::collections::BTreeMap;
 
-    use crate::tui_wrapper::widget::LiteralItem;
+    use crate::ui::widget::LiteralItem;
 
     #[derive(Debug, Default)]
     pub struct SelectItems {

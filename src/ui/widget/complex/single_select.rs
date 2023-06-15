@@ -17,7 +17,7 @@ use super::input::InputForm;
 
 use crate::{
     event::UserEvent,
-    tui_wrapper::{
+    ui::{
         event::{EventResult, InnerCallback},
         util::RectContainsPoint,
         widget::*,

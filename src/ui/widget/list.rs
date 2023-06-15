@@ -14,14 +14,14 @@ use derivative::*;
 
 use super::{config::WidgetConfig, Item, LiteralItem, RenderTrait, SelectedItem, WidgetTrait};
 
-use crate::tui_wrapper::{
+use crate::ui::{
     event::{Callback, EventResult},
     key_event_to_code, Window,
 };
 
 mod inner_item {
 
-    use crate::tui_wrapper::widget::{spans::generate_spans_line, LiteralItem};
+    use crate::ui::widget::{spans::generate_spans_line, LiteralItem};
 
     use super::Item;
     use ratatui::widgets::ListItem;

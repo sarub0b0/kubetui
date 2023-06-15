@@ -8,7 +8,7 @@ use crate::{
         kubernetes::config::{ConfigRequest, RequestData},
         Event,
     },
-    tui_wrapper::{
+    ui::{
         event::EventResult,
         tab::WidgetChunk,
         widget::{config::WidgetConfig, Table, Text, WidgetTrait},

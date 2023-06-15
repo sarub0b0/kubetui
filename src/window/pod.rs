@@ -7,7 +7,7 @@ use crate::{
     action::view_id,
     clipboard_wrapper::Clipboard,
     event::{kubernetes::log::LogStreamMessage, Event, UserEvent},
-    tui_wrapper::{
+    ui::{
         event::EventResult,
         tab::WidgetChunk,
         widget::{config::WidgetConfig, Item, Table, Text, WidgetTrait},

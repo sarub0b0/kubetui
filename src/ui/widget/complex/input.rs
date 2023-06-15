@@ -1,4 +1,4 @@
-use crate::tui_wrapper::{event::EventResult, key_event_to_code, widget::*};
+use crate::ui::{event::EventResult, key_event_to_code, widget::*};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
 

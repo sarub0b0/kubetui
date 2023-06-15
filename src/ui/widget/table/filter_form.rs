@@ -6,7 +6,7 @@ use ratatui::{
     Frame,
 };
 
-use crate::tui_wrapper::{
+use crate::ui::{
     event::EventResult,
     widget::{config::WidgetConfig, InputForm},
 };

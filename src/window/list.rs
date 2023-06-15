@@ -7,7 +7,7 @@ use crate::{
     clipboard_wrapper::Clipboard,
     event::kubernetes::api_resources::ApiRequest,
     event::Event,
-    tui_wrapper::{
+    ui::{
         event::EventResult,
         tab::WidgetChunk,
         widget::{config::WidgetConfig, MultipleSelect, SelectedItem, Text, Widget, WidgetTrait},

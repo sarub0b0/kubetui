@@ -18,7 +18,7 @@ use item::InnerItem;
 
 use crate::{
     logger,
-    tui_wrapper::{
+    ui::{
         event::{Callback, EventResult},
         key_event_to_code, Window,
     },

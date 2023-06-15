@@ -1,6 +1,6 @@
 use unicode_width::UnicodeWidthStr;
 
-use crate::tui_wrapper::widget::styled_graphemes::StyledGrapheme;
+use crate::ui::widget::styled_graphemes::StyledGrapheme;
 
 #[derive(Debug)]
 pub struct Wrap<'a> {
@@ -104,7 +104,7 @@ fn wrap(line: &[StyledGrapheme], wrap_width: usize) -> WrapResult {
 mod tests {
     use pretty_assertions::assert_eq;
 
-    use crate::tui_wrapper::widget::styled_graphemes::StyledGraphemes;
+    use crate::ui::widget::styled_graphemes::StyledGraphemes;
 
     use super::*;
 

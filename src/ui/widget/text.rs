@@ -20,7 +20,7 @@ use crate::{
     clipboard_wrapper::Clipboard,
     event::UserEvent,
     logger,
-    tui_wrapper::{
+    ui::{
         event::{Callback, EventResult, InnerCallback},
         key_event_to_code, Window,
     },
