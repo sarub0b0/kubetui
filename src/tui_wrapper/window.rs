@@ -31,7 +31,7 @@ type HeaderCallback = Rc<dyn Fn() -> Paragraph<'static>>;
 pub struct Window<'a> {
     tabs: Vec<Tab<'a>>,
     active_tab_index: usize,
-    focusable_tab_index: Option<usize>,
+    mouse_over_tab_index: Option<usize>,
     layout: Layout,
     chunk: Rect,
     callbacks: Vec<(UserEvent, InnerCallback)>,
@@ -208,7 +208,7 @@ impl<'a> Window<'a> {
             .enumerate()
             .map(|(tab_index, tab)| {
                 if self
-                    .focusable_tab_index
+                    .mouse_over_tab_index
                     .is_some_and(|index| index == tab_index && index != self.active_tab_index)
                 {
                     Line::from(Span::styled(
@@ -425,11 +425,11 @@ impl Window<'_> {
             UserEvent::Key(ev) => self.on_key_event(ev),
             UserEvent::Mouse(ev) => self.on_mouse_event(ev),
             UserEvent::FocusLost => {
-                self.focusable_tab_index = None;
+                self.mouse_over_tab_index = None;
                 EventResult::Nop
             }
             UserEvent::FocusGained => {
-                self.focusable_tab_index = None;
+                self.mouse_over_tab_index = None;
                 EventResult::Nop
             }
         }
@@ -498,7 +498,7 @@ impl Window<'_> {
                 EventResult::Nop
             }
             AreaKind::Widgets => {
-                self.focusable_tab_index = None;
+                self.mouse_over_tab_index = None;
 
                 if let Some(w) = self
                     .active_tab_mut()
@@ -518,7 +518,7 @@ impl Window<'_> {
                 }
             }
             AreaKind::OutSide => {
-                self.focusable_tab_index = None;
+                self.mouse_over_tab_index = None;
 
                 EventResult::Ignore
             }
@@ -556,7 +556,7 @@ impl Window<'_> {
                 }
                 MouseEventKind::Moved => {
                     if title_chunk.contains_point(pos) {
-                        self.focusable_tab_index = Some(i);
+                        self.mouse_over_tab_index = Some(i);
                         break;
                     }
                 }
