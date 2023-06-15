@@ -362,8 +362,8 @@ impl Text {
     /// - マッチ箇所がchunk内の場合次のマッチ箇所に移動
     /// - マッチ箇所がchunk外の場合近いマッチ箇所に移動する
     pub fn search_next(&mut self) {
-        if let Some(focus_line_number) = self.item.highlight_focus_line_number() {
-            let index = if self.within_chunk(focus_line_number) {
+        if let Some(selected_line_number) = self.item.highlight_selected_line_number() {
+            let index = if self.within_chunk(selected_line_number) {
                 self.item.select_next_highlight()
             } else {
                 self.item
@@ -380,8 +380,8 @@ impl Text {
     /// - マッチ箇所がchunk内の場合前のマッチ箇所に移動
     /// - マッチ箇所がchunk外の場合近いマッチ箇所に移動する
     pub fn search_prev(&mut self) {
-        if let Some(focus_line_number) = self.item.highlight_focus_line_number() {
-            let index = if self.within_chunk(focus_line_number) {
+        if let Some(selected_line_number) = self.item.highlight_selected_line_number() {
+            let index = if self.within_chunk(selected_line_number) {
                 self.item.select_prev_highlight()
             } else {
                 self.item

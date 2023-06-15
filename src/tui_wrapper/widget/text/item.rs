@@ -14,7 +14,7 @@ fn highlight_style() -> Style {
 }
 
 #[inline]
-fn focused_highlight_style() -> Style {
+fn selected_highlight_style() -> Style {
     Style::default()
         .fg(Color::Yellow)
         .add_modifier(Modifier::REVERSED)
@@ -46,7 +46,7 @@ struct Highlights {
     item: Vec<Highlight>,
 
     /// 選択しているインデックス
-    index: usize,
+    selected_index: usize,
 }
 
 #[derive(Debug, Default)]
@@ -91,7 +91,7 @@ impl TextItem {
         let mut new = Self::new(item, wrap_width);
 
         if let Some(highlights) = highlights {
-            let prev_line_number = highlights.item[highlights.index].line_number;
+            let prev_line_number = highlights.item[highlights.selected_index].line_number;
 
             new.highlight(&highlights.word);
 
@@ -268,7 +268,7 @@ impl TextItem {
             let highlights = Highlights {
                 word: word.to_string(),
                 item: highlight_words,
-                index: 0,
+                selected_index: 0,
             };
 
             self.highlights = Some(highlights);
@@ -308,9 +308,9 @@ impl TextItem {
 
             graphemes
                 .iter_mut()
-                .for_each(|gs| *gs.style_mut() = focused_highlight_style());
+                .for_each(|gs| *gs.style_mut() = selected_highlight_style());
 
-            highlights.index = index;
+            highlights.selected_index = index;
 
             Some(hl.line_number)
         } else {
@@ -320,7 +320,7 @@ impl TextItem {
 
     pub fn select_nearest_highlight(&mut self, scroll_index: usize) -> Option<usize> {
         if let Some(highlights) = &mut self.highlights {
-            let index = highlights.index;
+            let index = highlights.selected_index;
 
             let nearest_index = highlights
                 .item
@@ -340,7 +340,7 @@ impl TextItem {
 
     pub fn select_next_highlight(&mut self) -> Option<usize> {
         if let Some(highlights) = &mut self.highlights {
-            let index = highlights.index;
+            let index = highlights.selected_index;
 
             let item_len = highlights.item.len();
 
@@ -356,7 +356,7 @@ impl TextItem {
 
     pub fn select_prev_highlight(&mut self) -> Option<usize> {
         if let Some(highlights) = &mut self.highlights {
-            let index = highlights.index;
+            let index = highlights.selected_index;
 
             let item_len = highlights.item.len();
 
@@ -376,16 +376,16 @@ impl TextItem {
 
     pub fn highlight_status(&self) -> (usize, usize) {
         if let Some(highlights) = &self.highlights {
-            (highlights.index + 1, highlights.item.len())
+            (highlights.selected_index + 1, highlights.item.len())
         } else {
             (0, 0)
         }
     }
 
-    pub fn highlight_focus_line_number(&self) -> Option<usize> {
+    pub fn highlight_selected_line_number(&self) -> Option<usize> {
         self.highlights
             .as_ref()
-            .map(|h| h.item[h.index].line_number)
+            .map(|h| h.item[h.selected_index].line_number)
     }
 }
 
