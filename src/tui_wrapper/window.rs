@@ -278,8 +278,7 @@ impl<'a> Window<'a> {
     }
 
     pub fn activate_tab_by_index(&mut self, index: usize) {
-        let index = index - 1;
-        if index < self.tabs.len() {
+        if self.tabs.get(index).is_some() {
             self.active_tab_index = index;
         }
     }
@@ -447,7 +446,8 @@ impl Window<'_> {
                 }
 
                 KeyCode::Char(n @ '1'..='9') => {
-                    self.activate_tab_by_index(n as usize - b'0' as usize);
+                    let index = n as usize - b'0' as usize;
+                    self.activate_tab_by_index(index - 1);
                 }
 
                 _ => {
@@ -542,7 +542,7 @@ impl Window<'_> {
             match ev.kind {
                 MouseEventKind::Down(MouseButton::Left) => {
                     if title_chunk.contains_point(pos) {
-                        self.activate_tab_by_index(i + 1);
+                        self.activate_tab_by_index(i);
                         break;
                     }
                 }
