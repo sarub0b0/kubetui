@@ -91,19 +91,15 @@ impl<'a> Tab<'a> {
     }
 
     pub fn activate_next_widget(&mut self) {
-        if self.activatable_widget_indices.len() - 1 <= self.active_widget_index {
-            self.active_widget_index = 0;
-        } else {
-            self.active_widget_index += 1;
-        }
+        self.active_widget_index =
+            (self.active_widget_index + 1) % self.activatable_widget_indices.len();
     }
 
     pub fn activate_prev_widget(&mut self) {
-        if self.active_widget_index == 0 {
-            self.active_widget_index = self.activatable_widget_indices.len() - 1;
-        } else {
-            self.active_widget_index -= 1;
-        }
+        let activatable_widget_len = self.activatable_widget_indices.len();
+
+        self.active_widget_index =
+            (self.active_widget_index + activatable_widget_len - 1) % activatable_widget_len;
     }
 
     pub fn active_widget_id(&self) -> &str {
