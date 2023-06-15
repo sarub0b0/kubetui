@@ -9,7 +9,7 @@ use crate::{
     event::Event,
     tui_wrapper::{
         event::EventResult,
-        tab::WidgetData,
+        tab::WidgetChunk,
         widget::{config::WidgetConfig, MultipleSelect, SelectedItem, Text, Widget, WidgetTrait},
         Tab, Window,
     },
@@ -43,7 +43,7 @@ impl<'a> ListTabBuilder<'a> {
         let list = self.list();
 
         ListTab {
-            tab: Tab::new(view_id::tab_list, self.title, [WidgetData::new(list)]),
+            tab: Tab::new(view_id::tab_list, self.title, [WidgetChunk::new(list)]),
             popup: self.popup().into(),
         }
     }

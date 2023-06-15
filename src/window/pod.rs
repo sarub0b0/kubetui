@@ -9,7 +9,7 @@ use crate::{
     event::{kubernetes::log::LogStreamMessage, Event, UserEvent},
     tui_wrapper::{
         event::EventResult,
-        tab::WidgetData,
+        tab::WidgetChunk,
         widget::{config::WidgetConfig, Item, Table, Text, WidgetTrait},
         Tab, Window, WindowEvent,
     },
@@ -50,8 +50,8 @@ impl<'a> PodTabBuilder<'a> {
                 view_id::tab_pod,
                 self.title,
                 [
-                    WidgetData::new(pod).chunk_index(0),
-                    WidgetData::new(log).chunk_index(1),
+                    WidgetChunk::new(pod).chunk_index(0),
+                    WidgetChunk::new(log).chunk_index(1),
                 ],
             )
             .layout(

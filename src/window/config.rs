@@ -10,7 +10,7 @@ use crate::{
     },
     tui_wrapper::{
         event::EventResult,
-        tab::WidgetData,
+        tab::WidgetChunk,
         widget::{config::WidgetConfig, Table, Text, WidgetTrait},
         Tab, WindowEvent,
     },
@@ -52,8 +52,8 @@ impl<'a> ConfigTabBuilder<'a> {
                 view_id::tab_config,
                 self.title,
                 [
-                    WidgetData::new(config).chunk_index(0),
-                    WidgetData::new(raw_data).chunk_index(1),
+                    WidgetChunk::new(config).chunk_index(0),
+                    WidgetChunk::new(raw_data).chunk_index(1),
                 ],
             )
             .layout(

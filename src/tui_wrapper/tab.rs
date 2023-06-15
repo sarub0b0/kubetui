@@ -8,12 +8,12 @@ use ratatui::{
 
 use std::rc::Rc;
 
-pub struct WidgetData<'a> {
+pub struct WidgetChunk<'a> {
     chunk_index: usize,
     widget: Widget<'a>,
 }
 
-impl<'a> WidgetData<'a> {
+impl<'a> WidgetChunk<'a> {
     pub fn new(widget: impl Into<Widget<'a>>) -> Self {
         Self {
             widget: widget.into(),
@@ -30,7 +30,7 @@ impl<'a> WidgetData<'a> {
 pub struct Tab<'a> {
     id: String,
     title: String,
-    widgets: Vec<WidgetData<'a>>,
+    widgets: Vec<WidgetChunk<'a>>,
     layout: Layout,
     active_widget_index: usize,
     activatable_widget_indices: Vec<usize>,
@@ -40,7 +40,7 @@ impl<'a> Tab<'a> {
     pub fn new(
         id: impl Into<String>,
         title: impl Into<String>,
-        widgets: impl Into<Vec<WidgetData<'a>>>,
+        widgets: impl Into<Vec<WidgetChunk<'a>>>,
     ) -> Self {
         let widgets = widgets.into();
         let activatable_widget_indices = widgets
@@ -86,7 +86,7 @@ impl<'a> Tab<'a> {
     pub fn as_mut_widgets(&mut self) -> Vec<&mut Widget<'a>> {
         self.widgets
             .iter_mut()
-            .map(|w: &mut WidgetData| &mut w.widget)
+            .map(|w: &mut WidgetChunk| &mut w.widget)
             .collect()
     }
 

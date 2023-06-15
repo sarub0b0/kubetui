@@ -8,7 +8,7 @@ use crate::{
     logger,
     tui_wrapper::{
         event::EventResult,
-        tab::WidgetData,
+        tab::WidgetChunk,
         widget::Widget,
         widget::{config::WidgetConfig, SingleSelect, Text, WidgetTrait},
         Tab, Window,
@@ -43,7 +43,7 @@ impl<'a> YamlTabBuilder<'a> {
     pub fn build(self) -> YamlTab {
         let yaml = self.main();
         YamlTab {
-            tab: Tab::new(view_id::tab_yaml, self.title, [WidgetData::new(yaml)]),
+            tab: Tab::new(view_id::tab_yaml, self.title, [WidgetChunk::new(yaml)]),
             popup_kind: self.subwin_kind().into(),
             popup_name: self.subwin_name().into(),
         }

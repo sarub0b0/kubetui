@@ -5,7 +5,7 @@ use crate::clipboard_wrapper::Clipboard;
 use crate::action::view_id;
 
 use crate::tui_wrapper::{
-    tab::WidgetData,
+    tab::WidgetChunk,
     widget::{config::WidgetConfig, Text, WidgetTrait},
     Tab,
 };
@@ -28,7 +28,7 @@ impl<'a> EventsTabBuilder<'a> {
         let event = self.event();
 
         EventsTab {
-            tab: Tab::new(view_id::tab_event, self.title, [WidgetData::new(event)]),
+            tab: Tab::new(view_id::tab_event, self.title, [WidgetChunk::new(event)]),
         }
     }
 

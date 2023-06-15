@@ -10,7 +10,7 @@ use crate::{
     },
     tui_wrapper::{
         event::EventResult,
-        tab::WidgetData,
+        tab::WidgetChunk,
         widget::{config::WidgetConfig, Table, Text, WidgetTrait},
         Tab, WindowEvent,
     },
@@ -50,8 +50,8 @@ impl<'a> NetworkTabBuilder<'a> {
                 view_id::tab_network,
                 self.title,
                 [
-                    WidgetData::new(self.network()).chunk_index(0),
-                    WidgetData::new(self.description()).chunk_index(1),
+                    WidgetChunk::new(self.network()).chunk_index(0),
+                    WidgetChunk::new(self.description()).chunk_index(1),
                 ],
             )
             .layout(
