@@ -202,7 +202,7 @@ pub trait WidgetTrait {
 
 #[enum_dispatch]
 pub trait RenderTrait {
-    fn render<B: Backend>(&mut self, f: &mut Frame<B>, focused: bool);
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>, is_active: bool);
 }
 
 #[enum_dispatch(WidgetTrait, RenderTrait)]
