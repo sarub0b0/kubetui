@@ -133,7 +133,7 @@ impl<'a> ConfigTabBuilder<'a> {
 
                 *config.title_mut() = format!("Raw Data [{}/{}]", index, size).into();
 
-                config.render_block(text.focusable() && selected)
+                config.render_block(text.can_activate() && selected)
             });
 
         if let Some(cb) = self.clipboard {

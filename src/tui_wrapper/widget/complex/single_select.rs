@@ -227,7 +227,7 @@ impl WidgetTrait for SingleSelect<'_> {
         &self.id
     }
 
-    fn focusable(&self) -> bool {
+    fn can_activate(&self) -> bool {
         true
     }
 
@@ -332,7 +332,7 @@ impl RenderTrait for SingleSelect<'_> {
             (block_injection)(&*self, selected)
         } else {
             self.widget_config
-                .render_block(self.focusable() && selected)
+                .render_block(self.can_activate() && selected)
         };
 
         f.render_widget(block, self.chunk);

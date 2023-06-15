@@ -46,7 +46,7 @@ impl<'a> Tab<'a> {
         let focusable_widgets = widgets
             .iter()
             .enumerate()
-            .filter(|&(_, w)| w.widget.focusable())
+            .filter(|&(_, w)| w.widget.can_activate())
             .map(|(i, _)| i)
             .collect();
 

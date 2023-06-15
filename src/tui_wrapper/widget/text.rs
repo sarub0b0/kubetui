@@ -512,7 +512,7 @@ impl WidgetTrait for Text {
         &mut self.widget_config
     }
 
-    fn focusable(&self) -> bool {
+    fn can_activate(&self) -> bool {
         true
     }
 
@@ -831,10 +831,10 @@ impl RenderTrait for Text {
         B: Backend,
     {
         let block = if let Some(block_injection) = &self.block_injection {
-            (block_injection)(&*self, self.focusable() && selected)
+            (block_injection)(&*self, self.can_activate() && selected)
         } else {
             self.widget_config
-                .render_block(self.focusable() && selected)
+                .render_block(self.can_activate() && selected)
         };
 
         let wrapped_lines = self.item.wrapped_lines();

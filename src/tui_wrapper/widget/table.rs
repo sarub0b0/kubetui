@@ -329,7 +329,7 @@ impl WidgetTrait for Table<'_> {
         &self.id
     }
 
-    fn focusable(&self) -> bool {
+    fn can_activate(&self) -> bool {
         true
     }
 
@@ -618,7 +618,7 @@ impl RenderTrait for Table<'_> {
             }
         }
 
-        let block = widget_config.render_block(self.focusable() && selected);
+        let block = widget_config.render_block(self.can_activate() && selected);
 
         let constraints = constraints(self.items.digits());
 

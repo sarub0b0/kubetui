@@ -203,7 +203,7 @@ impl<'a> WidgetTrait for List<'a> {
         &self.id
     }
 
-    fn focusable(&self) -> bool {
+    fn can_activate(&self) -> bool {
         true
     }
 
@@ -384,7 +384,7 @@ impl RenderTrait for List<'_> {
             (block_injection)(&*self, selected)
         } else {
             self.widget_config
-                .render_block(self.focusable() && selected)
+                .render_block(self.can_activate() && selected)
         };
 
         f.render_stateful_widget(self.widget(block), self.chunk, &mut self.state);

@@ -138,7 +138,7 @@ impl<'a> NetworkTabBuilder<'a> {
 
                 *config.title_mut() = format!("Description [{}/{}]", index, size).into();
 
-                config.render_block(text.focusable() && selected)
+                config.render_block(text.can_activate() && selected)
             });
 
         if let Some(cb) = self.clipboard {

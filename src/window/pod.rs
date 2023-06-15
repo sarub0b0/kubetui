@@ -130,7 +130,7 @@ impl<'a> PodTabBuilder<'a> {
 
                 *config.title_mut() = format!("Log [{}/{}]", index, size).into();
 
-                config.render_block(text.focusable() && selected)
+                config.render_block(text.can_activate() && selected)
             })
             .action(UserEvent::from(KeyCode::Enter), add_newline);
 

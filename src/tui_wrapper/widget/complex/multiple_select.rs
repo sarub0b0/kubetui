@@ -631,7 +631,7 @@ impl RenderTrait for MultipleSelect<'_> {
             (block_injection)(&*self, selected)
         } else {
             self.widget_config
-                .render_block(self.focusable() && selected)
+                .render_block(self.can_activate() && selected)
         };
 
         let inner_chunk = block.inner(self.chunk);
@@ -694,7 +694,7 @@ impl WidgetTrait for MultipleSelect<'_> {
         &self.id
     }
 
-    fn focusable(&self) -> bool {
+    fn can_activate(&self) -> bool {
         true
     }
 
