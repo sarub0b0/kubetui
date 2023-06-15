@@ -826,15 +826,15 @@ impl WidgetTrait for Text {
 }
 
 impl RenderTrait for Text {
-    fn render<B>(&mut self, f: &mut Frame<'_, B>, selected: bool)
+    fn render<B>(&mut self, f: &mut Frame<'_, B>, is_active: bool)
     where
         B: Backend,
     {
         let block = if let Some(block_injection) = &self.block_injection {
-            (block_injection)(&*self, self.can_activate() && selected)
+            (block_injection)(&*self, self.can_activate() && is_active)
         } else {
             self.widget_config
-                .render_block(self.can_activate() && selected)
+                .render_block(self.can_activate() && is_active)
         };
 
         let wrapped_lines = self.item.wrapped_lines();
