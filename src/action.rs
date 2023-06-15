@@ -18,7 +18,7 @@ use crate::{
         },
         Event,
     },
-    tui_wrapper::{
+    ui::{
         event::{exec_to_window_event, EventResult},
         util::chars::convert_tabs_to_spaces,
         widget::{Item, LiteralItem, TableItem, WidgetTrait},

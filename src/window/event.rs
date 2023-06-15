@@ -4,8 +4,8 @@ use crate::clipboard_wrapper::Clipboard;
 
 use crate::action::view_id;
 
-use crate::tui_wrapper::{
-    tab::WidgetData,
+use crate::ui::{
+    tab::WidgetChunk,
     widget::{config::WidgetConfig, Text, WidgetTrait},
     Tab,
 };
@@ -28,7 +28,7 @@ impl<'a> EventsTabBuilder<'a> {
         let event = self.event();
 
         EventsTab {
-            tab: Tab::new(view_id::tab_event, self.title, [WidgetData::new(event)]),
+            tab: Tab::new(view_id::tab_event, self.title, [WidgetChunk::new(event)]),
         }
     }
 
@@ -38,14 +38,14 @@ impl<'a> EventsTabBuilder<'a> {
             .widget_config(&WidgetConfig::builder().title("Event").build())
             .wrap()
             .follow()
-            .block_injection(|text: &Text, selected: bool| {
+            .block_injection(|text: &Text, is_active: bool| {
                 let (index, size) = text.state();
 
                 let mut config = text.widget_config().clone();
 
                 *config.append_title_mut() = Some(format!(" [{}/{}]", index, size).into());
 
-                config.render_block(text.focusable() && selected)
+                config.render_block(text.can_activate() && is_active)
             });
 
         if let Some(cb) = self.clipboard {

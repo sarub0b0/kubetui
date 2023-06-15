@@ -1,6 +1,6 @@
 use super::input::InputForm;
 
-use crate::tui_wrapper::{
+use crate::ui::{
     event::EventResult,
     util::{key_event_to_code, MousePosition, RectContainsPoint},
     widget::*,
@@ -29,7 +29,7 @@ use unicode_width::UnicodeWidthStr;
 mod inner {
     use std::collections::BTreeMap;
 
-    use crate::tui_wrapper::widget::LiteralItem;
+    use crate::ui::widget::LiteralItem;
 
     #[derive(Debug, Default)]
     pub struct SelectItems {
@@ -197,7 +197,7 @@ struct SelectForm<'a> {
     list_widget: List<'a>,
     selected_widget: List<'a>,
     chunk: Rect,
-    focus_id: usize,
+    active_form_index: usize,
     direction: Direction,
     #[derivative(Debug = "ignore")]
     matcher: SkimMatcherV2,
@@ -211,7 +211,7 @@ impl Default for SelectForm<'_> {
             list_widget: List::default(),
             selected_widget: List::default(),
             chunk: Rect::default(),
-            focus_id: 0,
+            active_form_index: 0,
             matcher: SkimMatcherV2::default(),
             direction: Direction::Vertical,
         }
@@ -271,11 +271,11 @@ impl<'a> SelectForm<'a> {
         .alignment(Alignment::Center)
         .block(Block::default());
 
-        self.list_widget.render(f, self.focus_id == 0);
+        self.list_widget.render(f, self.active_form_index == 0);
 
         f.render_widget(arrow, chunks[1]);
 
-        self.selected_widget.render(f, self.focus_id == 1);
+        self.selected_widget.render(f, self.active_form_index == 1);
     }
 
     fn update_layout(&mut self, chunk: Rect) {
@@ -298,19 +298,19 @@ impl<'a> SelectForm<'a> {
     }
 
     fn select_next(&mut self, i: usize) {
-        self.focused_form_mut().select_next(i);
+        self.active_form_mut().select_next(i);
     }
 
     fn select_prev(&mut self, i: usize) {
-        self.focused_form_mut().select_prev(i);
+        self.active_form_mut().select_prev(i);
     }
 
     fn select_first(&mut self) {
-        self.focused_form_mut().select_first();
+        self.active_form_mut().select_first();
     }
 
     fn select_last(&mut self) {
-        self.focused_form_mut().select_last();
+        self.active_form_mut().select_last();
     }
 
     fn filter_items(&self, items: &[LiteralItem]) -> Vec<LiteralItem> {
@@ -336,16 +336,16 @@ impl<'a> SelectForm<'a> {
         ret.into_iter().map(|i| i.item).collect()
     }
 
-    fn focused_form(&mut self) -> &List<'a> {
-        if self.focus_id == 0 {
+    fn active_form(&mut self) -> &List<'a> {
+        if self.active_form_index == 0 {
             &self.list_widget
         } else {
             &self.selected_widget
         }
     }
 
-    fn focused_form_mut(&mut self) -> &mut List<'a> {
-        if self.focus_id == 0 {
+    fn active_form_mut(&mut self) -> &mut List<'a> {
+        if self.active_form_index == 0 {
             &mut self.list_widget
         } else {
             &mut self.selected_widget
@@ -353,24 +353,24 @@ impl<'a> SelectForm<'a> {
     }
 
     #[allow(dead_code)]
-    fn unfocused_form_mut(&mut self) -> &mut List<'a> {
-        if self.focus_id == 1 {
+    fn inactive_form_mut(&mut self) -> &mut List<'a> {
+        if self.active_form_index == 1 {
             &mut self.list_widget
         } else {
             &mut self.selected_widget
         }
     }
 
-    fn toggle_focus(&mut self) {
-        if self.focus_id == 0 {
-            self.focus_id = 1
+    fn toggle_active_form(&mut self) {
+        if self.active_form_index == 0 {
+            self.active_form_index = 1
         } else {
-            self.focus_id = 0
+            self.active_form_index = 0
         }
     }
 
-    fn focus(&mut self, id: usize) {
-        self.focus_id = id;
+    fn activate_form_by_index(&mut self, index: usize) {
+        self.active_form_index = index;
     }
 
     fn update_widget_item(&mut self, items: Item) {
@@ -388,7 +388,7 @@ impl<'a> SelectForm<'a> {
     }
 
     fn toggle_select_unselect(&mut self) {
-        let list = self.focused_form();
+        let list = self.active_form();
         let selected_key = list.state().selected().map(|i| list.items()[i].clone());
 
         if let Some(key) = selected_key {
@@ -459,10 +459,10 @@ impl<'a> SelectForm<'a> {
         let (chunks, _) = self.chunks_and_arrow();
 
         if chunks[0].contains_point(pos) {
-            self.focus(0);
+            self.activate_form_by_index(0);
             self.list_widget.on_mouse_event(ev)
         } else if chunks[2].contains_point(pos) {
-            self.focus(1);
+            self.activate_form_by_index(1);
             self.selected_widget.on_mouse_event(ev)
         } else {
             EventResult::Nop
@@ -470,7 +470,7 @@ impl<'a> SelectForm<'a> {
     }
 
     fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
-        self.focused_form_mut().on_key_event(ev)
+        self.active_form_mut().on_key_event(ev)
     }
 }
 
@@ -631,7 +631,7 @@ impl RenderTrait for MultipleSelect<'_> {
             (block_injection)(&*self, selected)
         } else {
             self.widget_config
-                .render_block(self.focusable() && selected)
+                .render_block(self.can_activate() && selected)
         };
 
         let inner_chunk = block.inner(self.chunk);
@@ -694,7 +694,7 @@ impl WidgetTrait for MultipleSelect<'_> {
         &self.id
     }
 
-    fn focusable(&self) -> bool {
+    fn can_activate(&self) -> bool {
         true
     }
 
@@ -759,7 +759,7 @@ impl WidgetTrait for MultipleSelect<'_> {
         match self.input_widget.on_key_event(ev) {
             EventResult::Ignore => match key_event_to_code(ev) {
                 KeyCode::Tab | KeyCode::BackTab => {
-                    self.selected_widget.toggle_focus();
+                    self.selected_widget.toggle_active_form();
                     EventResult::Nop
                 }
                 KeyCode::Enter => {
@@ -770,7 +770,7 @@ impl WidgetTrait for MultipleSelect<'_> {
                 _ => self.selected_widget.on_key_event(ev),
             },
             _ => {
-                self.selected_widget.focus(0);
+                self.selected_widget.activate_form_by_index(0);
                 self.selected_widget
                     .update_filter(self.input_widget.content());
                 EventResult::Nop

@@ -8,9 +8,9 @@ use crate::{
         kubernetes::config::{ConfigRequest, RequestData},
         Event,
     },
-    tui_wrapper::{
+    ui::{
         event::EventResult,
-        tab::WidgetData,
+        tab::WidgetChunk,
         widget::{config::WidgetConfig, Table, Text, WidgetTrait},
         Tab, WindowEvent,
     },
@@ -52,8 +52,8 @@ impl<'a> ConfigTabBuilder<'a> {
                 view_id::tab_config,
                 self.title,
                 [
-                    WidgetData::new(config).chunk_index(0),
-                    WidgetData::new(raw_data).chunk_index(1),
+                    WidgetChunk::new(config).chunk_index(0),
+                    WidgetChunk::new(raw_data).chunk_index(1),
                 ],
             )
             .layout(
@@ -126,14 +126,14 @@ impl<'a> ConfigTabBuilder<'a> {
             .id(view_id::tab_config_widget_raw_data)
             .widget_config(&WidgetConfig::builder().title("Raw Data").build())
             .wrap()
-            .block_injection(|text: &Text, selected: bool| {
+            .block_injection(|text: &Text, is_active: bool| {
                 let (index, size) = text.state();
 
                 let mut config = text.widget_config().clone();
 
                 *config.title_mut() = format!("Raw Data [{}/{}]", index, size).into();
 
-                config.render_block(text.focusable() && selected)
+                config.render_block(text.can_activate() && is_active)
             });
 
         if let Some(cb) = self.clipboard {

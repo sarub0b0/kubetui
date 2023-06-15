@@ -6,9 +6,9 @@ use crate::{
     clipboard_wrapper::Clipboard,
     event::{kubernetes::yaml::YamlRequest, Event},
     logger,
-    tui_wrapper::{
+    ui::{
         event::EventResult,
-        tab::WidgetData,
+        tab::WidgetChunk,
         widget::Widget,
         widget::{config::WidgetConfig, SingleSelect, Text, WidgetTrait},
         Tab, Window,
@@ -43,7 +43,7 @@ impl<'a> YamlTabBuilder<'a> {
     pub fn build(self) -> YamlTab {
         let yaml = self.main();
         YamlTab {
-            tab: Tab::new(view_id::tab_yaml, self.title, [WidgetData::new(yaml)]),
+            tab: Tab::new(view_id::tab_yaml, self.title, [WidgetChunk::new(yaml)]),
             popup_kind: self.subwin_kind().into(),
             popup_name: self.subwin_name().into(),
         }
@@ -62,14 +62,14 @@ impl<'a> YamlTabBuilder<'a> {
         let builder = Text::builder()
             .id(view_id::tab_yaml_widget_yaml)
             .widget_config(&WidgetConfig::builder().title("Yaml").build())
-            .block_injection(|text: &Text, selected: bool| {
+            .block_injection(|text: &Text, is_active: bool| {
                 let (index, size) = text.state();
 
                 let mut config = text.widget_config().clone();
 
                 *config.append_title_mut() = Some(format!(" [{}/{}]", index, size).into());
 
-                config.render_block(text.focusable() && selected)
+                config.render_block(text.can_activate() && is_active)
             })
             .action('f', open_subwin)
             .wrap();

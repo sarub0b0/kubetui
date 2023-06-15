@@ -14,14 +14,14 @@ use derivative::*;
 
 use super::{config::WidgetConfig, Item, LiteralItem, RenderTrait, SelectedItem, WidgetTrait};
 
-use crate::tui_wrapper::{
+use crate::ui::{
     event::{Callback, EventResult},
     key_event_to_code, Window,
 };
 
 mod inner_item {
 
-    use crate::tui_wrapper::widget::{spans::generate_spans_line, LiteralItem};
+    use crate::ui::widget::{spans::generate_spans_line, LiteralItem};
 
     use super::Item;
     use ratatui::widgets::ListItem;
@@ -203,7 +203,7 @@ impl<'a> WidgetTrait for List<'a> {
         &self.id
     }
 
-    fn focusable(&self) -> bool {
+    fn can_activate(&self) -> bool {
         true
     }
 
@@ -379,12 +379,12 @@ impl<'a> List<'a> {
 }
 
 impl RenderTrait for List<'_> {
-    fn render<B: Backend>(&mut self, f: &mut Frame<B>, selected: bool) {
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>, is_active: bool) {
         let block = if let Some(block_injection) = &self.block_injection {
-            (block_injection)(&*self, selected)
+            (block_injection)(&*self, is_active)
         } else {
             self.widget_config
-                .render_block(self.focusable() && selected)
+                .render_block(self.can_activate() && is_active)
         };
 
         f.render_stateful_widget(self.widget(block), self.chunk, &mut self.state);

@@ -21,7 +21,7 @@ use crate::{
         kubernetes::{context_message::ContextRequest, namespace_message::NamespaceRequest},
         Event, UserEvent,
     },
-    tui_wrapper::{event::EventResult, widget::Widget, Header, Tab, Window, WindowEvent},
+    ui::{event::EventResult, widget::Widget, Header, Tab, Window, WindowEvent},
 };
 
 use self::{

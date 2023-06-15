@@ -15,7 +15,7 @@ pub struct WidgetConfig {
     title: Title,
     append_title: Option<Title>,
     block: Block<'static>,
-    focusable: bool,
+    can_activate: bool,
 }
 
 impl Default for WidgetConfig {
@@ -26,7 +26,7 @@ impl Default for WidgetConfig {
             block: Block::default()
                 .border_type(BorderType::Plain)
                 .borders(Borders::ALL),
-            focusable: true,
+            can_activate: true,
         }
     }
 }
@@ -49,8 +49,8 @@ impl WidgetConfigBuilder {
     }
 
     /// Border style and title style are default style
-    pub fn disable_focus(mut self) -> Self {
-        self.0.focusable = false;
+    pub fn disable_activation(mut self) -> Self {
+        self.0.can_activate = false;
         self
     }
 
@@ -88,7 +88,7 @@ impl WidgetConfig {
         &mut self.append_title
     }
 
-    pub fn render_title(&self, focused: bool) -> Vec<Span<'static>> {
+    pub fn render_title(&self, is_active: bool) -> Vec<Span<'static>> {
         if self.title.to_string() == "" {
             return Vec::new();
         }
@@ -101,8 +101,8 @@ impl WidgetConfig {
 
         title.push(" ".into());
 
-        if self.focusable {
-            if focused {
+        if self.can_activate {
+            if is_active {
                 title.insert(0, " + ".into());
 
                 title.iter_mut().for_each(|span| {
@@ -124,11 +124,11 @@ impl WidgetConfig {
 
     /// Render Block
     ///
-    /// Focus:     ─ + Title ───  (BOLD)
-    /// Not focus: ─── Title ───  (DarkGray: title is Raw)
-    pub fn render_block(&self, focused: bool) -> Block<'static> {
-        let block = if self.focusable {
-            if focused {
+    /// Active:   ─ + Title ───  (BOLD)
+    /// Inactive: ─── Title ───  (DarkGray: title is Raw)
+    pub fn render_block(&self, is_active: bool) -> Block<'static> {
+        let block = if self.can_activate {
+            if is_active {
                 self.block.clone()
             } else {
                 self.block
@@ -139,7 +139,7 @@ impl WidgetConfig {
             self.block.clone()
         };
 
-        let title = self.render_title(focused);
+        let title = self.render_title(is_active);
         if title.is_empty() {
             block
         } else {
@@ -231,7 +231,7 @@ mod tests {
     fn render_title() {
         let wc = WidgetConfig::builder()
             .title("Title")
-            .disable_focus()
+            .disable_activation()
             .build();
 
         let title = wc.render_title(false);
@@ -247,7 +247,7 @@ mod tests {
         let wc = WidgetConfig::builder()
             .title("Title")
             .append_title(" append")
-            .disable_focus()
+            .disable_activation()
             .build();
 
         let title = wc.render_title(false);

@@ -20,7 +20,7 @@ use crate::{
     clipboard_wrapper::Clipboard,
     event::UserEvent,
     logger,
-    tui_wrapper::{
+    ui::{
         event::{Callback, EventResult, InnerCallback},
         key_event_to_code, Window,
     },
@@ -362,8 +362,8 @@ impl Text {
     /// - マッチ箇所がchunk内の場合次のマッチ箇所に移動
     /// - マッチ箇所がchunk外の場合近いマッチ箇所に移動する
     pub fn search_next(&mut self) {
-        if let Some(focus_line_number) = self.item.highlight_focus_line_number() {
-            let index = if self.within_chunk(focus_line_number) {
+        if let Some(selected_line_number) = self.item.highlight_selected_line_number() {
+            let index = if self.within_chunk(selected_line_number) {
                 self.item.select_next_highlight()
             } else {
                 self.item
@@ -380,8 +380,8 @@ impl Text {
     /// - マッチ箇所がchunk内の場合前のマッチ箇所に移動
     /// - マッチ箇所がchunk外の場合近いマッチ箇所に移動する
     pub fn search_prev(&mut self) {
-        if let Some(focus_line_number) = self.item.highlight_focus_line_number() {
-            let index = if self.within_chunk(focus_line_number) {
+        if let Some(selected_line_number) = self.item.highlight_selected_line_number() {
+            let index = if self.within_chunk(selected_line_number) {
                 self.item.select_prev_highlight()
             } else {
                 self.item
@@ -512,7 +512,7 @@ impl WidgetTrait for Text {
         &mut self.widget_config
     }
 
-    fn focusable(&self) -> bool {
+    fn can_activate(&self) -> bool {
         true
     }
 
@@ -826,15 +826,15 @@ impl WidgetTrait for Text {
 }
 
 impl RenderTrait for Text {
-    fn render<B>(&mut self, f: &mut Frame<'_, B>, selected: bool)
+    fn render<B>(&mut self, f: &mut Frame<'_, B>, is_active: bool)
     where
         B: Backend,
     {
         let block = if let Some(block_injection) = &self.block_injection {
-            (block_injection)(&*self, self.focusable() && selected)
+            (block_injection)(&*self, self.can_activate() && is_active)
         } else {
             self.widget_config
-                .render_block(self.focusable() && selected)
+                .render_block(self.can_activate() && is_active)
         };
 
         let wrapped_lines = self.item.wrapped_lines();

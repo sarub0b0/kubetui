@@ -8,9 +8,9 @@ use crate::{
         kubernetes::network::{NetworkRequest, RequestData},
         Event,
     },
-    tui_wrapper::{
+    ui::{
         event::EventResult,
-        tab::WidgetData,
+        tab::WidgetChunk,
         widget::{config::WidgetConfig, Table, Text, WidgetTrait},
         Tab, WindowEvent,
     },
@@ -50,8 +50,8 @@ impl<'a> NetworkTabBuilder<'a> {
                 view_id::tab_network,
                 self.title,
                 [
-                    WidgetData::new(self.network()).chunk_index(0),
-                    WidgetData::new(self.description()).chunk_index(1),
+                    WidgetChunk::new(self.network()).chunk_index(0),
+                    WidgetChunk::new(self.description()).chunk_index(1),
                 ],
             )
             .layout(
@@ -131,14 +131,14 @@ impl<'a> NetworkTabBuilder<'a> {
         let builder = Text::builder()
             .id(view_id::tab_network_widget_description)
             .widget_config(&WidgetConfig::builder().title("Description").build())
-            .block_injection(|text: &Text, selected: bool| {
+            .block_injection(|text: &Text, is_active: bool| {
                 let (index, size) = text.state();
 
                 let mut config = text.widget_config().clone();
 
                 *config.title_mut() = format!("Description [{}/{}]", index, size).into();
 
-                config.render_block(text.focusable() && selected)
+                config.render_block(text.can_activate() && is_active)
             });
 
         if let Some(cb) = self.clipboard {

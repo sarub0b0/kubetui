@@ -8,12 +8,12 @@ use ratatui::{
 
 use std::rc::Rc;
 
-pub struct WidgetData<'a> {
+pub struct WidgetChunk<'a> {
     chunk_index: usize,
     widget: Widget<'a>,
 }
 
-impl<'a> WidgetData<'a> {
+impl<'a> WidgetChunk<'a> {
     pub fn new(widget: impl Into<Widget<'a>>) -> Self {
         Self {
             widget: widget.into(),
@@ -30,23 +30,23 @@ impl<'a> WidgetData<'a> {
 pub struct Tab<'a> {
     id: String,
     title: String,
-    widgets: Vec<WidgetData<'a>>,
+    widgets: Vec<WidgetChunk<'a>>,
     layout: Layout,
-    focused_widget_index: usize,
-    focusable_widgets: Vec<usize>,
+    active_widget_index: usize,
+    activatable_widget_indices: Vec<usize>,
 }
 
 impl<'a> Tab<'a> {
     pub fn new(
         id: impl Into<String>,
         title: impl Into<String>,
-        widgets: impl Into<Vec<WidgetData<'a>>>,
+        widgets: impl Into<Vec<WidgetChunk<'a>>>,
     ) -> Self {
         let widgets = widgets.into();
-        let focusable_widgets = widgets
+        let activatable_widget_indices = widgets
             .iter()
             .enumerate()
-            .filter(|&(_, w)| w.widget.focusable())
+            .filter(|&(_, w)| w.widget.can_activate())
             .map(|(i, _)| i)
             .collect();
 
@@ -57,8 +57,8 @@ impl<'a> Tab<'a> {
             title: title.into(),
             widgets,
             layout,
-            focusable_widgets,
-            focused_widget_index: 0,
+            activatable_widget_indices,
+            active_widget_index: 0,
         }
     }
 
@@ -86,36 +86,32 @@ impl<'a> Tab<'a> {
     pub fn as_mut_widgets(&mut self) -> Vec<&mut Widget<'a>> {
         self.widgets
             .iter_mut()
-            .map(|w: &mut WidgetData| &mut w.widget)
+            .map(|w: &mut WidgetChunk| &mut w.widget)
             .collect()
     }
 
-    pub fn next_widget(&mut self) {
-        if self.focusable_widgets.len() - 1 <= self.focused_widget_index {
-            self.focused_widget_index = 0;
-        } else {
-            self.focused_widget_index += 1;
-        }
+    pub fn activate_next_widget(&mut self) {
+        self.active_widget_index =
+            (self.active_widget_index + 1) % self.activatable_widget_indices.len();
     }
 
-    pub fn prev_widget(&mut self) {
-        if self.focused_widget_index == 0 {
-            self.focused_widget_index = self.focusable_widgets.len() - 1;
-        } else {
-            self.focused_widget_index -= 1;
-        }
+    pub fn activate_prev_widget(&mut self) {
+        let activatable_widget_len = self.activatable_widget_indices.len();
+
+        self.active_widget_index =
+            (self.active_widget_index + activatable_widget_len - 1) % activatable_widget_len;
     }
 
-    pub fn focused_widget_id(&self) -> &str {
-        self.focused_widget().id()
+    pub fn active_widget_id(&self) -> &str {
+        self.active_widget().id()
     }
 
-    pub fn focused_widget_mut(&mut self) -> &mut Widget<'a> {
-        &mut self.widgets[self.focused_widget_index].widget
+    pub fn active_widget_mut(&mut self) -> &mut Widget<'a> {
+        &mut self.widgets[self.active_widget_index].widget
     }
 
-    pub fn focused_widget(&self) -> &Widget<'a> {
-        &self.widgets[self.focused_widget_index].widget
+    pub fn active_widget(&self) -> &Widget<'a> {
+        &self.widgets[self.active_widget_index].widget
     }
 
     pub fn update_chunk(&mut self, chunk: Rect) {
@@ -125,14 +121,14 @@ impl<'a> Tab<'a> {
             .for_each(|w| w.widget.update_chunk(chunks[w.chunk_index]));
     }
 
-    pub fn focus_widget(&mut self, id: &str) {
+    pub fn activate_widget_by_id(&mut self, id: &str) {
         if let Some((index, _)) = self
             .widgets
             .iter()
             .enumerate()
-            .find(|(_i, w)| w.widget.id() == id)
+            .find(|(_, w)| w.widget.id() == id)
         {
-            self.focused_widget_index = index;
+            self.active_widget_index = index;
         }
     }
 
@@ -162,11 +158,9 @@ impl Tab<'_> {
     where
         B: Backend,
     {
-        let focused_widget_index = self.focused_widget_index;
-
         self.widgets
             .iter_mut()
             .enumerate()
-            .for_each(|(i, w)| w.widget.render(f, i == focused_widget_index));
+            .for_each(|(i, w)| w.widget.render(f, i == self.active_widget_index));
     }
 }

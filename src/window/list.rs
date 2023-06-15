@@ -7,9 +7,9 @@ use crate::{
     clipboard_wrapper::Clipboard,
     event::kubernetes::api_resources::ApiRequest,
     event::Event,
-    tui_wrapper::{
+    ui::{
         event::EventResult,
-        tab::WidgetData,
+        tab::WidgetChunk,
         widget::{config::WidgetConfig, MultipleSelect, SelectedItem, Text, Widget, WidgetTrait},
         Tab, Window,
     },
@@ -43,7 +43,7 @@ impl<'a> ListTabBuilder<'a> {
         let list = self.list();
 
         ListTab {
-            tab: Tab::new(view_id::tab_list, self.title, [WidgetData::new(list)]),
+            tab: Tab::new(view_id::tab_list, self.title, [WidgetChunk::new(list)]),
             popup: self.popup().into(),
         }
     }
@@ -61,14 +61,14 @@ impl<'a> ListTabBuilder<'a> {
         let builder = Text::builder()
             .id(view_id::tab_list_widget_list)
             .widget_config(&WidgetConfig::builder().title("List").build())
-            .block_injection(|text: &Text, selected: bool| {
+            .block_injection(|text: &Text, is_active: bool| {
                 let (index, size) = text.state();
 
                 let mut config = text.widget_config().clone();
 
                 *config.append_title_mut() = Some(format!(" [{}/{}]", index, size).into());
 
-                config.render_block(text.focusable() && selected)
+                config.render_block(text.can_activate() && is_active)
             })
             .action('f', open_subwin);
 

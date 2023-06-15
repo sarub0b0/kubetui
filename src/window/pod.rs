@@ -7,9 +7,9 @@ use crate::{
     action::view_id,
     clipboard_wrapper::Clipboard,
     event::{kubernetes::log::LogStreamMessage, Event, UserEvent},
-    tui_wrapper::{
+    ui::{
         event::EventResult,
-        tab::WidgetData,
+        tab::WidgetChunk,
         widget::{config::WidgetConfig, Item, Table, Text, WidgetTrait},
         Tab, Window, WindowEvent,
     },
@@ -50,8 +50,8 @@ impl<'a> PodTabBuilder<'a> {
                 view_id::tab_pod,
                 self.title,
                 [
-                    WidgetData::new(pod).chunk_index(0),
-                    WidgetData::new(log).chunk_index(1),
+                    WidgetChunk::new(pod).chunk_index(0),
+                    WidgetChunk::new(log).chunk_index(1),
                 ],
             )
             .layout(
@@ -123,14 +123,14 @@ impl<'a> PodTabBuilder<'a> {
             .widget_config(&WidgetConfig::builder().title("Log").build())
             .wrap()
             .follow()
-            .block_injection(|text: &Text, selected: bool| {
+            .block_injection(|text: &Text, is_active: bool| {
                 let (index, size) = text.state();
 
                 let mut config = text.widget_config().clone();
 
                 *config.title_mut() = format!("Log [{}/{}]", index, size).into();
 
-                config.render_block(text.focusable() && selected)
+                config.render_block(text.can_activate() && is_active)
             })
             .action(UserEvent::from(KeyCode::Enter), add_newline);
 

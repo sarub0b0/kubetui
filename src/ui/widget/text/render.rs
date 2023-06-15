@@ -16,7 +16,7 @@ use ratatui::{
 };
 use unicode_width::UnicodeWidthStr;
 
-use crate::tui_wrapper::widget::styled_graphemes::StyledGrapheme;
+use crate::ui::widget::styled_graphemes::StyledGrapheme;
 
 use super::{
     highlight_content::{HighlightArea, Point},
@@ -254,7 +254,7 @@ mod tests {
     use ratatui::{backend::TestBackend, widgets::Borders, Terminal};
     use unicode_segmentation::UnicodeSegmentation;
 
-    use crate::tui_wrapper::widget::styled_graphemes::StyledGrapheme;
+    use crate::ui::widget::styled_graphemes::StyledGrapheme;
 
     use super::*;
 
@@ -796,7 +796,7 @@ mod tests {
                 }
 
                 mod iteration {
-                    use crate::tui_wrapper::widget::styled_graphemes::StyledGrapheme;
+                    use crate::ui::widget::styled_graphemes::StyledGrapheme;
 
                     use super::*;
                     use pretty_assertions::assert_eq;

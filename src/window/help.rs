@@ -3,7 +3,7 @@ use unicode_width::UnicodeWidthStr;
 use crate::{
     action::view_id,
     ansi::{AnsiEscapeSequence, TextParser},
-    tui_wrapper::widget::{config::WidgetConfig, Text, Widget},
+    ui::widget::{config::WidgetConfig, Text, Widget},
 };
 
 const LEFT_HELP_TEXT: &[HelpBlock] = &[

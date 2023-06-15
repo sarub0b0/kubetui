@@ -174,7 +174,7 @@ pub trait WidgetTrait {
     fn id(&self) -> &str;
     fn widget_config(&self) -> &WidgetConfig;
     fn widget_config_mut(&mut self) -> &mut WidgetConfig;
-    fn focusable(&self) -> bool;
+    fn can_activate(&self) -> bool;
     /// selected item
     fn widget_item(&self) -> Option<SelectedItem>;
     fn chunk(&self) -> Rect;
@@ -202,7 +202,7 @@ pub trait WidgetTrait {
 
 #[enum_dispatch]
 pub trait RenderTrait {
-    fn render<B: Backend>(&mut self, f: &mut Frame<B>, focused: bool);
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>, is_active: bool);
 }
 
 #[enum_dispatch(WidgetTrait, RenderTrait)]

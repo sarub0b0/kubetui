@@ -30,8 +30,8 @@ type HeaderCallback = Rc<dyn Fn() -> Paragraph<'static>>;
 #[derive(Default)]
 pub struct Window<'a> {
     tabs: Vec<Tab<'a>>,
-    focused_tab_index: usize,
-    focusable_tab_index: Option<usize>,
+    active_tab_index: usize,
+    mouse_over_tab_index: Option<usize>,
     layout: Layout,
     chunk: Rect,
     callbacks: Vec<(UserEvent, InnerCallback)>,
@@ -206,26 +206,26 @@ impl<'a> Window<'a> {
             .tabs
             .iter()
             .enumerate()
-            .map(|(index, tab)| {
+            .map(|(tab_index, tab)| {
                 if self
-                    .focusable_tab_index
-                    .is_some_and(|idx| idx == index && idx != self.focused_tab_index)
+                    .mouse_over_tab_index
+                    .is_some_and(|index| index == tab_index && index != self.active_tab_index)
                 {
                     Line::from(Span::styled(
-                        Self::tab_title_format(index, tab.title()),
+                        Self::tab_title_format(tab_index, tab.title()),
                         Style::default()
                             .fg(Color::DarkGray)
                             .add_modifier(Modifier::REVERSED),
                     ))
                 } else {
-                    Line::from(Self::tab_title_format(index, tab.title()))
+                    Line::from(Self::tab_title_format(tab_index, tab.title()))
                 }
             })
             .collect();
 
         Tabs::new(titles)
             .block(Self::tab_block())
-            .select(self.focused_tab_index)
+            .select(self.active_tab_index)
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
     }
 
@@ -265,39 +265,30 @@ impl<'a> Window<'a> {
 
 // Tab
 impl<'a> Window<'a> {
-    pub fn focused_tab_id(&self) -> &str {
-        self.tabs[self.focused_tab_index].id()
+    pub fn active_tab_id(&self) -> &str {
+        self.tabs[self.active_tab_index].id()
     }
 
-    pub fn focused_tab(&self) -> &Tab<'a> {
-        &self.tabs[self.focused_tab_index]
+    pub fn active_tab(&self) -> &Tab<'a> {
+        &self.tabs[self.active_tab_index]
     }
 
-    pub fn focused_tab_mut(&mut self) -> &mut Tab<'a> {
-        &mut self.tabs[self.focused_tab_index]
+    pub fn active_tab_mut(&mut self) -> &mut Tab<'a> {
+        &mut self.tabs[self.active_tab_index]
     }
 
-    pub fn focus_tab(&mut self, index: usize) {
-        let index = index - 1;
-        if index < self.tabs.len() {
-            self.focused_tab_index = index;
+    pub fn activate_tab_by_index(&mut self, index: usize) {
+        if self.tabs.get(index).is_some() {
+            self.active_tab_index = index;
         }
     }
 
-    pub fn focus_next_tab(&mut self) {
-        if self.tabs.len() - 1 <= self.focused_tab_index {
-            self.focused_tab_index = 0;
-        } else {
-            self.focused_tab_index += 1;
-        }
+    pub fn activate_next_tab(&mut self) {
+        self.active_tab_index = (self.active_tab_index + 1) % self.tabs.len();
     }
 
-    pub fn focus_prev_tab(&mut self) {
-        if 0 == self.focused_tab_index {
-            self.focused_tab_index = self.tabs.len() - 1;
-        } else {
-            self.focused_tab_index -= 1;
-        }
+    pub fn activate_prev_tab(&mut self) {
+        self.active_tab_index = (self.active_tab_index + self.tabs.len() - 1) % self.tabs.len();
     }
 
     fn tab_title_format(index: usize, title: &str) -> String {
@@ -337,24 +328,24 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn focused_widget_id(&self) -> &str {
-        self.focused_tab().focused_widget_id()
+    pub fn active_widget_id(&self) -> &str {
+        self.active_tab().active_widget_id()
     }
 
-    fn focus_next_widget(&mut self) {
-        self.focused_tab_mut().next_widget();
+    fn activate_next_widget(&mut self) {
+        self.active_tab_mut().activate_next_widget();
     }
 
-    fn focus_prev_widget(&mut self) {
-        self.focused_tab_mut().prev_widget();
+    fn activate_prev_widget(&mut self) {
+        self.active_tab_mut().activate_prev_widget();
     }
 
     pub fn widget_clear(&mut self, id: &str) {
         self.find_widget_mut(id).clear();
     }
 
-    pub fn focus_widget(&mut self, id: &str) {
-        self.focused_tab_mut().focus_widget(id)
+    pub fn activate_widget_by_id(&mut self, id: &str) {
+        self.active_tab_mut().activate_widget_by_id(id)
     }
 }
 
@@ -393,7 +384,7 @@ impl<'a> Window<'a> {
     }
 
     fn render_contents<B: Backend>(&mut self, f: &mut Frame<B>) {
-        self.focused_tab_mut().render(f);
+        self.active_tab_mut().render(f);
     }
 
     fn render_popup<B: Backend>(&mut self, f: &mut Frame<B>) {
@@ -425,11 +416,11 @@ impl Window<'_> {
             UserEvent::Key(ev) => self.on_key_event(ev),
             UserEvent::Mouse(ev) => self.on_mouse_event(ev),
             UserEvent::FocusLost => {
-                self.focusable_tab_index = None;
+                self.mouse_over_tab_index = None;
                 EventResult::Nop
             }
             UserEvent::FocusGained => {
-                self.focusable_tab_index = None;
+                self.mouse_over_tab_index = None;
                 EventResult::Nop
             }
         }
@@ -442,20 +433,21 @@ impl Window<'_> {
             }
         }
 
-        let focus_widget = self.focused_tab_mut().focused_widget_mut();
+        let active_tab = self.active_tab_mut().active_widget_mut();
 
-        match focus_widget.on_key_event(ev) {
+        match active_tab.on_key_event(ev) {
             EventResult::Ignore => match key_event_to_code(ev) {
                 KeyCode::Tab => {
-                    self.focus_next_widget();
+                    self.activate_next_widget();
                 }
 
                 KeyCode::BackTab => {
-                    self.focus_prev_widget();
+                    self.activate_prev_widget();
                 }
 
                 KeyCode::Char(n @ '1'..='9') => {
-                    self.focus_tab(n as usize - b'0' as usize);
+                    let index = n as usize - b'0' as usize;
+                    self.activate_tab_by_index(index - 1);
                 }
 
                 _ => {
@@ -488,8 +480,8 @@ impl Window<'_> {
         }
 
         let pos = (ev.column, ev.row);
-        let focused_view_id = self.focused_widget_id().to_string();
-        let mut focus_widget_id = None;
+        let active_widget_id = self.active_widget_id().to_string();
+        let mut activate_widget_id = None;
 
         let result = match self.area_kind_by_cursor_position(pos) {
             AreaKind::Tab => {
@@ -498,15 +490,15 @@ impl Window<'_> {
                 EventResult::Nop
             }
             AreaKind::Widgets => {
-                self.focusable_tab_index = None;
+                self.mouse_over_tab_index = None;
 
                 if let Some(w) = self
-                    .focused_tab_mut()
+                    .active_tab_mut()
                     .as_mut_widgets()
                     .iter_mut()
                     .find(|w| w.chunk().contains_point(pos))
                 {
-                    focus_widget_id = if w.id() != focused_view_id {
+                    activate_widget_id = if w.id() != active_widget_id {
                         Some(w.id().to_string())
                     } else {
                         None
@@ -518,14 +510,14 @@ impl Window<'_> {
                 }
             }
             AreaKind::OutSide => {
-                self.focusable_tab_index = None;
+                self.mouse_over_tab_index = None;
 
                 EventResult::Ignore
             }
         };
 
-        if let Some(id) = focus_widget_id {
-            self.focus_widget(&id);
+        if let Some(id) = activate_widget_id {
+            self.activate_widget_by_id(&id);
         }
 
         result
@@ -550,13 +542,13 @@ impl Window<'_> {
             match ev.kind {
                 MouseEventKind::Down(MouseButton::Left) => {
                     if title_chunk.contains_point(pos) {
-                        self.focus_tab(i + 1);
+                        self.activate_tab_by_index(i);
                         break;
                     }
                 }
                 MouseEventKind::Moved => {
                     if title_chunk.contains_point(pos) {
-                        self.focusable_tab_index = Some(i);
+                        self.mouse_over_tab_index = Some(i);
                         break;
                     }
                 }

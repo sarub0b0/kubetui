@@ -18,7 +18,7 @@ use item::InnerItem;
 
 use crate::{
     logger,
-    tui_wrapper::{
+    ui::{
         event::{Callback, EventResult},
         key_event_to_code, Window,
     },
@@ -329,7 +329,7 @@ impl WidgetTrait for Table<'_> {
         &self.id
     }
 
-    fn focusable(&self) -> bool {
+    fn can_activate(&self) -> bool {
         true
     }
 
@@ -598,7 +598,7 @@ impl<'a> Table<'a> {
 }
 
 impl RenderTrait for Table<'_> {
-    fn render<B>(&mut self, f: &mut Frame<'_, B>, selected: bool)
+    fn render<B>(&mut self, f: &mut Frame<'_, B>, is_active: bool)
     where
         B: Backend,
     {
@@ -618,7 +618,7 @@ impl RenderTrait for Table<'_> {
             }
         }
 
-        let block = widget_config.render_block(self.focusable() && selected);
+        let block = widget_config.render_block(self.can_activate() && is_active);
 
         let constraints = constraints(self.items.digits());
 
