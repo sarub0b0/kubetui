@@ -285,19 +285,11 @@ impl<'a> Window<'a> {
     }
 
     pub fn activate_next_tab(&mut self) {
-        if self.tabs.len() - 1 <= self.active_tab_index {
-            self.active_tab_index = 0;
-        } else {
-            self.active_tab_index += 1;
-        }
+        self.active_tab_index = (self.active_tab_index + 1) % self.tabs.len();
     }
 
     pub fn activate_prev_tab(&mut self) {
-        if 0 == self.active_tab_index {
-            self.active_tab_index = self.tabs.len() - 1;
-        } else {
-            self.active_tab_index -= 1;
-        }
+        self.active_tab_index = (self.active_tab_index + self.tabs.len() - 1) % self.tabs.len();
     }
 
     fn tab_title_format(index: usize, title: &str) -> String {
