@@ -96,7 +96,11 @@ async fn get_event_table(client: &KubeClient, namespaces: &[String]) -> Result<V
                 .enumerate()
                 .fold(String::new(), |mut s: String, (i, item)| -> String {
                     if i == v.row.len() - 1 {
-                        s += &format!("\n\x1b[90m> {}\x1b[0m\n ", item);
+                        item.lines()
+                            .for_each(|i| s += &format!("\n\x1b[90m> {}", i));
+
+                        s += "\x1b[0m\n ";
+                        // s += &format!("\n\x1b[90m> {}\x1b[0m\n ", item);
                     } else {
                         s += &format!("{:<4}  ", item);
                     }
