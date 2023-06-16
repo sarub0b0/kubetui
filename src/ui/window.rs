@@ -391,7 +391,7 @@ impl<'a> Window<'a> {
         if let Some(id) = &self.open_popup_id {
             if let Some(popup) = self.popups.iter_mut().find(|p| p.id() == id) {
                 f.render_widget(Clear, child_window_chunk(80, 80, self.chunk));
-                popup.render(f, true);
+                popup.render(f, true, false);
             }
         }
     }
@@ -480,8 +480,6 @@ impl Window<'_> {
         }
 
         let pos = (ev.column, ev.row);
-        let active_widget_id = self.active_widget_id().to_string();
-        let mut activate_widget_id = None;
 
         let result = match self.area_kind_by_cursor_position(pos) {
             AreaKind::Tab => {
@@ -492,22 +490,7 @@ impl Window<'_> {
             AreaKind::Widgets => {
                 self.mouse_over_tab_index = None;
 
-                if let Some(w) = self
-                    .active_tab_mut()
-                    .as_mut_widgets()
-                    .iter_mut()
-                    .find(|w| w.chunk().contains_point(pos))
-                {
-                    activate_widget_id = if w.id() != active_widget_id {
-                        Some(w.id().to_string())
-                    } else {
-                        None
-                    };
-
-                    w.on_mouse_event(ev)
-                } else {
-                    EventResult::Ignore
-                }
+                self.active_tab_mut().on_mouse_event(ev)
             }
             AreaKind::OutSide => {
                 self.mouse_over_tab_index = None;
@@ -515,10 +498,6 @@ impl Window<'_> {
                 EventResult::Ignore
             }
         };
-
-        if let Some(id) = activate_widget_id {
-            self.activate_widget_by_id(&id);
-        }
 
         result
     }

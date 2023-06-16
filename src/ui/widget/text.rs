@@ -39,7 +39,7 @@ use super::{
     RenderTrait, SelectedItem, WidgetTrait,
 };
 
-type RenderBlockInjection = Rc<dyn Fn(&Text, bool) -> Block<'static>>;
+type RenderBlockInjection = Rc<dyn Fn(&Text, bool, bool) -> Block<'static>>;
 
 mod highlight_content {
 
@@ -271,7 +271,7 @@ impl TextBuilder {
 
     pub fn block_injection<F>(mut self, block_injection: F) -> Self
     where
-        F: Fn(&Text, bool) -> Block<'static> + 'static,
+        F: Fn(&Text, bool, bool) -> Block<'static> + 'static,
     {
         self.block_injection = Some(Rc::new(block_injection));
         self
@@ -831,15 +831,15 @@ impl WidgetTrait for Text {
 }
 
 impl RenderTrait for Text {
-    fn render<B>(&mut self, f: &mut Frame<'_, B>, is_active: bool)
+    fn render<B>(&mut self, f: &mut Frame<'_, B>, is_active: bool, is_mouse_over: bool)
     where
         B: Backend,
     {
         let block = if let Some(block_injection) = &self.block_injection {
-            (block_injection)(&*self, self.can_activate() && is_active)
+            (block_injection)(&*self, self.can_activate() && is_active, is_mouse_over)
         } else {
             self.widget_config
-                .render_block(self.can_activate() && is_active)
+                .render_block(self.can_activate() && is_active, is_mouse_over)
         };
 
         let wrapped_lines = self.item.wrapped_lines();

@@ -126,10 +126,14 @@ impl WidgetConfig {
     ///
     /// Active:   ─ + Title ───  (BOLD)
     /// Inactive: ─── Title ───  (DarkGray: title is Raw)
-    pub fn render_block(&self, is_active: bool) -> Block<'static> {
+    pub fn render_block(&self, is_active: bool, is_mouse_over: bool) -> Block<'static> {
         let block = if self.can_activate {
             if is_active {
                 self.block.clone()
+            } else if is_mouse_over {
+                self.block
+                    .clone()
+                    .border_style(Style::default().fg(Color::Gray))
             } else {
                 self.block
                     .clone()

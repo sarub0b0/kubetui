@@ -38,14 +38,14 @@ impl<'a> EventsTabBuilder<'a> {
             .widget_config(&WidgetConfig::builder().title("Event").build())
             .wrap()
             .follow()
-            .block_injection(|text: &Text, is_active: bool| {
+            .block_injection(|text: &Text, is_active: bool, is_mouse_over: bool| {
                 let (index, size) = text.state();
 
                 let mut config = text.widget_config().clone();
 
                 *config.append_title_mut() = Some(format!(" [{}/{}]", index, size).into());
 
-                config.render_block(text.can_activate() && is_active)
+                config.render_block(text.can_activate() && is_active, is_mouse_over)
             });
 
         if let Some(cb) = self.clipboard {

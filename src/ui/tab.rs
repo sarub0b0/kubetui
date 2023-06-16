@@ -1,5 +1,10 @@
-use super::widget::*;
+use super::{
+    event::EventResult,
+    util::{MousePosition, RectContainsPoint},
+    widget::*,
+};
 
+use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{
     backend::Backend,
     layout::{Constraint, Layout, Rect},
@@ -34,6 +39,7 @@ pub struct Tab<'a> {
     layout: Layout,
     active_widget_index: usize,
     activatable_widget_indices: Vec<usize>,
+    mouse_over_widget_index: Option<usize>,
 }
 
 impl<'a> Tab<'a> {
@@ -59,6 +65,7 @@ impl<'a> Tab<'a> {
             layout,
             activatable_widget_indices,
             active_widget_index: 0,
+            mouse_over_widget_index: None,
         }
     }
 
@@ -151,6 +158,34 @@ impl<'a> Tab<'a> {
             }
         })
     }
+
+    pub fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
+        let pos = ev.position();
+
+        let active_widget_id = self.active_widget_id().to_string();
+
+        let Some((index, id)) = self
+            .as_mut_widgets()
+            .iter_mut()
+            .enumerate()
+            .find(|(_, w)| w.chunk().contains_point(pos))
+            .map(|(i, w)| (i, w.id().to_string()) ) else { return EventResult::Ignore };
+
+        match ev.kind {
+            MouseEventKind::Down(MouseButton::Left) => {
+                if id != active_widget_id {
+                    self.activate_widget_by_id(&id);
+
+                    return EventResult::Ignore;
+                }
+            }
+            _ => {
+                self.mouse_over_widget_index = Some(index);
+            }
+        }
+
+        self.active_widget_mut().on_mouse_event(ev)
+    }
 }
 
 impl Tab<'_> {
@@ -158,9 +193,12 @@ impl Tab<'_> {
     where
         B: Backend,
     {
-        self.widgets
-            .iter_mut()
-            .enumerate()
-            .for_each(|(i, w)| w.widget.render(f, i == self.active_widget_index));
+        self.widgets.iter_mut().enumerate().for_each(|(i, w)| {
+            w.widget.render(
+                f,
+                i == self.active_widget_index,
+                self.mouse_over_widget_index.is_some_and(|idx| idx == i),
+            )
+        });
     }
 }

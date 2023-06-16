@@ -271,11 +271,13 @@ impl<'a> SelectForm<'a> {
         .alignment(Alignment::Center)
         .block(Block::default());
 
-        self.list_widget.render(f, self.active_form_index == 0);
+        self.list_widget
+            .render(f, self.active_form_index == 0, false);
 
         f.render_widget(arrow, chunks[1]);
 
-        self.selected_widget.render(f, self.active_form_index == 1);
+        self.selected_widget
+            .render(f, self.active_form_index == 1, false);
     }
 
     fn update_layout(&mut self, chunk: Rect) {
@@ -626,12 +628,12 @@ impl Default for MultipleSelect<'_> {
 }
 
 impl RenderTrait for MultipleSelect<'_> {
-    fn render<B: Backend>(&mut self, f: &mut Frame<B>, selected: bool) {
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>, selected: bool, is_mouse_over: bool) {
         let block = if let Some(block_injection) = &self.block_injection {
             (block_injection)(&*self, selected)
         } else {
             self.widget_config
-                .render_block(self.can_activate() && selected)
+                .render_block(self.can_activate() && selected, is_mouse_over)
         };
 
         let inner_chunk = block.inner(self.chunk);
