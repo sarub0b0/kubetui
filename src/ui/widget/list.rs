@@ -16,7 +16,9 @@ use super::{config::WidgetConfig, Item, LiteralItem, RenderTrait, SelectedItem, 
 
 use crate::ui::{
     event::{Callback, EventResult},
-    key_event_to_code, Window,
+    key_event_to_code,
+    util::{MousePosition, RectContainsPoint},
+    Window,
 };
 
 mod inner_item {
@@ -289,6 +291,10 @@ impl<'a> WidgetTrait for List<'a> {
 
         match ev.kind {
             MouseEventKind::Down(MouseButton::Left) => {
+                if !self.inner_chunk.contains_point(ev.position()) {
+                    return EventResult::Nop;
+                }
+
                 self.state.select(Some(row + self.state.offset()));
 
                 return EventResult::Callback(self.on_select_callback());
