@@ -22,7 +22,9 @@ use crate::{
     logger,
     ui::{
         event::{Callback, EventResult, InnerCallback},
-        key_event_to_code, Window,
+        key_event_to_code,
+        util::{MousePosition, RectContainsPoint},
+        Window,
     },
 };
 
@@ -588,6 +590,9 @@ impl WidgetTrait for Text {
 
         match ev.kind {
             MouseEventKind::Down(MouseButton::Left) => {
+                if !self.inner_chunk().contains_point(ev.position()) {
+                    return EventResult::Nop;
+                }
                 // posに該当するWrappedLineとStyleGraphemeのインデックスを探す
 
                 let (x, y) = (pos.x + self.scroll.x, pos.y + self.scroll.y);

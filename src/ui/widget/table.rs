@@ -20,7 +20,9 @@ use crate::{
     logger,
     ui::{
         event::{Callback, EventResult},
-        key_event_to_code, Window,
+        key_event_to_code,
+        util::{MousePosition, RectContainsPoint},
+        Window,
     },
 };
 
@@ -413,10 +415,6 @@ impl WidgetTrait for Table<'_> {
             return EventResult::Nop;
         }
 
-        if ev.row == self.inner_chunk.bottom() {
-            return EventResult::Ignore;
-        }
-
         let (_, row) = (
             ev.column.saturating_sub(self.inner_chunk.left()) as usize,
             ev.row.saturating_sub(self.inner_chunk.top()) as usize,
@@ -424,6 +422,10 @@ impl WidgetTrait for Table<'_> {
 
         match ev.kind {
             MouseEventKind::Down(MouseButton::Left) => {
+                if !self.inner_chunk.contains_point(ev.position()) {
+                    return EventResult::Nop;
+                }
+
                 let offset_index = self.state.offset();
                 let offset_bound = self.row_bounds[offset_index];
                 let offset_row = offset_bound.0;
