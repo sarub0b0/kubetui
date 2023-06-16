@@ -287,10 +287,6 @@ impl<'a> WidgetTrait for List<'a> {
             ev.row.saturating_sub(self.inner_chunk.top()) as usize,
         );
 
-        if self.items.len() <= row {
-            return EventResult::Nop;
-        }
-
         match ev.kind {
             MouseEventKind::Down(MouseButton::Left) => {
                 self.state.select(Some(row + self.state.offset()));
