@@ -144,13 +144,13 @@ impl SearchForm {
         self.input_widget.on_key_event(ev)
     }
 
-    fn render<B>(&mut self, f: &mut Frame<'_, B>, selected: bool, status: (usize, usize))
+    fn render<B>(&mut self, f: &mut Frame<'_, B>, is_active: bool, status: (usize, usize))
     where
         B: Backend,
     {
         let header = "Search: ";
 
-        let content = self.input_widget.render_content(selected);
+        let content = self.input_widget.render_content(is_active);
 
         let status = format!(" [{}/{}]", status.0, status.1);
 

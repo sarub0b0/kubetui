@@ -97,13 +97,13 @@ impl InputForm {
         }
     }
 
-    fn block(&self, selected: bool) -> Block<'static> {
-        self.widget_config.render_block(selected, false)
+    fn block(&self, is_active: bool) -> Block<'static> {
+        self.widget_config.render_block(is_active, false)
     }
 
-    pub fn render<B: Backend>(&mut self, f: &mut Frame<B>, selected: bool) {
-        let spans = self.render_content(selected);
-        let block = self.block(selected);
+    pub fn render<B: Backend>(&mut self, f: &mut Frame<B>, is_active: bool) {
+        let spans = self.render_content(is_active);
+        let block = self.block(is_active);
         let chunk = self.chunk;
 
         let widget = Paragraph::new(spans).block(block);
@@ -111,8 +111,8 @@ impl InputForm {
         f.render_widget(widget, chunk);
     }
 
-    pub fn render_content(&mut self, selected: bool) -> Line<'static> {
-        if selected {
+    pub fn render_content(&mut self, is_active: bool) -> Line<'static> {
+        if is_active {
             self.cursor.update_tick();
         } else {
             self.cursor.mode = Mode::Hide

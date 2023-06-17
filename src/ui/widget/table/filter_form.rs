@@ -39,13 +39,13 @@ impl FilterForm {
         self.input_widget.on_key_event(ev)
     }
 
-    pub fn render<B>(&mut self, f: &mut Frame<'_, B>, selected: bool)
+    pub fn render<B>(&mut self, f: &mut Frame<'_, B>, is_active: bool)
     where
         B: Backend,
     {
         let header = "FILTER: ";
 
-        let content = self.input_widget.render_content(selected);
+        let content = self.input_widget.render_content(is_active);
 
         let content_width = self.chunk.width.saturating_sub(8);
 

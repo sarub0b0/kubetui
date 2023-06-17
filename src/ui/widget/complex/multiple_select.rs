@@ -83,11 +83,11 @@ mod inner {
             self.items.values_mut().for_each(|v| *v = false);
         }
 
-        fn filter_items(items: &BTreeMap<LiteralItem, bool>, selected: bool) -> Vec<LiteralItem> {
+        fn filter_items(items: &BTreeMap<LiteralItem, bool>, is_active: bool) -> Vec<LiteralItem> {
             items
                 .iter()
                 .filter_map(|(k, v)| {
-                    if *v == selected {
+                    if *v == is_active {
                         Some(k.clone())
                     } else {
                         None
@@ -628,12 +628,12 @@ impl Default for MultipleSelect<'_> {
 }
 
 impl RenderTrait for MultipleSelect<'_> {
-    fn render<B: Backend>(&mut self, f: &mut Frame<B>, selected: bool, is_mouse_over: bool) {
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>, is_active: bool, is_mouse_over: bool) {
         let block = if let Some(block_injection) = &self.block_injection {
-            (block_injection)(&*self, selected)
+            (block_injection)(&*self, is_active)
         } else {
             self.widget_config
-                .render_block(self.can_activate() && selected, is_mouse_over)
+                .render_block(self.can_activate() && is_active, is_mouse_over)
         };
 
         let inner_chunk = block.inner(self.chunk);
@@ -647,7 +647,7 @@ impl RenderTrait for MultipleSelect<'_> {
             Paragraph::new(format!("[{}/{}]", status.0, status.1)),
             self.layout.split(inner_chunk)[LAYOUT_INDEX_FOR_STATUS],
         );
-        self.selected_widget.render(f, selected);
+        self.selected_widget.render(f, is_active);
     }
 }
 
