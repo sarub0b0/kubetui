@@ -266,7 +266,7 @@ impl<'a> SelectForm<'a> {
         }
     }
 
-    fn render<B: Backend>(&mut self, f: &mut Frame<B>, _: bool) {
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
         let (chunks, arrow) = self.chunks_and_arrow();
 
         let arrow = Paragraph::new(Span::styled(
@@ -680,7 +680,7 @@ impl RenderTrait for MultipleSelect<'_> {
             Paragraph::new(format!("[{}/{}]", status.0, status.1)),
             self.layout.split(inner_chunk)[LAYOUT_INDEX_FOR_STATUS],
         );
-        self.selected_widget.render(f, is_active);
+        self.selected_widget.render(f);
     }
 }
 
