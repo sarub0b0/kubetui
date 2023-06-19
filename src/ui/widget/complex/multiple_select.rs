@@ -7,7 +7,7 @@ use crate::ui::{
     Window,
 };
 
-use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 
 use derivative::*;
 
@@ -189,6 +189,9 @@ mod inner {
 
 use inner::SelectItems;
 
+const LIST_FORM_ID: usize = 0;
+const SELECTED_FORM_ID: usize = 1;
+
 #[derive(Derivative)]
 #[derivative(Debug)]
 struct SelectForm<'a> {
@@ -198,6 +201,7 @@ struct SelectForm<'a> {
     selected_widget: List<'a>,
     chunk: Rect,
     active_form_index: usize,
+    mouse_over_widget_index: Option<usize>,
     direction: Direction,
     #[derivative(Debug = "ignore")]
     matcher: SkimMatcherV2,
@@ -212,6 +216,7 @@ impl Default for SelectForm<'_> {
             selected_widget: List::default(),
             chunk: Rect::default(),
             active_form_index: 0,
+            mouse_over_widget_index: None,
             matcher: SkimMatcherV2::default(),
             direction: Direction::Vertical,
         }
@@ -271,13 +276,19 @@ impl<'a> SelectForm<'a> {
         .alignment(Alignment::Center)
         .block(Block::default());
 
-        self.list_widget
-            .render(f, self.active_form_index == 0, false);
+        self.list_widget.render(
+            f,
+            self.active_form_index == LIST_FORM_ID,
+            self.mouse_over_widget_index == Some(LIST_FORM_ID),
+        );
 
         f.render_widget(arrow, chunks[1]);
 
-        self.selected_widget
-            .render(f, self.active_form_index == 1, false);
+        self.selected_widget.render(
+            f,
+            self.active_form_index == 1,
+            self.mouse_over_widget_index == Some(SELECTED_FORM_ID),
+        );
     }
 
     fn update_layout(&mut self, chunk: Rect) {
@@ -339,7 +350,7 @@ impl<'a> SelectForm<'a> {
     }
 
     fn active_form(&mut self) -> &List<'a> {
-        if self.active_form_index == 0 {
+        if self.active_form_index == LIST_FORM_ID {
             &self.list_widget
         } else {
             &self.selected_widget
@@ -347,7 +358,7 @@ impl<'a> SelectForm<'a> {
     }
 
     fn active_form_mut(&mut self) -> &mut List<'a> {
-        if self.active_form_index == 0 {
+        if self.active_form_index == LIST_FORM_ID {
             &mut self.list_widget
         } else {
             &mut self.selected_widget
@@ -356,22 +367,26 @@ impl<'a> SelectForm<'a> {
 
     #[allow(dead_code)]
     fn inactive_form_mut(&mut self) -> &mut List<'a> {
-        if self.active_form_index == 1 {
-            &mut self.list_widget
-        } else {
+        if self.active_form_index == LIST_FORM_ID {
             &mut self.selected_widget
+        } else {
+            &mut self.list_widget
         }
     }
 
     fn toggle_active_form(&mut self) {
-        if self.active_form_index == 0 {
-            self.active_form_index = 1
+        self.mouse_over_widget_index = None;
+
+        if self.active_form_index == LIST_FORM_ID {
+            self.active_form_index = SELECTED_FORM_ID
         } else {
-            self.active_form_index = 0
+            self.active_form_index = LIST_FORM_ID
         }
     }
 
     fn activate_form_by_index(&mut self, index: usize) {
+        self.mouse_over_widget_index = None;
+
         self.active_form_index = index;
     }
 
@@ -461,17 +476,35 @@ impl<'a> SelectForm<'a> {
         let (chunks, _) = self.chunks_and_arrow();
 
         if chunks[0].contains_point(pos) {
-            self.activate_form_by_index(0);
-            self.list_widget.on_mouse_event(ev)
+            if let MouseEventKind::Down(MouseButton::Left) = ev.kind {
+                if self.active_form_index != LIST_FORM_ID {
+                    self.activate_form_by_index(LIST_FORM_ID);
+                    return EventResult::Ignore;
+                }
+            } else {
+                self.mouse_over_widget_index = Some(LIST_FORM_ID);
+            }
+
+            self.active_form_mut().on_mouse_event(ev)
         } else if chunks[2].contains_point(pos) {
-            self.activate_form_by_index(1);
-            self.selected_widget.on_mouse_event(ev)
+            if let MouseEventKind::Down(MouseButton::Left) = ev.kind {
+                if self.active_form_index != SELECTED_FORM_ID {
+                    self.activate_form_by_index(SELECTED_FORM_ID);
+                    return EventResult::Ignore;
+                }
+            } else {
+                self.mouse_over_widget_index = Some(SELECTED_FORM_ID);
+            }
+
+            self.active_form_mut().on_mouse_event(ev)
         } else {
             EventResult::Nop
         }
     }
 
     fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
+        self.mouse_over_widget_index = None;
+
         self.active_form_mut().on_key_event(ev)
     }
 }
