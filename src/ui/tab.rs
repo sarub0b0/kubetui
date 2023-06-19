@@ -98,11 +98,15 @@ impl<'a> Tab<'a> {
     }
 
     pub fn activate_next_widget(&mut self) {
+        self.mouse_over_widget_index = None;
+
         self.active_widget_index =
             (self.active_widget_index + 1) % self.activatable_widget_indices.len();
     }
 
     pub fn activate_prev_widget(&mut self) {
+        self.mouse_over_widget_index = None;
+
         let activatable_widget_len = self.activatable_widget_indices.len();
 
         self.active_widget_index =
@@ -135,6 +139,8 @@ impl<'a> Tab<'a> {
             .enumerate()
             .find(|(_, w)| w.widget.id() == id)
         {
+            self.mouse_over_widget_index = None;
+
             self.active_widget_index = index;
         }
     }

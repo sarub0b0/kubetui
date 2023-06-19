@@ -427,6 +427,8 @@ impl Window<'_> {
     }
 
     pub fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
+        self.mouse_over_tab_index = None;
+
         if let Some(id) = &self.open_popup_id {
             if let Some(popup) = self.popups.iter_mut().find(|w| w.id() == id) {
                 return popup.on_key_event(ev);
