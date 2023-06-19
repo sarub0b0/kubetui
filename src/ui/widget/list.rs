@@ -295,6 +295,10 @@ impl<'a> WidgetTrait for List<'a> {
                     return EventResult::Nop;
                 }
 
+                if self.items.len() <= row + self.state.offset() {
+                    return EventResult::Nop;
+                }
+
                 self.state.select(Some(row + self.state.offset()));
 
                 return EventResult::Callback(self.on_select_callback());
