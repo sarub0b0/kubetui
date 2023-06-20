@@ -375,7 +375,7 @@ impl<'a> SelectForm<'a> {
     }
 
     fn toggle_active_form(&mut self) {
-        self.mouse_over_widget_index = None;
+        self.clear_mouse_over();
 
         if self.active_form_index == LIST_FORM_ID {
             self.active_form_index = SELECTED_FORM_ID
@@ -385,7 +385,7 @@ impl<'a> SelectForm<'a> {
     }
 
     fn activate_form_by_index(&mut self, index: usize) {
-        self.mouse_over_widget_index = None;
+        self.clear_mouse_over();
 
         self.active_form_index = index;
     }
@@ -503,9 +503,13 @@ impl<'a> SelectForm<'a> {
     }
 
     fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
-        self.mouse_over_widget_index = None;
+        self.clear_mouse_over();
 
         self.active_form_mut().on_key_event(ev)
+    }
+
+    fn clear_mouse_over(&mut self) {
+        self.mouse_over_widget_index = None;
     }
 }
 
@@ -721,6 +725,10 @@ impl<'a> MultipleSelect<'a> {
 
     pub fn select_all(&mut self) {
         self.selected_widget.select_all();
+    }
+
+    pub fn clear_mouse_over(&mut self) {
+        self.selected_widget.clear_mouse_over();
     }
 }
 

@@ -347,6 +347,10 @@ impl<'a> Window<'a> {
     pub fn activate_widget_by_id(&mut self, id: &str) {
         self.active_tab_mut().activate_widget_by_id(id)
     }
+
+    pub fn clear_mouse_over(&mut self) {
+        self.mouse_over_tab_index = None;
+    }
 }
 
 // Render
@@ -416,18 +420,36 @@ impl Window<'_> {
             UserEvent::Key(ev) => self.on_key_event(ev),
             UserEvent::Mouse(ev) => self.on_mouse_event(ev),
             UserEvent::FocusLost => {
-                self.mouse_over_tab_index = None;
+                self.clear_mouse_over();
+                self.active_tab_mut().clear_mouse_over();
+
+                if let Some(id) = &self.open_popup_id {
+                    if let Some(Widget::MultipleSelect(w)) =
+                        self.popups.iter_mut().find(|w| w.id() == id)
+                    {
+                        w.clear_mouse_over();
+                    }
+                }
                 EventResult::Nop
             }
             UserEvent::FocusGained => {
-                self.mouse_over_tab_index = None;
+                self.clear_mouse_over();
+                self.active_tab_mut().clear_mouse_over();
+                if let Some(id) = &self.open_popup_id {
+                    if let Some(Widget::MultipleSelect(w)) =
+                        self.popups.iter_mut().find(|w| w.id() == id)
+                    {
+                        w.clear_mouse_over();
+                    }
+                }
+
                 EventResult::Nop
             }
         }
     }
 
     pub fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
-        self.mouse_over_tab_index = None;
+        self.clear_mouse_over();
 
         if let Some(id) = &self.open_popup_id {
             if let Some(popup) = self.popups.iter_mut().find(|w| w.id() == id) {
@@ -490,12 +512,12 @@ impl Window<'_> {
                 EventResult::Nop
             }
             AreaKind::Widgets => {
-                self.mouse_over_tab_index = None;
+                self.clear_mouse_over();
 
                 self.active_tab_mut().on_mouse_event(ev)
             }
             AreaKind::OutSide => {
-                self.mouse_over_tab_index = None;
+                self.clear_mouse_over();
 
                 EventResult::Ignore
             }
