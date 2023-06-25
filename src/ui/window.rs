@@ -350,6 +350,14 @@ impl<'a> Window<'a> {
 
     pub fn clear_mouse_over(&mut self) {
         self.mouse_over_tab_index = None;
+
+        self.active_tab_mut().clear_mouse_over();
+
+        if let Some(id) = &self.open_popup_id {
+            if let Some(Widget::MultipleSelect(w)) = self.popups.iter_mut().find(|w| w.id() == id) {
+                w.clear_mouse_over();
+            }
+        }
     }
 }
 
@@ -421,27 +429,10 @@ impl Window<'_> {
             UserEvent::Mouse(ev) => self.on_mouse_event(ev),
             UserEvent::FocusLost => {
                 self.clear_mouse_over();
-                self.active_tab_mut().clear_mouse_over();
-
-                if let Some(id) = &self.open_popup_id {
-                    if let Some(Widget::MultipleSelect(w)) =
-                        self.popups.iter_mut().find(|w| w.id() == id)
-                    {
-                        w.clear_mouse_over();
-                    }
-                }
                 EventResult::Nop
             }
             UserEvent::FocusGained => {
                 self.clear_mouse_over();
-                self.active_tab_mut().clear_mouse_over();
-                if let Some(id) = &self.open_popup_id {
-                    if let Some(Widget::MultipleSelect(w)) =
-                        self.popups.iter_mut().find(|w| w.id() == id)
-                    {
-                        w.clear_mouse_over();
-                    }
-                }
 
                 EventResult::Nop
             }
