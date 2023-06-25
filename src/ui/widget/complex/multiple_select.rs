@@ -476,24 +476,30 @@ impl<'a> SelectForm<'a> {
         let (chunks, _) = self.chunks_and_arrow();
 
         if chunks[0].contains_point(pos) {
-            if let MouseEventKind::Down(MouseButton::Left) = ev.kind {
-                if self.active_form_index != LIST_FORM_ID {
-                    self.activate_form_by_index(LIST_FORM_ID);
-                    return EventResult::Ignore;
+            match ev.kind {
+                MouseEventKind::Down(MouseButton::Left) => {
+                    if self.active_form_index != LIST_FORM_ID {
+                        self.activate_form_by_index(LIST_FORM_ID);
+                    }
                 }
-            } else {
-                self.mouse_over_widget_index = Some(LIST_FORM_ID);
+                MouseEventKind::Moved => {
+                    self.mouse_over_widget_index = Some(LIST_FORM_ID);
+                }
+                _ => {}
             }
 
             self.active_form_mut().on_mouse_event(ev)
         } else if chunks[2].contains_point(pos) {
-            if let MouseEventKind::Down(MouseButton::Left) = ev.kind {
-                if self.active_form_index != SELECTED_FORM_ID {
-                    self.activate_form_by_index(SELECTED_FORM_ID);
-                    return EventResult::Ignore;
+            match ev.kind {
+                MouseEventKind::Down(MouseButton::Left) => {
+                    if self.active_form_index != SELECTED_FORM_ID {
+                        self.activate_form_by_index(SELECTED_FORM_ID);
+                    }
                 }
-            } else {
-                self.mouse_over_widget_index = Some(SELECTED_FORM_ID);
+                MouseEventKind::Moved => {
+                    self.mouse_over_widget_index = Some(SELECTED_FORM_ID);
+                }
+                _ => {}
             }
 
             self.active_form_mut().on_mouse_event(ev)

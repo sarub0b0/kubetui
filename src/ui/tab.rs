@@ -185,13 +185,12 @@ impl<'a> Tab<'a> {
             MouseEventKind::Down(MouseButton::Left) => {
                 if id != active_widget_id {
                     self.activate_widget_by_id(&id);
-
-                    return EventResult::Ignore;
                 }
             }
-            _ => {
+            MouseEventKind::Moved => {
                 self.mouse_over_widget_index = Some(index);
             }
+            _ => {}
         }
 
         self.active_widget_mut().on_mouse_event(ev)
