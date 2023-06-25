@@ -4,7 +4,7 @@ use crossbeam::channel::{bounded, Receiver, Sender};
 
 use crossterm::{
     cursor::Show,
-    event::{DisableMouseCapture, EnableMouseCapture},
+    event::{DisableFocusChange, DisableMouseCapture, EnableFocusChange, EnableMouseCapture},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -36,8 +36,13 @@ use ratatui::{backend::CrosstermBackend, Terminal, TerminalOptions, Viewport};
 macro_rules! enable_raw_mode {
     () => {
         enable_raw_mode().expect("failed to enable raw mode");
-        execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)
-            .expect("failed to enable raw mode");
+        execute!(
+            io::stdout(),
+            EnterAlternateScreen,
+            EnableMouseCapture,
+            EnableFocusChange
+        )
+        .expect("failed to enable raw mode");
     };
 }
 
@@ -47,6 +52,7 @@ macro_rules! disable_raw_mode {
             io::stdout(),
             LeaveAlternateScreen,
             DisableMouseCapture,
+            DisableFocusChange,
             Show
         )
         .expect("failed to restore terminal");

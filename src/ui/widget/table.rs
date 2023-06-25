@@ -600,7 +600,7 @@ impl<'a> Table<'a> {
 }
 
 impl RenderTrait for Table<'_> {
-    fn render<B>(&mut self, f: &mut Frame<'_, B>, is_active: bool)
+    fn render<B>(&mut self, f: &mut Frame<'_, B>, is_active: bool, is_mouse_over: bool)
     where
         B: Backend,
     {
@@ -620,7 +620,7 @@ impl RenderTrait for Table<'_> {
             }
         }
 
-        let block = widget_config.render_block(self.can_activate() && is_active);
+        let block = widget_config.render_block(self.can_activate() && is_active, is_mouse_over);
 
         let constraints = constraints(self.items.digits());
 
@@ -907,7 +907,7 @@ mod tests {
 
             terminal
                 .draw(|f| {
-                    table.render(f, true);
+                    table.render(f, true, false);
                 })
                 .unwrap();
 
@@ -946,7 +946,7 @@ mod tests {
 
                 terminal
                     .draw(|f| {
-                        table.render(f, true);
+                        table.render(f, true, false);
                     })
                     .unwrap();
 
@@ -971,7 +971,7 @@ mod tests {
 
                 terminal
                     .draw(|f| {
-                        table.render(f, true);
+                        table.render(f, true, false);
                     })
                     .unwrap();
 
@@ -995,7 +995,7 @@ mod tests {
 
                 terminal
                     .draw(|f| {
-                        table.render(f, false);
+                        table.render(f, false, false);
                     })
                     .unwrap();
 
@@ -1009,7 +1009,7 @@ mod tests {
 
                 terminal
                     .draw(|f| {
-                        table.render(f, false);
+                        table.render(f, false, false);
                     })
                     .unwrap();
 

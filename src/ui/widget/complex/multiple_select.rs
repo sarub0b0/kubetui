@@ -7,7 +7,7 @@ use crate::ui::{
     Window,
 };
 
-use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 
 use derivative::*;
 
@@ -83,11 +83,11 @@ mod inner {
             self.items.values_mut().for_each(|v| *v = false);
         }
 
-        fn filter_items(items: &BTreeMap<LiteralItem, bool>, selected: bool) -> Vec<LiteralItem> {
+        fn filter_items(items: &BTreeMap<LiteralItem, bool>, is_active: bool) -> Vec<LiteralItem> {
             items
                 .iter()
                 .filter_map(|(k, v)| {
-                    if *v == selected {
+                    if *v == is_active {
                         Some(k.clone())
                     } else {
                         None
@@ -189,6 +189,9 @@ mod inner {
 
 use inner::SelectItems;
 
+const LIST_FORM_ID: usize = 0;
+const SELECTED_FORM_ID: usize = 1;
+
 #[derive(Derivative)]
 #[derivative(Debug)]
 struct SelectForm<'a> {
@@ -198,6 +201,7 @@ struct SelectForm<'a> {
     selected_widget: List<'a>,
     chunk: Rect,
     active_form_index: usize,
+    mouse_over_widget_index: Option<usize>,
     direction: Direction,
     #[derivative(Debug = "ignore")]
     matcher: SkimMatcherV2,
@@ -212,6 +216,7 @@ impl Default for SelectForm<'_> {
             selected_widget: List::default(),
             chunk: Rect::default(),
             active_form_index: 0,
+            mouse_over_widget_index: None,
             matcher: SkimMatcherV2::default(),
             direction: Direction::Vertical,
         }
@@ -261,7 +266,7 @@ impl<'a> SelectForm<'a> {
         }
     }
 
-    fn render<B: Backend>(&mut self, f: &mut Frame<B>, _: bool) {
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
         let (chunks, arrow) = self.chunks_and_arrow();
 
         let arrow = Paragraph::new(Span::styled(
@@ -271,11 +276,19 @@ impl<'a> SelectForm<'a> {
         .alignment(Alignment::Center)
         .block(Block::default());
 
-        self.list_widget.render(f, self.active_form_index == 0);
+        self.list_widget.render(
+            f,
+            self.active_form_index == LIST_FORM_ID,
+            self.mouse_over_widget_index == Some(LIST_FORM_ID),
+        );
 
         f.render_widget(arrow, chunks[1]);
 
-        self.selected_widget.render(f, self.active_form_index == 1);
+        self.selected_widget.render(
+            f,
+            self.active_form_index == 1,
+            self.mouse_over_widget_index == Some(SELECTED_FORM_ID),
+        );
     }
 
     fn update_layout(&mut self, chunk: Rect) {
@@ -337,7 +350,7 @@ impl<'a> SelectForm<'a> {
     }
 
     fn active_form(&mut self) -> &List<'a> {
-        if self.active_form_index == 0 {
+        if self.active_form_index == LIST_FORM_ID {
             &self.list_widget
         } else {
             &self.selected_widget
@@ -345,7 +358,7 @@ impl<'a> SelectForm<'a> {
     }
 
     fn active_form_mut(&mut self) -> &mut List<'a> {
-        if self.active_form_index == 0 {
+        if self.active_form_index == LIST_FORM_ID {
             &mut self.list_widget
         } else {
             &mut self.selected_widget
@@ -354,22 +367,26 @@ impl<'a> SelectForm<'a> {
 
     #[allow(dead_code)]
     fn inactive_form_mut(&mut self) -> &mut List<'a> {
-        if self.active_form_index == 1 {
-            &mut self.list_widget
-        } else {
+        if self.active_form_index == LIST_FORM_ID {
             &mut self.selected_widget
+        } else {
+            &mut self.list_widget
         }
     }
 
     fn toggle_active_form(&mut self) {
-        if self.active_form_index == 0 {
-            self.active_form_index = 1
+        self.clear_mouse_over();
+
+        if self.active_form_index == LIST_FORM_ID {
+            self.active_form_index = SELECTED_FORM_ID
         } else {
-            self.active_form_index = 0
+            self.active_form_index = LIST_FORM_ID
         }
     }
 
     fn activate_form_by_index(&mut self, index: usize) {
+        self.clear_mouse_over();
+
         self.active_form_index = index;
     }
 
@@ -459,18 +476,46 @@ impl<'a> SelectForm<'a> {
         let (chunks, _) = self.chunks_and_arrow();
 
         if chunks[0].contains_point(pos) {
-            self.activate_form_by_index(0);
-            self.list_widget.on_mouse_event(ev)
+            match ev.kind {
+                MouseEventKind::Down(MouseButton::Left) => {
+                    if self.active_form_index != LIST_FORM_ID {
+                        self.activate_form_by_index(LIST_FORM_ID);
+                    }
+                }
+                MouseEventKind::Moved => {
+                    self.mouse_over_widget_index = Some(LIST_FORM_ID);
+                }
+                _ => {}
+            }
+
+            self.active_form_mut().on_mouse_event(ev)
         } else if chunks[2].contains_point(pos) {
-            self.activate_form_by_index(1);
-            self.selected_widget.on_mouse_event(ev)
+            match ev.kind {
+                MouseEventKind::Down(MouseButton::Left) => {
+                    if self.active_form_index != SELECTED_FORM_ID {
+                        self.activate_form_by_index(SELECTED_FORM_ID);
+                    }
+                }
+                MouseEventKind::Moved => {
+                    self.mouse_over_widget_index = Some(SELECTED_FORM_ID);
+                }
+                _ => {}
+            }
+
+            self.active_form_mut().on_mouse_event(ev)
         } else {
             EventResult::Nop
         }
     }
 
     fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
+        self.clear_mouse_over();
+
         self.active_form_mut().on_key_event(ev)
+    }
+
+    fn clear_mouse_over(&mut self) {
+        self.mouse_over_widget_index = None;
     }
 }
 
@@ -626,12 +671,12 @@ impl Default for MultipleSelect<'_> {
 }
 
 impl RenderTrait for MultipleSelect<'_> {
-    fn render<B: Backend>(&mut self, f: &mut Frame<B>, selected: bool) {
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>, is_active: bool, is_mouse_over: bool) {
         let block = if let Some(block_injection) = &self.block_injection {
-            (block_injection)(&*self, selected)
+            (block_injection)(&*self, is_active)
         } else {
             self.widget_config
-                .render_block(self.can_activate() && selected)
+                .render_block(self.can_activate() && is_active, is_mouse_over)
         };
 
         let inner_chunk = block.inner(self.chunk);
@@ -645,7 +690,7 @@ impl RenderTrait for MultipleSelect<'_> {
             Paragraph::new(format!("[{}/{}]", status.0, status.1)),
             self.layout.split(inner_chunk)[LAYOUT_INDEX_FOR_STATUS],
         );
-        self.selected_widget.render(f, selected);
+        self.selected_widget.render(f);
     }
 }
 
@@ -686,6 +731,10 @@ impl<'a> MultipleSelect<'a> {
 
     pub fn select_all(&mut self) {
         self.selected_widget.select_all();
+    }
+
+    pub fn clear_mouse_over(&mut self) {
+        self.selected_widget.clear_mouse_over();
     }
 }
 

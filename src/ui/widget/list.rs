@@ -385,12 +385,12 @@ impl<'a> List<'a> {
 }
 
 impl RenderTrait for List<'_> {
-    fn render<B: Backend>(&mut self, f: &mut Frame<B>, is_active: bool) {
+    fn render<B: Backend>(&mut self, f: &mut Frame<B>, is_active: bool, is_mouse_over: bool) {
         let block = if let Some(block_injection) = &self.block_injection {
             (block_injection)(&*self, is_active)
         } else {
             self.widget_config
-                .render_block(self.can_activate() && is_active)
+                .render_block(self.can_activate() && is_active, is_mouse_over)
         };
 
         f.render_stateful_widget(self.widget(block), self.chunk, &mut self.state);

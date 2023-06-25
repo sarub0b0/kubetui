@@ -38,7 +38,7 @@ struct SelectForm<'a> {
 
 impl<'a> SelectForm<'a> {
     fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
-        self.list_widget.render(f, true);
+        self.list_widget.render(f, true, false);
     }
 
     fn filter_items(&self, items: &BTreeSet<LiteralItem>) -> Vec<LiteralItem> {
@@ -324,15 +324,15 @@ impl WidgetTrait for SingleSelect<'_> {
 }
 
 impl RenderTrait for SingleSelect<'_> {
-    fn render<B>(&mut self, f: &mut Frame<'_, B>, selected: bool)
+    fn render<B>(&mut self, f: &mut Frame<'_, B>, is_active: bool, is_mouse_over: bool)
     where
         B: Backend,
     {
         let block = if let Some(block_injection) = &self.block_injection {
-            (block_injection)(&*self, selected)
+            (block_injection)(&*self, is_active)
         } else {
             self.widget_config
-                .render_block(self.can_activate() && selected)
+                .render_block(self.can_activate() && is_active, is_mouse_over)
         };
 
         f.render_widget(block, self.chunk);

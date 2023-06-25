@@ -1,5 +1,10 @@
-use super::widget::*;
+use super::{
+    event::EventResult,
+    util::{MousePosition, RectContainsPoint},
+    widget::*,
+};
 
+use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{
     backend::Backend,
     layout::{Constraint, Layout, Rect},
@@ -34,6 +39,7 @@ pub struct Tab<'a> {
     layout: Layout,
     active_widget_index: usize,
     activatable_widget_indices: Vec<usize>,
+    mouse_over_widget_index: Option<usize>,
 }
 
 impl<'a> Tab<'a> {
@@ -59,6 +65,7 @@ impl<'a> Tab<'a> {
             layout,
             activatable_widget_indices,
             active_widget_index: 0,
+            mouse_over_widget_index: None,
         }
     }
 
@@ -91,11 +98,15 @@ impl<'a> Tab<'a> {
     }
 
     pub fn activate_next_widget(&mut self) {
+        self.clear_mouse_over();
+
         self.active_widget_index =
             (self.active_widget_index + 1) % self.activatable_widget_indices.len();
     }
 
     pub fn activate_prev_widget(&mut self) {
+        self.clear_mouse_over();
+
         let activatable_widget_len = self.activatable_widget_indices.len();
 
         self.active_widget_index =
@@ -128,8 +139,14 @@ impl<'a> Tab<'a> {
             .enumerate()
             .find(|(_, w)| w.widget.id() == id)
         {
+            self.clear_mouse_over();
+
             self.active_widget_index = index;
         }
+    }
+
+    pub fn clear_mouse_over(&mut self) {
+        self.mouse_over_widget_index = None;
     }
 
     pub fn find_widget(&self, id: &str) -> Option<&Widget<'a>> {
@@ -151,6 +168,33 @@ impl<'a> Tab<'a> {
             }
         })
     }
+
+    pub fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
+        let pos = ev.position();
+
+        let active_widget_id = self.active_widget_id().to_string();
+
+        let Some((index, id)) = self
+            .as_mut_widgets()
+            .iter_mut()
+            .enumerate()
+            .find(|(_, w)| w.chunk().contains_point(pos))
+            .map(|(i, w)| (i, w.id().to_string()) ) else { return EventResult::Ignore };
+
+        match ev.kind {
+            MouseEventKind::Down(MouseButton::Left) => {
+                if id != active_widget_id {
+                    self.activate_widget_by_id(&id);
+                }
+            }
+            MouseEventKind::Moved => {
+                self.mouse_over_widget_index = Some(index);
+            }
+            _ => {}
+        }
+
+        self.active_widget_mut().on_mouse_event(ev)
+    }
 }
 
 impl Tab<'_> {
@@ -158,9 +202,12 @@ impl Tab<'_> {
     where
         B: Backend,
     {
-        self.widgets
-            .iter_mut()
-            .enumerate()
-            .for_each(|(i, w)| w.widget.render(f, i == self.active_widget_index));
+        self.widgets.iter_mut().enumerate().for_each(|(i, w)| {
+            w.widget.render(
+                f,
+                i == self.active_widget_index,
+                self.mouse_over_widget_index.is_some_and(|idx| idx == i),
+            )
+        });
     }
 }
