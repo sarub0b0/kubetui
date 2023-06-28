@@ -215,6 +215,13 @@ impl<'a> SingleSelect<'a> {
         self.input_widget.move_cursor_end();
     }
 
+    pub fn clear_filter_criteria(&mut self) {
+        self.input_widget.clear();
+
+        self.select_widget
+            .update_filter(self.input_widget.content());
+    }
+
     pub fn match_callback(&self, ev: UserEvent) -> Option<InnerCallback> {
         self.callbacks
             .iter()

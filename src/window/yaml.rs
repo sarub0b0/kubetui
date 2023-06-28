@@ -149,6 +149,11 @@ impl<'a> YamlTabBuilder<'a> {
     fn subwin_return(&self) -> Text {
         let return_kind = move |w: &mut Window| {
             w.open_popup(view_id::popup_yaml_kind);
+
+            if let Widget::SingleSelect(w) = w.find_widget_mut(view_id::popup_yaml_kind) {
+                w.clear_filter_criteria();
+            }
+
             EventResult::Nop
         };
 
