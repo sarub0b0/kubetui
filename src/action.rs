@@ -58,6 +58,7 @@ pub mod view_id {
 
     generate_id!(popup_yaml_name);
     generate_id!(popup_yaml_kind);
+    generate_id!(popup_yaml_return);
 
     generate_id!(popup_help);
 }
@@ -387,11 +388,16 @@ pub fn update_contents(
                     }
                 }
 
-                Resource(res) => {
-                    let widget = window.find_widget_mut(view_id::popup_yaml_name);
+                Resource(res) => match res {
+                    Ok(list) => {
+                        if list.items.is_empty() {
+                            window.open_popup(view_id::popup_yaml_return);
 
-                    match res {
-                        Ok(list) => {
+                        } else {
+                            window.open_popup(view_id::popup_yaml_name);
+
+                            let widget = window.find_widget_mut(view_id::popup_yaml_name);
+
                             let items = list.items
                                     .into_iter()
                                     .map(
@@ -419,11 +425,12 @@ pub fn update_contents(
 
                             widget.update_widget_item(Item::Array(items));
                         }
-                        Err(e) => {
-                            widget.update_widget_item(Item::Array(error_lines!(e)));
-                        }
                     }
-                }
+                    Err(e) => {
+                        let widget = window.find_widget_mut(view_id::popup_yaml_name);
+                        widget.update_widget_item(Item::Array(error_lines!(e)));
+                    }
+                },
                 Yaml(res) => {
                     update_widget_item_for_vec(window, view_id::tab_yaml_widget_yaml, res);
                 }

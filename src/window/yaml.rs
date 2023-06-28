@@ -1,4 +1,5 @@
 use crossbeam::channel::Sender;
+use crossterm::event::KeyCode;
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
@@ -25,6 +26,7 @@ pub struct YamlTab {
     pub tab: Tab<'static>,
     pub popup_kind: Widget<'static>,
     pub popup_name: Widget<'static>,
+    pub popup_return: Widget<'static>,
 }
 
 impl<'a> YamlTabBuilder<'a> {
@@ -46,6 +48,7 @@ impl<'a> YamlTabBuilder<'a> {
             tab: Tab::new(view_id::tab_yaml, self.title, [WidgetChunk::new(yaml)]),
             popup_kind: self.subwin_kind().into(),
             popup_name: self.subwin_name().into(),
+            popup_return: self.subwin_return().into(),
         }
     }
 
@@ -102,8 +105,6 @@ impl<'a> YamlTabBuilder<'a> {
                 tx.send(YamlRequest::Resource(kind).into())
                     .expect("Failed to send YamlRequest::Resource");
 
-                w.open_popup(view_id::popup_yaml_name);
-
                 EventResult::Nop
             })
             .build()
@@ -142,6 +143,31 @@ impl<'a> YamlTabBuilder<'a> {
 
                 EventResult::Nop
             })
+            .build()
+    }
+
+    fn subwin_return(&self) -> Text {
+        let return_kind = move |w: &mut Window| {
+            w.open_popup(view_id::popup_yaml_kind);
+            EventResult::Nop
+        };
+
+        Text::builder()
+            .id(view_id::popup_yaml_return)
+            .widget_config(&WidgetConfig::builder().title("Name").build())
+            .items(
+                [
+                    "No resources found.",
+                    "",
+                    "Press \x1b[1mEnter\x1b[0m or \x1b[1mEsc\x1b[0m to return to resource selection.",
+                ]
+                .into_iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>(),
+            )
+            .wrap()
+            .action(KeyCode::Enter, return_kind)
+            .action(KeyCode::Esc, return_kind)
             .build()
     }
 }

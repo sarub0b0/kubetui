@@ -149,6 +149,7 @@ impl WindowInit {
             tab: tab_yaml,
             popup_kind: popup_yaml_kind,
             popup_name: popup_yaml_name,
+            popup_return: popup_yaml_return,
         } = YamlTabBuilder::new("Yaml", &self.tx, &clipboard).build();
 
         let ContextPopup {
@@ -178,6 +179,7 @@ impl WindowInit {
             popup_list,
             popup_yaml_kind,
             popup_yaml_name,
+            popup_yaml_return,
             popup_help,
         ];
 
