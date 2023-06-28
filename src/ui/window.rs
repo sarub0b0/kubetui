@@ -7,7 +7,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Clear, Paragraph, Tabs},
+    widgets::{Block, Paragraph, Tabs},
     Frame,
 };
 
@@ -20,8 +20,9 @@ use crate::{
 
 use super::{
     event::{EventResult, InnerCallback},
-    util::{child_window_chunk, key_event_to_code, MousePosition, RectContainsPoint},
-    widget::{RenderTrait, Widget, WidgetTrait},
+    popup::Popup,
+    util::{key_event_to_code, MousePosition, RectContainsPoint},
+    widget::{Widget, WidgetTrait},
     Tab,
 };
 
@@ -35,7 +36,7 @@ pub struct Window<'a> {
     layout: Layout,
     chunk: Rect,
     callbacks: Vec<(UserEvent, InnerCallback)>,
-    popups: Vec<Widget<'a>>,
+    popups: Vec<Popup<'a>>,
     open_popup_id: Option<String>,
     header: Option<Header<'a>>,
     layout_index: WindowLayoutIndex,
@@ -97,7 +98,7 @@ impl<'a> Header<'a> {
 pub struct WindowBuilder<'a> {
     tabs: Vec<Tab<'a>>,
     callbacks: Vec<(UserEvent, InnerCallback)>,
-    popups: Vec<Widget<'a>>,
+    popups: Vec<Popup<'a>>,
     header: Option<Header<'a>>,
 }
 
@@ -115,7 +116,7 @@ impl<'a> WindowBuilder<'a> {
         self
     }
 
-    pub fn popup(mut self, popup: impl Into<Vec<Widget<'a>>>) -> Self {
+    pub fn popup(mut self, popup: impl Into<Vec<Popup<'a>>>) -> Self {
         self.popups = popup.into();
         self
     }
@@ -187,14 +188,7 @@ impl<'a> Window<'a> {
             tab.update_chunk(chunks[contents_index]);
         });
 
-        self.popups.iter_mut().for_each(|w| {
-            let chunk = w
-                .widget_config()
-                .block()
-                .inner(child_window_chunk(80, 80, chunk));
-
-            w.update_chunk(chunk)
-        })
+        self.popups.iter_mut().for_each(|w| w.update_chunk(chunk))
     }
 
     fn chunks(&self) -> Rc<[Rect]> {
@@ -308,7 +302,7 @@ impl<'a> Window<'a> {
 impl<'a> Window<'a> {
     pub fn find_widget(&self, id: &str) -> &Widget<'a> {
         if let Some(w) = self.popups.iter().find(|w| w.id() == id) {
-            w
+            w.widget()
         } else {
             self.tabs
                 .iter()
@@ -319,7 +313,7 @@ impl<'a> Window<'a> {
 
     pub fn find_widget_mut(&mut self, id: &str) -> &mut Widget<'a> {
         if let Some(w) = self.popups.iter_mut().find(|w| w.id() == id) {
-            w
+            w.widget_mut()
         } else {
             self.tabs
                 .iter_mut()
@@ -354,7 +348,12 @@ impl<'a> Window<'a> {
         self.active_tab_mut().clear_mouse_over();
 
         if let Some(id) = &self.open_popup_id {
-            if let Some(Widget::MultipleSelect(w)) = self.popups.iter_mut().find(|w| w.id() == id) {
+            if let Some(Widget::MultipleSelect(w)) = self
+                .popups
+                .iter_mut()
+                .find(|w| w.id() == id)
+                .map(|w| w.widget_mut())
+            {
                 w.clear_mouse_over();
             }
         }
@@ -402,8 +401,8 @@ impl<'a> Window<'a> {
     fn render_popup<B: Backend>(&mut self, f: &mut Frame<B>) {
         if let Some(id) = &self.open_popup_id {
             if let Some(popup) = self.popups.iter_mut().find(|p| p.id() == id) {
-                f.render_widget(Clear, child_window_chunk(80, 80, self.chunk));
-                popup.render(f, true, false);
+                // f.render_widget(Clear, child_window_chunk(80, 80, self.chunk));
+                popup.render(f);
             }
         }
     }
