@@ -18,7 +18,7 @@ use super::input::InputForm;
 use crate::{
     event::UserEvent,
     ui::{
-        event::{EventResult, InnerCallback},
+        event::{Callback, EventResult, InnerCallback},
         util::RectContainsPoint,
         widget::*,
         Window,
@@ -289,17 +289,23 @@ impl WidgetTrait for SingleSelect<'_> {
     }
 
     fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
-        match self.input_widget.on_key_event(ev) {
-            EventResult::Ignore => {
-                return self.select_widget.on_key_event(ev);
-            }
+        let event_result = match self.input_widget.on_key_event(ev) {
+            EventResult::Ignore => self.select_widget.on_key_event(ev),
             _ => {
                 self.select_widget
                     .update_filter(self.input_widget.content());
+
+                EventResult::Nop
+            }
+        };
+
+        if let EventResult::Ignore = event_result {
+            if let Some(cb) = self.match_callback(UserEvent::Key(ev)) {
+                return EventResult::Callback(Some(Callback::from(cb)));
             }
         }
 
-        EventResult::Nop
+        event_result
     }
 
     fn update_chunk(&mut self, chunk: Rect) {

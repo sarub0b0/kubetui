@@ -143,6 +143,13 @@ impl<'a> YamlTabBuilder<'a> {
 
                 EventResult::Nop
             })
+            .action(KeyCode::Esc, move |w| {
+                w.open_popup(view_id::popup_yaml_kind);
+                if let Widget::SingleSelect(w) = w.find_widget_mut(view_id::popup_yaml_kind) {
+                    w.clear_filter_criteria();
+                }
+                EventResult::Nop
+            })
             .build()
     }
 
