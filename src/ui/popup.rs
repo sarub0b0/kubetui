@@ -24,7 +24,7 @@ impl Default for PopupChunkSize {
         Self {
             margin_width: Constraint::Percentage(10),
             margin_height: Constraint::Percentage(10),
-            width: Constraint::Min(80),
+            width: Constraint::Percentage(80),
             height: Constraint::Percentage(80),
         }
     }
