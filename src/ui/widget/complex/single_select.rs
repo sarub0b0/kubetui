@@ -215,7 +215,7 @@ impl<'a> SingleSelect<'a> {
         self.input_widget.move_cursor_end();
     }
 
-    pub fn clear_filter_criteria(&mut self) {
+    pub fn clear_filter(&mut self) {
         self.input_widget.clear();
 
         self.select_widget
