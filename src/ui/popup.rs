@@ -41,12 +41,12 @@ pub struct PopupChunkSize {
 impl Default for PopupChunkSize {
     fn default() -> Self {
         Self {
-            margin_left: Constraint::Percentage(10),
-            margin_right: Constraint::Percentage(10),
-            margin_top: Constraint::Percentage(10),
-            margin_bottom: Constraint::Percentage(10),
-            content_width: Constraint::Percentage(80),
-            content_height: Constraint::Percentage(80),
+            margin_left: Constraint::Percentage(5),
+            margin_right: Constraint::Percentage(5),
+            margin_top: Constraint::Percentage(5),
+            margin_bottom: Constraint::Percentage(5),
+            content_width: Constraint::Percentage(90),
+            content_height: Constraint::Percentage(90),
         }
     }
 }
