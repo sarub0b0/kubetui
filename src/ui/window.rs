@@ -401,7 +401,6 @@ impl<'a> Window<'a> {
     fn render_popup<B: Backend>(&mut self, f: &mut Frame<B>) {
         if let Some(id) = &self.open_popup_id {
             if let Some(popup) = self.popups.iter_mut().find(|p| p.id() == id) {
-                // f.render_widget(Clear, child_window_chunk(80, 80, self.chunk));
                 popup.render(f);
             }
         }
