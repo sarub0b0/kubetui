@@ -7,12 +7,16 @@ on:
       - README.md
       - CHANGELOG.md
       - LICENSE
+      - assets/
+      - screenshots/
   pull_request:
     branches: [main]
     paths-ignore:
       - README.md
       - CHANGELOG.md
       - LICENSE
+      - assets/
+      - screenshots/
 
 env:
   CARGO_TERM_COLOR: always
