@@ -11,21 +11,42 @@ use super::{
     widget::{RenderTrait, Widget, WidgetTrait},
 };
 
+/// ┌─────────────────────────────────────────────────┐
+/// │ margin                 ▲                        │
+/// │                        │ top                    │
+/// │                        ▼                        │
+/// │          ┌───────────────────────────┐          │
+/// │          │ content        ▲          │          │
+/// │          │                │          │          │
+/// │   left   │                │ height   │  right   │
+/// │◄────────►│                │          │◄────────►│
+/// │          │◄───────────────┼─────────►│          │
+/// │          │    width       │          │          │
+/// │          │                ▼          │          │
+/// │          └───────────────────────────┘          │
+/// │                        ▲                        │
+/// │                        │ bottom                 │
+/// │                        ▼                        │
+/// └─────────────────────────────────────────────────┘
 #[derive(Debug)]
 pub struct PopupChunkSize {
-    pub margin_width: Constraint,
-    pub margin_height: Constraint,
-    pub width: Constraint,
-    pub height: Constraint,
+    pub margin_left: Constraint,
+    pub margin_right: Constraint,
+    pub margin_top: Constraint,
+    pub margin_bottom: Constraint,
+    pub content_width: Constraint,
+    pub content_height: Constraint,
 }
 
 impl Default for PopupChunkSize {
     fn default() -> Self {
         Self {
-            margin_width: Constraint::Percentage(10),
-            margin_height: Constraint::Percentage(10),
-            width: Constraint::Percentage(80),
-            height: Constraint::Percentage(80),
+            margin_left: Constraint::Percentage(10),
+            margin_right: Constraint::Percentage(10),
+            margin_top: Constraint::Percentage(10),
+            margin_bottom: Constraint::Percentage(10),
+            content_width: Constraint::Percentage(80),
+            content_height: Constraint::Percentage(80),
         }
     }
 }
@@ -34,12 +55,12 @@ impl PopupChunkSize {
     fn chunk(&self, parent_chunk: Rect) -> Rect {
         let chunk = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([self.margin_height, self.height, self.margin_height])
+            .constraints([self.margin_top, self.content_height, self.margin_bottom])
             .split(parent_chunk);
 
         Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([self.margin_width, self.width, self.margin_width])
+            .constraints([self.margin_left, self.content_width, self.margin_right])
             .split(chunk[1])[1]
     }
 }
