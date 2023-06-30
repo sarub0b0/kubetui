@@ -18,7 +18,7 @@ use super::input::InputForm;
 use crate::{
     event::UserEvent,
     ui::{
-        event::{EventResult, InnerCallback},
+        event::{Callback, EventResult, InnerCallback},
         util::RectContainsPoint,
         widget::*,
         Window,
@@ -131,7 +131,7 @@ pub struct SingleSelect<'a> {
     widget_config: WidgetConfig,
     chunk_index: usize,
     input_widget: InputForm,
-    selected_widget: SelectForm<'a>,
+    select_widget: SelectForm<'a>,
     layout: Layout,
     chunk: Rect,
     inner_chunks: Rc<[Rect]>,
@@ -148,7 +148,7 @@ impl Default for SingleSelect<'_> {
             widget_config: Default::default(),
             chunk_index: Default::default(),
             input_widget: Default::default(),
-            selected_widget: Default::default(),
+            select_widget: Default::default(),
             layout: Default::default(),
             chunk: Default::default(),
             inner_chunks: Rc::new([Rect::default()]),
@@ -168,7 +168,7 @@ impl<'a> SingleSelect<'a> {
     }
 
     fn render_status<B: Backend>(&mut self, f: &mut Frame<B>) {
-        let status = self.selected_widget.status();
+        let status = self.select_widget.status();
         f.render_widget(
             Paragraph::new(format!("[{}/{}]", status.0, status.1)),
             self.inner_chunks[LAYOUT_INDEX_FOR_STATUS],
@@ -177,25 +177,25 @@ impl<'a> SingleSelect<'a> {
 
     pub fn insert_char(&mut self, c: char) {
         self.input_widget.insert_char(c);
-        self.selected_widget
+        self.select_widget
             .update_filter(self.input_widget.content());
     }
 
     pub fn remove_char(&mut self) {
         self.input_widget.remove_char();
-        self.selected_widget
+        self.select_widget
             .update_filter(self.input_widget.content());
     }
 
     pub fn remove_chars_before_cursor(&mut self) {
         self.input_widget.remove_chars_before_cursor();
-        self.selected_widget
+        self.select_widget
             .update_filter(self.input_widget.content());
     }
 
     pub fn remove_chars_after_cursor(&mut self) {
         self.input_widget.remove_chars_after_cursor();
-        self.selected_widget
+        self.select_widget
             .update_filter(self.input_widget.content());
     }
 
@@ -215,6 +215,13 @@ impl<'a> SingleSelect<'a> {
         self.input_widget.move_cursor_end();
     }
 
+    pub fn clear_filter(&mut self) {
+        self.input_widget.clear();
+
+        self.select_widget
+            .update_filter(self.input_widget.content());
+    }
+
     pub fn match_callback(&self, ev: UserEvent) -> Option<InnerCallback> {
         self.callbacks
             .iter()
@@ -232,7 +239,7 @@ impl WidgetTrait for SingleSelect<'_> {
     }
 
     fn widget_item(&self) -> Option<SelectedItem> {
-        self.selected_widget.widget_item()
+        self.select_widget.widget_item()
     }
 
     fn chunk(&self) -> Rect {
@@ -244,27 +251,27 @@ impl WidgetTrait for SingleSelect<'_> {
     }
 
     fn select_next(&mut self, i: usize) {
-        self.selected_widget.list_widget.select_next(i)
+        self.select_widget.list_widget.select_next(i)
     }
 
     fn select_prev(&mut self, i: usize) {
-        self.selected_widget.list_widget.select_prev(i)
+        self.select_widget.list_widget.select_prev(i)
     }
 
     fn select_first(&mut self) {
-        self.selected_widget.list_widget.select_first()
+        self.select_widget.list_widget.select_first()
     }
 
     fn select_last(&mut self) {
-        self.selected_widget.list_widget.select_last()
+        self.select_widget.list_widget.select_last()
     }
 
     fn append_widget_item(&mut self, _: Item) {}
 
     fn update_widget_item(&mut self, items: Item) {
         self.input_widget.clear();
-        self.selected_widget.update_filter("");
-        self.selected_widget.update_widget_item(items);
+        self.select_widget.update_filter("");
+        self.select_widget.update_widget_item(items);
     }
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
@@ -275,24 +282,30 @@ impl WidgetTrait for SingleSelect<'_> {
         if chunks[LAYOUT_INDEX_FOR_INPUT_FORM].contains_point(pos) {
             self.input_widget.on_mouse_event(ev)
         } else if chunks[LAYOUT_INDEX_FOR_SELECT_FORM].contains_point(pos) {
-            self.selected_widget.on_mouse_event(ev)
+            self.select_widget.on_mouse_event(ev)
         } else {
             EventResult::Nop
         }
     }
 
     fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
-        match self.input_widget.on_key_event(ev) {
-            EventResult::Ignore => {
-                return self.selected_widget.on_key_event(ev);
-            }
+        let event_result = match self.input_widget.on_key_event(ev) {
+            EventResult::Ignore => self.select_widget.on_key_event(ev),
             _ => {
-                self.selected_widget
+                self.select_widget
                     .update_filter(self.input_widget.content());
+
+                EventResult::Nop
+            }
+        };
+
+        if let EventResult::Ignore = event_result {
+            if let Some(cb) = self.match_callback(UserEvent::Key(ev)) {
+                return EventResult::Callback(Some(Callback::from(cb)));
             }
         }
 
-        EventResult::Nop
+        event_result
     }
 
     fn update_chunk(&mut self, chunk: Rect) {
@@ -305,7 +318,7 @@ impl WidgetTrait for SingleSelect<'_> {
         self.input_widget
             .update_chunk(self.inner_chunks[LAYOUT_INDEX_FOR_INPUT_FORM]);
 
-        self.selected_widget
+        self.select_widget
             .update_chunk(self.inner_chunks[LAYOUT_INDEX_FOR_SELECT_FORM]);
     }
 
@@ -338,7 +351,7 @@ impl RenderTrait for SingleSelect<'_> {
         f.render_widget(block, self.chunk);
         self.input_widget.render(f, true);
         self.render_status(f);
-        self.selected_widget.render(f);
+        self.select_widget.render(f);
     }
 }
 
@@ -422,7 +435,7 @@ impl SingleSelectBuilder {
             list_widget_builder = list_widget_builder.block_injection(block_injection);
         }
 
-        let selected_widget = SelectForm {
+        let select_widget = SelectForm {
             list_widget: list_widget_builder.build(),
             ..Default::default()
         };
@@ -431,7 +444,7 @@ impl SingleSelectBuilder {
             id: self.id,
             widget_config: self.widget_config,
             layout,
-            selected_widget,
+            select_widget,
             callbacks: self.actions,
             block_injection: self.block_injection,
             input_widget: InputForm::new(WidgetConfig::builder().title("Filter").build()),

@@ -21,7 +21,7 @@ use crate::{
         kubernetes::{context_message::ContextRequest, namespace_message::NamespaceRequest},
         Event, UserEvent,
     },
-    ui::{event::EventResult, widget::Widget, Header, Tab, Window, WindowEvent},
+    ui::{event::EventResult, popup::Popup, Header, Tab, Window, WindowEvent},
 };
 
 use self::{
@@ -125,7 +125,7 @@ impl WindowInit {
         builder.build()
     }
 
-    fn tabs_popups(&self) -> (Vec<Tab<'static>>, Vec<Widget<'static>>) {
+    fn tabs_popups(&self) -> (Vec<Tab<'static>>, Vec<Popup<'static>>) {
         let clipboard = Some(Rc::new(RefCell::new(Clipboard::new())));
 
         let PodsTab { tab: tab_pods } =
@@ -149,6 +149,7 @@ impl WindowInit {
             tab: tab_yaml,
             popup_kind: popup_yaml_kind,
             popup_name: popup_yaml_name,
+            popup_return: popup_yaml_return,
         } = YamlTabBuilder::new("Yaml", &self.tx, &clipboard).build();
 
         let ContextPopup {
@@ -172,13 +173,14 @@ impl WindowInit {
         ];
 
         let popups = vec![
-            popup_context,
-            popup_single_namespace,
-            popup_multiple_namespaces,
-            popup_list,
-            popup_yaml_kind,
-            popup_yaml_name,
-            popup_help,
+            Popup::new(popup_context),
+            Popup::new(popup_single_namespace),
+            Popup::new(popup_multiple_namespaces),
+            Popup::new(popup_list),
+            Popup::new(popup_yaml_kind),
+            Popup::new(popup_yaml_name),
+            Popup::new(popup_yaml_return),
+            Popup::new(popup_help),
         ];
 
         (tabs, popups)
