@@ -66,9 +66,9 @@ impl PopupChunkSize {
 }
 
 pub struct Popup<'a> {
-    pub widget: Widget<'a>,
-    pub chunk: Rect,
-    pub chunk_size: PopupChunkSize,
+    widget: Widget<'a>,
+    chunk: Rect,
+    chunk_size: PopupChunkSize,
 }
 
 impl<'a> Popup<'a> {
@@ -83,6 +83,10 @@ impl<'a> Popup<'a> {
     pub fn chunk_size(mut self, chunk_size: PopupChunkSize) -> Self {
         self.chunk_size = chunk_size;
         self
+    }
+
+    pub fn chunk(&self) -> Rect {
+        self.chunk
     }
 
     pub fn id(&self) -> &str {
