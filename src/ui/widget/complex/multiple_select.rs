@@ -292,10 +292,11 @@ impl<'a> SelectForm<'a> {
     }
 
     fn update_layout(&mut self, chunk: Rect) {
-        if 65 < chunk.width {
-            self.direction = Direction::Horizontal;
-        } else {
+        // 等幅フォントのとき 幅:高さ = 1:2
+        if chunk.width < chunk.height * 4 {
             self.direction = Direction::Vertical;
+        } else {
+            self.direction = Direction::Horizontal;
         };
     }
 
