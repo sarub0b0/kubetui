@@ -236,7 +236,7 @@ impl<'a> SelectForm<'a> {
                 let (cx, cy, cw, ch) = (
                     self.chunk.x,
                     self.chunk.y,
-                    self.chunk.width / 2 - 1,
+                    (self.chunk.width / 2).saturating_sub(1),
                     self.chunk.height,
                 );
 
@@ -259,7 +259,7 @@ impl<'a> SelectForm<'a> {
 
                 let left_chunk = Rect::new(cx, cy, cw, ch);
                 let center_chunk = Rect::new(cx, cy + ch, cw, 1);
-                let right_chunk = Rect::new(cx, center_chunk.y + 1, cw, ch - margin);
+                let right_chunk = Rect::new(cx, center_chunk.y + 1, cw, ch.saturating_sub(margin));
 
                 ([left_chunk, center_chunk, right_chunk], "↓".to_string())
             }
