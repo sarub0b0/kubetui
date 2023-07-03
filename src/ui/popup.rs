@@ -30,9 +30,9 @@ use super::{
 /// └─────────────────────────────────────────────────┘
 #[derive(Debug)]
 struct PopupChunkSize {
-    // content width percentage (0.0 ~ 100.0)
+    /// content width percentage (0.0 ~ 100.0)
     width: f32,
-    // content height percentage 0.0 ~ 100.0
+    /// content height percentage (0.0 ~ 100.0)
     height: f32,
 }
 
