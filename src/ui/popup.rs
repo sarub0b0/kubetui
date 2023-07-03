@@ -1,7 +1,7 @@
 use crossterm::event::{KeyEvent, MouseEvent};
 use ratatui::{
     backend::Backend,
-    layout::{Constraint, Direction, Layout, Margin, Rect},
+    layout::{Margin, Rect},
     widgets::Clear,
     Frame,
 };
@@ -29,39 +29,33 @@ use super::{
 /// │                        ▼                        │
 /// └─────────────────────────────────────────────────┘
 #[derive(Debug)]
-pub struct PopupChunkSize {
-    pub margin_left: Constraint,
-    pub margin_right: Constraint,
-    pub margin_top: Constraint,
-    pub margin_bottom: Constraint,
-    pub content_width: Constraint,
-    pub content_height: Constraint,
+struct PopupChunkSize {
+    /// content width percentage (0.0 ~ 100.0)
+    width: f32,
+    /// content height percentage (0.0 ~ 100.0)
+    height: f32,
 }
 
 impl Default for PopupChunkSize {
     fn default() -> Self {
         Self {
-            margin_left: Constraint::Percentage(5),
-            margin_right: Constraint::Percentage(5),
-            margin_top: Constraint::Percentage(5),
-            margin_bottom: Constraint::Percentage(5),
-            content_width: Constraint::Percentage(90),
-            content_height: Constraint::Percentage(90),
+            width: 85.0,
+            height: 85.0,
         }
     }
 }
 
 impl PopupChunkSize {
     fn chunk(&self, parent_chunk: Rect) -> Rect {
-        let chunk = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([self.margin_top, self.content_height, self.margin_bottom])
-            .split(parent_chunk);
+        let horizontal_margin =
+            (parent_chunk.width as f32 * ((100.0 - self.width) / 2.0 / 100.0)).round() as u16;
+        let vertical_margin =
+            (parent_chunk.height as f32 * ((100.0 - self.height) / 2.0 / 100.0)).round() as u16;
 
-        Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([self.margin_left, self.content_width, self.margin_right])
-            .split(chunk[1])[1]
+        parent_chunk.inner(&Margin {
+            vertical: vertical_margin,
+            horizontal: horizontal_margin,
+        })
     }
 }
 
@@ -78,11 +72,6 @@ impl<'a> Popup<'a> {
             chunk: Default::default(),
             chunk_size: Default::default(),
         }
-    }
-
-    pub fn chunk_size(mut self, chunk_size: PopupChunkSize) -> Self {
-        self.chunk_size = chunk_size;
-        self
     }
 
     pub fn chunk(&self) -> Rect {

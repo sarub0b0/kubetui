@@ -133,7 +133,12 @@ impl Default for SearchForm {
 
 impl SearchForm {
     fn update_chunk(&mut self, chunk: Rect) {
-        self.chunk = Rect::new(chunk.x, chunk.y + chunk.height - 1, chunk.width, 1);
+        self.chunk = Rect::new(
+            chunk.x,
+            chunk.y + chunk.height.saturating_sub(1),
+            chunk.width,
+            1,
+        );
     }
 
     fn word(&self) -> String {
