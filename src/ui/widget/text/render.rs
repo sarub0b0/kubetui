@@ -157,6 +157,7 @@ const RENDER_LEFT_PADDING: StyledGrapheme = StyledGrapheme {
     style: Style {
         fg: None,
         bg: None,
+        underline_color: None,
         #[cfg(not(test))]
         add_modifier: Modifier::DIM,
         #[cfg(test)]
@@ -170,6 +171,7 @@ const RENDER_RIGHT_PADDING: StyledGrapheme = StyledGrapheme {
     style: Style {
         fg: None,
         bg: None,
+        underline_color: None,
         #[cfg(not(test))]
         add_modifier: Modifier::DIM,
         #[cfg(test)]
