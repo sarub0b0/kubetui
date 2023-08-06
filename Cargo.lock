@@ -492,27 +492,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6184e33543162437515c2e2b48714794e37845ec9851711914eec9d308f6ebe8"
 
 [[package]]
-name = "dirs-next"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b98cf8ebf19c3d1b223e151f99a4f9f0690dca41414773390fc824184ac833e1"
-dependencies = [
- "cfg-if",
- "dirs-sys-next",
-]
-
-[[package]]
-name = "dirs-sys-next"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ebda144c4fe02d1f7ea1a7d9641b6fc6b580adcfa024ae48797ecdeb6825b4d"
-dependencies = [
- "libc",
- "redox_users",
- "winapi",
-]
-
-[[package]]
 name = "downcast"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -752,17 +731,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "getrandom"
-version = "0.2.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be4136b2a15dd319360be1c07d9933517ccf0be8f16bf62a3bee4f0d618df427"
-dependencies = [
- "cfg-if",
- "libc",
- "wasi 0.11.0+wasi-snapshot-preview1",
-]
-
-[[package]]
 name = "gimli"
 version = "0.27.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -797,6 +765,15 @@ name = "hermit-abi"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "443144c8cdadd93ebf52ddb4056d257f5b52c04d3c804e657d19eb73fc33668b"
+
+[[package]]
+name = "home"
+version = "0.5.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5444c27eef6923071f7ebcc33e3444508466a76f7a2b93da00ed6e19f30c1ddb"
+dependencies = [
+ "windows-sys",
+]
 
 [[package]]
 name = "http"
@@ -1036,9 +1013,9 @@ dependencies = [
 
 [[package]]
 name = "k8s-openapi"
-version = "0.18.0"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd990069640f9db34b3b0f7a1afc62a05ffaa3be9b66aa3c313f58346df7f788"
+checksum = "95578de7d6eac4fba42114bc751e38c59a739968769df1be56feba6f17fd148e"
 dependencies = [
  "base64 0.21.2",
  "bytes",
@@ -1050,9 +1027,9 @@ dependencies = [
 
 [[package]]
 name = "kube"
-version = "0.84.0"
+version = "0.85.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14bd236a6f6ddeac3fefa2863eb4e363cb3a2c49d66619e181b5b8f8f0787575"
+checksum = "a189cb8721a47de68d883040713bbb9c956763d784fcf066828018d32c180b96"
 dependencies = [
  "k8s-openapi",
  "kube-client",
@@ -1061,16 +1038,16 @@ dependencies = [
 
 [[package]]
 name = "kube-client"
-version = "0.84.0"
+version = "0.85.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04a28620131ca89b2509e52f5e1b71bfa3e61a50321836b2ae373bc18e0309e6"
+checksum = "98989b6e1f27695afe22aa29c94136fa06be5e8d28b91222e6dfbe5a460c803f"
 dependencies = [
  "base64 0.20.0",
  "bytes",
  "chrono",
- "dirs-next",
  "either",
  "futures",
+ "home",
  "http",
  "http-body",
  "hyper",
@@ -1099,9 +1076,9 @@ dependencies = [
 
 [[package]]
 name = "kube-core"
-version = "0.84.0"
+version = "0.85.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8227a989f1eeee3bcbf045165d6aca462af3744ecd4dfdcfba81051fb7de428e"
+checksum = "c24d23bf764ec9a5652f943442ff062b91fd52318ea6d2fc11115f19d8c84d13"
 dependencies = [
  "chrono",
  "form_urlencoded",
@@ -1727,17 +1704,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "567664f262709473930a4bf9e51bf2ebf3348f2e748ccc50dea20646858f8f29"
 dependencies = [
  "bitflags 1.3.2",
-]
-
-[[package]]
-name = "redox_users"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b033d837a7cf162d7993aded9304e30a83213c648b6e389db233191f891e5c2b"
-dependencies = [
- "getrandom",
- "redox_syscall 0.2.16",
- "thiserror",
 ]
 
 [[package]]
