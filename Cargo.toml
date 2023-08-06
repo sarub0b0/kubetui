@@ -30,7 +30,7 @@ base64 = "0.21"
 # tui
 async-trait = "0.1"
 chrono = "0.4"
-crossterm = "0.26.1"
+crossterm = "0.27.0"
 derivative = "2.2"
 enum_dispatch = "0.3"
 fuzzy-matcher = "0.3"
