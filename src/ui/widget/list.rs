@@ -314,6 +314,8 @@ impl<'a> WidgetTrait for List<'a> {
             MouseEventKind::Up(_) => {}
             MouseEventKind::Drag(_) => {}
             MouseEventKind::Moved => {}
+            MouseEventKind::ScrollLeft => {}
+            MouseEventKind::ScrollRight => {}
         }
         EventResult::Nop
     }
