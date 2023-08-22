@@ -39,10 +39,6 @@ impl FilterForm {
         self.input_widget.on_key_event(ev)
     }
 
-    pub fn clear(&mut self) {
-        self.input_widget.clear();
-    }
-
     pub fn render<B>(&mut self, f: &mut Frame<'_, B>, is_active: bool)
     where
         B: Backend,
