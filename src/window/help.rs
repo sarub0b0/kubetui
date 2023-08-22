@@ -186,8 +186,12 @@ const RIGHT_HELP_TEXT: &[HelpBlock] = &[
                 desc: "open filter form",
             },
             KeyBindings {
-                keys: &["Enter", "Esc"],
-                desc: "close filter form",
+                keys: &["q", "Esc"],
+                desc: "clear filter form",
+            },
+            KeyBindings {
+                keys: &["Enter"],
+                desc: "confirm filter word",
             },
         ],
     },
