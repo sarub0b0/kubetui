@@ -7,7 +7,6 @@ use ratatui::{
     backend::Backend,
     layout::{Constraint, Rect},
     style::{Modifier, Style},
-    text::{Line, Span},
     widgets::{Table as TuiTable, TableState},
     Frame,
 };
@@ -27,8 +26,7 @@ use crate::{
 };
 
 use super::{
-    config::{Title, WidgetConfig},
-    styled_graphemes, Item, RenderTrait, SelectedItem, TableItem, WidgetTrait,
+    config::WidgetConfig, styled_graphemes, Item, RenderTrait, SelectedItem, TableItem, WidgetTrait,
 };
 
 const COLUMN_SPACING: u16 = 3;
@@ -142,8 +140,12 @@ impl TableBuilder {
 
 #[derive(Debug)]
 enum Mode {
+    /// 通常（検索フォーム非表示）
     Normal,
+    /// フィルターワード入力中（検索フォーム表示）
     FilterInput,
+    /// フィルターワード確定後（検索フォーム表示）
+    FilterConfirm,
 }
 
 impl Default for Mode {
@@ -161,6 +163,10 @@ impl Mode {
         *self = Self::FilterInput;
     }
 
+    fn filter_confirm(&mut self) {
+        *self = Self::FilterConfirm;
+    }
+
     #[allow(dead_code)]
     fn is_normal(&self) -> bool {
         matches!(self, Self::Normal)
@@ -168,6 +174,10 @@ impl Mode {
 
     fn is_filter_input(&self) -> bool {
         matches!(self, Self::FilterInput)
+    }
+
+    fn is_filter_confirm(&self) -> bool {
+        matches!(self, Self::FilterConfirm)
     }
 }
 
@@ -276,7 +286,7 @@ impl<'a> Table<'a> {
 
         match self.mode {
             Mode::Normal => self.chunk,
-            Mode::FilterInput => {
+            Mode::FilterInput | Mode::FilterConfirm => {
                 let filter_hight = 3;
                 Rect::new(
                     x,
@@ -323,6 +333,14 @@ impl<'a> Table<'a> {
                 }
             }
         }
+    }
+
+    fn filter_cancel(&mut self) {
+        self.mode.normal();
+
+        self.filter_widget.clear();
+
+        self.filter_items();
     }
 }
 
@@ -470,7 +488,7 @@ impl WidgetTrait for Table<'_> {
 
     fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
         match self.mode {
-            Mode::Normal => match key_event_to_code(ev) {
+            Mode::Normal | Mode::FilterConfirm => match key_event_to_code(ev) {
                 KeyCode::Char('j') | KeyCode::Down | KeyCode::PageDown => {
                     self.select_next(1);
                 }
@@ -491,6 +509,10 @@ impl WidgetTrait for Table<'_> {
                     self.mode.filter_input();
                 }
 
+                KeyCode::Char('q') | KeyCode::Esc if self.mode.is_filter_confirm() => {
+                    self.filter_cancel();
+                }
+
                 KeyCode::Enter => {
                     return EventResult::Callback(self.on_select_callback());
                 }
@@ -506,11 +528,11 @@ impl WidgetTrait for Table<'_> {
 
             Mode::FilterInput => match key_event_to_code(ev) {
                 KeyCode::Enter => {
-                    self.mode.normal();
+                    self.mode.filter_confirm();
                 }
 
                 KeyCode::Esc => {
-                    self.mode.normal();
+                    self.filter_cancel();
                 }
 
                 _ => {
@@ -604,21 +626,11 @@ impl RenderTrait for Table<'_> {
     where
         B: Backend,
     {
-        let mut widget_config = if let Some(block_injection) = &self.block_injection {
+        let widget_config = if let Some(block_injection) = &self.block_injection {
             (block_injection)(&*self)
         } else {
             self.widget_config.clone()
         };
-
-        if let Some(appended_title) = widget_config.append_title_mut().as_mut() {
-            if !self.filter_widget.word().is_empty() {
-                let mut spans = appended_title.spans().spans;
-
-                spans.push(Span::from(format!(" ({})", self.filter_widget.word())));
-
-                *appended_title = Title::from(Line::from(spans));
-            }
-        }
 
         let block = widget_config.render_block(self.can_activate() && is_active, is_mouse_over);
 
@@ -637,10 +649,16 @@ impl RenderTrait for Table<'_> {
             widget = widget.header(self.items.header().rendered());
         }
 
-        f.render_stateful_widget(widget, self.chunk(), &mut self.state);
+        match self.mode {
+            Mode::Normal => {
+                f.render_stateful_widget(widget, self.chunk(), &mut self.state);
+            }
 
-        if self.mode.is_filter_input() {
-            self.filter_widget.render(f, self.mode.is_filter_input())
+            Mode::FilterInput | Mode::FilterConfirm => {
+                self.filter_widget.render(f, self.mode.is_filter_input());
+
+                f.render_stateful_widget(widget, self.chunk(), &mut self.state);
+            }
         }
 
         logger!(debug, "{:?}", self.items);
