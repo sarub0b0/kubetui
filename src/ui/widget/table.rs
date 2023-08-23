@@ -25,6 +25,8 @@ use crate::{
     },
 };
 
+use self::filter_form::FILTER_HEIGHT;
+
 use super::{
     config::WidgetConfig, styled_graphemes, Item, RenderTrait, SelectedItem, TableItem, WidgetTrait,
 };
@@ -222,7 +224,7 @@ impl<'a> Table<'a> {
     }
 
     fn max_width(&self) -> usize {
-        self.inner_chunk.width.saturating_sub(2) as usize
+        self.inner_chunk().width.saturating_sub(2) as usize
     }
 
     pub fn update_header_and_rows(&mut self, header: &[String], rows: &[TableItem]) {
@@ -257,7 +259,7 @@ impl<'a> Table<'a> {
     }
 
     fn showable_height(&self) -> usize {
-        self.inner_chunk.height.saturating_sub(2) as usize
+        self.inner_chunk().height.saturating_sub(2) as usize
     }
 
     fn max_offset(&self) -> usize {
@@ -286,16 +288,18 @@ impl<'a> Table<'a> {
 
         match self.mode {
             Mode::Normal => self.chunk,
-            Mode::FilterInput | Mode::FilterConfirm => {
-                let filter_hight = 3;
-                Rect::new(
-                    x,
-                    y + filter_hight,
-                    width,
-                    height.saturating_sub(filter_hight),
-                )
-            }
+
+            Mode::FilterInput | Mode::FilterConfirm => Rect::new(
+                x,
+                y + FILTER_HEIGHT,
+                width,
+                height.saturating_sub(FILTER_HEIGHT),
+            ),
         }
+    }
+
+    fn inner_chunk(&self) -> Rect {
+        self.widget_config.block().inner(self.chunk())
     }
 
     fn filter_items(&mut self) {
@@ -433,14 +437,16 @@ impl WidgetTrait for Table<'_> {
             return EventResult::Nop;
         }
 
+        let inner_chunk = self.inner_chunk();
+
         let (_, row) = (
-            ev.column.saturating_sub(self.inner_chunk.left()) as usize,
-            ev.row.saturating_sub(self.inner_chunk.top()) as usize,
+            ev.column.saturating_sub(inner_chunk.left()) as usize,
+            ev.row.saturating_sub(inner_chunk.top()) as usize,
         );
 
         match ev.kind {
             MouseEventKind::Down(MouseButton::Left) => {
-                if !self.inner_chunk.contains_point(ev.position()) {
+                if !inner_chunk.contains_point(ev.position()) {
                     return EventResult::Nop;
                 }
 
@@ -550,7 +556,6 @@ impl WidgetTrait for Table<'_> {
 
     fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
-        self.inner_chunk = self.widget_config.block().inner(chunk);
 
         self.items.update_max_width(self.max_width());
 

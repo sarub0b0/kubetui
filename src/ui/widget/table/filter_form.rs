@@ -26,9 +26,15 @@ impl Default for FilterForm {
     }
 }
 
+pub const FILTER_HEIGHT: u16 = 3;
+
 impl FilterForm {
     pub fn update_chunk(&mut self, chunk: Rect) {
-        self.chunk = Rect::new(chunk.x, chunk.y, chunk.width, 3);
+        self.chunk = Rect::new(chunk.x, chunk.y, chunk.width, FILTER_HEIGHT);
+    }
+
+    pub fn chunk(&self) -> Rect {
+        self.chunk
     }
 
     pub fn word(&self) -> String {
