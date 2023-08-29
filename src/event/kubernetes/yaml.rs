@@ -482,7 +482,6 @@ pub mod worker {
 
         let yaml_string = serde_yaml::to_string(&yaml_data)?
             .lines()
-            .skip(1)
             .map(ToString::to_string)
             .collect();
 

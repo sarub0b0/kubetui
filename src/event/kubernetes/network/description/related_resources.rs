@@ -381,16 +381,16 @@ mod fetch {
             let yaml = indoc! {
             "
             items:
-              - metadata:
-                name: pod-1
-                labels:
-                  app: pod-1
-                  version: v1
-              - metadata:
-                name: pod-2
-                labels:
-                  app: pod-2
-                  version: v1
+            - metadata:
+              name: pod-1
+              labels:
+                app: pod-1
+                version: v1
+            - metadata:
+              name: pod-2
+              labels:
+                app: pod-2
+                version: v1
             "
             };
 
@@ -401,16 +401,16 @@ mod fetch {
             let yaml = indoc! {
             "
             items:
-              - metadata:
-                name: service-1
-                labels:
-                  app: service-1
-                  version: v1
-              - metadata:
-                name: service-2
-                labels:
-                  app: service-2
-                  version: v1
+            - metadata:
+              name: service-1
+              labels:
+                app: service-1
+                version: v1
+            - metadata:
+              name: service-2
+              labels:
+                app: service-2
+                version: v1
             "
             };
 
@@ -525,16 +525,16 @@ pub mod to_list_value {
             let yaml = indoc! {
                 "
                 items:
-                  - metadata:
-                      name: pod-1
-                      labels:
-                        app: pod-1
-                        version: v1
-                  - metadata:
-                      name: pod-2
-                      labels:
-                        app: pod-2
-                        version: v1
+                - metadata:
+                    name: pod-1
+                    labels:
+                      app: pod-1
+                      version: v1
+                - metadata:
+                    name: pod-2
+                    labels:
+                      app: pod-2
+                      version: v1
                 "
             };
 
@@ -545,10 +545,10 @@ pub mod to_list_value {
             let yaml = indoc! {
                 "
                 items:
-                  - metadata:
-                      name: service-1
-                  - metadata:
-                      name: service-2
+                - metadata:
+                    name: service-1
+                - metadata:
+                    name: service-2
                 "
             };
 
