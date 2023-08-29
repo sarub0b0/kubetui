@@ -84,7 +84,6 @@ where
 
         let service: Vec<String> = serde_yaml::to_string(&service.to_value()?)?
             .lines()
-            .skip(1)
             .map(ToString::to_string)
             .collect();
 
@@ -97,7 +96,6 @@ where
 
             let related_resources: Vec<String> = serde_yaml::to_string(&root)?
                 .lines()
-                .skip(1)
                 .map(ToString::to_string)
                 .collect();
 
@@ -133,14 +131,14 @@ mod tests {
             spec:
               clusterIP: 10.101.97.182
               clusterIPs:
-                - 10.101.97.182
+              - 10.101.97.182
               ipFamilies:
-                - IPv4
+              - IPv4
               ipFamilyPolicy: SingleStack
               ports:
-                - port: 80
-                  protocol: TCP
-                  targetPort: 80
+              - port: 80
+                protocol: TCP
+                targetPort: 80
               selector:
                 version: v1
               sessionAffinity: None
@@ -154,21 +152,21 @@ mod tests {
         serde_yaml::from_str(indoc! {
             "
             items:
-              - metadata:
-                  name: pod-1
-                  labels:
-                    app: pod-1
-                    version: v1
-              - metadata:
-                  name: pod-2
-                  labels:
-                    app: pod-2
-                    version: v1
-              - metadata:
-                  name: pod-3
-                  labels:
-                    app: pod-3
-                    version: v2
+            - metadata:
+                name: pod-1
+                labels:
+                  app: pod-1
+                  version: v1
+            - metadata:
+                name: pod-2
+                labels:
+                  app: pod-2
+                  version: v1
+            - metadata:
+                name: pod-3
+                labels:
+                  app: pod-3
+                  version: v2
             "
         })
         .unwrap()
@@ -178,28 +176,27 @@ mod tests {
         serde_yaml::from_str(indoc! {
             "
             items:
-              - metadata:
-                  name: ingress-1
-                spec:
-                  rules:
-                    - http:
-                        paths:
-                          - backend:
-                              service:
-                                name: service
-                          - backend:
-                              service:
-                                name: service-2
-              - metadata:
-                  name: ingress-2
-                spec:
-                  rules:
-                    - http:
-                        paths:
-                          - backend:
-                              service:
-                                name: service-3
-
+            - metadata:
+                name: ingress-1
+              spec:
+                rules:
+                - http:
+                    paths:
+                    - backend:
+                        service:
+                          name: service
+                    - backend:
+                        service:
+                          name: service-2
+            - metadata:
+                name: ingress-2
+              spec:
+                rules:
+                - http:
+                    paths:
+                    - backend:
+                        service:
+                          name: service-3
             "
         })
         .unwrap()
@@ -243,14 +240,14 @@ mod tests {
               spec:
                 clusterIP: 10.101.97.182
                 clusterIPs:
-                  - 10.101.97.182
+                - 10.101.97.182
                 ipFamilies:
-                  - IPv4
+                - IPv4
                 ipFamilyPolicy: SingleStack
                 ports:
-                  - port: 80
-                    protocol: TCP
-                    targetPort: 80
+                - port: 80
+                  protocol: TCP
+                  targetPort: 80
                 selector:
                   version: v1
                 sessionAffinity: None
@@ -258,10 +255,10 @@ mod tests {
 
             relatedResources:
               ingresses:
-                - ingress-1
+              - ingress-1
               pods:
-                - pod-1
-                - pod-2
+              - pod-1
+              - pod-2
             "
         }
         .lines()

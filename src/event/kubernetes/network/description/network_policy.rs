@@ -70,7 +70,6 @@ where
 
         let value: Vec<String> = serde_yaml::to_string(&networkpolicy.to_value()?)?
             .lines()
-            .skip(1)
             .map(ToString::to_string)
             .collect();
 
@@ -83,7 +82,6 @@ where
 
             let related_resources: Vec<String> = serde_yaml::to_string(&root)?
                 .lines()
-                .skip(1)
                 .map(ToString::to_string)
                 .collect();
 
@@ -190,7 +188,7 @@ mod extract {
                   uid: c3a2c3c9-c74a-4a2f-be06-88e7cf527f5d
                 spec:
                   ingress:
-                    - {}
+                  - {}
                   podSelector: {}
                   policyTypes:
                     - Ingress
@@ -213,10 +211,10 @@ mod extract {
                   name: test
                 spec:
                   ingress:
-                    - {}
+                  - {}
                   podSelector: {}
                   policyTypes:
-                    - Ingress
+                  - Ingress
                 "#
             })
             .unwrap();
@@ -255,10 +253,10 @@ mod tests {
               uid: c3a2c3c9-c74a-4a2f-be06-88e7cf527f5d
             spec:
               ingress:
-                - {}
+              - {}
               podSelector: {}
               policyTypes:
-                - Ingress
+              - Ingress
             "#
         }).unwrap()
     }
@@ -267,21 +265,21 @@ mod tests {
         serde_yaml::from_str(indoc! {
             "
             items:
-              - metadata:
-                  name: pod-1
-                  labels:
-                    app: pod-1
-                    version: v1
-              - metadata:
-                  name: pod-2
-                  labels:
-                    app: pod-2
-                    version: v1
-              - metadata:
-                  name: pod-3
-                  labels:
-                    app: pod-3
-                    version: v2
+            - metadata:
+                name: pod-1
+                labels:
+                  app: pod-1
+                  version: v1
+            - metadata:
+                name: pod-2
+                labels:
+                  app: pod-2
+                  version: v1
+            - metadata:
+                name: pod-3
+                labels:
+                  app: pod-3
+                  version: v2
             "
         })
         .unwrap()
@@ -320,16 +318,16 @@ mod tests {
                 name: test
               spec:
                 ingress:
-                  - {}
+                - {}
                 podSelector: {}
                 policyTypes:
-                  - Ingress
+                - Ingress
 
             relatedResources:
               pods:
-                - pod-1
-                - pod-2
-                - pod-3
+              - pod-1
+              - pod-2
+              - pod-3
             "#
         }
         .lines()

@@ -146,14 +146,14 @@ mod tests {
                 job-name: kubetui-text-color
             spec:
               containers:
-                - name: job
-                  image: alpine
+              - name: job
+                image: alpine
             status:
               phase: Succeeded
               hostIP: 192.168.65.4
               podIP: 10.1.0.21
               podIPs:
-                - ip: 10.1.0.21
+              - ip: 10.1.0.21
             "
         };
 
@@ -358,14 +358,14 @@ mod tests {
                     name: test
                   spec:
                     containers:
-                      - image: alpine
-                        name: job
+                    - image: alpine
+                      name: job
                   status:
                     hostIP: 192.168.65.4
                     phase: Succeeded
                     podIP: 10.1.0.21
                     podIPs:
-                      - ip: 10.1.0.21
+                    - ip: 10.1.0.21
                 "
             )
             .lines()

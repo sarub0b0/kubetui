@@ -1,5 +1,4 @@
 {
-  "language": "en",
   "words": [
     "ratatui",
     "crossterm",
@@ -50,8 +49,14 @@
     "mabc",
     "HOGE",
     "hogehoge",
-    "subwin"
+    "subwin",
+    "erde",
+    "rustls",
+    "taplo",
+    "kosay",
+    "serde"
   ],
-  "flagWords": [],
-  "version": "0.2"
+  "language": "en",
+  "version": "0.2",
+  "flagWords": []
 }

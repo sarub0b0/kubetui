@@ -90,7 +90,6 @@ where
 
         let ingress: Vec<String> = serde_yaml::to_string(&ingress.to_value()?)?
             .lines()
-            .skip(1)
             .map(ToString::to_string)
             .collect();
 
@@ -103,7 +102,6 @@ where
 
             let related_resources: Vec<String> = serde_yaml::to_string(&root)?
                 .lines()
-                .skip(1)
                 .map(ToString::to_string)
                 .collect();
 
@@ -206,9 +204,9 @@ mod tests {
                     path: /path
                     pathType: ImplementationSpecific
               tls:
-                - hosts:
-                  - example.com
-                  secretName: secret-name
+              - hosts:
+                - example.com
+                secretName: secret-name
             status:
               loadBalancer: {}
             "#
@@ -220,21 +218,21 @@ mod tests {
         serde_yaml::from_str(indoc! {
             "
             items:
-              - metadata:
-                  name: pod-1
-                  labels:
-                    app: pod-1
-                    version: v1
-              - metadata:
-                  name: pod-2
-                  labels:
-                    app: pod-2
-                    version: v1
-              - metadata:
-                  name: pod-3
-                  labels:
-                    app: pod-3
-                    version: v2
+            - metadata:
+                name: pod-1
+                labels:
+                  app: pod-1
+                  version: v1
+            - metadata:
+                name: pod-2
+                labels:
+                  app: pod-2
+                  version: v1
+            - metadata:
+                name: pod-3
+                labels:
+                  app: pod-3
+                  version: v2
             "
         })
         .unwrap()
@@ -244,24 +242,24 @@ mod tests {
         serde_yaml::from_str(indoc! {
             "
             items:
-              - metadata:
-                  name: service-1
-                spec:
-                  selector:
-                    app: pod-1
-                    version: v1
-              - metadata:
-                  name: service-2
-                spec:
-                   selector:
-                    app: pod-2
-                    version: v1
-              - metadata:
-                  name: service-3
-                spec:
-                   selector:
-                    app: pod-3
-                    version: v2
+            - metadata:
+                name: service-1
+              spec:
+                selector:
+                  app: pod-1
+                  version: v1
+            - metadata:
+                name: service-2
+              spec:
+                 selector:
+                  app: pod-2
+                  version: v1
+            - metadata:
+                name: service-3
+              spec:
+                 selector:
+                  app: pod-3
+                  version: v2
            "
         })
         .unwrap()
@@ -304,49 +302,49 @@ mod tests {
                 name: ingress
               spec:
                 rules:
-                  - host: example-0.com
-                    http:
-                      paths:
-                        - backend:
-                            service:
-                              name: service-1
-                              port:
-                                number: 80
-                          path: /path
-                          pathType: ImplementationSpecific
-                        - backend:
-                            service:
-                              name: service-2
-                              port:
-                                number: 80
-                          path: /path
-                          pathType: ImplementationSpecific
-                  - host: example-1.com
-                    http:
-                      paths:
-                        - backend:
-                            service:
-                              name: service-3
-                              port:
-                                number: 80
-                          path: /path
-                          pathType: ImplementationSpecific
+                - host: example-0.com
+                  http:
+                    paths:
+                    - backend:
+                        service:
+                          name: service-1
+                          port:
+                            number: 80
+                      path: /path
+                      pathType: ImplementationSpecific
+                    - backend:
+                        service:
+                          name: service-2
+                          port:
+                            number: 80
+                      path: /path
+                      pathType: ImplementationSpecific
+                - host: example-1.com
+                  http:
+                    paths:
+                    - backend:
+                        service:
+                          name: service-3
+                          port:
+                            number: 80
+                      path: /path
+                      pathType: ImplementationSpecific
                 tls:
-                  - hosts:
-                      - example.com
-                    secretName: secret-name
+                - hosts:
+                  - example.com
+                  secretName: secret-name
               status:
                 loadBalancer: {}
 
             relatedResources:
               services:
-                - service-1
-                - service-2
-                - service-3
+              - service-1
+              - service-2
+              - service-3
               pods:
-                - pod-1
-                - pod-2
-                - pod-3
+              - pod-1
+              - pod-2
+              - pod-3
             "
         }
         .lines()

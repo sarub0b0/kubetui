@@ -360,6 +360,8 @@ pub mod fetch_resource_list {
 }
 
 pub mod worker {
+    use serde_yaml::{Mapping, Value};
+
     use crate::{event::kubernetes::api_resources::ApiResource, logger};
 
     use super::*;
@@ -478,11 +480,14 @@ pub mod worker {
         logger!(info, "Fetched resource - {}", res);
 
         // yaml dataに変換
-        let yaml_data: serde_yaml::Value = serde_json::from_str(&res)?;
+        let mut yaml_data: serde_yaml::Value = serde_json::from_str(&res)?;
+
+        if let Some(Value::Mapping(md)) = yaml_data.get_mut("metadata") {
+            md.remove("managedFields");
+        }
 
         let yaml_string = serde_yaml::to_string(&yaml_data)?
             .lines()
-            .skip(1)
             .map(ToString::to_string)
             .collect();
 

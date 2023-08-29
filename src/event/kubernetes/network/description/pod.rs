@@ -71,7 +71,6 @@ impl<'a, C: KubeClientRequest> Fetch<'a, C> for PodDescriptionWorker<'a, C> {
 
         let pod: Vec<String> = serde_yaml::to_string(&pod.to_value()?)?
             .lines()
-            .skip(1)
             .map(ToString::to_string)
             .collect();
 
@@ -103,7 +102,7 @@ impl<'a, C: KubeClientRequest> Fetch<'a, C> for PodDescriptionWorker<'a, C> {
             root.insert("relatedResources".into(), related_resources.into());
 
             let resources = serde_yaml::to_string(&root)?;
-            let vec: Vec<String> = resources.lines().skip(1).map(ToString::to_string).collect();
+            let vec: Vec<String> = resources.lines().map(ToString::to_string).collect();
 
             value.push(String::default());
             value.extend(vec);
@@ -146,93 +145,93 @@ mod tests {
               name: test
               namespace: kubetui
               ownerReferences:
-                - apiVersion: apps/v1
-                  blockOwnerDeletion: true
-                  controller: true
-                  kind: ReplicaSet
-                  name: test-5d69d5ddc6
-                  uid: f9be5c32-b4a5-4ec9-b8e8-53c240f4e255
+              - apiVersion: apps/v1
+                blockOwnerDeletion: true
+                controller: true
+                kind: ReplicaSet
+                name: test-5d69d5ddc6
+                uid: f9be5c32-b4a5-4ec9-b8e8-53c240f4e255
               resourceVersion: "367972"
               uid: 7a1ffede-c201-4438-893b-f81dc5ded89e
             spec:
               containers:
-                - args:
-                    - while true; do echo app-0; sleep 1; done
-                  command:
-                    - sh
-                    - -c
-                  image: nginx
-                  imagePullPolicy: Always
-                  name: app-0
-                  resources: {}
-                  terminationMessagePath: /dev/termination-log
-                  terminationMessagePolicy: File
-                  volumeMounts:
-                    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
-                      name: kube-api-access-jdfbz
-                      readOnly: true
-                - args:
-                    - while true; do echo app-1; sleep 1; done
-                  command:
-                    - sh
-                    - -c
-                  image: alpine
-                  imagePullPolicy: Always
-                  name: app-1
-                  resources: {}
-                  terminationMessagePath: /dev/termination-log
-                  terminationMessagePolicy: File
-                  volumeMounts:
-                    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
-                      name: kube-api-access-jdfbz
-                      readOnly: true
-                - image: nginx
-                  imagePullPolicy: Always
-                  name: web
-                  ports:
-                    - containerPort: 80
-                      name: http
-                      protocol: TCP
-                  resources: {}
-                  terminationMessagePath: /dev/termination-log
-                  terminationMessagePolicy: File
-                  volumeMounts:
-                    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
-                      name: kube-api-access-jdfbz
-                      readOnly: true
+              - args:
+                - while true; do echo app-0; sleep 1; done
+                command:
+                - sh
+                - -c
+                image: nginx
+                imagePullPolicy: Always
+                name: app-0
+                resources: {}
+                terminationMessagePath: /dev/termination-log
+                terminationMessagePolicy: File
+                volumeMounts:
+                - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+                  name: kube-api-access-jdfbz
+                  readOnly: true
+              - args:
+                - while true; do echo app-1; sleep 1; done
+                command:
+                - sh
+                - -c
+                image: alpine
+                imagePullPolicy: Always
+                name: app-1
+                resources: {}
+                terminationMessagePath: /dev/termination-log
+                terminationMessagePolicy: File
+                volumeMounts:
+                  - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+                    name: kube-api-access-jdfbz
+                    readOnly: true
+              - image: nginx
+                imagePullPolicy: Always
+                name: web
+                ports:
+                - containerPort: 80
+                  name: http
+                  protocol: TCP
+                resources: {}
+                terminationMessagePath: /dev/termination-log
+                terminationMessagePolicy: File
+                volumeMounts:
+                - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+                  name: kube-api-access-jdfbz
+                  readOnly: true
               dnsPolicy: ClusterFirst
               enableServiceLinks: true
               initContainers:
-                - args:
-                    - echo init-0; exit 0
-                  command:
-                    - sh
-                    - -c
-                  image: alpine
-                  imagePullPolicy: Always
-                  name: init-0
-                  resources: {}
-                  terminationMessagePath: /dev/termination-log
-                  terminationMessagePolicy: File
-                  volumeMounts:
-                    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
-                      name: kube-api-access-jdfbz
-                      readOnly: true
-                - args:
-                    - echo init-1; exit 0
-                  command:
-                    - sh
-                    - -c
-                  image: alpine
-                  imagePullPolicy: Always
-                  name: init-1
-                  resources: {}
-                  terminationMessagePath: /dev/termination-log
-                  terminationMessagePolicy: File
-                  volumeMounts:
-                    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
-                      name: kube-api-access-jdfbz
-                      readOnly: true
+              - args:
+                - echo init-0; exit 0
+                command:
+                - sh
+                - -c
+                image: alpine
+                imagePullPolicy: Always
+                name: init-0
+                resources: {}
+                terminationMessagePath: /dev/termination-log
+                terminationMessagePolicy: File
+                volumeMounts:
+                - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+                  name: kube-api-access-jdfbz
+                  readOnly: true
+              - args:
+                - echo init-1; exit 0
+                command:
+                - sh
+                - -c
+                image: alpine
+                imagePullPolicy: Always
+                name: init-1
+                resources: {}
+                terminationMessagePath: /dev/termination-log
+                terminationMessagePolicy: File
+                volumeMounts:
+                  - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+                    name: kube-api-access-jdfbz
+                    readOnly: true
               nodeName: docker-desktop
               preemptionPolicy: PreemptLowerPriority
               priority: 0
@@ -243,119 +242,119 @@ mod tests {
               serviceAccountName: default
               terminationGracePeriodSeconds: 30
               tolerations:
-                - effect: NoExecute
-                  key: node.kubernetes.io/not-ready
-                  operator: Exists
-                  tolerationSeconds: 300
-                - effect: NoExecute
-                  key: node.kubernetes.io/unreachable
-                  operator: Exists
-                  tolerationSeconds: 300
+              - effect: NoExecute
+                key: node.kubernetes.io/not-ready
+                operator: Exists
+                tolerationSeconds: 300
+              - effect: NoExecute
+                key: node.kubernetes.io/unreachable
+                operator: Exists
+                tolerationSeconds: 300
               volumes:
-                - name: kube-api-access-jdfbz
-                  projected:
-                    defaultMode: 420
-                    sources:
-                      - serviceAccountToken:
-                          expirationSeconds: 3607
-                          path: token
-                      - configMap:
-                          items:
-                            - key: ca.crt
-                              path: ca.crt
-                          name: kube-root-ca.crt
-                      - downwardAPI:
-                          items:
-                            - fieldRef:
-                                apiVersion: v1
-                                fieldPath: metadata.namespace
-                              path: namespace
+              - name: kube-api-access-jdfbz
+                projected:
+                  defaultMode: 420
+                  sources:
+                  - serviceAccountToken:
+                      expirationSeconds: 3607
+                      path: token
+                  - configMap:
+                      items:
+                      - key: ca.crt
+                        path: ca.crt
+                      name: kube-root-ca.crt
+                  - downwardAPI:
+                      items:
+                      - fieldRef:
+                          apiVersion: v1
+                          fieldPath: metadata.namespace
+                        path: namespace
             status:
               conditions:
-                - lastProbeTime: null
-                  lastTransitionTime: "2022-04-04T03:05:55Z"
-                  status: "True"
-                  type: Initialized
-                - lastProbeTime: null
-                  lastTransitionTime: "2022-04-04T03:06:03Z"
-                  status: "True"
-                  type: Ready
-                - lastProbeTime: null
-                  lastTransitionTime: "2022-04-04T03:06:03Z"
-                  status: "True"
-                  type: ContainersReady
-                - lastProbeTime: null
-                  lastTransitionTime: "2022-04-04T03:05:46Z"
-                  status: "True"
-                  type: PodScheduled
+              - lastProbeTime: null
+                lastTransitionTime: "2022-04-04T03:05:55Z"
+                status: "True"
+                type: Initialized
+              - lastProbeTime: null
+                lastTransitionTime: "2022-04-04T03:06:03Z"
+                status: "True"
+                type: Ready
+              - lastProbeTime: null
+                lastTransitionTime: "2022-04-04T03:06:03Z"
+                status: "True"
+                type: ContainersReady
+              - lastProbeTime: null
+                lastTransitionTime: "2022-04-04T03:05:46Z"
+                status: "True"
+                type: PodScheduled
               containerStatuses:
-                - containerID: docker://5851ea5a23c5983d846ae1e1c0b8ffa2e24340396d7620967177993c0880b0cf
-                  image: nginx:latest
-                  imageID: docker-pullable://nginx@sha256:2275af0f20d71b293916f1958f8497f987b8d8fd8113df54635f2a5915002bf1
-                  lastState: {}
-                  name: app-0
-                  ready: true
-                  restartCount: 0
-                  started: true
-                  state:
-                    running:
-                      startedAt: "2022-04-04T03:05:57Z"
-                - containerID: docker://a3896301901509b738877fab4ebfba123693e8966c7be5ef8cfeace059158cc4
-                  image: alpine:latest
-                  imageID: docker-pullable://alpine@sha256:f22945d45ee2eb4dd463ed5a431d9f04fcd80ca768bb1acf898d91ce51f7bf04
-                  lastState: {}
-                  name: app-1
-                  ready: true
-                  restartCount: 0
-                  started: true
-                  state:
-                    running:
-                      startedAt: "2022-04-04T03:06:00Z"
-                - containerID: docker://a04620d3e5b2f230837fb745395f70af6289aee96a797e99c0f42f2d68571ae3
-                  image: nginx:latest
-                  imageID: docker-pullable://nginx@sha256:2275af0f20d71b293916f1958f8497f987b8d8fd8113df54635f2a5915002bf1
-                  lastState: {}
-                  name: web
-                  ready: true
-                  restartCount: 0
-                  started: true
-                  state:
-                    running:
-                      startedAt: "2022-04-04T03:06:02Z"
+              - containerID: docker://5851ea5a23c5983d846ae1e1c0b8ffa2e24340396d7620967177993c0880b0cf
+                image: nginx:latest
+                imageID: docker-pullable://nginx@sha256:2275af0f20d71b293916f1958f8497f987b8d8fd8113df54635f2a5915002bf1
+                lastState: {}
+                name: app-0
+                ready: true
+                restartCount: 0
+                started: true
+                state:
+                  running:
+                    startedAt: "2022-04-04T03:05:57Z"
+              - containerID: docker://a3896301901509b738877fab4ebfba123693e8966c7be5ef8cfeace059158cc4
+                image: alpine:latest
+                imageID: docker-pullable://alpine@sha256:f22945d45ee2eb4dd463ed5a431d9f04fcd80ca768bb1acf898d91ce51f7bf04
+                lastState: {}
+                name: app-1
+                ready: true
+                restartCount: 0
+                started: true
+                state:
+                  running:
+                    startedAt: "2022-04-04T03:06:00Z"
+              - containerID: docker://a04620d3e5b2f230837fb745395f70af6289aee96a797e99c0f42f2d68571ae3
+                image: nginx:latest
+                imageID: docker-pullable://nginx@sha256:2275af0f20d71b293916f1958f8497f987b8d8fd8113df54635f2a5915002bf1
+                lastState: {}
+                name: web
+                ready: true
+                restartCount: 0
+                started: true
+                state:
+                  running:
+                    startedAt: "2022-04-04T03:06:02Z"
               hostIP: 192.168.65.4
               initContainerStatuses:
-                - containerID: docker://9bffed2937e48ee8fe5e08447456e07b814308485acaaed541157e4e07bbd95d
-                  image: alpine:latest
-                  imageID: docker-pullable://alpine@sha256:f22945d45ee2eb4dd463ed5a431d9f04fcd80ca768bb1acf898d91ce51f7bf04
-                  lastState: {}
-                  name: init-0
-                  ready: true
-                  restartCount: 0
-                  state:
-                    terminated:
-                      containerID: docker://9bffed2937e48ee8fe5e08447456e07b814308485acaaed541157e4e07bbd95d
-                      exitCode: 0
-                      finishedAt: "2022-04-04T03:05:49Z"
-                      reason: Completed
-                      startedAt: "2022-04-04T03:05:49Z"
-                - containerID: docker://85aa30c49fe7cb8343c52bc3a100f6c226cfef18fad6d68d04cf02d53cda0ca1
-                  image: alpine:latest
-                  imageID: docker-pullable://alpine@sha256:f22945d45ee2eb4dd463ed5a431d9f04fcd80ca768bb1acf898d91ce51f7bf04
-                  lastState: {}
-                  name: init-1
-                  ready: true
-                  restartCount: 0
-                  state:
-                    terminated:
-                      containerID: docker://85aa30c49fe7cb8343c52bc3a100f6c226cfef18fad6d68d04cf02d53cda0ca1
-                      exitCode: 0
-                      finishedAt: "2022-04-04T03:05:54Z"
-                      reason: Completed
-                      startedAt: "2022-04-04T03:05:54Z"
+              - containerID: docker://9bffed2937e48ee8fe5e08447456e07b814308485acaaed541157e4e07bbd95d
+                image: alpine:latest
+                imageID: docker-pullable://alpine@sha256:f22945d45ee2eb4dd463ed5a431d9f04fcd80ca768bb1acf898d91ce51f7bf04
+                lastState: {}
+                name: init-0
+                ready: true
+                restartCount: 0
+                state:
+                  terminated:
+                    containerID: docker://9bffed2937e48ee8fe5e08447456e07b814308485acaaed541157e4e07bbd95d
+                    exitCode: 0
+                    finishedAt: "2022-04-04T03:05:49Z"
+                    reason: Completed
+                    startedAt: "2022-04-04T03:05:49Z"
+              - containerID: docker://85aa30c49fe7cb8343c52bc3a100f6c226cfef18fad6d68d04cf02d53cda0ca1
+                image: alpine:latest
+                imageID: docker-pullable://alpine@sha256:f22945d45ee2eb4dd463ed5a431d9f04fcd80ca768bb1acf898d91ce51f7bf04
+                lastState: {}
+                name: init-1
+                ready: true
+                restartCount: 0
+                state:
+                  terminated:
+                    containerID: docker://85aa30c49fe7cb8343c52bc3a100f6c226cfef18fad6d68d04cf02d53cda0ca1
+                    exitCode: 0
+                    finishedAt: "2022-04-04T03:05:54Z"
+                    reason: Completed
+                    startedAt: "2022-04-04T03:05:54Z"
               phase: Running
               podIP: 10.1.0.212
               podIPs:
-                - ip: 10.1.0.212
+              - ip: 10.1.0.212
               qosClass: BestEffort
               startTime: "2022-04-04T03:05:46Z"
             "#
@@ -367,16 +366,16 @@ mod tests {
         let yaml = indoc! {
             "
             items:
-              - metadata:
-                  name: service-1
-                spec:
-                  selector:
-                    app: pod-1
-              - metadata:
-                  name: service-2
-                spec:
-                  selector:
-                    version: v1
+            - metadata:
+                name: service-1
+              spec:
+                selector:
+                  app: pod-1
+            - metadata:
+                name: service-2
+              spec:
+                selector:
+                  version: v1
             "
         };
 
@@ -387,24 +386,24 @@ mod tests {
         let yaml = indoc! {
             "
             items:
-              - metadata:
-                  name: ingress-1
-                spec:
-                  rules:
-                    - http:
-                        paths:
-                          - backend:
-                              service:
-                                name: service-1
-              - metadata:
-                  name: ingress-2
-                spec:
-                  rules:
-                    - http:
-                        paths:
-                          - backend:
-                              service:
-                                name: service-2
+            - metadata:
+                name: ingress-1
+              spec:
+                rules:
+                - http:
+                    paths:
+                    - backend:
+                        service:
+                          name: service-1
+            - metadata:
+                name: ingress-2
+              spec:
+                rules:
+                - http:
+                    paths:
+                    - backend:
+                        service:
+                          name: service-2
             "
         };
 
@@ -415,38 +414,38 @@ mod tests {
         serde_yaml::from_str(indoc! {
             r#"
             items:
-              - apiVersion: networking.k8s.io/v1
-                kind: NetworkPolicy
-                metadata:
-                  name: allow-all-egress
-                spec:
-                  egress:
-                    - {}
-                  podSelector: {}
-                  policyTypes:
-                    - Egress
-              - apiVersion: networking.k8s.io/v1
-                kind: NetworkPolicy
-                metadata:
-                  name: allow-all-ingress
-                spec:
-                  ingress:
-                    - {}
-                  podSelector: {}
-                  policyTypes:
-                    - Ingress
-              - apiVersion: networking.k8s.io/v1
-                kind: NetworkPolicy
-                metadata:
-                  name: test
-                spec:
-                  ingress:
-                    - {}
-                  podSelector:
-                    matchLabels:
-                      foo: bar
-                  policyTypes:
-                    - Ingress
+            - apiVersion: networking.k8s.io/v1
+              kind: NetworkPolicy
+              metadata:
+                name: allow-all-egress
+              spec:
+                egress:
+                - {}
+                podSelector: {}
+                policyTypes:
+                - Egress
+            - apiVersion: networking.k8s.io/v1
+              kind: NetworkPolicy
+              metadata:
+                name: allow-all-ingress
+              spec:
+                ingress:
+                - {}
+                podSelector: {}
+                policyTypes:
+                - Ingress
+            - apiVersion: networking.k8s.io/v1
+              kind: NetworkPolicy
+              metadata:
+                name: test
+              spec:
+                ingress:
+                - {}
+                podSelector:
+                  matchLabels:
+                    foo: bar
+                policyTypes:
+                - Ingress
             "#
         })
         .unwrap()
@@ -496,23 +495,23 @@ mod tests {
                 name: test
               spec:
                 containers:
-                  - image: nginx
-                    name: app-0
-                  - image: alpine
-                    name: app-1
-                  - image: nginx
-                    name: web
-                    ports:
-                      - containerPort: 80
-                        name: http
-                        protocol: TCP
+                - image: nginx
+                  name: app-0
+                - image: alpine
+                  name: app-1
+                - image: nginx
+                  name: web
+                  ports:
+                  - containerPort: 80
+                    name: http
+                    protocol: TCP
                 dnsPolicy: ClusterFirst
                 enableServiceLinks: true
                 initContainers:
-                  - image: alpine
-                    name: init-0
-                  - image: alpine
-                    name: init-1
+                - image: alpine
+                  name: init-0
+                - image: alpine
+                  name: init-1
                 nodeName: docker-desktop
                 securityContext: {}
                 serviceAccount: default
@@ -522,18 +521,18 @@ mod tests {
                 phase: Running
                 podIP: 10.1.0.212
                 podIPs:
-                  - ip: 10.1.0.212
+                - ip: 10.1.0.212
 
             relatedResources:
               services:
-                - service-1
-                - service-2
+              - service-1
+              - service-2
               ingresses:
-                - ingress-1
-                - ingress-2
+              - ingress-1
+              - ingress-2
               networkpolicies:
-                - allow-all-egress
-                - allow-all-ingress
+              - allow-all-egress
+              - allow-all-ingress
             "
         }
         .lines()
@@ -697,93 +696,93 @@ mod extract {
                   name: kubetui-multi-container-5d69d5ddc6-f7fkw
                   namespace: kubetui
                   ownerReferences:
-                    - apiVersion: apps/v1
-                      blockOwnerDeletion: true
-                      controller: true
-                      kind: ReplicaSet
-                      name: kubetui-multi-container-5d69d5ddc6
-                      uid: f9be5c32-b4a5-4ec9-b8e8-53c240f4e255
+                  - apiVersion: apps/v1
+                    blockOwnerDeletion: true
+                    controller: true
+                    kind: ReplicaSet
+                    name: kubetui-multi-container-5d69d5ddc6
+                    uid: f9be5c32-b4a5-4ec9-b8e8-53c240f4e255
                   resourceVersion: "367972"
                   uid: 7a1ffede-c201-4438-893b-f81dc5ded89e
                 spec:
                   containers:
-                    - args:
-                        - while true; do echo app-0; sleep 1; done
-                      command:
-                        - sh
-                        - -c
-                      image: nginx
-                      imagePullPolicy: Always
-                      name: app-0
-                      resources: {}
-                      terminationMessagePath: /dev/termination-log
-                      terminationMessagePolicy: File
-                      volumeMounts:
-                        - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
-                          name: kube-api-access-jdfbz
-                          readOnly: true
-                    - args:
-                        - while true; do echo app-1; sleep 1; done
-                      command:
-                        - sh
-                        - -c
-                      image: alpine
-                      imagePullPolicy: Always
-                      name: app-1
-                      resources: {}
-                      terminationMessagePath: /dev/termination-log
-                      terminationMessagePolicy: File
-                      volumeMounts:
-                        - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
-                          name: kube-api-access-jdfbz
-                          readOnly: true
-                    - image: nginx
-                      imagePullPolicy: Always
-                      name: web
-                      ports:
-                        - containerPort: 80
-                          name: http
-                          protocol: TCP
-                      resources: {}
-                      terminationMessagePath: /dev/termination-log
-                      terminationMessagePolicy: File
-                      volumeMounts:
-                        - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
-                          name: kube-api-access-jdfbz
-                          readOnly: true
+                  - args:
+                    - while true; do echo app-0; sleep 1; done
+                    command:
+                    - sh
+                    - -c
+                    image: nginx
+                    imagePullPolicy: Always
+                    name: app-0
+                    resources: {}
+                    terminationMessagePath: /dev/termination-log
+                    terminationMessagePolicy: File
+                    volumeMounts:
+                    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+                      name: kube-api-access-jdfbz
+                      readOnly: true
+                  - args:
+                    - while true; do echo app-1; sleep 1; done
+                    command:
+                    - sh
+                    - -c
+                    image: alpine
+                    imagePullPolicy: Always
+                    name: app-1
+                    resources: {}
+                    terminationMessagePath: /dev/termination-log
+                    terminationMessagePolicy: File
+                    volumeMounts:
+                    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+                      name: kube-api-access-jdfbz
+                      readOnly: true
+                  - image: nginx
+                    imagePullPolicy: Always
+                    name: web
+                    ports:
+                    - containerPort: 80
+                      name: http
+                      protocol: TCP
+                    resources: {}
+                    terminationMessagePath: /dev/termination-log
+                    terminationMessagePolicy: File
+                    volumeMounts:
+                    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+                      name: kube-api-access-jdfbz
+                      readOnly: true
                   dnsPolicy: ClusterFirst
                   enableServiceLinks: true
                   initContainers:
-                    - args:
-                        - echo init-0; exit 0
-                      command:
-                        - sh
-                        - -c
-                      image: alpine
-                      imagePullPolicy: Always
-                      name: init-0
-                      resources: {}
-                      terminationMessagePath: /dev/termination-log
-                      terminationMessagePolicy: File
-                      volumeMounts:
-                        - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
-                          name: kube-api-access-jdfbz
-                          readOnly: true
-                    - args:
-                        - echo init-1; exit 0
-                      command:
-                        - sh
-                        - -c
-                      image: alpine
-                      imagePullPolicy: Always
-                      name: init-1
-                      resources: {}
-                      terminationMessagePath: /dev/termination-log
-                      terminationMessagePolicy: File
-                      volumeMounts:
-                        - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
-                          name: kube-api-access-jdfbz
-                          readOnly: true
+                  - args:
+                    - echo init-0; exit 0
+                    command:
+                    - sh
+                    - -c
+                    image: alpine
+                    imagePullPolicy: Always
+                    name: init-0
+                    resources: {}
+                    terminationMessagePath: /dev/termination-log
+                    terminationMessagePolicy: File
+                    volumeMounts:
+                    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+                      name: kube-api-access-jdfbz
+                      readOnly: true
+                  - args:
+                    - echo init-1; exit 0
+                    command:
+                    - sh
+                    - -c
+                    image: alpine
+                    imagePullPolicy: Always
+                    name: init-1
+                    resources: {}
+                    terminationMessagePath: /dev/termination-log
+                    terminationMessagePolicy: File
+                    volumeMounts:
+                    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+                      name: kube-api-access-jdfbz
+                      readOnly: true
                   nodeName: docker-desktop
                   preemptionPolicy: PreemptLowerPriority
                   priority: 0
@@ -794,119 +793,119 @@ mod extract {
                   serviceAccountName: default
                   terminationGracePeriodSeconds: 30
                   tolerations:
-                    - effect: NoExecute
-                      key: node.kubernetes.io/not-ready
-                      operator: Exists
-                      tolerationSeconds: 300
-                    - effect: NoExecute
-                      key: node.kubernetes.io/unreachable
-                      operator: Exists
-                      tolerationSeconds: 300
+                  - effect: NoExecute
+                    key: node.kubernetes.io/not-ready
+                    operator: Exists
+                    tolerationSeconds: 300
+                  - effect: NoExecute
+                    key: node.kubernetes.io/unreachable
+                    operator: Exists
+                    tolerationSeconds: 300
                   volumes:
-                    - name: kube-api-access-jdfbz
-                      projected:
-                        defaultMode: 420
-                        sources:
-                          - serviceAccountToken:
-                              expirationSeconds: 3607
-                              path: token
-                          - configMap:
-                              items:
-                                - key: ca.crt
-                                  path: ca.crt
-                              name: kube-root-ca.crt
-                          - downwardAPI:
-                              items:
-                                - fieldRef:
-                                    apiVersion: v1
-                                    fieldPath: metadata.namespace
-                                  path: namespace
+                  - name: kube-api-access-jdfbz
+                    projected:
+                      defaultMode: 420
+                      sources:
+                      - serviceAccountToken:
+                          expirationSeconds: 3607
+                          path: token
+                      - configMap:
+                          items:
+                          - key: ca.crt
+                            path: ca.crt
+                          name: kube-root-ca.crt
+                      - downwardAPI:
+                          items:
+                          - fieldRef:
+                              apiVersion: v1
+                              fieldPath: metadata.namespace
+                            path: namespace
                 status:
                   conditions:
-                    - lastProbeTime: null
-                      lastTransitionTime: "2022-04-04T03:05:55Z"
-                      status: "True"
-                      type: Initialized
-                    - lastProbeTime: null
-                      lastTransitionTime: "2022-04-04T03:06:03Z"
-                      status: "True"
-                      type: Ready
-                    - lastProbeTime: null
-                      lastTransitionTime: "2022-04-04T03:06:03Z"
-                      status: "True"
-                      type: ContainersReady
-                    - lastProbeTime: null
-                      lastTransitionTime: "2022-04-04T03:05:46Z"
-                      status: "True"
-                      type: PodScheduled
+                  - lastProbeTime: null
+                    lastTransitionTime: "2022-04-04T03:05:55Z"
+                    status: "True"
+                    type: Initialized
+                  - lastProbeTime: null
+                    lastTransitionTime: "2022-04-04T03:06:03Z"
+                    status: "True"
+                    type: Ready
+                  - lastProbeTime: null
+                    lastTransitionTime: "2022-04-04T03:06:03Z"
+                    status: "True"
+                    type: ContainersReady
+                  - lastProbeTime: null
+                    lastTransitionTime: "2022-04-04T03:05:46Z"
+                    status: "True"
+                    type: PodScheduled
                   containerStatuses:
-                    - containerID: docker://5851ea5a23c5983d846ae1e1c0b8ffa2e24340396d7620967177993c0880b0cf
-                      image: nginx:latest
-                      imageID: docker-pullable://nginx@sha256:2275af0f20d71b293916f1958f8497f987b8d8fd8113df54635f2a5915002bf1
-                      lastState: {}
-                      name: app-0
-                      ready: true
-                      restartCount: 0
-                      started: true
-                      state:
-                        running:
-                          startedAt: "2022-04-04T03:05:57Z"
-                    - containerID: docker://a3896301901509b738877fab4ebfba123693e8966c7be5ef8cfeace059158cc4
-                      image: alpine:latest
-                      imageID: docker-pullable://alpine@sha256:f22945d45ee2eb4dd463ed5a431d9f04fcd80ca768bb1acf898d91ce51f7bf04
-                      lastState: {}
-                      name: app-1
-                      ready: true
-                      restartCount: 0
-                      started: true
-                      state:
-                        running:
-                          startedAt: "2022-04-04T03:06:00Z"
-                    - containerID: docker://a04620d3e5b2f230837fb745395f70af6289aee96a797e99c0f42f2d68571ae3
-                      image: nginx:latest
-                      imageID: docker-pullable://nginx@sha256:2275af0f20d71b293916f1958f8497f987b8d8fd8113df54635f2a5915002bf1
-                      lastState: {}
-                      name: web
-                      ready: true
-                      restartCount: 0
-                      started: true
-                      state:
-                        running:
-                          startedAt: "2022-04-04T03:06:02Z"
+                  - containerID: docker://5851ea5a23c5983d846ae1e1c0b8ffa2e24340396d7620967177993c0880b0cf
+                    image: nginx:latest
+                    imageID: docker-pullable://nginx@sha256:2275af0f20d71b293916f1958f8497f987b8d8fd8113df54635f2a5915002bf1
+                    lastState: {}
+                    name: app-0
+                    ready: true
+                    restartCount: 0
+                    started: true
+                    state:
+                      running:
+                        startedAt: "2022-04-04T03:05:57Z"
+                  - containerID: docker://a3896301901509b738877fab4ebfba123693e8966c7be5ef8cfeace059158cc4
+                    image: alpine:latest
+                    imageID: docker-pullable://alpine@sha256:f22945d45ee2eb4dd463ed5a431d9f04fcd80ca768bb1acf898d91ce51f7bf04
+                    lastState: {}
+                    name: app-1
+                    ready: true
+                    restartCount: 0
+                    started: true
+                    state:
+                      running:
+                        startedAt: "2022-04-04T03:06:00Z"
+                  - containerID: docker://a04620d3e5b2f230837fb745395f70af6289aee96a797e99c0f42f2d68571ae3
+                    image: nginx:latest
+                    imageID: docker-pullable://nginx@sha256:2275af0f20d71b293916f1958f8497f987b8d8fd8113df54635f2a5915002bf1
+                    lastState: {}
+                    name: web
+                    ready: true
+                    restartCount: 0
+                    started: true
+                    state:
+                      running:
+                        startedAt: "2022-04-04T03:06:02Z"
                   hostIP: 192.168.65.4
                   initContainerStatuses:
-                    - containerID: docker://9bffed2937e48ee8fe5e08447456e07b814308485acaaed541157e4e07bbd95d
-                      image: alpine:latest
-                      imageID: docker-pullable://alpine@sha256:f22945d45ee2eb4dd463ed5a431d9f04fcd80ca768bb1acf898d91ce51f7bf04
-                      lastState: {}
-                      name: init-0
-                      ready: true
-                      restartCount: 0
-                      state:
-                        terminated:
-                          containerID: docker://9bffed2937e48ee8fe5e08447456e07b814308485acaaed541157e4e07bbd95d
-                          exitCode: 0
-                          finishedAt: "2022-04-04T03:05:49Z"
-                          reason: Completed
-                          startedAt: "2022-04-04T03:05:49Z"
-                    - containerID: docker://85aa30c49fe7cb8343c52bc3a100f6c226cfef18fad6d68d04cf02d53cda0ca1
-                      image: alpine:latest
-                      imageID: docker-pullable://alpine@sha256:f22945d45ee2eb4dd463ed5a431d9f04fcd80ca768bb1acf898d91ce51f7bf04
-                      lastState: {}
-                      name: init-1
-                      ready: true
-                      restartCount: 0
-                      state:
-                        terminated:
-                          containerID: docker://85aa30c49fe7cb8343c52bc3a100f6c226cfef18fad6d68d04cf02d53cda0ca1
-                          exitCode: 0
-                          finishedAt: "2022-04-04T03:05:54Z"
-                          reason: Completed
-                          startedAt: "2022-04-04T03:05:54Z"
+                  - containerID: docker://9bffed2937e48ee8fe5e08447456e07b814308485acaaed541157e4e07bbd95d
+                    image: alpine:latest
+                    imageID: docker-pullable://alpine@sha256:f22945d45ee2eb4dd463ed5a431d9f04fcd80ca768bb1acf898d91ce51f7bf04
+                    lastState: {}
+                    name: init-0
+                    ready: true
+                    restartCount: 0
+                    state:
+                      terminated:
+                        containerID: docker://9bffed2937e48ee8fe5e08447456e07b814308485acaaed541157e4e07bbd95d
+                        exitCode: 0
+                        finishedAt: "2022-04-04T03:05:49Z"
+                        reason: Completed
+                        startedAt: "2022-04-04T03:05:49Z"
+                  - containerID: docker://85aa30c49fe7cb8343c52bc3a100f6c226cfef18fad6d68d04cf02d53cda0ca1
+                    image: alpine:latest
+                    imageID: docker-pullable://alpine@sha256:f22945d45ee2eb4dd463ed5a431d9f04fcd80ca768bb1acf898d91ce51f7bf04
+                    lastState: {}
+                    name: init-1
+                    ready: true
+                    restartCount: 0
+                    state:
+                      terminated:
+                        containerID: docker://85aa30c49fe7cb8343c52bc3a100f6c226cfef18fad6d68d04cf02d53cda0ca1
+                        exitCode: 0
+                        finishedAt: "2022-04-04T03:05:54Z"
+                        reason: Completed
+                        startedAt: "2022-04-04T03:05:54Z"
                   phase: Running
                   podIP: 10.1.0.212
                   podIPs:
-                    - ip: 10.1.0.212
+                  - ip: 10.1.0.212
                   qosClass: BestEffort
                   startTime: "2022-04-04T03:05:46Z"
                 "#
@@ -929,23 +928,23 @@ mod extract {
                   name: kubetui-multi-container-5d69d5ddc6-f7fkw
                 spec:
                   containers:
-                    - image: nginx
-                      name: app-0
-                    - image: alpine
-                      name: app-1
-                    - image: nginx
-                      name: web
-                      ports:
-                        - containerPort: 80
-                          name: http
-                          protocol: TCP
+                  - image: nginx
+                    name: app-0
+                  - image: alpine
+                    name: app-1
+                  - image: nginx
+                    name: web
+                    ports:
+                    - containerPort: 80
+                      name: http
+                      protocol: TCP
                   dnsPolicy: ClusterFirst
                   enableServiceLinks: true
                   initContainers:
-                    - image: alpine
-                      name: init-0
-                    - image: alpine
-                      name: init-1
+                  - image: alpine
+                    name: init-0
+                  - image: alpine
+                    name: init-1
                   nodeName: docker-desktop
                   securityContext: {}
                   serviceAccount: default
@@ -955,7 +954,7 @@ mod extract {
                   phase: Running
                   podIP: 10.1.0.212
                   podIPs:
-                    - ip: 10.1.0.212
+                  - ip: 10.1.0.212
                 "#
             })
             .unwrap();
