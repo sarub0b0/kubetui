@@ -35,7 +35,7 @@ derivative = "2.2"
 enum_dispatch = "0.3"
 fuzzy-matcher = "0.3"
 ratatui = "0.23.0"
-rayon = "1.7"
+rayon = "1.8"
 unicode-segmentation = "1.10"
 unicode-width = "0.1"
 
