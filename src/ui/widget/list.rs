@@ -4,7 +4,7 @@ use ratatui::{
     backend::Backend,
     layout::Rect,
     style::{Modifier, Style},
-    widgets::{self, Block, ListState},
+    widgets::{self, Block, ListState, ScrollbarState, Scrollbar, ScrollbarOrientation},
     Frame,
 };
 
@@ -417,6 +417,17 @@ impl RenderTrait for List<'_> {
         };
 
         f.render_stateful_widget(self.widget(block), self.chunk, &mut self.state);
+
+        let mut scrollbar_state = ScrollbarState::default()
+            .position(self.state.offset() as u16)
+            .content_length(self.max_offset() as u16)
+            .viewport_content_length(2);
+
+        f.render_stateful_widget(
+            Scrollbar::new(ScrollbarOrientation::VerticalRight),
+            self.chunk(),
+            &mut scrollbar_state,
+        )
     }
 }
 
