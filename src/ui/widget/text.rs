@@ -11,7 +11,7 @@ use derivative::Derivative;
 use ratatui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
-    widgets::{Block, Paragraph},
+    widgets::{Block, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
     Frame,
 };
 use unicode_width::UnicodeWidthStr;
@@ -875,6 +875,17 @@ impl RenderTrait for Text {
                 );
             }
         }
+
+        let mut scrollbar_state = ScrollbarState::default()
+            .position(self.scroll.y as u16)
+            .content_length(self.scroll_y_last_index() as u16)
+            .viewport_content_length(2);
+
+        f.render_stateful_widget(
+            Scrollbar::new(ScrollbarOrientation::VerticalRight),
+            self.chunk(),
+            &mut scrollbar_state,
+        )
     }
 }
 

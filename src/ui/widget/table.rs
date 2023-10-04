@@ -7,7 +7,7 @@ use ratatui::{
     backend::Backend,
     layout::{Constraint, Rect},
     style::{Modifier, Style},
-    widgets::{Table as TuiTable, TableState},
+    widgets::{Scrollbar, ScrollbarOrientation, ScrollbarState, Table as TuiTable, TableState},
     Frame,
 };
 use std::rc::Rc;
@@ -674,6 +674,17 @@ impl RenderTrait for Table<'_> {
             self.state.selected(),
             self.state.offset()
         );
+
+        let mut scrollbar_state = ScrollbarState::default()
+            .position(self.state.offset() as u16)
+            .content_length(self.max_offset() as u16)
+            .viewport_content_length(2);
+
+        f.render_stateful_widget(
+            Scrollbar::new(ScrollbarOrientation::VerticalRight),
+            self.chunk(),
+            &mut scrollbar_state,
+        )
     }
 }
 
