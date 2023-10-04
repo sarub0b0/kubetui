@@ -58,7 +58,7 @@ impl<'a> ConfigTabBuilder<'a> {
             )
             .layout(
                 Layout::default()
-                    .direction(self.split_mode.clone())
+                    .direction(self.split_mode)
                     .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()),
             ),
         }
