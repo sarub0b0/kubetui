@@ -214,8 +214,8 @@ impl TextItem {
 
         graphemes_list
             .into_iter()
-            .zip(wrappers_list.into_iter())
-            .zip(literal_item.into_iter())
+            .zip(wrappers_list)
+            .zip(literal_item)
             .enumerate()
             .for_each(|(i, ((graphemes, wrapped), literal_item))| {
                 let wrapped_len = wrapped.len();
@@ -413,7 +413,7 @@ impl TextItem {
         let mut line_number = 0;
         self.lines
             .iter_mut()
-            .zip(wrappers_list.into_iter())
+            .zip(wrappers_list)
             .enumerate()
             .for_each(|(i, (line, wrapped))| {
                 let wrapped_len = wrapped.len();
