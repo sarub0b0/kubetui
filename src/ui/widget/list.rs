@@ -175,6 +175,10 @@ impl<'a> List<'a> {
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
     }
 
+    fn showable_height(&self) -> usize {
+        self.inner_chunk.height as usize
+    }
+
     fn adjust_selected(&mut self, prev: usize, next: usize) {
         match next {
             // アイテムがなくなったとき
@@ -188,6 +192,8 @@ impl<'a> List<'a> {
                         self.select_last()
                     }
                 }
+
+                self.adjust_offset();
             }
 
             // アイテムが増えた場合
@@ -196,6 +202,21 @@ impl<'a> List<'a> {
                     self.state.select(Some(0))
                 }
             }
+        }
+    }
+
+    fn max_offset(&self) -> usize {
+        self.items
+            .items()
+            .len()
+            .saturating_sub(self.showable_height())
+    }
+
+    fn adjust_offset(&mut self) {
+        let shown_item_len = self.items.len().saturating_sub(self.state.offset());
+
+        if shown_item_len < self.showable_height() {
+            *self.state.offset_mut() = self.max_offset();
         }
     }
 }
