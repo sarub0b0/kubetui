@@ -33,10 +33,6 @@ impl FilterForm {
         self.chunk = Rect::new(chunk.x, chunk.y, chunk.width, FILTER_HEIGHT);
     }
 
-    pub fn chunk(&self) -> Rect {
-        self.chunk
-    }
-
     pub fn word(&self) -> String {
         self.input_widget.content()
     }
