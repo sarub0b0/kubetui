@@ -51,9 +51,7 @@ impl Ord for LiteralItem {
 
 impl PartialOrd for LiteralItem {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        let lhs = self.item.styled_graphemes_symbols().concat();
-        let rhs = other.item.styled_graphemes_symbols().concat();
-        lhs.partial_cmp(&rhs)
+        Some(self.cmp(other))
     }
 }
 
