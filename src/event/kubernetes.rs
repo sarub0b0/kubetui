@@ -39,7 +39,7 @@ use self::{
     config::{ConfigMessage, ConfigsDataWorker},
     context_message::{ContextMessage, ContextRequest, ContextResponse},
     inner::Inner,
-    log::{LogHandlers, LogStreamMessage, LogWorkerBuilder},
+    log::{LogHandlers, LogStreamMessage, LogWorker},
     namespace_message::{NamespaceMessage, NamespaceRequest, NamespaceResponse},
     network::{NetworkDescriptionWorker, NetworkMessage},
     worker::{PollWorker, Worker},
@@ -393,11 +393,8 @@ impl Worker for MainWorker {
                             handler.abort();
                         }
 
-                        log_stream_handler = Some(
-                            LogWorkerBuilder::new(tx, kube_client.clone(), namespace, name)
-                                .build()
-                                .spawn(),
-                        );
+                        log_stream_handler =
+                            Some(LogWorker::new(tx, kube_client.clone(), namespace, name).spawn());
 
                         task::yield_now().await;
                     }
@@ -1016,7 +1013,9 @@ mod kube_store {
                     });
 
                     let user = auth_infos.iter().find_map(|auth_info| {
-                        let Some(kube::config::Context{ref user, ..}) = context.context else {return None};
+                        let Some(kube::config::Context { ref user, .. }) = context.context else {
+                            return None;
+                        };
 
                         if &auth_info.name == user {
                             Some(auth_info.name.to_string())

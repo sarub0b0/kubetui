@@ -168,7 +168,7 @@ impl Ord for ApiResource {
 
 impl PartialOrd for ApiResource {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.to_string().partial_cmp(&other.to_string())
+        Some(self.cmp(other))
     }
 }
 
