@@ -44,6 +44,10 @@ impl KubeClient {
         &self.client
     }
 
+    pub fn to_client(&self) -> Client {
+        self.client.clone()
+    }
+
     #[allow(dead_code)]
     pub fn as_server_url(&self) -> &String {
         &self.server_url

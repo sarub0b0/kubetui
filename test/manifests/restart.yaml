@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: restart
+spec:
+  containers:
+  - image: busybox:1.36.0
+    name: busybox
+    command: ["/bin/sh", "-c", 'echo "${RANDOM}" && false']

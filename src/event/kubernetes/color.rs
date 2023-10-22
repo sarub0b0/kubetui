@@ -1,4 +1,43 @@
-const COLOR: [u8; 6] = [32, 33, 34, 35, 36, 37];
+pub mod fg {
+
+    #[allow(dead_code)]
+    #[derive(Clone, Copy)]
+    pub enum Color {
+        Reset = 39,
+
+        Red = 31,
+        Green = 32,
+        Yellow = 33,
+        Blue = 34,
+        Magenta = 35,
+        Cyan = 36,
+        Gray = 37,
+
+        DarkGray = 90,
+        LightRed = 91,
+        LightGreen = 92,
+        LightYellow = 93,
+        LightBlue = 94,
+        LightMagenta = 95,
+        LightCyan = 96,
+        White = 97,
+    }
+
+    impl Color {
+        pub fn wrap(&self, s: impl Into<String>) -> String {
+            format!("\x1b[{}m{}\x1b[39m", *self as u8, s.into())
+        }
+    }
+}
+
+const COLOR: [u8; 6] = [
+    fg::Color::Green as u8,
+    fg::Color::Yellow as u8,
+    fg::Color::Blue as u8,
+    fg::Color::Magenta as u8,
+    fg::Color::Cyan as u8,
+    fg::Color::Gray as u8,
+];
 
 pub struct Color {
     index: usize,
