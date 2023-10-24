@@ -9,7 +9,6 @@ use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKin
 use derivative::Derivative;
 
 use ratatui::{
-    backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
     widgets::{Block, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
     Frame,
@@ -149,10 +148,7 @@ impl SearchForm {
         self.input_widget.on_key_event(ev)
     }
 
-    fn render<B>(&mut self, f: &mut Frame<'_, B>, is_active: bool, status: (usize, usize))
-    where
-        B: Backend,
-    {
+    fn render(&mut self, f: &mut Frame<'_>, is_active: bool, status: (usize, usize)) {
         let header = "Search: ";
 
         let content = self.input_widget.render_content(is_active);
@@ -836,10 +832,7 @@ impl WidgetTrait for Text {
 }
 
 impl RenderTrait for Text {
-    fn render<B>(&mut self, f: &mut Frame<'_, B>, is_active: bool, is_mouse_over: bool)
-    where
-        B: Backend,
-    {
+    fn render(&mut self, f: &mut Frame<'_>, is_active: bool, is_mouse_over: bool) {
         let block = if let Some(block_injection) = &self.block_injection {
             (block_injection)(&*self, self.can_activate() && is_active, is_mouse_over)
         } else {
@@ -877,8 +870,8 @@ impl RenderTrait for Text {
         }
 
         let mut scrollbar_state = ScrollbarState::default()
-            .position(self.scroll.y as u16)
-            .content_length(self.scroll_y_last_index() as u16)
+            .position(self.scroll.y)
+            .content_length(self.scroll_y_last_index())
             .viewport_content_length(2);
 
         f.render_stateful_widget(

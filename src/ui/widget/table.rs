@@ -4,7 +4,6 @@ mod item;
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use derivative::*;
 use ratatui::{
-    backend::Backend,
     layout::{Constraint, Rect},
     style::{Modifier, Style},
     widgets::{Scrollbar, ScrollbarOrientation, ScrollbarState, Table as TuiTable, TableState},
@@ -627,10 +626,7 @@ impl<'a> Table<'a> {
 }
 
 impl RenderTrait for Table<'_> {
-    fn render<B>(&mut self, f: &mut Frame<'_, B>, is_active: bool, is_mouse_over: bool)
-    where
-        B: Backend,
-    {
+    fn render(&mut self, f: &mut Frame<'_>, is_active: bool, is_mouse_over: bool) {
         let widget_config = if let Some(block_injection) = &self.block_injection {
             (block_injection)(&*self)
         } else {
@@ -676,8 +672,8 @@ impl RenderTrait for Table<'_> {
         );
 
         let mut scrollbar_state = ScrollbarState::default()
-            .position(self.state.offset() as u16)
-            .content_length(self.max_offset() as u16)
+            .position(self.state.offset())
+            .content_length(self.max_offset())
             .viewport_content_length(2);
 
         f.render_stateful_widget(

@@ -1,6 +1,5 @@
 use crossterm::event::{KeyEvent, MouseEvent};
 use ratatui::{
-    backend::Backend,
     layout::{Margin, Rect},
     widgets::Clear,
     Frame,
@@ -101,7 +100,7 @@ impl<'a> Popup<'a> {
         &mut self.widget
     }
 
-    pub fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
+    pub fn render(&mut self, f: &mut Frame) {
         f.render_widget(Clear, self.chunk);
 
         self.widget.render(f, true, false)

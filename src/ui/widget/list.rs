@@ -1,10 +1,9 @@
 use std::rc::Rc;
 
 use ratatui::{
-    backend::Backend,
     layout::Rect,
     style::{Modifier, Style},
-    widgets::{self, Block, ListState, ScrollbarState, Scrollbar, ScrollbarOrientation},
+    widgets::{self, Block, ListState, Scrollbar, ScrollbarOrientation, ScrollbarState},
     Frame,
 };
 
@@ -408,7 +407,7 @@ impl<'a> List<'a> {
 }
 
 impl RenderTrait for List<'_> {
-    fn render<B: Backend>(&mut self, f: &mut Frame<B>, is_active: bool, is_mouse_over: bool) {
+    fn render(&mut self, f: &mut Frame, is_active: bool, is_mouse_over: bool) {
         let block = if let Some(block_injection) = &self.block_injection {
             (block_injection)(&*self, is_active)
         } else {
@@ -419,8 +418,8 @@ impl RenderTrait for List<'_> {
         f.render_stateful_widget(self.widget(block), self.chunk, &mut self.state);
 
         let mut scrollbar_state = ScrollbarState::default()
-            .position(self.state.offset() as u16)
-            .content_length(self.max_offset() as u16)
+            .position(self.state.offset())
+            .content_length(self.max_offset())
             .viewport_content_length(2);
 
         f.render_stateful_widget(
