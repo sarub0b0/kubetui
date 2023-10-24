@@ -1,7 +1,6 @@
 use crossterm::event::{KeyEvent, MouseEvent};
 
 use ratatui::{
-    backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
     widgets::{Block, Paragraph},
     Frame,
@@ -37,7 +36,7 @@ struct SelectForm<'a> {
 }
 
 impl<'a> SelectForm<'a> {
-    fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
+    fn render(&mut self, f: &mut Frame) {
         self.list_widget.render(f, true, false);
     }
 
@@ -167,7 +166,7 @@ impl<'a> SingleSelect<'a> {
         &self.id
     }
 
-    fn render_status<B: Backend>(&mut self, f: &mut Frame<B>) {
+    fn render_status(&mut self, f: &mut Frame) {
         let status = self.select_widget.status();
         f.render_widget(
             Paragraph::new(format!("[{}/{}]", status.0, status.1)),
@@ -337,10 +336,7 @@ impl WidgetTrait for SingleSelect<'_> {
 }
 
 impl RenderTrait for SingleSelect<'_> {
-    fn render<B>(&mut self, f: &mut Frame<'_, B>, is_active: bool, is_mouse_over: bool)
-    where
-        B: Backend,
-    {
+    fn render(&mut self, f: &mut Frame<'_>, is_active: bool, is_mouse_over: bool) {
         let block = if let Some(block_injection) = &self.block_injection {
             (block_injection)(&*self, is_active)
         } else {

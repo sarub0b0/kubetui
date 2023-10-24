@@ -1,6 +1,5 @@
 use crossterm::event::KeyEvent;
 use ratatui::{
-    backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
     widgets::{Block, BorderType, Borders, Paragraph},
     Frame,
@@ -45,10 +44,7 @@ impl FilterForm {
         self.input_widget.clear();
     }
 
-    pub fn render<B>(&mut self, f: &mut Frame<'_, B>, is_active: bool)
-    where
-        B: Backend,
-    {
+    pub fn render(&mut self, f: &mut Frame<'_>, is_active: bool) {
         let header = "FILTER: ";
 
         let content = self.input_widget.render_content(is_active);

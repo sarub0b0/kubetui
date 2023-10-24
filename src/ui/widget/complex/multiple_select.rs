@@ -14,7 +14,6 @@ use derivative::*;
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 
 use ratatui::{
-    backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::*,
     text::Span,
@@ -266,7 +265,7 @@ impl<'a> SelectForm<'a> {
         }
     }
 
-    fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
+    fn render(&mut self, f: &mut Frame) {
         let (chunks, arrow) = self.chunks_and_arrow();
 
         let arrow = Paragraph::new(Span::styled(
@@ -672,7 +671,7 @@ impl Default for MultipleSelect<'_> {
 }
 
 impl RenderTrait for MultipleSelect<'_> {
-    fn render<B: Backend>(&mut self, f: &mut Frame<B>, is_active: bool, is_mouse_over: bool) {
+    fn render(&mut self, f: &mut Frame, is_active: bool, is_mouse_over: bool) {
         let block = if let Some(block_injection) = &self.block_injection {
             (block_injection)(&*self, is_active)
         } else {

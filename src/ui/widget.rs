@@ -22,7 +22,7 @@ use crossterm::event::{KeyEvent, MouseEvent};
 
 use enum_dispatch::enum_dispatch;
 
-use ratatui::{backend::Backend, layout::Rect, Frame};
+use ratatui::{layout::Rect, Frame};
 
 use std::{collections::BTreeMap, hash::Hash};
 
@@ -200,7 +200,7 @@ pub trait WidgetTrait {
 
 #[enum_dispatch]
 pub trait RenderTrait {
-    fn render<B: Backend>(&mut self, f: &mut Frame<B>, is_active: bool, is_mouse_over: bool);
+    fn render(&mut self, f: &mut Frame, is_active: bool, is_mouse_over: bool);
 }
 
 #[enum_dispatch(WidgetTrait, RenderTrait)]

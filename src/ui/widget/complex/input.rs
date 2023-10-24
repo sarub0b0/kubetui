@@ -3,7 +3,6 @@ use crate::ui::{event::EventResult, key_event_to_code, widget::*};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
 
 use ratatui::{
-    backend::Backend,
     layout::Rect,
     style::*,
     text::{Line, Span},
@@ -101,7 +100,7 @@ impl InputForm {
         self.widget_config.render_block(is_active, false)
     }
 
-    pub fn render<B: Backend>(&mut self, f: &mut Frame<B>, is_active: bool) {
+    pub fn render(&mut self, f: &mut Frame, is_active: bool) {
         let spans = self.render_content(is_active);
         let block = self.block(is_active);
         let chunk = self.chunk;

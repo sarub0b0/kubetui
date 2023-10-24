@@ -3,7 +3,6 @@ use std::rc::Rc;
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 
 use ratatui::{
-    backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
@@ -362,7 +361,7 @@ impl<'a> Window<'a> {
 
 // Render
 impl<'a> Window<'a> {
-    pub fn render<B: Backend>(&mut self, f: &mut Frame<B>) {
+    pub fn render(&mut self, f: &mut Frame) {
         let size = f.size();
 
         if self.last_known_size != size {
@@ -380,11 +379,11 @@ impl<'a> Window<'a> {
         self.render_popup(f);
     }
 
-    fn render_tab<B: Backend>(&mut self, f: &mut Frame<B>) {
+    fn render_tab(&mut self, f: &mut Frame) {
         f.render_widget(self.widget(), self.tab_chunk());
     }
 
-    fn render_header<B: Backend>(&self, f: &mut Frame<B>) {
+    fn render_header(&self, f: &mut Frame) {
         if let Some(header) = &self.header {
             let w = match &header.content {
                 HeaderContent::Static(content) => Paragraph::new(content.to_vec()),
@@ -394,11 +393,11 @@ impl<'a> Window<'a> {
         }
     }
 
-    fn render_contents<B: Backend>(&mut self, f: &mut Frame<B>) {
+    fn render_contents(&mut self, f: &mut Frame) {
         self.active_tab_mut().render(f);
     }
 
-    fn render_popup<B: Backend>(&mut self, f: &mut Frame<B>) {
+    fn render_popup(&mut self, f: &mut Frame) {
         if let Some(id) = &self.open_popup_id {
             if let Some(popup) = self.popups.iter_mut().find(|p| p.id() == id) {
                 popup.render(f);

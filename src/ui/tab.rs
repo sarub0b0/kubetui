@@ -6,7 +6,6 @@ use super::{
 
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{
-    backend::Backend,
     layout::{Constraint, Layout, Rect},
     Frame,
 };
@@ -179,7 +178,10 @@ impl<'a> Tab<'a> {
             .iter_mut()
             .enumerate()
             .find(|(_, w)| w.chunk().contains_point(pos))
-            .map(|(i, w)| (i, w.id().to_string()) ) else { return EventResult::Ignore };
+            .map(|(i, w)| (i, w.id().to_string()))
+        else {
+            return EventResult::Ignore;
+        };
 
         match ev.kind {
             MouseEventKind::Down(MouseButton::Left) => {
@@ -198,10 +200,7 @@ impl<'a> Tab<'a> {
 }
 
 impl Tab<'_> {
-    pub fn render<B>(&mut self, f: &mut Frame<B>)
-    where
-        B: Backend,
-    {
+    pub fn render(&mut self, f: &mut Frame) {
         self.widgets.iter_mut().enumerate().for_each(|(i, w)| {
             w.widget.render(
                 f,
