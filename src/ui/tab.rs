@@ -7,35 +7,78 @@ use super::{
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{
     layout::{Constraint, Layout, Rect},
+    prelude::Direction,
     Frame,
 };
 
 use std::rc::Rc;
 
-pub struct WidgetChunk<'a> {
-    chunk_index: usize,
-    widget: Widget<'a>,
+pub enum LayoutElement {
+    WidgetIndex(usize),
+    NestedElement(NestedWidgetLayout),
 }
 
-impl<'a> WidgetChunk<'a> {
-    pub fn new(widget: impl Into<Widget<'a>>) -> Self {
+pub struct NestedLayoutElement(pub Constraint, pub LayoutElement);
+
+pub struct NestedWidgetLayout {
+    layout: Layout,
+    elements: Vec<LayoutElement>,
+}
+
+impl Default for NestedWidgetLayout {
+    fn default() -> Self {
         Self {
-            widget: widget.into(),
-            chunk_index: 0,
+            layout: Layout::default().constraints([Constraint::Percentage(100)]),
+            elements: Default::default(),
         }
     }
+}
 
-    pub fn chunk_index(mut self, index: usize) -> Self {
-        self.chunk_index = index;
+impl NestedWidgetLayout {
+    pub fn direction(mut self, direction: Direction) -> Self {
+        self.layout = self.layout.direction(direction);
         self
+    }
+
+    pub fn nested_widget_layout(
+        mut self,
+        nested_layout_elements: impl Into<Vec<NestedLayoutElement>>,
+    ) -> Self {
+        let configs: Vec<_> = nested_layout_elements.into();
+
+        let (constraints, elements): (Vec<_>, Vec<_>) = configs
+            .into_iter()
+            .map(|NestedLayoutElement(constraint, element)| (constraint, element))
+            .unzip();
+
+        self.layout = self.layout.constraints(constraints);
+        self.elements = elements;
+
+        self
+    }
+
+    fn split(&self, chunk: Rect) -> Rc<[Rect]> {
+        self.layout.split(chunk)
+    }
+
+    fn update_chunk(&mut self, chunk: Rect, widgets: &mut [Widget<'_>]) {
+        let chunks = self.layout.split(chunk);
+
+        chunks
+            .iter()
+            .zip(self.elements.iter_mut())
+            .for_each(|(chunk, layout_element)| match layout_element {
+                LayoutElement::WidgetIndex(i) => widgets[*i].update_chunk(*chunk),
+                LayoutElement::NestedElement(element) => element.update_chunk(*chunk, widgets),
+            });
     }
 }
 
 pub struct Tab<'a> {
     id: String,
     title: String,
-    widgets: Vec<WidgetChunk<'a>>,
-    layout: Layout,
+    nested_widget_layout: NestedWidgetLayout,
+    widgets: Vec<Widget<'a>>,
     active_widget_index: usize,
     activatable_widget_indices: Vec<usize>,
     mouse_over_widget_index: Option<usize>,
@@ -45,32 +88,27 @@ impl<'a> Tab<'a> {
     pub fn new(
         id: impl Into<String>,
         title: impl Into<String>,
-        widgets: impl Into<Vec<WidgetChunk<'a>>>,
+        widgets: impl Into<Vec<Widget<'a>>>,
+        layout: NestedWidgetLayout,
     ) -> Self {
-        let widgets = widgets.into();
+        let widgets: Vec<_> = widgets.into();
+
         let activatable_widget_indices = widgets
             .iter()
             .enumerate()
-            .filter(|&(_, w)| w.widget.can_activate())
+            .filter(|(_, w)| w.can_activate())
             .map(|(i, _)| i)
             .collect();
-
-        let layout = Layout::default().constraints([Constraint::Percentage(100)]);
 
         Self {
             id: id.into(),
             title: title.into(),
+            nested_widget_layout: layout,
             widgets,
-            layout,
             activatable_widget_indices,
             active_widget_index: 0,
             mouse_over_widget_index: None,
         }
-    }
-
-    pub fn layout(mut self, layout: Layout) -> Self {
-        self.layout = layout;
-        self
     }
 
     pub fn id(&self) -> &str {
@@ -82,18 +120,15 @@ impl<'a> Tab<'a> {
     }
 
     pub fn chunks(&self, tab_size: Rect) -> Rc<[Rect]> {
-        self.layout.split(tab_size)
+        self.nested_widget_layout.split(tab_size)
     }
 
     pub fn as_ref_widgets(&self) -> Vec<&Widget<'a>> {
-        self.widgets.iter().map(|w| &w.widget).collect()
+        self.widgets.iter().collect()
     }
 
     pub fn as_mut_widgets(&mut self) -> Vec<&mut Widget<'a>> {
-        self.widgets
-            .iter_mut()
-            .map(|w: &mut WidgetChunk| &mut w.widget)
-            .collect()
+        self.widgets.iter_mut().collect()
     }
 
     pub fn activate_next_widget(&mut self) {
@@ -117,27 +152,20 @@ impl<'a> Tab<'a> {
     }
 
     pub fn active_widget_mut(&mut self) -> &mut Widget<'a> {
-        &mut self.widgets[self.active_widget_index].widget
+        &mut self.widgets[self.active_widget_index]
     }
 
     pub fn active_widget(&self) -> &Widget<'a> {
-        &self.widgets[self.active_widget_index].widget
+        &self.widgets[self.active_widget_index]
     }
 
     pub fn update_chunk(&mut self, chunk: Rect) {
-        let chunks = self.layout.split(chunk);
-        self.widgets
-            .iter_mut()
-            .for_each(|w| w.widget.update_chunk(chunks[w.chunk_index]));
+        self.nested_widget_layout
+            .update_chunk(chunk, &mut self.widgets);
     }
 
     pub fn activate_widget_by_id(&mut self, id: &str) {
-        if let Some((index, _)) = self
-            .widgets
-            .iter()
-            .enumerate()
-            .find(|(_, w)| w.widget.id() == id)
-        {
+        if let Some((index, _)) = self.widgets.iter().enumerate().find(|(_, w)| w.id() == id) {
             self.clear_mouse_over();
 
             self.active_widget_index = index;
@@ -149,23 +177,11 @@ impl<'a> Tab<'a> {
     }
 
     pub fn find_widget(&self, id: &str) -> Option<&Widget<'a>> {
-        self.widgets.iter().find_map(|w| {
-            if w.widget.id() == id {
-                Some(&w.widget)
-            } else {
-                None
-            }
-        })
+        self.widgets.iter().find(|w| w.id() == id)
     }
 
     pub fn find_widget_mut(&mut self, id: &str) -> Option<&mut Widget<'a>> {
-        self.widgets.iter_mut().find_map(|w| {
-            if w.widget.id() == id {
-                Some(&mut w.widget)
-            } else {
-                None
-            }
-        })
+        self.widgets.iter_mut().find(|w| w.id() == id)
     }
 
     pub fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
@@ -199,10 +215,10 @@ impl<'a> Tab<'a> {
     }
 }
 
-impl Tab<'_> {
+impl<'a> Tab<'a> {
     pub fn render(&mut self, f: &mut Frame) {
         self.widgets.iter_mut().enumerate().for_each(|(i, w)| {
-            w.widget.render(
+            w.render(
                 f,
                 i == self.active_widget_index,
                 self.mouse_over_widget_index.is_some_and(|idx| idx == i),

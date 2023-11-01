@@ -1,11 +1,13 @@
 use std::{cell::RefCell, rc::Rc};
 
+use ratatui::prelude::Constraint;
+
 use crate::clipboard_wrapper::Clipboard;
 
 use crate::action::view_id;
 
+use crate::ui::tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout};
 use crate::ui::{
-    tab::WidgetChunk,
     widget::{config::WidgetConfig, Text, WidgetTrait},
     Tab,
 };
@@ -28,7 +30,15 @@ impl<'a> EventsTabBuilder<'a> {
         let event = self.event();
 
         EventsTab {
-            tab: Tab::new(view_id::tab_event, self.title, [WidgetChunk::new(event)]),
+            tab: Tab::new(
+                view_id::tab_event,
+                self.title,
+                [event.into()],
+                NestedWidgetLayout::default().nested_widget_layout([NestedLayoutElement(
+                    Constraint::Percentage(100),
+                    LayoutElement::WidgetIndex(0),
+                )]),
+            ),
         }
     }
 

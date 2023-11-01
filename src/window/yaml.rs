@@ -1,5 +1,6 @@
 use crossbeam::channel::Sender;
 use crossterm::event::KeyCode;
+use ratatui::prelude::Constraint;
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
@@ -9,7 +10,7 @@ use crate::{
     logger,
     ui::{
         event::EventResult,
-        tab::WidgetChunk,
+        tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout},
         widget::Widget,
         widget::{config::WidgetConfig, SingleSelect, Text, WidgetTrait},
         Tab, Window,
@@ -44,8 +45,17 @@ impl<'a> YamlTabBuilder<'a> {
 
     pub fn build(self) -> YamlTab {
         let yaml = self.main();
+
         YamlTab {
-            tab: Tab::new(view_id::tab_yaml, self.title, [WidgetChunk::new(yaml)]),
+            tab: Tab::new(
+                view_id::tab_yaml,
+                self.title,
+                [yaml.into()],
+                NestedWidgetLayout::default().nested_widget_layout([NestedLayoutElement(
+                    Constraint::Percentage(100),
+                    LayoutElement::WidgetIndex(0),
+                )]),
+            ),
             popup_kind: self.subwin_kind().into(),
             popup_name: self.subwin_name().into(),
             popup_return: self.subwin_return().into(),
@@ -96,11 +106,17 @@ impl<'a> YamlTabBuilder<'a> {
 
                 w.close_popup();
 
-                let Some(metadata) = v.metadata.as_ref() else { unreachable!() };
+                let Some(metadata) = v.metadata.as_ref() else {
+                    unreachable!()
+                };
 
-                let Some(key) = metadata.get("key") else { unreachable!() };
+                let Some(key) = metadata.get("key") else {
+                    unreachable!()
+                };
 
-                let Ok(kind) = serde_json::from_str(key) else { unreachable!() };
+                let Ok(kind) = serde_json::from_str(key) else {
+                    unreachable!()
+                };
 
                 tx.send(YamlRequest::Resource(kind).into())
                     .expect("Failed to send YamlRequest::Resource");
@@ -121,15 +137,25 @@ impl<'a> YamlTabBuilder<'a> {
 
                 w.close_popup();
 
-                let Some(metadata) = v.metadata.as_ref() else { unreachable!() };
+                let Some(metadata) = v.metadata.as_ref() else {
+                    unreachable!()
+                };
 
-                let Some(namespace) = metadata.get("namespace") else { unreachable!() };
+                let Some(namespace) = metadata.get("namespace") else {
+                    unreachable!()
+                };
 
-                let Some(name) = metadata.get("name") else { unreachable!() };
+                let Some(name) = metadata.get("name") else {
+                    unreachable!()
+                };
 
-                let Some(key) = metadata.get("key") else { unreachable!() };
+                let Some(key) = metadata.get("key") else {
+                    unreachable!()
+                };
 
-                let Ok(kind) = serde_json::from_str(key) else { unreachable!() };
+                let Ok(kind) = serde_json::from_str(key) else {
+                    unreachable!()
+                };
 
                 tx.send(
                     YamlRequest::Yaml {

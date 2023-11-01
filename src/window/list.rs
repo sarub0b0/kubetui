@@ -1,4 +1,5 @@
 use crossbeam::channel::Sender;
+use ratatui::prelude::Constraint;
 
 use std::{cell::RefCell, rc::Rc};
 
@@ -9,7 +10,7 @@ use crate::{
     event::Event,
     ui::{
         event::EventResult,
-        tab::WidgetChunk,
+        tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout},
         widget::{config::WidgetConfig, MultipleSelect, SelectedItem, Text, Widget, WidgetTrait},
         Tab, Window,
     },
@@ -43,7 +44,15 @@ impl<'a> ListTabBuilder<'a> {
         let list = self.list();
 
         ListTab {
-            tab: Tab::new(view_id::tab_list, self.title, [WidgetChunk::new(list)]),
+            tab: Tab::new(
+                view_id::tab_list,
+                self.title,
+                [list.into()],
+                NestedWidgetLayout::default().nested_widget_layout([NestedLayoutElement(
+                    Constraint::Percentage(100),
+                    LayoutElement::WidgetIndex(0),
+                )]),
+            ),
             popup: self.popup().into(),
         }
     }
@@ -95,11 +104,17 @@ impl<'a> ListTabBuilder<'a> {
                     let list = items
                         .iter()
                         .map(|item| {
-                            let Some(metadata) = &item.metadata else { unreachable!() };
+                            let Some(metadata) = &item.metadata else {
+                                unreachable!()
+                            };
 
-                            let Some(key) = metadata.get("key") else { unreachable!() };
+                            let Some(key) = metadata.get("key") else {
+                                unreachable!()
+                            };
 
-                            let Ok(key) = serde_json::from_str(key) else { unreachable!() };
+                            let Ok(key) = serde_json::from_str(key) else {
+                                unreachable!()
+                            };
 
                             key
                         })

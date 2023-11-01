@@ -1,6 +1,6 @@
 use crossbeam::channel::Sender;
 use crossterm::event::KeyCode;
-use ratatui::layout::{Constraint, Direction, Layout};
+use ratatui::layout::{Constraint, Direction};
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
@@ -45,19 +45,32 @@ impl<'a> PodTabBuilder<'a> {
         let pod = self.pod();
         let log = self.log();
 
+        let layout = NestedWidgetLayout::default()
+            .direction(Direction::Vertical)
+            .nested_widget_layout([NestedLayoutElement(
+                Constraint::Min(3),
+                LayoutElement::NestedElement(
+                    NestedWidgetLayout::default()
+                        .direction(self.split_mode)
+                        .nested_widget_layout([
+                            NestedLayoutElement(
+                                Constraint::Percentage(50),
+                                LayoutElement::WidgetIndex(0),
+                            ),
+                            NestedLayoutElement(
+                                Constraint::Percentage(50),
+                                LayoutElement::WidgetIndex(1),
+                            ),
+                        ]),
+                ),
+            )]);
+
         PodsTab {
             tab: Tab::new(
                 view_id::tab_pod,
                 self.title,
-                [
-                    WidgetChunk::new(pod).chunk_index(0),
-                    WidgetChunk::new(log).chunk_index(1),
-                ],
-            )
-            .layout(
-                Layout::default()
-                    .direction(self.split_mode)
-                    .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()),
+                [pod.into(), log.into()],
+                layout,
             ),
         }
     }

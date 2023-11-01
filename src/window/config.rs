@@ -10,12 +10,12 @@ use crate::{
     },
     ui::{
         event::EventResult,
-        tab::WidgetChunk,
+        tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout},
         widget::{config::WidgetConfig, Table, Text, WidgetTrait},
         Tab, WindowEvent,
     },
 };
-use ratatui::layout::{Constraint, Direction, Layout};
+use ratatui::layout::{Constraint, Direction};
 
 pub struct ConfigTabBuilder<'a> {
     title: &'static str,
@@ -47,19 +47,19 @@ impl<'a> ConfigTabBuilder<'a> {
         let config = self.config();
         let raw_data = self.raw_data();
 
+        let layout = NestedWidgetLayout::default()
+            .direction(self.split_mode)
+            .nested_widget_layout([
+                NestedLayoutElement(Constraint::Percentage(50), LayoutElement::WidgetIndex(0)),
+                NestedLayoutElement(Constraint::Percentage(50), LayoutElement::WidgetIndex(1)),
+            ]);
+
         ConfigTab {
             tab: Tab::new(
                 view_id::tab_config,
                 self.title,
-                [
-                    WidgetChunk::new(config).chunk_index(0),
-                    WidgetChunk::new(raw_data).chunk_index(1),
-                ],
-            )
-            .layout(
-                Layout::default()
-                    .direction(self.split_mode)
-                    .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()),
+                [config.into(), raw_data.into()],
+                layout,
             ),
         }
     }
@@ -87,13 +87,21 @@ impl<'a> ConfigTabBuilder<'a> {
             .on_select(move |w, v| {
                 w.widget_clear(view_id::tab_config_widget_raw_data);
 
-                let Some(metadata) = v.metadata.as_ref() else { return EventResult::Ignore };
+                let Some(metadata) = v.metadata.as_ref() else {
+                    return EventResult::Ignore;
+                };
 
-                let Some(namespace) = metadata.get("namespace") else { return EventResult::Ignore };
+                let Some(namespace) = metadata.get("namespace") else {
+                    return EventResult::Ignore;
+                };
 
-                let Some(name) = metadata.get("name") else { return EventResult::Ignore };
+                let Some(name) = metadata.get("name") else {
+                    return EventResult::Ignore;
+                };
 
-                let Some(kind) = metadata.get("kind") else { return EventResult::Ignore };
+                let Some(kind) = metadata.get("kind") else {
+                    return EventResult::Ignore;
+                };
 
                 *(w.find_widget_mut(view_id::tab_config_widget_raw_data)
                     .widget_config_mut()
