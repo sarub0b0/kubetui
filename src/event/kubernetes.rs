@@ -28,7 +28,7 @@ use kube::{api::ListParams, Api, ResourceExt};
 use tokio::{
     runtime::Runtime,
     sync::RwLock,
-    task::{self, JoinHandle},
+    task::{self, AbortHandle},
 };
 
 use crate::{logger, panic_set_hook};
@@ -42,7 +42,7 @@ use self::{
     log::{LogHandlers, LogStreamMessage, LogWorker},
     namespace_message::{NamespaceMessage, NamespaceRequest, NamespaceResponse},
     network::{NetworkDescriptionWorker, NetworkMessage},
-    worker::{PollWorker, Worker},
+    worker::{AbortWorker, PollWorker, Worker},
     yaml::{
         fetch_resource_list::FetchResourceList,
         worker::{YamlWorker, YamlWorkerRequest},
@@ -322,9 +322,9 @@ impl Worker for MainWorker {
 
     async fn run(&self) -> Self::Output {
         let mut log_stream_handler: Option<LogHandlers> = None;
-        let mut config_handler: Option<JoinHandle<()>> = None;
-        let mut network_handler: Option<JoinHandle<()>> = None;
-        let mut yaml_handler: Option<JoinHandle<()>> = None;
+        let mut config_handler: Option<AbortHandle> = None;
+        let mut network_handler: Option<AbortHandle> = None;
+        let mut yaml_handler: Option<AbortHandle> = None;
 
         let MainWorker {
             inner: poll_worker,

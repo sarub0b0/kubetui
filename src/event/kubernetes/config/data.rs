@@ -9,7 +9,7 @@ use crossbeam::channel::Sender;
 use crate::{
     error::Result,
     event::{
-        kubernetes::{client::KubeClient, worker::Worker},
+        kubernetes::{client::KubeClient, worker::AbortWorker},
         Event,
     },
 };
@@ -43,10 +43,8 @@ impl ConfigsDataWorker {
 }
 
 #[async_trait]
-impl Worker for ConfigsDataWorker {
-    type Output = ();
-
-    async fn run(&self) -> Self::Output {
+impl AbortWorker for ConfigsDataWorker {
+    async fn run(&self) {
         let ret = match &self.req {
             ConfigRequest::ConfigMap(_) => self.fetch_description::<ConfigMapDataWorker>().await,
             ConfigRequest::Secret(_) => self.fetch_description::<SecretDataWorker>().await,
