@@ -2,13 +2,17 @@ use std::{
     collections::HashMap,
     fmt::Display,
     ops::{Deref, DerefMut},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 
 use anyhow::anyhow;
 use async_trait::async_trait;
 use crossbeam::channel::Sender;
 use futures::{StreamExt, TryStreamExt};
-use k8s_openapi::api::core::v1::{ContainerStatus, Pod};
+use k8s_openapi::api::core::v1::{ContainerState, ContainerStatus, Pod};
 use kube::{api::WatchParams, core::WatchEvent, Api, ResourceExt};
 use regex::Regex;
 use tokio::task::AbortHandle;
@@ -17,6 +21,7 @@ use crate::{
     event::{
         kubernetes::{
             client::KubeClient,
+            log::log_stream::ContainerLogStreamerTarget,
             worker::{AbortWorker, Worker},
         },
         Event,
@@ -201,16 +206,26 @@ impl TaskController {
             };
 
             let Some(container_id) = Self::is_container_log_available(&status) else {
-                logger!(info, "Container ID is empty. task_id={}", task_id,);
+                logger!(
+                    info,
+                    "Container ID is empty. state={} task_id={}",
+                    Self::container_state_str(&status),
+                    task_id
+                );
                 continue;
             };
 
             // すでにタスク生成されている場合はスキップ
             if let Some(state) = self.tasks.get(&task_id) {
+                state
+                    .is_terminated
+                    .store(Self::is_terminated(&status), Ordering::Relaxed);
+
                 if state.container_id == container_id {
                     logger!(
                         info,
-                        "Container ID is the same. task_id={} container_id={}",
+                        "Container ID is the same. state={} task_id={} container_id={}",
+                        Self::container_state_str(&status),
                         task_id,
                         container_id
                     );
@@ -219,7 +234,8 @@ impl TaskController {
 
                 logger!(
                     info,
-                    "Container ID was chaned. task_id={} container_id={}->{}",
+                    "Container ID was chaned. state={} task_id={} container_id={}->{}",
+                    Self::container_state_str(&status),
                     task_id,
                     state.container_id,
                     container_id
@@ -230,18 +246,26 @@ impl TaskController {
                 prefix_type: self.prefix_type,
             };
 
+            let target = ContainerLogStreamerTarget {
+                namespace: self.namespace.clone(),
+                pod_name: pod_name.clone(),
+                container_name: container_name.clone(),
+            };
+
+            let is_terminated = Arc::new(AtomicBool::new(Self::is_terminated(&status)));
+
             let task = ContainerLogStreamer::new(
                 self.client.clone(),
-                self.namespace.clone(),
-                pod_name.clone(),
-                status.name.clone(),
                 self.log_buffer.clone(),
+                is_terminated.clone(),
+                target,
                 options,
             )
             .spawn();
 
             let task_state = TaskState {
                 handler: task,
+                is_terminated,
                 pod_name: pod_name.clone(),
                 pod_uid: pod_uid.to_string(),
                 container_name: status.name.clone(),
@@ -323,6 +347,45 @@ impl TaskController {
 
         None
     }
+
+    fn is_terminated(status: &ContainerStatus) -> bool {
+        status
+            .state
+            .as_ref()
+            .is_some_and(|state| state.terminated.is_some())
+            || status
+                .last_state
+                .as_ref()
+                .is_some_and(|last_state| last_state.terminated.is_some())
+    }
+
+    fn container_state_str(status: &ContainerStatus) -> &'static str {
+        fn to_string(state: &ContainerState) -> &'static str {
+            if state.running.is_some() {
+                return "running";
+            }
+
+            if state.terminated.is_some() {
+                return "terminated";
+            }
+
+            if state.waiting.is_some() {
+                return "waiting";
+            }
+
+            "unknown"
+        }
+
+        if let Some(state) = &status.state {
+            return to_string(state);
+        }
+
+        if let Some(state) = &status.last_state {
+            return to_string(state);
+        }
+
+        "unknown"
+    }
 }
 
 #[derive(Debug, Default)]
@@ -376,6 +439,7 @@ impl Display for TaskId {
 #[derive(Debug)]
 struct TaskState {
     handler: AbortHandle,
+    is_terminated: Arc<AtomicBool>,
     pod_name: String,
     pod_uid: String,
     container_name: String,
@@ -384,6 +448,7 @@ struct TaskState {
 
 impl Drop for TaskState {
     fn drop(&mut self) {
+        self.is_terminated.store(true, Ordering::Relaxed);
         self.handler.abort();
 
         logger!(

@@ -1,4 +1,11 @@
-use std::{collections::hash_map::DefaultHasher, hash::Hasher};
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::Hasher,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+};
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -61,19 +68,27 @@ pub struct ContainerLogStreamerOptions {
 }
 
 #[derive(Clone)]
+pub struct ContainerLogStreamerTarget {
+    pub namespace: String,
+    pub pod_name: String,
+    pub container_name: String,
+}
+
+#[derive(Clone)]
 pub struct ContainerLogStreamer {
     client: KubeClient,
+    log_buffer: LogBuffer,
+    is_terminated: Arc<AtomicBool>,
     namespace: String,
     pod_name: String,
     container_name: String,
-    log_buffer: LogBuffer,
     options: ContainerLogStreamerOptions,
 }
 
 #[async_trait]
 impl AbortWorker for ContainerLogStreamer {
     async fn run(&self) {
-        let mut interval = tokio::time::interval(time::Duration::from_secs(5));
+        let mut interval = tokio::time::interval(time::Duration::from_secs(3));
 
         let mut last_timestamp: Option<DateTime<FixedOffset>> = None;
 
@@ -88,8 +103,11 @@ impl AbortWorker for ContainerLogStreamer {
 
             if let Err(err) = result {
                 logger!(error, "{}", err)
-            } else {
-                // TODO: 長時間実行でここに到達しないことを確認する
+            } else if self.is_terminated.load(Ordering::Relaxed) {
+                // 正常終了は下記2パターン確認しているため、
+                // コンテナ終了時のみループを抜ける処理を組み込む。
+                //   - コンテナが終了している
+                //   - 長時間実行
                 break;
             }
         }
@@ -101,18 +119,24 @@ impl AbortWorker for ContainerLogStreamer {
 impl ContainerLogStreamer {
     pub fn new(
         client: KubeClient,
-        namespace: String,
-        pod_name: String,
-        container_name: String,
         log_buffer: LogBuffer,
+        is_terminated: Arc<AtomicBool>,
+        target: ContainerLogStreamerTarget,
         options: ContainerLogStreamerOptions,
     ) -> Self {
-        Self {
-            client,
+        let ContainerLogStreamerTarget {
             namespace,
             pod_name,
             container_name,
+        } = target;
+
+        Self {
+            client,
             log_buffer,
+            is_terminated,
+            namespace,
+            pod_name,
+            container_name,
             options,
         }
     }
