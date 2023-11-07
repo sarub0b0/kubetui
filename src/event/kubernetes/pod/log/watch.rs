@@ -21,7 +21,6 @@ use crate::{
     event::{
         kubernetes::{
             client::KubeClient,
-            log::log_stream::ContainerLogStreamerTarget,
             worker::{AbortWorker, Worker},
         },
         Event,
@@ -31,7 +30,10 @@ use crate::{
 
 use super::{
     collector::LogBuffer,
-    log_stream::{ContainerLogStreamer, ContainerLogStreamerOptions, LogStreamPrefixType},
+    log_stream::{
+        ContainerLogStreamer, ContainerLogStreamerOptions, ContainerLogStreamerTarget,
+        LogStreamPrefixType,
+    },
 };
 
 #[derive(Debug, Clone)]

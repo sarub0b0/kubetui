@@ -1,7 +1,6 @@
 mod collector;
 mod log_stream;
 mod watch;
-mod filter;
 
 use std::collections::BTreeMap;
 
@@ -22,6 +21,7 @@ use crate::{
     event::{
         kubernetes::{
             client::KubeClient,
+            pod::filter::{Filter, LabelSelector, RetrievableResource},
             worker::{AbortWorker, Worker},
             Kube,
         },
@@ -31,17 +31,16 @@ use crate::{
 };
 
 pub use self::log_stream::LogStreamPrefixType;
+
 use self::{
     collector::{LogBuffer, LogCollector},
     watch::{PodWatcher, PodWatcherFilter},
 };
 
-use filter::{Filter, LabelSelector, RetrievableResource};
-
 #[macro_export]
 macro_rules! send_response {
     ($tx:expr, $msg:expr) => {
-        use $crate::event::kubernetes::log::LogStreamMessage;
+        use $crate::event::kubernetes::pod::LogStreamMessage;
 
         $tx.send(LogStreamMessage::Response($msg).into())
             .expect("Failed to send LogStreamMessage::Response");

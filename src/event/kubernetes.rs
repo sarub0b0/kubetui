@@ -3,10 +3,9 @@ mod client;
 mod color;
 pub mod config;
 mod event;
-pub mod log;
 mod metric_type;
 pub mod network;
-mod pod;
+pub mod pod;
 mod v1_table;
 mod worker;
 pub mod yaml;
@@ -39,9 +38,9 @@ use self::{
     config::{ConfigMessage, ConfigsDataWorker},
     context_message::{ContextMessage, ContextRequest, ContextResponse},
     inner::Inner,
-    log::{LogStreamMessage, LogStreamWorker},
     namespace_message::{NamespaceMessage, NamespaceRequest, NamespaceResponse},
     network::{NetworkDescriptionWorker, NetworkMessage},
+    pod::{LogStreamMessage, LogStreamWorker},
     worker::{AbortWorker, PollWorker, Worker},
     yaml::{
         fetch_resource_list::FetchResourceList,

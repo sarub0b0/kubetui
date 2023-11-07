@@ -8,7 +8,7 @@ use crate::{
     clipboard_wrapper::Clipboard,
     context::Namespace,
     event::{
-        kubernetes::log::{LogStreamConfig, LogStreamMessage, LogStreamPrefixType},
+        kubernetes::pod::{LogStreamConfig, LogStreamMessage, LogStreamPrefixType},
         Event, UserEvent,
     },
     ui::{

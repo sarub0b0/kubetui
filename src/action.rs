@@ -10,7 +10,7 @@ use crate::{
             api_resources::{ApiMessage, ApiResponse},
             config::ConfigMessage,
             context_message::{ContextMessage, ContextResponse},
-            log::LogStreamMessage,
+            pod::LogStreamMessage,
             namespace_message::{NamespaceMessage, NamespaceResponse},
             network::{NetworkMessage, NetworkResponse},
             yaml::{YamlMessage, YamlResourceListItem, YamlResponse},
