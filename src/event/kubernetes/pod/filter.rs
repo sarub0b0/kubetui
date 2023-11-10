@@ -30,7 +30,7 @@ impl Filter {
 
         for attr in valid_attrs {
             match attr {
-                FilterAttribute::Regex(regex) => {
+                FilterAttribute::Name(regex) => {
                     let regex = Regex::new(regex)?;
                     filter.pod_filter = Some(regex);
                 }
@@ -183,7 +183,7 @@ pub enum SpecifiedResource<'a> {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FilterAttribute<'a> {
-    Regex(&'a str),
+    Name(&'a str),
     Resource(SpecifiedResource<'a>),
     LabelSelector(&'a str),
     FieldSelector(&'a str),

@@ -44,15 +44,17 @@ impl<'a> FilterParser<'a> {
     }
 }
 
-fn name<'a, E: ParseError<&'a str> + ContextError<&'a str>>(s: &'a str) -> IResult<&str, &str, E> {
+fn resource_name<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&str, &str, E> {
     recognize(many1(alt((alphanumeric1, tag("-"), tag(".")))))(s)
 }
 
-fn regex<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+fn name<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
     let (remaining, (_, value)) = separated_pair(alt((tag("name"), tag("n"))), char(':'), rest)(s)?;
-    Ok((remaining, FilterAttribute::Regex(value)))
+    Ok((remaining, FilterAttribute::Name(value)))
 }
 
 fn label_selector<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
@@ -81,7 +83,7 @@ fn daemonset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
     let (remaining, (_, value)) =
-        separated_pair(alt((tag("daemonset"), tag("ds"))), char('/'), name)(s)?;
+        separated_pair(alt((tag("daemonset"), tag("ds"))), char('/'), resource_name)(s)?;
     Ok((
         remaining,
         FilterAttribute::from(SpecifiedResource::DaemonSet(value)),
@@ -91,8 +93,11 @@ fn daemonset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 fn deployment<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
-    let (remaining, (_, value)) =
-        separated_pair(alt((tag("deployment"), tag("deploy"))), char('/'), name)(s)?;
+    let (remaining, (_, value)) = separated_pair(
+        alt((tag("deployment"), tag("deploy"))),
+        char('/'),
+        resource_name,
+    )(s)?;
     Ok((
         remaining,
         FilterAttribute::from(SpecifiedResource::Deployment(value)),
@@ -102,7 +107,7 @@ fn deployment<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 fn job<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
-    let (remaining, (_, value)) = separated_pair(tag("job"), char('/'), name)(s)?;
+    let (remaining, (_, value)) = separated_pair(tag("job"), char('/'), resource_name)(s)?;
     Ok((
         remaining,
         FilterAttribute::from(SpecifiedResource::Job(value)),
@@ -112,7 +117,8 @@ fn job<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 fn pod<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
-    let (remaining, (_, value)) = separated_pair(alt((tag("pod"), tag("po"))), char('/'), name)(s)?;
+    let (remaining, (_, value)) =
+        separated_pair(alt((tag("pod"), tag("po"))), char('/'), resource_name)(s)?;
     Ok((
         remaining,
         FilterAttribute::from(SpecifiedResource::Pod(value)),
@@ -122,8 +128,11 @@ fn pod<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 fn replicaset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
-    let (remaining, (_, value)) =
-        separated_pair(alt((tag("replicaset"), tag("rs"))), char('/'), name)(s)?;
+    let (remaining, (_, value)) = separated_pair(
+        alt((tag("replicaset"), tag("rs"))),
+        char('/'),
+        resource_name,
+    )(s)?;
     Ok((
         remaining,
         FilterAttribute::from(SpecifiedResource::ReplicaSet(value)),
@@ -134,7 +143,7 @@ fn service<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
     let (remaining, (_, value)) =
-        separated_pair(alt((tag("service"), tag("svc"))), char('/'), name)(s)?;
+        separated_pair(alt((tag("service"), tag("svc"))), char('/'), resource_name)(s)?;
     Ok((
         remaining,
         FilterAttribute::from(SpecifiedResource::Service(value)),
@@ -144,8 +153,11 @@ fn service<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 fn statefulset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
-    let (remaining, (_, value)) =
-        separated_pair(alt((tag("statefulset"), tag("sts"))), char('/'), name)(s)?;
+    let (remaining, (_, value)) = separated_pair(
+        alt((tag("statefulset"), tag("sts"))),
+        char('/'),
+        resource_name,
+    )(s)?;
     Ok((
         remaining,
         FilterAttribute::from(SpecifiedResource::StatefulSet(value)),
@@ -165,7 +177,7 @@ fn parse<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         statefulset,
         field_selector,
         label_selector,
-        regex,
+        name,
     ))(s)
 }
 
@@ -183,7 +195,7 @@ mod tests {
     fn regex(#[case] query: &str, #[case] expected: &str) {
         assert_eq!(
             FilterParser::new(query).try_collect().unwrap(),
-            vec![FilterAttribute::Regex(expected)]
+            vec![FilterAttribute::Name(expected)]
         );
     }
 
