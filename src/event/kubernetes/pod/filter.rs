@@ -18,6 +18,8 @@ pub struct Filter {
     pub pod_filter: Option<Regex>,
     pub field_selector: Option<String>,
     pub label_selector: Option<LabelSelector>,
+    pub include: Option<Vec<Regex>>,
+    pub exclude: Option<Vec<Regex>>,
 }
 
 impl Filter {
@@ -76,6 +78,24 @@ impl Filter {
                 FilterAttribute::FieldSelector(selector) => {
                     filter.field_selector = Some(selector.to_string());
                 }
+                FilterAttribute::Include(regex) => {
+                    let regex = Regex::new(regex)?;
+
+                    if let Some(include) = &mut filter.include {
+                        include.push(regex);
+                    } else {
+                        filter.include = Some(vec![regex]);
+                    }
+                }
+                FilterAttribute::Exclude(regex) => {
+                    let regex = Regex::new(regex)?;
+
+                    if let Some(exclude) = &mut filter.exclude {
+                        exclude.push(regex);
+                    } else {
+                        filter.exclude = Some(vec![regex]);
+                    }
+                }
             }
         }
 
@@ -114,6 +134,18 @@ impl std::fmt::Display for Filter {
 
         if let Some(field_selector) = &self.field_selector {
             buf.push(format!("field_selector={}", field_selector));
+        }
+
+        if let Some(include) = &self.include {
+            for i in include {
+                buf.push(format!("include={}", i.as_str()));
+            }
+        }
+
+        if let Some(exclude) = &self.exclude {
+            for e in exclude {
+                buf.push(format!("exclude={}", e.as_str()));
+            }
         }
 
         write!(f, "{}", buf.join(" "))
@@ -187,6 +219,8 @@ pub enum FilterAttribute<'a> {
     Resource(SpecifiedResource<'a>),
     LabelSelector(&'a str),
     FieldSelector(&'a str),
+    Include(&'a str),
+    Exclude(&'a str),
 }
 
 impl<'a> From<SpecifiedResource<'a>> for FilterAttribute<'a> {

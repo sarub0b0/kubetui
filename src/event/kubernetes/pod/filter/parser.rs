@@ -57,6 +57,22 @@ fn name<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     Ok((remaining, FilterAttribute::Name(value)))
 }
 
+fn include<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&'a str, FilterAttribute, E> {
+    let (remaining, (_, value)) =
+        separated_pair(alt((tag("include"), tag("in"), tag("i"))), char(':'), rest)(s)?;
+    Ok((remaining, FilterAttribute::Include(value)))
+}
+
+fn exclude<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&'a str, FilterAttribute, E> {
+    let (remaining, (_, value)) =
+        separated_pair(alt((tag("exclude"), tag("ex"), tag("e"))), char(':'), rest)(s)?;
+    Ok((remaining, FilterAttribute::Exclude(value)))
+}
+
 fn label_selector<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
@@ -178,6 +194,8 @@ fn parse<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         field_selector,
         label_selector,
         name,
+        include,
+        exclude,
     ))(s)
 }
 

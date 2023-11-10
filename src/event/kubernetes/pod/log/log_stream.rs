@@ -13,6 +13,7 @@ use chrono::{DateTime, FixedOffset, Utc};
 use futures::{AsyncBufReadExt, TryStreamExt};
 use k8s_openapi::api::core::v1::Pod;
 use kube::{api::LogParams, Api};
+use regex::Regex;
 use tokio::time;
 
 use crate::{
@@ -65,6 +66,8 @@ const PREFIX_COLOR_LIST: [PrefixColor; 6] = [
 #[derive(Clone)]
 pub struct ContainerLogStreamerOptions {
     pub prefix_type: LogStreamPrefixType,
+    pub include: Option<Vec<Regex>>,
+    pub exclude: Option<Vec<Regex>>,
 }
 
 #[derive(Clone)]
@@ -156,15 +159,38 @@ impl ContainerLogStreamer {
             let mut buf = self.log_buffer.lock().await;
 
             if let Ok((dt, content)) = chrono::DateTime::parse_and_remainder(&line, "%+ ") {
+                if self.is_exclude(content) || !self.is_include(content) {
+                    continue;
+                }
+
                 buf.push(format!("{}{}", prefix, content));
 
                 *last_timestamp = Some(dt);
             } else {
+                if self.is_exclude(&line) || !self.is_include(&line) {
+                    continue;
+                }
+
                 buf.push(format!("{}{}", prefix, line));
             }
         }
 
         Ok(())
+    }
+
+    fn is_exclude(&self, s: &str) -> bool {
+        self.options
+            .exclude
+            .as_ref()
+            .is_some_and(|exclude| exclude.iter().any(|re| re.is_match(s)))
+    }
+
+    fn is_include(&self, s: &str) -> bool {
+        let Some(include) = &self.options.include else {
+            return true;
+        };
+
+        include.iter().any(|include| include.is_match(s))
     }
 
     async fn send_started_message(&self) {

@@ -30,10 +30,7 @@ use crate::{
 
 use super::{
     collector::LogBuffer,
-    log_stream::{
-        ContainerLogStreamer, ContainerLogStreamerOptions, ContainerLogStreamerTarget,
-        LogStreamPrefixType,
-    },
+    log_stream::{ContainerLogStreamer, ContainerLogStreamerOptions, ContainerLogStreamerTarget},
 };
 
 #[derive(Debug, Clone)]
@@ -70,7 +67,7 @@ pub struct PodWatcher {
     log_buffer: LogBuffer,
     namespace: String,
     filter: PodWatcherFilter,
-    prefix_type: LogStreamPrefixType,
+    log_streamer_options: ContainerLogStreamerOptions,
 }
 
 impl PodWatcher {
@@ -80,7 +77,7 @@ impl PodWatcher {
         log_buffer: LogBuffer,
         namespace: String,
         filter: PodWatcherFilter,
-        prefix_type: LogStreamPrefixType,
+        log_streamer_options: ContainerLogStreamerOptions,
     ) -> Self {
         Self {
             tx,
@@ -88,7 +85,7 @@ impl PodWatcher {
             log_buffer,
             namespace,
             filter,
-            prefix_type,
+            log_streamer_options,
         }
     }
 
@@ -120,7 +117,7 @@ impl Worker for PodWatcher {
             self.client.clone(),
             self.log_buffer.clone(),
             self.namespace.clone(),
-            self.prefix_type,
+            self.log_streamer_options.clone(),
         );
 
         loop {
@@ -194,7 +191,7 @@ struct TaskController {
     log_buffer: LogBuffer,
     namespace: String,
     tasks: Tasks,
-    prefix_type: LogStreamPrefixType,
+    log_streamer_options: ContainerLogStreamerOptions,
 }
 
 impl TaskController {
@@ -202,14 +199,14 @@ impl TaskController {
         client: KubeClient,
         log_buffer: LogBuffer,
         namespace: String,
-        prefix_type: LogStreamPrefixType,
+        log_streamer_options: ContainerLogStreamerOptions,
     ) -> Self {
         Self {
             client,
             log_buffer,
             namespace,
             tasks: Tasks::default(),
-            prefix_type,
+            log_streamer_options,
         }
     }
 
@@ -264,10 +261,6 @@ impl TaskController {
                 );
             }
 
-            let options = ContainerLogStreamerOptions {
-                prefix_type: self.prefix_type,
-            };
-
             let target = ContainerLogStreamerTarget {
                 namespace: self.namespace.clone(),
                 pod_name: pod_name.clone(),
@@ -281,7 +274,7 @@ impl TaskController {
                 self.log_buffer.clone(),
                 is_terminated.clone(),
                 target,
-                options,
+                self.log_streamer_options.clone(),
             )
             .spawn();
 

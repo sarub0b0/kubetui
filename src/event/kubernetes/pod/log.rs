@@ -21,7 +21,10 @@ use crate::{
     event::{
         kubernetes::{
             client::KubeClient,
-            pod::filter::{Filter, LabelSelector, RetrievableResource},
+            pod::{
+                filter::{Filter, LabelSelector, RetrievableResource},
+                log::log_stream::ContainerLogStreamerOptions,
+            },
             worker::{AbortWorker, Worker},
             Kube,
         },
@@ -95,6 +98,8 @@ impl LogStreamWorker {
             pod_filter,
             label_selector,
             field_selector,
+            include,
+            exclude,
         } = filter;
 
         // watch per namespace
@@ -121,6 +126,12 @@ impl LogStreamWorker {
                 field_selector: field_selector.clone(),
             };
 
+            let log_streamer_options = ContainerLogStreamerOptions {
+                prefix_type: self.config.prefix_type,
+                include: include.clone(),
+                exclude: exclude.clone(),
+            };
+
             logger!(info, "pod watch filter: {}", filter);
 
             let pod_watcher = PodWatcher::new(
@@ -129,7 +140,7 @@ impl LogStreamWorker {
                 log_buffer.clone(),
                 namespace,
                 filter,
-                self.config.prefix_type,
+                log_streamer_options,
             );
 
             pod_watchers.push(pod_watcher);
