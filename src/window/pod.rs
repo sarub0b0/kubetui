@@ -154,13 +154,13 @@ impl<'a> PodTabBuilder<'a> {
         let namespaces = self.namespaces.clone();
 
         let execute = move |w: &mut Window| {
-            w.widget_clear(view_id::tab_pod_widget_log);
-
             let widget = w.find_widget_mut(view_id::tab_pod_widget_log_query);
 
             let Some(SelectedItem::Literal { metadata: _, item }) = widget.widget_item() else {
                 return EventResult::Ignore;
             };
+
+            w.widget_clear(view_id::tab_pod_widget_log);
 
             let namespaces = namespaces.borrow();
 
