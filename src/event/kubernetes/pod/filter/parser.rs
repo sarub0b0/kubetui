@@ -51,8 +51,7 @@ fn name<'a, E: ParseError<&'a str> + ContextError<&'a str>>(s: &'a str) -> IResu
 fn regex<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
-    let (remaining, (_, value)) =
-        separated_pair(alt((tag("regex"), tag("re"), tag("r"))), char(':'), rest)(s)?;
+    let (remaining, (_, value)) = separated_pair(alt((tag("name"), tag("n"))), char(':'), rest)(s)?;
     Ok((remaining, FilterAttribute::Regex(value)))
 }
 
@@ -178,9 +177,9 @@ mod tests {
 
     /// Regex
     #[rstest]
-    #[case("regex:hoge", "hoge")]
-    #[case("re:.*", ".*")]
-    #[case("r:^app$", "^app$")]
+    #[case("name:hoge", "hoge")]
+    #[case("name:.*", ".*")]
+    #[case("n:^app$", "^app$")]
     fn regex(#[case] query: &str, #[case] expected: &str) {
         assert_eq!(
             FilterParser::new(query).try_collect().unwrap(),
