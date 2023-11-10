@@ -121,7 +121,7 @@ impl LogStreamWorker {
                 field_selector: field_selector.clone(),
             };
 
-            logger!(info, "{:?}", filter);
+            logger!(info, "pod watch filter: {}", filter);
 
             let pod_watcher = PodWatcher::new(
                 self.tx.clone(),

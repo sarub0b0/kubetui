@@ -43,6 +43,26 @@ pub struct PodWatcherFilter {
     pub field_selector: Option<String>,
 }
 
+impl Display for PodWatcherFilter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut buf = Vec::new();
+
+        if let Some(regex) = &self.pod_filter {
+            buf.push(format!("pod_filter={}", regex.as_str()));
+        }
+
+        if let Some(label_selector) = &self.label_selector {
+            buf.push(label_selector.to_string());
+        }
+
+        if let Some(field_selector) = &self.field_selector {
+            buf.push(format!("field_selector={}", field_selector));
+        }
+
+        write!(f, "{}", buf.join(" "))
+    }
+}
+
 #[derive(Clone)]
 pub struct PodWatcher {
     tx: Sender<Event>,
