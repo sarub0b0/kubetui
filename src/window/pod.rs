@@ -53,22 +53,22 @@ impl<'a> PodTabBuilder<'a> {
     }
 
     pub fn build(self) -> PodsTab {
-        let input = self.input();
         let pod = self.pod();
+        let log_query = self.log_query();
         let log = self.log();
 
         let layout = NestedWidgetLayout::default()
-            .direction(Direction::Vertical)
+            .direction(self.split_mode)
             .nested_widget_layout([
-                NestedLayoutElement(Constraint::Length(3), LayoutElement::WidgetIndex(0)),
+                NestedLayoutElement(Constraint::Percentage(50), LayoutElement::WidgetIndex(0)),
                 NestedLayoutElement(
-                    Constraint::Min(3),
+                    Constraint::Percentage(50),
                     LayoutElement::NestedElement(
                         NestedWidgetLayout::default()
-                            .direction(self.split_mode)
+                            .direction(Direction::Vertical)
                             .nested_widget_layout([
                                 NestedLayoutElement(
-                                    Constraint::Percentage(50),
+                                    Constraint::Length(3),
                                     LayoutElement::WidgetIndex(1),
                                 ),
                                 NestedLayoutElement(
@@ -83,50 +83,13 @@ impl<'a> PodTabBuilder<'a> {
         let mut tab = Tab::new(
             view_id::tab_pod,
             self.title,
-            [input.into(), pod.into(), log.into()],
+            [pod.into(), log_query.into(), log.into()],
             layout,
         );
 
         tab.activate_widget_by_id(view_id::tab_pod_widget_pod);
 
         PodsTab { tab }
-    }
-
-    fn input(&self) -> InputForm {
-        let tx = self.tx.clone();
-
-        let namespaces = self.namespaces.clone();
-
-        let execute = move |w: &mut Window| {
-            w.widget_clear(view_id::tab_pod_widget_log);
-
-            let widget = w.find_widget_mut(view_id::tab_pod_widget_query);
-
-            let Some(SelectedItem::Literal { metadata: _, item }) = widget.widget_item() else {
-                return EventResult::Ignore;
-            };
-
-            let namespaces = namespaces.borrow();
-
-            let prefix_type = if 1 < namespaces.len() {
-                LogStreamPrefixType::All
-            } else {
-                LogStreamPrefixType::PodAndContainer
-            };
-
-            let config = LogStreamConfig::new(item, namespaces.to_owned(), prefix_type);
-
-            tx.send(LogStreamMessage::Request(config).into())
-                .expect("Failed to send LogStreamMessage::Request");
-
-            EventResult::Ignore
-        };
-
-        InputFormBuilder::default()
-            .id(view_id::tab_pod_widget_query)
-            .widget_config(WidgetConfig::builder().title("Query").build())
-            .actions(UserEvent::from(KeyCode::Enter), execute)
-            .build()
     }
 
     fn pod(&self) -> Table<'static> {
@@ -165,7 +128,7 @@ impl<'a> PodTabBuilder<'a> {
                     return EventResult::Ignore;
                 };
 
-                let query_form = w.find_widget_mut(view_id::tab_pod_widget_query);
+                let query_form = w.find_widget_mut(view_id::tab_pod_widget_log_query);
 
                 query_form.update_widget_item(Item::Single(format!("pod/{}", name).into()));
 
@@ -182,6 +145,43 @@ impl<'a> PodTabBuilder<'a> {
 
                 EventResult::Window(WindowEvent::Continue)
             })
+            .build()
+    }
+
+    fn log_query(&self) -> InputForm {
+        let tx = self.tx.clone();
+
+        let namespaces = self.namespaces.clone();
+
+        let execute = move |w: &mut Window| {
+            w.widget_clear(view_id::tab_pod_widget_log);
+
+            let widget = w.find_widget_mut(view_id::tab_pod_widget_log_query);
+
+            let Some(SelectedItem::Literal { metadata: _, item }) = widget.widget_item() else {
+                return EventResult::Ignore;
+            };
+
+            let namespaces = namespaces.borrow();
+
+            let prefix_type = if 1 < namespaces.len() {
+                LogStreamPrefixType::All
+            } else {
+                LogStreamPrefixType::PodAndContainer
+            };
+
+            let config = LogStreamConfig::new(item, namespaces.to_owned(), prefix_type);
+
+            tx.send(LogStreamMessage::Request(config).into())
+                .expect("Failed to send LogStreamMessage::Request");
+
+            EventResult::Ignore
+        };
+
+        InputFormBuilder::default()
+            .id(view_id::tab_pod_widget_log_query)
+            .widget_config(WidgetConfig::builder().title("Log Query").build())
+            .actions(UserEvent::from(KeyCode::Enter), execute)
             .build()
     }
 

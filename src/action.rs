@@ -10,9 +10,9 @@ use crate::{
             api_resources::{ApiMessage, ApiResponse},
             config::ConfigMessage,
             context_message::{ContextMessage, ContextResponse},
-            pod::LogStreamMessage,
             namespace_message::{NamespaceMessage, NamespaceResponse},
             network::{NetworkMessage, NetworkResponse},
+            pod::LogStreamMessage,
             yaml::{YamlMessage, YamlResourceListItem, YamlResponse},
             Kube, KubeTable, KubeTableRow,
         },
@@ -36,8 +36,8 @@ pub mod view_id {
     }
 
     generate_id!(tab_pod);
-    generate_id!(tab_pod_widget_query);
     generate_id!(tab_pod_widget_pod);
+    generate_id!(tab_pod_widget_log_query);
     generate_id!(tab_pod_widget_log);
     generate_id!(tab_config);
     generate_id!(tab_config_widget_config);
