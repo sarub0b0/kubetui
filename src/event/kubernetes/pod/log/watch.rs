@@ -211,7 +211,7 @@ impl TaskController {
                 logger!(
                     info,
                     "Container ID is empty. state={} task_id={}",
-                    Self::container_state_str(&status),
+                    Self::container_state_to_string(&status),
                     task_id
                 );
                 continue;
@@ -227,7 +227,7 @@ impl TaskController {
                     logger!(
                         info,
                         "Container ID is the same. state={} task_id={} container_id={}",
-                        Self::container_state_str(&status),
+                        Self::container_state_to_string(&status),
                         task_id,
                         container_id
                     );
@@ -237,7 +237,7 @@ impl TaskController {
                 logger!(
                     info,
                     "Container ID was chaned. state={} task_id={} container_id={}->{}",
-                    Self::container_state_str(&status),
+                    Self::container_state_to_string(&status),
                     task_id,
                     state.container_id,
                     container_id
@@ -361,7 +361,7 @@ impl TaskController {
                 .is_some_and(|last_state| last_state.terminated.is_some())
     }
 
-    fn container_state_str(status: &ContainerStatus) -> &'static str {
+    fn container_state_to_string(status: &ContainerStatus) -> &'static str {
         fn to_string(state: &ContainerState) -> &'static str {
             if state.running.is_some() {
                 return "running";
