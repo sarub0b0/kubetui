@@ -102,6 +102,13 @@ impl PodWatcher {
 
         lp
     }
+
+    fn is_exclude(&self, s: &str) -> bool {
+        self.filter
+            .pod_filter
+            .as_ref()
+            .is_some_and(|re| !re.is_match(s))
+    }
 }
 
 #[async_trait]
@@ -150,12 +157,7 @@ impl Worker for PodWatcher {
                             pod_uid
                         );
 
-                        if self
-                            .filter
-                            .pod_filter
-                            .as_ref()
-                            .is_some_and(|re| !re.is_match(pod_name))
-                        {
+                        if self.is_exclude(pod_name) {
                             continue;
                         }
 
