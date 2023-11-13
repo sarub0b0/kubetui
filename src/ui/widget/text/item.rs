@@ -65,6 +65,9 @@ pub struct TextItem {
 
     /// 折り返しサイズ
     wrap_width: Option<usize>,
+
+    /// 1行あたりの最大文字数
+    max_chars: usize,
 }
 
 type Graphemes = Vec<StyledGrapheme>;
@@ -74,13 +77,20 @@ impl TextItem {
     pub fn new(literal_item: Vec<LiteralItem>, wrap_width: Option<usize>) -> Self {
         let (lines, wrapped_lines) = Self::new_or_extend(literal_item, wrap_width, 0, 0);
 
-        let wrapped_lines = wrapped_lines.into_iter().flatten().collect();
+        let wrapped_lines: Vec<_> = wrapped_lines.into_iter().flatten().collect();
+
+        let max_chars = wrapped_lines
+            .iter()
+            .map(|l| l.line().len())
+            .max()
+            .unwrap_or_default();
 
         Self {
             lines,
             wrapped_lines,
             highlights: None,
             wrap_width,
+            max_chars,
         }
     }
 
@@ -122,6 +132,13 @@ impl TextItem {
             })
             .collect();
 
+        self.max_chars = wrapped_lines
+            .iter()
+            .map(|l| l.line().len())
+            .max()
+            .unwrap_or_default()
+            .max(self.max_chars);
+
         let line = Line {
             line_index,
             line_number,
@@ -155,6 +172,14 @@ impl TextItem {
             self.wrapped_lines.len(),
             self.lines.len(),
         );
+
+        self.max_chars = wrapped_lines
+            .iter()
+            .flatten()
+            .map(|l| l.line().len())
+            .max()
+            .unwrap_or_default()
+            .max(self.max_chars);
 
         self.lines.extend(lines);
         self.wrapped_lines
@@ -248,6 +273,10 @@ impl TextItem {
 
     pub fn is_empty(&self) -> bool {
         self.lines.is_empty()
+    }
+
+    pub fn max_chars(&self) -> usize {
+        self.max_chars
     }
 }
 
@@ -809,6 +838,65 @@ mod tests {
             ];
 
             assert_eq!(actual, expected);
+        }
+
+        mod max_chars {
+            use super::*;
+            use pretty_assertions::assert_eq;
+            use rstest::rstest;
+
+            #[rstest]
+            #[case(["012345".into(), "0123456789".into()], None, 10)]
+            #[case(["012345".into(), "0123456789".into()], Some(5), 5)]
+            fn new(
+                #[case] literal_item: [LiteralItem; 2],
+                #[case] wrap_width: Option<usize>,
+                #[case] expected: usize,
+            ) {
+                let literal_item: Vec<LiteralItem> = literal_item.into_iter().collect();
+
+                let item = TextItem::new(literal_item, wrap_width);
+
+                assert_eq!(item.max_chars(), expected);
+            }
+
+            #[rstest]
+            #[case(("012345".into(), "0123456789".into()), None, 10)]
+            #[case(("012345".into(), "0123456789".into()), Some(5), 5)]
+            fn push(
+                #[case] literal_item: (LiteralItem, LiteralItem),
+                #[case] wrap_width: Option<usize>,
+                #[case] expected: usize,
+            ) {
+                let mut item = TextItem::new(vec![literal_item.0], wrap_width);
+                item.push(literal_item.1);
+
+                assert_eq!(item.max_chars(), expected);
+            }
+
+            #[rstest]
+            #[case("012345".into(), None, 10)]
+            #[case("012345".into(), Some(3), 3)]
+            fn extend(
+                #[case] literal_item: LiteralItem,
+                #[case] wrap_width: Option<usize>,
+                #[case] expected: usize,
+            ) {
+                let mut item = TextItem::new(vec![literal_item], wrap_width);
+                item.extend(vec![
+                    LiteralItem::new("0123456789", None),
+                    LiteralItem::new("あいうえ", None),
+                ]);
+
+                assert_eq!(item.max_chars(), expected);
+            }
+
+            #[rstest]
+            fn new_empty() {
+                let item = TextItem::new(vec![], None);
+
+                assert_eq!(item.max_chars(), 0);
+            }
         }
     }
 
