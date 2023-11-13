@@ -436,7 +436,11 @@ impl Text {
             return;
         }
 
-        self.scroll.x = self.scroll.x.saturating_add(i);
+        self.scroll.x = self
+            .scroll
+            .x
+            .saturating_add(i)
+            .min(self.scroll_x_last_index());
     }
 
     pub fn scroll_left(&mut self, i: usize) {
@@ -445,6 +449,12 @@ impl Text {
         }
 
         self.scroll.x = self.scroll.x.saturating_sub(i);
+    }
+
+    pub fn scroll_x_last_index(&self) -> usize {
+        self.item
+            .max_chars()
+            .saturating_sub(self.inner_chunk().width as usize)
     }
 
     pub fn scroll_y_last_index(&self) -> usize {
@@ -869,6 +879,24 @@ impl RenderTrait for Text {
             }
         }
 
+        if !self.wrap {
+            let mut scrollbar_state = ScrollbarState::default()
+                .position(self.scroll.x)
+                .content_length(self.scroll_x_last_index())
+                .viewport_content_length(2);
+
+            f.render_stateful_widget(
+                Scrollbar::new(ScrollbarOrientation::HorizontalBottom)
+                    .begin_symbol(None)
+                    .end_symbol(None),
+                self.chunk().inner(&ratatui::prelude::Margin {
+                    horizontal: 1,
+                    vertical: 0,
+                }),
+                &mut scrollbar_state,
+            )
+        }
+
         let mut scrollbar_state = ScrollbarState::default()
             .position(self.scroll.y)
             .content_length(self.scroll_y_last_index())
@@ -950,6 +978,23 @@ mod tests {
                     assert_eq!(text.scroll.y, 0);
                 }
             }
+        }
+
+        #[test]
+        fn scroll_right() {
+            let mut text = Text::builder()
+                .items([
+                    "0".to_string(),
+                    "01234".to_string(),
+                    "0123456789".to_string(),
+                ])
+                .build();
+
+            text.update_chunk(Rect::new(0, 0, 5, 10));
+
+            text.scroll_right(10);
+
+            assert_eq!(text.scroll.x, 7);
         }
     }
 }
