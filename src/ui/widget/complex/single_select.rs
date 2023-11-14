@@ -12,14 +12,12 @@ use std::{collections::BTreeSet, rc::Rc};
 
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 
-use super::input::InputForm;
-
 use crate::{
     event::UserEvent,
     ui::{
         event::{Callback, EventResult, InnerCallback},
         util::RectContainsPoint,
-        widget::*,
+        widget::{input::InputForm, *},
         Window,
     },
 };
@@ -345,7 +343,7 @@ impl RenderTrait for SingleSelect<'_> {
         };
 
         f.render_widget(block, self.chunk);
-        self.input_widget.render(f, true);
+        self.input_widget.render(f, true, false);
         self.render_status(f);
         self.select_widget.render(f);
     }
@@ -443,7 +441,9 @@ impl SingleSelectBuilder {
             select_widget,
             callbacks: self.actions,
             block_injection: self.block_injection,
-            input_widget: InputForm::new(WidgetConfig::builder().title("Filter").build()),
+            input_widget: InputForm::builder()
+                .widget_config(WidgetConfig::builder().title("Filter").build())
+                .build(),
             ..Default::default()
         }
     }

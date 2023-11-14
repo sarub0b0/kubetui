@@ -7,7 +7,7 @@ use ratatui::{
 
 use crate::ui::{
     event::EventResult,
-    widget::{config::WidgetConfig, InputForm},
+    widget::{config::WidgetConfig, input::InputForm, RenderTrait},
 };
 
 #[derive(Debug, Default)]
@@ -28,7 +28,9 @@ impl Default for FilterForm {
     fn default() -> Self {
         Self {
             widget_config: WidgetConfig::default(),
-            input_widget: InputForm::new(WidgetConfig::builder().block(Block::default()).build()),
+            input_widget: InputForm::builder()
+                .widget_config(WidgetConfig::builder().block(Block::default()).build())
+                .build(),
             chunk: Chunk::default(),
             layout: Layout::default()
                 .direction(Direction::Horizontal)
@@ -80,6 +82,6 @@ impl FilterForm {
 
         f.render_widget(Paragraph::new("FILTER: "), self.chunk.header);
 
-        self.input_widget.render(f, is_active);
+        self.input_widget.render(f, is_active, false);
     }
 }
