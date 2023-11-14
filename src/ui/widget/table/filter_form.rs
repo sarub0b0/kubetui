@@ -10,17 +10,32 @@ use crate::ui::{
     widget::{config::WidgetConfig, InputForm},
 };
 
+#[derive(Debug, Default)]
+struct Chunk {
+    block: Rect,
+    header: Rect,
+}
+
 #[derive(Debug)]
 pub struct FilterForm {
+    block: Block<'static>,
     input_widget: InputForm,
-    chunk: Rect,
+    chunk: Chunk,
+    layout: Layout,
 }
 
 impl Default for FilterForm {
     fn default() -> Self {
         Self {
-            input_widget: InputForm::new(WidgetConfig::default()),
-            chunk: Default::default(),
+            block: Block::default()
+                .border_type(BorderType::Plain)
+                .borders(Borders::ALL),
+            input_widget: InputForm::new(WidgetConfig::builder().block(Block::default()).build()),
+            chunk: Chunk::default(),
+            layout: Layout::default()
+                .direction(Direction::Horizontal)
+                //            "FILTER: " len is 8.
+                .constraints([Constraint::Length(8), Constraint::Percentage(100)]),
         }
     }
 }
@@ -29,7 +44,22 @@ pub const FILTER_HEIGHT: u16 = 3;
 
 impl FilterForm {
     pub fn update_chunk(&mut self, chunk: Rect) {
-        self.chunk = Rect::new(chunk.x, chunk.y, chunk.width, FILTER_HEIGHT);
+        let block_chunk = Rect::new(chunk.x, chunk.y, chunk.width, FILTER_HEIGHT);
+
+        let inner_chunk = self.block.inner(block_chunk);
+
+        let chunks = self.layout.split(inner_chunk);
+
+        let header_chunk = chunks[0];
+
+        self.chunk = Chunk {
+            block: block_chunk,
+            header: header_chunk,
+        };
+
+        let content_chunk = chunks[1];
+
+        self.input_widget.update_chunk(content_chunk);
     }
 
     pub fn word(&self) -> String {
@@ -45,27 +75,10 @@ impl FilterForm {
     }
 
     pub fn render(&mut self, f: &mut Frame<'_>, is_active: bool) {
-        let header = "FILTER: ";
+        f.render_widget(self.block.clone(), self.chunk.block);
 
-        let content = self.input_widget.render_content(is_active);
+        f.render_widget(Paragraph::new("FILTER: "), self.chunk.header);
 
-        let content_width = self.chunk.width.saturating_sub(8);
-
-        let block = Block::default()
-            .border_type(BorderType::Plain)
-            .borders(Borders::ALL);
-
-        let inner_chunk = block.inner(self.chunk);
-
-        let chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Length(8), Constraint::Length(content_width)])
-            .split(inner_chunk);
-
-        f.render_widget(block, self.chunk);
-
-        f.render_widget(Paragraph::new(header), chunks[0]);
-
-        f.render_widget(Paragraph::new(content), chunks[1]);
+        self.input_widget.render(f, is_active);
     }
 }
