@@ -93,6 +93,11 @@ impl Content {
         self.chars.len()
     }
 
+    fn update_content(&mut self, s: String) {
+        self.chars = s.chars().collect();
+        self.cursor_end();
+    }
+
     fn cursor_forward(&mut self, addend: usize) {
         self.cursor_pos = self
             .cursor_pos
@@ -241,6 +246,14 @@ impl InputForm {
         self.chunk = chunk;
 
         self.adjust_scroll_for_cursor();
+    }
+
+    pub fn update_content(&mut self, content: String) {
+        self.clear();
+
+        self.content.update_content(content);
+
+        self.move_cursor_end();
     }
 
     pub fn insert_char(&mut self, c: char) {
@@ -448,7 +461,7 @@ impl WidgetTrait for InputForm {
     }
 
     fn update_chunk(&mut self, chunk: Rect) {
-        self.chunk = chunk
+        self.update_chunk(chunk);
     }
 
     fn clear(&mut self) {
