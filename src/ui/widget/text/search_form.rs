@@ -4,36 +4,46 @@ use ratatui::{
     widgets::{Block, Paragraph},
     Frame,
 };
-use unicode_width::UnicodeWidthStr;
 
 use crate::ui::{
     event::EventResult,
     widget::{config::WidgetConfig, InputForm},
 };
 
+const PREFIX: &str = "Search: ";
+const PREFIX_LEN: u16 = 8;
+
 #[derive(Debug)]
 pub struct SearchForm {
     input_widget: InputForm,
-    chunk: Rect,
+    header_chunk: Rect,
+    remaining_chunk: Rect,
 }
 
 impl Default for SearchForm {
     fn default() -> Self {
         Self {
             input_widget: InputForm::new(WidgetConfig::builder().block(Block::default()).build()),
-            chunk: Default::default(),
+            header_chunk: Default::default(),
+            remaining_chunk: Default::default(),
         }
     }
 }
 
 impl SearchForm {
     pub fn update_chunk(&mut self, chunk: Rect) {
-        self.chunk = Rect::new(
-            chunk.x,
-            chunk.y + chunk.height.saturating_sub(1),
-            chunk.width,
-            1,
-        );
+        let Rect {
+            x,
+            y,
+            width,
+            height,
+        } = chunk;
+
+        let y = y + height.saturating_sub(1);
+
+        self.header_chunk = Rect::new(x, y, PREFIX_LEN, 1);
+
+        self.remaining_chunk = Rect::new(x + PREFIX_LEN, y, width.saturating_sub(PREFIX_LEN), 1);
     }
 
     pub fn word(&self) -> String {
@@ -45,27 +55,30 @@ impl SearchForm {
     }
 
     pub fn render(&mut self, f: &mut Frame<'_>, is_active: bool, status: (usize, usize)) {
-        let header = "Search: ";
-
-        let content = self.input_widget.render_content(is_active);
-
         let status = format!(" [{}/{}]", status.0, status.1);
 
-        let content_width = self.chunk.width.saturating_sub(8 + status.width() as u16);
+        let content_width = self
+            .remaining_chunk
+            .width
+            .saturating_sub(status.len() as u16);
 
-        let chunks = Layout::default()
+        let chunks = Self::layout(content_width, status.len() as u16).split(self.remaining_chunk);
+
+        f.render_widget(Paragraph::new(PREFIX), self.header_chunk);
+
+        self.input_widget.update_chunk(chunks[0]);
+
+        self.input_widget.render(f, is_active);
+
+        f.render_widget(Paragraph::new(status), chunks[1]);
+    }
+
+    fn layout(content_width: u16, status_width: u16) -> Layout {
+        Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
-                Constraint::Length(8),
                 Constraint::Length(content_width),
-                Constraint::Length(status.len() as u16),
+                Constraint::Length(status_width),
             ])
-            .split(self.chunk);
-
-        f.render_widget(Paragraph::new(header), chunks[0]);
-
-        f.render_widget(Paragraph::new(content), chunks[1]);
-
-        f.render_widget(Paragraph::new(status), chunks[2]);
     }
 }
