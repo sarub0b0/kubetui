@@ -250,6 +250,7 @@ impl InputForm {
         self.scroll = self.max_scroll();
     }
 
+    /// カーソルがフォーム内の右端に来るようスクロール位置を調整する
     fn adjust_scroll_for_cursor(&mut self) {
         if self.is_cursor_right_inside_render_area() {
             return;
