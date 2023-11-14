@@ -438,19 +438,35 @@ impl WidgetTrait for InputForm {
         self.chunk
     }
 
-    fn select_index(&mut self, _: usize) {}
+    fn select_index(&mut self, _: usize) {
+        unreachable!();
+    }
 
-    fn select_next(&mut self, _: usize) {}
+    fn select_next(&mut self, _: usize) {
+        unreachable!();
+    }
 
-    fn select_prev(&mut self, _: usize) {}
+    fn select_prev(&mut self, _: usize) {
+        unreachable!();
+    }
 
-    fn select_first(&mut self) {}
+    fn select_first(&mut self) {
+        unreachable!();
+    }
 
-    fn select_last(&mut self) {}
+    fn select_last(&mut self) {
+        unreachable!();
+    }
 
-    fn append_widget_item(&mut self, _: Item) {}
+    fn append_widget_item(&mut self, _: Item) {
+        unreachable!();
+    }
 
-    fn update_widget_item(&mut self, _: Item) {}
+    fn update_widget_item(&mut self, item: Item) {
+        let LiteralItem { item, .. } = item.single();
+
+        self.update_content(item);
+    }
 
     fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
         self.on_mouse_event(ev)

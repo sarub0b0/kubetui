@@ -71,14 +71,11 @@ impl TableItem {
     }
 }
 
-impl From<String> for LiteralItem {
-    fn from(item: String) -> Self {
-        Self::new(item, None)
-    }
-}
-
-impl From<&str> for LiteralItem {
-    fn from(item: &str) -> Self {
+impl<T> From<T> for LiteralItem
+where
+    T: ToString,
+{
+    fn from(item: T) -> Self {
         Self::new(item.to_string(), None)
     }
 }

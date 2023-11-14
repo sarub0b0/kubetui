@@ -156,6 +156,7 @@ impl<'a> PodTabBuilder<'a> {
                 let Some(ref metadata) = v.metadata else {
                     return EventResult::Ignore;
                 };
+
                 let Some(ref namespace) = metadata.get("namespace") else {
                     return EventResult::Ignore;
                 };
@@ -164,14 +165,14 @@ impl<'a> PodTabBuilder<'a> {
                     return EventResult::Ignore;
                 };
 
-                *(w.find_widget_mut(view_id::tab_pod_widget_log)
-                    .widget_config_mut()
-                    .append_title_mut()) = Some((format!(" : {}", name)).into());
+                let query_form = w.find_widget_mut(view_id::tab_pod_widget_query);
+
+                query_form.update_widget_item(Item::Single(format!("pod/{}", name).into()));
 
                 let namespaces = Namespace(vec![namespace.to_string()]);
 
                 let config = LogStreamConfig::new(
-                    format!("regex:^{}$", name),
+                    format!("pod/{}", name),
                     namespaces.to_owned(),
                     LogStreamPrefixType::OnlyContainer,
                 );
