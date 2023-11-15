@@ -60,7 +60,7 @@ impl<'a> PodTabBuilder<'a> {
         let layout = NestedWidgetLayout::default()
             .direction(self.split_mode)
             .nested_widget_layout([
-                NestedLayoutElement(Constraint::Percentage(50), LayoutElement::WidgetIndex(0)),
+                NestedLayoutElement(Constraint::Percentage(45), LayoutElement::WidgetIndex(0)),
                 NestedLayoutElement(
                     Constraint::Percentage(50),
                     LayoutElement::NestedElement(
@@ -72,7 +72,7 @@ impl<'a> PodTabBuilder<'a> {
                                     LayoutElement::WidgetIndex(1),
                                 ),
                                 NestedLayoutElement(
-                                    Constraint::Percentage(50),
+                                    Constraint::Min(3),
                                     LayoutElement::WidgetIndex(2),
                                 ),
                             ]),
