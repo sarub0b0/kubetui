@@ -35,7 +35,10 @@ use super::{
 
 #[derive(Debug, Clone)]
 pub struct PodWatcherFilter {
-    pub pod_filter: Option<Regex>,
+    pub pod: Option<Regex>,
+    pub exclude_pod: Option<Vec<Regex>>,
+    pub container: Option<Regex>,
+    pub exclude_container: Option<Vec<Regex>>,
     pub label_selector: Option<String>,
     pub field_selector: Option<String>,
 }
@@ -44,8 +47,12 @@ impl Display for PodWatcherFilter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut buf = Vec::new();
 
-        if let Some(regex) = &self.pod_filter {
-            buf.push(format!("pod_filter={}", regex.as_str()));
+        if let Some(regex) = &self.pod {
+            buf.push(format!("pod={}", regex.as_str()));
+        }
+
+        if let Some(regex) = &self.container {
+            buf.push(format!("container={}", regex.as_str()));
         }
 
         if let Some(label_selector) = &self.label_selector {
@@ -103,11 +110,13 @@ impl PodWatcher {
         lp
     }
 
-    fn is_exclude(&self, s: &str) -> bool {
-        self.filter
-            .pod_filter
-            .as_ref()
-            .is_some_and(|re| !re.is_match(s))
+    fn is_exclude(&self, pod: &str) -> bool {
+        self.filter.pod.as_ref().is_some_and(|re| !re.is_match(pod))
+            || self
+                .filter
+                .exclude_pod
+                .as_ref()
+                .is_some_and(|exclude| exclude.iter().any(|re| re.is_match(pod)))
     }
 }
 
@@ -125,6 +134,10 @@ impl Worker for PodWatcher {
             self.log_buffer.clone(),
             self.namespace.clone(),
             self.log_streamer_options.clone(),
+            TaskControllerFilter {
+                container: self.filter.container.clone(),
+                exclude_container: self.filter.exclude_container.clone(),
+            },
         );
 
         loop {
@@ -188,12 +201,18 @@ impl Worker for PodWatcher {
     }
 }
 
+struct TaskControllerFilter {
+    container: Option<Regex>,
+    exclude_container: Option<Vec<Regex>>,
+}
+
 struct TaskController {
     client: KubeClient,
     log_buffer: LogBuffer,
     namespace: String,
-    tasks: Tasks,
     log_streamer_options: ContainerLogStreamerOptions,
+    filter: TaskControllerFilter,
+    tasks: Tasks,
 }
 
 impl TaskController {
@@ -202,14 +221,28 @@ impl TaskController {
         log_buffer: LogBuffer,
         namespace: String,
         log_streamer_options: ContainerLogStreamerOptions,
+        filter: TaskControllerFilter,
     ) -> Self {
         Self {
             client,
             log_buffer,
             namespace,
-            tasks: Tasks::default(),
             log_streamer_options,
+            filter,
+            tasks: Tasks::default(),
         }
+    }
+
+    fn is_exclude(&self, c: &str) -> bool {
+        self.filter
+            .container
+            .as_ref()
+            .is_some_and(|re| !re.is_match(c))
+            || self
+                .filter
+                .exclude_container
+                .as_ref()
+                .is_some_and(|exclude| exclude.iter().any(|re| re.is_match(c)))
     }
 
     fn spawn_tasks(&mut self, pod: &Pod, pod_name: String, pod_uid: String) {
@@ -219,6 +252,10 @@ impl TaskController {
         // コンテナごとにタスク生成
         for status in container_statuses {
             let container_name = status.name.clone();
+
+            if self.is_exclude(&container_name) {
+                continue;
+            }
 
             let task_id = TaskId {
                 namespace: self.namespace.clone(),

@@ -66,8 +66,8 @@ const PREFIX_COLOR_LIST: [PrefixColor; 6] = [
 #[derive(Clone)]
 pub struct ContainerLogStreamerOptions {
     pub prefix_type: LogStreamPrefixType,
-    pub include: Option<Vec<Regex>>,
-    pub exclude: Option<Vec<Regex>>,
+    pub include_log: Option<Vec<Regex>>,
+    pub exclude_log: Option<Vec<Regex>>,
 }
 
 #[derive(Clone)]
@@ -180,13 +180,13 @@ impl ContainerLogStreamer {
 
     fn is_exclude(&self, s: &str) -> bool {
         self.options
-            .exclude
+            .exclude_log
             .as_ref()
             .is_some_and(|exclude| exclude.iter().any(|re| re.is_match(s)))
     }
 
     fn is_include(&self, s: &str) -> bool {
-        let Some(include) = &self.options.include else {
+        let Some(include) = &self.options.include_log else {
             return true;
         };
 

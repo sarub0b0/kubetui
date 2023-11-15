@@ -95,11 +95,14 @@ impl LogStreamWorker {
         logger!(info, "log stream filter config: {}", filter);
 
         let Filter {
-            pod_filter,
+            pod,
+            exclude_pod,
+            container,
+            exclude_container,
             label_selector,
             field_selector,
-            include,
-            exclude,
+            include_log,
+            exclude_log,
         } = filter;
 
         // watch per namespace
@@ -121,15 +124,18 @@ impl LogStreamWorker {
             };
 
             let filter = PodWatcherFilter {
-                pod_filter: pod_filter.clone(),
+                pod: pod.clone(),
+                exclude_pod: exclude_pod.clone(),
+                container: container.clone(),
+                exclude_container: exclude_container.clone(),
                 label_selector,
                 field_selector: field_selector.clone(),
             };
 
             let log_streamer_options = ContainerLogStreamerOptions {
                 prefix_type: self.config.prefix_type,
-                include: include.clone(),
-                exclude: exclude.clone(),
+                include_log: include_log.clone(),
+                exclude_log: exclude_log.clone(),
             };
 
             logger!(info, "pod watch filter: {}", filter);

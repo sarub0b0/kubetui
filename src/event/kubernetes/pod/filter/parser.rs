@@ -50,27 +50,57 @@ fn resource_name<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     recognize(many1(alt((alphanumeric1, tag("-"), tag(".")))))(s)
 }
 
-fn name<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
-    s: &'a str,
-) -> IResult<&'a str, FilterAttribute, E> {
-    let (remaining, (_, value)) = separated_pair(alt((tag("name"), tag("n"))), char(':'), rest)(s)?;
-    Ok((remaining, FilterAttribute::Name(value)))
-}
-
-fn include<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+fn pod<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
     let (remaining, (_, value)) =
-        separated_pair(alt((tag("include"), tag("in"), tag("i"))), char(':'), rest)(s)?;
-    Ok((remaining, FilterAttribute::Include(value)))
+        separated_pair(alt((tag("pod"), tag("po"), tag("p"))), char(':'), rest)(s)?;
+    Ok((remaining, FilterAttribute::Pod(value)))
 }
 
-fn exclude<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+fn exclude_pod<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
     let (remaining, (_, value)) =
-        separated_pair(alt((tag("exclude"), tag("ex"), tag("e"))), char(':'), rest)(s)?;
-    Ok((remaining, FilterAttribute::Exclude(value)))
+        separated_pair(alt((tag("!pod"), tag("!po"), tag("!p"))), char(':'), rest)(s)?;
+    Ok((remaining, FilterAttribute::ExcludePod(value)))
+}
+
+fn container<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&'a str, FilterAttribute, E> {
+    let (remaining, (_, value)) = separated_pair(
+        alt((tag("container"), tag("co"), tag("c"))),
+        char(':'),
+        rest,
+    )(s)?;
+    Ok((remaining, FilterAttribute::Container(value)))
+}
+
+fn exclude_container<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&'a str, FilterAttribute, E> {
+    let (remaining, (_, value)) = separated_pair(
+        alt((tag("!container"), tag("!co"), tag("!c"))),
+        char(':'),
+        rest,
+    )(s)?;
+    Ok((remaining, FilterAttribute::ExcludeContainer(value)))
+}
+
+fn include_log<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&'a str, FilterAttribute, E> {
+    let (remaining, (_, value)) = separated_pair(alt((tag("log"), tag("lo"))), char(':'), rest)(s)?;
+    Ok((remaining, FilterAttribute::IncludeLog(value)))
+}
+
+fn exclude_log<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&'a str, FilterAttribute, E> {
+    let (remaining, (_, value)) =
+        separated_pair(alt((tag("!log"), tag("!lo"))), char(':'), rest)(s)?;
+    Ok((remaining, FilterAttribute::ExcludeLog(value)))
 }
 
 fn label_selector<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
@@ -95,7 +125,7 @@ fn field_selector<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     Ok((remaining, FilterAttribute::FieldSelector(value)))
 }
 
-fn daemonset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+fn specified_daemonset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
     let (remaining, (_, value)) =
@@ -106,7 +136,7 @@ fn daemonset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     ))
 }
 
-fn deployment<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+fn specified_deployment<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
     let (remaining, (_, value)) = separated_pair(
@@ -120,7 +150,7 @@ fn deployment<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     ))
 }
 
-fn job<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+fn specified_job<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
     let (remaining, (_, value)) = separated_pair(tag("job"), char('/'), resource_name)(s)?;
@@ -130,7 +160,7 @@ fn job<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     ))
 }
 
-fn pod<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+fn specified_pod<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
     let (remaining, (_, value)) =
@@ -141,7 +171,7 @@ fn pod<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     ))
 }
 
-fn replicaset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+fn specified_replicaset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
     let (remaining, (_, value)) = separated_pair(
@@ -155,7 +185,7 @@ fn replicaset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     ))
 }
 
-fn service<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+fn specified_service<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
     let (remaining, (_, value)) =
@@ -166,7 +196,7 @@ fn service<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     ))
 }
 
-fn statefulset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+fn specified_statefulset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
     let (remaining, (_, value)) = separated_pair(
@@ -184,18 +214,21 @@ fn parse<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
     alt((
-        pod,
-        daemonset,
-        deployment,
-        job,
-        replicaset,
-        service,
-        statefulset,
+        specified_pod,
+        specified_daemonset,
+        specified_deployment,
+        specified_job,
+        specified_replicaset,
+        specified_service,
+        specified_statefulset,
         field_selector,
         label_selector,
-        name,
-        include,
-        exclude,
+        pod,
+        exclude_pod,
+        container,
+        exclude_container,
+        include_log,
+        exclude_log,
     ))(s)
 }
 
@@ -207,13 +240,67 @@ mod tests {
 
     /// Regex
     #[rstest]
-    #[case("name:hoge", "hoge")]
-    #[case("name:.*", ".*")]
-    #[case("n:^app$", "^app$")]
-    fn regex(#[case] query: &str, #[case] expected: &str) {
+    #[case("pod:hoge", "hoge")]
+    #[case("po:.*", ".*")]
+    #[case("p:^app$", "^app$")]
+    fn pod(#[case] query: &str, #[case] expected: &str) {
         assert_eq!(
             FilterParser::new(query).try_collect().unwrap(),
-            vec![FilterAttribute::Name(expected)]
+            vec![FilterAttribute::Pod(expected)]
+        );
+    }
+
+    #[rstest]
+    #[case("!pod:hoge", "hoge")]
+    #[case("!po:.*", ".*")]
+    #[case("!p:^app$", "^app$")]
+    fn exclude_pod(#[case] query: &str, #[case] expected: &str) {
+        assert_eq!(
+            FilterParser::new(query).try_collect().unwrap(),
+            vec![FilterAttribute::ExcludePod(expected)]
+        );
+    }
+
+    #[rstest]
+    #[case("container:hoge", "hoge")]
+    #[case("co:.*", ".*")]
+    #[case("c:^app$", "^app$")]
+    fn container(#[case] query: &str, #[case] expected: &str) {
+        assert_eq!(
+            FilterParser::new(query).try_collect().unwrap(),
+            vec![FilterAttribute::Container(expected)]
+        );
+    }
+
+    #[rstest]
+    #[case("!container:hoge", "hoge")]
+    #[case("!co:.*", ".*")]
+    #[case("!c:^app$", "^app$")]
+    fn exclude_container(#[case] query: &str, #[case] expected: &str) {
+        assert_eq!(
+            FilterParser::new(query).try_collect().unwrap(),
+            vec![FilterAttribute::ExcludeContainer(expected)]
+        );
+    }
+
+    /// Log
+    #[rstest]
+    #[case("log:hoge", "hoge")]
+    #[case("lo:hoge", "hoge")]
+    fn include_log(#[case] query: &str, #[case] expected: &str) {
+        assert_eq!(
+            FilterParser::new(query).try_collect().unwrap(),
+            vec![FilterAttribute::IncludeLog(expected)]
+        );
+    }
+
+    #[rstest]
+    #[case("!log:hoge", "hoge")]
+    #[case("!lo:hoge", "hoge")]
+    fn exclude_log(#[case] query: &str, #[case] expected: &str) {
+        assert_eq!(
+            FilterParser::new(query).try_collect().unwrap(),
+            vec![FilterAttribute::ExcludeLog(expected)]
         );
     }
 
@@ -247,7 +334,7 @@ mod tests {
     #[rstest]
     #[case("daemonset/app", "app")]
     #[case("ds/app", "app")]
-    fn daemonset(#[case] query: &str, #[case] expected: &str) {
+    fn specified_daemonset(#[case] query: &str, #[case] expected: &str) {
         assert_eq!(
             FilterParser::new(query).try_collect().unwrap(),
             vec![FilterAttribute::from(SpecifiedResource::DaemonSet(
@@ -260,7 +347,7 @@ mod tests {
     #[rstest]
     #[case("deployment/app", "app")]
     #[case("deploy/app", "app")]
-    fn deployment(#[case] query: &str, #[case] expected: &str) {
+    fn specified_deployment(#[case] query: &str, #[case] expected: &str) {
         assert_eq!(
             FilterParser::new(query).try_collect().unwrap(),
             vec![FilterAttribute::from(SpecifiedResource::Deployment(
@@ -272,7 +359,7 @@ mod tests {
     /// Job
     #[rstest]
     #[case("job/app", "app")]
-    fn job(#[case] query: &str, #[case] expected: &str) {
+    fn specified_job(#[case] query: &str, #[case] expected: &str) {
         assert_eq!(
             FilterParser::new(query).try_collect().unwrap(),
             vec![FilterAttribute::from(SpecifiedResource::Job(expected))]
@@ -283,7 +370,7 @@ mod tests {
     #[rstest]
     #[case("pod/app", "app")]
     #[case("po/app", "app")]
-    fn pod(#[case] query: &str, #[case] expected: &str) {
+    fn specified_pod(#[case] query: &str, #[case] expected: &str) {
         assert_eq!(
             FilterParser::new(query).try_collect().unwrap(),
             vec![FilterAttribute::from(SpecifiedResource::Pod(expected))]
@@ -294,7 +381,7 @@ mod tests {
     #[rstest]
     #[case("replicaset/app", "app")]
     #[case("rs/app", "app")]
-    fn replicaset(#[case] query: &str, #[case] expected: &str) {
+    fn specified_replicaset(#[case] query: &str, #[case] expected: &str) {
         assert_eq!(
             FilterParser::new(query).try_collect().unwrap(),
             vec![FilterAttribute::from(SpecifiedResource::ReplicaSet(
@@ -307,7 +394,7 @@ mod tests {
     #[rstest]
     #[case("service/app", "app")]
     #[case("svc/app", "app")]
-    fn service(#[case] query: &str, #[case] expected: &str) {
+    fn specified_service(#[case] query: &str, #[case] expected: &str) {
         assert_eq!(
             FilterParser::new(query).try_collect().unwrap(),
             vec![FilterAttribute::from(SpecifiedResource::Service(expected))]
@@ -318,12 +405,46 @@ mod tests {
     #[rstest]
     #[case("statefulset/app", "app")]
     #[case("sts/app", "app")]
-    fn statefulset(#[case] query: &str, #[case] expected: &str) {
+    fn specified_statefulset(#[case] query: &str, #[case] expected: &str) {
         assert_eq!(
             FilterParser::new(query).try_collect().unwrap(),
             vec![FilterAttribute::from(SpecifiedResource::StatefulSet(
                 expected
             ))]
         );
+    }
+
+    #[test]
+    fn all_attributes() {
+        let query = "pod:hoge !pod:hoge container:hoge !container:hoge log:hoge !log:hoge labels:foo=bar fields:foo=bar daemonset/app deployment/app job/app pod/app replicaset/app service/app statefulset/app";
+
+        let actual = FilterParser::new(query).try_collect().unwrap();
+
+        let expected = vec![
+            FilterAttribute::Pod("hoge"),
+            FilterAttribute::ExcludePod("hoge"),
+            FilterAttribute::Container("hoge"),
+            FilterAttribute::ExcludeContainer("hoge"),
+            FilterAttribute::IncludeLog("hoge"),
+            FilterAttribute::ExcludeLog("hoge"),
+            FilterAttribute::LabelSelector("foo=bar"),
+            FilterAttribute::FieldSelector("foo=bar"),
+            FilterAttribute::Resource(SpecifiedResource::DaemonSet("app")),
+            FilterAttribute::Resource(SpecifiedResource::Deployment("app")),
+            FilterAttribute::Resource(SpecifiedResource::Job("app")),
+            FilterAttribute::Resource(SpecifiedResource::Pod("app")),
+            FilterAttribute::Resource(SpecifiedResource::ReplicaSet("app")),
+            FilterAttribute::Resource(SpecifiedResource::Service("app")),
+            FilterAttribute::Resource(SpecifiedResource::StatefulSet("app")),
+        ];
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn return_error() {
+        let query = "hoge:hoge";
+
+        assert!(FilterParser::new(query).try_collect().is_err());
     }
 }

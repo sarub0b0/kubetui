@@ -15,11 +15,14 @@ pub enum FilterError {
 
 #[derive(Debug, Default, Clone)]
 pub struct Filter {
-    pub pod_filter: Option<Regex>,
+    pub pod: Option<Regex>,
+    pub exclude_pod: Option<Vec<Regex>>,
+    pub container: Option<Regex>,
+    pub exclude_container: Option<Vec<Regex>>,
     pub field_selector: Option<String>,
     pub label_selector: Option<LabelSelector>,
-    pub include: Option<Vec<Regex>>,
-    pub exclude: Option<Vec<Regex>>,
+    pub include_log: Option<Vec<Regex>>,
+    pub exclude_log: Option<Vec<Regex>>,
 }
 
 impl Filter {
@@ -32,68 +35,104 @@ impl Filter {
 
         for attr in valid_attrs {
             match attr {
-                FilterAttribute::Name(regex) => {
+                FilterAttribute::Pod(regex) => {
                     let regex = Regex::new(regex)?;
-                    filter.pod_filter = Some(regex);
+                    filter.pod = Some(regex);
                 }
+
+                FilterAttribute::ExcludePod(regex) => {
+                    let regex = Regex::new(regex)?;
+
+                    if let Some(vec) = &mut filter.exclude_pod {
+                        vec.push(regex);
+                    } else {
+                        filter.exclude_pod = Some(vec![regex]);
+                    }
+                }
+
+                FilterAttribute::Container(regex) => {
+                    let regex = Regex::new(regex)?;
+                    filter.container = Some(regex);
+                }
+
+                FilterAttribute::ExcludeContainer(regex) => {
+                    let regex = Regex::new(regex)?;
+
+                    if let Some(vec) = &mut filter.exclude_container {
+                        vec.push(regex);
+                    } else {
+                        filter.exclude_container = Some(vec![regex]);
+                    }
+                }
+
                 FilterAttribute::Resource(resource) => match resource {
                     SpecifiedResource::Pod(name) => {
                         let regex = Regex::new(&format!("^{}$", name))?;
-                        filter.pod_filter = Some(regex);
+                        filter.pod = Some(regex);
                     }
+
                     SpecifiedResource::DaemonSet(name) => {
                         filter.label_selector = Some(LabelSelector::Resource(
                             RetrievableResource::DaemonSet(name.to_string()),
                         ));
                     }
+
                     SpecifiedResource::Deployment(name) => {
                         filter.label_selector = Some(LabelSelector::Resource(
                             RetrievableResource::Deployment(name.to_string()),
                         ));
                     }
+
                     SpecifiedResource::Job(name) => {
                         filter.label_selector = Some(LabelSelector::Resource(
                             RetrievableResource::Job(name.to_string()),
                         ));
                     }
+
                     SpecifiedResource::ReplicaSet(name) => {
                         filter.label_selector = Some(LabelSelector::Resource(
                             RetrievableResource::ReplicaSet(name.to_string()),
                         ));
                     }
+
                     SpecifiedResource::Service(name) => {
                         filter.label_selector = Some(LabelSelector::Resource(
                             RetrievableResource::Service(name.to_string()),
                         ));
                     }
+
                     SpecifiedResource::StatefulSet(name) => {
                         filter.label_selector = Some(LabelSelector::Resource(
                             RetrievableResource::StatefulSet(name.to_string()),
                         ));
                     }
                 },
+
                 FilterAttribute::LabelSelector(selector) => {
                     filter.label_selector = Some(LabelSelector::String(selector.to_string()));
                 }
+
                 FilterAttribute::FieldSelector(selector) => {
                     filter.field_selector = Some(selector.to_string());
                 }
-                FilterAttribute::Include(regex) => {
+
+                FilterAttribute::IncludeLog(regex) => {
                     let regex = Regex::new(regex)?;
 
-                    if let Some(include) = &mut filter.include {
+                    if let Some(include) = &mut filter.include_log {
                         include.push(regex);
                     } else {
-                        filter.include = Some(vec![regex]);
+                        filter.include_log = Some(vec![regex]);
                     }
                 }
-                FilterAttribute::Exclude(regex) => {
+
+                FilterAttribute::ExcludeLog(regex) => {
                     let regex = Regex::new(regex)?;
 
-                    if let Some(exclude) = &mut filter.exclude {
+                    if let Some(exclude) = &mut filter.exclude_log {
                         exclude.push(regex);
                     } else {
-                        filter.exclude = Some(vec![regex]);
+                        filter.exclude_log = Some(vec![regex]);
                     }
                 }
             }
@@ -124,8 +163,24 @@ impl std::fmt::Display for Filter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut buf = Vec::new();
 
-        if let Some(regex) = &self.pod_filter {
-            buf.push(format!("pod_filter={}", regex.as_str()));
+        if let Some(regex) = &self.pod {
+            buf.push(format!("pod={}", regex.as_str()));
+        }
+
+        if let Some(vec) = &self.exclude_pod {
+            for re in vec {
+                buf.push(format!("exclude_pod={}", re.as_str()));
+            }
+        }
+
+        if let Some(regex) = &self.container {
+            buf.push(format!("container={}", regex.as_str()));
+        }
+
+        if let Some(vec) = &self.exclude_container {
+            for re in vec {
+                buf.push(format!("exclude_container={}", re.as_str()));
+            }
         }
 
         if let Some(label_selector) = &self.label_selector {
@@ -136,13 +191,13 @@ impl std::fmt::Display for Filter {
             buf.push(format!("field_selector={}", field_selector));
         }
 
-        if let Some(include) = &self.include {
+        if let Some(include) = &self.include_log {
             for i in include {
                 buf.push(format!("include={}", i.as_str()));
             }
         }
 
-        if let Some(exclude) = &self.exclude {
+        if let Some(exclude) = &self.exclude_log {
             for e in exclude {
                 buf.push(format!("exclude={}", e.as_str()));
             }
@@ -215,12 +270,15 @@ pub enum SpecifiedResource<'a> {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FilterAttribute<'a> {
-    Name(&'a str),
+    Pod(&'a str),
+    ExcludePod(&'a str),
+    Container(&'a str),
+    ExcludeContainer(&'a str),
     Resource(SpecifiedResource<'a>),
     LabelSelector(&'a str),
     FieldSelector(&'a str),
-    Include(&'a str),
-    Exclude(&'a str),
+    IncludeLog(&'a str),
+    ExcludeLog(&'a str),
 }
 
 impl<'a> From<SpecifiedResource<'a>> for FilterAttribute<'a> {
