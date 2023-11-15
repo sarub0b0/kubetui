@@ -4,4 +4,4 @@ mod filter;
 
 pub use list::PodPollWorker;
 
-pub use log::{LogStreamConfig, LogStreamMessage, LogStreamPrefixType, LogStreamWorker};
+pub use log::{LogConfig, LogMessage, LogPrefixType, LogWorker};

@@ -8,7 +8,7 @@ use crate::{
     clipboard_wrapper::Clipboard,
     context::Namespace,
     event::{
-        kubernetes::pod::{LogStreamConfig, LogStreamMessage, LogStreamPrefixType},
+        kubernetes::pod::{LogConfig, LogMessage, LogPrefixType},
         Event, UserEvent,
     },
     ui::{
@@ -134,14 +134,14 @@ impl<'a> PodTabBuilder<'a> {
 
                 let namespaces = Namespace(vec![namespace.to_string()]);
 
-                let config = LogStreamConfig::new(
+                let config = LogConfig::new(
                     format!("pod/{}", name),
                     namespaces.to_owned(),
-                    LogStreamPrefixType::OnlyContainer,
+                    LogPrefixType::OnlyContainer,
                 );
 
-                tx.send(LogStreamMessage::Request(config).into())
-                    .expect("Failed to send LogStreamMessage::Request");
+                tx.send(LogMessage::Request(config).into())
+                    .expect("Failed to send LogMessage::Request");
 
                 EventResult::Window(WindowEvent::Continue)
             })
@@ -165,15 +165,15 @@ impl<'a> PodTabBuilder<'a> {
             let namespaces = namespaces.borrow();
 
             let prefix_type = if 1 < namespaces.len() {
-                LogStreamPrefixType::All
+                LogPrefixType::All
             } else {
-                LogStreamPrefixType::PodAndContainer
+                LogPrefixType::PodAndContainer
             };
 
-            let config = LogStreamConfig::new(item, namespaces.to_owned(), prefix_type);
+            let config = LogConfig::new(item, namespaces.to_owned(), prefix_type);
 
-            tx.send(LogStreamMessage::Request(config).into())
-                .expect("Failed to send LogStreamMessage::Request");
+            tx.send(LogMessage::Request(config).into())
+                .expect("Failed to send LogMessage::Request");
 
             EventResult::Ignore
         };

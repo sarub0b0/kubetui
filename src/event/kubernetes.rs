@@ -40,7 +40,7 @@ use self::{
     inner::Inner,
     namespace_message::{NamespaceMessage, NamespaceRequest, NamespaceResponse},
     network::{NetworkDescriptionWorker, NetworkMessage},
-    pod::{LogStreamMessage, LogStreamWorker},
+    pod::{LogMessage, LogWorker},
     worker::{AbortWorker, PollWorker, Worker},
     yaml::{
         fetch_resource_list::FetchResourceList,
@@ -138,7 +138,7 @@ pub enum Kube {
     Event(Result<Vec<String>>),
     Namespace(NamespaceMessage),
     Pod(Result<KubeTable>),
-    LogStream(LogStreamMessage),
+    Log(LogMessage),
     Config(ConfigMessage),
     Network(NetworkMessage),
     Yaml(YamlMessage),
@@ -320,7 +320,7 @@ impl Worker for MainWorker {
     type Output = WorkerResult;
 
     async fn run(&self) -> Self::Output {
-        let mut log_stream_handler: Option<AbortHandle> = None;
+        let mut log_handler: Option<AbortHandle> = None;
         let mut config_handler: Option<AbortHandle> = None;
         let mut network_handler: Option<AbortHandle> = None;
         let mut yaml_handler: Option<AbortHandle> = None;
@@ -362,9 +362,9 @@ impl Worker for MainWorker {
                                 *target_namespaces = req.clone();
                             }
 
-                            if let Some(handler) = log_stream_handler {
+                            if let Some(handler) = log_handler {
                                 handler.abort();
-                                log_stream_handler = None;
+                                log_handler = None;
                             }
 
                             if let Some(handler) = config_handler {
@@ -387,13 +387,12 @@ impl Worker for MainWorker {
                         }
                     },
 
-                    Kube::LogStream(LogStreamMessage::Request(req)) => {
-                        if let Some(handler) = log_stream_handler {
+                    Kube::Log(LogMessage::Request(req)) => {
+                        if let Some(handler) = log_handler {
                             handler.abort();
                         }
 
-                        log_stream_handler =
-                            Some(LogStreamWorker::new(tx, kube_client.clone(), req).spawn());
+                        log_handler = Some(LogWorker::new(tx, kube_client.clone(), req).spawn());
 
                         task::yield_now().await;
                     }
@@ -437,7 +436,7 @@ impl Worker for MainWorker {
                             .send(ContextResponse::Get(contexts.to_vec()).into())
                             .expect("Failed to send ContextResponse::Get"),
                         ContextRequest::Set(req) => {
-                            if let Some(h) = log_stream_handler {
+                            if let Some(h) = log_handler {
                                 h.abort();
                             }
 

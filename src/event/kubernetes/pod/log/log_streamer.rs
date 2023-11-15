@@ -21,13 +21,19 @@ use crate::{
     logger,
 };
 
-use super::collector::LogBuffer;
+use super::log_collector::LogBuffer;
 
 #[derive(Debug, Clone, Copy)]
-pub enum LogStreamPrefixType {
+pub enum LogPrefixType {
     OnlyContainer,
     PodAndContainer,
     All,
+}
+
+impl Default for LogPrefixType {
+    fn default() -> Self {
+        Self::PodAndContainer
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -63,33 +69,31 @@ const PREFIX_COLOR_LIST: [PrefixColor; 6] = [
     },
 ];
 
-#[derive(Clone)]
-pub struct ContainerLogStreamerOptions {
-    pub prefix_type: LogStreamPrefixType,
+#[derive(Default, Clone)]
+pub struct LogStreamerOptions {
+    pub prefix_type: LogPrefixType,
     pub include_log: Option<Vec<Regex>>,
     pub exclude_log: Option<Vec<Regex>>,
 }
 
 #[derive(Clone)]
-pub struct ContainerLogStreamerTarget {
+pub struct LogStreamerTarget {
     pub namespace: String,
     pub pod_name: String,
     pub container_name: String,
 }
 
 #[derive(Clone)]
-pub struct ContainerLogStreamer {
+pub struct LogStreamer {
     client: KubeClient,
     log_buffer: LogBuffer,
     is_terminated: Arc<AtomicBool>,
-    namespace: String,
-    pod_name: String,
-    container_name: String,
-    options: ContainerLogStreamerOptions,
+    target: LogStreamerTarget,
+    options: LogStreamerOptions,
 }
 
 #[async_trait]
-impl AbortWorker for ContainerLogStreamer {
+impl AbortWorker for LogStreamer {
     async fn run(&self) {
         let mut interval = tokio::time::interval(time::Duration::from_secs(3));
 
@@ -119,29 +123,25 @@ impl AbortWorker for ContainerLogStreamer {
     }
 }
 
-impl ContainerLogStreamer {
+impl LogStreamer {
     pub fn new(
         client: KubeClient,
         log_buffer: LogBuffer,
         is_terminated: Arc<AtomicBool>,
-        target: ContainerLogStreamerTarget,
-        options: ContainerLogStreamerOptions,
+        target: LogStreamerTarget,
     ) -> Self {
-        let ContainerLogStreamerTarget {
-            namespace,
-            pod_name,
-            container_name,
-        } = target;
-
         Self {
             client,
             log_buffer,
             is_terminated,
-            namespace,
-            pod_name,
-            container_name,
-            options,
+            target,
+            options: LogStreamerOptions::default(),
         }
+    }
+
+    pub fn options(mut self, options: LogStreamerOptions) -> Self {
+        self.options = options;
+        self
     }
 
     async fn fetch(
@@ -151,9 +151,9 @@ impl ContainerLogStreamer {
     ) -> Result<()> {
         let log_params = self.log_params(last_timestamp);
 
-        let api: Api<Pod> = Api::namespaced(self.client.to_client(), &self.namespace);
+        let api: Api<Pod> = Api::namespaced(self.client.to_client(), self.namespace());
 
-        let mut logs = api.log_stream(&self.pod_name, &log_params).await?.lines();
+        let mut logs = api.log_stream(self.pod_name(), &log_params).await?.lines();
 
         while let Some(line) = logs.try_next().await? {
             let mut buf = self.log_buffer.lock().await;
@@ -210,34 +210,36 @@ impl ContainerLogStreamer {
     }
 
     fn log_prefix_content(&self) -> String {
-        use LogStreamPrefixType::*;
+        use LogPrefixType::*;
 
         let prefix_color = self.log_prefix_color();
 
         match self.options.prefix_type {
-            OnlyContainer => prefix_color.container.wrap(&self.container_name),
+            OnlyContainer => prefix_color.container.wrap(self.container_name()),
             PodAndContainer => {
-                let container_name = prefix_color.container.wrap(&self.container_name);
-                let pod_name = prefix_color.pod.wrap(&self.pod_name);
+                let container_name = prefix_color.container.wrap(self.container_name());
+                let pod_name = prefix_color.pod.wrap(self.pod_name());
 
                 prefix_color
                     .pod
                     .wrap(format!("{} {}", pod_name, container_name))
             }
             All => {
-                let container_name = prefix_color.container.wrap(&self.container_name);
-                let pod_name = prefix_color.pod.wrap(&self.pod_name);
+                let container_name = prefix_color.container.wrap(self.container_name());
+                let pod_name = prefix_color.pod.wrap(self.pod_name());
 
                 prefix_color.pod.wrap(format!(
                     "{} {} {}",
-                    self.namespace, pod_name, container_name
+                    self.namespace(),
+                    pod_name,
+                    container_name
                 ))
             }
         }
     }
 
     fn log_prefix(&self) -> String {
-        use LogStreamPrefixType::*;
+        use LogPrefixType::*;
 
         let prefix_color = self.log_prefix_color();
         match self.options.prefix_type {
@@ -266,19 +268,19 @@ impl ContainerLogStreamer {
     }
 
     fn log_prefix_color(&self) -> PrefixColor {
-        use LogStreamPrefixType::*;
+        use LogPrefixType::*;
 
         let index = match self.options.prefix_type {
             OnlyContainer => {
                 let mut hash = DefaultHasher::new();
-                hash.write(self.container_name.as_bytes());
+                hash.write(self.container_name().as_bytes());
                 hash.write_u8(0xff);
 
                 hash.finish() as usize
             }
             PodAndContainer | All => {
                 let mut hash = DefaultHasher::new();
-                hash.write(self.pod_name.as_bytes());
+                hash.write(self.pod_name().as_bytes());
                 hash.write_u8(0xff);
 
                 hash.finish() as usize
@@ -291,7 +293,7 @@ impl ContainerLogStreamer {
     fn log_params(&self, last_timestamp: &Option<DateTime<FixedOffset>>) -> LogParams {
         LogParams {
             follow: true,
-            container: Some(self.container_name.to_string()),
+            container: Some(self.container_name().to_string()),
             timestamps: true,
             since_seconds: Self::since_seconds(Utc::now().fixed_offset(), last_timestamp),
             ..Default::default()
@@ -305,5 +307,17 @@ impl ContainerLogStreamer {
         last_timestamp
             .map(|last| (now - last).num_seconds())
             .filter(|time| *time > 0)
+    }
+
+    fn namespace(&self) -> &str {
+        &self.target.namespace
+    }
+
+    fn pod_name(&self) -> &str {
+        &self.target.pod_name
+    }
+
+    fn container_name(&self) -> &str {
+        &self.target.container_name
     }
 }

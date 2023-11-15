@@ -1,6 +1,6 @@
-mod collector;
-mod log_stream;
-mod watch;
+mod log_collector;
+mod log_streamer;
+mod pod_watcher;
 
 use std::collections::BTreeMap;
 
@@ -21,10 +21,7 @@ use crate::{
     event::{
         kubernetes::{
             client::KubeClient,
-            pod::{
-                filter::{Filter, LabelSelector, RetrievableResource},
-                log::log_stream::ContainerLogStreamerOptions,
-            },
+            pod::filter::{Filter, LabelSelector, RetrievableResource},
             worker::{AbortWorker, Worker},
             Kube,
         },
@@ -33,32 +30,33 @@ use crate::{
     logger,
 };
 
-pub use self::log_stream::LogStreamPrefixType;
+pub use self::log_streamer::LogPrefixType;
 
 use self::{
-    collector::{LogBuffer, LogCollector},
-    watch::{PodWatcher, PodWatcherFilter},
+    log_collector::{LogBuffer, LogCollector},
+    log_streamer::LogStreamerOptions,
+    pod_watcher::{PodWatcher, PodWatcherFilter, PodWatcherSelector},
 };
 
 #[macro_export]
 macro_rules! send_response {
     ($tx:expr, $msg:expr) => {
-        use $crate::event::kubernetes::pod::LogStreamMessage;
+        use $crate::event::kubernetes::pod::LogMessage;
 
-        $tx.send(LogStreamMessage::Response($msg).into())
-            .expect("Failed to send LogStreamMessage::Response");
+        $tx.send(LogMessage::Response($msg).into())
+            .expect("Failed to send LogMessage::Response");
     };
 }
 
 #[derive(Debug, Clone)]
-pub struct LogStreamConfig {
+pub struct LogConfig {
     namespaces: Namespace,
     query: String,
-    prefix_type: LogStreamPrefixType,
+    prefix_type: LogPrefixType,
 }
 
-impl LogStreamConfig {
-    pub fn new(query: String, namespaces: Namespace, prefix_type: LogStreamPrefixType) -> Self {
+impl LogConfig {
+    pub fn new(query: String, namespaces: Namespace, prefix_type: LogPrefixType) -> Self {
         Self {
             namespaces,
             query,
@@ -68,42 +66,31 @@ impl LogStreamConfig {
 }
 
 #[derive(Debug)]
-pub enum LogStreamMessage {
-    Request(LogStreamConfig),
+pub enum LogMessage {
+    Request(LogConfig),
     Response(Result<Vec<String>>),
 }
 
-impl From<LogStreamMessage> for Event {
-    fn from(m: LogStreamMessage) -> Event {
-        Event::Kube(Kube::LogStream(m))
+impl From<LogMessage> for Event {
+    fn from(m: LogMessage) -> Event {
+        Event::Kube(Kube::Log(m))
     }
 }
 
 #[derive(Clone)]
-pub struct LogStreamWorker {
+pub struct LogWorker {
     tx: Sender<Event>,
     client: KubeClient,
-    config: LogStreamConfig,
+    config: LogConfig,
 }
 
-impl LogStreamWorker {
-    pub fn new(tx: Sender<Event>, client: KubeClient, config: LogStreamConfig) -> Self {
+impl LogWorker {
+    pub fn new(tx: Sender<Event>, client: KubeClient, config: LogConfig) -> Self {
         Self { tx, client, config }
     }
 
-    async fn spawn_tasks(&self, filter: Filter) -> Result<LogStreamHandle> {
-        logger!(info, "log stream filter config: {}", filter);
-
-        let Filter {
-            pod,
-            exclude_pod,
-            container,
-            exclude_container,
-            label_selector,
-            field_selector,
-            include_log,
-            exclude_log,
-        } = filter;
+    async fn spawn_tasks(&self, filter: Filter) -> Result<LogHandle> {
+        logger!(info, "log filter config: {}", filter);
 
         // watch per namespace
         let mut pod_watchers = Vec::new();
@@ -114,7 +101,7 @@ impl LogStreamWorker {
 
         for namespace in namespaces {
             // retrieve label selector
-            let label_selector = if let Some(value) = &label_selector {
+            let label_selector = if let Some(value) = &filter.label_selector {
                 let retrieve_label_selector =
                     RetrieveLabelSelector::new(&self.client, &namespace, value);
 
@@ -123,31 +110,27 @@ impl LogStreamWorker {
                 None
             };
 
-            let filter = PodWatcherFilter {
-                pod: pod.clone(),
-                exclude_pod: exclude_pod.clone(),
-                container: container.clone(),
-                exclude_container: exclude_container.clone(),
-                label_selector,
-                field_selector: field_selector.clone(),
-            };
-
-            let log_streamer_options = ContainerLogStreamerOptions {
-                prefix_type: self.config.prefix_type,
-                include_log: include_log.clone(),
-                exclude_log: exclude_log.clone(),
-            };
-
-            logger!(info, "pod watch filter: {}", filter);
-
             let pod_watcher = PodWatcher::new(
                 self.tx.clone(),
                 self.client.clone(),
                 log_buffer.clone(),
                 namespace,
-                filter,
-                log_streamer_options,
-            );
+            )
+            .filter(PodWatcherFilter {
+                pod: filter.pod.clone(),
+                exclude_pod: filter.exclude_pod.clone(),
+                container: filter.container.clone(),
+                exclude_container: filter.exclude_container.clone(),
+            })
+            .selector(PodWatcherSelector {
+                label_selector,
+                field_selector: filter.field_selector.clone(),
+            })
+            .log_streamer_options(LogStreamerOptions {
+                prefix_type: self.config.prefix_type,
+                include_log: filter.include_log.clone(),
+                exclude_log: filter.exclude_log.clone(),
+            });
 
             pod_watchers.push(pod_watcher);
         }
@@ -160,12 +143,12 @@ impl LogStreamWorker {
         handles.push(collector_handle);
 
         // drop handles
-        Ok(LogStreamHandle::new(handles))
+        Ok(LogHandle::new(handles))
     }
 }
 
 #[async_trait]
-impl AbortWorker for LogStreamWorker {
+impl AbortWorker for LogWorker {
     async fn run(&self) {
         match Filter::parse(&self.config.query) {
             Ok(filter) => {
@@ -187,11 +170,11 @@ impl AbortWorker for LogStreamWorker {
     }
 }
 
-struct LogStreamHandle {
+struct LogHandle {
     inner: Vec<JoinHandle<()>>,
 }
 
-impl LogStreamHandle {
+impl LogHandle {
     fn new(handles: Vec<JoinHandle<()>>) -> Self {
         Self { inner: handles }
     }
@@ -205,9 +188,9 @@ impl LogStreamHandle {
     }
 }
 
-impl Drop for LogStreamHandle {
+impl Drop for LogHandle {
     fn drop(&mut self) {
-        logger!(info, "abort log stream tasks.");
+        logger!(info, "abort log tasks.");
         self.abort();
     }
 }

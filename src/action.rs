@@ -12,7 +12,7 @@ use crate::{
             context_message::{ContextMessage, ContextResponse},
             namespace_message::{NamespaceMessage, NamespaceResponse},
             network::{NetworkMessage, NetworkResponse},
-            pod::LogStreamMessage,
+            pod::LogMessage,
             yaml::{YamlMessage, YamlResourceListItem, YamlResponse},
             Kube, KubeTable, KubeTableRow,
         },
@@ -205,7 +205,7 @@ pub fn update_contents(
             update_widget_item_for_table(window, view_id::tab_pod_widget_pod, pods_table);
         }
 
-        Kube::LogStream(LogStreamMessage::Response(res)) => {
+        Kube::Log(LogMessage::Response(res)) => {
             let widget = window.find_widget_mut(view_id::tab_pod_widget_log);
 
             match res {
