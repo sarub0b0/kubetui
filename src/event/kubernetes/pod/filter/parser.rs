@@ -1,60 +1,62 @@
-use anyhow::{bail, Result};
-use std::str::SplitWhitespace;
-
 use nom::{
     branch::alt,
-    bytes::complete::tag,
-    character::complete::{alphanumeric1, char},
-    combinator::{recognize, rest},
-    error::{convert_error, ContextError, ParseError, VerboseError},
-    multi::many1,
-    sequence::separated_pair,
-    Err, IResult,
+    bytes::complete::{escaped, is_not, tag},
+    character::complete::{alphanumeric1, char, multispace0, one_of, space1},
+    combinator::{all_consuming, recognize},
+    error::{ContextError, ParseError},
+    multi::{many1_count, separated_list0},
+    sequence::{delimited, separated_pair},
+    IResult,
 };
 
 use super::{FilterAttribute, SpecifiedResource};
 
-pub struct FilterParser<'a>(SplitWhitespace<'a>);
+fn quoted_literal<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&'a str, &str, E> {
+    let (remaining, value) = alt((
+        delimited(
+            tag("\""),
+            escaped(is_not("\\\""), '\\', one_of(r#""\"#)),
+            tag("\""),
+        ),
+        delimited(
+            tag("'"),
+            escaped(is_not("\\'"), '\\', one_of(r"'\")),
+            tag("'"),
+        ),
+    ))(s)?;
 
-impl<'a> FilterParser<'a> {
-    pub fn new(query: &'a str) -> Self {
-        Self(query.split_whitespace())
-    }
+    Ok((remaining, value))
+}
 
-    pub fn try_collect(&mut self) -> Result<Vec<FilterAttribute<'a>>> {
-        let mut vec = Vec::new();
+fn unquoted_literal<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&'a str, &str, E> {
+    let (remaining, value) = is_not(" ")(s)?;
 
-        while let Some(filter) = self.try_next()? {
-            vec.push(filter);
-        }
+    Ok((remaining, value))
+}
 
-        Ok(vec)
-    }
+fn regex<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&'a str, &str, E> {
+    let (remaining, value) = alt((quoted_literal, unquoted_literal))(s)?;
 
-    fn try_next(&mut self) -> Result<Option<FilterAttribute<'a>>> {
-        let Some(f) = self.0.next() else {
-            return Ok(None);
-        };
-
-        match parse::<VerboseError<&str>>(f) {
-            Ok((_, filter)) => Ok(Some(filter)),
-            Err(Err::Error(err) | Err::Failure(err)) => bail!(convert_error(f, err)),
-            Err(err) => bail!(err.to_string()),
-        }
-    }
+    Ok((remaining, value))
 }
 
 fn resource_name<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&str, &str, E> {
-    recognize(many1(alt((alphanumeric1, tag("-"), tag(".")))))(s)
+    recognize(many1_count(alt((alphanumeric1, tag("-"), tag(".")))))(s)
 }
 
 fn pod<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
     let (remaining, (_, value)) =
-        separated_pair(alt((tag("pod"), tag("po"), tag("p"))), char(':'), rest)(s)?;
+        separated_pair(alt((tag("pod"), tag("po"), tag("p"))), char(':'), regex)(s)?;
     Ok((remaining, FilterAttribute::Pod(value)))
 }
 
@@ -62,7 +64,7 @@ fn exclude_pod<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
     let (remaining, (_, value)) =
-        separated_pair(alt((tag("!pod"), tag("!po"), tag("!p"))), char(':'), rest)(s)?;
+        separated_pair(alt((tag("!pod"), tag("!po"), tag("!p"))), char(':'), regex)(s)?;
     Ok((remaining, FilterAttribute::ExcludePod(value)))
 }
 
@@ -72,7 +74,7 @@ fn container<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     let (remaining, (_, value)) = separated_pair(
         alt((tag("container"), tag("co"), tag("c"))),
         char(':'),
-        rest,
+        regex,
     )(s)?;
     Ok((remaining, FilterAttribute::Container(value)))
 }
@@ -83,7 +85,7 @@ fn exclude_container<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     let (remaining, (_, value)) = separated_pair(
         alt((tag("!container"), tag("!co"), tag("!c"))),
         char(':'),
-        rest,
+        regex,
     )(s)?;
     Ok((remaining, FilterAttribute::ExcludeContainer(value)))
 }
@@ -91,7 +93,8 @@ fn exclude_container<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 fn include_log<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
-    let (remaining, (_, value)) = separated_pair(alt((tag("log"), tag("lo"))), char(':'), rest)(s)?;
+    let (remaining, (_, value)) =
+        separated_pair(alt((tag("log"), tag("lo"))), char(':'), regex)(s)?;
     Ok((remaining, FilterAttribute::IncludeLog(value)))
 }
 
@@ -99,7 +102,7 @@ fn exclude_log<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
     let (remaining, (_, value)) =
-        separated_pair(alt((tag("!log"), tag("!lo"))), char(':'), rest)(s)?;
+        separated_pair(alt((tag("!log"), tag("!lo"))), char(':'), regex)(s)?;
     Ok((remaining, FilterAttribute::ExcludeLog(value)))
 }
 
@@ -109,7 +112,7 @@ fn label_selector<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     let (remaining, (_, value)) = separated_pair(
         alt((tag("labels"), tag("label"), tag("l"))),
         char(':'),
-        rest,
+        unquoted_literal,
     )(s)?;
     Ok((remaining, FilterAttribute::LabelSelector(value)))
 }
@@ -120,7 +123,7 @@ fn field_selector<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     let (remaining, (_, value)) = separated_pair(
         alt((tag("fields"), tag("field"), tag("f"))),
         char(':'),
-        rest,
+        unquoted_literal,
     )(s)?;
     Ok((remaining, FilterAttribute::FieldSelector(value)))
 }
@@ -210,10 +213,10 @@ fn specified_statefulset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     ))
 }
 
-fn parse<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+fn attribute<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
-    alt((
+    let (remaining, value) = alt((
         specified_pod,
         specified_daemonset,
         specified_deployment,
@@ -229,12 +232,30 @@ fn parse<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         exclude_container,
         include_log,
         exclude_log,
-    ))(s)
+    ))(s)?;
+
+    Ok((remaining, value))
+}
+
+fn split_attributes<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&'a str, Vec<FilterAttribute>, E> {
+    let (remaining, value) =
+        delimited(multispace0, separated_list0(space1, attribute), multispace0)(s)?;
+
+    Ok((remaining, value))
+}
+
+pub fn parse_attributes<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&'a str, Vec<FilterAttribute>, E> {
+    all_consuming(split_attributes)(s)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nom::error::Error;
     use pretty_assertions::assert_eq;
     use rstest::rstest;
 
@@ -243,11 +264,15 @@ mod tests {
     #[case("pod:hoge", "hoge")]
     #[case("po:.*", ".*")]
     #[case("p:^app$", "^app$")]
+    #[case("p:'^app$'", "^app$")]
+    #[case("p:\"^app$\"", "^app$")]
+    #[case("p:\"a b\"", "a b")]
+    #[case("p:'a b'", "a b")]
     fn pod(#[case] query: &str, #[case] expected: &str) {
-        assert_eq!(
-            FilterParser::new(query).try_collect().unwrap(),
-            vec![FilterAttribute::Pod(expected)]
-        );
+        let (remaining, actual) = super::pod::<Error<_>>(query).unwrap();
+
+        assert_eq!(actual, FilterAttribute::Pod(expected));
+        assert_eq!(remaining, "");
     }
 
     #[rstest]
@@ -255,10 +280,10 @@ mod tests {
     #[case("!po:.*", ".*")]
     #[case("!p:^app$", "^app$")]
     fn exclude_pod(#[case] query: &str, #[case] expected: &str) {
-        assert_eq!(
-            FilterParser::new(query).try_collect().unwrap(),
-            vec![FilterAttribute::ExcludePod(expected)]
-        );
+        let (remaining, actual) = super::exclude_pod::<Error<_>>(query).unwrap();
+
+        assert_eq!(actual, FilterAttribute::ExcludePod(expected));
+        assert_eq!(remaining, "");
     }
 
     #[rstest]
@@ -266,10 +291,10 @@ mod tests {
     #[case("co:.*", ".*")]
     #[case("c:^app$", "^app$")]
     fn container(#[case] query: &str, #[case] expected: &str) {
-        assert_eq!(
-            FilterParser::new(query).try_collect().unwrap(),
-            vec![FilterAttribute::Container(expected)]
-        );
+        let (remaining, actual) = super::container::<Error<_>>(query).unwrap();
+
+        assert_eq!(actual, FilterAttribute::Container(expected));
+        assert_eq!(remaining, "");
     }
 
     #[rstest]
@@ -277,10 +302,10 @@ mod tests {
     #[case("!co:.*", ".*")]
     #[case("!c:^app$", "^app$")]
     fn exclude_container(#[case] query: &str, #[case] expected: &str) {
-        assert_eq!(
-            FilterParser::new(query).try_collect().unwrap(),
-            vec![FilterAttribute::ExcludeContainer(expected)]
-        );
+        let (remaining, actual) = super::exclude_container::<Error<_>>(query).unwrap();
+
+        assert_eq!(actual, FilterAttribute::ExcludeContainer(expected));
+        assert_eq!(remaining, "");
     }
 
     /// Log
@@ -288,20 +313,20 @@ mod tests {
     #[case("log:hoge", "hoge")]
     #[case("lo:hoge", "hoge")]
     fn include_log(#[case] query: &str, #[case] expected: &str) {
-        assert_eq!(
-            FilterParser::new(query).try_collect().unwrap(),
-            vec![FilterAttribute::IncludeLog(expected)]
-        );
+        let (remaining, actual) = super::include_log::<Error<_>>(query).unwrap();
+
+        assert_eq!(actual, FilterAttribute::IncludeLog(expected));
+        assert_eq!(remaining, "");
     }
 
     #[rstest]
     #[case("!log:hoge", "hoge")]
     #[case("!lo:hoge", "hoge")]
     fn exclude_log(#[case] query: &str, #[case] expected: &str) {
-        assert_eq!(
-            FilterParser::new(query).try_collect().unwrap(),
-            vec![FilterAttribute::ExcludeLog(expected)]
-        );
+        let (remaining, actual) = super::exclude_log::<Error<_>>(query).unwrap();
+
+        assert_eq!(actual, FilterAttribute::ExcludeLog(expected));
+        assert_eq!(remaining, "");
     }
 
     /// Label selector
@@ -310,10 +335,10 @@ mod tests {
     #[case("label:foo=bar,baz=qux", "foo=bar,baz=qux")]
     #[case("l:foo=bar,baz=qux", "foo=bar,baz=qux")]
     fn label_selector(#[case] query: &str, #[case] expected: &str) {
-        assert_eq!(
-            FilterParser::new(query).try_collect().unwrap(),
-            vec![FilterAttribute::LabelSelector(expected)]
-        );
+        let (remaining, actual) = super::label_selector::<Error<_>>(query).unwrap();
+
+        assert_eq!(actual, FilterAttribute::LabelSelector(expected));
+        assert_eq!(remaining, "");
     }
 
     /// Field selector
@@ -322,10 +347,10 @@ mod tests {
     #[case("field:foo=bar,baz=qux", "foo=bar,baz=qux")]
     #[case("f:foo=bar,baz=qux", "foo=bar,baz=qux")]
     fn field_selector(#[case] query: &str, #[case] expected: &str) {
-        assert_eq!(
-            FilterParser::new(query).try_collect().unwrap(),
-            vec![FilterAttribute::FieldSelector(expected)]
-        );
+        let (remaining, actual) = super::field_selector::<Error<_>>(query).unwrap();
+
+        assert_eq!(actual, FilterAttribute::FieldSelector(expected));
+        assert_eq!(remaining, "");
     }
 
     /// Specified resoruces
@@ -335,12 +360,13 @@ mod tests {
     #[case("daemonset/app", "app")]
     #[case("ds/app", "app")]
     fn specified_daemonset(#[case] query: &str, #[case] expected: &str) {
+        let (remaining, actual) = super::specified_daemonset::<Error<_>>(query).unwrap();
+
         assert_eq!(
-            FilterParser::new(query).try_collect().unwrap(),
-            vec![FilterAttribute::from(SpecifiedResource::DaemonSet(
-                expected
-            ))]
+            actual,
+            FilterAttribute::from(SpecifiedResource::DaemonSet(expected))
         );
+        assert_eq!(remaining, "");
     }
 
     /// Deployment
@@ -348,22 +374,26 @@ mod tests {
     #[case("deployment/app", "app")]
     #[case("deploy/app", "app")]
     fn specified_deployment(#[case] query: &str, #[case] expected: &str) {
+        let (remaining, actual) = super::specified_deployment::<Error<_>>(query).unwrap();
+
         assert_eq!(
-            FilterParser::new(query).try_collect().unwrap(),
-            vec![FilterAttribute::from(SpecifiedResource::Deployment(
-                expected
-            ))]
+            actual,
+            FilterAttribute::from(SpecifiedResource::Deployment(expected))
         );
+        assert_eq!(remaining, "");
     }
 
     /// Job
     #[rstest]
     #[case("job/app", "app")]
     fn specified_job(#[case] query: &str, #[case] expected: &str) {
+        let (remaining, actual) = super::specified_job::<Error<_>>(query).unwrap();
+
         assert_eq!(
-            FilterParser::new(query).try_collect().unwrap(),
-            vec![FilterAttribute::from(SpecifiedResource::Job(expected))]
+            actual,
+            FilterAttribute::from(SpecifiedResource::Job(expected))
         );
+        assert_eq!(remaining, "");
     }
 
     /// pod
@@ -371,10 +401,13 @@ mod tests {
     #[case("pod/app", "app")]
     #[case("po/app", "app")]
     fn specified_pod(#[case] query: &str, #[case] expected: &str) {
+        let (remaining, actual) = super::specified_pod::<Error<_>>(query).unwrap();
+
         assert_eq!(
-            FilterParser::new(query).try_collect().unwrap(),
-            vec![FilterAttribute::from(SpecifiedResource::Pod(expected))]
+            actual,
+            FilterAttribute::from(SpecifiedResource::Pod(expected))
         );
+        assert_eq!(remaining, "");
     }
 
     /// replicaset
@@ -382,12 +415,13 @@ mod tests {
     #[case("replicaset/app", "app")]
     #[case("rs/app", "app")]
     fn specified_replicaset(#[case] query: &str, #[case] expected: &str) {
+        let (remaining, actual) = super::specified_replicaset::<Error<_>>(query).unwrap();
+
         assert_eq!(
-            FilterParser::new(query).try_collect().unwrap(),
-            vec![FilterAttribute::from(SpecifiedResource::ReplicaSet(
-                expected
-            ))]
+            actual,
+            FilterAttribute::from(SpecifiedResource::ReplicaSet(expected))
         );
+        assert_eq!(remaining, "");
     }
 
     /// service
@@ -395,10 +429,12 @@ mod tests {
     #[case("service/app", "app")]
     #[case("svc/app", "app")]
     fn specified_service(#[case] query: &str, #[case] expected: &str) {
+        let (remaining, actual) = super::specified_service::<Error<_>>(query).unwrap();
         assert_eq!(
-            FilterParser::new(query).try_collect().unwrap(),
-            vec![FilterAttribute::from(SpecifiedResource::Service(expected))]
+            actual,
+            FilterAttribute::from(SpecifiedResource::Service(expected))
         );
+        assert_eq!(remaining, "");
     }
 
     /// statefulset
@@ -406,27 +442,133 @@ mod tests {
     #[case("statefulset/app", "app")]
     #[case("sts/app", "app")]
     fn specified_statefulset(#[case] query: &str, #[case] expected: &str) {
+        let (remaining, actual) = super::specified_statefulset::<Error<_>>(query).unwrap();
+
         assert_eq!(
-            FilterParser::new(query).try_collect().unwrap(),
-            vec![FilterAttribute::from(SpecifiedResource::StatefulSet(
-                expected
-            ))]
+            actual,
+            FilterAttribute::from(SpecifiedResource::StatefulSet(expected))
         );
+        assert_eq!(remaining, "");
+    }
+
+    #[rstest]
+    #[case(r#""foo bar""#, "foo bar")]
+    #[case(r#""\"foo\" bar""#, r#"\"foo\" bar"#)]
+    #[case(r#""\\foo\\ bar""#, r"\\foo\\ bar")]
+    #[case("'foo bar'", "foo bar")]
+    #[case(r"'\'foo\' bar'", r"\'foo\' bar")]
+    #[case(r"'\\foo\\ bar'", r"\\foo\\ bar")]
+    fn quoted_literal(#[case] query: &str, #[case] expected: &str) {
+        let (remaining, actual) = super::quoted_literal::<Error<_>>(query).unwrap();
+
+        assert_eq!(actual, expected);
+        assert_eq!(remaining, "");
+    }
+
+    #[rstest]
+    #[case("foo")]
+    #[case("foo\"bar")]
+    #[case("foo'bar")]
+    #[case(r"\\foo\\bar")]
+    fn unquoted_literal(#[case] query: &str) {
+        let (remaining, actual) = super::unquoted_literal::<Error<_>>(query).unwrap();
+
+        assert_eq!(actual, query);
+        assert_eq!(remaining, "");
+    }
+
+    #[rstest]
+    #[case(r#""foo bar""#, "foo bar")]
+    #[case(r#""\"foo\" bar""#, r#"\"foo\" bar"#)]
+    #[case(r#""\\foo\\ bar""#, r"\\foo\\ bar")]
+    #[case("'foo bar'", "foo bar")]
+    #[case(r"'\'foo\' bar'", r"\'foo\' bar")]
+    #[case(r"'\\foo\\ bar'", r"\\foo\\ bar")]
+    #[case("foo", "foo")]
+    #[case("foo\"bar", "foo\"bar")]
+    #[case("foo'bar", "foo'bar")]
+    #[case(r"\\foo\\bar", r"\\foo\\bar")]
+    fn regex(#[case] query: &str, #[case] expected: &str) {
+        let (remaining, actual) = super::regex::<Error<_>>(query).unwrap();
+
+        assert_eq!(actual, expected);
+        assert_eq!(remaining, "");
+    }
+
+    #[rustfmt::skip]
+    #[rstest]
+    #[case("pod:hoge", FilterAttribute::Pod("hoge"))]
+    #[case("!pod:hoge", FilterAttribute::ExcludePod("hoge"))]
+    #[case("container:hoge", FilterAttribute::Container("hoge"))]
+    #[case("!container:hoge", FilterAttribute::ExcludeContainer("hoge"))]
+    #[case("log:hoge", FilterAttribute::IncludeLog("hoge"))]
+    #[case("!log:hoge", FilterAttribute::ExcludeLog("hoge"))]
+    #[case("labels:foo=bar", FilterAttribute::LabelSelector("foo=bar"))]
+    #[case("fields:foo=bar", FilterAttribute::FieldSelector("foo=bar"))]
+    #[case("daemonset/app", FilterAttribute::Resource(SpecifiedResource::DaemonSet("app")))]
+    #[case("deployment/app", FilterAttribute::Resource(SpecifiedResource::Deployment("app")))]
+    #[case("job/app", FilterAttribute::Resource(SpecifiedResource::Job("app")))]
+    #[case("pod/app", FilterAttribute::Resource(SpecifiedResource::Pod("app")))]
+    #[case("replicaset/app", FilterAttribute::Resource(SpecifiedResource::ReplicaSet("app")))]
+    #[case("service/app", FilterAttribute::Resource(SpecifiedResource::Service("app")))]
+    #[case("statefulset/app", FilterAttribute::Resource(SpecifiedResource::StatefulSet("app")))]
+    fn attribute(#[case] query: &str, #[case] expected: FilterAttribute) {
+        let (remaining, actual) = super::attribute::<Error<_>>(query).unwrap();
+
+        assert_eq!(actual, expected);
+        assert_eq!(remaining, "");
     }
 
     #[test]
-    fn all_attributes() {
-        let query = "pod:hoge !pod:hoge container:hoge !container:hoge log:hoge !log:hoge labels:foo=bar fields:foo=bar daemonset/app deployment/app job/app pod/app replicaset/app service/app statefulset/app";
+    fn parse_attributes() {
+        let query = [
+            "     ",
+            "pod:hoge",
+            "pod:\"hoge fuga\"",
+            "pod:\"hoge\\\" fuga\"",
+            "pod:'a b'",
+            "pod:'a\\' b'",
+            "!pod:hoge",
+            "!pod:\"hoge fuga\"",
+            "container:hoge",
+            "container:\"hoge fuga\"",
+            "!container:hoge",
+            "!container:\"hoge fuga\"",
+            "log:hoge",
+            "log:\"hoge fuga\"",
+            "!log:hoge",
+            "!log:\"hoge fuga\"",
+            "labels:foo=bar",
+            "fields:foo=bar",
+            "daemonset/app",
+            "deployment/app",
+            "job/app",
+            "pod/app",
+            "replicaset/app",
+            "service/app",
+            "statefulset/app",
+            "     ",
+        ]
+        .join("  ");
 
-        let actual = FilterParser::new(query).try_collect().unwrap();
+        let (remaining, actual) = super::parse_attributes::<Error<_>>(&query).unwrap();
 
         let expected = vec![
             FilterAttribute::Pod("hoge"),
+            FilterAttribute::Pod("hoge fuga"),
+            FilterAttribute::Pod("hoge\\\" fuga"),
+            FilterAttribute::Pod("a b"),
+            FilterAttribute::Pod("a\\' b"),
             FilterAttribute::ExcludePod("hoge"),
+            FilterAttribute::ExcludePod("hoge fuga"),
             FilterAttribute::Container("hoge"),
+            FilterAttribute::Container("hoge fuga"),
             FilterAttribute::ExcludeContainer("hoge"),
+            FilterAttribute::ExcludeContainer("hoge fuga"),
             FilterAttribute::IncludeLog("hoge"),
+            FilterAttribute::IncludeLog("hoge fuga"),
             FilterAttribute::ExcludeLog("hoge"),
+            FilterAttribute::ExcludeLog("hoge fuga"),
             FilterAttribute::LabelSelector("foo=bar"),
             FilterAttribute::FieldSelector("foo=bar"),
             FilterAttribute::Resource(SpecifiedResource::DaemonSet("app")),
@@ -439,12 +581,15 @@ mod tests {
         ];
 
         assert_eq!(actual, expected);
+        assert_eq!(remaining, "");
     }
 
     #[test]
-    fn return_error() {
+    fn parse_error() {
         let query = "hoge:hoge";
 
-        assert!(FilterParser::new(query).try_collect().is_err());
+        let actual = super::parse_attributes::<Error<_>>(query);
+
+        assert!(actual.is_err());
     }
 }

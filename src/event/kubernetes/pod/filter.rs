@@ -3,7 +3,7 @@ mod parser;
 use anyhow::{bail, Result};
 use regex::Regex;
 
-use self::parser::FilterParser;
+use self::parser::parse_attributes;
 
 #[derive(Debug, thiserror::Error)]
 pub enum FilterError {
@@ -27,7 +27,7 @@ pub struct Filter {
 
 impl Filter {
     pub fn parse(query: &str) -> Result<Self> {
-        let parsed_attrs = FilterParser::new(query).try_collect()?;
+        let parsed_attrs = FilterAttributes::parse(query)?;
 
         let valid_attrs = Self::validate_attrs(parsed_attrs)?;
 
@@ -279,6 +279,23 @@ pub enum FilterAttribute<'a> {
     FieldSelector(&'a str),
     IncludeLog(&'a str),
     ExcludeLog(&'a str),
+}
+
+struct FilterAttributes;
+
+impl FilterAttributes {
+    fn parse(query: &str) -> Result<Vec<FilterAttribute<'_>>> {
+        use nom::{
+            error::{convert_error, VerboseError},
+            Err,
+        };
+
+        match parse_attributes::<VerboseError<_>>(query) {
+            Ok((_, filter)) => Ok(filter),
+            Err(Err::Error(err) | Err::Failure(err)) => bail!(convert_error(query, err)),
+            Err(err) => bail!(err.to_string()),
+        }
+    }
 }
 
 impl<'a> From<SpecifiedResource<'a>> for FilterAttribute<'a> {
