@@ -633,7 +633,10 @@ impl RenderTrait for Table<'_> {
             self.widget_config.clone()
         };
 
-        let block = widget_config.render_block(self.can_activate() && is_active, is_mouse_over);
+        let block = widget_config.render_block(
+            self.can_activate() && !self.mode.is_filter_input() && is_active,
+            is_mouse_over,
+        );
 
         let constraints = constraints(self.items.digits());
 
