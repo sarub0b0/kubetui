@@ -656,7 +656,8 @@ impl RenderTrait for Table<'_> {
             }
 
             Mode::FilterInput | Mode::FilterConfirm => {
-                self.filter_widget.render(f, self.mode.is_filter_input());
+                self.filter_widget
+                    .render(f, self.mode.is_filter_input() && is_active);
 
                 f.render_stateful_widget(widget, self.chunk(), &mut self.state);
             }
