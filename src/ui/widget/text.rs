@@ -30,7 +30,8 @@ use crate::{
 use self::{
     highlight_content::{HighlightArea, HighlightContent, Point},
     item::TextItem,
-    render::{Render, Scroll}, search_form::SearchForm,
+    render::{Render, Scroll},
+    search_form::SearchForm,
 };
 
 use super::{
@@ -814,7 +815,7 @@ impl RenderTrait for Text {
 
                 self.search_widget.render(
                     f,
-                    self.mode.is_search_input(),
+                    self.mode.is_search_input() && is_active,
                     self.item.highlight_status(),
                 );
             }
