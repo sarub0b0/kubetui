@@ -1,7 +1,7 @@
 use crossterm::event::KeyEvent;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
-    widgets::{Block, BorderType, Borders, Paragraph},
+    widgets::{Block, Paragraph},
     Frame,
 };
 
@@ -18,7 +18,7 @@ struct Chunk {
 
 #[derive(Debug)]
 pub struct FilterForm {
-    block: Block<'static>,
+    widget_config: WidgetConfig,
     input_widget: InputForm,
     chunk: Chunk,
     layout: Layout,
@@ -27,9 +27,7 @@ pub struct FilterForm {
 impl Default for FilterForm {
     fn default() -> Self {
         Self {
-            block: Block::default()
-                .border_type(BorderType::Plain)
-                .borders(Borders::ALL),
+            widget_config: WidgetConfig::default(),
             input_widget: InputForm::new(WidgetConfig::builder().block(Block::default()).build()),
             chunk: Chunk::default(),
             layout: Layout::default()
@@ -46,7 +44,7 @@ impl FilterForm {
     pub fn update_chunk(&mut self, chunk: Rect) {
         let block_chunk = Rect::new(chunk.x, chunk.y, chunk.width, FILTER_HEIGHT);
 
-        let inner_chunk = self.block.inner(block_chunk);
+        let inner_chunk = self.widget_config.block().inner(block_chunk);
 
         let chunks = self.layout.split(inner_chunk);
 
@@ -75,7 +73,10 @@ impl FilterForm {
     }
 
     pub fn render(&mut self, f: &mut Frame<'_>, is_active: bool) {
-        f.render_widget(self.block.clone(), self.chunk.block);
+        f.render_widget(
+            self.widget_config.render_block(is_active, false),
+            self.chunk.block,
+        );
 
         f.render_widget(Paragraph::new("FILTER: "), self.chunk.header);
 
