@@ -1,7 +1,7 @@
 use nom::{
     branch::alt,
     bytes::complete::{escaped, is_not, tag},
-    character::complete::{alphanumeric1, anychar, char, multispace0, space1},
+    character::complete::{alphanumeric1, anychar, char, multispace0, multispace1},
     combinator::{all_consuming, recognize},
     error::{ContextError, ParseError},
     multi::{many1_count, separated_list0},
@@ -262,8 +262,11 @@ fn attribute<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 fn split_attributes<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, Vec<FilterAttribute>, E> {
-    let (remaining, value) =
-        delimited(multispace0, separated_list0(space1, attribute), multispace0)(s)?;
+    let (remaining, value) = delimited(
+        multispace0,
+        separated_list0(multispace1, attribute),
+        multispace0,
+    )(s)?;
 
     Ok((remaining, value))
 }
