@@ -1,11 +1,13 @@
+use std::borrow::Cow;
+
 use nom::{
     branch::alt,
-    bytes::complete::{escaped, is_not, tag},
+    bytes::complete::{is_not, tag},
     character::complete::{alphanumeric1, anychar, char, multispace0, multispace1},
-    combinator::{all_consuming, recognize},
+    combinator::{all_consuming, map, recognize, value, verify},
     error::{ContextError, ParseError},
-    multi::{many1_count, separated_list0},
-    sequence::{delimited, separated_pair},
+    multi::{fold_many0, many1_count, separated_list0},
+    sequence::{delimited, preceded, separated_pair},
     IResult,
 };
 
@@ -14,34 +16,84 @@ use super::{FilterAttribute, SpecifiedResource};
 /// 空白文字を含まない文字列をパースする
 fn non_space_literal<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&str, &str, E> {
-    is_not(" \t\r\n")(s)
+) -> IResult<&str, Cow<'_, str>, E> {
+    let (remaining, value) = verify(is_not(" \t\r\n"), |s: &str| !s.starts_with('"'))(s)?;
+    Ok((remaining, Cow::Borrowed(value)))
 }
 
 fn quoted_regex_literal<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, &str, E> {
-    let (remaining, value) = alt((
-        delimited(
-            tag("\""),
-            escaped(is_not(r#"\""#), '\\', anychar),
-            tag("\""),
-        ),
-        delimited(tag("'"), escaped(is_not(r"\'"), '\\', anychar), tag("'")),
-    ))(s)?;
+) -> IResult<&'a str, Cow<'_, str>, E> {
+    fn multispace<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    ) -> impl FnMut(&'a str) -> IResult<&'a str, Cow<'_, str>, E> {
+        map(multispace1, Cow::Borrowed)
+    }
 
-    Ok((remaining, value))
+    fn escaped_char<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    ) -> impl FnMut(&'a str) -> IResult<&'a str, Cow<'_, str>, E> {
+        preceded(
+            char('\\'),
+            alt((
+                value(Cow::Borrowed("\""), char('"')),
+                value(Cow::Borrowed("'"), char('\'')),
+                value(Cow::Borrowed("\\"), char('\\')),
+                map(anychar, |c| Cow::Owned(format!(r"\{}", c))),
+            )),
+        )
+    }
+
+    fn not_quote_slash<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+        quote_slash: &'a str,
+    ) -> impl FnMut(&'a str) -> IResult<&'a str, Cow<'_, str>, E> {
+        map(
+            verify(is_not(quote_slash), |s: &str| !s.is_empty()),
+            Cow::Borrowed,
+        )
+    }
+
+    fn fold<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+        parser: impl FnMut(&'a str) -> IResult<&'a str, Cow<'_, str>, E>,
+    ) -> impl FnMut(&'a str) -> IResult<&'a str, String, E> {
+        fold_many0(parser, String::default, |mut s, parsed| {
+            s.push_str(&parsed);
+            s
+        })
+    }
+
+    let double_quoted_string = delimited(
+        char('"'),
+        fold(alt((
+            escaped_char(),
+            not_quote_slash(r#""\"#),
+            multispace(),
+        ))),
+        char('"'),
+    );
+
+    let single_quoted_string = delimited(
+        char('\''),
+        fold(alt((
+            escaped_char(),
+            not_quote_slash(r#"\'"#),
+            multispace(),
+        ))),
+        char('\''),
+    );
+
+    let (remaining, value) = alt((double_quoted_string, single_quoted_string))(s)?;
+
+    Ok((remaining, Cow::Owned(value)))
 }
 
 fn unquoted_regex_literal<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, &str, E> {
+) -> IResult<&'a str, Cow<'_, str>, E> {
     non_space_literal(s)
 }
 
 fn regex_literal<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, &str, E> {
+) -> IResult<&'a str, Cow<'_, str>, E> {
     let (remaining, value) = alt((quoted_regex_literal, unquoted_regex_literal))(s)?;
 
     Ok((remaining, value))
@@ -49,7 +101,7 @@ fn regex_literal<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 
 fn selector_literal<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, &str, E> {
+) -> IResult<&'a str, Cow<'_, str>, E> {
     non_space_literal(s)
 }
 
@@ -296,7 +348,7 @@ mod tests {
     fn pod(#[case] query: &str, #[case] expected: &str) {
         let (remaining, actual) = super::pod::<Error<_>>(query).unwrap();
 
-        assert_eq!(actual, FilterAttribute::Pod(expected));
+        assert_eq!(actual, FilterAttribute::Pod(expected.into()));
         assert_eq!(remaining, "");
     }
 
@@ -307,7 +359,7 @@ mod tests {
     fn exclude_pod(#[case] query: &str, #[case] expected: &str) {
         let (remaining, actual) = super::exclude_pod::<Error<_>>(query).unwrap();
 
-        assert_eq!(actual, FilterAttribute::ExcludePod(expected));
+        assert_eq!(actual, FilterAttribute::ExcludePod(expected.into()));
         assert_eq!(remaining, "");
     }
 
@@ -318,7 +370,7 @@ mod tests {
     fn container(#[case] query: &str, #[case] expected: &str) {
         let (remaining, actual) = super::container::<Error<_>>(query).unwrap();
 
-        assert_eq!(actual, FilterAttribute::Container(expected));
+        assert_eq!(actual, FilterAttribute::Container(expected.into()));
         assert_eq!(remaining, "");
     }
 
@@ -329,7 +381,7 @@ mod tests {
     fn exclude_container(#[case] query: &str, #[case] expected: &str) {
         let (remaining, actual) = super::exclude_container::<Error<_>>(query).unwrap();
 
-        assert_eq!(actual, FilterAttribute::ExcludeContainer(expected));
+        assert_eq!(actual, FilterAttribute::ExcludeContainer(expected.into()));
         assert_eq!(remaining, "");
     }
 
@@ -340,7 +392,7 @@ mod tests {
     fn include_log(#[case] query: &str, #[case] expected: &str) {
         let (remaining, actual) = super::include_log::<Error<_>>(query).unwrap();
 
-        assert_eq!(actual, FilterAttribute::IncludeLog(expected));
+        assert_eq!(actual, FilterAttribute::IncludeLog(expected.into()));
         assert_eq!(remaining, "");
     }
 
@@ -350,7 +402,7 @@ mod tests {
     fn exclude_log(#[case] query: &str, #[case] expected: &str) {
         let (remaining, actual) = super::exclude_log::<Error<_>>(query).unwrap();
 
-        assert_eq!(actual, FilterAttribute::ExcludeLog(expected));
+        assert_eq!(actual, FilterAttribute::ExcludeLog(expected.into()));
         assert_eq!(remaining, "");
     }
 
@@ -362,7 +414,7 @@ mod tests {
     fn label_selector(#[case] query: &str, #[case] expected: &str) {
         let (remaining, actual) = super::label_selector::<Error<_>>(query).unwrap();
 
-        assert_eq!(actual, FilterAttribute::LabelSelector(expected));
+        assert_eq!(actual, FilterAttribute::LabelSelector(expected.into()));
         assert_eq!(remaining, "");
     }
 
@@ -374,7 +426,7 @@ mod tests {
     fn field_selector(#[case] query: &str, #[case] expected: &str) {
         let (remaining, actual) = super::field_selector::<Error<_>>(query).unwrap();
 
-        assert_eq!(actual, FilterAttribute::FieldSelector(expected));
+        assert_eq!(actual, FilterAttribute::FieldSelector(expected.into()));
         assert_eq!(remaining, "");
     }
 
@@ -478,9 +530,18 @@ mod tests {
 
     #[rstest]
     #[case(r#""foo bar""#, "foo bar")]
+    #[case(r#""\"""#, r#"""#)]
+    #[case(r#""'""#, "'")]
+    #[case(r#""\\\"""#, r#"\""#)]
+    #[case(r#"'"'"#, r#"""#)]
+    #[case(r"'\''", "'")]
+    #[case(r"'\\\''", r"\'")]
+    #[case(r"'\a'", r"\a")]
+    #[case(r#""\a""#, r"\a")]
+    #[case(r#""\\n""#, r"\n")]
     #[case(
-        r#""\" \' \\ \. \+ \* \? \( \) \| \[ \] \{ \} \^ \$ \# \& \- \~""#,
-        r#"\" \' \\ \. \+ \* \? \( \) \| \[ \] \{ \} \^ \$ \# \& \- \~"#
+        r#""\" ' \\ \. \+ \* \? \( \) \| \[ \] \{ \} \^ \$ \# \& \- \~""#,
+        r#"" ' \ \. \+ \* \? \( \) \| \[ \] \{ \} \^ \$ \# \& \- \~"#
     )]
     #[case(
         r#""\a \f \t \n \r \v \A \z \b \B \< \> \123 \x7F \x{10FFFF} \u007F \u{7F} \U0000007F \U{7F} \p{Letter} \P{Letter} \d \s \w \D \S \W""#,
@@ -488,8 +549,8 @@ mod tests {
     )]
     #[case("'foo bar'", "foo bar")]
     #[case(
-        r#"'\" \' \\ \. \+ \* \? \( \) \| \[ \] \{ \} \^ \$ \# \& \- \~'"#,
-        r#"\" \' \\ \. \+ \* \? \( \) \| \[ \] \{ \} \^ \$ \# \& \- \~"#
+        r#"'" \' \\ \. \+ \* \? \( \) \| \[ \] \{ \} \^ \$ \# \& \- \~'"#,
+        r#"" ' \ \. \+ \* \? \( \) \| \[ \] \{ \} \^ \$ \# \& \- \~"#
     )]
     #[case(
         r"'\a \f \t \n \r \v \A \z \b \B \< \> \123 \x7F \x{10FFFF} \u007F \u{7F} \U0000007F \U{7F} \p{Letter} \P{Letter} \d \s \w \D \S \W'",
@@ -534,20 +595,20 @@ mod tests {
         r"\a\f\t\n\r\v\A\z\b\B\<\>\123\x7F\x{10FFFF}\u007F\u{7F}\U0000007F\U{7F}\p{Letter}\P{Letter}\d\s\w\D\S\W"
     )]
     #[case(r#""foo bar""#, "foo bar")]
-    #[case(r#""\" \' \\ \( \) \[ \]""#, r#"\" \' \\ \( \) \[ \]"#)]
+    #[case(r#""\" \' \\ \( \) \[ \]""#, r#"" ' \ \( \) \[ \]"#)]
     #[case(
         r#""\" \' \\ \. \+ \* \? \( \) \| \[ \] \{ \} \^ \$ \# \& \- \~""#,
-        r#"\" \' \\ \. \+ \* \? \( \) \| \[ \] \{ \} \^ \$ \# \& \- \~"#
+        r#"" ' \ \. \+ \* \? \( \) \| \[ \] \{ \} \^ \$ \# \& \- \~"#
     )]
     #[case(
         r#""\a \f \t \n \r \v \A \z \b \B \< \> \123 \x7F \x{10FFFF} \u007F \u{7F} \U0000007F \U{7F} \p{Letter} \P{Letter} \d \s \w \D \S \W""#,
         r"\a \f \t \n \r \v \A \z \b \B \< \> \123 \x7F \x{10FFFF} \u007F \u{7F} \U0000007F \U{7F} \p{Letter} \P{Letter} \d \s \w \D \S \W"
     )]
     #[case("'foo bar'", "foo bar")]
-    #[case(r#"'\" \' \\ \( \) \[ \]'"#, r#"\" \' \\ \( \) \[ \]"#)]
+    #[case(r#"'\" \' \\ \( \) \[ \]'"#, r#"" ' \ \( \) \[ \]"#)]
     #[case(
         r#"'\" \' \\ \. \+ \* \? \( \) \| \[ \] \{ \} \^ \$ \# \& \- \~'"#,
-        r#"\" \' \\ \. \+ \* \? \( \) \| \[ \] \{ \} \^ \$ \# \& \- \~"#
+        r#"" ' \ \. \+ \* \? \( \) \| \[ \] \{ \} \^ \$ \# \& \- \~"#
     )]
     #[case(
         r"'\a \f \t \n \r \v \A \z \b \B \< \> \123 \x7F \x{10FFFF} \u007F \u{7F} \U0000007F \U{7F} \p{Letter} \P{Letter} \d \s \w \D \S \W'",
@@ -562,14 +623,14 @@ mod tests {
 
     #[rustfmt::skip]
     #[rstest]
-    #[case("pod:hoge", FilterAttribute::Pod("hoge"))]
-    #[case("!pod:hoge", FilterAttribute::ExcludePod("hoge"))]
-    #[case("container:hoge", FilterAttribute::Container("hoge"))]
-    #[case("!container:hoge", FilterAttribute::ExcludeContainer("hoge"))]
-    #[case("log:hoge", FilterAttribute::IncludeLog("hoge"))]
-    #[case("!log:hoge", FilterAttribute::ExcludeLog("hoge"))]
-    #[case("labels:foo=bar", FilterAttribute::LabelSelector("foo=bar"))]
-    #[case("fields:foo=bar", FilterAttribute::FieldSelector("foo=bar"))]
+    #[case("pod:hoge", FilterAttribute::Pod("hoge".into()))]
+    #[case("!pod:hoge", FilterAttribute::ExcludePod("hoge".into()))]
+    #[case("container:hoge", FilterAttribute::Container("hoge".into()))]
+    #[case("!container:hoge", FilterAttribute::ExcludeContainer("hoge".into()))]
+    #[case("log:hoge", FilterAttribute::IncludeLog("hoge".into()))]
+    #[case("!log:hoge", FilterAttribute::ExcludeLog("hoge".into()))]
+    #[case("labels:foo=bar", FilterAttribute::LabelSelector("foo=bar".into()))]
+    #[case("fields:foo=bar", FilterAttribute::FieldSelector("foo=bar".into()))]
     #[case("daemonset/app", FilterAttribute::Resource(SpecifiedResource::DaemonSet("app")))]
     #[case("deployment/app", FilterAttribute::Resource(SpecifiedResource::Deployment("app")))]
     #[case("job/app", FilterAttribute::Resource(SpecifiedResource::Job("app")))]
@@ -610,14 +671,14 @@ mod tests {
         let (remaining, actual) = super::parse_attributes::<Error<_>>(&query).unwrap();
 
         let expected = vec![
-            FilterAttribute::Pod("hoge"),
-            FilterAttribute::ExcludePod("hoge"),
-            FilterAttribute::Container("hoge"),
-            FilterAttribute::ExcludeContainer("hoge"),
-            FilterAttribute::IncludeLog("hoge"),
-            FilterAttribute::ExcludeLog("hoge"),
-            FilterAttribute::LabelSelector("foo=bar"),
-            FilterAttribute::FieldSelector("foo=bar"),
+            FilterAttribute::Pod("hoge".into()),
+            FilterAttribute::ExcludePod("hoge".into()),
+            FilterAttribute::Container("hoge".into()),
+            FilterAttribute::ExcludeContainer("hoge".into()),
+            FilterAttribute::IncludeLog("hoge".into()),
+            FilterAttribute::ExcludeLog("hoge".into()),
+            FilterAttribute::LabelSelector("foo=bar".into()),
+            FilterAttribute::FieldSelector("foo=bar".into()),
             FilterAttribute::Resource(SpecifiedResource::DaemonSet("app")),
             FilterAttribute::Resource(SpecifiedResource::Deployment("app")),
             FilterAttribute::Resource(SpecifiedResource::Job("app")),
@@ -645,9 +706,9 @@ mod tests {
         let (remaining, actual) = super::parse_attributes::<Error<_>>(&query).unwrap();
 
         let expected = vec![
-            FilterAttribute::Pod("hoge"),
-            FilterAttribute::IncludeLog(r"\'foo\' bar"),
-            FilterAttribute::IncludeLog(r#"\"foo\" bar"#),
+            FilterAttribute::Pod("hoge".into()),
+            FilterAttribute::IncludeLog(r"'foo' bar".into()),
+            FilterAttribute::IncludeLog(r#""foo" bar"#.into()),
         ];
 
         assert_eq!(actual, expected);

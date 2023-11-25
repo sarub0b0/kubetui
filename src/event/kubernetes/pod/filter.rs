@@ -1,5 +1,7 @@
 mod parser;
 
+use std::borrow::Cow;
+
 use anyhow::{bail, Result};
 use regex::Regex;
 
@@ -36,12 +38,12 @@ impl Filter {
         for attr in valid_attrs {
             match attr {
                 FilterAttribute::Pod(regex) => {
-                    let regex = Regex::new(regex)?;
+                    let regex = Regex::new(&regex)?;
                     filter.pod = Some(regex);
                 }
 
                 FilterAttribute::ExcludePod(regex) => {
-                    let regex = Regex::new(regex)?;
+                    let regex = Regex::new(&regex)?;
 
                     if let Some(vec) = &mut filter.exclude_pod {
                         vec.push(regex);
@@ -51,12 +53,12 @@ impl Filter {
                 }
 
                 FilterAttribute::Container(regex) => {
-                    let regex = Regex::new(regex)?;
+                    let regex = Regex::new(&regex)?;
                     filter.container = Some(regex);
                 }
 
                 FilterAttribute::ExcludeContainer(regex) => {
-                    let regex = Regex::new(regex)?;
+                    let regex = Regex::new(&regex)?;
 
                     if let Some(vec) = &mut filter.exclude_container {
                         vec.push(regex);
@@ -117,7 +119,7 @@ impl Filter {
                 }
 
                 FilterAttribute::IncludeLog(regex) => {
-                    let regex = Regex::new(regex)?;
+                    let regex = Regex::new(&regex)?;
 
                     if let Some(include) = &mut filter.include_log {
                         include.push(regex);
@@ -127,7 +129,7 @@ impl Filter {
                 }
 
                 FilterAttribute::ExcludeLog(regex) => {
-                    let regex = Regex::new(regex)?;
+                    let regex = Regex::new(&regex)?;
 
                     if let Some(exclude) = &mut filter.exclude_log {
                         exclude.push(regex);
@@ -270,15 +272,15 @@ pub enum SpecifiedResource<'a> {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FilterAttribute<'a> {
-    Pod(&'a str),
-    ExcludePod(&'a str),
-    Container(&'a str),
-    ExcludeContainer(&'a str),
+    Pod(Cow<'a, str>),
+    ExcludePod(Cow<'a, str>),
+    Container(Cow<'a, str>),
+    ExcludeContainer(Cow<'a, str>),
     Resource(SpecifiedResource<'a>),
-    LabelSelector(&'a str),
-    FieldSelector(&'a str),
-    IncludeLog(&'a str),
-    ExcludeLog(&'a str),
+    LabelSelector(Cow<'a, str>),
+    FieldSelector(Cow<'a, str>),
+    IncludeLog(Cow<'a, str>),
+    ExcludeLog(Cow<'a, str>),
 }
 
 struct FilterAttributes;
