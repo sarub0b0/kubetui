@@ -113,7 +113,7 @@ impl Worker for PodWatcher {
 
                         logger!(
                             info,
-                            "event=added/modified namespace={} pod_name={} pod_uid={}",
+                            "event=added,modified namespace={} pod_name={} pod_uid={}",
                             self.namespace,
                             pod_name,
                             pod_uid
