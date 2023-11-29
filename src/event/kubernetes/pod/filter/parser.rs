@@ -106,7 +106,7 @@ fn regex<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 fn selector<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, Cow<'_, str>, E> {
-    non_space(s)
+    alt((quoted, unquoted))(s)
 }
 
 fn resource_name<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
@@ -400,6 +400,8 @@ mod tests {
     #[case("labels:foo=bar,baz=qux", "foo=bar,baz=qux")]
     #[case("label:foo=bar,baz=qux", "foo=bar,baz=qux")]
     #[case("l:foo=bar,baz=qux", "foo=bar,baz=qux")]
+    #[case("l:\"foo in (bar),baz in (qux)\"", "foo in (bar),baz in (qux)")]
+    #[case("l:\'foo in (bar),baz in (qux)\'", "foo in (bar),baz in (qux)")]
     fn label_selector(#[case] query: &str, #[case] expected: &str) {
         let (remaining, actual) = super::label_selector::<Error<_>>(query).unwrap();
 
@@ -412,6 +414,8 @@ mod tests {
     #[case("fields:foo=bar,baz=qux", "foo=bar,baz=qux")]
     #[case("field:foo=bar,baz=qux", "foo=bar,baz=qux")]
     #[case("f:foo=bar,baz=qux", "foo=bar,baz=qux")]
+    #[case("f:\"foo in (bar),baz in (qux)\"", "foo in (bar),baz in (qux)")]
+    #[case("f:\'foo in (bar),baz in (qux)\'", "foo in (bar),baz in (qux)")]
     fn field_selector(#[case] query: &str, #[case] expected: &str) {
         let (remaining, actual) = super::field_selector::<Error<_>>(query).unwrap();
 
