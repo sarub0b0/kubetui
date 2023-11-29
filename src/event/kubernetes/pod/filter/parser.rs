@@ -98,9 +98,7 @@ fn unquoted<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 fn regex<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, Cow<'_, str>, E> {
-    let (remaining, value) = alt((quoted, unquoted))(s)?;
-
-    Ok((remaining, value))
+    alt((quoted, unquoted))(s)
 }
 
 fn selector<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
