@@ -57,28 +57,30 @@ impl<'a> PodTabBuilder<'a> {
         let log_query = self.log_query();
         let log = self.log();
 
+        let pod_layout = {
+            let constraint = match self.split_mode {
+                Direction::Horizontal => Constraint::Percentage(50),
+                Direction::Vertical => Constraint::Percentage(45), // log_query領域分小さくする
+            };
+
+            NestedLayoutElement(constraint, LayoutElement::WidgetIndex(0))
+        };
+
+        let log_layout = NestedLayoutElement(
+            Constraint::Percentage(50),
+            LayoutElement::NestedElement(
+                NestedWidgetLayout::default()
+                    .direction(Direction::Vertical)
+                    .nested_widget_layout([
+                        NestedLayoutElement(Constraint::Length(3), LayoutElement::WidgetIndex(1)),
+                        NestedLayoutElement(Constraint::Min(3), LayoutElement::WidgetIndex(2)),
+                    ]),
+            ),
+        );
+
         let layout = NestedWidgetLayout::default()
             .direction(self.split_mode)
-            .nested_widget_layout([
-                NestedLayoutElement(Constraint::Percentage(45), LayoutElement::WidgetIndex(0)),
-                NestedLayoutElement(
-                    Constraint::Percentage(50),
-                    LayoutElement::NestedElement(
-                        NestedWidgetLayout::default()
-                            .direction(Direction::Vertical)
-                            .nested_widget_layout([
-                                NestedLayoutElement(
-                                    Constraint::Length(3),
-                                    LayoutElement::WidgetIndex(1),
-                                ),
-                                NestedLayoutElement(
-                                    Constraint::Min(3),
-                                    LayoutElement::WidgetIndex(2),
-                                ),
-                            ]),
-                    ),
-                ),
-            ]);
+            .nested_widget_layout([pod_layout, log_layout]);
 
         let mut tab = Tab::new(
             view_id::tab_pod,
