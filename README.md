@@ -12,6 +12,10 @@ It provides an easy-to-use interface for developers and operators to access impo
 - [Installation](#installation)
 - [Features](#features)
 - [Usage](#usage)
+- [Log Query](#log-query)
+  - [Usage Example](#usage-example)
+  - [Supported Queries](#supported-queries)
+  - [Query String Escaping](#query-string-escaping)
 - [Key Bindings](#key-bindings)
   - [General](#general)
   - [Key Map](#key-map)
@@ -99,6 +103,116 @@ Options:
   -n, --namespaces <NAMESPACES>        Namespaces (e.g. -n val1,val2,val3 | -n val1 -n val2 -n val3)
   -s, --split-mode <v|h>               Window split mode [possible values: v, h, vertical, horizontal]
 ```
+
+## Log Query
+
+The Log Query feature empowers you to retrieve logs from multiple Pods and their containers. Using regular expressions, selectors, and specified resources, you can precisely define the log retrieval targets. This functionality also allows you to filter logs using regular expressions, providing a powerful and flexible log querying experience.
+
+### Usage Example
+
+```
+pod:app container:nginx log:401
+```
+
+When entering `?` or `help` in the log query form, the help popup will be displayed.
+
+### Supported Queries
+
+| Query               | Alias                | Description                                                                                                    |
+| ------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------- |
+| pod:\<regex>        | pods, po, p          | Include Pods that match the regular expression in log retrieval target.                                        |
+| !pod:\<regex>       | !pods, !po, !p       | Exclude Pods that match the regular expression from log retrieval target. Can be defined multiple times.       |
+| container:\<regex>  | containers, co, c    | Include containers that match the regular expression in log retrieval target.                                  |
+| !container:\<regex> | !containers, !co, !c | Exclude containers that match the regular expression from log retrieval target. Can be defined multiple times. |
+| log:\<regex>        | logs, lo, l          | Retrieve logs that match the regular expression. Can be defined multiple times.                                |
+| !log:\<regex>       | !logs, !lo, !l       | Exclude logs that match the regular expression. Can be defined multiple times.                                 |
+| label:\<selector>   | labels               | Include Pods with labels matching the selector in log retrieval target. Cannot be specified with resource.     |
+| field:\<selector>   | fields               | Include Pods with fields matching the selector in log retrieval target.                                        |
+| \<resource>/\<name> |                      | Include Pods belonging to the specified resource in log retrieval target. Cannot be specified with label.      |
+
+Supported resources:
+
+| Resource    | Alias               |
+| ----------- | ------------------- |
+| pod         | po, pods            |
+| replicaset  | rs, replicasets     |
+| deployment  | deploy, deployments |
+| statefulset | sts, statefulsets   |
+| daemonset   | ds, daemonsets      |
+| job         | jobs                |
+| service     | svc, services       |
+
+### Query String Escaping
+
+When including spaces in queries such as `<regex>` or `<selector>`, enclose the string with `"` or `'`. For example:
+
+```
+pod:"a b"
+label:"environment in (production, qa)"
+```
+
+If you use `"`, `'`, or `\` within the quoted string, escape them with `\`. For example:
+
+```
+pod:"a\\b"
+```
+
+<details>
+<summary>Query Syntax</summary>
+
+```
+**Lexer and Parser**
+
+LOG_QUERIES = QUERY ( " "+ QUERY )*
+
+QUERY = POD
+        | EXCLUDE_POD
+        | CONTAINER
+        | EXCLUDE_CONTAINER
+        | LOG
+        | EXCLUDE_LOG
+        | LABEL
+        | FIELD
+        | SPECIFIED_RESOURCE
+
+POD = ( "pods" | "pod" | "po" | "p" ) ":" REGEX
+EXCLUDE_POD = "!" POD
+
+CONTAINER = ( "containers" | "container" | "co" | "c" ) ":" REGEX
+EXCLUDE_CONTAINER = "!" CONTAINER
+
+LOG = ( "logs" | "log" | "lo" | "l" ) ":" REGEX
+EXCLUDE_LOG = "!" LOG
+
+REGEX = QUOTED_STRING | UNQUOTED_STRING
+
+LABEL = ( "labels" | "label" ) ":" SELECTOR
+FIELD = ( "fields" | "field" ) ":" SELECTOR
+
+SELECTOR = QUOTED_STRING | UNQUOTED_STRING
+
+SPECIFIED_RESOURCE = RESOURCE "/" NAME
+
+RESOURCE = ( "pods" | "pod" | "po" )
+           | ( "replicasets" | "replicaset" | "rs" )
+           | ( "deployments" | "deployment" | "deploy" )
+           | ( "statefulsets" | "statefulset" | "sts" )
+           | ( "daemonsets" | "daemonset" | "ds" )
+           | ( "services" | "service" | "svc" )
+           | ( "jobs" | "job" )
+
+NAME = ALPHANUMERIC ( ALPHANUMERIC | "-" | "." )* ALPHANUMERIC
+
+UNQUOTED_STRING = ~['" \t\r\n] ( ~[ \t\r\n] )* // without spaces
+
+QUOTED_STRING = "\"" ESCAPED_STRING "\"" | "'" ESCAPED_STRING "'"
+
+ESCAPED_STRING = ( ESCAPED_CHAR | ~[\"'] )\*
+
+ESCAPED_CHAR = "\\" | "\"" | "\'"
+```
+
+</details>
 
 ## Key Bindings
 
