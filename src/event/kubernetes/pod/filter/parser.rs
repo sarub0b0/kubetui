@@ -160,8 +160,11 @@ fn exclude_container<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 fn include_log<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
-    let (remaining, (_, value)) =
-        separated_pair(alt((tag("logs"), tag("log"), tag("lo"))), char(':'), regex)(s)?;
+    let (remaining, (_, value)) = separated_pair(
+        alt((tag("logs"), tag("log"), tag("lo"), tag("l"))),
+        char(':'),
+        regex,
+    )(s)?;
     Ok((remaining, FilterAttribute::IncludeLog(value)))
 }
 
@@ -169,7 +172,7 @@ fn exclude_log<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
     let (remaining, (_, value)) = separated_pair(
-        alt((tag("!logs"), tag("!log"), tag("!lo"))),
+        alt((tag("!logs"), tag("!log"), tag("!lo"), tag("!l"))),
         char(':'),
         regex,
     )(s)?;
@@ -179,22 +182,16 @@ fn exclude_log<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 fn label_selector<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
-    let (remaining, (_, value)) = separated_pair(
-        alt((tag("labels"), tag("label"), tag("l"))),
-        char(':'),
-        selector,
-    )(s)?;
+    let (remaining, (_, value)) =
+        separated_pair(alt((tag("labels"), tag("label"))), char(':'), selector)(s)?;
     Ok((remaining, FilterAttribute::LabelSelector(value)))
 }
 
 fn field_selector<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
-    let (remaining, (_, value)) = separated_pair(
-        alt((tag("fields"), tag("field"), tag("f"))),
-        char(':'),
-        selector,
-    )(s)?;
+    let (remaining, (_, value)) =
+        separated_pair(alt((tag("fields"), tag("field"))), char(':'), selector)(s)?;
     Ok((remaining, FilterAttribute::FieldSelector(value)))
 }
 
@@ -400,6 +397,7 @@ mod tests {
     #[case("logs:hoge", "hoge")]
     #[case("log:hoge", "hoge")]
     #[case("lo:hoge", "hoge")]
+    #[case("l:hoge", "hoge")]
     fn include_log(#[case] query: &str, #[case] expected: &str) {
         let (remaining, actual) = super::include_log::<Error<_>>(query).unwrap();
 
@@ -411,6 +409,7 @@ mod tests {
     #[case("!logs:hoge", "hoge")]
     #[case("!log:hoge", "hoge")]
     #[case("!lo:hoge", "hoge")]
+    #[case("!l:hoge", "hoge")]
     fn exclude_log(#[case] query: &str, #[case] expected: &str) {
         let (remaining, actual) = super::exclude_log::<Error<_>>(query).unwrap();
 
@@ -422,9 +421,8 @@ mod tests {
     #[rstest]
     #[case("labels:foo=bar,baz=qux", "foo=bar,baz=qux")]
     #[case("label:foo=bar,baz=qux", "foo=bar,baz=qux")]
-    #[case("l:foo=bar,baz=qux", "foo=bar,baz=qux")]
-    #[case("l:\"foo in (bar),baz in (qux)\"", "foo in (bar),baz in (qux)")]
-    #[case("l:\'foo in (bar),baz in (qux)\'", "foo in (bar),baz in (qux)")]
+    #[case("label:\"foo in (bar),baz in (qux)\"", "foo in (bar),baz in (qux)")]
+    #[case("label:\'foo in (bar),baz in (qux)\'", "foo in (bar),baz in (qux)")]
     fn label_selector(#[case] query: &str, #[case] expected: &str) {
         let (remaining, actual) = super::label_selector::<Error<_>>(query).unwrap();
 
@@ -436,9 +434,8 @@ mod tests {
     #[rstest]
     #[case("fields:foo=bar,baz=qux", "foo=bar,baz=qux")]
     #[case("field:foo=bar,baz=qux", "foo=bar,baz=qux")]
-    #[case("f:foo=bar,baz=qux", "foo=bar,baz=qux")]
-    #[case("f:\"foo in (bar),baz in (qux)\"", "foo in (bar),baz in (qux)")]
-    #[case("f:\'foo in (bar),baz in (qux)\'", "foo in (bar),baz in (qux)")]
+    #[case("field:\"foo in (bar),baz in (qux)\"", "foo in (bar),baz in (qux)")]
+    #[case("field:\'foo in (bar),baz in (qux)\'", "foo in (bar),baz in (qux)")]
     fn field_selector(#[case] query: &str, #[case] expected: &str) {
         let (remaining, actual) = super::field_selector::<Error<_>>(query).unwrap();
 
