@@ -1266,14 +1266,14 @@ dependencies = [
 
 [[package]]
 name = "mockall_double"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae71c7bb287375187c775cf82e2dcf1bef3388aaf58f0789a77f9c7ab28466f6"
+checksum = "f1ca96e5ac35256ae3e13536edd39b172b88f41615e1d7b653c8ad24524113e8"
 dependencies = [
  "cfg-if",
  "proc-macro2",
  "quote",
- "syn 1.0.109",
+ "syn 2.0.39",
 ]
 
 [[package]]
