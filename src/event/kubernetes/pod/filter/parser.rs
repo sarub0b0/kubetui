@@ -6,7 +6,7 @@ use nom::{
     character::complete::{alphanumeric1, anychar, char, multispace0, multispace1},
     combinator::{all_consuming, map, recognize, value, verify},
     error::{ContextError, ParseError},
-    multi::{fold_many0, many1_count, separated_list0},
+    multi::{fold_many0, many1_count, separated_list1},
     sequence::{delimited, preceded, separated_pair},
     IResult,
 };
@@ -319,7 +319,7 @@ fn split_attributes<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 ) -> IResult<&'a str, Vec<FilterAttribute>, E> {
     let (remaining, value) = delimited(
         multispace0,
-        separated_list0(multispace1, attribute),
+        separated_list1(multispace1, attribute),
         multispace0,
     )(s)?;
 
@@ -735,10 +735,11 @@ mod tests {
         assert_eq!(remaining, "");
     }
 
-    #[test]
-    fn parse_error() {
-        let query = "hoge:hoge";
-
+    #[rstest]
+    #[case("     ")]
+    #[case("")]
+    #[case("hoge:hoge")]
+    fn parse_error(#[case] query: &str) {
         let actual = super::parse_attributes::<Error<_>>(query);
 
         assert!(actual.is_err());
