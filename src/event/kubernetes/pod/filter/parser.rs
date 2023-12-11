@@ -17,7 +17,7 @@ use super::{FilterAttribute, SpecifiedResource};
 fn non_space<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&str, Cow<'_, str>, E> {
-    let (remaining, value) = verify(is_not(" \t\r\n"), |s: &str| !s.starts_with('"'))(s)?;
+    let (remaining, value) = verify(is_not(" \t\r\n"), |s: &str| !s.starts_with(['"', '\'']))(s)?;
     Ok((remaining, Cow::Borrowed(value)))
 }
 
