@@ -1,0 +1,31 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:base", ":automergeLinters", ":automergeTesters"],
+  "platformAutomerge": true,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "automerge": true,
+    "schedule": ["* 6 * * 5"]
+  },
+  "packageRules": [
+    {
+      "groupName": "kube-rs (kube, kube-runtime, k8s-openapi)",
+      "matchPackageNames": ["kube", "kube-runtime", "k8s-openapi"]
+    }
+  ],
+  "pin": {
+    "automerge": true
+  },
+  "patch": {
+    "groupName": "all dependencies",
+    "automerge": true
+  },
+  "minor": {
+    "automerge": true
+  },
+  "major": {},
+  "digest": {
+    "automerge": true
+  },
+  "labels": ["dependencies", "renovate"]
+}
