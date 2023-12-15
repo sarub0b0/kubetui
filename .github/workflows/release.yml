@@ -50,13 +50,13 @@ jobs:
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: matrix.os == 'windows-latest'
         with:
           name: ${{ matrix.target }}-rustls
           path: target/${{ matrix.target }}/release/kubetui.exe
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: matrix.os != 'windows-latest'
         with:
           name: ${{ matrix.target }}-rustls
@@ -86,7 +86,7 @@ jobs:
 
       - run: cargo build --release --no-default-features --features openssl-tls --target $env:TARGET
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{ env.TARGET }}-openssl
           path: target/${{ env.TARGET }}/release/kubetui.exe
@@ -154,7 +154,7 @@ jobs:
           fi
           cargo build --release --no-default-features --features openssl-tls --target ${{ matrix.target }}
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.target }}-openssl
           path: target/${{ matrix.target }}/release/kubetui
@@ -201,7 +201,7 @@ jobs:
 
       - run: cargo build --release --no-default-features --features openssl-tls --target ${{ matrix.target }}
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.target }}-openssl
           path: target/${{ matrix.target }}/release/kubetui
