@@ -6,11 +6,19 @@ use std::{cell::RefCell, rc::Rc};
 use crate::{
     action::view_id,
     clipboard_wrapper::Clipboard,
-    event::{kubernetes::log::LogStreamMessage, Event, UserEvent},
+    context::Namespace,
+    event::{
+        kubernetes::log::{LogStreamConfig, LogStreamMessage, LogStreamPrefixType},
+        Event, UserEvent,
+    },
     ui::{
         event::EventResult,
-        tab::WidgetChunk,
-        widget::{config::WidgetConfig, Item, Table, Text, WidgetTrait},
+        tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout},
+        widget::{
+            config::WidgetConfig,
+            input::{InputForm, InputFormBuilder},
+            Item, SelectedItem, Table, Text, WidgetTrait,
+        },
         Tab, Window, WindowEvent,
     },
 };
@@ -20,6 +28,7 @@ pub struct PodTabBuilder<'a> {
     tx: &'a Sender<Event>,
     clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
     split_mode: Direction,
+    namespaces: Rc<RefCell<Namespace>>,
 }
 
 pub struct PodsTab {
@@ -32,47 +41,92 @@ impl<'a> PodTabBuilder<'a> {
         tx: &'a Sender<Event>,
         clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
         split_mode: Direction,
+        namespaces: Rc<RefCell<Namespace>>,
     ) -> Self {
         PodTabBuilder {
             title,
             tx,
             clipboard,
             split_mode,
+            namespaces,
         }
     }
 
     pub fn build(self) -> PodsTab {
+        let input = self.input();
         let pod = self.pod();
         let log = self.log();
 
         let layout = NestedWidgetLayout::default()
             .direction(Direction::Vertical)
-            .nested_widget_layout([NestedLayoutElement(
-                Constraint::Min(3),
-                LayoutElement::NestedElement(
-                    NestedWidgetLayout::default()
-                        .direction(self.split_mode)
-                        .nested_widget_layout([
-                            NestedLayoutElement(
-                                Constraint::Percentage(50),
-                                LayoutElement::WidgetIndex(0),
-                            ),
-                            NestedLayoutElement(
-                                Constraint::Percentage(50),
-                                LayoutElement::WidgetIndex(1),
-                            ),
-                        ]),
+            .nested_widget_layout([
+                NestedLayoutElement(Constraint::Length(3), LayoutElement::WidgetIndex(0)),
+                NestedLayoutElement(
+                    Constraint::Min(3),
+                    LayoutElement::NestedElement(
+                        NestedWidgetLayout::default()
+                            .direction(self.split_mode)
+                            .nested_widget_layout([
+                                NestedLayoutElement(
+                                    Constraint::Percentage(50),
+                                    LayoutElement::WidgetIndex(1),
+                                ),
+                                NestedLayoutElement(
+                                    Constraint::Percentage(50),
+                                    LayoutElement::WidgetIndex(2),
+                                ),
+                            ]),
+                    ),
                 ),
-            )]);
+            ]);
 
-        PodsTab {
-            tab: Tab::new(
-                view_id::tab_pod,
-                self.title,
-                [pod.into(), log.into()],
-                layout,
-            ),
-        }
+        let mut tab = Tab::new(
+            view_id::tab_pod,
+            self.title,
+            [input.into(), pod.into(), log.into()],
+            layout,
+        );
+
+        tab.activate_widget_by_id(view_id::tab_pod_widget_pod);
+
+        PodsTab { tab }
+    }
+
+    fn input(&self) -> InputForm {
+        let tx = self.tx.clone();
+
+        let namespaces = self.namespaces.clone();
+
+        let execute = move |w: &mut Window| {
+            w.widget_clear(view_id::tab_pod_widget_log);
+
+            let widget = w.find_widget_mut(view_id::tab_pod_widget_query);
+
+            let Some(SelectedItem::Literal { metadata: _, item }) = widget.widget_item() else {
+                return EventResult::Ignore;
+            };
+
+            let namespaces = namespaces.borrow();
+
+            let prefix_type = if 1 < namespaces.len() {
+                LogStreamPrefixType::All
+            } else {
+                LogStreamPrefixType::PodAndContainer
+            };
+
+            let config = LogStreamConfig::new(item, namespaces.to_owned(), prefix_type);
+
+            tx.send(LogStreamMessage::Request(config).into())
+                .expect("Failed to send LogStreamMessage::Request");
+
+            EventResult::Ignore
+        };
+
+        InputFormBuilder::default()
+            .id(view_id::tab_pod_widget_query)
+            .widget_config(WidgetConfig::builder().title("Query").build())
+            .actions(UserEvent::from(KeyCode::Enter), execute)
+            .build()
     }
 
     fn pod(&self) -> Table<'static> {
@@ -94,26 +148,35 @@ impl<'a> PodTabBuilder<'a> {
                 *widget_config.append_title_mut() =
                     Some(format!(" [{}/{}]", index, table.items().len()).into());
 
-
                 widget_config
-
             })
             .on_select(move |w, v| {
                 w.widget_clear(view_id::tab_pod_widget_log);
 
-                let Some(ref metadata) = v.metadata else {return EventResult::Ignore};
-                let Some(ref namespace) = metadata.get("namespace") else {return EventResult::Ignore};
+                let Some(ref metadata) = v.metadata else {
+                    return EventResult::Ignore;
+                };
+                let Some(ref namespace) = metadata.get("namespace") else {
+                    return EventResult::Ignore;
+                };
 
-                let Some(ref name) = metadata.get("name") else {return EventResult::Ignore};
+                let Some(ref name) = metadata.get("name") else {
+                    return EventResult::Ignore;
+                };
 
-                *(w.find_widget_mut(view_id::tab_pod_widget_log).widget_config_mut().append_title_mut()) = Some((format!(" : {}", name)).into());
+                *(w.find_widget_mut(view_id::tab_pod_widget_log)
+                    .widget_config_mut()
+                    .append_title_mut()) = Some((format!(" : {}", name)).into());
 
-                tx.send(
-                    LogStreamMessage::Request {
-                        namespace: namespace.to_string(),
-                        name: name.to_string(),
-                    }
-                    .into(),)
+                let namespaces = Namespace(vec![namespace.to_string()]);
+
+                let config = LogStreamConfig::new(
+                    format!("regex:^{}$", name),
+                    namespaces.to_owned(),
+                    LogStreamPrefixType::OnlyContainer,
+                );
+
+                tx.send(LogStreamMessage::Request(config).into())
                     .expect("Failed to send LogStreamMessage::Request");
 
                 EventResult::Window(WindowEvent::Continue)

@@ -10,20 +10,31 @@ use crossbeam::channel::Sender;
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::core::v1::{ContainerStatus, Pod};
 use kube::{api::WatchParams, core::WatchEvent, Api, ResourceExt};
-use tokio::task::JoinHandle;
+use regex::Regex;
+use tokio::task::AbortHandle;
 
 use crate::{
     event::{
-        kubernetes::{client::KubeClient, worker::Worker},
+        kubernetes::{
+            client::KubeClient,
+            worker::{AbortWorker, Worker},
+        },
         Event,
     },
     logger, send_response,
 };
 
 use super::{
-    log_collector::LogBuffer,
-    log_stream::{ContainerLogStreamer, ContainerLogStreamerOptions, COLOR_LIST},
+    collector::LogBuffer,
+    log_stream::{ContainerLogStreamer, ContainerLogStreamerOptions, LogStreamPrefixType},
 };
+
+#[derive(Debug, Clone)]
+pub struct PodWatcherFilter {
+    pub pod_filter: Option<Regex>,
+    pub label_selector: Option<String>,
+    pub field_selector: Option<String>,
+}
 
 #[derive(Clone)]
 pub struct PodWatcher {
@@ -31,32 +42,50 @@ pub struct PodWatcher {
     client: KubeClient,
     log_buffer: LogBuffer,
     namespace: String,
-    pod_name: String,
+    filter: PodWatcherFilter,
+    prefix_type: LogStreamPrefixType,
 }
 
 impl PodWatcher {
     pub fn new(
         tx: Sender<Event>,
         client: KubeClient,
-        message_buffer: LogBuffer,
+        log_buffer: LogBuffer,
         namespace: String,
-        target: String,
+        filter: PodWatcherFilter,
+        prefix_type: LogStreamPrefixType,
     ) -> Self {
         Self {
             tx,
             client,
-            log_buffer: message_buffer,
+            log_buffer,
             namespace,
-            pod_name: target,
+            filter,
+            prefix_type,
         }
+    }
+
+    fn watch_params(&self) -> WatchParams {
+        let mut lp = WatchParams::default().timeout(180);
+
+        if let Some(label_selector) = &self.filter.label_selector {
+            lp = lp.labels(label_selector);
+        }
+
+        if let Some(field_selector) = &self.filter.field_selector {
+            lp = lp.fields(field_selector);
+        }
+
+        lp
     }
 }
 
 #[async_trait]
 impl Worker for PodWatcher {
     type Output = ();
+
     async fn run(&self) -> Self::Output {
-        let lp = WatchParams::default().timeout(180);
+        let lp = self.watch_params();
 
         let api: Api<Pod> = Api::namespaced(self.client.to_client(), &self.namespace);
 
@@ -64,7 +93,7 @@ impl Worker for PodWatcher {
             self.client.clone(),
             self.log_buffer.clone(),
             self.namespace.clone(),
-            self.pod_name.clone(),
+            self.prefix_type,
         );
 
         loop {
@@ -79,17 +108,48 @@ impl Worker for PodWatcher {
 
                 match status {
                     Added(pod) | Modified(pod) => {
+                        let Some(pod_uid) = pod.uid() else {
+                            logger!(error, "Not found pod UID {}", pod.name_any());
+                            continue;
+                        };
+
+                        let Some(pod_name) = &pod.metadata.name else {
+                            logger!(error, "Not found pod name {}", pod.name_any());
+                            continue;
+                        };
+
+                        logger!(
+                            info,
+                            "event=added/modified namespace={} pod_name={} pod_uid={}",
+                            self.namespace,
+                            pod_name,
+                            pod_uid
+                        );
+
+                        if self
+                            .filter
+                            .pod_filter
+                            .as_ref()
+                            .is_some_and(|re| !re.is_match(pod_name))
+                        {
+                            continue;
+                        }
+
+                        task_controller.spawn_tasks(&pod, pod_name.to_string(), pod_uid);
+                    }
+                    Deleted(pod) => {
                         let Some(name) = &pod.metadata.name else {
                             continue;
                         };
 
-                        if name != &self.pod_name {
-                            continue;
-                        }
+                        logger!(
+                            info,
+                            "event=deleted namespace={} pod_name={} pod_uid={:?}",
+                            self.namespace,
+                            name,
+                            pod.uid()
+                        );
 
-                        task_controller.spawn_tasks(&pod);
-                    }
-                    Deleted(pod) => {
                         task_controller.abort_tasks(&pod);
                     }
                     Bookmark(_) => {}
@@ -106,35 +166,38 @@ struct TaskController {
     client: KubeClient,
     log_buffer: LogBuffer,
     namespace: String,
-    pod_name: String,
     tasks: Tasks,
+    prefix_type: LogStreamPrefixType,
 }
 
 impl TaskController {
-    fn new(client: KubeClient, log_buffer: LogBuffer, namespace: String, pod_name: String) -> Self {
+    fn new(
+        client: KubeClient,
+        log_buffer: LogBuffer,
+        namespace: String,
+        prefix_type: LogStreamPrefixType,
+    ) -> Self {
         Self {
             client,
             log_buffer,
             namespace,
-            pod_name,
             tasks: Tasks::default(),
+            prefix_type,
         }
     }
 
-    fn spawn_tasks(&mut self, pod: &Pod) {
-        let Some(pod_uid) = pod.uid() else {
-            logger!(error, "Not found pod UID {}", pod.name_any());
-            return;
-        };
-
+    fn spawn_tasks(&mut self, pod: &Pod, pod_name: String, pod_uid: String) {
         // コンテナステータスを集約
         let container_statuses = Self::aggregate_container_statuses(pod);
 
         // コンテナごとにタスク生成
         for status in container_statuses {
+            let container_name = status.name.clone();
+
             let task_id = TaskId {
-                pod_name: self.pod_name.clone(),
-                container_name: status.name.clone(),
+                namespace: self.namespace.clone(),
+                pod_name: pod_name.clone(),
+                container_name: container_name.clone(),
             };
 
             let Some(container_id) = Self::is_container_log_available(&status) else {
@@ -164,13 +227,13 @@ impl TaskController {
             }
 
             let options = ContainerLogStreamerOptions {
-                color: COLOR_LIST[self.tasks.len() % COLOR_LIST.len()],
+                prefix_type: self.prefix_type,
             };
 
             let task = ContainerLogStreamer::new(
                 self.client.clone(),
                 self.namespace.clone(),
-                self.pod_name.clone(),
+                pod_name.clone(),
                 status.name.clone(),
                 self.log_buffer.clone(),
                 options,
@@ -179,7 +242,7 @@ impl TaskController {
 
             let task_state = TaskState {
                 handler: task,
-                pod_name: self.pod_name.clone(),
+                pod_name: pod_name.clone(),
                 pod_uid: pod_uid.to_string(),
                 container_name: status.name.clone(),
                 container_id: container_id.clone(),
@@ -201,8 +264,8 @@ impl TaskController {
     fn abort_tasks(&mut self, pod: &Pod) {
         if let Some(pod_uid) = pod.uid() {
             self.tasks.abort_with_pod_uid(&pod_uid);
-        } else {
-            self.tasks.abort_with_pod_name(&self.pod_name);
+        } else if let Some(pod_name) = &pod.metadata.name {
+            self.tasks.abort_with_pod_name(pod_name);
 
             logger!(error, "Not found pod UID {}", pod.name_any());
         }
@@ -262,16 +325,20 @@ impl TaskController {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct Tasks(HashMap<TaskId, TaskState>);
 
 impl Tasks {
     fn abort_with_pod_uid(&mut self, pod_uid: &str) {
-        self.0.retain(|_, v| v.pod_uid == pod_uid)
+        logger!(info, "abort before. {:?}", self);
+
+        self.0.retain(|_, v| v.pod_uid != pod_uid);
+
+        logger!(info, "abort after. {:?}", self);
     }
 
     fn abort_with_pod_name(&mut self, pod_name: &str) {
-        self.0.retain(|k, _| k.pod_name == pod_name)
+        self.0.retain(|k, _| k.pod_name != pod_name)
     }
 }
 
@@ -289,20 +356,26 @@ impl DerefMut for Tasks {
     }
 }
 
-#[derive(Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 struct TaskId {
+    namespace: String,
     pod_name: String,
     container_name: String,
 }
 
 impl Display for TaskId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}/{}", self.pod_name, self.container_name)
+        write!(
+            f,
+            "{}/{}/{}",
+            self.namespace, self.pod_name, self.container_name
+        )
     }
 }
 
+#[derive(Debug)]
 struct TaskState {
-    handler: JoinHandle<()>,
+    handler: AbortHandle,
     pod_name: String,
     pod_uid: String,
     container_name: String,
@@ -315,7 +388,8 @@ impl Drop for TaskState {
 
         logger!(
             info,
-            "task abort: pod_name={} pod_uid={} container_name={} container_id={}",
+            "task abort: job={:?} pod_name={} pod_uid={} container_name={} container_id={}",
+            self.handler,
             self.pod_name,
             self.pod_uid,
             self.container_name,

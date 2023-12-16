@@ -36,6 +36,7 @@ pub mod view_id {
     }
 
     generate_id!(tab_pod);
+    generate_id!(tab_pod_widget_query);
     generate_id!(tab_pod_widget_pod);
     generate_id!(tab_pod_widget_log);
     generate_id!(tab_config);
@@ -302,7 +303,9 @@ pub fn update_contents(
                 .as_mut_multiple_select();
 
             for key in list {
-                let Ok(json) = serde_json::to_string(&key) else { unreachable!() };
+                let Ok(json) = serde_json::to_string(&key) else {
+                    unreachable!()
+                };
 
                 let metadata = BTreeMap::from([("key".into(), json)]);
 
@@ -328,7 +331,9 @@ pub fn update_contents(
                             let items = i
                                 .into_iter()
                                 .map(|key| {
-                                    let Ok(json) = serde_json::to_string(&key) else { unreachable!() };
+                                    let Ok(json) = serde_json::to_string(&key) else {
+                                        unreachable!()
+                                    };
                                     let metadata = BTreeMap::from([("key".into(), json)]);
 
                                     let item = if key.is_api() || key.is_preferred_version() {
@@ -336,7 +341,6 @@ pub fn update_contents(
                                     } else {
                                         format!("\x1b[90m{}\x1b[39m", key)
                                     };
-
 
                                     LiteralItem::new(item, Some(metadata))
                                 })
@@ -365,8 +369,10 @@ pub fn update_contents(
                         Ok(vec) => {
                             let items = vec
                                 .into_iter()
-                                .map(|key | {
-                                    let Ok(json) = serde_json::to_string(&key) else { unreachable!() };
+                                .map(|key| {
+                                    let Ok(json) = serde_json::to_string(&key) else {
+                                        unreachable!()
+                                    };
 
                                     let metadata = BTreeMap::from([("key".into(), json)]);
 
@@ -392,36 +398,38 @@ pub fn update_contents(
                     Ok(list) => {
                         if list.items.is_empty() {
                             window.open_popup(view_id::popup_yaml_return);
-
                         } else {
                             window.open_popup(view_id::popup_yaml_name);
 
                             let widget = window.find_widget_mut(view_id::popup_yaml_name);
 
-                            let items = list.items
-                                    .into_iter()
-                                    .map(
-                                        |YamlResourceListItem {
-                                             namespace,
-                                             name,
-                                             kind,
-                                             value,
-                                         }| {
-                                            let Ok(json) = serde_json::to_string(&kind) else { unreachable!() };
+                            let items = list
+                                .items
+                                .into_iter()
+                                .map(
+                                    |YamlResourceListItem {
+                                         namespace,
+                                         name,
+                                         kind,
+                                         value,
+                                     }| {
+                                        let Ok(json) = serde_json::to_string(&kind) else {
+                                            unreachable!()
+                                        };
 
-                                            let metadata = BTreeMap::from([
-                                                ("namespace".to_string(), namespace),
-                                                ("name".to_string(), name),
-                                                ("key".into(), json),
-                                            ]);
+                                        let metadata = BTreeMap::from([
+                                            ("namespace".to_string(), namespace),
+                                            ("name".to_string(), name),
+                                            ("key".into(), json),
+                                        ]);
 
-                                            LiteralItem {
-                                                metadata: Some(metadata),
-                                                item: value,
-                                            }
-                                        },
-                                    )
-                                    .collect();
+                                        LiteralItem {
+                                            metadata: Some(metadata),
+                                            item: value,
+                                        }
+                                    },
+                                )
+                                .collect();
 
                             widget.update_widget_item(Item::Array(items));
                         }

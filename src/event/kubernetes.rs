@@ -39,7 +39,7 @@ use self::{
     config::{ConfigMessage, ConfigsDataWorker},
     context_message::{ContextMessage, ContextRequest, ContextResponse},
     inner::Inner,
-    log::{LogHandlers, LogStreamMessage, LogWorker},
+    log::{LogStreamMessage, LogStreamWorker},
     namespace_message::{NamespaceMessage, NamespaceRequest, NamespaceResponse},
     network::{NetworkDescriptionWorker, NetworkMessage},
     worker::{AbortWorker, PollWorker, Worker},
@@ -321,7 +321,7 @@ impl Worker for MainWorker {
     type Output = WorkerResult;
 
     async fn run(&self) -> Self::Output {
-        let mut log_stream_handler: Option<LogHandlers> = None;
+        let mut log_stream_handler: Option<AbortHandle> = None;
         let mut config_handler: Option<AbortHandle> = None;
         let mut network_handler: Option<AbortHandle> = None;
         let mut yaml_handler: Option<AbortHandle> = None;
@@ -388,13 +388,13 @@ impl Worker for MainWorker {
                         }
                     },
 
-                    Kube::LogStream(LogStreamMessage::Request { namespace, name }) => {
+                    Kube::LogStream(LogStreamMessage::Request(req)) => {
                         if let Some(handler) = log_stream_handler {
                             handler.abort();
                         }
 
                         log_stream_handler =
-                            Some(LogWorker::new(tx, kube_client.clone(), namespace, name).spawn());
+                            Some(LogStreamWorker::new(tx, kube_client.clone(), req).spawn());
 
                         task::yield_now().await;
                     }

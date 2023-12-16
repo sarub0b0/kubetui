@@ -128,8 +128,14 @@ impl WindowInit {
     fn tabs_popups(&self) -> (Vec<Tab<'static>>, Vec<Popup<'static>>) {
         let clipboard = Some(Rc::new(RefCell::new(Clipboard::new())));
 
-        let PodsTab { tab: tab_pods } =
-            PodTabBuilder::new("Pod", &self.tx, &clipboard, self.split_mode).build();
+        let PodsTab { tab: tab_pods } = PodTabBuilder::new(
+            "Pod",
+            &self.tx,
+            &clipboard,
+            self.split_mode,
+            self.namespaces.clone(),
+        )
+        .build();
 
         let ConfigTab { tab: tab_configs } =
             ConfigTabBuilder::new("Config", &self.tx, &clipboard, self.split_mode).build();
