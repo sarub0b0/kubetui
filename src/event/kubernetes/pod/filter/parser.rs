@@ -1,7 +1,7 @@
 use nom::{
     branch::alt,
     bytes::complete::{escaped, is_not, tag},
-    character::complete::{alphanumeric1, char, multispace0, one_of, space1},
+    character::complete::{alphanumeric1, anychar, char, multispace0, space1},
     combinator::{all_consuming, recognize},
     error::{ContextError, ParseError},
     multi::{many1_count, separated_list0},
@@ -11,42 +11,49 @@ use nom::{
 
 use super::{FilterAttribute, SpecifiedResource};
 
-fn quoted_literal<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+/// 空白文字を含まない文字列をパースする
+fn non_space_literal<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&str, &str, E> {
+    is_not(" \t\r\n")(s)
+}
+
+fn quoted_regex_literal<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, &str, E> {
     let (remaining, value) = alt((
         delimited(
             tag("\""),
-            escaped(is_not("\\\""), '\\', one_of(r#""\"#)),
+            escaped(is_not(r#"\""#), '\\', anychar),
             tag("\""),
         ),
-        delimited(
-            tag("'"),
-            escaped(is_not("\\'"), '\\', one_of(r"'\")),
-            tag("'"),
-        ),
+        delimited(tag("'"), escaped(is_not(r"\'"), '\\', anychar), tag("'")),
     ))(s)?;
 
     Ok((remaining, value))
 }
 
-fn unquoted_literal<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+fn unquoted_regex_literal<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, &str, E> {
-    let (remaining, value) = is_not(" ")(s)?;
+    non_space_literal(s)
+}
+
+fn regex_literal<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&'a str, &str, E> {
+    let (remaining, value) = alt((quoted_regex_literal, unquoted_regex_literal))(s)?;
 
     Ok((remaining, value))
 }
 
-fn regex<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+fn selector_literal<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, &str, E> {
-    let (remaining, value) = alt((quoted_literal, unquoted_literal))(s)?;
-
-    Ok((remaining, value))
+    non_space_literal(s)
 }
 
-fn resource_name<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+fn resource_name_literal<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&str, &str, E> {
     recognize(many1_count(alt((alphanumeric1, tag("-"), tag(".")))))(s)
@@ -55,16 +62,22 @@ fn resource_name<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 fn pod<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
-    let (remaining, (_, value)) =
-        separated_pair(alt((tag("pod"), tag("po"), tag("p"))), char(':'), regex)(s)?;
+    let (remaining, (_, value)) = separated_pair(
+        alt((tag("pod"), tag("po"), tag("p"))),
+        char(':'),
+        regex_literal,
+    )(s)?;
     Ok((remaining, FilterAttribute::Pod(value)))
 }
 
 fn exclude_pod<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
-    let (remaining, (_, value)) =
-        separated_pair(alt((tag("!pod"), tag("!po"), tag("!p"))), char(':'), regex)(s)?;
+    let (remaining, (_, value)) = separated_pair(
+        alt((tag("!pod"), tag("!po"), tag("!p"))),
+        char(':'),
+        regex_literal,
+    )(s)?;
     Ok((remaining, FilterAttribute::ExcludePod(value)))
 }
 
@@ -74,7 +87,7 @@ fn container<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     let (remaining, (_, value)) = separated_pair(
         alt((tag("container"), tag("co"), tag("c"))),
         char(':'),
-        regex,
+        regex_literal,
     )(s)?;
     Ok((remaining, FilterAttribute::Container(value)))
 }
@@ -85,7 +98,7 @@ fn exclude_container<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     let (remaining, (_, value)) = separated_pair(
         alt((tag("!container"), tag("!co"), tag("!c"))),
         char(':'),
-        regex,
+        regex_literal,
     )(s)?;
     Ok((remaining, FilterAttribute::ExcludeContainer(value)))
 }
@@ -94,7 +107,7 @@ fn include_log<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
     let (remaining, (_, value)) =
-        separated_pair(alt((tag("log"), tag("lo"))), char(':'), regex)(s)?;
+        separated_pair(alt((tag("log"), tag("lo"))), char(':'), regex_literal)(s)?;
     Ok((remaining, FilterAttribute::IncludeLog(value)))
 }
 
@@ -102,7 +115,7 @@ fn exclude_log<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
     let (remaining, (_, value)) =
-        separated_pair(alt((tag("!log"), tag("!lo"))), char(':'), regex)(s)?;
+        separated_pair(alt((tag("!log"), tag("!lo"))), char(':'), regex_literal)(s)?;
     Ok((remaining, FilterAttribute::ExcludeLog(value)))
 }
 
@@ -112,7 +125,7 @@ fn label_selector<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     let (remaining, (_, value)) = separated_pair(
         alt((tag("labels"), tag("label"), tag("l"))),
         char(':'),
-        unquoted_literal,
+        selector_literal,
     )(s)?;
     Ok((remaining, FilterAttribute::LabelSelector(value)))
 }
@@ -123,7 +136,7 @@ fn field_selector<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     let (remaining, (_, value)) = separated_pair(
         alt((tag("fields"), tag("field"), tag("f"))),
         char(':'),
-        unquoted_literal,
+        selector_literal,
     )(s)?;
     Ok((remaining, FilterAttribute::FieldSelector(value)))
 }
@@ -131,8 +144,11 @@ fn field_selector<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 fn specified_daemonset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
-    let (remaining, (_, value)) =
-        separated_pair(alt((tag("daemonset"), tag("ds"))), char('/'), resource_name)(s)?;
+    let (remaining, (_, value)) = separated_pair(
+        alt((tag("daemonset"), tag("ds"))),
+        char('/'),
+        resource_name_literal,
+    )(s)?;
     Ok((
         remaining,
         FilterAttribute::from(SpecifiedResource::DaemonSet(value)),
@@ -145,7 +161,7 @@ fn specified_deployment<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     let (remaining, (_, value)) = separated_pair(
         alt((tag("deployment"), tag("deploy"))),
         char('/'),
-        resource_name,
+        resource_name_literal,
     )(s)?;
     Ok((
         remaining,
@@ -156,7 +172,7 @@ fn specified_deployment<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 fn specified_job<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
-    let (remaining, (_, value)) = separated_pair(tag("job"), char('/'), resource_name)(s)?;
+    let (remaining, (_, value)) = separated_pair(tag("job"), char('/'), resource_name_literal)(s)?;
     Ok((
         remaining,
         FilterAttribute::from(SpecifiedResource::Job(value)),
@@ -166,8 +182,11 @@ fn specified_job<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 fn specified_pod<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
-    let (remaining, (_, value)) =
-        separated_pair(alt((tag("pod"), tag("po"))), char('/'), resource_name)(s)?;
+    let (remaining, (_, value)) = separated_pair(
+        alt((tag("pod"), tag("po"))),
+        char('/'),
+        resource_name_literal,
+    )(s)?;
     Ok((
         remaining,
         FilterAttribute::from(SpecifiedResource::Pod(value)),
@@ -180,7 +199,7 @@ fn specified_replicaset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     let (remaining, (_, value)) = separated_pair(
         alt((tag("replicaset"), tag("rs"))),
         char('/'),
-        resource_name,
+        resource_name_literal,
     )(s)?;
     Ok((
         remaining,
@@ -191,8 +210,11 @@ fn specified_replicaset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 fn specified_service<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute, E> {
-    let (remaining, (_, value)) =
-        separated_pair(alt((tag("service"), tag("svc"))), char('/'), resource_name)(s)?;
+    let (remaining, (_, value)) = separated_pair(
+        alt((tag("service"), tag("svc"))),
+        char('/'),
+        resource_name_literal,
+    )(s)?;
     Ok((
         remaining,
         FilterAttribute::from(SpecifiedResource::Service(value)),
@@ -205,7 +227,7 @@ fn specified_statefulset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     let (remaining, (_, value)) = separated_pair(
         alt((tag("statefulset"), tag("sts"))),
         char('/'),
-        resource_name,
+        resource_name_literal,
     )(s)?;
     Ok((
         remaining,
@@ -453,43 +475,83 @@ mod tests {
 
     #[rstest]
     #[case(r#""foo bar""#, "foo bar")]
-    #[case(r#""\"foo\" bar""#, r#"\"foo\" bar"#)]
-    #[case(r#""\\foo\\ bar""#, r"\\foo\\ bar")]
+    #[case(
+        r#""\" \' \\ \. \+ \* \? \( \) \| \[ \] \{ \} \^ \$ \# \& \- \~""#,
+        r#"\" \' \\ \. \+ \* \? \( \) \| \[ \] \{ \} \^ \$ \# \& \- \~"#
+    )]
+    #[case(
+        r#""\a \f \t \n \r \v \A \z \b \B \< \> \123 \x7F \x{10FFFF} \u007F \u{7F} \U0000007F \U{7F} \p{Letter} \P{Letter} \d \s \w \D \S \W""#,
+        r"\a \f \t \n \r \v \A \z \b \B \< \> \123 \x7F \x{10FFFF} \u007F \u{7F} \U0000007F \U{7F} \p{Letter} \P{Letter} \d \s \w \D \S \W"
+    )]
     #[case("'foo bar'", "foo bar")]
-    #[case(r"'\'foo\' bar'", r"\'foo\' bar")]
-    #[case(r"'\\foo\\ bar'", r"\\foo\\ bar")]
-    fn quoted_literal(#[case] query: &str, #[case] expected: &str) {
-        let (remaining, actual) = super::quoted_literal::<Error<_>>(query).unwrap();
+    #[case(
+        r#"'\" \' \\ \. \+ \* \? \( \) \| \[ \] \{ \} \^ \$ \# \& \- \~'"#,
+        r#"\" \' \\ \. \+ \* \? \( \) \| \[ \] \{ \} \^ \$ \# \& \- \~"#
+    )]
+    #[case(
+        r"'\a \f \t \n \r \v \A \z \b \B \< \> \123 \x7F \x{10FFFF} \u007F \u{7F} \U0000007F \U{7F} \p{Letter} \P{Letter} \d \s \w \D \S \W'",
+        r"\a \f \t \n \r \v \A \z \b \B \< \> \123 \x7F \x{10FFFF} \u007F \u{7F} \U0000007F \U{7F} \p{Letter} \P{Letter} \d \s \w \D \S \W"
+    )]
+    fn quoted_regex_literal(#[case] query: &str, #[case] expected: &str) {
+        let (remaining, actual) = super::quoted_regex_literal::<Error<_>>(query).unwrap();
 
         assert_eq!(actual, expected);
         assert_eq!(remaining, "");
     }
 
     #[rstest]
-    #[case("foo")]
-    #[case("foo\"bar")]
-    #[case("foo'bar")]
-    #[case(r"\\foo\\bar")]
-    fn unquoted_literal(#[case] query: &str) {
-        let (remaining, actual) = super::unquoted_literal::<Error<_>>(query).unwrap();
+    #[case("foo", "foo")]
+    #[case("foo\"bar", "foo\"bar")]
+    #[case("foo'bar", "foo'bar")]
+    #[case(
+        r#"\"\'\\\.\+\*\?\(\)\|\[\]\{\}\^\$\#\&\-\~"#,
+        r#"\"\'\\\.\+\*\?\(\)\|\[\]\{\}\^\$\#\&\-\~"#
+    )]
+    #[case(
+        r"\a\f\t\n\r\v\A\z\b\B\<\>\123\x7F\x{10FFFF}\u007F\u{7F}\U0000007F\U{7F}\p{Letter}\P{Letter}\d\s\w\D\S\W",
+        r"\a\f\t\n\r\v\A\z\b\B\<\>\123\x7F\x{10FFFF}\u007F\u{7F}\U0000007F\U{7F}\p{Letter}\P{Letter}\d\s\w\D\S\W"
+    )]
+    fn unquoted_regex_literal(#[case] query: &str, #[case] expected: &str) {
+        let (remaining, actual) = super::unquoted_regex_literal::<Error<_>>(query).unwrap();
 
-        assert_eq!(actual, query);
+        assert_eq!(actual, expected);
         assert_eq!(remaining, "");
     }
 
     #[rstest]
-    #[case(r#""foo bar""#, "foo bar")]
-    #[case(r#""\"foo\" bar""#, r#"\"foo\" bar"#)]
-    #[case(r#""\\foo\\ bar""#, r"\\foo\\ bar")]
-    #[case("'foo bar'", "foo bar")]
-    #[case(r"'\'foo\' bar'", r"\'foo\' bar")]
-    #[case(r"'\\foo\\ bar'", r"\\foo\\ bar")]
     #[case("foo", "foo")]
     #[case("foo\"bar", "foo\"bar")]
     #[case("foo'bar", "foo'bar")]
-    #[case(r"\\foo\\bar", r"\\foo\\bar")]
-    fn regex(#[case] query: &str, #[case] expected: &str) {
-        let (remaining, actual) = super::regex::<Error<_>>(query).unwrap();
+    #[case(
+        r#"\"\'\\\.\+\*\?\(\)\|\[\]\{\}\^\$\#\&\-\~"#,
+        r#"\"\'\\\.\+\*\?\(\)\|\[\]\{\}\^\$\#\&\-\~"#
+    )]
+    #[case(
+        r"\a\f\t\n\r\v\A\z\b\B\<\>\123\x7F\x{10FFFF}\u007F\u{7F}\U0000007F\U{7F}\p{Letter}\P{Letter}\d\s\w\D\S\W",
+        r"\a\f\t\n\r\v\A\z\b\B\<\>\123\x7F\x{10FFFF}\u007F\u{7F}\U0000007F\U{7F}\p{Letter}\P{Letter}\d\s\w\D\S\W"
+    )]
+    #[case(r#""foo bar""#, "foo bar")]
+    #[case(r#""\" \' \\ \( \) \[ \]""#, r#"\" \' \\ \( \) \[ \]"#)]
+    #[case(
+        r#""\" \' \\ \. \+ \* \? \( \) \| \[ \] \{ \} \^ \$ \# \& \- \~""#,
+        r#"\" \' \\ \. \+ \* \? \( \) \| \[ \] \{ \} \^ \$ \# \& \- \~"#
+    )]
+    #[case(
+        r#""\a \f \t \n \r \v \A \z \b \B \< \> \123 \x7F \x{10FFFF} \u007F \u{7F} \U0000007F \U{7F} \p{Letter} \P{Letter} \d \s \w \D \S \W""#,
+        r"\a \f \t \n \r \v \A \z \b \B \< \> \123 \x7F \x{10FFFF} \u007F \u{7F} \U0000007F \U{7F} \p{Letter} \P{Letter} \d \s \w \D \S \W"
+    )]
+    #[case("'foo bar'", "foo bar")]
+    #[case(r#"'\" \' \\ \( \) \[ \]'"#, r#"\" \' \\ \( \) \[ \]"#)]
+    #[case(
+        r#"'\" \' \\ \. \+ \* \? \( \) \| \[ \] \{ \} \^ \$ \# \& \- \~'"#,
+        r#"\" \' \\ \. \+ \* \? \( \) \| \[ \] \{ \} \^ \$ \# \& \- \~"#
+    )]
+    #[case(
+        r"'\a \f \t \n \r \v \A \z \b \B \< \> \123 \x7F \x{10FFFF} \u007F \u{7F} \U0000007F \U{7F} \p{Letter} \P{Letter} \d \s \w \D \S \W'",
+        r"\a \f \t \n \r \v \A \z \b \B \< \> \123 \x7F \x{10FFFF} \u007F \u{7F} \U0000007F \U{7F} \p{Letter} \P{Letter} \d \s \w \D \S \W"
+    )]
+    fn regex_literal(#[case] query: &str, #[case] expected: &str) {
+        let (remaining, actual) = super::regex_literal::<Error<_>>(query).unwrap();
 
         assert_eq!(actual, expected);
         assert_eq!(remaining, "");
@@ -524,20 +586,11 @@ mod tests {
         let query = [
             "     ",
             "pod:hoge",
-            "pod:\"hoge fuga\"",
-            "pod:\"hoge\\\" fuga\"",
-            "pod:'a b'",
-            "pod:'a\\' b'",
             "!pod:hoge",
-            "!pod:\"hoge fuga\"",
             "container:hoge",
-            "container:\"hoge fuga\"",
             "!container:hoge",
-            "!container:\"hoge fuga\"",
             "log:hoge",
-            "log:\"hoge fuga\"",
             "!log:hoge",
-            "!log:\"hoge fuga\"",
             "labels:foo=bar",
             "fields:foo=bar",
             "daemonset/app",
@@ -555,20 +608,11 @@ mod tests {
 
         let expected = vec![
             FilterAttribute::Pod("hoge"),
-            FilterAttribute::Pod("hoge fuga"),
-            FilterAttribute::Pod("hoge\\\" fuga"),
-            FilterAttribute::Pod("a b"),
-            FilterAttribute::Pod("a\\' b"),
             FilterAttribute::ExcludePod("hoge"),
-            FilterAttribute::ExcludePod("hoge fuga"),
             FilterAttribute::Container("hoge"),
-            FilterAttribute::Container("hoge fuga"),
             FilterAttribute::ExcludeContainer("hoge"),
-            FilterAttribute::ExcludeContainer("hoge fuga"),
             FilterAttribute::IncludeLog("hoge"),
-            FilterAttribute::IncludeLog("hoge fuga"),
             FilterAttribute::ExcludeLog("hoge"),
-            FilterAttribute::ExcludeLog("hoge fuga"),
             FilterAttribute::LabelSelector("foo=bar"),
             FilterAttribute::FieldSelector("foo=bar"),
             FilterAttribute::Resource(SpecifiedResource::DaemonSet("app")),
@@ -578,6 +622,29 @@ mod tests {
             FilterAttribute::Resource(SpecifiedResource::ReplicaSet("app")),
             FilterAttribute::Resource(SpecifiedResource::Service("app")),
             FilterAttribute::Resource(SpecifiedResource::StatefulSet("app")),
+        ];
+
+        assert_eq!(actual, expected);
+        assert_eq!(remaining, "");
+    }
+
+    #[test]
+    fn parse_attributes_with_quote() {
+        let query = [
+            "     ",
+            "pod:hoge",
+            r"log:'\'foo\' bar'",
+            r#"log:"\"foo\" bar""#,
+            "     ",
+        ]
+        .join("  ");
+
+        let (remaining, actual) = super::parse_attributes::<Error<_>>(&query).unwrap();
+
+        let expected = vec![
+            FilterAttribute::Pod("hoge"),
+            FilterAttribute::IncludeLog(r"\'foo\' bar"),
+            FilterAttribute::IncludeLog(r#"\"foo\" bar"#),
         ];
 
         assert_eq!(actual, expected);
