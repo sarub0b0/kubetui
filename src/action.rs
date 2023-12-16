@@ -38,6 +38,7 @@ pub mod view_id {
     generate_id!(tab_pod);
     generate_id!(tab_pod_widget_pod);
     generate_id!(tab_pod_widget_log_query);
+    generate_id!(tab_pod_widget_log_query_help);
     generate_id!(tab_pod_widget_log);
     generate_id!(tab_config);
     generate_id!(tab_config_widget_config);

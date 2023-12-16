@@ -164,7 +164,16 @@ impl AbortWorker for LogWorker {
             }
             Err(err) => {
                 logger!(error, "{}", err);
-                send_response!(self.tx, Err(anyhow!(err)));
+
+                let msg = indoc::formatdoc! {r#"
+                       {err}
+                       Invalid query.
+                       You can display the help popup by entering "?" or "help" in the log query form.
+                   "#,
+                   err = err
+                };
+
+                send_response!(self.tx, Err(anyhow!(msg)));
             }
         }
     }

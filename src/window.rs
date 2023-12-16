@@ -128,7 +128,10 @@ impl WindowInit {
     fn tabs_popups(&self) -> (Vec<Tab<'static>>, Vec<Popup<'static>>) {
         let clipboard = Some(Rc::new(RefCell::new(Clipboard::new())));
 
-        let PodsTab { tab: tab_pods } = PodTabBuilder::new(
+        let PodsTab {
+            tab: tab_pods,
+            popup_log_query_help,
+        } = PodTabBuilder::new(
             "Pod",
             &self.tx,
             &clipboard,
@@ -186,6 +189,7 @@ impl WindowInit {
             Popup::new(popup_yaml_name),
             Popup::new(popup_yaml_return),
             Popup::new(popup_help),
+            Popup::new(popup_log_query_help),
         ];
 
         (tabs, popups)

@@ -1,7 +1,9 @@
+use std::{cell::RefCell, rc::Rc};
+
 use crossbeam::channel::Sender;
 use crossterm::event::KeyCode;
+use indoc::indoc;
 use ratatui::layout::{Constraint, Direction};
-use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     action::view_id,
@@ -17,7 +19,7 @@ use crate::{
         widget::{
             config::WidgetConfig,
             input::{InputForm, InputFormBuilder},
-            Item, SelectedItem, Table, Text, WidgetTrait,
+            Item, SelectedItem, Table, Text, Widget, WidgetTrait,
         },
         Tab, Window, WindowEvent,
     },
@@ -33,6 +35,7 @@ pub struct PodTabBuilder<'a> {
 
 pub struct PodsTab {
     pub tab: Tab<'static>,
+    pub popup_log_query_help: Widget<'static>,
 }
 
 impl<'a> PodTabBuilder<'a> {
@@ -56,6 +59,7 @@ impl<'a> PodTabBuilder<'a> {
         let pod = self.pod();
         let log_query = self.log_query();
         let log = self.log();
+        let log_query_help = self.log_query_help().into();
 
         let pod_layout = {
             let constraint = match self.split_mode {
@@ -91,7 +95,10 @@ impl<'a> PodTabBuilder<'a> {
 
         tab.activate_widget_by_id(view_id::tab_pod_widget_pod);
 
-        PodsTab { tab }
+        PodsTab {
+            tab,
+            popup_log_query_help: log_query_help,
+        }
     }
 
     fn pod(&self) -> Table<'static> {
@@ -162,6 +169,12 @@ impl<'a> PodTabBuilder<'a> {
                 return EventResult::Ignore;
             };
 
+            if item == "?" || item == "help" {
+                widget.clear();
+                w.open_popup(view_id::tab_pod_widget_log_query_help);
+                return EventResult::Nop;
+            }
+
             w.widget_clear(view_id::tab_pod_widget_log);
 
             let namespaces = namespaces.borrow();
@@ -219,5 +232,44 @@ impl<'a> PodTabBuilder<'a> {
             builder
         }
         .build()
+    }
+
+    fn log_query_help(&self) -> Text {
+        let content: Vec<String> = indoc! {r#"
+            Usage: QUERY [ QUERY ]...
+
+            Queries:
+               pod:<regex>           (alias: pods, po, p)
+               !pod:<regex>          (alias: !pods, !po, p)
+               container:<regex>     (alias: containers, co, c)
+               !container:<regex>    (alias: !containers, !co, !c)
+               log:<regex>           (alias: logs, lo, l)
+               !log:<regex>          (alias: !logs, !lo, !l)
+               label:<selector>      (alias: labels)
+               field:<selector>      (alias: fields)
+               <resource>/<name>
+
+            Resources:
+               pod            (alias: pods, po)
+               replicaset     (alias: replicasets, rs)
+               deployment     (alias: deployments, deploy)
+               statefulset    (alias: statefulsets, sts)
+               daemonset      (alias: daemonsets, ds)
+               service        (alias: services, svc)
+               job            (alias: jobs)
+        "# }
+        .lines()
+        .map(ToString::to_string)
+        .collect();
+
+        Text::builder()
+            .id(view_id::tab_pod_widget_log_query_help)
+            .widget_config(&WidgetConfig::builder().title("Log Query Help").build())
+            .items(content)
+            .action(UserEvent::from(KeyCode::Enter), |w: &mut Window| {
+                w.close_popup();
+                EventResult::Nop
+            })
+            .build()
     }
 }
