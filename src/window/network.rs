@@ -10,13 +10,13 @@ use crate::{
     },
     ui::{
         event::EventResult,
-        tab::WidgetChunk,
+        tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout},
         widget::{config::WidgetConfig, Table, Text, WidgetTrait},
         Tab, WindowEvent,
     },
 };
 
-use ratatui::layout::{Constraint, Direction, Layout};
+use ratatui::layout::{Constraint, Direction};
 
 pub struct NetworkTab {
     pub tab: Tab<'static>,
@@ -45,19 +45,19 @@ impl<'a> NetworkTabBuilder<'a> {
     }
 
     pub fn build(self) -> NetworkTab {
+        let layout = NestedWidgetLayout::default()
+            .direction(self.split_mode)
+            .nested_widget_layout([
+                NestedLayoutElement(Constraint::Percentage(50), LayoutElement::WidgetIndex(0)),
+                NestedLayoutElement(Constraint::Percentage(50), LayoutElement::WidgetIndex(1)),
+            ]);
+
         NetworkTab {
             tab: Tab::new(
                 view_id::tab_network,
                 self.title,
-                [
-                    WidgetChunk::new(self.network()).chunk_index(0),
-                    WidgetChunk::new(self.description()).chunk_index(1),
-                ],
-            )
-            .layout(
-                Layout::default()
-                    .direction(self.split_mode)
-                    .constraints([Constraint::Percentage(50), Constraint::Percentage(50)]),
+                [self.network().into(), self.description().into()],
+                layout,
             ),
         }
     }
@@ -85,13 +85,21 @@ impl<'a> NetworkTabBuilder<'a> {
             .on_select(move |w, v| {
                 w.widget_clear(view_id::tab_network_widget_description);
 
-                let Some(metadata) = v.metadata.as_ref() else { return EventResult::Ignore };
+                let Some(metadata) = v.metadata.as_ref() else {
+                    return EventResult::Ignore;
+                };
 
-                let Some(namespace) = metadata.get("namespace") else { return EventResult::Ignore };
+                let Some(namespace) = metadata.get("namespace") else {
+                    return EventResult::Ignore;
+                };
 
-                let Some(name) = metadata.get("name") else { return EventResult::Ignore };
+                let Some(name) = metadata.get("name") else {
+                    return EventResult::Ignore;
+                };
 
-                let Some(kind) = metadata.get("kind") else { return EventResult::Ignore };
+                let Some(kind) = metadata.get("kind") else {
+                    return EventResult::Ignore;
+                };
 
                 *(w.find_widget_mut(view_id::tab_network_widget_description)
                     .widget_config_mut()

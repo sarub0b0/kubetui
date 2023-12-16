@@ -1073,6 +1073,8 @@ dependencies = [
  "pretty_assertions",
  "ratatui",
  "rayon",
+ "regex",
+ "regex-syntax",
  "rstest",
  "serde",
  "serde_json",

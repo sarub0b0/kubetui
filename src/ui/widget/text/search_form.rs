@@ -7,7 +7,7 @@ use ratatui::{
 
 use crate::ui::{
     event::EventResult,
-    widget::{config::WidgetConfig, InputForm},
+    widget::{config::WidgetConfig, InputForm, RenderTrait},
 };
 
 const PREFIX: &str = "Search: ";
@@ -23,7 +23,9 @@ pub struct SearchForm {
 impl Default for SearchForm {
     fn default() -> Self {
         Self {
-            input_widget: InputForm::new(WidgetConfig::builder().block(Block::default()).build()),
+            input_widget: InputForm::builder()
+                .widget_config(WidgetConfig::builder().block(Block::default()).build())
+                .build(),
             header_chunk: Default::default(),
             remaining_chunk: Default::default(),
         }
@@ -68,7 +70,7 @@ impl SearchForm {
 
         self.input_widget.update_chunk(chunks[0]);
 
-        self.input_widget.render(f, is_active);
+        self.input_widget.render(f, is_active, false);
 
         f.render_widget(Paragraph::new(status), chunks[1]);
     }

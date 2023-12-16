@@ -9,7 +9,7 @@ mod related_resources;
 use std::sync::{atomic::AtomicBool, Arc};
 
 use crate::event::{
-    kubernetes::{client::KubeClientRequest, worker::Worker},
+    kubernetes::{client::KubeClientRequest, worker::AbortWorker},
     Event,
 };
 
@@ -66,13 +66,11 @@ where
 }
 
 #[async_trait]
-impl<C> Worker for NetworkDescriptionWorker<C>
+impl<C> AbortWorker for NetworkDescriptionWorker<C>
 where
     C: KubeClientRequest,
 {
-    type Output = ();
-
-    async fn run(&self) -> Self::Output {
+    async fn run(&self) {
         let ret = match &self.req {
             NetworkRequest::Pod(_) => self.fetch_description::<PodDescriptionWorker<C>>().await,
             NetworkRequest::Service(_) => {

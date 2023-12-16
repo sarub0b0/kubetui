@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, ops::Deref};
 
 #[derive(Debug, Default)]
 pub struct Context(pub String);
@@ -19,7 +19,7 @@ impl Display for Context {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Namespace(pub Vec<String>);
 
 impl Namespace {
@@ -35,6 +35,14 @@ impl Namespace {
 impl Display for Namespace {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0.join(", "))
+    }
+}
+
+impl Deref for Namespace {
+    type Target = Vec<String>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

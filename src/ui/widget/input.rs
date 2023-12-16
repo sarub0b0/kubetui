@@ -1,7 +1,15 @@
-use crate::ui::{event::EventResult, key_event_to_code, widget::*};
+use crate::{
+    event::UserEvent,
+    ui::{
+        event::{Callback, EventResult, InnerCallback},
+        key_event_to_code,
+        widget::*,
+        Window,
+    },
+};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
-
+use derivative::Derivative;
 use ratatui::{
     layout::Rect,
     style::*,
@@ -10,7 +18,10 @@ use ratatui::{
     Frame,
 };
 
-use std::time::{Duration, Instant};
+use std::{
+    rc::Rc,
+    time::{Duration, Instant},
+};
 
 #[derive(Debug)]
 enum Mode {
@@ -80,6 +91,11 @@ impl Content {
 
     fn max_cursor_pos(&self) -> usize {
         self.chars.len()
+    }
+
+    fn update_content(&mut self, s: String) {
+        self.chars = s.chars().collect();
+        self.cursor_end();
     }
 
     fn cursor_forward(&mut self, addend: usize) {
@@ -165,42 +181,79 @@ impl Content {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Derivative)]
+#[derivative(Debug, Default)]
+pub struct InputFormBuilder {
+    id: String,
+    widget_config: WidgetConfig,
+    #[derivative(Debug = "ignore")]
+    actions: Vec<(UserEvent, InnerCallback)>,
+}
+
+impl InputFormBuilder {
+    pub fn id(mut self, id: impl Into<String>) -> Self {
+        self.id = id.into();
+        self
+    }
+
+    pub fn widget_config(mut self, widget_config: WidgetConfig) -> Self {
+        self.widget_config = widget_config;
+        self
+    }
+
+    pub fn actions<E, F>(mut self, ev: E, cb: F) -> Self
+    where
+        E: Into<UserEvent>,
+        F: Fn(&mut Window) -> EventResult + 'static,
+    {
+        self.actions.push((ev.into(), Rc::new(cb)));
+        self
+    }
+
+    pub fn build(self) -> InputForm {
+        InputForm {
+            id: self.id,
+            widget_config: self.widget_config,
+            actions: self.actions,
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Derivative)]
+#[derivative(Debug, Default)]
 pub struct InputForm {
+    id: String,
     content: Content,
     chunk: Rect,
     widget_config: WidgetConfig,
     scroll: usize,
+    #[derivative(Debug = "ignore")]
+    actions: Vec<(UserEvent, InnerCallback)>,
 }
 
 impl InputForm {
-    pub fn new(widget_config: WidgetConfig) -> Self {
-        Self {
-            widget_config,
-            ..Default::default()
-        }
+    pub fn builder() -> InputFormBuilder {
+        InputFormBuilder::default()
     }
 
-    fn block(&self, is_active: bool) -> Block<'static> {
-        self.widget_config.render_block(is_active, false)
-    }
-
-    pub fn render(&mut self, f: &mut Frame, is_active: bool) {
-        let content = self.content.rendered_content(is_active);
-
-        let block = self.block(is_active);
-
-        let widget = Paragraph::new(content)
-            .block(block)
-            .scroll((0, self.scroll as u16));
-
-        f.render_widget(widget, self.chunk);
+    fn block(&self, is_active: bool, is_mouse_over: bool) -> Block<'static> {
+        self.widget_config
+            .render_block(self.can_activate() && is_active, is_mouse_over)
     }
 
     pub fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
 
         self.adjust_scroll_for_cursor();
+    }
+
+    pub fn update_content(&mut self, content: String) {
+        self.clear();
+
+        self.content.update_content(content);
+
+        self.move_cursor_end();
     }
 
     pub fn insert_char(&mut self, c: char) {
@@ -295,7 +348,7 @@ impl InputForm {
     }
 
     fn rendered_width(&self) -> usize {
-        self.block(true).inner(self.chunk).width as usize
+        self.block(true, true).inner(self.chunk).width as usize
     }
 
     pub fn on_mouse_event(&mut self, _: MouseEvent) -> EventResult {
@@ -336,11 +389,112 @@ impl InputForm {
                 self.insert_char(c);
             }
             _ => {
+                if let Some(cb) = self.match_action(UserEvent::Key(key)) {
+                    return EventResult::Callback(Some(Callback::from(cb)));
+                }
                 return EventResult::Ignore;
             }
         }
 
         EventResult::Nop
+    }
+
+    fn match_action(&self, ev: UserEvent) -> Option<InnerCallback> {
+        self.actions
+            .iter()
+            .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb.clone()) } else { None })
+    }
+}
+
+impl WidgetTrait for InputForm {
+    fn id(&self) -> &str {
+        &self.id
+    }
+
+    fn widget_config(&self) -> &WidgetConfig {
+        &self.widget_config
+    }
+
+    fn widget_config_mut(&mut self) -> &mut WidgetConfig {
+        &mut self.widget_config
+    }
+
+    fn can_activate(&self) -> bool {
+        true
+    }
+
+    fn widget_item(&self) -> Option<SelectedItem> {
+        if self.content().is_empty() {
+            None
+        } else {
+            Some(SelectedItem::Literal {
+                metadata: None,
+                item: self.content(),
+            })
+        }
+    }
+
+    fn chunk(&self) -> Rect {
+        self.chunk
+    }
+
+    fn select_index(&mut self, _: usize) {
+        unreachable!();
+    }
+
+    fn select_next(&mut self, _: usize) {
+        unreachable!();
+    }
+
+    fn select_prev(&mut self, _: usize) {
+        unreachable!();
+    }
+
+    fn select_first(&mut self) {
+        unreachable!();
+    }
+
+    fn select_last(&mut self) {
+        unreachable!();
+    }
+
+    fn append_widget_item(&mut self, _: Item) {
+        unreachable!();
+    }
+
+    fn update_widget_item(&mut self, item: Item) {
+        let LiteralItem { item, .. } = item.single();
+
+        self.update_content(item);
+    }
+
+    fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
+        self.on_mouse_event(ev)
+    }
+
+    fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
+        self.on_key_event(ev)
+    }
+
+    fn update_chunk(&mut self, chunk: Rect) {
+        self.update_chunk(chunk);
+    }
+
+    fn clear(&mut self) {
+        self.clear()
+    }
+}
+
+impl RenderTrait for InputForm {
+    fn render(&mut self, f: &mut Frame, is_active: bool, is_mouse_over: bool) {
+        let content = self.content.rendered_content(is_active);
+        let block = self.block(is_active, is_mouse_over);
+
+        let widget = Paragraph::new(content)
+            .block(block)
+            .scroll((0, self.scroll as u16));
+
+        f.render_widget(widget, self.chunk);
     }
 }
 

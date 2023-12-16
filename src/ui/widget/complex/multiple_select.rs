@@ -1,9 +1,7 @@
-use super::input::InputForm;
-
 use crate::ui::{
     event::EventResult,
     util::{key_event_to_code, MousePosition, RectContainsPoint},
-    widget::*,
+    widget::{input::InputForm, *},
     Window,
 };
 
@@ -628,7 +626,9 @@ impl MultipleSelectBuilder {
             layout,
             selected_widget,
             block_injection: self.block_injection,
-            input_widget: InputForm::new(WidgetConfig::builder().title("Filter").build()),
+            input_widget: InputForm::builder()
+                .widget_config(WidgetConfig::builder().title("Filter").build())
+                .build(),
             inner_chunks: Rc::new([]),
             ..Default::default()
         }
@@ -683,7 +683,7 @@ impl RenderTrait for MultipleSelect<'_> {
 
         f.render_widget(block, self.chunk);
 
-        self.input_widget.render(f, true);
+        self.input_widget.render(f, true, false);
 
         let status = self.selected_widget.status();
         f.render_widget(

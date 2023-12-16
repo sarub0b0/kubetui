@@ -5,6 +5,7 @@ mod wrap;
 
 pub mod complex;
 pub mod config;
+pub mod input;
 pub mod list;
 pub mod table;
 pub mod text;
@@ -14,7 +15,7 @@ pub use list::*;
 pub use table::*;
 pub use text::*;
 
-use self::{config::WidgetConfig, styled_graphemes::StyledGraphemes};
+use self::{config::WidgetConfig, input::InputForm, styled_graphemes::StyledGraphemes};
 
 use super::event::EventResult;
 
@@ -70,14 +71,11 @@ impl TableItem {
     }
 }
 
-impl From<String> for LiteralItem {
-    fn from(item: String) -> Self {
-        Self::new(item, None)
-    }
-}
-
-impl From<&str> for LiteralItem {
-    fn from(item: &str) -> Self {
+impl<T> From<T> for LiteralItem
+where
+    T: ToString,
+{
+    fn from(item: T) -> Self {
         Self::new(item.to_string(), None)
     }
 }
@@ -211,6 +209,7 @@ pub enum Widget<'a> {
     Table(Table<'a>),
     SingleSelect(SingleSelect<'a>),
     MultipleSelect(MultipleSelect<'a>),
+    Input(InputForm),
 }
 
 impl<'a> Widget<'a> {

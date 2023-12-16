@@ -3,10 +3,9 @@ mod client;
 mod color;
 pub mod config;
 mod event;
-pub mod log;
 mod metric_type;
 pub mod network;
-mod pod;
+pub mod pod;
 mod v1_table;
 mod worker;
 pub mod yaml;
@@ -28,7 +27,7 @@ use kube::{api::ListParams, Api, ResourceExt};
 use tokio::{
     runtime::Runtime,
     sync::RwLock,
-    task::{self, JoinHandle},
+    task::{self, AbortHandle},
 };
 
 use crate::{logger, panic_set_hook};
@@ -39,10 +38,10 @@ use self::{
     config::{ConfigMessage, ConfigsDataWorker},
     context_message::{ContextMessage, ContextRequest, ContextResponse},
     inner::Inner,
-    log::{LogHandlers, LogStreamMessage, LogWorker},
     namespace_message::{NamespaceMessage, NamespaceRequest, NamespaceResponse},
     network::{NetworkDescriptionWorker, NetworkMessage},
-    worker::{PollWorker, Worker},
+    pod::{LogMessage, LogWorker},
+    worker::{AbortWorker, PollWorker, Worker},
     yaml::{
         fetch_resource_list::FetchResourceList,
         worker::{YamlWorker, YamlWorkerRequest},
@@ -139,7 +138,7 @@ pub enum Kube {
     Event(Result<Vec<String>>),
     Namespace(NamespaceMessage),
     Pod(Result<KubeTable>),
-    LogStream(LogStreamMessage),
+    Log(LogMessage),
     Config(ConfigMessage),
     Network(NetworkMessage),
     Yaml(YamlMessage),
@@ -321,10 +320,10 @@ impl Worker for MainWorker {
     type Output = WorkerResult;
 
     async fn run(&self) -> Self::Output {
-        let mut log_stream_handler: Option<LogHandlers> = None;
-        let mut config_handler: Option<JoinHandle<()>> = None;
-        let mut network_handler: Option<JoinHandle<()>> = None;
-        let mut yaml_handler: Option<JoinHandle<()>> = None;
+        let mut log_handler: Option<AbortHandle> = None;
+        let mut config_handler: Option<AbortHandle> = None;
+        let mut network_handler: Option<AbortHandle> = None;
+        let mut yaml_handler: Option<AbortHandle> = None;
 
         let MainWorker {
             inner: poll_worker,
@@ -363,9 +362,9 @@ impl Worker for MainWorker {
                                 *target_namespaces = req.clone();
                             }
 
-                            if let Some(handler) = log_stream_handler {
+                            if let Some(handler) = log_handler {
                                 handler.abort();
-                                log_stream_handler = None;
+                                log_handler = None;
                             }
 
                             if let Some(handler) = config_handler {
@@ -388,13 +387,12 @@ impl Worker for MainWorker {
                         }
                     },
 
-                    Kube::LogStream(LogStreamMessage::Request { namespace, name }) => {
-                        if let Some(handler) = log_stream_handler {
+                    Kube::Log(LogMessage::Request(req)) => {
+                        if let Some(handler) = log_handler {
                             handler.abort();
                         }
 
-                        log_stream_handler =
-                            Some(LogWorker::new(tx, kube_client.clone(), namespace, name).spawn());
+                        log_handler = Some(LogWorker::new(tx, kube_client.clone(), req).spawn());
 
                         task::yield_now().await;
                     }
@@ -438,7 +436,7 @@ impl Worker for MainWorker {
                             .send(ContextResponse::Get(contexts.to_vec()).into())
                             .expect("Failed to send ContextResponse::Get"),
                         ContextRequest::Set(req) => {
-                            if let Some(h) = log_stream_handler {
+                            if let Some(h) = log_handler {
                                 h.abort();
                             }
 

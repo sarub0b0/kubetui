@@ -3,7 +3,7 @@ use std::sync::{atomic::AtomicBool, Arc};
 use async_trait::async_trait;
 
 use crossbeam::channel::Sender;
-use tokio::task::JoinHandle;
+use tokio::task::{AbortHandle, JoinHandle};
 
 use crate::event::Event;
 
@@ -22,6 +22,19 @@ pub trait Worker {
     {
         let worker = self.clone();
         tokio::spawn(async move { worker.run().await })
+    }
+}
+
+#[async_trait]
+pub trait AbortWorker {
+    async fn run(&self);
+
+    fn spawn(&self) -> AbortHandle
+    where
+        Self: Clone + Send + Sync + 'static,
+    {
+        let worker = self.clone();
+        tokio::spawn(async move { worker.run().await }).abort_handle()
     }
 }
 

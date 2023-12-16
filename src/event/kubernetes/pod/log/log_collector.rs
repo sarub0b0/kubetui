@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use crossbeam::channel::Sender;
-use tokio::{sync::RwLock, time};
+use tokio::{sync::Mutex, time};
 
 use crate::{
     event::{kubernetes::worker::Worker, Event},
     send_response,
 };
 
-pub type LogBuffer = Arc<RwLock<Vec<String>>>;
+pub type LogBuffer = Arc<Mutex<Vec<String>>>;
 
 #[derive(Clone)]
 pub struct LogCollector {
@@ -33,7 +33,7 @@ impl Worker for LogCollector {
         loop {
             interval.tick().await;
 
-            let mut buf = self.buffer.write().await;
+            let mut buf = self.buffer.lock().await;
 
             if !buf.is_empty() {
                 send_response!(self.tx, Ok(std::mem::take(&mut buf)));

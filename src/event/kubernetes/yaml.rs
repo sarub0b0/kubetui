@@ -8,7 +8,6 @@ use serde::Deserialize;
 use super::{
     api_resources::{ApiResource, ApiResources, SharedApiResources},
     client::KubeClientRequest,
-    worker::Worker,
     Kube,
 };
 use crate::{
@@ -362,7 +361,10 @@ pub mod fetch_resource_list {
 pub mod worker {
     use serde_yaml::Value;
 
-    use crate::{event::kubernetes::api_resources::ApiResource, logger};
+    use crate::{
+        event::kubernetes::{api_resources::ApiResource, worker::AbortWorker},
+        logger,
+    };
 
     use super::*;
 
@@ -404,10 +406,8 @@ pub mod worker {
     }
 
     #[async_trait::async_trait]
-    impl<C: KubeClientRequest> Worker for YamlWorker<C> {
-        type Output = ();
-
-        async fn run(&self) -> Self::Output {
+    impl<C: KubeClientRequest> AbortWorker for YamlWorker<C> {
+        async fn run(&self) {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(3));
 
             let YamlWorkerRequest {
