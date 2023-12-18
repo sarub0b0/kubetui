@@ -7,7 +7,11 @@ use kube::Api;
 
 use crate::{
     error::Result,
-    event::kubernetes::{client::KubeClient, color::Color, config::ConfigData},
+    event::kubernetes::{
+        client::KubeClient,
+        color::{fg, Color},
+        config::ConfigData,
+    },
 };
 
 use super::Fetch;
@@ -92,16 +96,13 @@ impl Iter<'_> {
         }
     }
 
-    fn format_non_utf8(key: &str, value: &str, color: u8) -> String {
-        Self::format_error(key, value, "Can't output a non-UTF8 value", color)
-    }
-
     fn format_error(key: &str, value: &str, err: &str, color: u8) -> String {
         format!(
-            "\x1b[{color}m{key}:\x1b[39m {error}\n[base64-encoded] {value}",
+            "\x1b[{color}m{key}:\x1b[39m | \x1b[{error_color}m# {error}\x1b[39m\n[base64-encoded] {value}",
             color = color,
             key = key,
             value = value,
+            error_color = fg::Color::DarkGray as u8,
             error = err
         )
     }
@@ -110,15 +111,23 @@ impl Iter<'_> {
 impl Iterator for Iter<'_> {
     type Item = String;
     fn next(&mut self) -> std::option::Option<<Self as Iterator>::Item> {
-        let Some((key, ByteString(value))) = self.iter.next() else { return None; };
+        let Some((key, ByteString(value))) = self.iter.next() else {
+            return None;
+        };
 
         let color = self.color.next_color();
 
-        if let Ok(utf8_data) = String::from_utf8(value.to_vec()) {
-            Some(Self::format_utf8(key, &utf8_data, color))
-        } else {
-            let base64_encoded = general_purpose::STANDARD.encode(value);
-            Some(Self::format_non_utf8(key, &base64_encoded, color))
+        match String::from_utf8(value.to_vec()) {
+            Ok(utf8_data) => Some(Self::format_utf8(key, &utf8_data, color)),
+            Err(err) => {
+                let base64_encoded = general_purpose::STANDARD.encode(value);
+                Some(Self::format_error(
+                    key,
+                    &base64_encoded,
+                    &err.to_string(),
+                    color,
+                ))
+            }
         }
     }
 }
