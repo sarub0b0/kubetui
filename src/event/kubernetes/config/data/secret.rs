@@ -98,7 +98,7 @@ impl Iter<'_> {
 
     fn format_error(key: &str, value: &str, err: &str, color: u8) -> String {
         format!(
-            "\x1b[{color}m{key}:\x1b[39m | \x1b[{error_color}m# {error}\x1b[39m\n[base64-encoded] {value}",
+            "\x1b[{color}m{key}:\x1b[39m | \x1b[{error_color}m# {error}\x1b[39m\n  [base64-encoded] {value}",
             color = color,
             key = key,
             value = value,
