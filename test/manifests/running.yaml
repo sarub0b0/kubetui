@@ -23,9 +23,19 @@ spec:
       labels:
         app: kubetui-running
     spec:
+      shareProcessNamespace: true
       containers:
         - name: app
           image: nginx
           ports:
             - containerPort: 80
               name: http
+        - name: sh
+          image: alpine
+          command:
+            - sleep
+            - "9999999999"
+          securityContext:
+            capabilities:
+              add:
+                - SYS_PTRACE
