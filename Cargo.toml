@@ -60,6 +60,7 @@ regex = "1.10.2"
 regex-syntax = { version = "0.8.2", default-features = false }
 
 indoc = "2.0.4"
+flate2 = "1.0.28"
 
 [dev-dependencies]
 pretty_assertions = "1.4.0"

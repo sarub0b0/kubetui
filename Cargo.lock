@@ -1106,6 +1106,7 @@ dependencies = [
  "ctrlc",
  "derivative",
  "enum_dispatch",
+ "flate2",
  "futures",
  "fuzzy-matcher",
  "http",
