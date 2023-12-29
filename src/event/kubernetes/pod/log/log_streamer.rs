@@ -9,7 +9,7 @@ use std::{
 
 use anyhow::Result;
 use async_trait::async_trait;
-use chrono::{DateTime, FixedOffset, Utc};
+use chrono::{DateTime, Utc};
 use futures::{AsyncBufReadExt, TryStreamExt};
 use k8s_openapi::api::core::v1::Pod;
 use kube::{api::LogParams, Api};
@@ -97,7 +97,7 @@ impl AbortWorker for LogStreamer {
     async fn run(&self) {
         let mut interval = tokio::time::interval(time::Duration::from_secs(3));
 
-        let mut last_timestamp: Option<DateTime<FixedOffset>> = None;
+        let mut last_timestamp: Option<DateTime<Utc>> = None;
 
         let prefix = self.log_prefix();
 
@@ -144,11 +144,7 @@ impl LogStreamer {
         self
     }
 
-    async fn fetch(
-        &self,
-        prefix: &str,
-        last_timestamp: &mut Option<DateTime<FixedOffset>>,
-    ) -> Result<()> {
+    async fn fetch(&self, prefix: &str, last_timestamp: &mut Option<DateTime<Utc>>) -> Result<()> {
         let log_params = self.log_params(last_timestamp);
 
         let api: Api<Pod> = Api::namespaced(self.client.to_client(), self.namespace());
@@ -159,6 +155,12 @@ impl LogStreamer {
             let mut buf = self.log_buffer.lock().await;
 
             if let Ok((dt, content)) = chrono::DateTime::parse_and_remainder(&line, "%+ ") {
+                let dt: DateTime<Utc> = dt.into();
+
+                if last_timestamp.is_some_and(|lts| dt <= lts) {
+                    continue;
+                }
+
                 if self.is_exclude(content) || !self.is_include(content) {
                     continue;
                 }
@@ -290,23 +292,14 @@ impl LogStreamer {
         PREFIX_COLOR_LIST[index % PREFIX_COLOR_LIST.len()]
     }
 
-    fn log_params(&self, last_timestamp: &Option<DateTime<FixedOffset>>) -> LogParams {
+    fn log_params(&self, last_timestamp: &Option<DateTime<Utc>>) -> LogParams {
         LogParams {
             follow: true,
             container: Some(self.container_name().to_string()),
             timestamps: true,
-            since_seconds: Self::since_seconds(Utc::now().fixed_offset(), last_timestamp),
+            since_time: last_timestamp.clone(),
             ..Default::default()
         }
-    }
-
-    fn since_seconds(
-        now: DateTime<FixedOffset>,
-        last_timestamp: &Option<DateTime<FixedOffset>>,
-    ) -> Option<i64> {
-        last_timestamp
-            .map(|last| (now - last).num_seconds())
-            .filter(|time| *time > 0)
     }
 
     fn namespace(&self) -> &str {
