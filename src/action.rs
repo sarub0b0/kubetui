@@ -62,6 +62,8 @@ pub mod view_id {
     generate_id!(popup_yaml_kind);
     generate_id!(popup_yaml_return);
 
+    generate_id!(popup_yaml);
+
     generate_id!(popup_help);
 }
 
@@ -440,8 +442,16 @@ pub fn update_contents(
                         widget.update_widget_item(Item::Array(error_lines!(e)));
                     }
                 },
-                Yaml(res) => {
+                SelectedYaml(res) => {
                     update_widget_item_for_vec(window, view_id::tab_yaml_widget_yaml, res);
+                }
+                DirectedYaml { kind, name, yaml } => {
+                    let widget = window
+                        .find_widget_mut(view_id::popup_yaml)
+                        .widget_config_mut();
+                    *(widget.append_title_mut()) = Some(format!(" : {}/{}", kind, name).into());
+
+                    update_widget_item_for_vec(window, view_id::popup_yaml, yaml);
                 }
             }
         }
