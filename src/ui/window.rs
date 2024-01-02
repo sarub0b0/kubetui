@@ -276,6 +276,12 @@ impl<'a> Window<'a> {
         }
     }
 
+    pub fn activate_tab_by_id(&mut self, id: &str) {
+        if let Some(index) = self.tabs.iter().position(|tab| tab.id() == id) {
+            self.active_tab_index = index;
+        }
+    }
+
     pub fn activate_next_tab(&mut self) {
         self.active_tab_index = (self.active_tab_index + 1) % self.tabs.len();
     }
