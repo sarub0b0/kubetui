@@ -297,7 +297,7 @@ impl LogStreamer {
             follow: true,
             container: Some(self.container_name().to_string()),
             timestamps: true,
-            since_time: last_timestamp.clone(),
+            since_time: *last_timestamp,
             ..Default::default()
         }
     }
