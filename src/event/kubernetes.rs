@@ -43,8 +43,8 @@ use self::{
     pod::{LogMessage, LogWorker},
     worker::{AbortWorker, PollWorker, Worker},
     yaml::{
-        fetch_resource_list::FetchResourceList,
-        worker::{YamlWorker, YamlWorkerRequest},
+        direct::DirectedYamlWorker,
+        select::{resources::FetchResourceList, worker::SelectedYamlWorker},
         YamlMessage, YamlRequest, YamlResponse,
     },
 };
@@ -481,27 +481,34 @@ impl Worker for MainWorker {
                                 tx.send(YamlResponse::Resource(fetched_data).into())
                                     .expect("Failed to send YamlResponse::Resource");
                             }
-                            Yaml {
-                                kind,
-                                name,
-                                namespace,
-                            } => {
+                            SelectedYaml(req) => {
                                 if let Some(handler) = yaml_handler {
                                     handler.abort();
                                 }
 
-                                let req = YamlWorkerRequest {
-                                    kind,
-                                    name,
-                                    namespace,
-                                };
-
                                 yaml_handler = Some(
-                                    YamlWorker::new(
+                                    SelectedYamlWorker::new(
                                         is_terminated.clone(),
                                         tx,
                                         kube_client.clone(),
                                         shared_api_resources.clone(),
+                                        req,
+                                    )
+                                    .spawn(),
+                                );
+                                task::yield_now().await;
+                            }
+
+                            DirectedYaml(req) => {
+                                if let Some(handler) = yaml_handler {
+                                    handler.abort();
+                                }
+
+                                yaml_handler = Some(
+                                    DirectedYamlWorker::new(
+                                        is_terminated.clone(),
+                                        tx,
+                                        kube_client.clone(),
                                         req,
                                     )
                                     .spawn(),

@@ -6,7 +6,10 @@ use std::{cell::RefCell, rc::Rc};
 use crate::{
     action::view_id,
     clipboard_wrapper::Clipboard,
-    event::{kubernetes::yaml::YamlRequest, Event},
+    event::{
+        kubernetes::yaml::{select::SelectedYaml, YamlRequest},
+        Event,
+    },
     logger,
     ui::{
         event::EventResult,
@@ -158,11 +161,11 @@ impl<'a> YamlTabBuilder<'a> {
                 };
 
                 tx.send(
-                    YamlRequest::Yaml {
+                    YamlRequest::SelectedYaml(SelectedYaml {
                         kind,
                         name: name.to_string(),
                         namespace: namespace.to_string(),
-                    }
+                    })
                     .into(),
                 )
                 .expect("Failed to send YamlRequest::Yaml");

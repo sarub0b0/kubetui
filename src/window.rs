@@ -6,6 +6,7 @@ mod list;
 mod network;
 mod pod;
 mod yaml;
+mod yaml_popup;
 
 use std::{cell::RefCell, rc::Rc};
 
@@ -18,10 +19,22 @@ use crate::{
     clipboard_wrapper::Clipboard,
     context::{Context, Namespace},
     event::{
-        kubernetes::{context_message::ContextRequest, namespace_message::NamespaceRequest},
+        kubernetes::{
+            context_message::ContextRequest,
+            namespace_message::NamespaceRequest,
+            yaml::{
+                direct::{DirectedYaml, DirectedYamlKind},
+                YamlRequest,
+            },
+        },
         Event, UserEvent,
     },
-    ui::{event::EventResult, popup::Popup, Header, Tab, Window, WindowEvent},
+    ui::{
+        event::EventResult,
+        popup::Popup,
+        widget::{SelectedItem, WidgetTrait},
+        Header, Tab, Window, WindowEvent,
+    },
 };
 
 use self::{
@@ -33,6 +46,7 @@ use self::{
     network::{NetworkTab, NetworkTabBuilder},
     pod::{PodTabBuilder, PodsTab},
     yaml::{YamlTab, YamlTabBuilder},
+    yaml_popup::{YamlPopup, YamlPopupBuilder},
 };
 
 pub struct WindowInit {
@@ -104,7 +118,10 @@ impl WindowInit {
             EventResult::Nop
         };
 
+        let open_yaml = open_yaml(self.tx.clone());
+
         let builder = builder.action('h', open_help).action('?', open_help);
+        let builder = builder.action('y', open_yaml);
 
         let builder = builder.action('q', fn_close).action(KeyCode::Esc, fn_close);
 
@@ -170,6 +187,8 @@ impl WindowInit {
             content: popup_help,
         } = HelpPopup::new();
 
+        let YamlPopup { popup: popup_yaml } = YamlPopupBuilder::new(&clipboard).build();
+
         // Init Window
         let tabs = vec![
             tab_pods,
@@ -190,8 +209,76 @@ impl WindowInit {
             Popup::new(popup_yaml_return),
             Popup::new(popup_help),
             Popup::new(popup_log_query_help),
+            Popup::new(popup_yaml),
         ];
 
         (tabs, popups)
+    }
+}
+
+fn open_yaml(tx: Sender<Event>) -> impl Fn(&mut Window) -> EventResult {
+    move |w: &mut Window| {
+        let widget = w.active_tab().active_widget();
+
+        match widget.id() {
+            view_id::tab_pod_widget_pod
+            | view_id::tab_config_widget_config
+            | view_id::tab_network_widget_network => {}
+            _ => {
+                return EventResult::Ignore;
+            }
+        }
+
+        let Some(SelectedItem::TableRow { metadata, .. }) = widget.widget_item() else {
+            return EventResult::Ignore;
+        };
+
+        let Some(ref metadata) = metadata else {
+            return EventResult::Ignore;
+        };
+
+        let Some(ref namespace) = metadata.get("namespace") else {
+            return EventResult::Ignore;
+        };
+
+        let Some(ref name) = metadata.get("name") else {
+            return EventResult::Ignore;
+        };
+
+        let kind = match widget.id() {
+            view_id::tab_pod_widget_pod => DirectedYamlKind::Pod,
+            view_id::tab_config_widget_config => match metadata.get("kind").map(|v| v.as_str()) {
+                Some("ConfigMap") => DirectedYamlKind::ConfigMap,
+                Some("Secret") => DirectedYamlKind::Secret,
+                _ => {
+                    return EventResult::Ignore;
+                }
+            },
+            view_id::tab_network_widget_network => match metadata.get("kind").map(|v| v.as_str()) {
+                Some("Ingress") => DirectedYamlKind::Ingress,
+                Some("Service") => DirectedYamlKind::Service,
+                Some("Pod") => DirectedYamlKind::Pod,
+                Some("NetworkPolicy") => DirectedYamlKind::NetworkPolicy,
+                _ => {
+                    return EventResult::Ignore;
+                }
+            },
+            _ => return EventResult::Ignore,
+        };
+
+        tx.send(
+            YamlRequest::DirectedYaml(DirectedYaml {
+                name: name.to_string(),
+                namespace: namespace.to_string(),
+                kind,
+            })
+            .into(),
+        )
+        .expect("Failed to send YamlMessage::Request");
+
+        w.widget_clear(view_id::popup_yaml);
+        w.open_popup(view_id::popup_yaml);
+
+        EventResult::Nop
     }
 }
