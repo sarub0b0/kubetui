@@ -453,8 +453,6 @@ fn merge_tables(fetch_data: Vec<FetchData>, insert_ns: bool) -> Table {
         return Table::default();
     }
 
-    let fetch_data = fetch_data;
-
     let mut base_table = fetch_data[0].table.clone();
     let base_ns = &fetch_data[0].namespace;
 

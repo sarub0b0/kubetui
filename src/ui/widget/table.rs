@@ -15,6 +15,7 @@ use filter_form::FilterForm;
 use item::InnerItem;
 
 use crate::{
+    event::UserEvent,
     logger,
     ui::{
         event::{Callback, EventResult},
@@ -34,7 +35,8 @@ const COLUMN_SPACING: u16 = 3;
 const HIGHLIGHT_SYMBOL: &str = " ";
 const ROW_START_INDEX: usize = 2;
 
-type InnerCallback = Rc<dyn Fn(&mut Window, &TableItem) -> EventResult>;
+type OnSelectCallback = Rc<dyn Fn(&mut Window, &TableItem) -> EventResult>;
+type ActionCallback = Rc<dyn Fn(&mut Window) -> EventResult>;
 type RenderBlockInjection = Rc<dyn Fn(&Table) -> WidgetConfig>;
 type RenderHighlightInjection = Rc<dyn Fn(Option<&TableItem>) -> Style>;
 
@@ -49,7 +51,9 @@ pub struct TableBuilder {
     state: TableState,
     filtered_key: String,
     #[derivative(Debug = "ignore")]
-    on_select: Option<InnerCallback>,
+    on_select: Option<OnSelectCallback>,
+    #[derivative(Debug = "ignore")]
+    actions: Vec<(UserEvent, ActionCallback)>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
     #[derivative(Debug = "ignore")]
@@ -93,6 +97,14 @@ impl TableBuilder {
         self
     }
 
+    pub fn action<F, E: Into<UserEvent>>(mut self, ev: E, cb: F) -> Self
+    where
+        F: Fn(&mut Window) -> EventResult + 'static,
+    {
+        self.actions.push((ev.into(), Rc::new(cb)));
+        self
+    }
+
     pub fn block_injection<F>(mut self, block_injection: F) -> Self
     where
         F: Fn(&Table) -> WidgetConfig + 'static,
@@ -119,6 +131,7 @@ impl TableBuilder {
             id: self.id,
             widget_config: self.widget_config,
             on_select: self.on_select,
+            actions: self.actions,
             state: self.state,
             show_status: self.show_status,
             block_injection: self.block_injection,
@@ -198,7 +211,9 @@ pub struct Table<'a> {
     filtered_key: String,
     mode: Mode,
     #[derivative(Debug = "ignore")]
-    on_select: Option<InnerCallback>,
+    on_select: Option<OnSelectCallback>,
+    #[derivative(Debug = "ignore")]
+    actions: Vec<(UserEvent, ActionCallback)>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
     #[derivative(Debug = "ignore")]
@@ -522,11 +537,11 @@ impl WidgetTrait for Table<'_> {
                     return EventResult::Callback(self.on_select_callback());
                 }
 
-                KeyCode::Char(_) => {
-                    return EventResult::Ignore;
-                }
-
                 _ => {
+                    if let Some(cb) = self.match_action(UserEvent::Key(ev)) {
+                        return EventResult::Callback(Some(Callback::from(cb)));
+                    }
+
                     return EventResult::Ignore;
                 }
             },
@@ -600,6 +615,12 @@ impl<'a> Table<'a> {
             .selected()
             .and_then(|index| self.items().get(index).map(|item| Rc::new(item.clone())))
     }
+
+    fn match_action(&self, ev: UserEvent) -> Option<ActionCallback> {
+        self.actions
+            .iter()
+            .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb.clone()) } else { None })
+    }
 }
 
 impl<'a> Table<'a> {
@@ -642,12 +663,11 @@ impl RenderTrait for Table<'_> {
 
         let highlight_style = self.render_highlight_style();
 
-        let mut widget = TuiTable::new(self.items.to_rendered_rows())
+        let mut widget = TuiTable::new(self.items.to_rendered_rows(), constraints)
             .block(block)
             .highlight_style(highlight_style)
             .highlight_symbol(HIGHLIGHT_SYMBOL)
-            .column_spacing(COLUMN_SPACING)
-            .widths(&constraints);
+            .column_spacing(COLUMN_SPACING);
 
         if !self.items.header().is_empty() {
             widget = widget.header(self.items.header().rendered());
