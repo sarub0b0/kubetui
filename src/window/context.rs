@@ -61,6 +61,7 @@ impl<'a> ContextPopupBuilder<'a> {
                     .expect("Failed to send NamespaceRequest::Set");
 
                 w.widget_clear(view_id::tab_pod_widget_log);
+                w.widget_clear(view_id::tab_pod_widget_log_query);
                 w.widget_clear(view_id::tab_config_widget_raw_data);
                 w.widget_clear(view_id::tab_network_widget_description);
                 w.widget_clear(view_id::tab_event_widget_event);
@@ -86,6 +87,7 @@ impl<'a> ContextPopupBuilder<'a> {
                 w.close_popup();
 
                 w.widget_clear(view_id::tab_pod_widget_log);
+                w.widget_clear(view_id::tab_pod_widget_log_query);
                 w.widget_clear(view_id::tab_config_widget_raw_data);
                 w.widget_clear(view_id::tab_network_widget_description);
                 w.widget_clear(view_id::tab_event_widget_event);
@@ -123,6 +125,7 @@ impl<'a> ContextPopupBuilder<'a> {
                 w.close_popup();
 
                 w.widget_clear(view_id::tab_pod_widget_log);
+                w.widget_clear(view_id::tab_pod_widget_log_query);
                 w.widget_clear(view_id::tab_config_widget_raw_data);
                 w.widget_clear(view_id::tab_network_widget_description);
                 w.widget_clear(view_id::tab_event_widget_event);

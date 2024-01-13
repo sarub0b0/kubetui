@@ -35,6 +35,10 @@ const LEFT_HELP_TEXT: &[HelpBlock] = &[
                 desc: "change focus",
             },
             KeyBindings {
+                keys: &["y"],
+                desc: "open yaml popup",
+            },
+            KeyBindings {
                 keys: &["q", "Esc"],
                 desc: "quit",
             },
