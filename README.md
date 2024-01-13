@@ -30,12 +30,12 @@ It provides an easy-to-use interface for developers and operators to access impo
 
 </details>
 
-![Demo](./assets/demo.gif)
+![Demo](./assets/demo.webp)
 
 <details>
 <summary>Demo slow version</summary>
 
-![Demo slow version](./assets/demo-slow.gif)
+![Demo slow version](./assets/demo-slow.webp)
 
 </details>
 
