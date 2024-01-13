@@ -225,6 +225,7 @@ ESCAPED_CHAR = "\\" | "\"" | "\'"
 | <kbd>n</kbd>                         | Open the popup for selecting the namespace                         |
 | <kbd>N</kbd>                         | Open the popup for selecting multiple namespaces                   |
 | <kbd>c</kbd>                         | Open the popup for selecting the context                           |
+| <kbd>y</kbd>                         | Open the popup for yaml                                            |
 | <kbd>Tab</kbd>, <kbd>Shift+Tab</kbd> | Change the focus of the view within the active tab                 |
 | <kbd>number</kbd>                    | Switch to the tab (number: 1~6)                                    |
 | <kbd>ESC</kbd>                       | Close the window or terminate the app (when the popup is not open) |
