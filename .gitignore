@@ -19,3 +19,6 @@
 
 *.mov
 .envrc
+
+/assets/*
+!/assets/demo*.webp
