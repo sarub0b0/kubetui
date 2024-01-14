@@ -16,3 +16,6 @@
 /test/bin/
 
 !cspell.json
+
+*.mov
+.envrc
