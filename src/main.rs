@@ -1,3 +1,15 @@
+mod action;
+mod ansi;
+mod clipboard_wrapper;
+mod config;
+mod context;
+mod error;
+mod event;
+mod logging;
+mod signal;
+mod ui;
+mod window;
+
 use anyhow::Result;
 
 use crossbeam::channel::{bounded, Receiver, Sender};
@@ -9,7 +21,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
-use kubetui::{
+use self::{
     action::{update_contents, window_action},
     config::{configure, Config},
     context::{Context, Namespace},
