@@ -13,7 +13,11 @@ pub mod yaml;
 use std::{
     collections::BTreeMap,
     path::PathBuf,
-    sync::{atomic::AtomicBool, Arc},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    thread::{self, JoinHandle},
     time::Duration,
 };
 
@@ -270,37 +274,42 @@ impl KubeWorker {
         }
     }
 
+    pub fn start(self) -> JoinHandle<Result<()>> {
+        let handle = thread::spawn(move || {
+            self.set_panic_hook();
+
+            logger!(info, "Start kube worker");
+
+            let ret: Result<()> = match Runtime::new() {
+                Ok(rt) => rt.block_on(Self::inner(self.clone())),
+                Err(e) => Err(e.into()),
+            };
+
+            logger!(info, "Terminated kube worker");
+
+            if let Err(e) = ret {
+                self.is_terminated.store(true, Ordering::Relaxed);
+
+                Err(e)
+            } else {
+                Ok(())
+            }
+        });
+
+        handle
+    }
+
     async fn inner(worker: KubeWorker) -> Result<()> {
         let inner = Inner::try_from(worker).await?;
         inner.run().await
     }
 
-    pub fn run(&self) -> Result<()> {
-        logger!(info, "Start tick event");
+    fn set_panic_hook(&self) {
+        let is_terminated = self.is_terminated.clone();
 
-        let is_terminated_panic = self.is_terminated.clone();
         panic_set_hook!({
-            is_terminated_panic.store(true, std::sync::atomic::Ordering::Relaxed);
+            is_terminated.store(true, Ordering::Relaxed);
         });
-
-        let ret: Result<()> = match Runtime::new() {
-            Ok(rt) => match rt.block_on(Self::inner(self.clone())) {
-                Ok(_) => Ok(()),
-                Err(e) => Err(e),
-            },
-            Err(e) => Err(e.into()),
-        };
-
-        logger!(info, "Terminated tick event");
-
-        if let Err(e) = ret {
-            self.is_terminated
-                .store(true, std::sync::atomic::Ordering::Relaxed);
-
-            Err(e)
-        } else {
-            Ok(())
-        }
     }
 }
 

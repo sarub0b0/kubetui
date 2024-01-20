@@ -89,9 +89,9 @@ fn run(config: Command) -> Result<()> {
     let user_input_handler = user_input.start();
 
     let is_terminated_clone = is_terminated.clone();
-    let kube_process_handler = thread::spawn(move || {
-        KubeWorker::new(tx_kube, rx_kube, is_terminated_clone, kube_worker_config).run()
-    });
+
+    let kube = KubeWorker::new(tx_kube, rx_kube, is_terminated_clone, kube_worker_config);
+    let kube_handler = kube.start();
 
     let tick = Tick::new(
         tx_tick.clone(),
@@ -149,7 +149,7 @@ fn run(config: Command) -> Result<()> {
         }
     }
 
-    match kube_process_handler.join() {
+    match kube_handler.join() {
         Ok(ret) => ret?,
         Err(e) => {
             if let Some(e) = e.downcast_ref::<&str>() {
