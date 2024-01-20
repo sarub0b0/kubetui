@@ -1,45 +1,69 @@
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    thread::{spawn, JoinHandle},
 };
 
 use crate::{event::Event, logger, panic_set_hook};
 
 use anyhow::Result;
-use crossbeam::channel::Sender;
-
-use tokio::runtime::Runtime;
+use crossbeam::channel::{tick, Sender};
 use tokio::time;
 
-pub fn tick(tx: Sender<Event>, rate: time::Duration, is_terminated: Arc<AtomicBool>) -> Result<()> {
-    logger!(info, "Start tick event");
-
-    let is_terminated_panic = is_terminated.clone();
-    panic_set_hook!({
-        is_terminated_panic.store(true, std::sync::atomic::Ordering::Relaxed);
-    });
-
-    let ret = inner(tx, rate, is_terminated.clone());
-
-    is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
-
-    logger!(info, "Terminated tick event");
-
-    ret
+pub struct Tick {
+    tx: Sender<Event>,
+    duration: time::Duration,
+    is_terminated: Arc<AtomicBool>,
 }
 
-fn inner(tx: Sender<Event>, rate: time::Duration, is_terminated: Arc<AtomicBool>) -> Result<()> {
-    let rt = Runtime::new()?;
+impl Tick {
+    pub fn new(tx: Sender<Event>, rate: time::Duration, is_terminated: Arc<AtomicBool>) -> Self {
+        Self {
+            tx,
+            duration: rate,
+            is_terminated,
+        }
+    }
 
-    rt.block_on(async move {
-        let mut interval = time::interval(rate);
+    pub fn start(self) -> JoinHandle<Result<()>> {
+        logger!(info, "Start tick event");
 
-        while !is_terminated.load(Ordering::Relaxed) {
-            interval.tick().await;
+        let handle = spawn(move || {
+            self.set_panic_hook();
 
-            tx.send(Event::Tick)?;
+            let is_terminated = self.is_terminated.clone();
+
+            let ret = self.tick();
+
+            is_terminated.store(true, Ordering::Relaxed);
+
+            ret
+        });
+
+        logger!(info, "Terminated tick event");
+
+        handle
+    }
+
+    fn set_panic_hook(&self) {
+        let is_terminated = self.is_terminated.clone();
+
+        panic_set_hook!({
+            is_terminated.store(true, Ordering::Relaxed);
+        });
+    }
+
+    fn tick(&self) -> Result<()> {
+        let tick = tick(self.duration);
+
+        while !self.is_terminated.load(Ordering::Relaxed) {
+            tick.recv()?;
+
+            self.tx.send(Event::Tick)?;
         }
 
         Ok(())
-    })
+    }
 }

@@ -31,7 +31,7 @@ use logging::Logger;
 use signal::signal_handler;
 use ui::WindowEvent;
 use window::WindowInit;
-use workers::{tick, UserInput};
+use workers::{Tick, UserInput};
 
 use std::{
     cell::RefCell,
@@ -93,14 +93,13 @@ fn run(config: Command) -> Result<()> {
         KubeWorker::new(tx_kube, rx_kube, is_terminated_clone, kube_worker_config).run()
     });
 
-    let is_terminated_clone = is_terminated.clone();
-    let tick_handler = thread::spawn(move || {
-        tick(
-            tx_tick,
-            time::Duration::from_millis(200),
-            is_terminated_clone,
-        )
-    });
+    let tick = Tick::new(
+        tx_tick.clone(),
+        time::Duration::from_millis(200),
+        is_terminated.clone(),
+    );
+
+    let tick_handler = tick.start();
 
     let backend = CrosstermBackend::new(io::stdout());
 
