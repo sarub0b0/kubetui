@@ -16,7 +16,7 @@ use ratatui::{
 };
 
 use crate::{
-    clipboard_wrapper::Clipboard,
+    clipboard::Clipboard,
     event::UserEvent,
     logger,
     ui::{

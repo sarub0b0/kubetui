@@ -1,11 +1,12 @@
+use std::{cell::RefCell, rc::Rc};
+
 use crossbeam::channel::Sender;
 use crossterm::event::KeyCode;
 use ratatui::prelude::Constraint;
-use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     action::view_id,
-    clipboard_wrapper::Clipboard,
+    clipboard::Clipboard,
     event::Event,
     logger,
     ui::{

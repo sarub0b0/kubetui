@@ -16,7 +16,7 @@ use ratatui::{layout::Direction, text::Line, widgets::Paragraph};
 
 use crate::{
     action::view_id,
-    clipboard_wrapper::Clipboard,
+    clipboard::Clipboard,
     context::{Context, Namespace},
     event::{Event, UserEvent},
     ui::{

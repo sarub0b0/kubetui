@@ -7,7 +7,7 @@ use ratatui::layout::{Constraint, Direction};
 
 use crate::{
     action::view_id,
-    clipboard_wrapper::Clipboard,
+    clipboard::Clipboard,
     context::Namespace,
     event::{Event, UserEvent},
     ui::{

@@ -5,7 +5,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     action::view_id,
-    clipboard_wrapper::Clipboard,
+    clipboard::Clipboard,
     event::Event,
     ui::{
         event::EventResult,

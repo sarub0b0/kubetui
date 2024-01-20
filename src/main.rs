@@ -1,6 +1,6 @@
 mod action;
 mod ansi;
-mod clipboard_wrapper;
+mod clipboard;
 mod cmd;
 mod context;
 mod error;

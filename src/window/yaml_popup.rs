@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     action::view_id,
-    clipboard_wrapper::Clipboard,
+    clipboard::Clipboard,
     ui::widget::{config::WidgetConfig, Text, Widget, WidgetTrait},
 };
 

@@ -1,9 +1,11 @@
-use crossbeam::channel::Sender;
 use std::{cell::RefCell, rc::Rc};
+
+use crossbeam::channel::Sender;
+use ratatui::layout::{Constraint, Direction};
 
 use crate::{
     action::view_id,
-    clipboard_wrapper::Clipboard,
+    clipboard::Clipboard,
     event::Event,
     ui::{
         event::EventResult,
@@ -13,8 +15,6 @@ use crate::{
     },
     workers::kubernetes::network::{NetworkRequest, RequestData},
 };
-
-use ratatui::layout::{Constraint, Direction};
 
 pub struct NetworkTab {
     pub tab: Tab<'static>,

@@ -2,14 +2,14 @@ use std::{cell::RefCell, rc::Rc};
 
 use ratatui::prelude::Constraint;
 
-use crate::clipboard_wrapper::Clipboard;
-
-use crate::action::view_id;
-
-use crate::ui::tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout};
-use crate::ui::{
-    widget::{config::WidgetConfig, Text, WidgetTrait},
-    Tab,
+use crate::{
+    action::view_id,
+    clipboard::Clipboard,
+    ui::{
+        tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout},
+        widget::{config::WidgetConfig, Text, WidgetTrait},
+        Tab,
+    },
 };
 
 pub struct EventsTabBuilder<'a> {
