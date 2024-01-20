@@ -4,16 +4,14 @@ use std::{cell::RefCell, rc::Rc};
 use crate::{
     action::view_id,
     clipboard_wrapper::Clipboard,
-    event::{
-        kubernetes::network::{NetworkRequest, RequestData},
-        Event,
-    },
+    event::Event,
     ui::{
         event::EventResult,
         tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout},
         widget::{config::WidgetConfig, Table, Text, WidgetTrait},
         Tab, WindowEvent,
     },
+    workers::kubernetes::network::{NetworkRequest, RequestData},
 };
 
 use ratatui::layout::{Constraint, Direction};

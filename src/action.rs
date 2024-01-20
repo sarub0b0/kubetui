@@ -5,24 +5,22 @@ use crossbeam::channel::Receiver;
 use crate::{
     context::{Context, Namespace},
     error::Result,
-    event::{
-        kubernetes::{
-            api_resources::{ApiMessage, ApiResponse},
-            config::ConfigMessage,
-            context_message::{ContextMessage, ContextResponse},
-            namespace_message::{NamespaceMessage, NamespaceResponse},
-            network::{NetworkMessage, NetworkResponse},
-            pod::LogMessage,
-            yaml::{YamlMessage, YamlResourceListItem, YamlResponse},
-            Kube, KubeTable, KubeTableRow,
-        },
-        Event,
-    },
+    event::Event,
     ui::{
         event::{exec_to_window_event, EventResult},
         util::chars::convert_tabs_to_spaces,
         widget::{Item, LiteralItem, TableItem, WidgetTrait},
         Window, WindowEvent,
+    },
+    workers::kubernetes::{
+        api_resources::{ApiMessage, ApiResponse},
+        config::ConfigMessage,
+        context_message::{ContextMessage, ContextResponse},
+        namespace_message::{NamespaceMessage, NamespaceResponse},
+        network::{NetworkMessage, NetworkResponse},
+        pod::LogMessage,
+        yaml::{YamlMessage, YamlResourceListItem, YamlResponse},
+        Kube, KubeTable, KubeTableRow,
     },
 };
 
@@ -230,7 +228,7 @@ pub fn update_contents(
         }
 
         Kube::Config(ConfigMessage::Response(res)) => {
-            use crate::event::kubernetes::config::ConfigResponse::*;
+            use crate::workers::kubernetes::config::ConfigResponse::*;
 
             match res {
                 Table(list) => {

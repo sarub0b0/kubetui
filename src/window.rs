@@ -18,22 +18,20 @@ use crate::{
     action::view_id,
     clipboard_wrapper::Clipboard,
     context::{Context, Namespace},
-    event::{
-        kubernetes::{
-            context_message::ContextRequest,
-            namespace_message::NamespaceRequest,
-            yaml::{
-                direct::{DirectedYaml, DirectedYamlKind},
-                YamlRequest,
-            },
-        },
-        Event, UserEvent,
-    },
+    event::{Event, UserEvent},
     ui::{
         event::EventResult,
         popup::Popup,
         widget::{SelectedItem, WidgetTrait},
         Header, Tab, Window, WindowEvent,
+    },
+    workers::kubernetes::{
+        context_message::ContextRequest,
+        namespace_message::NamespaceRequest,
+        yaml::{
+            direct::{DirectedYaml, DirectedYamlKind},
+            YamlRequest,
+        },
     },
 };
 

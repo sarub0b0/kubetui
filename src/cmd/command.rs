@@ -2,7 +2,7 @@ use clap::Parser;
 use ratatui::layout::Direction;
 use std::path::PathBuf;
 
-use crate::event::kubernetes::KubeWorkerConfig;
+use crate::workers::kubernetes::KubeWorkerConfig;
 
 use super::args::{AllNamespaces, SplitDirection};
 

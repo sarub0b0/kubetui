@@ -9,10 +9,7 @@ use crate::{
     action::view_id,
     clipboard_wrapper::Clipboard,
     context::Namespace,
-    event::{
-        kubernetes::pod::{LogConfig, LogMessage, LogPrefixType},
-        Event, UserEvent,
-    },
+    event::{Event, UserEvent},
     ui::{
         event::EventResult,
         tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout},
@@ -23,6 +20,7 @@ use crate::{
         },
         Tab, Window, WindowEvent,
     },
+    workers::kubernetes::pod::{LogConfig, LogMessage, LogPrefixType},
 };
 
 pub struct PodTabBuilder<'a> {

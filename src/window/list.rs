@@ -6,7 +6,6 @@ use std::{cell::RefCell, rc::Rc};
 use crate::{
     action::view_id,
     clipboard_wrapper::Clipboard,
-    event::kubernetes::api_resources::ApiRequest,
     event::Event,
     ui::{
         event::EventResult,
@@ -14,6 +13,7 @@ use crate::{
         widget::{config::WidgetConfig, MultipleSelect, SelectedItem, Text, Widget, WidgetTrait},
         Tab, Window,
     },
+    workers::kubernetes::api_resources::ApiRequest,
 };
 
 pub struct ListTabBuilder<'a> {

@@ -6,10 +6,7 @@ use std::{cell::RefCell, rc::Rc};
 use crate::{
     action::view_id,
     clipboard_wrapper::Clipboard,
-    event::{
-        kubernetes::yaml::{select::SelectedYaml, YamlRequest},
-        Event,
-    },
+    event::Event,
     logger,
     ui::{
         event::EventResult,
@@ -18,6 +15,7 @@ use crate::{
         widget::{config::WidgetConfig, SingleSelect, Text, WidgetTrait},
         Tab, Window,
     },
+    workers::kubernetes::yaml::{select::SelectedYaml, YamlRequest},
 };
 
 pub struct YamlTabBuilder<'a> {

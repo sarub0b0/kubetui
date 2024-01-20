@@ -26,12 +26,12 @@ use crate::cmd::Command;
 
 use action::{update_contents, window_action};
 use context::{Context, Namespace};
-use event::{kubernetes::KubeWorker, Event};
+use event::Event;
 use logging::Logger;
 use signal::signal_handler;
 use ui::WindowEvent;
 use window::WindowInit;
-use workers::{Tick, UserInput};
+use workers::{KubeWorker, Tick, UserInput};
 
 use std::{
     cell::RefCell,

@@ -2,15 +2,13 @@ use crossbeam::channel::Sender;
 
 use crate::{
     action::view_id,
-    event::{
-        kubernetes::{context_message::ContextRequest, namespace_message::NamespaceRequest},
-        Event,
-    },
+    event::Event,
     ui::{
         event::EventResult,
         widget::{config::WidgetConfig, MultipleSelect, SingleSelect, Widget},
         Window,
     },
+    workers::kubernetes::{context_message::ContextRequest, namespace_message::NamespaceRequest},
 };
 
 pub struct ContextPopupBuilder<'a> {

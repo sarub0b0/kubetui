@@ -1,10 +1,6 @@
-pub mod kubernetes;
-
 use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
 
-use crate::error::Error;
-
-use self::kubernetes::Kube;
+use crate::{error::Error, workers::Kube};
 
 #[derive(Debug, PartialEq, Clone, Copy, Eq, Hash)]
 pub enum UserEvent {
