@@ -1,7 +1,7 @@
 mod action;
 mod ansi;
 mod clipboard_wrapper;
-mod config;
+mod cmd;
 mod context;
 mod error;
 mod event;
@@ -21,9 +21,10 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
+use crate::cmd::Command;
+
 use self::{
     action::{update_contents, window_action},
-    config::{configure, Config},
     context::{Context, Namespace},
     event::{input::read_key, kubernetes::KubeWorker, tick::tick, Event},
     logging::Logger,
@@ -72,8 +73,8 @@ macro_rules! disable_raw_mode {
     };
 }
 
-fn run(config: Config) -> Result<()> {
-    let split_mode = config.split_mode();
+fn run(config: Command) -> Result<()> {
+    let split_mode = config.split_direction();
     let kube_worker_config = config.kube_worker_config();
 
     let (tx_input, rx_main): (Sender<Event>, Receiver<Event>) = bounded(128);
@@ -183,15 +184,15 @@ fn main() -> Result<()> {
         default_hook(info);
     }));
 
-    let config = configure();
+    let command = Command::init();
 
-    if config.logging {
+    if command.logging {
         Logger::init()?;
     }
 
     enable_raw_mode!();
 
-    let result = run(config);
+    let result = run(command);
 
     disable_raw_mode!();
 
