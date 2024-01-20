@@ -3,13 +3,13 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
-    thread::{spawn, JoinHandle},
+    thread::{sleep, spawn, JoinHandle},
 };
 
 use crate::{event::Event, logger, panic_set_hook};
 
 use anyhow::Result;
-use crossbeam::channel::{tick, Sender};
+use crossbeam::channel::Sender;
 use tokio::time;
 
 pub struct Tick {
@@ -56,10 +56,8 @@ impl Tick {
     }
 
     fn tick(&self) -> Result<()> {
-        let tick = tick(self.duration);
-
         while !self.is_terminated.load(Ordering::Relaxed) {
-            tick.recv()?;
+            sleep(self.duration);
 
             self.tx.send(Event::Tick)?;
         }
