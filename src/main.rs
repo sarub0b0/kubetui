@@ -24,16 +24,14 @@ use crossterm::{
 
 use crate::cmd::Command;
 
-use self::{
-    action::{update_contents, window_action},
-    context::{Context, Namespace},
-    event::{kubernetes::KubeWorker, tick::tick, Event},
-    logging::Logger,
-    signal::signal_handler,
-    ui::WindowEvent,
-    window::WindowInit,
-    workers::UserInput,
-};
+use action::{update_contents, window_action};
+use context::{Context, Namespace};
+use event::{kubernetes::KubeWorker, tick::tick, Event};
+use logging::Logger;
+use signal::signal_handler;
+use ui::WindowEvent;
+use window::WindowInit;
+use workers::UserInput;
 
 use std::{
     cell::RefCell,
