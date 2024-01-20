@@ -32,11 +32,7 @@ impl UserInput {
         logger!(info, "Start read-key event");
 
         let handle = spawn(move || {
-            let is_terminated = self.is_terminated.clone();
-
-            panic_set_hook!({
-                is_terminated.store(true, Ordering::Relaxed);
-            });
+            self.set_panic_hook();
 
             let is_terminated = self.is_terminated.clone();
 
@@ -50,6 +46,14 @@ impl UserInput {
         logger!(info, "Terminated read-key event");
 
         handle
+    }
+
+    fn set_panic_hook(&self) {
+        let is_terminated = self.is_terminated.clone();
+
+        panic_set_hook!({
+            is_terminated.store(true, Ordering::Relaxed);
+        });
     }
 
     fn poll(&self) -> Result<()> {
@@ -81,4 +85,3 @@ impl UserInput {
         Ok(())
     }
 }
-
