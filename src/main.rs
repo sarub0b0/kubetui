@@ -26,7 +26,7 @@ use crate::cmd::Command;
 use self::{
     action::{update_contents, window_action},
     context::{Context, Namespace},
-    event::{input::read_key, kubernetes::KubeWorker, tick::tick, Event},
+    event::{input::UserInput, kubernetes::KubeWorker, tick::tick, Event},
     logging::Logger,
     signal::signal_handler,
     ui::WindowEvent,
@@ -84,9 +84,9 @@ fn run(config: Command) -> Result<()> {
 
     let is_terminated = Arc::new(AtomicBool::new(false));
 
-    let is_terminated_clone = is_terminated.clone();
+    let user_input = UserInput::new(tx_input.clone(), is_terminated.clone());
 
-    let read_key_handler = thread::spawn(move || read_key(tx_input, is_terminated_clone));
+    let user_input_handler = user_input.start();
 
     let is_terminated_clone = is_terminated.clone();
     let kube_process_handler = thread::spawn(move || {
@@ -141,7 +141,7 @@ fn run(config: Command) -> Result<()> {
         }
     }
 
-    match read_key_handler.join() {
+    match user_input_handler.join() {
         Ok(ret) => ret?,
         Err(e) => {
             if let Some(e) = e.downcast_ref::<&str>() {

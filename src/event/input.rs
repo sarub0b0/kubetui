@@ -3,60 +3,82 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
+    thread::{spawn, JoinHandle},
     time::Duration,
 };
 
-use crate::{logger, panic_set_hook};
-
 use anyhow::Result;
 use crossbeam::channel::Sender;
-
 use crossterm::event::{poll, read, Event as CEvent, KeyEvent, KeyEventKind};
 
-use super::{Event, UserEvent};
+use crate::{
+    event::{Event, UserEvent},
+    logger, panic_set_hook,
+};
 
-pub fn read_key(tx: Sender<Event>, is_terminated: Arc<AtomicBool>) -> Result<()> {
-    logger!(info, "Start read-key event");
-
-    let is_terminated_panic = is_terminated.clone();
-    panic_set_hook!({
-        is_terminated_panic.store(true, std::sync::atomic::Ordering::Relaxed);
-    });
-
-    let ret = inner(tx, is_terminated.clone());
-
-    is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
-
-    logger!(info, "Terminated read-key event");
-
-    ret
+/// ユーザー入力を受け付けるワーカースレッドを生成する構造体
+/// イベントデータはチャネルを介してメインスレッドに送信される
+pub struct UserInput {
+    tx: Sender<Event>,
+    is_terminated: Arc<AtomicBool>,
 }
 
-fn inner(tx: Sender<Event>, is_terminated: Arc<AtomicBool>) -> Result<()> {
-    while !is_terminated.load(Ordering::Relaxed) {
-        if let Ok(true) = poll(Duration::from_secs(1)) {
-            let ev = read()?;
-
-            logger!(debug, "{:?}", ev);
-
-            match ev {
-                CEvent::Key(ev) => {
-                    if let KeyEvent {
-                        kind: KeyEventKind::Press | KeyEventKind::Repeat,
-                        ..
-                    } = ev
-                    {
-                        tx.send(Event::User(UserEvent::Key(ev)))?
-                    }
-                }
-                CEvent::Mouse(ev) => tx.send(Event::User(UserEvent::Mouse(ev)))?,
-                CEvent::Resize(..) => {}
-                CEvent::FocusGained => tx.send(UserEvent::FocusGained.into())?,
-                CEvent::FocusLost => tx.send(UserEvent::FocusLost.into())?,
-                CEvent::Paste(_) => {}
-            }
-        }
+impl UserInput {
+    pub fn new(tx: Sender<Event>, is_terminated: Arc<AtomicBool>) -> Self {
+        Self { tx, is_terminated }
     }
 
-    Ok(())
+    pub fn start(self) -> JoinHandle<Result<()>> {
+        logger!(info, "Start read-key event");
+
+        let handle = spawn(move || {
+            let is_terminated = self.is_terminated.clone();
+
+            panic_set_hook!({
+                is_terminated.store(true, Ordering::Relaxed);
+            });
+
+            let is_terminated = self.is_terminated.clone();
+
+            let ret = self.poll();
+
+            is_terminated.store(true, Ordering::Relaxed);
+
+            ret
+        });
+
+        logger!(info, "Terminated read-key event");
+
+        handle
+    }
+
+    fn poll(&self) -> Result<()> {
+        while !self.is_terminated.load(Ordering::Relaxed) {
+            if let Ok(true) = poll(Duration::from_secs(1)) {
+                let ev = read()?;
+
+                logger!(debug, "{:?}", ev);
+
+                match ev {
+                    CEvent::Key(ev) => {
+                        if let KeyEvent {
+                            kind: KeyEventKind::Press | KeyEventKind::Repeat,
+                            ..
+                        } = ev
+                        {
+                            self.tx.send(Event::User(UserEvent::Key(ev)))?
+                        }
+                    }
+                    CEvent::Mouse(ev) => self.tx.send(Event::User(UserEvent::Mouse(ev)))?,
+                    CEvent::Resize(..) => {}
+                    CEvent::FocusGained => self.tx.send(UserEvent::FocusGained.into())?,
+                    CEvent::FocusLost => self.tx.send(UserEvent::FocusLost.into())?,
+                    CEvent::Paste(_) => {}
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
+
