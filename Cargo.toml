@@ -8,7 +8,7 @@ description = "An intuitive Terminal User Interface (TUI) tool for real-time mon
 documentation = "https://github.com/sarub0b0/kubetui"
 repository = "https://github.com/sarub0b0/kubetui"
 keywords = ["kubernetes", "tui", "terminal", "monitor"]
-exclude = ["assets/*", "test/*", "Makefile", "shell.nix", "screenshots/*", ".taplo.toml"]
+exclude = ["/.github", "/test", "/script", "/screenshots", "/assets", ".gitignore", "Makefile", "renovate.json"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
