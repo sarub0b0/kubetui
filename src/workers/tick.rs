@@ -3,9 +3,8 @@ use std::sync::{
     Arc,
 };
 
-use crate::{logger, panic_set_hook};
+use crate::{event::Event, logger, panic_set_hook};
 
-use super::Event;
 use anyhow::Result;
 use crossbeam::channel::Sender;
 

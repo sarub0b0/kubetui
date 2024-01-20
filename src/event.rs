@@ -1,5 +1,3 @@
-pub mod tick;
-
 pub mod kubernetes;
 
 use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
