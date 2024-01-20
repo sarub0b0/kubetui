@@ -13,7 +13,7 @@ use crate::{
         widget::{config::WidgetConfig, Table, Text, WidgetTrait},
         Tab, WindowEvent,
     },
-    workers::kubernetes::network::{NetworkRequest, RequestData},
+    workers::kube::network::{NetworkRequest, RequestData},
 };
 
 pub struct NetworkTab {

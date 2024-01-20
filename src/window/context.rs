@@ -8,7 +8,7 @@ use crate::{
         widget::{config::WidgetConfig, MultipleSelect, SingleSelect, Widget},
         Window,
     },
-    workers::kubernetes::{context_message::ContextRequest, namespace_message::NamespaceRequest},
+    workers::kube::{context_message::ContextRequest, namespace_message::NamespaceRequest},
 };
 
 pub struct ContextPopupBuilder<'a> {

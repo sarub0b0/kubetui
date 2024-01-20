@@ -20,7 +20,7 @@ use crate::{
         },
         Tab, Window, WindowEvent,
     },
-    workers::kubernetes::pod::{LogConfig, LogMessage, LogPrefixType},
+    workers::kube::pod::{LogConfig, LogMessage, LogPrefixType},
 };
 
 pub struct PodTabBuilder<'a> {

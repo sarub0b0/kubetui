@@ -1,7 +1,7 @@
-mod user_input;
+pub mod kube;
 mod tick;
-pub mod kubernetes;
+mod user_input;
 
-pub use user_input::*;
+pub use kube::*;
 pub use tick::*;
-pub use kubernetes::*;
+pub use user_input::*;

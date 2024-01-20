@@ -12,7 +12,7 @@ use crate::{
         widget::{Item, LiteralItem, TableItem, WidgetTrait},
         Window, WindowEvent,
     },
-    workers::kubernetes::{
+    workers::kube::{
         api_resources::{ApiMessage, ApiResponse},
         config::ConfigMessage,
         context_message::{ContextMessage, ContextResponse},
@@ -228,7 +228,7 @@ pub fn update_contents(
         }
 
         Kube::Config(ConfigMessage::Response(res)) => {
-            use crate::workers::kubernetes::config::ConfigResponse::*;
+            use crate::workers::kube::config::ConfigResponse::*;
 
             match res {
                 Table(list) => {

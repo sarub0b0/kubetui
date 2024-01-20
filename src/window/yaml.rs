@@ -16,7 +16,7 @@ use crate::{
         widget::{config::WidgetConfig, SingleSelect, Text, WidgetTrait},
         Tab, Window,
     },
-    workers::kubernetes::yaml::{select::SelectedYaml, YamlRequest},
+    workers::kube::yaml::{select::SelectedYaml, YamlRequest},
 };
 
 pub struct YamlTabBuilder<'a> {

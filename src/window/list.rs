@@ -13,7 +13,7 @@ use crate::{
         widget::{config::WidgetConfig, MultipleSelect, SelectedItem, Text, Widget, WidgetTrait},
         Tab, Window,
     },
-    workers::kubernetes::api_resources::ApiRequest,
+    workers::kube::api_resources::ApiRequest,
 };
 
 pub struct ListTabBuilder<'a> {

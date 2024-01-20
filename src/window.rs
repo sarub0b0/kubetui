@@ -25,7 +25,7 @@ use crate::{
         widget::{SelectedItem, WidgetTrait},
         Header, Tab, Window, WindowEvent,
     },
-    workers::kubernetes::{
+    workers::kube::{
         context_message::ContextRequest,
         namespace_message::NamespaceRequest,
         yaml::{

@@ -13,7 +13,7 @@ use crate::{
         widget::{config::WidgetConfig, Table, Text, WidgetTrait},
         Tab, WindowEvent,
     },
-    workers::kubernetes::config::{ConfigRequest, RequestData},
+    workers::kube::config::{ConfigRequest, RequestData},
 };
 
 pub struct ConfigTabBuilder<'a> {
