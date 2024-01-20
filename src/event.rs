@@ -1,4 +1,3 @@
-pub mod input;
 pub mod tick;
 
 pub mod kubernetes;

@@ -9,6 +9,7 @@ mod logging;
 mod signal;
 mod ui;
 mod window;
+mod workers;
 
 use anyhow::Result;
 
@@ -26,11 +27,12 @@ use crate::cmd::Command;
 use self::{
     action::{update_contents, window_action},
     context::{Context, Namespace},
-    event::{input::UserInput, kubernetes::KubeWorker, tick::tick, Event},
+    event::{kubernetes::KubeWorker, tick::tick, Event},
     logging::Logger,
     signal::signal_handler,
     ui::WindowEvent,
     window::WindowInit,
+    workers::UserInput,
 };
 
 use std::{
