@@ -28,9 +28,9 @@ impl Tick {
     }
 
     pub fn start(self) -> JoinHandle<Result<()>> {
-        logger!(info, "Start tick event");
-
         let handle = spawn(move || {
+            logger!(info, "Start tick worker");
+
             self.set_panic_hook();
 
             let is_terminated = self.is_terminated.clone();
@@ -39,10 +39,10 @@ impl Tick {
 
             is_terminated.store(true, Ordering::Relaxed);
 
+            logger!(info, "Terminated tick worker");
+
             ret
         });
-
-        logger!(info, "Terminated tick event");
 
         handle
     }

@@ -276,9 +276,9 @@ impl KubeWorker {
 
     pub fn start(self) -> JoinHandle<Result<()>> {
         let handle = thread::spawn(move || {
-            self.set_panic_hook();
-
             logger!(info, "Start kube worker");
+
+            self.set_panic_hook();
 
             let ret: Result<()> = match Runtime::new() {
                 Ok(rt) => rt.block_on(Self::inner(self.clone())),

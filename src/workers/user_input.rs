@@ -29,9 +29,9 @@ impl UserInput {
     }
 
     pub fn start(self) -> JoinHandle<Result<()>> {
-        logger!(info, "Start read-key event");
-
         let handle = spawn(move || {
+            logger!(info, "Start read-key event");
+
             self.set_panic_hook();
 
             let is_terminated = self.is_terminated.clone();
@@ -40,10 +40,10 @@ impl UserInput {
 
             is_terminated.store(true, Ordering::Relaxed);
 
+            logger!(info, "Terminated read-key event");
+
             ret
         });
-
-        logger!(info, "Terminated read-key event");
 
         handle
     }
