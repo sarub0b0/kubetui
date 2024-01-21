@@ -7,13 +7,13 @@ mod context;
 mod error;
 mod logging;
 mod message;
-mod signal;
 mod ui;
 mod window;
 mod workers;
 
-use anyhow::Result;
+use std::panic;
 
+use anyhow::Result;
 use crossterm::{
     cursor::Show,
     event::{DisableFocusChange, DisableMouseCapture, EnableFocusChange, EnableMouseCapture},
@@ -21,12 +21,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
-use crate::{app::App, cmd::Command};
-
-use logging::Logger;
-use signal::signal_handler;
-
-use std::panic;
+use crate::{app::App, cmd::Command, logging::Logger};
 
 macro_rules! enable_raw_mode {
     () => {
@@ -55,8 +50,17 @@ macro_rules! disable_raw_mode {
     };
 }
 
+fn set_signal_handler() {
+    ctrlc::set_handler(|| {
+        disable_raw_mode!();
+
+        std::process::exit(0);
+    })
+    .expect("Error setting Ctrl-C handler")
+}
+
 fn main() -> Result<()> {
-    signal_handler();
+    set_signal_handler();
 
     let default_hook = panic::take_hook();
 
