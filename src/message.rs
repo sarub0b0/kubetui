@@ -10,12 +10,6 @@ pub enum UserEvent {
     FocusLost,
 }
 
-impl UserEvent {
-    pub fn from_key(code: KeyCode) -> Self {
-        UserEvent::Key(KeyEvent::from(code))
-    }
-}
-
 impl From<char> for UserEvent {
     fn from(c: char) -> Self {
         UserEvent::Key(KeyEvent::from(KeyCode::Char(c)))
