@@ -31,7 +31,7 @@ use logging::Logger;
 use signal::signal_handler;
 use ui::WindowEvent;
 use window::WindowInit;
-use workers::{KubeWorker, Tick, UserInput};
+use workers::{KubeWorker, Render, Tick, UserInput};
 
 use std::{
     cell::RefCell,
@@ -101,42 +101,21 @@ fn run(config: Command) -> Result<()> {
 
     let tick_handler = tick.start();
 
-    let backend = CrosstermBackend::new(io::stdout());
+    let render = Render::new(
+        tx_main.clone(),
+        rx_main.clone(),
+        is_terminated.clone(),
+        split_mode,
+    );
 
-    let namespace = Rc::new(RefCell::new(Namespace::new()));
-    let context = Rc::new(RefCell::new(Context::new()));
+    let render_handler = render.start();
 
-    let mut terminal = Terminal::with_options(
-        backend,
-        TerminalOptions {
-            viewport: Viewport::Fullscreen,
-        },
-    )?;
-
-    let mut window =
-        WindowInit::new(split_mode, tx_main, context.clone(), namespace.clone()).build();
-
-    terminal.clear()?;
-
-    while !is_terminated.load(Ordering::Relaxed) {
-        terminal.draw(|f| {
-            window.render(f);
-        })?;
-
-        match window_action(&mut window, &rx_main) {
-            WindowEvent::Continue => {}
-            WindowEvent::CloseWindow => {
-                is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
-                // break
-            }
-            WindowEvent::UpdateContents(ev) => {
-                update_contents(
-                    &mut window,
-                    ev,
-                    &mut context.borrow_mut(),
-                    &mut namespace.borrow_mut(),
-                );
-            }
+    match render_handler.join() {
+        Ok(ret) => ret?,
+        Err(e) => {
+            if let Some(e) = e.downcast_ref::<&str>() {
+                panic!("render thread panicked: {:?}", e);
+            };
         }
     }
 
@@ -166,6 +145,9 @@ fn run(config: Command) -> Result<()> {
             };
         }
     }
+
+    // SendErrorを防ぐためrx_mainのdropを遅らせる
+    drop(rx_main);
 
     Ok(())
 }
