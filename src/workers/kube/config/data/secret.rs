@@ -4,14 +4,12 @@ mod helm;
 
 use std::collections::BTreeMap;
 
+use anyhow::Result;
 use async_trait::async_trait;
 use k8s_openapi::{api::core::v1::Secret, ByteString};
 use kube::Api;
 
-use crate::{
-    error::Result,
-    workers::kube::{client::KubeClient, config::ConfigData},
-};
+use crate::workers::kube::{client::KubeClient, config::ConfigData};
 
 use self::{any::Any, helm::Helm};
 

@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 
+use anyhow::Result;
 use crossbeam::channel::Receiver;
 
 use crate::{
     context::{Context, Namespace},
-    error::Result,
     message::Message,
     ui::{
         event::{exec_to_window_event, EventResult},

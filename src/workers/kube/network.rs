@@ -4,7 +4,9 @@ mod list;
 pub use description::*;
 pub use list::*;
 
-use crate::{error::Result, message::Message};
+use anyhow::Result;
+
+use crate::message::Message;
 
 use super::{Kube, KubeTable};
 

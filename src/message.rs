@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
 
-use crate::{error::Error, workers::Kube};
+use crate::workers::Kube;
 
 #[derive(Debug, PartialEq, Clone, Copy, Eq, Hash)]
 pub enum UserEvent {
@@ -32,7 +32,7 @@ pub enum Message {
     Kube(Kube),
     User(UserEvent),
     Tick,
-    Error(Error),
+    Error(anyhow::Error),
 }
 
 #[macro_export]

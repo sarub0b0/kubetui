@@ -1,8 +1,8 @@
+use anyhow::Result;
 use async_trait::async_trait;
 use futures::future::try_join_all;
 
 use crate::{
-    error::Result,
     message::Message,
     workers::kube::{
         v1_table::{get_resource_per_namespace, insert_ns, TableRow},

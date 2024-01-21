@@ -2,18 +2,15 @@ mod multiple_namespaces;
 mod not_namespace;
 mod single_namespace;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use serde::Deserialize;
 
-use crate::{
-    error::Error,
-    workers::kube::{
-        api_resources::{ApiResource, ApiResources},
-        client::KubeClientRequest,
-        yaml::YamlResourceList,
-        TargetNamespaces,
-    },
+use crate::workers::kube::{
+    api_resources::{ApiResource, ApiResources},
+    client::KubeClientRequest,
+    yaml::YamlResourceList,
+    TargetNamespaces,
 };
 
 use self::{
@@ -70,7 +67,7 @@ impl<'a, C: KubeClientRequest> FetchResourceList<'a, C> {
         let api = self
             .api_resources
             .get(kind)
-            .ok_or_else(|| Error::Raw(format!("Can't get {} from API resource", kind)))?;
+            .ok_or_else(|| anyhow!("Can't get {} from API resource", kind))?;
 
         let kind = &api.name();
         let list = if api.is_namespaced() {

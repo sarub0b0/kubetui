@@ -1,17 +1,15 @@
-use k8s_openapi::apimachinery::pkg::apis::meta::v1::ListMeta;
-use k8s_openapi::apimachinery::pkg::runtime::RawExtension;
+use std::cmp::{Ord, Ordering, PartialOrd};
+
+use anyhow::Result;
+use k8s_openapi::apimachinery::pkg::{apis::meta::v1::ListMeta, runtime::RawExtension};
 use kube::api::TypeMeta;
-use serde::Deserialize;
-
-use serde::Deserializer;
+use serde::{Deserialize, Deserializer};
 use serde_json::Value as JsonValue;
-use std::cmp::Ordering;
-use std::cmp::{Ord, PartialOrd};
 
-use super::client::{KubeClient, KubeClientRequest};
-use super::KubeTableRow;
-
-use crate::error::Result;
+use super::{
+    client::{KubeClient, KubeClientRequest},
+    KubeTableRow,
+};
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, Deserialize)]
 pub struct Value(pub JsonValue);

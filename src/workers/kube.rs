@@ -561,7 +561,6 @@ mod inner {
     use tokio::{sync::RwLock, task::JoinHandle};
 
     use crate::{
-        error::Error,
         message::Message,
         workers::kube::{
             api_resources::{ApiPollWorker, SharedApiResources},
@@ -783,10 +782,7 @@ mod inner {
                         },
                         Err(e) => {
                             abort(&handlers);
-                            tx.send(Message::Error(Error::Raw(format!(
-                                "KubeProcess Error: {:?}",
-                                e
-                            ))))?;
+                            tx.send(Message::Error(anyhow!("KubeProcess Error: {:?}", e)))?;
                         }
                     }
                 }

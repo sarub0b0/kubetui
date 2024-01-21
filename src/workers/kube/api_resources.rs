@@ -1,21 +1,22 @@
-use super::{
-    client::KubeClientRequest,
-    worker::{PollWorker, Worker},
-    KubeClient, TargetApiResources, TargetNamespaces,
-    {v1_table::*, SharedTargetApiResources},
-    {Kube, Message},
-};
-use super::{metric_type::*, WorkerResult};
-use crate::error::Result;
+use std::{collections::BTreeSet, fmt::Display, hash::Hash, ops::Deref, sync::Arc, time};
 
+use anyhow::Result;
 use async_trait::async_trait;
 use futures::future::try_join_all;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{APIGroupList, APIResource, APIVersions};
 use kube::core::TypeMeta;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use std::{collections::BTreeSet, fmt::Display, hash::Hash, ops::Deref, sync::Arc, time};
 use tokio::{sync::RwLock, time::Instant};
+
+use super::{
+    client::KubeClientRequest,
+    metric_type::*,
+    v1_table::*,
+    worker::{PollWorker, Worker},
+    Kube, KubeClient, Message, SharedTargetApiResources, TargetApiResources, TargetNamespaces,
+    WorkerResult,
+};
 
 #[derive(Debug)]
 pub enum ApiRequest {

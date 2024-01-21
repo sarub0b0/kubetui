@@ -1,11 +1,10 @@
 use std::sync::{atomic::AtomicBool, Arc};
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use crossbeam::channel::Sender;
 use serde_yaml::Value;
 
 use crate::{
-    error::Error,
     logger,
     message::Message,
     workers::kube::{
@@ -101,7 +100,7 @@ pub async fn fetch_resource_yaml<C: KubeClientRequest>(
 
     let api = api_resources
         .get(kind)
-        .ok_or_else(|| Error::Raw(format!("Can't get {} from API resource", kind)))?;
+        .ok_or_else(|| anyhow!("Can't get {} from API resource", kind))?;
     // json string data
     let kind = api.name();
     let path = if api.is_namespaced() {

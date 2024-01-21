@@ -1,14 +1,13 @@
 use std::{collections::BTreeMap, time};
 
-use crate::{
-    error::Result,
-    workers::kube::{
-        client::KubeClient,
-        v1_table::{get_resource_per_namespace, insert_ns, TableRow},
-        worker::{PollWorker, Worker},
-        KubeTable, KubeTableRow, WorkerResult,
-    },
+use crate::workers::kube::{
+    client::KubeClient,
+    v1_table::{get_resource_per_namespace, insert_ns, TableRow},
+    worker::{PollWorker, Worker},
+    KubeTable, KubeTableRow, WorkerResult,
 };
+
+use anyhow::Result;
 use async_trait::async_trait;
 use futures::future::try_join_all;
 

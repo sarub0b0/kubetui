@@ -1,3 +1,4 @@
+use anyhow::Result;
 use k8s_openapi::{
     api::{
         core::v1::Pod,
@@ -8,7 +9,7 @@ use k8s_openapi::{
 use kube::Resource;
 use serde_yaml::Mapping;
 
-use crate::{error::Result, workers::kube::client::KubeClientRequest};
+use crate::workers::kube::client::KubeClientRequest;
 
 use self::{extract::Extract, to_value::ToValue};
 

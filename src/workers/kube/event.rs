@@ -6,11 +6,9 @@ use super::{
 
 use std::time;
 
-use futures::future::try_join_all;
-
+use anyhow::Result;
 use async_trait::async_trait;
-
-use crate::error::Result;
+use futures::future::try_join_all;
 
 #[derive(Clone)]
 pub struct EventPollWorker {

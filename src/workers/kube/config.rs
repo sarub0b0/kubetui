@@ -6,7 +6,7 @@ pub use list::ConfigsPollWorker;
 
 use super::{Kube, KubeTable, Message};
 
-use crate::error::Result;
+use anyhow::Result;
 
 pub type ConfigData = Vec<String>;
 

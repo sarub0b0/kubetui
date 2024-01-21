@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use anyhow::Result;
 use k8s_openapi::api::{
     core::v1::{Pod, Service},
     networking::v1::Ingress,
@@ -7,7 +8,7 @@ use k8s_openapi::api::{
 use kube::Resource;
 use serde_yaml::Mapping;
 
-use crate::{error::Result, workers::kube::client::KubeClientRequest};
+use crate::workers::kube::client::KubeClientRequest;
 
 use super::{
     related_resources::{to_list_value::ToListValue, RelatedClient},

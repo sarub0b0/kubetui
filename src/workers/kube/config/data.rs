@@ -3,11 +3,11 @@ mod secret;
 
 use std::sync::{atomic::AtomicBool, Arc};
 
+use anyhow::Result;
 use async_trait::async_trait;
 use crossbeam::channel::Sender;
 
 use crate::{
-    error::Result,
     message::Message,
     workers::kube::{client::KubeClient, worker::AbortWorker},
 };

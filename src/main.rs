@@ -4,7 +4,6 @@ mod app;
 mod clipboard;
 mod cmd;
 mod context;
-mod error;
 mod logging;
 mod message;
 mod ui;

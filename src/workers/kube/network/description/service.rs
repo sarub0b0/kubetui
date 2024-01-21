@@ -1,3 +1,4 @@
+use anyhow::Result;
 use k8s_openapi::{
     api::{
         core::v1::{Pod, Service, ServiceSpec},
@@ -8,7 +9,7 @@ use k8s_openapi::{
 use kube::{Resource, ResourceExt};
 use serde_yaml::Mapping;
 
-use crate::{error::Result, workers::kube::client::KubeClientRequest};
+use crate::workers::kube::client::KubeClientRequest;
 
 use self::to_value::ToValue;
 

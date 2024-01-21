@@ -1,13 +1,11 @@
 use std::collections::BTreeMap;
 
+use anyhow::Result;
 use async_trait::async_trait;
 use k8s_openapi::api::core::v1::ConfigMap;
 use kube::Api;
 
-use crate::{
-    error::Result,
-    workers::kube::{client::KubeClient, color::Color, config::ConfigData},
-};
+use crate::workers::kube::{client::KubeClient, color::Color, config::ConfigData};
 
 use super::Fetch;
 

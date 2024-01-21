@@ -1,16 +1,13 @@
+use anyhow::Result;
 use async_trait::async_trait;
-use serde::de::DeserializeOwned;
-
 use http::header::{HeaderValue, ACCEPT};
 use kube::{
     api::{GetParams, Request},
     Client,
 };
+use serde::de::DeserializeOwned;
 
-use crate::{
-    error::{anyhow, Error, Result},
-    logger,
-};
+use crate::logger;
 
 const TABLE_REQUEST_HEADER: &str = "application/json;as=Table;v=v1;g=meta.k8s.io,application/json;as=Table;v=v1beta1;g=meta.k8s.io,application/json";
 
@@ -69,7 +66,7 @@ impl KubeClient {
 
         let ret = self.client.request(request).await;
 
-        ret.map_err(|e| anyhow!(Error::Kube(e)))
+        ret.map_err(Into::into)
     }
 }
 
@@ -104,7 +101,7 @@ impl KubeClientRequest for KubeClient {
 
         let ret = self.client.request_text(request).await;
 
-        ret.map_err(|e| anyhow!(Error::Kube(e)))
+        ret.map_err(Into::into)
     }
 }
 
