@@ -17,7 +17,6 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
-    thread::{self, JoinHandle},
     time::Duration,
 };
 
@@ -274,29 +273,22 @@ impl KubeWorker {
         }
     }
 
-    pub fn start(self) -> JoinHandle<Result<()>> {
-        let handle = thread::spawn(move || {
-            logger!(info, "Start kube worker");
+    pub fn start(&self) -> Result<()> {
+        logger!(info, "KubeWorker start");
 
-            self.set_panic_hook();
+        let rt = Runtime::new()?;
 
-            let ret: Result<()> = match Runtime::new() {
-                Ok(rt) => rt.block_on(Self::inner(self.clone())),
-                Err(e) => Err(e.into()),
-            };
+        let ret = rt.block_on(Self::inner(self.clone()));
 
-            logger!(info, "Terminated kube worker");
+        logger!(info, "KubeWorker end");
 
-            if let Err(e) = ret {
-                self.is_terminated.store(true, Ordering::Relaxed);
+        if let Err(e) = ret {
+            self.is_terminated.store(true, Ordering::Relaxed);
 
-                Err(e)
-            } else {
-                Ok(())
-            }
-        });
-
-        handle
+            Err(e)
+        } else {
+            Ok(())
+        }
     }
 
     async fn inner(worker: KubeWorker) -> Result<()> {
@@ -304,7 +296,7 @@ impl KubeWorker {
         inner.run().await
     }
 
-    fn set_panic_hook(&self) {
+    pub fn set_panic_hook(&self) {
         let is_terminated = self.is_terminated.clone();
 
         panic_set_hook!({

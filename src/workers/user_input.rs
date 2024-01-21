@@ -3,7 +3,6 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
-    thread::{spawn, JoinHandle},
     time::Duration,
 };
 
@@ -28,27 +27,19 @@ impl UserInput {
         Self { tx, is_terminated }
     }
 
-    pub fn start(self) -> JoinHandle<Result<()>> {
-        let handle = spawn(move || {
-            logger!(info, "Start read-key event");
+    pub fn start(&self) -> Result<()> {
+        logger!(info, "user_input start");
 
-            self.set_panic_hook();
+        let ret = self.poll();
 
-            let is_terminated = self.is_terminated.clone();
+        self.is_terminated.store(true, Ordering::Relaxed);
 
-            let ret = self.poll();
+        logger!(info, "user_input end");
 
-            is_terminated.store(true, Ordering::Relaxed);
-
-            logger!(info, "Terminated read-key event");
-
-            ret
-        });
-
-        handle
+        ret
     }
 
-    fn set_panic_hook(&self) {
+    pub fn set_panic_hook(&self) {
         let is_terminated = self.is_terminated.clone();
 
         panic_set_hook!({

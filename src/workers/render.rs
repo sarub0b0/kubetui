@@ -6,7 +6,6 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
-    thread::{spawn, JoinHandle},
 };
 
 use anyhow::Result;
@@ -44,27 +43,19 @@ impl Render {
         }
     }
 
-    pub fn start(self) -> JoinHandle<Result<()>> {
-        let handle = spawn(move || {
-            logger!(info, "Start render worker");
+    pub fn start(self) -> Result<()> {
+        logger!(info, "render start");
 
-            self.set_panic_hook();
+        let ret = self.render();
 
-            let is_terminated = self.is_terminated.clone();
+        self.is_terminated.store(true, Ordering::Relaxed);
 
-            let ret = self.render();
+        logger!(info, "render end");
 
-            logger!(info, "Terminated render worker");
-
-            is_terminated.store(true, Ordering::Relaxed);
-
-            ret
-        });
-
-        handle
+        ret
     }
 
-    fn set_panic_hook(&self) {
+    pub fn set_panic_hook(&self) {
         let is_terminated = self.is_terminated.clone();
 
         panic_set_hook!({

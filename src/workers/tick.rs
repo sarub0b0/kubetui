@@ -3,7 +3,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
-    thread::{sleep, spawn, JoinHandle},
+    thread::sleep,
 };
 
 use crate::{event::Event, logger, panic_set_hook};
@@ -27,27 +27,19 @@ impl Tick {
         }
     }
 
-    pub fn start(self) -> JoinHandle<Result<()>> {
-        let handle = spawn(move || {
-            logger!(info, "Start tick worker");
+    pub fn start(&self) -> Result<()> {
+        logger!(info, "tick start");
 
-            self.set_panic_hook();
+        let ret = self.tick();
 
-            let is_terminated = self.is_terminated.clone();
+        self.is_terminated.store(true, Ordering::Relaxed);
 
-            let ret = self.tick();
+        logger!(info, "tick end");
 
-            is_terminated.store(true, Ordering::Relaxed);
-
-            logger!(info, "Terminated tick worker");
-
-            ret
-        });
-
-        handle
+        ret
     }
 
-    fn set_panic_hook(&self) {
+    pub fn set_panic_hook(&self) {
         let is_terminated = self.is_terminated.clone();
 
         panic_set_hook!({
