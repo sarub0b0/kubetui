@@ -13,8 +13,8 @@ use kube::{Api, Resource};
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
-    event::Event,
     logger,
+    message::Message,
     workers::kube::{client::KubeClient, worker::AbortWorker, yaml::YamlResponse},
 };
 
@@ -51,7 +51,7 @@ impl std::fmt::Display for DirectedYamlKind {
 #[derive(Clone)]
 pub struct DirectedYamlWorker {
     is_terminated: Arc<AtomicBool>,
-    tx: Sender<Event>,
+    tx: Sender<Message>,
     client: KubeClient,
     req: DirectedYaml,
 }
@@ -59,7 +59,7 @@ pub struct DirectedYamlWorker {
 impl DirectedYamlWorker {
     pub fn new(
         is_terminated: Arc<AtomicBool>,
-        tx: Sender<Event>,
+        tx: Sender<Message>,
         client: KubeClient,
         req: DirectedYaml,
     ) -> Self {

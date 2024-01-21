@@ -5,7 +5,7 @@ use self::{direct::DirectedYaml, select::SelectedYaml};
 
 use super::{api_resources::ApiResource, Kube};
 
-use crate::{error::Result, event::Event};
+use crate::{error::Result, message::Message};
 
 #[derive(Debug, Clone)]
 pub struct YamlResourceListItem {
@@ -34,9 +34,9 @@ pub enum YamlRequest {
     DirectedYaml(DirectedYaml),
 }
 
-impl From<YamlRequest> for Event {
+impl From<YamlRequest> for Message {
     fn from(req: YamlRequest) -> Self {
-        Event::Kube(Kube::Yaml(YamlMessage::Request(req)))
+        Message::Kube(Kube::Yaml(YamlMessage::Request(req)))
     }
 }
 
@@ -52,9 +52,9 @@ pub enum YamlResponse {
     },
 }
 
-impl From<YamlResponse> for Event {
+impl From<YamlResponse> for Message {
     fn from(res: YamlResponse) -> Self {
-        Event::Kube(Kube::Yaml(YamlMessage::Response(res)))
+        Message::Kube(Kube::Yaml(YamlMessage::Response(res)))
     }
 }
 
@@ -70,7 +70,7 @@ impl From<YamlMessage> for Kube {
     }
 }
 
-impl From<YamlMessage> for Event {
+impl From<YamlMessage> for Message {
     fn from(m: YamlMessage) -> Self {
         Self::Kube(m.into())
     }

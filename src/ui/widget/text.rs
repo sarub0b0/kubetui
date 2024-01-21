@@ -17,8 +17,8 @@ use ratatui::{
 
 use crate::{
     clipboard::Clipboard,
-    event::UserEvent,
     logger,
+    message::UserEvent,
     ui::{
         event::{Callback, EventResult, InnerCallback},
         key_event_to_code,

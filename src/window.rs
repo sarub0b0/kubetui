@@ -18,7 +18,7 @@ use crate::{
     action::view_id,
     clipboard::Clipboard,
     context::{Context, Namespace},
-    event::{Event, UserEvent},
+    message::{Message, UserEvent},
     ui::{
         event::EventResult,
         popup::Popup,
@@ -49,7 +49,7 @@ use self::{
 
 pub struct WindowInit {
     split_mode: Direction,
-    tx: Sender<Event>,
+    tx: Sender<Message>,
     context: Rc<RefCell<Context>>,
     namespaces: Rc<RefCell<Namespace>>,
 }
@@ -57,7 +57,7 @@ pub struct WindowInit {
 impl WindowInit {
     pub fn new(
         split_mode: Direction,
-        tx: Sender<Event>,
+        tx: Sender<Message>,
         context: Rc<RefCell<Context>>,
         namespaces: Rc<RefCell<Namespace>>,
     ) -> Self {
@@ -214,7 +214,7 @@ impl WindowInit {
     }
 }
 
-fn open_yaml(tx: Sender<Event>) -> impl Fn(&mut Window) -> EventResult {
+fn open_yaml(tx: Sender<Message>) -> impl Fn(&mut Window) -> EventResult {
     move |w: &mut Window| {
         let widget = w.active_tab().active_widget();
 

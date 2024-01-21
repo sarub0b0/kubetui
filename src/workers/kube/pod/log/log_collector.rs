@@ -4,18 +4,18 @@ use async_trait::async_trait;
 use crossbeam::channel::Sender;
 use tokio::{sync::Mutex, time};
 
-use crate::{event::Event, send_response, workers::kube::worker::Worker};
+use crate::{message::Message, send_response, workers::kube::worker::Worker};
 
 pub type LogBuffer = Arc<Mutex<Vec<String>>>;
 
 #[derive(Clone)]
 pub struct LogCollector {
-    tx: Sender<Event>,
+    tx: Sender<Message>,
     buffer: LogBuffer,
 }
 
 impl LogCollector {
-    pub fn new(tx: Sender<Event>, buffer: LogBuffer) -> Self {
+    pub fn new(tx: Sender<Message>, buffer: LogBuffer) -> Self {
         Self { tx, buffer }
     }
 }

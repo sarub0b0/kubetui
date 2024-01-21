@@ -4,7 +4,7 @@ mod list;
 pub use description::*;
 pub use list::*;
 
-use crate::{error::Result, event::Event};
+use crate::{error::Result, message::Message};
 
 use super::{Kube, KubeTable};
 
@@ -51,19 +51,19 @@ impl From<NetworkMessage> for Kube {
     }
 }
 
-impl From<NetworkMessage> for Event {
+impl From<NetworkMessage> for Message {
     fn from(m: NetworkMessage) -> Self {
         Self::Kube(m.into())
     }
 }
 
-impl From<NetworkRequest> for Event {
+impl From<NetworkRequest> for Message {
     fn from(req: NetworkRequest) -> Self {
         NetworkMessage::Request(req).into()
     }
 }
 
-impl From<NetworkResponse> for Event {
+impl From<NetworkResponse> for Message {
     fn from(res: NetworkResponse) -> Self {
         NetworkMessage::Response(res).into()
     }

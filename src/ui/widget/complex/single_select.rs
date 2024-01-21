@@ -13,7 +13,7 @@ use std::{collections::BTreeSet, rc::Rc};
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 
 use crate::{
-    event::UserEvent,
+    message::UserEvent,
     ui::{
         event::{Callback, EventResult, InnerCallback},
         util::RectContainsPoint,

@@ -8,7 +8,7 @@ use crossbeam::channel::Sender;
 
 use crate::{
     error::Result,
-    event::Event,
+    message::Message,
     workers::kube::{client::KubeClient, worker::AbortWorker},
 };
 
@@ -19,7 +19,7 @@ use super::{ConfigData, ConfigRequest, ConfigResponse, RequestData};
 #[derive(Clone)]
 pub struct ConfigsDataWorker {
     is_terminated: Arc<AtomicBool>,
-    tx: Sender<Event>,
+    tx: Sender<Message>,
     client: KubeClient,
     req: ConfigRequest,
 }
@@ -27,7 +27,7 @@ pub struct ConfigsDataWorker {
 impl ConfigsDataWorker {
     pub fn new(
         is_terminated: Arc<AtomicBool>,
-        tx: Sender<Event>,
+        tx: Sender<Message>,
         client: KubeClient,
         req: ConfigRequest,
     ) -> Self {

@@ -6,8 +6,8 @@ use serde_yaml::Value;
 
 use crate::{
     error::Error,
-    event::Event,
     logger,
+    message::Message,
     workers::kube::{
         api_resources::{ApiResource, ApiResources, SharedApiResources},
         client::KubeClientRequest,
@@ -24,7 +24,7 @@ where
     C: KubeClientRequest,
 {
     is_terminated: Arc<AtomicBool>,
-    tx: Sender<Event>,
+    tx: Sender<Message>,
     client: C,
     req: SelectedYaml,
     shared_api_resources: SharedApiResources,
@@ -33,7 +33,7 @@ where
 impl<C: KubeClientRequest> SelectedYamlWorker<C> {
     pub fn new(
         is_terminated: Arc<AtomicBool>,
-        tx: Sender<Event>,
+        tx: Sender<Message>,
         client: C,
         shared_api_resources: SharedApiResources,
         req: SelectedYaml,

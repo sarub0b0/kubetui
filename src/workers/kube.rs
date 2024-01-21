@@ -31,7 +31,7 @@ use tokio::{
     task::{self, AbortHandle},
 };
 
-use crate::{event::Event, logger, panic_set_hook};
+use crate::{logger, message::Message, panic_set_hook};
 
 use self::{
     api_resources::{ApiMessage, ApiRequest, ApiResource, ApiResponse, SharedApiResources},
@@ -121,9 +121,9 @@ impl KubeTable {
     }
 }
 
-impl From<Kube> for Event {
+impl From<Kube> for Message {
     fn from(k: Kube) -> Self {
-        Event::Kube(k)
+        Message::Kube(k)
     }
 }
 
@@ -146,7 +146,7 @@ pub enum Kube {
 }
 
 pub mod namespace_message {
-    use crate::event::Event;
+    use crate::message::Message;
     use anyhow::Result;
 
     use super::{Kube, TargetNamespaces};
@@ -169,22 +169,22 @@ pub mod namespace_message {
         Set(TargetNamespaces),
     }
 
-    impl From<NamespaceRequest> for Event {
+    impl From<NamespaceRequest> for Message {
         fn from(n: NamespaceRequest) -> Self {
-            Event::Kube(Kube::Namespace(NamespaceMessage::Request(n)))
+            Message::Kube(Kube::Namespace(NamespaceMessage::Request(n)))
         }
     }
 
-    impl From<NamespaceResponse> for Event {
+    impl From<NamespaceResponse> for Message {
         fn from(n: NamespaceResponse) -> Self {
-            Event::Kube(Kube::Namespace(NamespaceMessage::Response(n)))
+            Message::Kube(Kube::Namespace(NamespaceMessage::Response(n)))
         }
     }
 }
 
 pub mod context_message {
     use super::Kube;
-    use crate::event::Event;
+    use crate::message::Message;
 
     #[derive(Debug)]
     pub enum ContextMessage {
@@ -203,21 +203,21 @@ pub mod context_message {
         Get(Vec<String>),
     }
 
-    impl From<ContextMessage> for Event {
+    impl From<ContextMessage> for Message {
         fn from(m: ContextMessage) -> Self {
-            Event::Kube(Kube::Context(m))
+            Message::Kube(Kube::Context(m))
         }
     }
 
-    impl From<ContextRequest> for Event {
+    impl From<ContextRequest> for Message {
         fn from(m: ContextRequest) -> Self {
-            Event::Kube(Kube::Context(ContextMessage::Request(m)))
+            Message::Kube(Kube::Context(ContextMessage::Request(m)))
         }
     }
 
-    impl From<ContextResponse> for Event {
+    impl From<ContextResponse> for Message {
         fn from(m: ContextResponse) -> Self {
-            Event::Kube(Kube::Context(ContextMessage::Response(m)))
+            Message::Kube(Kube::Context(ContextMessage::Response(m)))
         }
     }
 }
@@ -252,16 +252,16 @@ pub struct KubeWorkerConfig {
 
 #[derive(Debug, Clone)]
 pub struct KubeWorker {
-    pub(super) tx: Sender<Event>,
-    pub(super) rx: Receiver<Event>,
+    pub(super) tx: Sender<Message>,
+    pub(super) rx: Receiver<Message>,
     pub(super) is_terminated: Arc<AtomicBool>,
     pub(super) config: KubeWorkerConfig,
 }
 
 impl KubeWorker {
     pub fn new(
-        tx: Sender<Event>,
-        rx: Receiver<Event>,
+        tx: Sender<Message>,
+        rx: Receiver<Message>,
         is_terminated: Arc<AtomicBool>,
         config: KubeWorkerConfig,
     ) -> Self {
@@ -308,7 +308,7 @@ impl KubeWorker {
 #[derive(Clone)]
 struct MainWorker {
     inner: PollWorker,
-    rx: Receiver<Event>,
+    rx: Receiver<Message>,
     contexts: Vec<String>,
     shared_target_api_resources: SharedTargetApiResources,
     shared_api_resources: SharedApiResources,
@@ -348,7 +348,7 @@ impl Worker for MainWorker {
             let Ok(recv) = task.await else { continue };
 
             match recv {
-                Ok(Event::Kube(ev)) => match ev {
+                Ok(Message::Kube(ev)) => match ev {
                     Kube::Namespace(NamespaceMessage::Request(req)) => match req {
                         NamespaceRequest::Get => {
                             let ns = fetch_all_namespaces(kube_client.clone()).await;
@@ -562,7 +562,7 @@ mod inner {
 
     use crate::{
         error::Error,
-        event::Event,
+        message::Message,
         workers::kube::{
             api_resources::{ApiPollWorker, SharedApiResources},
             config::ConfigsPollWorker,
@@ -581,8 +581,8 @@ mod inner {
     };
 
     pub struct Inner {
-        tx: Sender<Event>,
-        rx: Receiver<Event>,
+        tx: Sender<Message>,
+        rx: Receiver<Message>,
         is_terminated: Arc<AtomicBool>,
         kubeconfig: Kubeconfig,
         context: String,
@@ -695,12 +695,12 @@ mod inner {
                     target_api_resources,
                 } = store.get(&context)?.clone();
 
-                tx.send(Event::Kube(Kube::RestoreContext {
+                tx.send(Message::Kube(Kube::RestoreContext {
                     context: context.to_string(),
                     namespaces: target_namespaces.to_vec(),
                 }))?;
 
-                tx.send(Event::Kube(Kube::RestoreAPIs(
+                tx.send(Message::Kube(Kube::RestoreAPIs(
                     target_api_resources.to_vec(),
                 )))?;
 
@@ -783,7 +783,7 @@ mod inner {
                         },
                         Err(e) => {
                             abort(&handlers);
-                            tx.send(Event::Error(Error::Raw(format!(
+                            tx.send(Message::Error(Error::Raw(format!(
                                 "KubeProcess Error: {:?}",
                                 e
                             ))))?;

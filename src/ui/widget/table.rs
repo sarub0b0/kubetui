@@ -15,8 +15,8 @@ use filter_form::FilterForm;
 use item::InnerItem;
 
 use crate::{
-    event::UserEvent,
     logger,
+    message::UserEvent,
     ui::{
         event::{Callback, EventResult},
         key_event_to_code,

@@ -9,7 +9,7 @@ mod related_resources;
 use std::sync::{atomic::AtomicBool, Arc};
 
 use crate::{
-    event::Event,
+    message::Message,
     workers::kube::{client::KubeClientRequest, worker::AbortWorker},
 };
 
@@ -41,7 +41,7 @@ where
     C: KubeClientRequest,
 {
     is_terminated: Arc<AtomicBool>,
-    tx: Sender<Event>,
+    tx: Sender<Message>,
     client: C,
     req: NetworkRequest,
 }
@@ -52,7 +52,7 @@ where
 {
     pub fn new(
         is_terminated: Arc<AtomicBool>,
-        tx: Sender<Event>,
+        tx: Sender<Message>,
         client: C,
         req: NetworkRequest,
     ) -> Self {
@@ -177,7 +177,7 @@ mod tests {
         #[tokio::test(flavor = "multi_thread")]
         async fn is_terminatedで処理を停止したときokを返す() {
             let is_terminated = Arc::new(AtomicBool::new(false));
-            let (tx, _rx): (Sender<Event>, Receiver<Event>) = bounded(3);
+            let (tx, _rx): (Sender<Message>, Receiver<Message>) = bounded(3);
             let mut client = MockTestKubeClient::new();
 
             mock_expect!(
@@ -219,7 +219,7 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread")]
         async fn 内部でエラーがでたとき処理を停止してtxにerrを送信してokを返す() {
-            let (tx, rx): (Sender<Event>, Receiver<Event>) = bounded(3);
+            let (tx, rx): (Sender<Message>, Receiver<Message>) = bounded(3);
             let mut client = MockTestKubeClient::new();
             mock_expect!(
                 client,
@@ -254,7 +254,7 @@ mod tests {
 
             let handle = tokio::spawn(async move { worker.run().await });
 
-            if let Event::Kube(Kube::Network(NetworkMessage::Response(NetworkResponse::Yaml(
+            if let Message::Kube(Kube::Network(NetworkMessage::Response(NetworkResponse::Yaml(
                 msg,
             )))) = rx.recv().unwrap()
             {
@@ -296,7 +296,7 @@ mod tests {
         #[tokio::test(flavor = "multi_thread")]
         async fn 正常系のときtxにデータを送信する() {
             let is_terminated = Arc::new(AtomicBool::new(false));
-            let (tx, rx): (Sender<Event>, Receiver<Event>) = bounded(3);
+            let (tx, rx): (Sender<Message>, Receiver<Message>) = bounded(3);
             let mut client = MockTestKubeClient::new();
 
             mock_expect!(
@@ -370,7 +370,7 @@ mod tests {
             .map(ToString::to_string)
             .collect();
 
-            if let Event::Kube(Kube::Network(NetworkMessage::Response(NetworkResponse::Yaml(
+            if let Message::Kube(Kube::Network(NetworkMessage::Response(NetworkResponse::Yaml(
                 Ok(actual),
             )))) = event
             {
@@ -382,7 +382,7 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread")]
         async fn is_terminatedがtrueのときループを抜けてokを返す() {
-            let (tx, _rx): (Sender<Event>, Receiver<Event>) = bounded(3);
+            let (tx, _rx): (Sender<Message>, Receiver<Message>) = bounded(3);
             let client = MockTestKubeClient::new();
 
             let req_data = RequestData {
@@ -407,7 +407,7 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread")]
         async fn 内部でエラーがでたときループを抜けてerrを返す() {
-            let (tx, rx): (Sender<Event>, Receiver<Event>) = bounded(3);
+            let (tx, rx): (Sender<Message>, Receiver<Message>) = bounded(3);
             let mut client = MockTestKubeClient::new();
             mock_expect!(
                 client,

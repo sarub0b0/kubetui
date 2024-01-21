@@ -18,8 +18,9 @@ use regex::Regex;
 use tokio::task::AbortHandle;
 
 use crate::{
-    event::Event,
-    logger, send_response,
+    logger,
+    message::Message,
+    send_response,
     workers::kube::{
         client::KubeClient,
         worker::{AbortWorker, Worker},
@@ -67,7 +68,7 @@ pub struct PodWatcherSelector {
 
 #[derive(Clone)]
 pub struct PodWatcher {
-    tx: Sender<Event>,
+    tx: Sender<Message>,
     client: KubeClient,
     log_buffer: LogBuffer,
     namespace: String,
@@ -150,7 +151,7 @@ impl Worker for PodWatcher {
 
 impl PodWatcher {
     pub fn new(
-        tx: Sender<Event>,
+        tx: Sender<Message>,
         client: KubeClient,
         log_buffer: LogBuffer,
         namespace: String,

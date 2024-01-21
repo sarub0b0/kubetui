@@ -6,20 +6,20 @@ use std::{
     thread::sleep,
 };
 
-use crate::{event::Event, logger, panic_set_hook};
+use crate::{logger, message::Message, panic_set_hook};
 
 use anyhow::Result;
 use crossbeam::channel::Sender;
 use tokio::time;
 
 pub struct Tick {
-    tx: Sender<Event>,
+    tx: Sender<Message>,
     duration: time::Duration,
     is_terminated: Arc<AtomicBool>,
 }
 
 impl Tick {
-    pub fn new(tx: Sender<Event>, rate: time::Duration, is_terminated: Arc<AtomicBool>) -> Self {
+    pub fn new(tx: Sender<Message>, rate: time::Duration, is_terminated: Arc<AtomicBool>) -> Self {
         Self {
             tx,
             duration: rate,
@@ -51,7 +51,7 @@ impl Tick {
         while !self.is_terminated.load(Ordering::Relaxed) {
             sleep(self.duration);
 
-            self.tx.send(Event::Tick)?;
+            self.tx.send(Message::Tick)?;
         }
 
         Ok(())

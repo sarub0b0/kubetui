@@ -1,5 +1,5 @@
 use crate::{
-    event::UserEvent,
+    message::UserEvent,
     ui::{
         event::{Callback, EventResult, InnerCallback},
         key_event_to_code,

@@ -7,7 +7,7 @@ use ratatui::prelude::Constraint;
 use crate::{
     action::view_id,
     clipboard::Clipboard,
-    event::Event,
+    message::Message,
     logger,
     ui::{
         event::EventResult,
@@ -21,7 +21,7 @@ use crate::{
 
 pub struct YamlTabBuilder<'a> {
     title: &'static str,
-    tx: &'a Sender<Event>,
+    tx: &'a Sender<Message>,
     clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
 }
 
@@ -35,7 +35,7 @@ pub struct YamlTab {
 impl<'a> YamlTabBuilder<'a> {
     pub fn new(
         title: &'static str,
-        tx: &'a Sender<Event>,
+        tx: &'a Sender<Message>,
         clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
     ) -> Self {
         Self {

@@ -3,7 +3,7 @@ use futures::future::try_join_all;
 
 use crate::{
     error::Result,
-    event::Event,
+    message::Message,
     workers::kube::{
         v1_table::{get_resource_per_namespace, insert_ns, TableRow},
         worker::{PollWorker, Worker},
@@ -40,7 +40,7 @@ impl Worker for PodPollWorker {
 
             let pod_info = self.get_pod_info().await;
 
-            tx.send(Event::Kube(Kube::Pod(pod_info)))
+            tx.send(Message::Kube(Kube::Pod(pod_info)))
                 .expect("Failed to Kube::Pod");
         }
 

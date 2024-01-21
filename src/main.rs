@@ -4,8 +4,8 @@ mod clipboard;
 mod cmd;
 mod context;
 mod error;
-mod event;
 mod logging;
+mod message;
 mod signal;
 mod ui;
 mod window;
@@ -24,8 +24,8 @@ use crossterm::{
 
 use crate::cmd::Command;
 
-use event::Event;
 use logging::Logger;
+use message::Message;
 use signal::signal_handler;
 use workers::{KubeWorker, Render, Tick, UserInput};
 
@@ -66,8 +66,8 @@ fn run(config: Command) -> Result<()> {
     let split_direction = config.split_direction();
     let kube_worker_config = config.kube_worker_config();
 
-    let (tx_input, rx_main): (Sender<Event>, Receiver<Event>) = bounded(128);
-    let (tx_main, rx_kube): (Sender<Event>, Receiver<Event>) = bounded(256);
+    let (tx_input, rx_main): (Sender<Message>, Receiver<Message>) = bounded(128);
+    let (tx_main, rx_kube): (Sender<Message>, Receiver<Message>) = bounded(256);
     let tx_kube = tx_input.clone();
     let tx_tick = tx_input.clone();
 

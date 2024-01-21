@@ -27,14 +27,14 @@ impl From<KeyCode> for UserEvent {
     }
 }
 
-impl From<UserEvent> for Event {
+impl From<UserEvent> for Message {
     fn from(value: UserEvent) -> Self {
         Self::User(value)
     }
 }
 
 #[derive(Debug)]
-pub enum Event {
+pub enum Message {
     Kube(Kube),
     User(UserEvent),
     Tick,

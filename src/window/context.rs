@@ -2,7 +2,7 @@ use crossbeam::channel::Sender;
 
 use crate::{
     action::view_id,
-    event::Event,
+    message::Message,
     ui::{
         event::EventResult,
         widget::{config::WidgetConfig, MultipleSelect, SingleSelect, Widget},
@@ -12,7 +12,7 @@ use crate::{
 };
 
 pub struct ContextPopupBuilder<'a> {
-    tx: &'a Sender<Event>,
+    tx: &'a Sender<Message>,
 }
 
 pub struct ContextPopup {
@@ -22,7 +22,7 @@ pub struct ContextPopup {
 }
 
 impl<'a> ContextPopupBuilder<'a> {
-    pub fn new(tx: &'a Sender<Event>) -> Self {
+    pub fn new(tx: &'a Sender<Message>) -> Self {
         Self { tx }
     }
 

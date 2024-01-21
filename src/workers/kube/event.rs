@@ -1,7 +1,7 @@
 use super::{
     v1_table::*,
     worker::{PollWorker, Worker},
-    KubeClient, KubeTableRow, WorkerResult, {Event, Kube},
+    KubeClient, KubeTableRow, WorkerResult, {Kube, Message},
 };
 
 use std::time;
@@ -44,7 +44,7 @@ impl Worker for EventPollWorker {
 
             let event_list = get_event_table(kube_client, &target_namespaces).await;
 
-            tx.send(Event::Kube(Kube::Event(event_list)))
+            tx.send(Message::Kube(Kube::Event(event_list)))
                 .expect("Failed to send Kube::Event");
         }
 

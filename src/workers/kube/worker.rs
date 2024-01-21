@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use crossbeam::channel::Sender;
 use tokio::task::{AbortHandle, JoinHandle};
 
-use crate::event::Event;
+use crate::message::Message;
 
 use super::{KubeClient, SharedTargetNamespaces};
 
@@ -41,7 +41,7 @@ pub trait AbortWorker {
 #[derive(Clone)]
 pub struct PollWorker {
     pub is_terminated: Arc<AtomicBool>,
-    pub tx: Sender<Event>,
+    pub tx: Sender<Message>,
     pub shared_target_namespaces: SharedTargetNamespaces,
     pub kube_client: KubeClient,
 }

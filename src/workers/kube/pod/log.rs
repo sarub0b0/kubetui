@@ -18,8 +18,8 @@ use tokio::task::{JoinError, JoinHandle};
 
 use crate::{
     context::Namespace,
-    event::Event,
     logger,
+    message::Message,
     workers::kube::{
         client::KubeClient,
         pod::filter::{Filter, LabelSelector, RetrievableResource},
@@ -69,21 +69,21 @@ pub enum LogMessage {
     Response(Result<Vec<String>>),
 }
 
-impl From<LogMessage> for Event {
-    fn from(m: LogMessage) -> Event {
-        Event::Kube(Kube::Log(m))
+impl From<LogMessage> for Message {
+    fn from(m: LogMessage) -> Message {
+        Message::Kube(Kube::Log(m))
     }
 }
 
 #[derive(Clone)]
 pub struct LogWorker {
-    tx: Sender<Event>,
+    tx: Sender<Message>,
     client: KubeClient,
     config: LogConfig,
 }
 
 impl LogWorker {
-    pub fn new(tx: Sender<Event>, client: KubeClient, config: LogConfig) -> Self {
+    pub fn new(tx: Sender<Message>, client: KubeClient, config: LogConfig) -> Self {
         Self { tx, client, config }
     }
 

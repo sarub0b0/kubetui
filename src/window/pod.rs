@@ -9,7 +9,7 @@ use crate::{
     action::view_id,
     clipboard::Clipboard,
     context::Namespace,
-    event::{Event, UserEvent},
+    message::{Message, UserEvent},
     ui::{
         event::EventResult,
         tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout},
@@ -25,7 +25,7 @@ use crate::{
 
 pub struct PodTabBuilder<'a> {
     title: &'a str,
-    tx: &'a Sender<Event>,
+    tx: &'a Sender<Message>,
     clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
     split_mode: Direction,
     namespaces: Rc<RefCell<Namespace>>,
@@ -39,7 +39,7 @@ pub struct PodsTab {
 impl<'a> PodTabBuilder<'a> {
     pub fn new(
         title: &'static str,
-        tx: &'a Sender<Event>,
+        tx: &'a Sender<Message>,
         clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
         split_mode: Direction,
         namespaces: Rc<RefCell<Namespace>>,

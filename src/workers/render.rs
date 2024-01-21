@@ -15,23 +15,24 @@ use ratatui::{backend::CrosstermBackend, layout::Direction, Terminal, TerminalOp
 use crate::{
     action::{update_contents, window_action},
     context::{Context, Namespace},
-    event::Event,
-    logger, panic_set_hook,
+    logger,
+    message::Message,
+    panic_set_hook,
     ui::WindowEvent,
     window::WindowInit,
 };
 
 pub struct Render {
-    tx: Sender<Event>,
-    rx: Receiver<Event>,
+    tx: Sender<Message>,
+    rx: Receiver<Message>,
     is_terminated: Arc<AtomicBool>,
     direction: Direction,
 }
 
 impl Render {
     pub fn new(
-        tx: Sender<Event>,
-        rx: Receiver<Event>,
+        tx: Sender<Message>,
+        rx: Receiver<Message>,
         is_terminated: Arc<AtomicBool>,
         direction: Direction,
     ) -> Self {

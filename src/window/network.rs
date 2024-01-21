@@ -6,7 +6,7 @@ use ratatui::layout::{Constraint, Direction};
 use crate::{
     action::view_id,
     clipboard::Clipboard,
-    event::Event,
+    message::Message,
     ui::{
         event::EventResult,
         tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout},
@@ -22,7 +22,7 @@ pub struct NetworkTab {
 
 pub struct NetworkTabBuilder<'a> {
     title: &'a str,
-    tx: &'a Sender<Event>,
+    tx: &'a Sender<Message>,
     clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
     split_mode: Direction,
 }
@@ -30,7 +30,7 @@ pub struct NetworkTabBuilder<'a> {
 impl<'a> NetworkTabBuilder<'a> {
     pub fn new(
         title: &'static str,
-        tx: &'a Sender<Event>,
+        tx: &'a Sender<Message>,
         clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
         split_mode: Direction,
     ) -> Self {

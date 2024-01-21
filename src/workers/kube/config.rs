@@ -4,7 +4,7 @@ mod list;
 pub use data::ConfigsDataWorker;
 pub use list::ConfigsPollWorker;
 
-use super::{Event, Kube, KubeTable};
+use super::{Kube, KubeTable, Message};
 
 use crate::error::Result;
 
@@ -49,19 +49,19 @@ impl From<ConfigMessage> for Kube {
     }
 }
 
-impl From<ConfigMessage> for Event {
+impl From<ConfigMessage> for Message {
     fn from(m: ConfigMessage) -> Self {
         Self::Kube(m.into())
     }
 }
 
-impl From<ConfigRequest> for Event {
+impl From<ConfigRequest> for Message {
     fn from(req: ConfigRequest) -> Self {
         ConfigMessage::Request(req).into()
     }
 }
 
-impl From<ConfigResponse> for Event {
+impl From<ConfigResponse> for Message {
     fn from(res: ConfigResponse) -> Self {
         ConfigMessage::Response(res).into()
     }

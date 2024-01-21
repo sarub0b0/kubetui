@@ -11,19 +11,20 @@ use crossbeam::channel::Sender;
 use crossterm::event::{poll, read, Event as CEvent, KeyEvent, KeyEventKind};
 
 use crate::{
-    event::{Event, UserEvent},
-    logger, panic_set_hook,
+    logger,
+    message::{Message, UserEvent},
+    panic_set_hook,
 };
 
 /// ユーザー入力を受け付けるワーカースレッドを生成する構造体
 /// イベントデータはチャネルを介してメインスレッドに送信される
 pub struct UserInput {
-    tx: Sender<Event>,
+    tx: Sender<Message>,
     is_terminated: Arc<AtomicBool>,
 }
 
 impl UserInput {
-    pub fn new(tx: Sender<Event>, is_terminated: Arc<AtomicBool>) -> Self {
+    pub fn new(tx: Sender<Message>, is_terminated: Arc<AtomicBool>) -> Self {
         Self { tx, is_terminated }
     }
 
@@ -61,10 +62,10 @@ impl UserInput {
                             ..
                         } = ev
                         {
-                            self.tx.send(Event::User(UserEvent::Key(ev)))?
+                            self.tx.send(Message::User(UserEvent::Key(ev)))?
                         }
                     }
-                    CEvent::Mouse(ev) => self.tx.send(Event::User(UserEvent::Mouse(ev)))?,
+                    CEvent::Mouse(ev) => self.tx.send(Message::User(UserEvent::Mouse(ev)))?,
                     CEvent::Resize(..) => {}
                     CEvent::FocusGained => self.tx.send(UserEvent::FocusGained.into())?,
                     CEvent::FocusLost => self.tx.send(UserEvent::FocusLost.into())?,

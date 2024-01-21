@@ -5,7 +5,7 @@ use crossbeam::channel::Receiver;
 use crate::{
     context::{Context, Namespace},
     error::Result,
-    event::Event,
+    message::Message,
     ui::{
         event::{exec_to_window_event, EventResult},
         util::chars::convert_tabs_to_spaces,
@@ -83,9 +83,9 @@ macro_rules! error_lines {
     };
 }
 
-pub fn window_action(window: &mut Window, rx: &Receiver<Event>) -> WindowEvent {
+pub fn window_action(window: &mut Window, rx: &Receiver<Message>) -> WindowEvent {
     match rx.recv().expect("Failed to recv") {
-        Event::User(ev) => match window.on_event(ev) {
+        Message::User(ev) => match window.on_event(ev) {
             EventResult::Nop => {}
 
             EventResult::Ignore => {
@@ -103,9 +103,9 @@ pub fn window_action(window: &mut Window, rx: &Receiver<Event>) -> WindowEvent {
             }
         },
 
-        Event::Tick => {}
-        Event::Kube(k) => return WindowEvent::UpdateContents(k),
-        Event::Error(_) => {}
+        Message::Tick => {}
+        Message::Kube(k) => return WindowEvent::UpdateContents(k),
+        Message::Error(_) => {}
     }
     WindowEvent::Continue
 }
