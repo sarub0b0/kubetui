@@ -44,8 +44,8 @@ log4rs = { version = "1", default-features = false, features = ["file_appender",
 bytes = "1"
 futures = "0.3"
 http = "0.2"
-k8s-openapi = { version = "0.20.0", default-features = false, features = ["v1_27"] }
-kube = { version = "0.87.2", default-features = false, features = ["client"] }
+k8s-openapi = { version = "0.21.0", default-features = false, features = ["v1_27"] }
+kube = { version = "0.88.1", default-features = false, features = ["client"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
