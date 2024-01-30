@@ -5,7 +5,7 @@ use crossbeam::channel::Receiver;
 
 use crate::{
     context::{Context, Namespace},
-    features::pod::message::LogMessage,
+    features::{config::message::ConfigMessage, pod::message::LogMessage},
     message::Message,
     ui::{
         event::{exec_to_window_event, EventResult},
@@ -15,7 +15,6 @@ use crate::{
     },
     workers::kube::{
         api_resources::{ApiMessage, ApiResponse},
-        config::ConfigMessage,
         context_message::{ContextMessage, ContextResponse},
         namespace_message::{NamespaceMessage, NamespaceResponse},
         network::{NetworkMessage, NetworkResponse},
@@ -228,7 +227,7 @@ pub fn update_contents(
         }
 
         Kube::Config(ConfigMessage::Response(res)) => {
-            use crate::workers::kube::config::ConfigResponse::*;
+            use crate::features::config::message::ConfigResponse::*;
 
             match res {
                 Table(list) => {

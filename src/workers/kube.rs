@@ -1,7 +1,6 @@
 pub mod api_resources;
 pub mod client;
 pub mod color;
-pub mod config;
 pub mod event;
 mod metric_type;
 pub mod network;
@@ -30,12 +29,19 @@ use tokio::{
     task::{self, AbortHandle},
 };
 
-use crate::{features::pod::{kube::LogWorker, message::LogMessage}, logger, message::Message, panic_set_hook};
+use crate::{
+    features::{
+        config::{kube::ConfigsDataWorker, message::ConfigMessage},
+        pod::{kube::LogWorker, message::LogMessage},
+    },
+    logger,
+    message::Message,
+    panic_set_hook,
+};
 
 use self::{
     api_resources::{ApiMessage, ApiRequest, ApiResource, ApiResponse, SharedApiResources},
     client::KubeClient,
-    config::{ConfigMessage, ConfigsDataWorker},
     context_message::{ContextMessage, ContextRequest, ContextResponse},
     inner::Inner,
     namespace_message::{NamespaceMessage, NamespaceRequest, NamespaceResponse},
@@ -559,11 +565,10 @@ mod inner {
     use tokio::{sync::RwLock, task::JoinHandle};
 
     use crate::{
-        features::pod::kube::PodPollWorker,
+        features::{config::kube::ConfigsPollWorker, pod::kube::PodPollWorker},
         message::Message,
         workers::kube::{
             api_resources::{ApiPollWorker, SharedApiResources},
-            config::ConfigsPollWorker,
             event::EventPollWorker,
             network::NetworkPollWorker,
             worker::{PollWorker, Worker},

@@ -1,4 +1,3 @@
-mod config;
 mod context;
 mod event;
 mod help;
@@ -17,7 +16,7 @@ use crate::{
     action::view_id,
     clipboard::Clipboard,
     context::{Context, Namespace},
-    features::pod::view::PodTab,
+    features::{config::view::ConfigTab, pod::view::PodTab},
     message::{Message, UserEvent},
     ui::{
         event::EventResult,
@@ -36,7 +35,6 @@ use crate::{
 };
 
 use self::{
-    config::{ConfigTab, ConfigTabBuilder},
     context::{ContextPopup, ContextPopupBuilder},
     event::{EventsTab, EventsTabBuilder},
     help::HelpPopup,
@@ -153,8 +151,8 @@ impl WindowInit {
             self.namespaces.clone(),
         );
 
-        let ConfigTab { tab: tab_configs } =
-            ConfigTabBuilder::new("Config", &self.tx, &clipboard, self.split_mode).build();
+        let ConfigTab { tab: config_tab } =
+            ConfigTab::new("Config", &self.tx, &clipboard, self.split_mode);
 
         let NetworkTab { tab: tab_network } =
             NetworkTabBuilder::new("Network", &self.tx, &clipboard, self.split_mode).build();
@@ -188,7 +186,7 @@ impl WindowInit {
         // Init Window
         let tabs = vec![
             pod_tab,
-            tab_configs,
+            config_tab,
             tab_network,
             tab_events,
             tab_list,

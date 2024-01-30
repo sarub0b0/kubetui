@@ -8,13 +8,12 @@ use async_trait::async_trait;
 use crossbeam::channel::Sender;
 
 use crate::{
+    features::config::message::{ConfigData, ConfigRequest, ConfigResponse, RequestData},
     message::Message,
     workers::kube::{client::KubeClient, worker::AbortWorker},
 };
 
 use self::{configmap::ConfigMapDataWorker, secret::SecretDataWorker};
-
-use super::{ConfigData, ConfigRequest, ConfigResponse, RequestData};
 
 #[derive(Clone)]
 pub struct ConfigsDataWorker {

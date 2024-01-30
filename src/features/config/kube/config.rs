@@ -1,17 +1,18 @@
 use std::{collections::BTreeMap, time};
 
-use crate::workers::kube::{
-    client::KubeClient,
-    v1_table::{get_resource_per_namespace, insert_ns, TableRow},
-    worker::{PollWorker, Worker},
-    KubeTable, KubeTableRow, WorkerResult,
+use crate::{
+    features::config::message::ConfigResponse,
+    workers::kube::{
+        client::KubeClient,
+        v1_table::{get_resource_per_namespace, insert_ns, TableRow},
+        worker::{PollWorker, Worker},
+        KubeTable, KubeTableRow, WorkerResult,
+    },
 };
 
 use anyhow::Result;
 use async_trait::async_trait;
 use futures::future::try_join_all;
-
-use super::ConfigResponse;
 
 #[derive(Clone)]
 pub struct ConfigsPollWorker {

@@ -1,12 +1,9 @@
-mod data;
-mod list;
-
-pub use data::ConfigsDataWorker;
-pub use list::ConfigsPollWorker;
-
-use super::{Kube, KubeTable, Message};
-
 use anyhow::Result;
+
+use crate::{
+    message::Message,
+    workers::{Kube, KubeTable},
+};
 
 pub type ConfigData = Vec<String>;
 
@@ -43,15 +40,9 @@ impl ConfigRequest {
     }
 }
 
-impl From<ConfigMessage> for Kube {
-    fn from(m: ConfigMessage) -> Self {
-        Self::Config(m)
-    }
-}
-
 impl From<ConfigMessage> for Message {
     fn from(m: ConfigMessage) -> Self {
-        Self::Kube(m.into())
+        Self::Kube(Kube::Config(m))
     }
 }
 
