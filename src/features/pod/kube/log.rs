@@ -22,13 +22,12 @@ use crate::{
     message::Message,
     workers::kube::{
         client::KubeClient,
-        pod::filter::{Filter, LabelSelector, RetrievableResource},
         worker::{AbortWorker, Worker},
-        Kube,
     },
 };
 
 pub use self::log_streamer::LogPrefixType;
+pub use super::filter::{Filter, LabelSelector, RetrievableResource};
 
 use self::{
     log_collector::{LogBuffer, LogCollector},
@@ -39,7 +38,7 @@ use self::{
 #[macro_export]
 macro_rules! send_response {
     ($tx:expr, $msg:expr) => {
-        use $crate::workers::kube::pod::LogMessage;
+        use $crate::features::pod::message::LogMessage;
 
         $tx.send(LogMessage::Response($msg).into())
             .expect("Failed to send LogMessage::Response");
@@ -60,18 +59,6 @@ impl LogConfig {
             query,
             prefix_type,
         }
-    }
-}
-
-#[derive(Debug)]
-pub enum LogMessage {
-    Request(LogConfig),
-    Response(Result<Vec<String>>),
-}
-
-impl From<LogMessage> for Message {
-    fn from(m: LogMessage) -> Message {
-        Message::Kube(Kube::Log(m))
     }
 }
 

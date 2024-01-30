@@ -5,6 +5,7 @@ use crossbeam::channel::Receiver;
 
 use crate::{
     context::{Context, Namespace},
+    features::pod::message::LogMessage,
     message::Message,
     ui::{
         event::{exec_to_window_event, EventResult},
@@ -18,7 +19,6 @@ use crate::{
         context_message::{ContextMessage, ContextResponse},
         namespace_message::{NamespaceMessage, NamespaceResponse},
         network::{NetworkMessage, NetworkResponse},
-        pod::LogMessage,
         yaml::{YamlMessage, YamlResourceListItem, YamlResponse},
         Kube, KubeTable, KubeTableRow,
     },

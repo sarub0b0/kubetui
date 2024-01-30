@@ -4,7 +4,6 @@ mod event;
 mod help;
 mod list;
 mod network;
-mod pod;
 mod yaml;
 mod yaml_popup;
 
@@ -18,6 +17,7 @@ use crate::{
     action::view_id,
     clipboard::Clipboard,
     context::{Context, Namespace},
+    features::pod::view::PodTab,
     message::{Message, UserEvent},
     ui::{
         event::EventResult,
@@ -42,7 +42,6 @@ use self::{
     help::HelpPopup,
     list::{ListTab, ListTabBuilder},
     network::{NetworkTab, NetworkTabBuilder},
-    pod::{PodTabBuilder, PodsTab},
     yaml::{YamlTab, YamlTabBuilder},
     yaml_popup::{YamlPopup, YamlPopupBuilder},
 };
@@ -143,17 +142,16 @@ impl WindowInit {
     fn tabs_popups(&self) -> (Vec<Tab<'static>>, Vec<Popup<'static>>) {
         let clipboard = Some(Rc::new(RefCell::new(Clipboard::new())));
 
-        let PodsTab {
-            tab: tab_pods,
-            popup_log_query_help,
-        } = PodTabBuilder::new(
+        let PodTab {
+            tab: pod_tab,
+            log_query_help_popup,
+        } = PodTab::new(
             "Pod",
             &self.tx,
             &clipboard,
             self.split_mode,
             self.namespaces.clone(),
-        )
-        .build();
+        );
 
         let ConfigTab { tab: tab_configs } =
             ConfigTabBuilder::new("Config", &self.tx, &clipboard, self.split_mode).build();
@@ -189,7 +187,7 @@ impl WindowInit {
 
         // Init Window
         let tabs = vec![
-            tab_pods,
+            pod_tab,
             tab_configs,
             tab_network,
             tab_events,
@@ -206,7 +204,7 @@ impl WindowInit {
             Popup::new(popup_yaml_name),
             Popup::new(popup_yaml_return),
             Popup::new(popup_help),
-            Popup::new(popup_log_query_help),
+            Popup::new(log_query_help_popup),
             Popup::new(popup_yaml),
         ];
 

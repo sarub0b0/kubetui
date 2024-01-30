@@ -1,0 +1,56 @@
+use std::{cell::RefCell, rc::Rc};
+
+use crossterm::event::KeyCode;
+use ratatui::widgets::Block;
+
+use crate::{
+    action::view_id,
+    clipboard::Clipboard,
+    message::UserEvent,
+    ui::{
+        event::EventResult,
+        widget::{config::WidgetConfig, Item, Text, Widget, WidgetTrait as _},
+        Window,
+    },
+};
+
+pub fn log_widget(clipboard: &Option<Rc<RefCell<Clipboard>>>) -> Widget<'static> {
+    let builder = Text::builder()
+        .id(view_id::tab_pod_widget_log)
+        .widget_config(&WidgetConfig::builder().title("Log").build())
+        .wrap()
+        .follow()
+        .block_injection(block_injection())
+        .action(UserEvent::from(KeyCode::Enter), add_blankline());
+
+    if let Some(cb) = clipboard {
+        builder.clipboard(cb.clone())
+    } else {
+        builder
+    }
+    .build()
+    .into()
+}
+
+fn block_injection() -> impl Fn(&Text, bool, bool) -> Block<'static> {
+    |text: &Text, is_active: bool, is_mouse_over: bool| {
+        let (index, size) = text.state();
+
+        let mut config = text.widget_config().clone();
+
+        *config.title_mut() = format!("Log [{}/{}]", index, size).into();
+
+        config.render_block(text.can_activate() && is_active, is_mouse_over)
+    }
+}
+
+fn add_blankline() -> impl Fn(&mut Window) -> EventResult {
+    move |w: &mut Window| {
+        let w = w.find_widget_mut(view_id::tab_pod_widget_log);
+
+        w.select_last();
+        w.append_widget_item(Item::Single(Default::default()));
+
+        EventResult::Nop
+    }
+}
