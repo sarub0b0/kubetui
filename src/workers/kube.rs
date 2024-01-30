@@ -3,7 +3,6 @@ pub mod client;
 pub mod color;
 pub mod event;
 mod metric_type;
-pub mod network;
 pub mod v1_table;
 pub mod worker;
 pub mod yaml;
@@ -32,6 +31,7 @@ use tokio::{
 use crate::{
     features::{
         config::{kube::ConfigsDataWorker, message::ConfigMessage},
+        network::{kube::NetworkDescriptionWorker, message::NetworkMessage},
         pod::{kube::LogWorker, message::LogMessage},
     },
     logger,
@@ -45,7 +45,6 @@ use self::{
     context_message::{ContextMessage, ContextRequest, ContextResponse},
     inner::Inner,
     namespace_message::{NamespaceMessage, NamespaceRequest, NamespaceResponse},
-    network::{NetworkDescriptionWorker, NetworkMessage},
     worker::{AbortWorker, PollWorker, Worker},
     yaml::{
         direct::DirectedYamlWorker,
@@ -565,12 +564,14 @@ mod inner {
     use tokio::{sync::RwLock, task::JoinHandle};
 
     use crate::{
-        features::{config::kube::ConfigsPollWorker, pod::kube::PodPollWorker},
+        features::{
+            config::kube::ConfigsPollWorker, network::kube::NetworkPollWorker,
+            pod::kube::PodPollWorker,
+        },
         message::Message,
         workers::kube::{
             api_resources::{ApiPollWorker, SharedApiResources},
             event::EventPollWorker,
-            network::NetworkPollWorker,
             worker::{PollWorker, Worker},
             MainWorker, WorkerResult,
         },

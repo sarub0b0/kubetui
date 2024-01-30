@@ -9,6 +9,7 @@ mod related_resources;
 use std::sync::{atomic::AtomicBool, Arc};
 
 use crate::{
+    features::network::message::{NetworkRequest, NetworkResponse, RequestData},
     message::Message,
     workers::kube::{client::KubeClientRequest, worker::AbortWorker},
 };
@@ -21,8 +22,6 @@ use self::{
 use anyhow::Result;
 use async_trait::async_trait;
 use crossbeam::channel::Sender;
-
-use super::{NetworkRequest, NetworkResponse, RequestData};
 
 const INTERVAL: u64 = 3;
 
@@ -161,8 +160,9 @@ mod tests {
     mod run {
 
         use crate::{
+            features::network::message::NetworkMessage,
             mock_expect,
-            workers::kube::{client::mock::MockTestKubeClient, network::NetworkMessage, Kube},
+            workers::kube::{client::mock::MockTestKubeClient, Kube},
         };
 
         use super::*;
@@ -289,8 +289,9 @@ mod tests {
         use pretty_assertions::assert_eq;
 
         use crate::{
+            features::network::message::NetworkMessage,
             mock_expect,
-            workers::kube::{client::mock::MockTestKubeClient, network::NetworkMessage, Kube},
+            workers::kube::{client::mock::MockTestKubeClient, Kube},
         };
 
         #[tokio::test(flavor = "multi_thread")]

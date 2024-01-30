@@ -1,14 +1,9 @@
-mod description;
-mod list;
-
-pub use description::*;
-pub use list::*;
-
 use anyhow::Result;
 
-use crate::message::Message;
-
-use super::{Kube, KubeTable};
+use crate::{
+    message::Message,
+    workers::{Kube, KubeTable},
+};
 
 #[derive(Debug, Clone)]
 pub struct RequestData {

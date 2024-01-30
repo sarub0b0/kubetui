@@ -2,7 +2,6 @@ mod context;
 mod event;
 mod help;
 mod list;
-mod network;
 mod yaml;
 mod yaml_popup;
 
@@ -16,7 +15,7 @@ use crate::{
     action::view_id,
     clipboard::Clipboard,
     context::{Context, Namespace},
-    features::{config::view::ConfigTab, pod::view::PodTab},
+    features::{config::view::ConfigTab, network::view::NetworkTab, pod::view::PodTab},
     message::{Message, UserEvent},
     ui::{
         event::EventResult,
@@ -39,7 +38,6 @@ use self::{
     event::{EventsTab, EventsTabBuilder},
     help::HelpPopup,
     list::{ListTab, ListTabBuilder},
-    network::{NetworkTab, NetworkTabBuilder},
     yaml::{YamlTab, YamlTabBuilder},
     yaml_popup::{YamlPopup, YamlPopupBuilder},
 };
@@ -154,8 +152,8 @@ impl WindowInit {
         let ConfigTab { tab: config_tab } =
             ConfigTab::new("Config", &self.tx, &clipboard, self.split_mode);
 
-        let NetworkTab { tab: tab_network } =
-            NetworkTabBuilder::new("Network", &self.tx, &clipboard, self.split_mode).build();
+        let NetworkTab { tab: network_tab } =
+            NetworkTab::new("Network", &self.tx, &clipboard, self.split_mode);
 
         let EventsTab { tab: tab_events } = EventsTabBuilder::new("Event", &clipboard).build();
 
@@ -187,7 +185,7 @@ impl WindowInit {
         let tabs = vec![
             pod_tab,
             config_tab,
-            tab_network,
+            network_tab,
             tab_events,
             tab_list,
             tab_yaml,
