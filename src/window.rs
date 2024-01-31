@@ -1,5 +1,4 @@
 mod context;
-mod event;
 mod help;
 mod list;
 mod yaml;
@@ -15,7 +14,10 @@ use crate::{
     action::view_id,
     clipboard::Clipboard,
     context::{Context, Namespace},
-    features::{config::view::ConfigTab, network::view::NetworkTab, pod::view::PodTab},
+    features::{
+        config::view::ConfigTab, event::view::EventTab, network::view::NetworkTab,
+        pod::view::PodTab,
+    },
     message::{Message, UserEvent},
     ui::{
         event::EventResult,
@@ -35,7 +37,6 @@ use crate::{
 
 use self::{
     context::{ContextPopup, ContextPopupBuilder},
-    event::{EventsTab, EventsTabBuilder},
     help::HelpPopup,
     list::{ListTab, ListTabBuilder},
     yaml::{YamlTab, YamlTabBuilder},
@@ -155,7 +156,7 @@ impl WindowInit {
         let NetworkTab { tab: network_tab } =
             NetworkTab::new("Network", &self.tx, &clipboard, self.split_mode);
 
-        let EventsTab { tab: tab_events } = EventsTabBuilder::new("Event", &clipboard).build();
+        let EventTab { tab: event_tab } = EventTab::new("Event", &clipboard);
 
         let ListTab {
             tab: tab_list,
@@ -186,7 +187,7 @@ impl WindowInit {
             pod_tab,
             config_tab,
             network_tab,
-            tab_events,
+            event_tab,
             tab_list,
             tab_yaml,
         ];

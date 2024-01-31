@@ -1,7 +1,6 @@
 pub mod api_resources;
 pub mod client;
 pub mod color;
-pub mod event;
 mod metric_type;
 pub mod v1_table;
 pub mod worker;
@@ -565,13 +564,12 @@ mod inner {
 
     use crate::{
         features::{
-            config::kube::ConfigsPollWorker, network::kube::NetworkPollWorker,
-            pod::kube::PodPollWorker,
+            config::kube::ConfigsPollWorker, event::kube::EventPollWorker,
+            network::kube::NetworkPollWorker, pod::kube::PodPollWorker,
         },
         message::Message,
         workers::kube::{
             api_resources::{ApiPollWorker, SharedApiResources},
-            event::EventPollWorker,
             worker::{PollWorker, Worker},
             MainWorker, WorkerResult,
         },

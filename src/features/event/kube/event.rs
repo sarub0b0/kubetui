@@ -1,14 +1,18 @@
-use super::{
-    v1_table::*,
-    worker::{PollWorker, Worker},
-    KubeClient, KubeTableRow, WorkerResult, {Kube, Message},
-};
-
-use std::time;
+use std::{sync::atomic::Ordering, time};
 
 use anyhow::Result;
 use async_trait::async_trait;
 use futures::future::try_join_all;
+
+use crate::{
+    message::Message,
+    workers::{
+        client::KubeClient,
+        v1_table::{get_resource_per_namespace, insert_ns, TableRow, ToTime as _},
+        worker::{PollWorker, Worker},
+        Kube, KubeTableRow, WorkerResult,
+    },
+};
 
 #[derive(Clone)]
 pub struct EventPollWorker {
@@ -36,7 +40,7 @@ impl Worker for EventPollWorker {
         } = self;
 
         let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
-        while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
+        while !is_terminated.load(Ordering::Relaxed) {
             interval.tick().await;
             let target_namespaces = shared_target_namespaces.read().await;
 
