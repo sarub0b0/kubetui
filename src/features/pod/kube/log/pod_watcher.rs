@@ -245,7 +245,7 @@ impl PodWatcher {
 
                 logger!(
                     info,
-                    "Container ID was chaned. state={} task_id={} container_id={}->{}",
+                    "Container ID was changed. state={} task_id={} container_id={}->{}",
                     Self::container_state_to_string(&status),
                     task_id,
                     state.container_id,
