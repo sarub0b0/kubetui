@@ -356,7 +356,6 @@ pub fn update_contents(
                         }
                     }
                 }
-                Set(_) => {}
                 Poll(list) => {
                     update_widget_item_for_vec(window, view_id::tab_list_widget_list, list);
                 }

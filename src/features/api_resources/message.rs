@@ -13,7 +13,6 @@ pub enum ApiRequest {
 #[derive(Debug)]
 pub enum ApiResponse {
     Get(Result<Vec<ApiResource>>),
-    Set(Vec<String>),
     Poll(Result<Vec<String>>),
 }
 
