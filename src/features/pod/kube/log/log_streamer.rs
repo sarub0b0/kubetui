@@ -17,8 +17,9 @@ use regex::Regex;
 use tokio::time;
 
 use crate::{
+    kube::KubeClient,
     logger,
-    workers::kube::{client::KubeClient, color::fg::Color, worker::AbortWorker},
+    workers::kube::{color::fg::Color, worker::AbortWorker},
 };
 
 use super::log_collector::LogBuffer;

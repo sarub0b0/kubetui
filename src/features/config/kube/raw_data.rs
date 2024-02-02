@@ -9,8 +9,9 @@ use crossbeam::channel::Sender;
 
 use crate::{
     features::config::message::{ConfigData, ConfigRequest, ConfigResponse, RequestData},
+    kube::KubeClient,
     message::Message,
-    workers::kube::{client::KubeClient, worker::AbortWorker},
+    workers::kube::worker::AbortWorker,
 };
 
 use self::{configmap::ConfigMapDataWorker, secret::SecretDataWorker};

@@ -11,10 +11,15 @@ use tokio::{sync::RwLock, time::Instant};
 
 use crate::{
     features::api_resources::message::ApiResponse,
+    kube::{
+        apis::{
+            metrics::{NodeMetricsList, PodMetricsList},
+            v1_table::{Table, TableColumnDefinition, Value},
+        },
+        table::insert_ns,
+        KubeClient, KubeClientRequest as _,
+    },
     workers::{
-        client::{KubeClient, KubeClientRequest as _},
-        metric_type::{NodeMetricsList, PodMetricsList},
-        v1_table::{insert_ns, Table, TableColumnDefinition, Value},
         worker::{PollWorker, Worker},
         SharedTargetApiResources, TargetApiResources, TargetNamespaces, WorkerResult,
     },

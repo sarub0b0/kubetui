@@ -11,7 +11,8 @@ use crate::{
         api_resources::kube::{ApiResource, ApiResources},
         yaml::message::YamlResourceList,
     },
-    workers::kube::{client::KubeClientRequest, TargetNamespaces},
+    kube::KubeClientRequest,
+    workers::kube::TargetNamespaces,
 };
 
 use self::{

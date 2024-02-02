@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use k8s_openapi::{api::core::v1::Service, List};
 use kube::ResourceExt;
 
-use crate::workers::kube::client::KubeClientRequest;
+use crate::kube::KubeClientRequest;
 
 use super::{
     btree_map_contains_key_values::BTreeMapContains, fetch::FetchClient, Filter, RelatedClient,
@@ -130,7 +130,7 @@ mod tests {
         }
 
         mod related_resources {
-            use crate::{mock_expect, workers::kube::client::mock::MockTestKubeClient};
+            use crate::{kube::mock::MockTestKubeClient, mock_expect};
 
             use super::*;
 
@@ -317,7 +317,7 @@ mod tests {
             use mockall::predicate::eq;
             use serde_yaml::Value;
 
-            use crate::{mock_expect, workers::kube::client::mock::MockTestKubeClient};
+            use crate::{kube::mock::MockTestKubeClient, mock_expect};
 
             use super::*;
 

@@ -10,8 +10,9 @@ use std::sync::{atomic::AtomicBool, Arc};
 
 use crate::{
     features::network::message::{NetworkRequest, NetworkResponse, RequestData},
+    kube::KubeClientRequest,
     message::Message,
-    workers::kube::{client::KubeClientRequest, worker::AbortWorker},
+    workers::kube::worker::AbortWorker,
 };
 
 use self::{
@@ -160,9 +161,8 @@ mod tests {
     mod run {
 
         use crate::{
-            features::network::message::NetworkMessage,
-            mock_expect,
-            workers::kube::{client::mock::MockTestKubeClient, Kube},
+            features::network::message::NetworkMessage, kube::mock::MockTestKubeClient,
+            mock_expect, workers::kube::Kube,
         };
 
         use super::*;
@@ -289,9 +289,8 @@ mod tests {
         use pretty_assertions::assert_eq;
 
         use crate::{
-            features::network::message::NetworkMessage,
-            mock_expect,
-            workers::kube::{client::mock::MockTestKubeClient, Kube},
+            features::network::message::NetworkMessage, kube::mock::MockTestKubeClient,
+            mock_expect, workers::kube::Kube,
         };
 
         #[tokio::test(flavor = "multi_thread")]

@@ -4,7 +4,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     features::{api_resources::kube::ApiResource, yaml::message::YamlResourceListItem},
-    workers::kube::client::KubeClientRequest,
+    kube::KubeClientRequest,
 };
 
 use super::single_namespace::FetchResourceListSingleNamespace;

@@ -15,7 +15,7 @@ use super::{
     Fetch, FetchedData, Result,
 };
 
-use crate::workers::kube::client::KubeClientRequest;
+use crate::kube::KubeClientRequest;
 
 pub(super) struct PodDescriptionWorker<'a, C>
 where
@@ -116,7 +116,7 @@ impl<'a, C: KubeClientRequest> Fetch<'a, C> for PodDescriptionWorker<'a, C> {
 mod tests {
     use super::*;
 
-    use crate::{mock_expect, workers::kube::client::mock::MockTestKubeClient};
+    use crate::{kube::mock::MockTestKubeClient, mock_expect};
     use indoc::indoc;
     use k8s_openapi::{
         api::{

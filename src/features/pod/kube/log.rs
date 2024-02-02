@@ -18,12 +18,10 @@ use tokio::task::{JoinError, JoinHandle};
 
 use crate::{
     context::Namespace,
+    kube::KubeClient,
     logger,
     message::Message,
-    workers::kube::{
-        client::KubeClient,
-        worker::{AbortWorker, Worker},
-    },
+    workers::kube::worker::{AbortWorker, Worker},
 };
 
 pub use self::log_streamer::LogPrefixType;

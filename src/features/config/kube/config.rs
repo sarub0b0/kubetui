@@ -2,11 +2,14 @@ use std::{collections::BTreeMap, time};
 
 use crate::{
     features::config::message::ConfigResponse,
+    kube::{
+        apis::v1_table::TableRow,
+        table::{get_resource_per_namespace, insert_ns, KubeTable, KubeTableRow},
+        KubeClient,
+    },
     workers::kube::{
-        client::KubeClient,
-        v1_table::{get_resource_per_namespace, insert_ns, TableRow},
         worker::{PollWorker, Worker},
-        KubeTable, KubeTableRow, WorkerResult,
+        WorkerResult,
     },
 };
 

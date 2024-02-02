@@ -9,9 +9,10 @@ use crate::{
         api_resources::kube::{ApiResource, ApiResources, SharedApiResources},
         yaml::message::YamlResponse,
     },
+    kube::KubeClientRequest,
     logger,
     message::Message,
-    workers::kube::{client::KubeClientRequest, worker::AbortWorker},
+    workers::kube::worker::AbortWorker,
 };
 
 #[derive(Debug, Clone)]

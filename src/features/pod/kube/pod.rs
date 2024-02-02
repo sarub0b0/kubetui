@@ -3,11 +3,14 @@ use async_trait::async_trait;
 use futures::future::try_join_all;
 
 use crate::{
+    kube::{
+        apis::v1_table::TableRow,
+        table::{get_resource_per_namespace, insert_ns, KubeTable, KubeTableRow},
+    },
     message::Message,
     workers::kube::{
-        v1_table::{get_resource_per_namespace, insert_ns, TableRow},
         worker::{PollWorker, Worker},
-        Kube, KubeTable, KubeTableRow, WorkerResult,
+        Kube, WorkerResult,
     },
 };
 

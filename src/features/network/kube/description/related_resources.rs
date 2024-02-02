@@ -7,7 +7,7 @@ use kube::Resource;
 use serde::de::DeserializeOwned;
 use serde_yaml::Value;
 
-use crate::workers::kube::client::KubeClientRequest;
+use crate::kube::KubeClientRequest;
 
 use self::{
     fetch::FetchClient,
@@ -338,7 +338,7 @@ mod fetch {
 
     use super::*;
 
-    use crate::workers::kube::client::KubeClientRequest;
+    use crate::kube::KubeClientRequest;
 
     pub struct FetchClient<'a, C: KubeClientRequest> {
         client: &'a C,
@@ -371,7 +371,7 @@ mod fetch {
         use k8s_openapi::api::core::v1::{Pod, Service};
         use mockall::predicate::eq;
 
-        use crate::{mock_expect, workers::kube::client::mock::MockTestKubeClient};
+        use crate::{kube::mock::MockTestKubeClient, mock_expect};
 
         use anyhow::bail;
 

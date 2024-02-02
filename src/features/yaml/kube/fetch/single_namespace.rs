@@ -2,8 +2,8 @@ use anyhow::Result;
 
 use crate::{
     features::{api_resources::kube::ApiResource, yaml::message::YamlResourceListItem},
+    kube::KubeClientRequest,
     logger,
-    workers::kube::client::KubeClientRequest,
 };
 
 use super::List;

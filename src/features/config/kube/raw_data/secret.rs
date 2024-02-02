@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use k8s_openapi::{api::core::v1::Secret, ByteString};
 use kube::Api;
 
-use crate::{features::config::message::ConfigData, workers::kube::client::KubeClient};
+use crate::{features::config::message::ConfigData, kube::KubeClient};
 
 use self::{any::Any, helm::Helm};
 

@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use kube::Resource;
 use serde_yaml::Value;
 
-use crate::workers::kube::client::KubeClientRequest;
+use crate::kube::KubeClientRequest;
 
 use super::{
     btree_map_contains_key_values::BTreeMapContains,
@@ -244,7 +244,7 @@ mod tests {
 
         use super::*;
 
-        use crate::{mock_expect, workers::kube::client::mock::MockTestKubeClient};
+        use crate::{kube::mock::MockTestKubeClient, mock_expect};
 
         #[tokio::test]
         async fn labelsを対象とするnetworkpolicyのlistを返す() {

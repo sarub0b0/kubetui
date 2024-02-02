@@ -14,9 +14,10 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
     features::get::message::{GetRequest, GetResponse},
+    kube::KubeClient,
     logger,
     message::Message,
-    workers::kube::{client::KubeClient, worker::AbortWorker},
+    workers::kube::worker::AbortWorker,
 };
 
 #[derive(Debug, Clone)]

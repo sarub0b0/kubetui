@@ -15,6 +15,7 @@ use crate::{
         pod::message::LogMessage,
         yaml::message::{YamlMessage, YamlResourceListItem, YamlResponse},
     },
+    kube::table::{KubeTable, KubeTableRow},
     message::Message,
     ui::{
         event::{exec_to_window_event, EventResult},
@@ -22,7 +23,7 @@ use crate::{
         widget::{Item, LiteralItem, TableItem, WidgetTrait},
         Window, WindowEvent,
     },
-    workers::kube::{Kube, KubeTable, KubeTableRow},
+    workers::kube::Kube,
 };
 
 pub mod view_id {

@@ -8,7 +8,7 @@ use k8s_openapi::api::{
 use kube::Resource;
 use serde_yaml::Mapping;
 
-use crate::workers::kube::client::KubeClientRequest;
+use crate::kube::KubeClientRequest;
 
 use super::{
     related_resources::{to_list_value::ToListValue, RelatedClient},
@@ -156,7 +156,7 @@ mod tests {
     use mockall::predicate::eq;
     use pretty_assertions::assert_eq;
 
-    use crate::{mock_expect, workers::kube::client::mock::MockTestKubeClient};
+    use crate::{kube::mock::MockTestKubeClient, mock_expect};
 
     use super::*;
 

@@ -5,12 +5,15 @@ use async_trait::async_trait;
 use futures::future::try_join_all;
 
 use crate::{
+    kube::{
+        apis::v1_table::{TableRow, ToTime as _},
+        table::{get_resource_per_namespace, insert_ns, KubeTableRow},
+        KubeClient,
+    },
     message::Message,
     workers::{
-        client::KubeClient,
-        v1_table::{get_resource_per_namespace, insert_ns, TableRow, ToTime as _},
         worker::{PollWorker, Worker},
-        Kube, KubeTableRow, WorkerResult,
+        Kube, WorkerResult,
     },
 };
 

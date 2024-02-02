@@ -5,10 +5,7 @@ use async_trait::async_trait;
 use k8s_openapi::api::core::v1::ConfigMap;
 use kube::Api;
 
-use crate::{
-    features::config::message::ConfigData,
-    workers::kube::{client::KubeClient, color::Color},
-};
+use crate::{features::config::message::ConfigData, kube::KubeClient, workers::kube::color::Color};
 
 use super::Fetch;
 

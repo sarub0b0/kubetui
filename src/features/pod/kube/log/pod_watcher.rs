@@ -18,13 +18,11 @@ use regex::Regex;
 use tokio::task::AbortHandle;
 
 use crate::{
+    kube::KubeClient,
     logger,
     message::Message,
     send_response,
-    workers::kube::{
-        client::KubeClient,
-        worker::{AbortWorker, Worker},
-    },
+    workers::kube::worker::{AbortWorker, Worker},
 };
 
 use super::{

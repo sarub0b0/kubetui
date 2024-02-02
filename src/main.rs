@@ -5,6 +5,7 @@ mod clipboard;
 mod cmd;
 mod context;
 mod features;
+mod kube;
 mod logging;
 mod message;
 mod ui;

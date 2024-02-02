@@ -6,10 +6,13 @@ use futures::future::try_join_all;
 
 use crate::{
     features::network::message::NetworkResponse,
+    kube::{
+        apis::v1_table::TableRow,
+        table::{get_resource_per_namespace, insert_ns, KubeTable, KubeTableRow},
+    },
     workers::kube::{
-        v1_table::{get_resource_per_namespace, insert_ns, TableRow},
         worker::{PollWorker, Worker},
-        KubeTable, KubeTableRow, WorkerResult,
+        WorkerResult,
     },
 };
 

@@ -1,9 +1,6 @@
 use anyhow::Result;
 
-use crate::{
-    message::Message,
-    workers::{Kube, KubeTable},
-};
+use crate::{kube::table::KubeTable, message::Message, workers::Kube};
 
 #[derive(Debug, Clone)]
 pub struct RequestData {
