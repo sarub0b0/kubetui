@@ -82,7 +82,7 @@ impl<C: KubeClientRequest> AbortWorker for SelectedYamlWorker<C> {
 }
 
 /// 選択されているリソースのyamlを取得する
-pub async fn fetch_resource_yaml<C: KubeClientRequest>(
+async fn fetch_resource_yaml<C: KubeClientRequest>(
     client: &C,
     api_resources: &ApiResources,
     kind: &ApiResource,

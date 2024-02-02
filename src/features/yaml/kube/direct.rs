@@ -126,7 +126,7 @@ impl AbortWorker for DirectedYamlWorker {
 }
 
 /// 選択されているリソースのyamlを取得する
-pub async fn fetch_resource_yaml<K>(
+async fn fetch_resource_yaml<K>(
     client: &KubeClient,
     name: &str,
     ns: &str,
