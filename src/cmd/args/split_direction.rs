@@ -21,7 +21,7 @@ impl From<SplitDirection> for Direction {
 }
 
 impl SplitDirection {
-    pub fn to_direction(&self) -> Direction {
+    pub fn to_direction(self) -> Direction {
         match self {
             SplitDirection::Vertical => Direction::Vertical,
             SplitDirection::Horizontal => Direction::Horizontal,

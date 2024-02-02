@@ -324,7 +324,7 @@ pub fn update_contents(
             }
         }
 
-        Kube::API(ApiMessage::Response(res)) => {
+        Kube::Api(ApiMessage::Response(res)) => {
             use ApiResponse::*;
             match res {
                 Get(list) => {

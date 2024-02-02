@@ -24,19 +24,19 @@ pub enum ApiMessage {
 
 impl From<ApiRequest> for Message {
     fn from(f: ApiRequest) -> Self {
-        Self::Kube(Kube::API(ApiMessage::Request(f)))
+        Self::Kube(Kube::Api(ApiMessage::Request(f)))
     }
 }
 
 impl From<ApiResponse> for Message {
     fn from(f: ApiResponse) -> Self {
-        Self::Kube(Kube::API(ApiMessage::Response(f)))
+        Self::Kube(Kube::Api(ApiMessage::Response(f)))
     }
 }
 
 impl From<ApiMessage> for Kube {
     fn from(f: ApiMessage) -> Self {
-        Self::API(f)
+        Self::Api(f)
     }
 }
 

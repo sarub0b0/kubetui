@@ -79,7 +79,7 @@ impl From<Kube> for Message {
 #[derive(Debug)]
 pub enum Kube {
     Context(ContextMessage),
-    API(ApiMessage),
+    Api(ApiMessage),
     RestoreAPIs(TargetApiResources),
     RestoreContext {
         context: String,
@@ -293,7 +293,7 @@ impl Worker for MainWorker {
                         task::yield_now().await;
                     }
 
-                    Kube::API(ApiMessage::Request(req)) => {
+                    Kube::Api(ApiMessage::Request(req)) => {
                         use ApiRequest::*;
                         match req {
                             Get => {

@@ -7,7 +7,7 @@ pub enum AllNamespaces {
 }
 
 impl AllNamespaces {
-    pub fn to_bool(&self) -> bool {
+    pub fn to_bool(self) -> bool {
         match self {
             AllNamespaces::True => true,
             AllNamespaces::False => false,
