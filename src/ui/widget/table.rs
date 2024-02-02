@@ -60,6 +60,7 @@ pub struct TableBuilder {
     highlight_injection: Option<RenderHighlightInjection>,
 }
 
+#[allow(dead_code)]
 impl TableBuilder {
     pub fn id(mut self, id: impl Into<String>) -> Self {
         self.id = id.into();

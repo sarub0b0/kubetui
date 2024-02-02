@@ -538,6 +538,7 @@ pub struct MultipleSelectBuilder {
     block_injection_for_selected: Option<RenderBlockInjectionForList>,
 }
 
+#[allow(dead_code)]
 impl MultipleSelectBuilder {
     pub fn id(mut self, id: impl Into<String>) -> Self {
         self.id = id.into();

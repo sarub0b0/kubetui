@@ -32,6 +32,7 @@ impl Default for WidgetConfig {
 }
 
 /// builder
+#[allow(dead_code)]
 impl WidgetConfigBuilder {
     pub fn title(mut self, title: impl Into<Title>) -> Self {
         self.0.title = title.into();
@@ -59,6 +60,7 @@ impl WidgetConfigBuilder {
     }
 }
 
+#[allow(dead_code)]
 impl WidgetConfig {
     pub fn builder() -> WidgetConfigBuilder {
         WidgetConfigBuilder::default()
@@ -152,6 +154,7 @@ impl WidgetConfig {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, PartialEq, Clone)]
 pub enum Title {
     Raw(String),

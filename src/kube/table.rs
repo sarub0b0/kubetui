@@ -21,6 +21,7 @@ pub struct KubeTable {
     pub rows: Vec<KubeTableRow>,
 }
 
+#[allow(dead_code)]
 impl KubeTable {
     pub fn header(&self) -> &Vec<String> {
         &self.header

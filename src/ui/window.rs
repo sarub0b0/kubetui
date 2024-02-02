@@ -12,7 +12,7 @@ use ratatui::{
 
 use unicode_width::UnicodeWidthStr;
 
-use crate::{message::UserEvent, logger, workers::kube::Kube};
+use crate::{logger, message::UserEvent, workers::kube::Kube};
 
 use super::{
     event::{EventResult, InnerCallback},
@@ -63,6 +63,7 @@ pub struct Header<'a> {
     content: HeaderContent<'a>,
 }
 
+#[allow(dead_code)]
 impl<'a> Header<'a> {
     pub fn new_static(height: u16, content: Vec<Line<'a>>) -> Self {
         debug_assert!(0 < height, "Header height must be greater than 0");
@@ -169,6 +170,7 @@ impl<'a> WindowBuilder<'a> {
 }
 
 // Window
+#[allow(dead_code)]
 impl<'a> Window<'a> {
     pub fn builder() -> WindowBuilder<'a> {
         WindowBuilder::default()
@@ -254,6 +256,7 @@ impl<'a> Window<'a> {
 }
 
 // Tab
+#[allow(dead_code)]
 impl<'a> Window<'a> {
     pub fn active_tab_id(&self) -> &str {
         self.tabs[self.active_tab_index].id()
@@ -301,6 +304,7 @@ impl<'a> Window<'a> {
 }
 
 // Pane
+#[allow(dead_code)]
 impl<'a> Window<'a> {
     pub fn find_widget(&self, id: &str) -> &Widget<'a> {
         if let Some(w) = self.popups.iter().find(|w| w.id() == id) {

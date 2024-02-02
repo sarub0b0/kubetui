@@ -100,6 +100,7 @@ pub struct ListBuilder {
     block_injection: Option<RenderBlockInjection>,
 }
 
+#[allow(dead_code)]
 impl ListBuilder {
     pub fn id(mut self, id: impl Into<String>) -> Self {
         self.id = id.into();
@@ -150,6 +151,7 @@ impl ListBuilder {
     }
 }
 
+#[allow(dead_code)]
 impl<'a> List<'a> {
     pub fn builder() -> ListBuilder {
         ListBuilder::default()

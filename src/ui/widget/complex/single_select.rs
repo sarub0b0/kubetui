@@ -155,6 +155,7 @@ impl Default for SingleSelect<'_> {
     }
 }
 
+#[allow(dead_code)]
 impl<'a> SingleSelect<'a> {
     pub fn builder() -> SingleSelectBuilder {
         SingleSelectBuilder::default()
@@ -366,6 +367,7 @@ pub struct SingleSelectBuilder {
     block_injection_for_list: Option<RenderBlockInjectionForList>,
 }
 
+#[allow(dead_code)]
 impl SingleSelectBuilder {
     pub fn id(mut self, id: impl Into<String>) -> Self {
         self.id = id.into();

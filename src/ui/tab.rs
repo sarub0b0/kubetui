@@ -84,6 +84,7 @@ pub struct Tab<'a> {
     mouse_over_widget_index: Option<usize>,
 }
 
+#[allow(dead_code)]
 impl<'a> Tab<'a> {
     pub fn new(
         id: impl Into<String>,

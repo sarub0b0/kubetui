@@ -64,6 +64,7 @@ pub struct KubeList {
 }
 
 impl KubeList {
+    #[allow(dead_code)]
     pub fn new(list: Vec<KubeListItem>) -> Self {
         Self { list }
     }
