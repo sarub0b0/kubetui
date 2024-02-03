@@ -23,7 +23,7 @@ use crate::{
         widget::{Item, LiteralItem, TableItem, WidgetTrait},
         Window, WindowEvent,
     },
-    workers::kube::Kube,
+    workers::kube::message::Kube,
 };
 
 pub mod view_id {

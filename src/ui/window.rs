@@ -12,7 +12,7 @@ use ratatui::{
 
 use unicode_width::UnicodeWidthStr;
 
-use crate::{logger, message::UserEvent, workers::kube::Kube};
+use crate::{logger, message::UserEvent, workers::kube::message::Kube};
 
 use super::{
     event::{EventResult, InnerCallback},

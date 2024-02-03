@@ -1,6 +1,6 @@
 use crate::{
     message::Message,
-    workers::{Kube, TargetNamespaces},
+    workers::{message::Kube, TargetNamespaces},
 };
 use anyhow::Result;
 

@@ -162,7 +162,7 @@ mod tests {
 
         use crate::{
             features::network::message::NetworkMessage, kube::mock::MockTestKubeClient,
-            mock_expect, workers::kube::Kube,
+            mock_expect, workers::kube::message::Kube,
         };
 
         use super::*;
@@ -290,7 +290,7 @@ mod tests {
 
         use crate::{
             features::network::message::NetworkMessage, kube::mock::MockTestKubeClient,
-            mock_expect, workers::kube::Kube,
+            mock_expect, workers::kube::message::Kube,
         };
 
         #[tokio::test(flavor = "multi_thread")]

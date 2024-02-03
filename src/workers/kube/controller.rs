@@ -27,7 +27,7 @@ use crate::{
 use super::{
     fetch_all_namespaces,
     worker::{AbortWorker as _, PollerBase, Worker},
-    Kube, SharedTargetApiResources, WorkerResult,
+    message::Kube, SharedTargetApiResources, WorkerResult,
 };
 
 #[derive(Clone)]

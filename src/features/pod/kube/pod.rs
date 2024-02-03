@@ -9,8 +9,9 @@ use crate::{
     },
     message::Message,
     workers::kube::{
+        message::Kube,
         worker::{PollerBase, Worker},
-        Kube, WorkerResult,
+        WorkerResult,
     },
 };
 

@@ -1,5 +1,6 @@
 pub mod color;
 mod controller;
+pub mod message;
 mod store;
 pub mod worker;
 
@@ -18,48 +19,11 @@ use kube::{api::ListParams, Api, ResourceExt};
 use tokio::{runtime::Runtime, sync::RwLock};
 
 use crate::{
-    features::{
-        api_resources::{kube::ApiResource, message::ApiMessage},
-        config::message::ConfigMessage,
-        context::message::ContextMessage,
-        get::message::GetMessage,
-        namespace::message::NamespaceMessage,
-        network::message::NetworkMessage,
-        pod::message::LogMessage,
-        yaml::message::YamlMessage,
-    },
-    kube::{table::KubeTable, KubeClient},
-    logger,
-    message::Message,
+    features::api_resources::kube::ApiResource, kube::KubeClient, logger, message::Message,
     panic_set_hook,
 };
 
 use self::inner::Inner;
-
-impl From<Kube> for Message {
-    fn from(k: Kube) -> Self {
-        Message::Kube(k)
-    }
-}
-
-#[derive(Debug)]
-pub enum Kube {
-    Context(ContextMessage),
-    Api(ApiMessage),
-    RestoreAPIs(TargetApiResources),
-    RestoreContext {
-        context: String,
-        namespaces: TargetNamespaces,
-    },
-    Event(Result<Vec<String>>),
-    Namespace(NamespaceMessage),
-    Pod(Result<KubeTable>),
-    Log(LogMessage),
-    Config(ConfigMessage),
-    Network(NetworkMessage),
-    Yaml(YamlMessage),
-    Get(GetMessage),
-}
 
 pub type TargetNamespaces = Vec<String>;
 pub type SharedTargetNamespaces = Arc<RwLock<TargetNamespaces>>;
@@ -177,8 +141,9 @@ mod inner {
     use super::{
         controller::EventController,
         fetch_all_namespaces,
+        message::Kube,
         store::{KubeState, KubeStore},
-        Kube, {KubeWorker, KubeWorkerConfig},
+        {KubeWorker, KubeWorkerConfig},
     };
 
     pub struct Inner {
