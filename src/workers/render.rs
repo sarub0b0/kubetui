@@ -14,7 +14,7 @@ use ratatui::{backend::CrosstermBackend, layout::Direction, Terminal, TerminalOp
 
 use crate::{
     action::{update_contents, window_action},
-    context::{Context, Namespace},
+    kube::context::{Context, Namespace},
     logger,
     message::Message,
     panic_set_hook,

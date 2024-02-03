@@ -6,7 +6,7 @@ use ratatui::layout::{Constraint, Direction};
 use crate::{
     action::view_id,
     clipboard::Clipboard,
-    context::Namespace,
+    kube::context::Namespace,
     message::Message,
     ui::{
         tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout},

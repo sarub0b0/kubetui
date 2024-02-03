@@ -5,11 +5,11 @@ use crossterm::event::KeyCode;
 
 use crate::{
     action::view_id,
-    context::Namespace,
     features::pod::{
         kube::{LogConfig, LogPrefixType},
         message::LogMessage,
     },
+    kube::context::Namespace,
     message::{Message, UserEvent},
     ui::{
         event::EventResult,
@@ -20,7 +20,10 @@ use crate::{
     },
 };
 
-pub fn log_query_widget(tx: &Sender<Message>, namespaces: Rc<RefCell<Namespace>>) -> Widget<'static> {
+pub fn log_query_widget(
+    tx: &Sender<Message>,
+    namespaces: Rc<RefCell<Namespace>>,
+) -> Widget<'static> {
     let tx = tx.clone();
 
     InputFormBuilder::default()

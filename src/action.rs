@@ -4,7 +4,6 @@ use anyhow::Result;
 use crossbeam::channel::Receiver;
 
 use crate::{
-    context::{Context, Namespace},
     features::{
         api_resources::message::{ApiMessage, ApiResponse},
         config::message::ConfigMessage,
@@ -15,7 +14,10 @@ use crate::{
         pod::message::LogMessage,
         yaml::message::{YamlMessage, YamlResourceListItem, YamlResponse},
     },
-    kube::table::{KubeTable, KubeTableRow},
+    kube::{
+        context::{Context, Namespace},
+        table::{KubeTable, KubeTableRow},
+    },
     message::Message,
     ui::{
         event::{exec_to_window_event, EventResult},

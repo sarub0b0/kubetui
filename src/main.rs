@@ -3,7 +3,6 @@ mod ansi;
 mod app;
 mod clipboard;
 mod cmd;
-mod context;
 mod features;
 mod kube;
 mod logging;

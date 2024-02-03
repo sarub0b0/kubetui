@@ -17,8 +17,7 @@ use kube::Api;
 use tokio::task::{JoinError, JoinHandle};
 
 use crate::{
-    context::Namespace,
-    kube::KubeClient,
+    kube::{context::Namespace, KubeClient},
     logger,
     message::Message,
     workers::kube::{AbortWorker, Worker},

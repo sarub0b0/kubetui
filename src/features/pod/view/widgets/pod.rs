@@ -2,11 +2,11 @@ use crossbeam::channel::Sender;
 
 use crate::{
     action::view_id,
-    context::Namespace,
     features::pod::{
         kube::{LogConfig, LogPrefixType},
         message::LogMessage,
     },
+    kube::context::Namespace,
     message::Message,
     ui::{
         event::EventResult,

@@ -7,7 +7,6 @@ use ratatui::{layout::Direction, text::Line, widgets::Paragraph};
 use crate::{
     action::view_id,
     clipboard::Clipboard,
-    context::{Context, Namespace},
     features::{
         api_resources::view::ListTab,
         config::view::ConfigTab,
@@ -26,6 +25,7 @@ use crate::{
         pod::view::PodTab,
         yaml::view::YamlTab,
     },
+    kube::context::{Context, Namespace},
     message::{Message, UserEvent},
     ui::{
         event::EventResult,
