@@ -1,4 +1,4 @@
-use crate::{message::Message, workers::message::Kube};
+use crate::{message::Message, workers::kube::message::Kube};
 
 #[derive(Debug)]
 pub enum ContextMessage {

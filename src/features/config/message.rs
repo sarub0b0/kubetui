@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::{kube::table::KubeTable, message::Message, workers::message::Kube};
+use crate::{kube::table::KubeTable, message::Message, workers::kube::message::Kube};
 
 pub type ConfigData = Vec<String>;
 

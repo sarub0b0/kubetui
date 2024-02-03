@@ -9,7 +9,7 @@ use kube::{
 
 use crate::kube::KubeClient;
 
-use super::{TargetApiResources, TargetNamespaces};
+use super::controller::{TargetApiResources, TargetNamespaces};
 
 pub type Context = String;
 

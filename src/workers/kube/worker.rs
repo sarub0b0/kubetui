@@ -1,13 +1,5 @@
-use std::sync::{atomic::AtomicBool, Arc};
-
 use async_trait::async_trait;
-
-use crossbeam::channel::Sender;
 use tokio::task::{AbortHandle, JoinHandle};
-
-use crate::message::Message;
-
-use super::{KubeClient, SharedTargetNamespaces};
 
 #[async_trait]
 pub trait Worker {
@@ -36,12 +28,4 @@ pub trait AbortWorker {
         let worker = self.clone();
         tokio::spawn(async move { worker.run().await }).abort_handle()
     }
-}
-
-#[derive(Clone)]
-pub struct PollerBase {
-    pub is_terminated: Arc<AtomicBool>,
-    pub tx: Sender<Message>,
-    pub shared_target_namespaces: SharedTargetNamespaces,
-    pub kube_client: KubeClient,
 }

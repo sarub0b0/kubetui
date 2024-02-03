@@ -10,10 +10,7 @@ use crate::{
         apis::v1_table::TableRow,
         table::{get_resource_per_namespace, insert_ns, KubeTable, KubeTableRow},
     },
-    workers::kube::{
-        worker::{PollerBase, Worker},
-        WorkerResult,
-    },
+    workers::kube::{PollerBase, Worker, WorkerResult},
 };
 
 #[derive(Clone)]

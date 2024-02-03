@@ -17,7 +17,7 @@ use crate::{
     kube::KubeClient,
     logger,
     message::Message,
-    workers::kube::worker::AbortWorker,
+    workers::kube::AbortWorker,
 };
 
 #[derive(Debug, Clone)]

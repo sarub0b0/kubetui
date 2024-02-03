@@ -11,7 +11,7 @@ use crate::{
     features::config::message::{ConfigData, ConfigRequest, ConfigResponse, RequestData},
     kube::KubeClient,
     message::Message,
-    workers::kube::worker::AbortWorker,
+    workers::kube::AbortWorker,
 };
 
 use self::{configmap::ConfigMapDataWorker, secret::SecretDataWorker};

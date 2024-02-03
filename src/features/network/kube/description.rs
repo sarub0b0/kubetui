@@ -12,7 +12,7 @@ use crate::{
     features::network::message::{NetworkRequest, NetworkResponse, RequestData},
     kube::KubeClientRequest,
     message::Message,
-    workers::kube::worker::AbortWorker,
+    workers::kube::AbortWorker,
 };
 
 use self::{

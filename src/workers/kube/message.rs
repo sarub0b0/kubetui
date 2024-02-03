@@ -11,7 +11,7 @@ use crate::{
     message::Message,
 };
 
-use super::{TargetApiResources, TargetNamespaces};
+use super::controller::{TargetApiResources, TargetNamespaces};
 
 #[derive(Debug)]
 pub enum Kube {

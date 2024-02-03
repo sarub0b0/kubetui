@@ -22,7 +22,7 @@ use crate::{
     logger,
     message::Message,
     send_response,
-    workers::kube::worker::{AbortWorker, Worker},
+    workers::kube::{AbortWorker, Worker},
 };
 
 use super::{

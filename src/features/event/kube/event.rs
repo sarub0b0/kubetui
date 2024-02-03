@@ -11,11 +11,7 @@ use crate::{
         KubeClient,
     },
     message::Message,
-    workers::{
-        message::Kube,
-        worker::{PollerBase, Worker},
-        WorkerResult,
-    },
+    workers::kube::{message::Kube, PollerBase, Worker, WorkerResult},
 };
 
 #[derive(Clone)]

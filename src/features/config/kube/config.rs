@@ -8,8 +8,7 @@ use crate::{
         KubeClient,
     },
     workers::kube::{
-        worker::{PollerBase, Worker},
-        WorkerResult,
+        WorkerResult, {PollerBase, Worker},
     },
 };
 

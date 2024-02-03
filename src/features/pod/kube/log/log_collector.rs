@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use crossbeam::channel::Sender;
 use tokio::{sync::Mutex, time};
 
-use crate::{message::Message, send_response, workers::kube::worker::Worker};
+use crate::{message::Message, send_response, workers::kube::Worker};
 
 pub type LogBuffer = Arc<Mutex<Vec<String>>>;
 

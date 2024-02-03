@@ -19,9 +19,9 @@ use crate::{
         table::insert_ns,
         KubeClient, KubeClientRequest as _,
     },
-    workers::{
-        worker::{PollerBase, Worker},
-        SharedTargetApiResources, TargetApiResources, TargetNamespaces, WorkerResult,
+    workers::kube::{
+        PollerBase, SharedTargetApiResources, TargetApiResources, TargetNamespaces, Worker,
+        WorkerResult,
     },
 };
 

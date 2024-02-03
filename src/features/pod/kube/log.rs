@@ -21,7 +21,7 @@ use crate::{
     kube::KubeClient,
     logger,
     message::Message,
-    workers::kube::worker::{AbortWorker, Worker},
+    workers::kube::{AbortWorker, Worker},
 };
 
 pub use self::log_streamer::LogPrefixType;

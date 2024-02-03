@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::{message::Message, workers::message::Kube};
+use crate::{message::Message, workers::kube::message::Kube};
 
 pub use super::kube::yaml::GetYamlKind;
 

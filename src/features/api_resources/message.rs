@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::{message::Message, workers::message::Kube};
+use crate::{message::Message, workers::kube::message::Kube};
 
 use super::kube::ApiResource;
 

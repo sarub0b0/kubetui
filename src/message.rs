@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
 
-use crate::workers::message::Kube;
+use crate::workers::kube::message::Kube;
 
 #[derive(Debug, PartialEq, Clone, Copy, Eq, Hash)]
 pub enum UserEvent {

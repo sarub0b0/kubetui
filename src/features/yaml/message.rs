@@ -1,6 +1,8 @@
 use anyhow::Result;
 
-use crate::{features::api_resources::kube::ApiResource, message::Message, workers::message::Kube};
+use crate::{
+    features::api_resources::kube::ApiResource, message::Message, workers::kube::message::Kube,
+};
 
 pub use super::kube::YamlTarget;
 

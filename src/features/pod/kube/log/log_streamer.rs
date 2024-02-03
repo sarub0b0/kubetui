@@ -19,7 +19,7 @@ use tokio::time;
 use crate::{
     kube::KubeClient,
     logger,
-    workers::kube::{color::fg::Color, worker::AbortWorker},
+    workers::kube::{color::fg::Color, AbortWorker},
 };
 
 use super::log_collector::LogBuffer;
