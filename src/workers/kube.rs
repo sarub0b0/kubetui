@@ -47,7 +47,7 @@ use crate::{
 
 use self::{
     inner::Inner,
-    worker::{AbortWorker, PollWorker, Worker},
+    worker::{AbortWorker, PollerBase, Worker},
 };
 
 #[derive(Debug, Default)]
@@ -179,8 +179,8 @@ impl KubeWorker {
 }
 
 #[derive(Clone)]
-struct MainWorker {
-    inner: PollWorker,
+struct EventController {
+    base: PollerBase,
     rx: Receiver<Message>,
     contexts: Vec<String>,
     shared_target_api_resources: SharedTargetApiResources,
@@ -188,7 +188,7 @@ struct MainWorker {
 }
 
 #[async_trait]
-impl Worker for MainWorker {
+impl Worker for EventController {
     type Output = WorkerResult;
 
     async fn run(&self) -> Self::Output {
@@ -198,15 +198,15 @@ impl Worker for MainWorker {
         let mut yaml_handler: Option<AbortHandle> = None;
         let mut get_handler: Option<AbortHandle> = None;
 
-        let MainWorker {
-            inner: poll_worker,
+        let EventController {
+            base: poll_worker,
             rx,
             contexts,
             shared_target_api_resources,
             shared_api_resources,
         } = self;
 
-        let PollWorker {
+        let PollerBase {
             shared_target_namespaces,
             tx,
             is_terminated,
@@ -440,16 +440,16 @@ mod inner {
 
     use crate::{
         features::{
-            api_resources::kube::{ApiPollWorker, SharedApiResources},
-            config::kube::ConfigsPollWorker,
-            event::kube::EventPollWorker,
-            network::kube::NetworkPollWorker,
-            pod::kube::PodPollWorker,
+            api_resources::kube::{ApiPoller, SharedApiResources},
+            config::kube::ConfigPoller,
+            event::kube::EventPoller,
+            network::kube::NetworkPoller,
+            pod::kube::PodPoller,
         },
         message::Message,
         workers::kube::{
-            worker::{PollWorker, Worker},
-            MainWorker, WorkerResult,
+            worker::{PollerBase, Worker},
+            EventController, WorkerResult,
         },
     };
 
@@ -588,15 +588,15 @@ mod inner {
                     Arc::new(RwLock::new(target_api_resources.to_vec()));
                 let shared_api_resources = SharedApiResources::default();
 
-                let poll_worker = PollWorker {
+                let poller_base = PollerBase {
                     shared_target_namespaces: shared_target_namespaces.clone(),
                     tx: tx.clone(),
                     is_terminated: is_terminated.clone(),
                     kube_client: client.clone(),
                 };
 
-                let main_handler = MainWorker {
-                    inner: poll_worker.clone(),
+                let event_controller_handle = EventController {
+                    base: poller_base.clone(),
                     rx: rx.clone(),
                     contexts: kubeconfig
                         .contexts
@@ -608,24 +608,24 @@ mod inner {
                 }
                 .spawn();
 
-                let pod_handler = PodPollWorker::new(poll_worker.clone()).spawn();
-                let config_handler = ConfigsPollWorker::new(poll_worker.clone()).spawn();
-                let network_handler = NetworkPollWorker::new(poll_worker.clone()).spawn();
-                let event_handler = EventPollWorker::new(poll_worker.clone()).spawn();
-                let apis_handler = ApiPollWorker::new(
-                    poll_worker.clone(),
+                let pod_handle = PodPoller::new(poller_base.clone()).spawn();
+                let config_handle = ConfigPoller::new(poller_base.clone()).spawn();
+                let network_handle = NetworkPoller::new(poller_base.clone()).spawn();
+                let event_handle = EventPoller::new(poller_base.clone()).spawn();
+                let api_handle = ApiPoller::new(
+                    poller_base.clone(),
                     shared_target_api_resources.clone(),
                     shared_api_resources,
                 )
                 .spawn();
 
-                let mut handlers = vec![
-                    main_handler,
-                    pod_handler,
-                    config_handler,
-                    network_handler,
-                    event_handler,
-                    apis_handler,
+                let mut handles = vec![
+                    event_controller_handle,
+                    pod_handle,
+                    config_handle,
+                    network_handle,
+                    event_handle,
+                    api_handle,
                 ];
 
                 fn abort<T>(handlers: &[JoinHandle<T>]) {
@@ -634,15 +634,15 @@ mod inner {
                     }
                 }
 
-                while !handlers.is_empty() {
-                    let (ret, _, vec) = select_all(handlers).await;
+                while !handles.is_empty() {
+                    let (result, _, vec) = select_all(handles).await;
 
-                    handlers = vec;
+                    handles = vec;
 
-                    match ret {
-                        Ok(handler) => match handler {
+                    match result {
+                        Ok(ret) => match ret {
                             WorkerResult::ChangedContext(ctx) => {
-                                abort(&handlers);
+                                abort(&handles);
 
                                 let target_namespaces = shared_target_namespaces.read().await;
                                 let target_api_resources = shared_target_api_resources.read().await;
@@ -661,7 +661,7 @@ mod inner {
                             WorkerResult::Terminated => {}
                         },
                         Err(e) => {
-                            abort(&handlers);
+                            abort(&handles);
                             tx.send(Message::Error(anyhow!("KubeProcess Error: {:?}", e)))?;
                         }
                     }

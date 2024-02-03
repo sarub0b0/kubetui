@@ -12,29 +12,29 @@ use crate::{
     },
     message::Message,
     workers::{
-        worker::{PollWorker, Worker},
+        worker::{PollerBase, Worker},
         Kube, WorkerResult,
     },
 };
 
 #[derive(Clone)]
-pub struct EventPollWorker {
-    inner: PollWorker,
+pub struct EventPoller {
+    base: PollerBase,
 }
 
-impl EventPollWorker {
-    pub fn new(inner: PollWorker) -> Self {
-        Self { inner }
+impl EventPoller {
+    pub fn new(base: PollerBase) -> Self {
+        Self { base }
     }
 }
 
 #[async_trait]
-impl Worker for EventPollWorker {
+impl Worker for EventPoller {
     type Output = WorkerResult;
     async fn run(&self) -> Self::Output {
         let Self {
-            inner:
-                PollWorker {
+            base:
+                PollerBase {
                     is_terminated,
                     tx,
                     shared_target_namespaces,

@@ -39,7 +39,7 @@ pub trait AbortWorker {
 }
 
 #[derive(Clone)]
-pub struct PollWorker {
+pub struct PollerBase {
     pub is_terminated: Arc<AtomicBool>,
     pub tx: Sender<Message>,
     pub shared_target_namespaces: SharedTargetNamespaces,

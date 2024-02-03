@@ -20,7 +20,7 @@ use crate::{
         KubeClient, KubeClientRequest as _,
     },
     workers::{
-        worker::{PollWorker, Worker},
+        worker::{PollerBase, Worker},
         SharedTargetApiResources, TargetApiResources, TargetNamespaces, WorkerResult,
     },
 };
@@ -162,20 +162,20 @@ impl Display for ApiResource {
 }
 
 #[derive(Clone)]
-pub struct ApiPollWorker {
-    inner: PollWorker,
+pub struct ApiPoller {
+    base: PollerBase,
     shared_target_api_resources: SharedTargetApiResources,
     shared_api_resources: SharedApiResources,
 }
 
-impl ApiPollWorker {
+impl ApiPoller {
     pub fn new(
-        inner: PollWorker,
+        base: PollerBase,
         shared_target_api_resources: SharedTargetApiResources,
         shared_api_resources: SharedApiResources,
     ) -> Self {
         Self {
-            inner,
+            base,
             shared_target_api_resources,
             shared_api_resources,
         }
@@ -183,13 +183,13 @@ impl ApiPollWorker {
 }
 
 #[async_trait]
-impl Worker for ApiPollWorker {
+impl Worker for ApiPoller {
     type Output = WorkerResult;
 
     async fn run(&self) -> Self::Output {
         let Self {
-            inner:
-                PollWorker {
+            base:
+                PollerBase {
                     is_terminated,
                     tx,
                     shared_target_namespaces,

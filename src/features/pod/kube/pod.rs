@@ -9,31 +9,31 @@ use crate::{
     },
     message::Message,
     workers::kube::{
-        worker::{PollWorker, Worker},
+        worker::{PollerBase, Worker},
         Kube, WorkerResult,
     },
 };
 
 #[derive(Clone)]
-pub struct PodPollWorker {
-    inner: PollWorker,
+pub struct PodPoller {
+    base: PollerBase,
 }
 
-impl PodPollWorker {
-    pub fn new(inner: PollWorker) -> Self {
-        Self { inner }
+impl PodPoller {
+    pub fn new(base: PollerBase) -> Self {
+        Self { base }
     }
 }
 
 #[async_trait]
-impl Worker for PodPollWorker {
+impl Worker for PodPoller {
     type Output = WorkerResult;
 
     async fn run(&self) -> Self::Output {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(1));
 
         let Self {
-            inner: PollWorker {
+            base: PollerBase {
                 is_terminated, tx, ..
             },
         } = self;
@@ -51,9 +51,9 @@ impl Worker for PodPollWorker {
     }
 }
 
-impl PodPollWorker {
+impl PodPoller {
     async fn get_pod_info(&self) -> Result<KubeTable> {
-        let namespaces = self.inner.shared_target_namespaces.read().await;
+        let namespaces = self.base.shared_target_namespaces.read().await;
 
         let jobs = self.get_pods_per_namespace(&namespaces).await;
 
@@ -86,7 +86,7 @@ impl PodPollWorker {
         let insert_ns = insert_ns(namespaces);
         try_join_all(namespaces.iter().map(|ns| {
             get_resource_per_namespace(
-                &self.inner.kube_client,
+                &self.base.kube_client,
                 format!("api/v1/namespaces/{}/{}", ns, "pods"),
                 &["Name", "Ready", "Status", "Age"],
                 move |row: &TableRow, indexes: &[usize]| {

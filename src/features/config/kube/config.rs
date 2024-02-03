@@ -8,7 +8,7 @@ use crate::{
         KubeClient,
     },
     workers::kube::{
-        worker::{PollWorker, Worker},
+        worker::{PollerBase, Worker},
         WorkerResult,
     },
 };
@@ -18,26 +18,26 @@ use async_trait::async_trait;
 use futures::future::try_join_all;
 
 #[derive(Clone)]
-pub struct ConfigsPollWorker {
-    inner: PollWorker,
+pub struct ConfigPoller {
+    base: PollerBase,
 }
 
-impl ConfigsPollWorker {
-    pub fn new(inner: PollWorker) -> Self {
-        Self { inner }
+impl ConfigPoller {
+    pub fn new(base: PollerBase) -> Self {
+        Self { base }
     }
 }
 
 #[async_trait]
-impl Worker for ConfigsPollWorker {
+impl Worker for ConfigPoller {
     type Output = WorkerResult;
 
     async fn run(&self) -> Self::Output {
         let mut interval = tokio::time::interval(time::Duration::from_secs(1));
 
         let Self {
-            inner:
-                PollWorker {
+            base:
+                PollerBase {
                     is_terminated,
                     tx,
                     shared_target_namespaces,

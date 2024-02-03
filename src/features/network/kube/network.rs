@@ -11,31 +11,31 @@ use crate::{
         table::{get_resource_per_namespace, insert_ns, KubeTable, KubeTableRow},
     },
     workers::kube::{
-        worker::{PollWorker, Worker},
+        worker::{PollerBase, Worker},
         WorkerResult,
     },
 };
 
 #[derive(Clone)]
-pub struct NetworkPollWorker {
-    inner: PollWorker,
+pub struct NetworkPoller {
+    base: PollerBase,
 }
 
-impl NetworkPollWorker {
-    pub fn new(inner: PollWorker) -> Self {
-        Self { inner }
+impl NetworkPoller {
+    pub fn new(base: PollerBase) -> Self {
+        Self { base }
     }
 }
 
 #[async_trait()]
-impl Worker for NetworkPollWorker {
+impl Worker for NetworkPoller {
     type Output = WorkerResult;
 
     async fn run(&self) -> Self::Output {
         let mut interval = tokio::time::interval(time::Duration::from_secs(1));
 
-        let is_terminated = &self.inner.is_terminated;
-        let tx = &self.inner.tx;
+        let is_terminated = &self.base.is_terminated;
+        let tx = &self.base.tx;
 
         while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
             interval.tick().await;
@@ -61,9 +61,9 @@ const POLLING_RESOURCES: [[&str; 3]; 4] = [
     ],
 ];
 
-impl NetworkPollWorker {
+impl NetworkPoller {
     async fn polling(&self) -> Result<KubeTable> {
-        let target_namespaces = self.inner.shared_target_namespaces.read().await;
+        let target_namespaces = self.base.shared_target_namespaces.read().await;
         let mut table = KubeTable {
             header: if target_namespaces.len() == 1 {
                 ["KIND", "NAME", "AGE"]
@@ -96,7 +96,7 @@ impl NetworkPollWorker {
         url: &str,
         plural: &str,
     ) -> Result<Vec<KubeTableRow>> {
-        let client = &self.inner.kube_client;
+        let client = &self.base.kube_client;
         let insert_ns = insert_ns(namespaces);
         let jobs = try_join_all(namespaces.iter().map(|ns| {
             get_resource_per_namespace(
