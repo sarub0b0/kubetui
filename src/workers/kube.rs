@@ -3,7 +3,6 @@ mod store;
 pub mod worker;
 
 use std::{
-    collections::BTreeMap,
     path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -50,26 +49,6 @@ use self::{
     inner::Inner,
     worker::{AbortWorker, PollerBase, Worker},
 };
-
-#[derive(Debug, Default)]
-pub struct KubeListItem {
-    pub namespace: String,
-    pub name: String,
-    pub metadata: Option<BTreeMap<String, String>>,
-    pub item: String,
-}
-
-#[derive(Debug, Default)]
-pub struct KubeList {
-    pub list: Vec<KubeListItem>,
-}
-
-impl KubeList {
-    #[allow(dead_code)]
-    pub fn new(list: Vec<KubeListItem>) -> Self {
-        Self { list }
-    }
-}
 
 impl From<Kube> for Message {
     fn from(k: Kube) -> Self {
