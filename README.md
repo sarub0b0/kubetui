@@ -3,7 +3,7 @@
 [![Release](https://img.shields.io/github/v/release/sarub0b0/kubetui)]()
 [![Test](https://github.com/sarub0b0/kubetui/actions/workflows/test.yml/badge.svg)](https://github.com/sarub0b0/kubetui/actions/workflows/test.yml)
 
-Kubetui is a terminal user interface (TUI) tool designed for monitoring Kubernetes resources.  
+Kubetui is a terminal user interface (TUI) tool designed for monitoring Kubernetes resources.
 It provides an easy-to-use interface for developers and operators to access important information about their applications and infrastructure.
 
 <details>
@@ -43,7 +43,17 @@ It provides an easy-to-use interface for developers and operators to access impo
 
 To install Kubetui, you can use the following methods:
 
-1. **Using `cargo install`:** Kubetui is available on [crates.io](https://crates.io/crates/kubetui), the official Rust package registry. Install it by running the following command:
+### **Using `brew`**
+
+[Kubetui](https://formulae.brew.sh/formula/kubetui) is available on [Homebrew](https://brew.sh/), the package manager for macOS and Linux. Install it by running the following command:
+
+   ```shell
+   brew install kubetui
+   ```
+
+### **Using `cargo install`**
+
+Kubetui is available on [crates.io](https://crates.io/crates/kubetui), the official Rust package registry. Install it by running the following command:
 
    ```shell
    # Install with rustls version
@@ -59,7 +69,9 @@ To install Kubetui, you can use the following methods:
 
    Make sure you have [Rust](https://www.rust-lang.org/tools/install) and [Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html) installed before running the command. If you choose the OpenSSL version, you will need to have the OpenSSL library installed as well.
 
-2. **Downloading the binary:** Alternatively, you can download the precompiled binary from the [GitHub Release page](https://github.com/sarub0b0/kubetui/releases) that matches your operating system. Once downloaded, you can run the binary directly without any additional installation steps.
+### **Downloading the binary:**
+
+Alternatively, you can download the precompiled binary from the [GitHub Release page](https://github.com/sarub0b0/kubetui/releases) that matches your operating system. Once downloaded, you can run the binary directly without any additional installation steps.
 
 Choose the method that suits your needs and preferences.
 
