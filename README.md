@@ -47,27 +47,19 @@ To install Kubetui, you can use the following methods:
 
 [Kubetui](https://formulae.brew.sh/formula/kubetui) is available on [Homebrew](https://brew.sh/), the package manager for macOS and Linux. Install it by running the following command:
 
-   ```shell
-   brew install kubetui
-   ```
+```shell
+brew install kubetui
+```
 
 ### Using `cargo install`
 
 Kubetui is available on [crates.io](https://crates.io/crates/kubetui), the official Rust package registry. Install it by running the following command:
 
-   ```shell
-   # Install with rustls version
-   cargo install kubetui
-   ```
+```shell
+cargo install kubetui
+```
 
-   or
-
-   ```shell
-   # Install with openssl version
-   cargo install kubetui --no-default-features --features openssl-tls
-   ```
-
-   Make sure you have [Rust](https://www.rust-lang.org/tools/install) and [Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html) installed before running the command. If you choose the OpenSSL version, you will need to have the OpenSSL library installed as well.
+Make sure you have [Rust](https://www.rust-lang.org/tools/install) and [Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html) installed before running the command.
 
 ### Downloading the binary
 
