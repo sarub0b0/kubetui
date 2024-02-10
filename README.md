@@ -3,7 +3,7 @@
 [![Release](https://img.shields.io/github/v/release/sarub0b0/kubetui)]()
 [![Test](https://github.com/sarub0b0/kubetui/actions/workflows/test.yml/badge.svg)](https://github.com/sarub0b0/kubetui/actions/workflows/test.yml)
 
-Kubetui is a terminal user interface (TUI) tool designed for monitoring Kubernetes resources.
+Kubetui is a terminal user interface (TUI) tool designed for monitoring Kubernetes resources.  
 It provides an easy-to-use interface for developers and operators to access important information about their applications and infrastructure.
 
 <details>
