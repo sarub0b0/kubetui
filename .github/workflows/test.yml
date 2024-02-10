@@ -3,14 +3,8 @@ name: Test
 on:
   push:
     branches: [main]
-    paths:
-      - src/**
-      - Cargo.*
   pull_request:
     branches: [main]
-    paths:
-      - src/**
-      - Cargo.*
 
 env:
   CARGO_TERM_COLOR: always
