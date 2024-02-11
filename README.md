@@ -9,12 +9,12 @@ It provides an easy-to-use interface for developers and operators to access impo
 <details>
 <summary>Table of Contents</summary>
 
+- [Features](#features)
 - [Installation](#installation)
   - [Homebrew on macOS and Linux](#homebrew-on-macos-and-linux)
   - [openSUSE Tumbleweed](#opensuse-tumbleweed)
   - [Using `cargo install`](#using-cargo-install)
   - [Downloading the binary](#downloading-the-binary)
-- [Features](#features)
 - [Usage](#usage)
 - [Log Query](#log-query)
   - [Usage Example](#usage-example)
@@ -42,6 +42,24 @@ It provides an easy-to-use interface for developers and operators to access impo
 ![Demo slow version](./assets/demo-slow.webp)
 
 </details>
+
+## Features
+
+Kubetui offers the following features to help you monitor and manage your Kubernetes resources:
+
+- **Pods List and Container Logs**: Easily view a list of pods and their container logs.
+- **ConfigMap and Secret Watching**: Monitor ConfigMaps and secrets, and decode their data.
+- **Network-related Resources**: Explore a list of network-related resources and their descriptions.
+- **Events Watching**: Stay updated with a real-time view of Kubernetes events.
+- **Specific Resources Watching (List / YAML)**: View specific resources in list or YAML format.
+- **Namespace Multiple Selections**: Select and view multiple namespaces simultaneously.
+- **Context Selection**: Change the Kubernetes context you want to operate on.
+- **Clipboard Support (Text Copy)**: Copy text conveniently using mouse actions.
+- **Mouse Event Support**: Leverage mouse events for a smoother user experience.
+- **Search Functionality**: Easily search for specific keywords within the interface.
+- **Item Filtering**: Filter items based on multiple keywords separated by spaces.
+
+Overall, kubetui is a powerful tool designed to provide a safe and efficient way to access and monitor your Kubernetes resources. With its user-friendly interface and comprehensive features, it simplifies the process of managing your applications and infrastructure.
 
 ## Installation
 
@@ -80,24 +98,6 @@ Make sure you have [Rust](https://www.rust-lang.org/tools/install) and [Cargo](h
 Alternatively, you can download the precompiled binary from the [GitHub Release page](https://github.com/sarub0b0/kubetui/releases) that matches your operating system. Once downloaded, you can run the binary directly without any additional installation steps.
 
 Choose the method that suits your needs and preferences.
-
-## Features
-
-Kubetui offers the following features to help you monitor and manage your Kubernetes resources:
-
-- **Pods List and Container Logs**: Easily view a list of pods and their container logs.
-- **ConfigMap and Secret Watching**: Monitor ConfigMaps and secrets, and decode their data.
-- **Network-related Resources**: Explore a list of network-related resources and their descriptions.
-- **Events Watching**: Stay updated with a real-time view of Kubernetes events.
-- **Specific Resources Watching (List / YAML)**: View specific resources in list or YAML format.
-- **Namespace Multiple Selections**: Select and view multiple namespaces simultaneously.
-- **Context Selection**: Change the Kubernetes context you want to operate on.
-- **Clipboard Support (Text Copy)**: Copy text conveniently using mouse actions.
-- **Mouse Event Support**: Leverage mouse events for a smoother user experience.
-- **Search Functionality**: Easily search for specific keywords within the interface.
-- **Item Filtering**: Filter items based on multiple keywords separated by spaces.
-
-Overall, kubetui is a powerful tool designed to provide a safe and efficient way to access and monitor your Kubernetes resources. With its user-friendly interface and comprehensive features, it simplifies the process of managing your applications and infrastructure.
 
 ## Usage
 
