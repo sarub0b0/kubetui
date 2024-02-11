@@ -10,6 +10,10 @@ It provides an easy-to-use interface for developers and operators to access impo
 <summary>Table of Contents</summary>
 
 - [Installation](#installation)
+  - [Homebrew on macOS and Linux](#homebrew-on-macos-and-linux)
+  - [openSUSE Tumbleweed](#opensuse-tumbleweed)
+  - [Using `cargo install`](#using-cargo-install)
+  - [Downloading the binary](#downloading-the-binary)
 - [Features](#features)
 - [Usage](#usage)
 - [Log Query](#log-query)
@@ -41,14 +45,24 @@ It provides an easy-to-use interface for developers and operators to access impo
 
 ## Installation
 
+[![Packaging status](https://repology.org/badge/vertical-allrepos/kubetui.svg)](https://repology.org/project/kubetui/versions)
+
 To install Kubetui, you can use the following methods:
 
-### Using `brew`
+### [Homebrew](https://brew.sh/) on macOS and Linux
 
 [Kubetui](https://formulae.brew.sh/formula/kubetui) is available on [Homebrew](https://brew.sh/), the package manager for macOS and Linux. Install it by running the following command:
 
 ```shell
 brew install kubetui
+```
+
+### openSUSE Tumbleweed
+
+For openSUSE Tumbleweed, you can install Kubetui using the `zypper` package manager. Run the following command to install:
+
+```shell
+zypper install kubetui
 ```
 
 ### Using `cargo install`
