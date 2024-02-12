@@ -12,6 +12,7 @@ It provides an easy-to-use interface for developers and operators to access impo
 - [Features](#features)
 - [Installation](#installation)
   - [Homebrew on macOS and Linux](#homebrew-on-macos-and-linux)
+  - [Scoop on Windows](#scoop-on-windows)
   - [openSUSE Tumbleweed](#opensuse-tumbleweed)
   - [Using `cargo install`](#using-cargo-install)
   - [Downloading the binary](#downloading-the-binary)
@@ -73,6 +74,17 @@ To install Kubetui, you can use the following methods:
 
 ```shell
 brew install kubetui
+```
+
+### [Scoop](https://scoop.sh/) on Windows
+
+If you are using Windows with [Scoop](https://scoop.sh/), you can add the necessary buckets and install Kubetui with the following commands:
+
+```shell
+# Add the 'extras' bucket for vcredist2022
+scoop bucket add extras
+scoop bucket add <bucket> https://github.com/sarub0b0/scoop-bucket
+scoop install <bucket>/kubetui
 ```
 
 ### openSUSE Tumbleweed
