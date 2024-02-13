@@ -13,6 +13,7 @@ It provides an easy-to-use interface for developers and operators to access impo
 - [Installation](#installation)
   - [Homebrew on macOS and Linux](#homebrew-on-macos-and-linux)
   - [Scoop on Windows](#scoop-on-windows)
+  - [WinGet on Windows](#winget-on-windows)
   - [openSUSE Tumbleweed](#opensuse-tumbleweed)
   - [Using `cargo install`](#using-cargo-install)
   - [Downloading the binary](#downloading-the-binary)
@@ -85,6 +86,14 @@ If you are using Windows with [Scoop](https://scoop.sh/), you can add the necess
 scoop bucket add extras
 scoop bucket add <bucket> https://github.com/sarub0b0/scoop-bucket
 scoop install <bucket>/kubetui
+```
+
+### [WinGet](https://github.com/microsoft/winget-cli) on Windows
+
+If you prefer using winget, the Windows package manager, you can install Kubetui with the following command:
+
+```shell
+winget install kubetui
 ```
 
 ### openSUSE Tumbleweed
