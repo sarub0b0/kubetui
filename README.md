@@ -13,6 +13,7 @@ It provides an easy-to-use interface for developers and operators to access impo
 - [Installation](#installation)
   - [Homebrew on macOS and Linux](#homebrew-on-macos-and-linux)
   - [Scoop on Windows](#scoop-on-windows)
+  - [WinGet on Windows](#winget-on-windows)
   - [openSUSE Tumbleweed](#opensuse-tumbleweed)
   - [Using `cargo install`](#using-cargo-install)
   - [Downloading the binary](#downloading-the-binary)
@@ -66,11 +67,11 @@ Overall, kubetui is a powerful tool designed to provide a safe and efficient way
 
 [![Packaging status](https://repology.org/badge/vertical-allrepos/kubetui.svg)](https://repology.org/project/kubetui/versions)
 
-To install Kubetui, you can use the following methods:
+To install kubetui, you can use the following methods:
 
 ### [Homebrew](https://brew.sh/) on macOS and Linux
 
-[Kubetui](https://formulae.brew.sh/formula/kubetui) is available on [Homebrew](https://brew.sh/), the package manager for macOS and Linux. Install it by running the following command:
+Kubetui is available on homebrew, the package manager for macOS and Linux. Install it by running the following command:
 
 ```shell
 brew install kubetui
@@ -78,7 +79,7 @@ brew install kubetui
 
 ### [Scoop](https://scoop.sh/) on Windows
 
-If you are using Windows with [Scoop](https://scoop.sh/), you can add the necessary buckets and install Kubetui with the following commands:
+If you are using Windows with scoop, you can add the necessary buckets and install kubetui with the following commands:
 
 ```shell
 # Add the 'extras' bucket for vcredist2022
@@ -87,9 +88,17 @@ scoop bucket add <bucket> https://github.com/sarub0b0/scoop-bucket
 scoop install <bucket>/kubetui
 ```
 
+### [WinGet](https://github.com/microsoft/winget-cli) on Windows
+
+If you prefer using winget, the Windows package manager, you can install kubetui with the following command:
+
+```shell
+winget install kubetui
+```
+
 ### openSUSE Tumbleweed
 
-For openSUSE Tumbleweed, you can install Kubetui using the `zypper` package manager. Run the following command to install:
+For openSUSE Tumbleweed, you can install kubetui using the `zypper` package manager. Run the following command to install:
 
 ```shell
 zypper install kubetui
