@@ -33,7 +33,7 @@ pub enum EventResult {
     Nop,
     Ignore,
     Callback(Option<Callback>),
-    Window(WindowAction),
+    WindowAction(WindowAction),
 }
 
 impl EventResult {
@@ -53,7 +53,7 @@ pub fn exec_to_window_event(ev: EventResult, w: &mut Window) -> WindowAction {
         ev @ EventResult::Callback(_) => {
             return exec_to_window_event(ev.exec(w), w);
         }
-        EventResult::Window(ev) => return ev,
+        EventResult::WindowAction(ev) => return ev,
     }
     WindowAction::Continue
 }

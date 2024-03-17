@@ -94,16 +94,16 @@ pub fn window_action(window: &mut Window, rx: &Receiver<Message>) -> WindowActio
 
             EventResult::Ignore => {
                 if let Some(cb) = window.match_callback(ev) {
-                    if let EventResult::Window(ev) = (cb)(window) {
-                        return ev;
+                    if let EventResult::WindowAction(action) = (cb)(window) {
+                        return action;
                     }
                 }
             }
             ev @ EventResult::Callback(_) => {
                 return exec_to_window_event(ev, window);
             }
-            EventResult::Window(ev) => {
-                return ev;
+            EventResult::WindowAction(action) => {
+                return action;
             }
         },
 

@@ -82,6 +82,6 @@ fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &TableItem) -> EventRe
             _ => {}
         }
 
-        EventResult::Window(WindowAction::Continue)
+        EventResult::WindowAction(WindowAction::Continue)
     }
 }

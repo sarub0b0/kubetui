@@ -87,7 +87,7 @@ impl WindowInit {
                 w.close_popup();
                 EventResult::Nop
             } else {
-                EventResult::Window(WindowAction::CloseWindow)
+                EventResult::WindowAction(WindowAction::CloseWindow)
             }
         };
 
