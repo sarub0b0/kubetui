@@ -7,7 +7,7 @@ use crate::{
     ui::{
         event::EventResult,
         widget::{config::WidgetConfig, Table, TableItem, Widget, WidgetTrait as _},
-        Window, WindowEvent,
+        Window, WindowAction,
     },
 };
 
@@ -90,6 +90,6 @@ fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &TableItem) -> EventRe
             _ => {}
         }
 
-        EventResult::Window(WindowEvent::Continue)
+        EventResult::Window(WindowAction::Continue)
     }
 }

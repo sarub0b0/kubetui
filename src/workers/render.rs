@@ -18,7 +18,7 @@ use crate::{
     logger,
     message::Message,
     panic_set_hook,
-    ui::WindowEvent,
+    ui::WindowAction,
     window::WindowInit,
 };
 
@@ -91,13 +91,13 @@ impl Render {
             })?;
 
             match window_action(&mut window, &self.rx) {
-                WindowEvent::Continue => {}
-                WindowEvent::CloseWindow => {
+                WindowAction::Continue => {}
+                WindowAction::CloseWindow => {
                     self.is_terminated
                         .store(true, std::sync::atomic::Ordering::Relaxed);
                     // break
                 }
-                WindowEvent::UpdateContents(ev) => {
+                WindowAction::UpdateContents(ev) => {
                     update_contents(
                         &mut window,
                         ev,

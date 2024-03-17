@@ -419,7 +419,7 @@ enum AreaKind {
     OutSide,
 }
 
-pub enum WindowEvent {
+pub enum WindowAction {
     CloseWindow,
     Continue,
     UpdateContents(Kube),

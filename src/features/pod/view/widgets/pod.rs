@@ -11,7 +11,7 @@ use crate::{
     ui::{
         event::EventResult,
         widget::{config::WidgetConfig, Item, Table, TableItem, Widget, WidgetTrait as _},
-        Window, WindowEvent,
+        Window, WindowAction,
     },
 };
 
@@ -76,6 +76,6 @@ fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &TableItem) -> EventRe
         tx.send(LogMessage::Request(config).into())
             .expect("Failed to send LogMessage::Request");
 
-        EventResult::Window(WindowEvent::Continue)
+        EventResult::Window(WindowAction::Continue)
     }
 }

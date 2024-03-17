@@ -23,7 +23,7 @@ use crate::{
         event::{exec_to_window_event, EventResult},
         util::chars::convert_tabs_to_spaces,
         widget::{Item, LiteralItem, TableItem, WidgetTrait},
-        Window, WindowEvent,
+        Window, WindowAction,
     },
     workers::kube::message::Kube,
 };
@@ -87,7 +87,7 @@ macro_rules! error_lines {
     };
 }
 
-pub fn window_action(window: &mut Window, rx: &Receiver<Message>) -> WindowEvent {
+pub fn window_action(window: &mut Window, rx: &Receiver<Message>) -> WindowAction {
     match rx.recv().expect("Failed to recv") {
         Message::User(ev) => match window.on_event(ev) {
             EventResult::Nop => {}
@@ -108,10 +108,10 @@ pub fn window_action(window: &mut Window, rx: &Receiver<Message>) -> WindowEvent
         },
 
         Message::Tick => {}
-        Message::Kube(k) => return WindowEvent::UpdateContents(k),
+        Message::Kube(k) => return WindowAction::UpdateContents(k),
         Message::Error(_) => {}
     }
-    WindowEvent::Continue
+    WindowAction::Continue
 }
 
 fn update_widget_item_for_table(window: &mut Window, id: &str, table: Result<KubeTable>) {

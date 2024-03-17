@@ -31,7 +31,7 @@ use crate::{
         event::EventResult,
         popup::Popup,
         widget::{SelectedItem, WidgetTrait},
-        Header, Tab, Window, WindowEvent,
+        Header, Tab, Window, WindowAction,
     },
 };
 
@@ -87,7 +87,7 @@ impl WindowInit {
                 w.close_popup();
                 EventResult::Nop
             } else {
-                EventResult::Window(WindowEvent::CloseWindow)
+                EventResult::Window(WindowAction::CloseWindow)
             }
         };
 

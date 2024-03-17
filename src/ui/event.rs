@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use super::{Window, WindowEvent};
+use super::{Window, WindowAction};
 
 pub(super) type InnerCallback = Rc<dyn Fn(&mut Window) -> EventResult>;
 
@@ -33,7 +33,7 @@ pub enum EventResult {
     Nop,
     Ignore,
     Callback(Option<Callback>),
-    Window(WindowEvent),
+    Window(WindowAction),
 }
 
 impl EventResult {
@@ -46,7 +46,7 @@ impl EventResult {
     }
 }
 
-pub fn exec_to_window_event(ev: EventResult, w: &mut Window) -> WindowEvent {
+pub fn exec_to_window_event(ev: EventResult, w: &mut Window) -> WindowAction {
     match ev {
         EventResult::Nop => {}
         EventResult::Ignore => {}
@@ -55,5 +55,5 @@ pub fn exec_to_window_event(ev: EventResult, w: &mut Window) -> WindowEvent {
         }
         EventResult::Window(ev) => return ev,
     }
-    WindowEvent::Continue
+    WindowAction::Continue
 }
