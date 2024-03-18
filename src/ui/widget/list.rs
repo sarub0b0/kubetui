@@ -323,7 +323,11 @@ impl<'a> WidgetTrait for List<'a> {
 
                 self.state.select(Some(row + self.state.offset()));
 
-                return EventResult::Callback(self.on_select_callback());
+                if let Some(cb) = self.on_select_callback() {
+                    return EventResult::Callback(cb);
+                }
+
+                return EventResult::Ignore;
             }
 
             MouseEventKind::ScrollDown => {
@@ -360,7 +364,11 @@ impl<'a> WidgetTrait for List<'a> {
             }
 
             KeyCode::Enter => {
-                return EventResult::Callback(self.on_select_callback());
+                if let Some(cb) = self.on_select_callback() {
+                    return EventResult::Callback(cb);
+                }
+
+                return EventResult::Ignore;
             }
             KeyCode::Char(_) => {
                 return EventResult::Ignore;

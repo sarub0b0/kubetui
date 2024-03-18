@@ -32,28 +32,6 @@ impl std::ops::Deref for Callback {
 pub enum EventResult {
     Nop,
     Ignore,
-    Callback(Option<Callback>),
+    Callback(Callback),
     WindowAction(WindowAction),
-}
-
-impl EventResult {
-    pub fn exec(&self, w: &mut Window) -> EventResult {
-        if let Self::Callback(Some(cb)) = self {
-            cb(w)
-        } else {
-            EventResult::Ignore
-        }
-    }
-}
-
-pub fn exec_to_window_event(ev: EventResult, w: &mut Window) -> WindowAction {
-    match ev {
-        EventResult::Nop => {}
-        EventResult::Ignore => {}
-        ev @ EventResult::Callback(_) => {
-            return exec_to_window_event(ev.exec(w), w);
-        }
-        EventResult::WindowAction(ev) => return ev,
-    }
-    WindowAction::Continue
 }

@@ -20,7 +20,7 @@ use crate::{
     },
     message::Message,
     ui::{
-        event::{exec_to_window_event, EventResult},
+        event::{Callback, EventResult},
         util::chars::convert_tabs_to_spaces,
         widget::{Item, LiteralItem, TableItem, WidgetTrait},
         Window, WindowAction,
@@ -87,6 +87,16 @@ macro_rules! error_lines {
     };
 }
 
+/// 各ウィジェットのコールバックを実行する
+/// コールバックがコールバックを返す場合は再帰的に実行する
+fn exec_callback(cb: Callback, w: &mut Window) -> WindowAction {
+    if let EventResult::Callback(cb) = cb(w) {
+        return exec_callback(cb, w);
+    }
+
+    WindowAction::Continue
+}
+
 pub fn window_action(window: &mut Window, rx: &Receiver<Message>) -> WindowAction {
     match rx.recv().expect("Failed to recv") {
         Message::User(ev) => match window.on_event(ev) {
@@ -99,8 +109,8 @@ pub fn window_action(window: &mut Window, rx: &Receiver<Message>) -> WindowActio
                     }
                 }
             }
-            ev @ EventResult::Callback(_) => {
-                return exec_to_window_event(ev, window);
+            EventResult::Callback(cb) => {
+                return exec_callback(cb, window);
             }
             EventResult::WindowAction(action) => {
                 return action;

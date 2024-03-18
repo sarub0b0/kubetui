@@ -299,7 +299,7 @@ impl WidgetTrait for SingleSelect<'_> {
 
         if let EventResult::Ignore = event_result {
             if let Some(cb) = self.match_callback(UserEvent::Key(ev)) {
-                return EventResult::Callback(Some(Callback::from(cb)));
+                return EventResult::Callback(Callback::from(cb));
             }
         }
 

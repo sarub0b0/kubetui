@@ -719,7 +719,7 @@ impl WidgetTrait for Text {
 
                 _ => {
                     if let Some(cb) = self.match_action(UserEvent::Key(ev)) {
-                        return EventResult::Callback(Some(Callback::from(cb)));
+                        return EventResult::Callback(Callback::from(cb));
                     }
                     return EventResult::Ignore;
                 }

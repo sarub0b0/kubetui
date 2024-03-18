@@ -489,7 +489,12 @@ impl WidgetTrait for Table<'_> {
                         })
                 {
                     self.state.select(Some(index + offset_index));
-                    return EventResult::Callback(self.on_select_callback());
+
+                    if let Some(cb) = self.on_select_callback() {
+                        return EventResult::Callback(cb);
+                    }
+
+                    return EventResult::Ignore;
                 }
             }
 
@@ -535,12 +540,16 @@ impl WidgetTrait for Table<'_> {
                 }
 
                 KeyCode::Enter => {
-                    return EventResult::Callback(self.on_select_callback());
+                    if let Some(cb) = self.on_select_callback() {
+                        return EventResult::Callback(cb);
+                    }
+
+                    return EventResult::Ignore;
                 }
 
                 _ => {
                     if let Some(cb) = self.match_action(UserEvent::Key(ev)) {
-                        return EventResult::Callback(Some(Callback::from(cb)));
+                        return EventResult::Callback(Callback::from(cb));
                     }
 
                     return EventResult::Ignore;

@@ -390,7 +390,7 @@ impl InputForm {
             }
             _ => {
                 if let Some(cb) = self.match_action(UserEvent::Key(key)) {
-                    return EventResult::Callback(Some(Callback::from(cb)));
+                    return EventResult::Callback(Callback::from(cb));
                 }
                 return EventResult::Ignore;
             }
