@@ -1,7 +1,6 @@
-pub mod api_resources;
 pub mod client;
 pub mod color;
-mod metric_type;
+pub mod metric_type;
 pub mod v1_table;
 pub mod worker;
 pub mod yaml;
@@ -29,6 +28,10 @@ use tokio::{
 
 use crate::{
     features::{
+        api_resources::{
+            kube::{ApiResource, SharedApiResources},
+            message::{ApiMessage, ApiRequest, ApiResponse},
+        },
         config::{kube::ConfigsDataWorker, message::ConfigMessage},
         network::{kube::NetworkDescriptionWorker, message::NetworkMessage},
         pod::{kube::LogWorker, message::LogMessage},
@@ -39,7 +42,6 @@ use crate::{
 };
 
 use self::{
-    api_resources::{ApiMessage, ApiRequest, ApiResource, ApiResponse, SharedApiResources},
     client::KubeClient,
     context_message::{ContextMessage, ContextRequest, ContextResponse},
     inner::Inner,
@@ -224,11 +226,11 @@ pub mod context_message {
     }
 }
 
-pub(super) type TargetNamespaces = Vec<String>;
-pub(super) type SharedTargetNamespaces = Arc<RwLock<TargetNamespaces>>;
+pub type TargetNamespaces = Vec<String>;
+pub type SharedTargetNamespaces = Arc<RwLock<TargetNamespaces>>;
 
-pub(super) type TargetApiResources = Vec<ApiResource>;
-pub(super) type SharedTargetApiResources = Arc<RwLock<TargetApiResources>>;
+pub type TargetApiResources = Vec<ApiResource>;
+pub type SharedTargetApiResources = Arc<RwLock<TargetApiResources>>;
 
 #[derive(Clone)]
 pub enum WorkerResult {
@@ -564,12 +566,14 @@ mod inner {
 
     use crate::{
         features::{
-            config::kube::ConfigsPollWorker, event::kube::EventPollWorker,
-            network::kube::NetworkPollWorker, pod::kube::PodPollWorker,
+            api_resources::kube::{ApiPollWorker, SharedApiResources},
+            config::kube::ConfigsPollWorker,
+            event::kube::EventPollWorker,
+            network::kube::NetworkPollWorker,
+            pod::kube::PodPollWorker,
         },
         message::Message,
         workers::kube::{
-            api_resources::{ApiPollWorker, SharedApiResources},
             worker::{PollWorker, Worker},
             MainWorker, WorkerResult,
         },

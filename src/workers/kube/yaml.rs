@@ -5,9 +5,9 @@ use anyhow::Result;
 
 use self::{direct::DirectedYaml, select::SelectedYaml};
 
-use super::{api_resources::ApiResource, Kube};
+use super::Kube;
 
-use crate::message::Message;
+use crate::{features::api_resources::kube::ApiResource, message::Message};
 
 #[derive(Debug, Clone)]
 pub struct YamlResourceListItem {

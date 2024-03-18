@@ -1,5 +1,4 @@
 mod context;
-mod list;
 mod yaml;
 mod yaml_popup;
 
@@ -14,8 +13,8 @@ use crate::{
     clipboard::Clipboard,
     context::{Context, Namespace},
     features::{
-        config::view::ConfigTab, event::view::EventTab, help::HelpPopup, network::view::NetworkTab,
-        pod::view::PodTab,
+        api_resources::view::ListTab, config::view::ConfigTab, event::view::EventTab,
+        help::HelpPopup, network::view::NetworkTab, pod::view::PodTab,
     },
     message::{Message, UserEvent},
     ui::{
@@ -36,7 +35,6 @@ use crate::{
 
 use self::{
     context::{ContextPopup, ContextPopupBuilder},
-    list::{ListTab, ListTabBuilder},
     yaml::{YamlTab, YamlTabBuilder},
     yaml_popup::{YamlPopup, YamlPopupBuilder},
 };
@@ -157,9 +155,9 @@ impl WindowInit {
         let EventTab { tab: event_tab } = EventTab::new("Event", &clipboard);
 
         let ListTab {
-            tab: tab_list,
-            popup: popup_list,
-        } = ListTabBuilder::new("List", &self.tx, &clipboard).build();
+            tab: list_tab,
+            popup: list_popup,
+        } = ListTab::new("List", &self.tx, &clipboard);
 
         let YamlTab {
             tab: tab_yaml,
@@ -184,7 +182,7 @@ impl WindowInit {
             config_tab,
             network_tab,
             event_tab,
-            tab_list,
+            list_tab,
             tab_yaml,
         ];
 
@@ -192,7 +190,7 @@ impl WindowInit {
             Popup::new(popup_context),
             Popup::new(popup_single_namespace),
             Popup::new(popup_multiple_namespaces),
-            Popup::new(popup_list),
+            Popup::new(list_popup),
             Popup::new(popup_yaml_kind),
             Popup::new(popup_yaml_name),
             Popup::new(popup_yaml_return),

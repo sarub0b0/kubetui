@@ -6,11 +6,9 @@ use anyhow::{anyhow, Result};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use serde::Deserialize;
 
-use crate::workers::kube::{
-    api_resources::{ApiResource, ApiResources},
-    client::KubeClientRequest,
-    yaml::YamlResourceList,
-    TargetNamespaces,
+use crate::{
+    features::api_resources::kube::{ApiResource, ApiResources},
+    workers::kube::{client::KubeClientRequest, yaml::YamlResourceList, TargetNamespaces},
 };
 
 use self::{

@@ -6,6 +6,7 @@ use crossbeam::channel::Receiver;
 use crate::{
     context::{Context, Namespace},
     features::{
+        api_resources::message::{ApiMessage, ApiResponse},
         config::message::ConfigMessage,
         network::message::{NetworkMessage, NetworkResponse},
         pod::message::LogMessage,
@@ -18,7 +19,6 @@ use crate::{
         Window, WindowEvent,
     },
     workers::kube::{
-        api_resources::{ApiMessage, ApiResponse},
         context_message::{ContextMessage, ContextResponse},
         namespace_message::{NamespaceMessage, NamespaceResponse},
         yaml::{YamlMessage, YamlResourceListItem, YamlResponse},

@@ -5,14 +5,10 @@ use crossbeam::channel::Sender;
 use serde_yaml::Value;
 
 use crate::{
+    features::api_resources::kube::{ApiResource, ApiResources, SharedApiResources},
     logger,
     message::Message,
-    workers::kube::{
-        api_resources::{ApiResource, ApiResources, SharedApiResources},
-        client::KubeClientRequest,
-        worker::AbortWorker,
-        yaml::YamlResponse,
-    },
+    workers::kube::{client::KubeClientRequest, worker::AbortWorker, yaml::YamlResponse},
 };
 
 use super::SelectedYaml;

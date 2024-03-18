@@ -9,57 +9,16 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use tokio::{sync::RwLock, time::Instant};
 
-use super::{
-    client::KubeClientRequest,
-    metric_type::*,
-    v1_table::*,
-    worker::{PollWorker, Worker},
-    Kube, KubeClient, Message, SharedTargetApiResources, TargetApiResources, TargetNamespaces,
-    WorkerResult,
+use crate::{
+    features::api_resources::message::ApiResponse,
+    workers::{
+        client::{KubeClient, KubeClientRequest as _},
+        metric_type::{NodeMetricsList, PodMetricsList},
+        v1_table::{insert_ns, Table, TableColumnDefinition, Value},
+        worker::{PollWorker, Worker},
+        SharedTargetApiResources, TargetApiResources, TargetNamespaces, WorkerResult,
+    },
 };
-
-#[derive(Debug)]
-pub enum ApiRequest {
-    Get,
-    Set(Vec<ApiResource>),
-}
-
-#[derive(Debug)]
-pub enum ApiResponse {
-    Get(Result<Vec<ApiResource>>),
-    Set(Vec<String>),
-    Poll(Result<Vec<String>>),
-}
-
-#[derive(Debug)]
-pub enum ApiMessage {
-    Request(ApiRequest),
-    Response(ApiResponse),
-}
-
-impl From<ApiRequest> for Message {
-    fn from(f: ApiRequest) -> Self {
-        Self::Kube(Kube::API(ApiMessage::Request(f)))
-    }
-}
-
-impl From<ApiResponse> for Message {
-    fn from(f: ApiResponse) -> Self {
-        Self::Kube(Kube::API(ApiMessage::Response(f)))
-    }
-}
-
-impl From<ApiMessage> for Kube {
-    fn from(f: ApiMessage) -> Self {
-        Self::API(f)
-    }
-}
-
-impl From<ApiMessage> for Message {
-    fn from(f: ApiMessage) -> Self {
-        Self::Kube(f.into())
-    }
-}
 
 pub type SharedApiResources = Arc<RwLock<ApiResources>>;
 
@@ -109,6 +68,7 @@ impl ApiResource {
         matches!(self, Self::Api { .. })
     }
 
+    #[allow(dead_code)]
     pub fn is_apis(&self) -> bool {
         matches!(self, Self::Apis { .. })
     }

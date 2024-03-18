@@ -1,10 +1,9 @@
 use anyhow::Result;
 
 use crate::{
+    features::api_resources::kube::ApiResource,
     logger,
-    workers::kube::{
-        api_resources::ApiResource, client::KubeClientRequest, yaml::YamlResourceListItem,
-    },
+    workers::kube::{client::KubeClientRequest, yaml::YamlResourceListItem},
 };
 
 use super::List;

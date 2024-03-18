@@ -2,8 +2,9 @@ use anyhow::Result;
 use futures::future::try_join_all;
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::workers::kube::{
-    api_resources::ApiResource, client::KubeClientRequest, yaml::YamlResourceListItem,
+use crate::{
+    features::api_resources::kube::ApiResource,
+    workers::kube::{client::KubeClientRequest, yaml::YamlResourceListItem},
 };
 
 use super::single_namespace::FetchResourceListSingleNamespace;

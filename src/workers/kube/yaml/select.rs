@@ -1,7 +1,7 @@
+use crate::features::api_resources::kube::ApiResource;
+
 pub mod resources;
 pub mod worker;
-
-use crate::workers::kube::api_resources::ApiResource;
 
 #[derive(Debug, Clone)]
 pub struct SelectedYaml {

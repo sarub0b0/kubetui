@@ -1,3 +1,4 @@
+pub mod api_resources;
 pub mod config;
 pub mod event;
 pub mod help;
