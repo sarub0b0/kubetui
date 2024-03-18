@@ -9,6 +9,7 @@ use crate::{
         api_resources::message::{ApiMessage, ApiResponse},
         config::message::ConfigMessage,
         context::message::{ContextMessage, ContextResponse},
+        get::message::{GetMessage, GetResponse},
         namespace::message::{NamespaceMessage, NamespaceResponse},
         network::message::{NetworkMessage, NetworkResponse},
         pod::message::LogMessage,
@@ -440,18 +441,19 @@ pub fn update_contents(
                         widget.update_widget_item(Item::Array(error_lines!(e)));
                     }
                 },
-                SelectedYaml(res) => {
+                Yaml(res) => {
                     update_widget_item_for_vec(window, view_id::tab_yaml_widget_yaml, res);
                 }
-                DirectedYaml { kind, name, yaml } => {
-                    let widget = window
-                        .find_widget_mut(view_id::popup_yaml)
-                        .widget_config_mut();
-                    *(widget.append_title_mut()) = Some(format!(" : {}/{}", kind, name).into());
-
-                    update_widget_item_for_vec(window, view_id::popup_yaml, yaml);
-                }
             }
+        }
+
+        Kube::Get(GetMessage::Response(GetResponse { kind, name, yaml })) => {
+            let widget = window
+                .find_widget_mut(view_id::popup_yaml)
+                .widget_config_mut();
+            *(widget.append_title_mut()) = Some(format!(" : {}/{}", kind, name).into());
+
+            update_widget_item_for_vec(window, view_id::popup_yaml, yaml);
         }
 
         Kube::Network(NetworkMessage::Response(ev)) => {

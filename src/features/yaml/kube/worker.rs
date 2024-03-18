@@ -14,27 +14,32 @@ use crate::{
     workers::kube::{client::KubeClientRequest, worker::AbortWorker},
 };
 
-use super::SelectedYaml;
+#[derive(Debug, Clone)]
+pub struct YamlTarget {
+    pub kind: ApiResource,
+    pub name: String,
+    pub namespace: String,
+}
 
 #[derive(Debug, Clone)]
-pub struct SelectedYamlWorker<C>
+pub struct YamlWorker<C>
 where
     C: KubeClientRequest,
 {
     is_terminated: Arc<AtomicBool>,
     tx: Sender<Message>,
     client: C,
-    req: SelectedYaml,
+    req: YamlTarget,
     shared_api_resources: SharedApiResources,
 }
 
-impl<C: KubeClientRequest> SelectedYamlWorker<C> {
+impl<C: KubeClientRequest> YamlWorker<C> {
     pub fn new(
         is_terminated: Arc<AtomicBool>,
         tx: Sender<Message>,
         client: C,
         shared_api_resources: SharedApiResources,
-        req: SelectedYaml,
+        req: YamlTarget,
     ) -> Self {
         Self {
             is_terminated,
@@ -47,11 +52,11 @@ impl<C: KubeClientRequest> SelectedYamlWorker<C> {
 }
 
 #[async_trait::async_trait]
-impl<C: KubeClientRequest> AbortWorker for SelectedYamlWorker<C> {
+impl<C: KubeClientRequest> AbortWorker for YamlWorker<C> {
     async fn run(&self) {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(3));
 
-        let SelectedYaml {
+        let YamlTarget {
             kind,
             name,
             namespace,
@@ -75,7 +80,7 @@ impl<C: KubeClientRequest> AbortWorker for SelectedYamlWorker<C> {
             .await;
 
             self.tx
-                .send(YamlResponse::SelectedYaml(fetched_data).into())
+                .send(YamlResponse::Yaml(fetched_data).into())
                 .expect("Failed to send YamlResponse::Yaml");
         }
     }

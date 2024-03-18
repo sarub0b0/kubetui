@@ -13,21 +13,14 @@ use kube::{Api, Resource};
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
-    features::yaml::message::YamlResponse,
+    features::get::message::{GetRequest, GetResponse},
     logger,
     message::Message,
     workers::kube::{client::KubeClient, worker::AbortWorker},
 };
 
 #[derive(Debug, Clone)]
-pub struct DirectedYaml {
-    pub name: String,
-    pub namespace: String,
-    pub kind: DirectedYamlKind,
-}
-
-#[derive(Debug, Clone)]
-pub enum DirectedYamlKind {
+pub enum GetYamlKind {
     Pod,
     ConfigMap,
     Secret,
@@ -36,33 +29,33 @@ pub enum DirectedYamlKind {
     NetworkPolicy,
 }
 
-impl std::fmt::Display for DirectedYamlKind {
+impl std::fmt::Display for GetYamlKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DirectedYamlKind::Pod => write!(f, "pods"),
-            DirectedYamlKind::ConfigMap => write!(f, "configmaps"),
-            DirectedYamlKind::Secret => write!(f, "secrets"),
-            DirectedYamlKind::Ingress => write!(f, "ingresses"),
-            DirectedYamlKind::Service => write!(f, "services"),
-            DirectedYamlKind::NetworkPolicy => write!(f, "networkpolicies"),
+            GetYamlKind::Pod => write!(f, "pods"),
+            GetYamlKind::ConfigMap => write!(f, "configmaps"),
+            GetYamlKind::Secret => write!(f, "secrets"),
+            GetYamlKind::Ingress => write!(f, "ingresses"),
+            GetYamlKind::Service => write!(f, "services"),
+            GetYamlKind::NetworkPolicy => write!(f, "networkpolicies"),
         }
     }
 }
 
 #[derive(Clone)]
-pub struct DirectedYamlWorker {
+pub struct GetYamlWorker {
     is_terminated: Arc<AtomicBool>,
     tx: Sender<Message>,
     client: KubeClient,
-    req: DirectedYaml,
+    req: GetRequest,
 }
 
-impl DirectedYamlWorker {
+impl GetYamlWorker {
     pub fn new(
         is_terminated: Arc<AtomicBool>,
         tx: Sender<Message>,
         client: KubeClient,
-        req: DirectedYaml,
+        req: GetRequest,
     ) -> Self {
         Self {
             is_terminated,
@@ -74,11 +67,11 @@ impl DirectedYamlWorker {
 }
 
 #[async_trait::async_trait]
-impl AbortWorker for DirectedYamlWorker {
+impl AbortWorker for GetYamlWorker {
     async fn run(&self) {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(3));
 
-        let DirectedYaml {
+        let GetRequest {
             kind,
             name,
             namespace,
@@ -91,29 +84,27 @@ impl AbortWorker for DirectedYamlWorker {
             interval.tick().await;
 
             let yaml = match kind {
-                DirectedYamlKind::Pod => {
-                    fetch_resource_yaml::<Pod>(&self.client, name, namespace).await
-                }
-                DirectedYamlKind::ConfigMap => {
+                GetYamlKind::Pod => fetch_resource_yaml::<Pod>(&self.client, name, namespace).await,
+                GetYamlKind::ConfigMap => {
                     fetch_resource_yaml::<ConfigMap>(&self.client, name, namespace).await
                 }
-                DirectedYamlKind::Secret => {
+                GetYamlKind::Secret => {
                     fetch_resource_yaml::<Secret>(&self.client, name, namespace).await
                 }
-                DirectedYamlKind::Ingress => {
+                GetYamlKind::Ingress => {
                     fetch_resource_yaml::<Ingress>(&self.client, name, namespace).await
                 }
-                DirectedYamlKind::Service => {
+                GetYamlKind::Service => {
                     fetch_resource_yaml::<Service>(&self.client, name, namespace).await
                 }
-                DirectedYamlKind::NetworkPolicy => {
+                GetYamlKind::NetworkPolicy => {
                     fetch_resource_yaml::<NetworkPolicy>(&self.client, name, namespace).await
                 }
             };
 
             self.tx
                 .send(
-                    YamlResponse::DirectedYaml {
+                    GetResponse {
                         yaml,
                         kind: kind.to_string(),
                         name: name.to_string(),
@@ -126,11 +117,7 @@ impl AbortWorker for DirectedYamlWorker {
 }
 
 /// 選択されているリソースのyamlを取得する
-async fn fetch_resource_yaml<K>(
-    client: &KubeClient,
-    name: &str,
-    ns: &str,
-) -> Result<Vec<String>>
+async fn fetch_resource_yaml<K>(client: &KubeClient, name: &str, ns: &str) -> Result<Vec<String>>
 where
     K: Resource<Scope = NamespaceResourceScope> + k8s_openapi::Resource,
     <K as kube::Resource>::DynamicType: Default,

@@ -33,14 +33,12 @@ use crate::{
         },
         config::{kube::ConfigsDataWorker, message::ConfigMessage},
         context::message::{ContextMessage, ContextRequest, ContextResponse},
+        get::{kube::yaml::GetYamlWorker, message::GetMessage},
         namespace::message::{NamespaceMessage, NamespaceRequest, NamespaceResponse},
         network::{kube::NetworkDescriptionWorker, message::NetworkMessage},
         pod::{kube::LogWorker, message::LogMessage},
         yaml::{
-            kube::{
-                direct::DirectedYamlWorker,
-                select::{resources::FetchResourceList, worker::SelectedYamlWorker},
-            },
+            kube::{FetchResourceList, YamlWorker},
             message::{YamlMessage, YamlRequest, YamlResponse},
         },
     },
@@ -148,6 +146,7 @@ pub enum Kube {
     Config(ConfigMessage),
     Network(NetworkMessage),
     Yaml(YamlMessage),
+    Get(GetMessage),
 }
 
 pub type TargetNamespaces = Vec<String>;
@@ -251,6 +250,7 @@ impl Worker for MainWorker {
         let mut config_handler: Option<AbortHandle> = None;
         let mut network_handler: Option<AbortHandle> = None;
         let mut yaml_handler: Option<AbortHandle> = None;
+        let mut get_handler: Option<AbortHandle> = None;
 
         let MainWorker {
             inner: poll_worker,
@@ -307,6 +307,11 @@ impl Worker for MainWorker {
                             if let Some(handler) = yaml_handler {
                                 handler.abort();
                                 yaml_handler = None;
+                            }
+
+                            if let Some(handler) = get_handler {
+                                handler.abort();
+                                get_handler = None;
                             }
 
                             tx.send(NamespaceResponse::Set(req).into())
@@ -379,6 +384,10 @@ impl Worker for MainWorker {
                                 h.abort();
                             }
 
+                            if let Some(h) = get_handler {
+                                h.abort();
+                            }
+
                             return WorkerResult::ChangedContext(req);
                         }
                     },
@@ -408,13 +417,13 @@ impl Worker for MainWorker {
                                 tx.send(YamlResponse::Resource(fetched_data).into())
                                     .expect("Failed to send YamlResponse::Resource");
                             }
-                            SelectedYaml(req) => {
+                            Yaml(req) => {
                                 if let Some(handler) = yaml_handler {
                                     handler.abort();
                                 }
 
                                 yaml_handler = Some(
-                                    SelectedYamlWorker::new(
+                                    YamlWorker::new(
                                         is_terminated.clone(),
                                         tx,
                                         kube_client.clone(),
@@ -425,24 +434,19 @@ impl Worker for MainWorker {
                                 );
                                 task::yield_now().await;
                             }
-
-                            DirectedYaml(req) => {
-                                if let Some(handler) = yaml_handler {
-                                    handler.abort();
-                                }
-
-                                yaml_handler = Some(
-                                    DirectedYamlWorker::new(
-                                        is_terminated.clone(),
-                                        tx,
-                                        kube_client.clone(),
-                                        req,
-                                    )
-                                    .spawn(),
-                                );
-                                task::yield_now().await;
-                            }
                         }
+                    }
+
+                    Kube::Get(GetMessage::Request(req)) => {
+                        if let Some(handler) = get_handler {
+                            handler.abort();
+                        }
+
+                        get_handler = Some(
+                            GetYamlWorker::new(is_terminated.clone(), tx, kube_client.clone(), req)
+                                .spawn(),
+                        );
+                        task::yield_now().await;
                     }
 
                     Kube::Network(NetworkMessage::Request(req)) => {

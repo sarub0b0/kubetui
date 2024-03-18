@@ -3,7 +3,7 @@ use crossterm::event::KeyCode;
 
 use crate::{
     action::view_id,
-    features::yaml::{kube::select::SelectedYaml, message::YamlRequest},
+    features::yaml::message::{YamlRequest, YamlTarget},
     logger,
     message::Message,
     ui::{
@@ -52,7 +52,7 @@ fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &LiteralItem) -> Event
         };
 
         tx.send(
-            YamlRequest::SelectedYaml(SelectedYaml {
+            YamlRequest::Yaml(YamlTarget {
                 kind,
                 name: name.to_string(),
                 namespace: namespace.to_string(),

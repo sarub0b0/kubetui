@@ -13,7 +13,10 @@ use crate::{
         config::view::ConfigTab,
         context::{message::ContextRequest, view::ContextPopup},
         event::view::EventTab,
-        get::view::YamlPopup,
+        get::{
+            message::{GetRequest, GetYamlKind},
+            view::YamlPopup,
+        },
         help::HelpPopup,
         namespace::{
             message::NamespaceRequest,
@@ -21,11 +24,7 @@ use crate::{
         },
         network::view::NetworkTab,
         pod::view::PodTab,
-        yaml::{
-            kube::direct::{DirectedYaml, DirectedYamlKind},
-            message::YamlRequest,
-            view::YamlTab,
-        },
+        yaml::view::YamlTab,
     },
     message::{Message, UserEvent},
     ui::{
@@ -236,19 +235,19 @@ fn open_yaml(tx: Sender<Message>) -> impl Fn(&mut Window) -> EventResult {
         };
 
         let kind = match widget.id() {
-            view_id::tab_pod_widget_pod => DirectedYamlKind::Pod,
+            view_id::tab_pod_widget_pod => GetYamlKind::Pod,
             view_id::tab_config_widget_config => match metadata.get("kind").map(|v| v.as_str()) {
-                Some("ConfigMap") => DirectedYamlKind::ConfigMap,
-                Some("Secret") => DirectedYamlKind::Secret,
+                Some("ConfigMap") => GetYamlKind::ConfigMap,
+                Some("Secret") => GetYamlKind::Secret,
                 _ => {
                     return EventResult::Ignore;
                 }
             },
             view_id::tab_network_widget_network => match metadata.get("kind").map(|v| v.as_str()) {
-                Some("Ingress") => DirectedYamlKind::Ingress,
-                Some("Service") => DirectedYamlKind::Service,
-                Some("Pod") => DirectedYamlKind::Pod,
-                Some("NetworkPolicy") => DirectedYamlKind::NetworkPolicy,
+                Some("Ingress") => GetYamlKind::Ingress,
+                Some("Service") => GetYamlKind::Service,
+                Some("Pod") => GetYamlKind::Pod,
+                Some("NetworkPolicy") => GetYamlKind::NetworkPolicy,
                 _ => {
                     return EventResult::Ignore;
                 }
@@ -257,11 +256,11 @@ fn open_yaml(tx: Sender<Message>) -> impl Fn(&mut Window) -> EventResult {
         };
 
         tx.send(
-            YamlRequest::DirectedYaml(DirectedYaml {
+            GetRequest {
                 name: name.to_string(),
                 namespace: namespace.to_string(),
                 kind,
-            })
+            }
             .into(),
         )
         .expect("Failed to send YamlMessage::Request");

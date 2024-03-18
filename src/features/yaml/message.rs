@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use crate::{features::api_resources::kube::ApiResource, message::Message, workers::Kube};
 
-use super::kube::{direct::DirectedYaml, select::SelectedYaml};
+pub use super::kube::YamlTarget;
 
 #[derive(Debug, Clone)]
 pub struct YamlResourceListItem {
@@ -27,8 +27,7 @@ impl YamlResourceList {
 pub enum YamlRequest {
     APIs,
     Resource(ApiResource),
-    SelectedYaml(SelectedYaml),
-    DirectedYaml(DirectedYaml),
+    Yaml(YamlTarget),
 }
 
 impl From<YamlRequest> for Message {
@@ -41,12 +40,7 @@ impl From<YamlRequest> for Message {
 pub enum YamlResponse {
     APIs(Result<Vec<ApiResource>>),
     Resource(Result<YamlResourceList>),
-    SelectedYaml(Result<Vec<String>>),
-    DirectedYaml {
-        kind: String,
-        name: String,
-        yaml: Result<Vec<String>>,
-    },
+    Yaml(Result<Vec<String>>),
 }
 
 impl From<YamlResponse> for Message {
