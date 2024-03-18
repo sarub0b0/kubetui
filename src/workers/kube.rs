@@ -32,6 +32,8 @@ use crate::{
             message::{ApiMessage, ApiRequest, ApiResponse},
         },
         config::{kube::ConfigsDataWorker, message::ConfigMessage},
+        context::message::{ContextMessage, ContextRequest, ContextResponse},
+        namespace::message::{NamespaceMessage, NamespaceRequest, NamespaceResponse},
         network::{kube::NetworkDescriptionWorker, message::NetworkMessage},
         pod::{kube::LogWorker, message::LogMessage},
         yaml::{
@@ -49,9 +51,7 @@ use crate::{
 
 use self::{
     client::KubeClient,
-    context_message::{ContextMessage, ContextRequest, ContextResponse},
     inner::Inner,
-    namespace_message::{NamespaceMessage, NamespaceRequest, NamespaceResponse},
     worker::{AbortWorker, PollWorker, Worker},
 };
 
@@ -148,83 +148,6 @@ pub enum Kube {
     Config(ConfigMessage),
     Network(NetworkMessage),
     Yaml(YamlMessage),
-}
-
-pub mod namespace_message {
-    use crate::message::Message;
-    use anyhow::Result;
-
-    use super::{Kube, TargetNamespaces};
-
-    #[derive(Debug)]
-    pub enum NamespaceMessage {
-        Request(NamespaceRequest),
-        Response(NamespaceResponse),
-    }
-
-    #[derive(Debug)]
-    pub enum NamespaceRequest {
-        Get,
-        Set(TargetNamespaces),
-    }
-
-    #[derive(Debug)]
-    pub enum NamespaceResponse {
-        Get(Result<TargetNamespaces>),
-        Set(TargetNamespaces),
-    }
-
-    impl From<NamespaceRequest> for Message {
-        fn from(n: NamespaceRequest) -> Self {
-            Message::Kube(Kube::Namespace(NamespaceMessage::Request(n)))
-        }
-    }
-
-    impl From<NamespaceResponse> for Message {
-        fn from(n: NamespaceResponse) -> Self {
-            Message::Kube(Kube::Namespace(NamespaceMessage::Response(n)))
-        }
-    }
-}
-
-pub mod context_message {
-    use super::Kube;
-    use crate::message::Message;
-
-    #[derive(Debug)]
-    pub enum ContextMessage {
-        Request(ContextRequest),
-        Response(ContextResponse),
-    }
-
-    #[derive(Debug)]
-    pub enum ContextRequest {
-        Get,
-        Set(String),
-    }
-
-    #[derive(Debug)]
-    pub enum ContextResponse {
-        Get(Vec<String>),
-    }
-
-    impl From<ContextMessage> for Message {
-        fn from(m: ContextMessage) -> Self {
-            Message::Kube(Kube::Context(m))
-        }
-    }
-
-    impl From<ContextRequest> for Message {
-        fn from(m: ContextRequest) -> Self {
-            Message::Kube(Kube::Context(ContextMessage::Request(m)))
-        }
-    }
-
-    impl From<ContextResponse> for Message {
-        fn from(m: ContextResponse) -> Self {
-            Message::Kube(Kube::Context(ContextMessage::Response(m)))
-        }
-    }
 }
 
 pub type TargetNamespaces = Vec<String>;

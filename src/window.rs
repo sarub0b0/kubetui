@@ -1,4 +1,3 @@
-mod context;
 mod yaml_popup;
 
 use std::{cell::RefCell, rc::Rc};
@@ -14,8 +13,13 @@ use crate::{
     features::{
         api_resources::view::ListTab,
         config::view::ConfigTab,
+        context::{message::ContextRequest, view::ContextPopup},
         event::view::EventTab,
         help::HelpPopup,
+        namespace::{
+            message::NamespaceRequest,
+            view::{MultipleNamespacesPopup, SingleNamespacePopup},
+        },
         network::view::NetworkTab,
         pod::view::PodTab,
         yaml::{
@@ -31,13 +35,9 @@ use crate::{
         widget::{SelectedItem, WidgetTrait},
         Header, Tab, Window, WindowEvent,
     },
-    workers::kube::{context_message::ContextRequest, namespace_message::NamespaceRequest},
 };
 
-use self::{
-    context::{ContextPopup, ContextPopupBuilder},
-    yaml_popup::{YamlPopup, YamlPopupBuilder},
-};
+use self::yaml_popup::{YamlPopup, YamlPopupBuilder};
 
 pub struct WindowInit {
     split_mode: Direction,
@@ -167,10 +167,16 @@ impl WindowInit {
         } = YamlTab::new("Yaml", &self.tx, &clipboard);
 
         let ContextPopup {
-            context: popup_context,
-            single_namespace: popup_single_namespace,
-            multiple_namespaces: popup_multiple_namespaces,
-        } = ContextPopupBuilder::new(&self.tx).build();
+            popup: context_popup,
+        } = ContextPopup::new(&self.tx);
+
+        let SingleNamespacePopup {
+            popup: single_namespace_popup,
+        } = SingleNamespacePopup::new(&self.tx);
+
+        let MultipleNamespacesPopup {
+            popup: multiple_namespaces_popup,
+        } = MultipleNamespacesPopup::new(&self.tx);
 
         let HelpPopup { popup: help_popup } = HelpPopup::new();
 
@@ -187,9 +193,9 @@ impl WindowInit {
         ];
 
         let popups = vec![
-            Popup::new(popup_context),
-            Popup::new(popup_single_namespace),
-            Popup::new(popup_multiple_namespaces),
+            Popup::new(context_popup),
+            Popup::new(single_namespace_popup),
+            Popup::new(multiple_namespaces_popup),
             Popup::new(list_popup),
             Popup::new(yaml_kind_popup),
             Popup::new(yaml_name_popup),

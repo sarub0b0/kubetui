@@ -8,6 +8,8 @@ use crate::{
     features::{
         api_resources::message::{ApiMessage, ApiResponse},
         config::message::ConfigMessage,
+        context::message::{ContextMessage, ContextResponse},
+        namespace::message::{NamespaceMessage, NamespaceResponse},
         network::message::{NetworkMessage, NetworkResponse},
         pod::message::LogMessage,
         yaml::message::{YamlMessage, YamlResourceListItem, YamlResponse},
@@ -19,11 +21,7 @@ use crate::{
         widget::{Item, LiteralItem, TableItem, WidgetTrait},
         Window, WindowEvent,
     },
-    workers::kube::{
-        context_message::{ContextMessage, ContextResponse},
-        namespace_message::{NamespaceMessage, NamespaceResponse},
-        Kube, KubeTable, KubeTableRow,
-    },
+    workers::kube::{Kube, KubeTable, KubeTableRow},
 };
 
 pub mod view_id {

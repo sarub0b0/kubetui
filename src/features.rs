@@ -1,7 +1,9 @@
 pub mod api_resources;
 pub mod config;
+pub mod context;
 pub mod event;
 pub mod help;
+pub mod namespace;
 pub mod network;
 pub mod pod;
 pub mod yaml;
