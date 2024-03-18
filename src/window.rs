@@ -1,5 +1,4 @@
 mod context;
-mod help;
 mod list;
 mod yaml;
 mod yaml_popup;
@@ -15,7 +14,7 @@ use crate::{
     clipboard::Clipboard,
     context::{Context, Namespace},
     features::{
-        config::view::ConfigTab, event::view::EventTab, network::view::NetworkTab,
+        config::view::ConfigTab, event::view::EventTab, help::HelpPopup, network::view::NetworkTab,
         pod::view::PodTab,
     },
     message::{Message, UserEvent},
@@ -37,7 +36,6 @@ use crate::{
 
 use self::{
     context::{ContextPopup, ContextPopupBuilder},
-    help::HelpPopup,
     list::{ListTab, ListTabBuilder},
     yaml::{YamlTab, YamlTabBuilder},
     yaml_popup::{YamlPopup, YamlPopupBuilder},
@@ -176,9 +174,7 @@ impl WindowInit {
             multiple_namespaces: popup_multiple_namespaces,
         } = ContextPopupBuilder::new(&self.tx).build();
 
-        let HelpPopup {
-            content: popup_help,
-        } = HelpPopup::new();
+        let HelpPopup { popup: help_popup } = HelpPopup::new();
 
         let YamlPopup { popup: popup_yaml } = YamlPopupBuilder::new(&clipboard).build();
 
@@ -200,7 +196,7 @@ impl WindowInit {
             Popup::new(popup_yaml_kind),
             Popup::new(popup_yaml_name),
             Popup::new(popup_yaml_return),
-            Popup::new(popup_help),
+            Popup::new(help_popup),
             Popup::new(log_query_help_popup),
             Popup::new(popup_yaml),
         ];

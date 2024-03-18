@@ -323,13 +323,13 @@ fn generate() -> Vec<String> {
 
 #[derive(Debug)]
 pub struct HelpPopup {
-    pub content: Widget<'static>,
+    pub popup: Widget<'static>,
 }
 
 impl HelpPopup {
     pub fn new() -> Self {
         Self {
-            content: Text::builder()
+            popup: Text::builder()
                 .id(view_id::popup_help)
                 .widget_config(&WidgetConfig::builder().title("Help").build())
                 .items(generate())
