@@ -496,7 +496,9 @@ impl Window<'_> {
             if let Some(popup) = self.popups.iter_mut().find(|w| w.id() == id) {
                 if popup.chunk().contains_point(ev.position()) {
                     return popup.on_mouse_event(ev);
-                } else if let MouseEventKind::Down(MouseButton::Left) = ev.kind {
+                }
+
+                if let MouseEventKind::Down(MouseButton::Left) = ev.kind {
                     self.close_popup();
                     return EventResult::Nop;
                 }
