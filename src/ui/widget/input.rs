@@ -386,7 +386,7 @@ impl InputForm {
             }
             _ => {
                 if let Some(cb) = self.match_action(UserEvent::Key(key)) {
-                    return EventResult::Callback(Callback::from(cb));
+                    return EventResult::Callback(cb.clone());
                 }
                 return EventResult::Ignore;
             }
@@ -395,10 +395,10 @@ impl InputForm {
         EventResult::Nop
     }
 
-    fn match_action(&self, ev: UserEvent) -> Option<Callback> {
+    fn match_action(&self, ev: UserEvent) -> Option<&Callback> {
         self.actions
             .iter()
-            .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb.clone()) } else { None })
+            .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb) } else { None })
     }
 }
 

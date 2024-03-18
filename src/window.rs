@@ -28,7 +28,7 @@ use crate::{
     kube::context::{Context, Namespace},
     message::{Message, UserEvent},
     ui::{
-        event::EventResult,
+        event::{CallbackFn, EventResult},
         popup::Popup,
         widget::{SelectedItem, WidgetTrait},
         Header, Tab, Window, WindowAction,
@@ -66,7 +66,7 @@ impl WindowInit {
         let tx = self.tx.clone();
         let builder = builder.action(
             UserEvent::Key(KeyEvent::new(KeyCode::Char('N'), KeyModifiers::SHIFT)),
-            move |w| {
+            move |w: &mut Window| {
                 tx.send(NamespaceRequest::Get.into())
                     .expect("Failed to send NamespaceRequest::Get");
                 w.open_popup(view_id::popup_ns);
@@ -75,7 +75,7 @@ impl WindowInit {
         );
 
         let tx = self.tx.clone();
-        let builder = builder.action('n', move |w| {
+        let builder = builder.action('n', move |w: &mut Window| {
             tx.send(NamespaceRequest::Get.into())
                 .expect("Failed to send NamespaceRequest::Get");
             w.open_popup(view_id::popup_single_ns);
@@ -92,7 +92,7 @@ impl WindowInit {
         };
 
         let tx = self.tx.clone();
-        let builder = builder.action('c', move |w| {
+        let builder = builder.action('c', move |w: &mut Window| {
             tx.send(ContextRequest::Get.into())
                 .expect("Failed to send ContextRequest::Get");
             w.open_popup(view_id::popup_ctx);
@@ -205,7 +205,7 @@ impl WindowInit {
     }
 }
 
-fn open_yaml(tx: Sender<Message>) -> impl Fn(&mut Window) -> EventResult {
+fn open_yaml(tx: Sender<Message>) -> impl CallbackFn {
     move |w: &mut Window| {
         let widget = w.active_tab().active_widget();
 

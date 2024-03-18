@@ -1125,6 +1125,7 @@ dependencies = [
  "mockall_double",
  "nom",
  "once_cell",
+ "paste",
  "pretty_assertions",
  "ratatui",
  "rayon",

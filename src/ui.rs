@@ -1,3 +1,4 @@
+mod callback;
 pub mod event;
 pub mod popup;
 pub mod tab;

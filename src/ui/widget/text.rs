@@ -17,10 +17,10 @@ use ratatui::{
 
 use crate::{
     clipboard::Clipboard,
-    logger,
+    define_callback, logger,
     message::UserEvent,
     ui::{
-        event::{Callback, CallbackFn, EventResult},
+        event::{Callback, EventResult},
         key_event_to_code,
         util::{MousePosition, RectContainsPoint},
     },
@@ -38,7 +38,7 @@ use super::{
     SelectedItem, WidgetTrait,
 };
 
-type RenderBlockInjection = Rc<dyn Fn(&Text, bool, bool) -> Block<'static>>;
+define_callback!(pub RenderBlockInjection, Fn(&Text, bool, bool) -> Block<'static> );
 
 mod highlight_content {
 
@@ -206,17 +206,17 @@ impl TextBuilder {
     pub fn action<F, E>(mut self, ev: E, cb: F) -> Self
     where
         E: Into<UserEvent>,
-        F: CallbackFn,
+        F: Into<Callback>,
     {
-        self.actions.push((ev.into(), Callback::new(cb)));
+        self.actions.push((ev.into(), cb.into()));
         self
     }
 
     pub fn block_injection<F>(mut self, block_injection: F) -> Self
     where
-        F: Fn(&Text, bool, bool) -> Block<'static> + 'static,
+        F: Into<RenderBlockInjection>,
     {
-        self.block_injection = Some(Rc::new(block_injection));
+        self.block_injection = Some(block_injection.into());
         self
     }
 

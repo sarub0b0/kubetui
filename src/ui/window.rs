@@ -12,17 +12,17 @@ use ratatui::{
 
 use unicode_width::UnicodeWidthStr;
 
-use crate::{logger, message::UserEvent, workers::kube::message::Kube};
+use crate::{define_callback, logger, message::UserEvent, workers::kube::message::Kube};
 
 use super::{
-    event::{Callback, CallbackFn, EventResult},
+    event::{Callback, EventResult},
     popup::Popup,
     util::{key_event_to_code, MousePosition, RectContainsPoint},
     widget::{Widget, WidgetTrait},
     Tab,
 };
 
-type HeaderCallback = Rc<dyn Fn() -> Paragraph<'static>>;
+define_callback!(pub HeaderCallback, Fn() -> Paragraph<'static>);
 
 #[derive(Default)]
 pub struct Window<'a> {
@@ -76,13 +76,13 @@ impl<'a> Header<'a> {
 
     pub fn new_callback<F>(height: u16, callback: F) -> Self
     where
-        F: Fn() -> Paragraph<'static> + 'static,
+        F: Into<HeaderCallback>,
     {
         debug_assert!(0 < height, "Header height must be greater than 0");
 
         Self {
             height,
-            content: HeaderContent::Callback(Rc::new(callback)),
+            content: HeaderContent::Callback(callback.into()),
         }
     }
 
@@ -105,11 +105,12 @@ impl<'a> WindowBuilder<'a> {
         self
     }
 
-    pub fn action<F, E: Into<UserEvent>>(mut self, ev: E, cb: F) -> Self
+    pub fn action<F, E>(mut self, ev: E, cb: F) -> Self
     where
-        F: CallbackFn,
+        E: Into<UserEvent>,
+        F: Into<Callback>,
     {
-        self.callbacks.push((ev.into(), Callback::new(cb)));
+        self.callbacks.push((ev.into(), cb.into()));
         self
     }
 

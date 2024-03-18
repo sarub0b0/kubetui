@@ -15,10 +15,10 @@ use filter_form::FilterForm;
 use item::InnerItem;
 
 use crate::{
-    logger,
+    define_callback, logger,
     message::UserEvent,
     ui::{
-        event::{Callback, CallbackFn, EventResult},
+        event::{Callback, EventResult},
         key_event_to_code,
         util::{MousePosition, RectContainsPoint},
         Window,
@@ -35,9 +35,9 @@ const COLUMN_SPACING: u16 = 3;
 const HIGHLIGHT_SYMBOL: &str = " ";
 const ROW_START_INDEX: usize = 2;
 
-type OnSelectCallback = Rc<dyn Fn(&mut Window, &TableItem) -> EventResult>;
-type RenderBlockInjection = Rc<dyn Fn(&Table) -> WidgetConfig>;
-type RenderHighlightInjection = Rc<dyn Fn(Option<&TableItem>) -> Style>;
+define_callback!(pub OnSelectCallback, Fn(&mut Window, &TableItem) -> EventResult);
+define_callback!(pub RenderBlockInjection, Fn(&Table) -> WidgetConfig);
+define_callback!(pub RenderHighlightInjection, Fn(Option<&TableItem>) -> Style);
 
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
@@ -91,34 +91,34 @@ impl TableBuilder {
 
     pub fn on_select<F>(mut self, cb: F) -> Self
     where
-        F: Fn(&mut Window, &TableItem) -> EventResult + 'static,
+        F: Into<OnSelectCallback>,
     {
-        self.on_select = Some(Rc::new(cb));
+        self.on_select = Some(cb.into());
         self
     }
 
     pub fn action<F, E>(mut self, ev: E, cb: F) -> Self
     where
         E: Into<UserEvent>,
-        F: CallbackFn,
+        F: Into<Callback>,
     {
-        self.actions.push((ev.into(), Callback::new(cb)));
+        self.actions.push((ev.into(), cb.into()));
         self
     }
 
     pub fn block_injection<F>(mut self, block_injection: F) -> Self
     where
-        F: Fn(&Table) -> WidgetConfig + 'static,
+        F: Into<RenderBlockInjection>,
     {
-        self.block_injection = Some(Rc::new(block_injection));
+        self.block_injection = Some(block_injection.into());
         self
     }
 
     pub fn highlight_injection<F>(mut self, highlight_injection: F) -> Self
     where
-        F: Fn(Option<&TableItem>) -> Style + 'static,
+        F: Into<RenderHighlightInjection>,
     {
-        self.highlight_injection = Some(Rc::new(highlight_injection));
+        self.highlight_injection = Some(highlight_injection.into());
         self
     }
 

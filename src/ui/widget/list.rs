@@ -13,11 +13,14 @@ use derivative::*;
 
 use super::{config::WidgetConfig, Item, LiteralItem, RenderTrait, SelectedItem, WidgetTrait};
 
-use crate::ui::{
-    event::{Callback, EventResult},
-    key_event_to_code,
-    util::{MousePosition, RectContainsPoint},
-    Window,
+use crate::{
+    define_callback,
+    ui::{
+        event::{Callback, EventResult},
+        key_event_to_code,
+        util::{MousePosition, RectContainsPoint},
+        Window,
+    },
 };
 
 mod inner_item {
@@ -68,8 +71,8 @@ mod inner_item {
     }
 }
 
-type RenderBlockInjection = Rc<dyn Fn(&List, bool) -> Block<'static>>;
-type OnSelectCallback = Rc<dyn Fn(&mut Window, &LiteralItem) -> EventResult>;
+define_callback!(pub OnSelectCallback, Fn(&mut Window, &LiteralItem) -> EventResult);
+define_callback!(pub RenderBlockInjection, Fn(&List, bool) -> Block<'static>);
 
 use inner_item::InnerItem;
 #[derive(Derivative)]
@@ -122,17 +125,17 @@ impl ListBuilder {
 
     pub fn on_select<F>(mut self, cb: F) -> Self
     where
-        F: Fn(&mut Window, &LiteralItem) -> EventResult + 'static,
+        F: Into<OnSelectCallback>,
     {
-        self.on_select = Some(Rc::new(cb));
+        self.on_select = Some(cb.into());
         self
     }
 
     pub fn block_injection<F>(mut self, block_injection: F) -> Self
     where
-        F: Fn(&List, bool) -> Block<'static> + 'static,
+        F: Into<RenderBlockInjection>,
     {
-        self.block_injection = Some(Rc::new(block_injection));
+        self.block_injection = Some(block_injection.into());
         self
     }
 

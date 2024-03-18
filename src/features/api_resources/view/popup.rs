@@ -6,7 +6,11 @@ use crate::{
     message::Message,
     ui::{
         event::EventResult,
-        widget::{config::WidgetConfig, MultipleSelect, SelectedItem, Widget, WidgetTrait as _},
+        widget::{
+            config::WidgetConfig, LiteralItem, MultipleSelect, SelectedItem, Widget,
+            WidgetTrait as _,
+        },
+        Window,
     },
 };
 
@@ -16,7 +20,7 @@ pub fn popup_widget(tx: &Sender<Message>) -> Widget<'static> {
     MultipleSelect::builder()
         .id(view_id::popup_list)
         .widget_config(&WidgetConfig::builder().title("List").build())
-        .on_select(move |w, _| {
+        .on_select(move |w: &mut Window, _: &LiteralItem| {
             let widget = w
                 .find_widget_mut(view_id::popup_list)
                 .as_mut_multiple_select();
