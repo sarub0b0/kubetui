@@ -20,10 +20,9 @@ use crate::{
     logger,
     message::UserEvent,
     ui::{
-        event::{Callback, EventResult, InnerCallback},
+        event::{Callback, CallbackFn, EventResult},
         key_event_to_code,
         util::{MousePosition, RectContainsPoint},
-        Window,
     },
 };
 
@@ -169,7 +168,7 @@ pub struct TextBuilder {
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
     #[derivative(Debug = "ignore")]
-    actions: Vec<(UserEvent, InnerCallback)>,
+    actions: Vec<(UserEvent, Callback)>,
     #[derivative(Debug = "ignore")]
     clipboard: Option<Rc<RefCell<Clipboard>>>,
 }
@@ -204,11 +203,12 @@ impl TextBuilder {
         self
     }
 
-    pub fn action<F, E: Into<UserEvent>>(mut self, ev: E, cb: F) -> Self
+    pub fn action<F, E>(mut self, ev: E, cb: F) -> Self
     where
-        F: Fn(&mut Window) -> EventResult + 'static,
+        E: Into<UserEvent>,
+        F: CallbackFn,
     {
-        self.actions.push((ev.into(), Rc::new(cb)));
+        self.actions.push((ev.into(), Callback::new(cb)));
         self
     }
 
@@ -257,7 +257,7 @@ pub struct Text {
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
     #[derivative(Debug = "ignore")]
-    actions: Vec<(UserEvent, InnerCallback)>,
+    actions: Vec<(UserEvent, Callback)>,
     #[derivative(Debug = "ignore")]
     clipboard: Option<Rc<RefCell<Clipboard>>>,
 }
@@ -437,10 +437,10 @@ impl Text {
         (self.scroll.y, self.scroll_y_last_index())
     }
 
-    fn match_action(&self, ev: UserEvent) -> Option<InnerCallback> {
+    fn match_action(&self, ev: UserEvent) -> Option<&Callback> {
         self.actions
             .iter()
-            .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb.clone()) } else { None })
+            .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb) } else { None })
     }
 }
 
@@ -719,7 +719,7 @@ impl WidgetTrait for Text {
 
                 _ => {
                     if let Some(cb) = self.match_action(UserEvent::Key(ev)) {
-                        return EventResult::Callback(Callback::from(cb));
+                        return EventResult::Callback(cb.clone());
                     }
                     return EventResult::Ignore;
                 }

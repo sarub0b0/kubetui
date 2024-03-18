@@ -405,7 +405,7 @@ impl<'a> List<'a> {
     fn on_select_callback(&self) -> Option<Callback> {
         self.on_select.clone().and_then(|cb| {
             self.selected_item()
-                .map(|v| Callback::from_fn(move |w| cb(w, &v)))
+                .map(|v| Callback::new(move |w| cb(w, &v)))
         })
     }
 

@@ -15,7 +15,7 @@ use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use crate::{
     message::UserEvent,
     ui::{
-        event::{Callback, EventResult, InnerCallback},
+        event::{Callback, CallbackFn, EventResult},
         util::RectContainsPoint,
         widget::{input::InputForm, *},
         Window,
@@ -133,7 +133,7 @@ pub struct SingleSelect<'a> {
     chunk: Rect,
     inner_chunks: Rc<[Rect]>,
     #[derivative(Debug = "ignore")]
-    callbacks: Vec<(UserEvent, InnerCallback)>,
+    callbacks: Vec<(UserEvent, Callback)>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
 }
@@ -220,7 +220,7 @@ impl<'a> SingleSelect<'a> {
             .update_filter(self.input_widget.content());
     }
 
-    pub fn match_callback(&self, ev: UserEvent) -> Option<InnerCallback> {
+    pub fn match_callback(&self, ev: UserEvent) -> Option<Callback> {
         self.callbacks
             .iter()
             .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb.clone()) } else { None })
@@ -358,7 +358,7 @@ pub struct SingleSelectBuilder {
     id: String,
     widget_config: WidgetConfig,
     #[derivative(Debug = "ignore")]
-    actions: Vec<(UserEvent, InnerCallback)>,
+    actions: Vec<(UserEvent, Callback)>,
     #[derivative(Debug = "ignore")]
     on_select: Option<OnSelectCallback>,
     #[derivative(Debug = "ignore")]
@@ -379,11 +379,12 @@ impl SingleSelectBuilder {
         self
     }
 
-    pub fn action<F, E: Into<UserEvent>>(mut self, ev: E, cb: F) -> Self
+    pub fn action<F, E>(mut self, ev: E, cb: F) -> Self
     where
-        F: Fn(&mut Window) -> EventResult + 'static,
+        E: Into<UserEvent>,
+        F: CallbackFn,
     {
-        self.actions.push((ev.into(), Rc::new(cb)));
+        self.actions.push((ev.into(), Callback::new(cb)));
         self
     }
 

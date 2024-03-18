@@ -18,7 +18,7 @@ use crate::{
     logger,
     message::UserEvent,
     ui::{
-        event::{Callback, EventResult},
+        event::{Callback, CallbackFn, EventResult},
         key_event_to_code,
         util::{MousePosition, RectContainsPoint},
         Window,
@@ -36,7 +36,6 @@ const HIGHLIGHT_SYMBOL: &str = " ";
 const ROW_START_INDEX: usize = 2;
 
 type OnSelectCallback = Rc<dyn Fn(&mut Window, &TableItem) -> EventResult>;
-type ActionCallback = Rc<dyn Fn(&mut Window) -> EventResult>;
 type RenderBlockInjection = Rc<dyn Fn(&Table) -> WidgetConfig>;
 type RenderHighlightInjection = Rc<dyn Fn(Option<&TableItem>) -> Style>;
 
@@ -53,7 +52,7 @@ pub struct TableBuilder {
     #[derivative(Debug = "ignore")]
     on_select: Option<OnSelectCallback>,
     #[derivative(Debug = "ignore")]
-    actions: Vec<(UserEvent, ActionCallback)>,
+    actions: Vec<(UserEvent, Callback)>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
     #[derivative(Debug = "ignore")]
@@ -98,11 +97,12 @@ impl TableBuilder {
         self
     }
 
-    pub fn action<F, E: Into<UserEvent>>(mut self, ev: E, cb: F) -> Self
+    pub fn action<F, E>(mut self, ev: E, cb: F) -> Self
     where
-        F: Fn(&mut Window) -> EventResult + 'static,
+        E: Into<UserEvent>,
+        F: CallbackFn,
     {
-        self.actions.push((ev.into(), Rc::new(cb)));
+        self.actions.push((ev.into(), Callback::new(cb)));
         self
     }
 
@@ -214,7 +214,7 @@ pub struct Table<'a> {
     #[derivative(Debug = "ignore")]
     on_select: Option<OnSelectCallback>,
     #[derivative(Debug = "ignore")]
-    actions: Vec<(UserEvent, ActionCallback)>,
+    actions: Vec<(UserEvent, Callback)>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
     #[derivative(Debug = "ignore")]
@@ -549,7 +549,7 @@ impl WidgetTrait for Table<'_> {
 
                 _ => {
                     if let Some(cb) = self.match_action(UserEvent::Key(ev)) {
-                        return EventResult::Callback(Callback::from(cb));
+                        return EventResult::Callback(cb.clone());
                     }
 
                     return EventResult::Ignore;
@@ -616,7 +616,7 @@ impl<'a> Table<'a> {
     fn on_select_callback(&self) -> Option<Callback> {
         self.on_select.clone().and_then(|cb| {
             self.selected_item()
-                .map(|v| Callback::from_fn(move |w| cb(w, &v)))
+                .map(|v| Callback::new(move |w| cb(w, &v)))
         })
     }
 
@@ -626,10 +626,10 @@ impl<'a> Table<'a> {
             .and_then(|index| self.items().get(index).map(|item| Rc::new(item.clone())))
     }
 
-    fn match_action(&self, ev: UserEvent) -> Option<ActionCallback> {
+    fn match_action(&self, ev: UserEvent) -> Option<&Callback> {
         self.actions
             .iter()
-            .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb.clone()) } else { None })
+            .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb) } else { None })
     }
 }
 

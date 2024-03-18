@@ -15,7 +15,7 @@ use unicode_width::UnicodeWidthStr;
 use crate::{logger, message::UserEvent, workers::kube::message::Kube};
 
 use super::{
-    event::{EventResult, InnerCallback},
+    event::{Callback, CallbackFn, EventResult},
     popup::Popup,
     util::{key_event_to_code, MousePosition, RectContainsPoint},
     widget::{Widget, WidgetTrait},
@@ -31,7 +31,7 @@ pub struct Window<'a> {
     mouse_over_tab_index: Option<usize>,
     layout: Layout,
     chunk: Rect,
-    callbacks: Vec<(UserEvent, InnerCallback)>,
+    callbacks: Vec<(UserEvent, Callback)>,
     popups: Vec<Popup<'a>>,
     open_popup_id: Option<String>,
     header: Option<Header<'a>>,
@@ -94,7 +94,7 @@ impl<'a> Header<'a> {
 #[derive(Default)]
 pub struct WindowBuilder<'a> {
     tabs: Vec<Tab<'a>>,
-    callbacks: Vec<(UserEvent, InnerCallback)>,
+    callbacks: Vec<(UserEvent, Callback)>,
     popups: Vec<Popup<'a>>,
     header: Option<Header<'a>>,
 }
@@ -107,9 +107,9 @@ impl<'a> WindowBuilder<'a> {
 
     pub fn action<F, E: Into<UserEvent>>(mut self, ev: E, cb: F) -> Self
     where
-        F: Fn(&mut Window) -> EventResult + 'static,
+        F: CallbackFn,
     {
-        self.callbacks.push((ev.into(), Rc::new(cb)));
+        self.callbacks.push((ev.into(), Callback::new(cb)));
         self
     }
 
@@ -221,7 +221,7 @@ impl<'a> Window<'a> {
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
     }
 
-    pub fn match_callback(&self, ev: UserEvent) -> Option<InnerCallback> {
+    pub fn match_callback(&self, ev: UserEvent) -> Option<Callback> {
         self.callbacks.iter().find_map(|(cb_ev, cb)| {
             logger!(debug, "match_callback {:?} <=> {:?}", ev, cb_ev);
 
