@@ -7,3 +7,4 @@ pub mod namespace;
 pub mod network;
 pub mod pod;
 pub mod yaml;
+pub mod get;

@@ -1,5 +1,3 @@
-mod yaml_popup;
-
 use std::{cell::RefCell, rc::Rc};
 
 use crossbeam::channel::Sender;
@@ -15,6 +13,7 @@ use crate::{
         config::view::ConfigTab,
         context::{message::ContextRequest, view::ContextPopup},
         event::view::EventTab,
+        get::view::YamlPopup,
         help::HelpPopup,
         namespace::{
             message::NamespaceRequest,
@@ -36,8 +35,6 @@ use crate::{
         Header, Tab, Window, WindowEvent,
     },
 };
-
-use self::yaml_popup::{YamlPopup, YamlPopupBuilder};
 
 pub struct WindowInit {
     split_mode: Direction,
@@ -180,7 +177,7 @@ impl WindowInit {
 
         let HelpPopup { popup: help_popup } = HelpPopup::new();
 
-        let YamlPopup { popup: popup_yaml } = YamlPopupBuilder::new(&clipboard).build();
+        let YamlPopup { popup: yaml_popup } = YamlPopup::new(&clipboard);
 
         // Init Window
         let tabs = vec![
@@ -202,7 +199,7 @@ impl WindowInit {
             Popup::new(yaml_not_found_popup),
             Popup::new(help_popup),
             Popup::new(log_query_help_popup),
-            Popup::new(popup_yaml),
+            Popup::new(yaml_popup),
         ];
 
         (tabs, popups)
