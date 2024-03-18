@@ -3,8 +3,8 @@ use futures::future::try_join_all;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
-    features::api_resources::kube::ApiResource,
-    workers::kube::{client::KubeClientRequest, yaml::YamlResourceListItem},
+    features::{api_resources::kube::ApiResource, yaml::message::YamlResourceListItem},
+    workers::kube::client::KubeClientRequest,
 };
 
 use super::single_namespace::FetchResourceListSingleNamespace;

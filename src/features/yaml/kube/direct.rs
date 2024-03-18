@@ -13,9 +13,10 @@ use kube::{Api, Resource};
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
+    features::yaml::message::YamlResponse,
     logger,
     message::Message,
-    workers::kube::{client::KubeClient, worker::AbortWorker, yaml::YamlResponse},
+    workers::kube::{client::KubeClient, worker::AbortWorker},
 };
 
 #[derive(Debug, Clone)]

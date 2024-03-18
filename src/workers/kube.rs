@@ -3,7 +3,6 @@ pub mod color;
 pub mod metric_type;
 pub mod v1_table;
 pub mod worker;
-pub mod yaml;
 
 use std::{
     collections::BTreeMap,
@@ -35,6 +34,13 @@ use crate::{
         config::{kube::ConfigsDataWorker, message::ConfigMessage},
         network::{kube::NetworkDescriptionWorker, message::NetworkMessage},
         pod::{kube::LogWorker, message::LogMessage},
+        yaml::{
+            kube::{
+                direct::DirectedYamlWorker,
+                select::{resources::FetchResourceList, worker::SelectedYamlWorker},
+            },
+            message::{YamlMessage, YamlRequest, YamlResponse},
+        },
     },
     logger,
     message::Message,
@@ -47,11 +53,6 @@ use self::{
     inner::Inner,
     namespace_message::{NamespaceMessage, NamespaceRequest, NamespaceResponse},
     worker::{AbortWorker, PollWorker, Worker},
-    yaml::{
-        direct::DirectedYamlWorker,
-        select::{resources::FetchResourceList, worker::SelectedYamlWorker},
-        YamlMessage, YamlRequest, YamlResponse,
-    },
 };
 
 #[derive(Debug, Default)]

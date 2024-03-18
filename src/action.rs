@@ -10,6 +10,7 @@ use crate::{
         config::message::ConfigMessage,
         network::message::{NetworkMessage, NetworkResponse},
         pod::message::LogMessage,
+        yaml::message::{YamlMessage, YamlResourceListItem, YamlResponse},
     },
     message::Message,
     ui::{
@@ -21,7 +22,6 @@ use crate::{
     workers::kube::{
         context_message::{ContextMessage, ContextResponse},
         namespace_message::{NamespaceMessage, NamespaceResponse},
-        yaml::{YamlMessage, YamlResourceListItem, YamlResponse},
         Kube, KubeTable, KubeTableRow,
     },
 };

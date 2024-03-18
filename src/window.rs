@@ -1,5 +1,4 @@
 mod context;
-mod yaml;
 mod yaml_popup;
 
 use std::{cell::RefCell, rc::Rc};
@@ -13,8 +12,17 @@ use crate::{
     clipboard::Clipboard,
     context::{Context, Namespace},
     features::{
-        api_resources::view::ListTab, config::view::ConfigTab, event::view::EventTab,
-        help::HelpPopup, network::view::NetworkTab, pod::view::PodTab,
+        api_resources::view::ListTab,
+        config::view::ConfigTab,
+        event::view::EventTab,
+        help::HelpPopup,
+        network::view::NetworkTab,
+        pod::view::PodTab,
+        yaml::{
+            kube::direct::{DirectedYaml, DirectedYamlKind},
+            message::YamlRequest,
+            view::YamlTab,
+        },
     },
     message::{Message, UserEvent},
     ui::{
@@ -23,19 +31,11 @@ use crate::{
         widget::{SelectedItem, WidgetTrait},
         Header, Tab, Window, WindowEvent,
     },
-    workers::kube::{
-        context_message::ContextRequest,
-        namespace_message::NamespaceRequest,
-        yaml::{
-            direct::{DirectedYaml, DirectedYamlKind},
-            YamlRequest,
-        },
-    },
+    workers::kube::{context_message::ContextRequest, namespace_message::NamespaceRequest},
 };
 
 use self::{
     context::{ContextPopup, ContextPopupBuilder},
-    yaml::{YamlTab, YamlTabBuilder},
     yaml_popup::{YamlPopup, YamlPopupBuilder},
 };
 
@@ -160,11 +160,11 @@ impl WindowInit {
         } = ListTab::new("List", &self.tx, &clipboard);
 
         let YamlTab {
-            tab: tab_yaml,
-            popup_kind: popup_yaml_kind,
-            popup_name: popup_yaml_name,
-            popup_return: popup_yaml_return,
-        } = YamlTabBuilder::new("Yaml", &self.tx, &clipboard).build();
+            tab: yaml_tab,
+            kind_popup: yaml_kind_popup,
+            name_popup: yaml_name_popup,
+            not_found_popup: yaml_not_found_popup,
+        } = YamlTab::new("Yaml", &self.tx, &clipboard);
 
         let ContextPopup {
             context: popup_context,
@@ -183,7 +183,7 @@ impl WindowInit {
             network_tab,
             event_tab,
             list_tab,
-            tab_yaml,
+            yaml_tab,
         ];
 
         let popups = vec![
@@ -191,9 +191,9 @@ impl WindowInit {
             Popup::new(popup_single_namespace),
             Popup::new(popup_multiple_namespaces),
             Popup::new(list_popup),
-            Popup::new(popup_yaml_kind),
-            Popup::new(popup_yaml_name),
-            Popup::new(popup_yaml_return),
+            Popup::new(yaml_kind_popup),
+            Popup::new(yaml_name_popup),
+            Popup::new(yaml_not_found_popup),
             Popup::new(help_popup),
             Popup::new(log_query_help_popup),
             Popup::new(popup_yaml),

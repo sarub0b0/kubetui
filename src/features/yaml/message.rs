@@ -1,13 +1,8 @@
-pub mod direct;
-pub mod select;
-
 use anyhow::Result;
 
-use self::{direct::DirectedYaml, select::SelectedYaml};
+use crate::{features::api_resources::kube::ApiResource, message::Message, workers::Kube};
 
-use super::Kube;
-
-use crate::{features::api_resources::kube::ApiResource, message::Message};
+use super::kube::{direct::DirectedYaml, select::SelectedYaml};
 
 #[derive(Debug, Clone)]
 pub struct YamlResourceListItem {
