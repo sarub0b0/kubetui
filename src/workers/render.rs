@@ -1,3 +1,5 @@
+mod action;
+
 use std::{
     cell::RefCell,
     io::{self},
@@ -13,7 +15,6 @@ use crossbeam::channel::{Receiver, Sender};
 use ratatui::{backend::CrosstermBackend, layout::Direction, Terminal, TerminalOptions, Viewport};
 
 use crate::{
-    action::{update_contents, window_action},
     kube::context::{Context, Namespace},
     logger,
     message::Message,
@@ -21,6 +22,8 @@ use crate::{
     ui::WindowAction,
     window::WindowInit,
 };
+
+use self::action::{update_contents, window_action};
 
 pub struct Render {
     tx: Sender<Message>,

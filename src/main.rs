@@ -1,4 +1,3 @@
-mod action;
 mod ansi;
 mod app;
 mod clipboard;
