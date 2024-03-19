@@ -1,10 +1,12 @@
 use crossbeam::channel::Sender;
 
 use crate::{
-    action::view_id,
-    features::pod::{
-        kube::{LogConfig, LogPrefixType},
-        message::LogMessage,
+    features::{
+        component_id::{POD_LOG_QUERY_WIDGET_ID, POD_LOG_WIDGET_ID, POD_WIDGET_ID},
+        pod::{
+            kube::{LogConfig, LogPrefixType},
+            message::LogMessage,
+        },
     },
     kube::context::Namespace,
     message::Message,
@@ -19,7 +21,7 @@ pub fn pod_widget(tx: &Sender<Message>) -> Widget<'static> {
     let tx = tx.clone();
 
     Table::builder()
-        .id(view_id::tab_pod_widget_pod)
+        .id(POD_WIDGET_ID)
         .widget_config(&WidgetConfig::builder().title("Pod").build())
         .filtered_key("NAME")
         .block_injection(block_injection())
@@ -47,7 +49,7 @@ fn block_injection() -> impl Fn(&Table) -> WidgetConfig {
 
 fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &TableItem) -> EventResult {
     move |w: &mut Window, v: &TableItem| {
-        w.widget_clear(view_id::tab_pod_widget_log);
+        w.widget_clear(POD_LOG_WIDGET_ID);
 
         let Some(ref metadata) = v.metadata else {
             return EventResult::Ignore;
@@ -61,7 +63,7 @@ fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &TableItem) -> EventRe
             return EventResult::Ignore;
         };
 
-        let query_form = w.find_widget_mut(view_id::tab_pod_widget_log_query);
+        let query_form = w.find_widget_mut(POD_LOG_QUERY_WIDGET_ID);
 
         query_form.update_widget_item(Item::Single(format!("pod/{}", name).into()));
 

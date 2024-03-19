@@ -2,7 +2,7 @@ use crossterm::event::KeyCode;
 use indoc::indoc;
 
 use crate::{
-    action::view_id,
+    features::component_id::POD_LOG_QUERY_HELP_POPUP_ID,
     message::UserEvent,
     ui::{
         event::EventResult,
@@ -13,7 +13,7 @@ use crate::{
 
 pub fn log_query_help_widget() -> Widget<'static> {
     Text::builder()
-        .id(view_id::tab_pod_widget_log_query_help)
+        .id(POD_LOG_QUERY_HELP_POPUP_ID)
         .widget_config(&WidgetConfig::builder().title("Log Query Help").build())
         .items(content())
         .action(UserEvent::from(KeyCode::Enter), close_popup())

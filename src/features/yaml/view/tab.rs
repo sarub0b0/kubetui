@@ -4,8 +4,8 @@ use crossbeam::channel::Sender;
 use ratatui::prelude::Constraint;
 
 use crate::{
-    action::view_id,
     clipboard::Clipboard,
+    features::component_id::YAML_TAB_ID,
     message::Message,
     ui::{
         tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout},
@@ -40,7 +40,7 @@ impl YamlTab {
         )]);
 
         YamlTab {
-            tab: Tab::new(view_id::tab_yaml, title, [yaml_widget], layout),
+            tab: Tab::new(YAML_TAB_ID, title, [yaml_widget], layout),
             kind_popup: kind_popup(tx),
             name_popup: name_popup(tx),
             not_found_popup: not_found_popup(),

@@ -3,9 +3,11 @@ use std::{cell::RefCell, rc::Rc};
 use crossbeam::channel::Sender;
 
 use crate::{
-    action::view_id,
     clipboard::Clipboard,
-    features::api_resources::message::ApiRequest,
+    features::{
+        api_resources::message::ApiRequest,
+        component_id::{LIST_POPUP_ID, LIST_WIDGET_ID},
+    },
     message::Message,
     ui::{
         event::EventResult,
@@ -23,12 +25,12 @@ pub fn list_widget(
     let open_subwin = move |w: &mut Window| {
         tx.send(ApiRequest::Get.into())
             .expect("Failed to send ApiRequest::Get");
-        w.open_popup(view_id::popup_list);
+        w.open_popup(LIST_POPUP_ID);
         EventResult::Nop
     };
 
     let builder = Text::builder()
-        .id(view_id::tab_list_widget_list)
+        .id(LIST_WIDGET_ID)
         .widget_config(&WidgetConfig::builder().title("List").build())
         .block_injection(|text: &Text, is_active: bool, is_mouse_over: bool| {
             let (index, size) = text.state();

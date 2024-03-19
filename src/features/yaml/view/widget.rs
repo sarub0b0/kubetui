@@ -4,9 +4,11 @@ use crossbeam::channel::Sender;
 use ratatui::widgets::Block;
 
 use crate::{
-    action::view_id,
     clipboard::Clipboard,
-    features::yaml::message::YamlRequest,
+    features::{
+        component_id::{YAML_KIND_POPUP_ID, YAML_WIDGET_ID},
+        yaml::message::YamlRequest,
+    },
     message::Message,
     ui::{
         event::EventResult,
@@ -22,7 +24,7 @@ pub fn yaml_widget(
     let tx = tx.clone();
 
     let builder = Text::builder()
-        .id(view_id::tab_yaml_widget_yaml)
+        .id(YAML_WIDGET_ID)
         .widget_config(&WidgetConfig::builder().title("Yaml").build())
         .block_injection(block_injection())
         .action('f', open_kind_popup(tx))
@@ -41,7 +43,7 @@ fn open_kind_popup(tx: Sender<Message>) -> impl Fn(&mut Window) -> EventResult {
     move |w: &mut Window| {
         tx.send(YamlRequest::APIs.into())
             .expect("YamlRequest::APIs");
-        w.open_popup(view_id::popup_yaml_kind);
+        w.open_popup(YAML_KIND_POPUP_ID);
         EventResult::Nop
     }
 }

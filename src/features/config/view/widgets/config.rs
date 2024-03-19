@@ -1,8 +1,10 @@
 use crossbeam::channel::Sender;
 
 use crate::{
-    action::view_id,
-    features::config::message::{ConfigRequest, RequestData},
+    features::{
+        component_id::{CONFIG_RAW_DATA_WIDGET_ID, CONFIG_WIDGET_ID},
+        config::message::{ConfigRequest, RequestData},
+    },
     message::Message,
     ui::{
         event::EventResult,
@@ -15,7 +17,7 @@ pub fn config_widget(tx: &Sender<Message>) -> Widget<'static> {
     let tx = tx.clone();
 
     Table::builder()
-        .id(view_id::tab_config_widget_config)
+        .id(CONFIG_WIDGET_ID)
         .widget_config(&WidgetConfig::builder().title("Config").build())
         .filtered_key("NAME")
         .block_injection(block_injection())
@@ -43,7 +45,7 @@ fn block_injection() -> impl Fn(&Table) -> WidgetConfig {
 
 fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &TableItem) -> EventResult {
     move |w, v| {
-        w.widget_clear(view_id::tab_config_widget_raw_data);
+        w.widget_clear(CONFIG_RAW_DATA_WIDGET_ID);
 
         let Some(metadata) = v.metadata.as_ref() else {
             return EventResult::Ignore;
@@ -61,7 +63,7 @@ fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &TableItem) -> EventRe
             return EventResult::Ignore;
         };
 
-        *(w.find_widget_mut(view_id::tab_config_widget_raw_data)
+        *(w.find_widget_mut(CONFIG_RAW_DATA_WIDGET_ID)
             .widget_config_mut()
             .append_title_mut()) = Some((format!(" : {}", name)).into());
 

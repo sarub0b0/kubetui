@@ -4,10 +4,12 @@ use crossbeam::channel::Sender;
 use crossterm::event::KeyCode;
 
 use crate::{
-    action::view_id,
-    features::pod::{
-        kube::{LogConfig, LogPrefixType},
-        message::LogMessage,
+    features::{
+        component_id::{POD_LOG_QUERY_HELP_POPUP_ID, POD_LOG_QUERY_WIDGET_ID, POD_LOG_WIDGET_ID},
+        pod::{
+            kube::{LogConfig, LogPrefixType},
+            message::LogMessage,
+        },
     },
     kube::context::Namespace,
     message::{Message, UserEvent},
@@ -27,7 +29,7 @@ pub fn log_query_widget(
     let tx = tx.clone();
 
     InputFormBuilder::default()
-        .id(view_id::tab_pod_widget_log_query)
+        .id(POD_LOG_QUERY_WIDGET_ID)
         .widget_config(WidgetConfig::builder().title("Log Query").build())
         .actions(UserEvent::from(KeyCode::Enter), exec_query(tx, namespaces))
         .build()
@@ -39,7 +41,7 @@ fn exec_query(
     namespaces: Rc<RefCell<Namespace>>,
 ) -> impl Fn(&mut Window) -> EventResult {
     move |w: &mut Window| {
-        let widget = w.find_widget_mut(view_id::tab_pod_widget_log_query);
+        let widget = w.find_widget_mut(POD_LOG_QUERY_WIDGET_ID);
 
         let Some(SelectedItem::Literal { metadata: _, item }) = widget.widget_item() else {
             return EventResult::Ignore;
@@ -47,11 +49,11 @@ fn exec_query(
 
         if item == "?" || item == "help" {
             widget.clear();
-            w.open_popup(view_id::tab_pod_widget_log_query_help);
+            w.open_popup(POD_LOG_QUERY_HELP_POPUP_ID);
             return EventResult::Nop;
         }
 
-        w.widget_clear(view_id::tab_pod_widget_log);
+        w.widget_clear(POD_LOG_WIDGET_ID);
 
         let namespaces = namespaces.borrow();
 

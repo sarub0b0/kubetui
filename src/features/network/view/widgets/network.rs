@@ -1,8 +1,10 @@
 use crossbeam::channel::Sender;
 
 use crate::{
-    action::view_id,
-    features::network::message::{NetworkRequest, RequestData},
+    features::{
+        component_id::{NETWORK_DESCRIPTION_WIDGET_ID, NETWORK_WIDGET_ID},
+        network::message::{NetworkRequest, RequestData},
+    },
     message::Message,
     ui::{
         event::EventResult,
@@ -15,7 +17,7 @@ pub fn network_widget(tx: &Sender<Message>) -> Widget<'static> {
     let tx = tx.clone();
 
     Table::builder()
-        .id(view_id::tab_network_widget_network)
+        .id(NETWORK_WIDGET_ID)
         .widget_config(&WidgetConfig::builder().title("Network").build())
         .filtered_key("NAME")
         .block_injection(block_injection())
@@ -43,7 +45,7 @@ fn block_injection() -> impl Fn(&Table) -> WidgetConfig {
 
 fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &TableItem) -> EventResult {
     move |w: &mut Window, v: &TableItem| {
-        w.widget_clear(view_id::tab_network_widget_description);
+        w.widget_clear(NETWORK_DESCRIPTION_WIDGET_ID);
 
         let Some(metadata) = v.metadata.as_ref() else {
             return EventResult::Ignore;
@@ -61,7 +63,7 @@ fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &TableItem) -> EventRe
             return EventResult::Ignore;
         };
 
-        *(w.find_widget_mut(view_id::tab_network_widget_description)
+        *(w.find_widget_mut(NETWORK_DESCRIPTION_WIDGET_ID)
             .widget_config_mut()
             .append_title_mut()) = Some((format!(" : {}", name)).into());
 

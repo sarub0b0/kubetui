@@ -4,8 +4,8 @@ use crossbeam::channel::Sender;
 use ratatui::layout::{Constraint, Direction};
 
 use crate::{
-    action::view_id,
     clipboard::Clipboard,
+    features::component_id::CONFIG_TAB_ID,
     message::Message,
     ui::{
         tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout},
@@ -33,7 +33,7 @@ impl ConfigTab {
 
         Self {
             tab: Tab::new(
-                view_id::tab_config,
+                CONFIG_TAB_ID,
                 title,
                 [config_widget, raw_data_widget],
                 layout,

@@ -1,8 +1,8 @@
 use unicode_width::UnicodeWidthStr;
 
 use crate::{
-    action::view_id,
     ansi::{AnsiEscapeSequence, TextParser},
+    features::component_id::HELP_POPUP_ID,
     ui::widget::{config::WidgetConfig, Text, Widget},
 };
 
@@ -330,7 +330,7 @@ impl HelpPopup {
     pub fn new() -> Self {
         Self {
             popup: Text::builder()
-                .id(view_id::popup_help)
+                .id(HELP_POPUP_ID)
                 .widget_config(&WidgetConfig::builder().title("Help").build())
                 .items(generate())
                 .build()

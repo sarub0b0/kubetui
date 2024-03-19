@@ -3,8 +3,8 @@ use std::{cell::RefCell, rc::Rc};
 use ratatui::prelude::Constraint;
 
 use crate::{
-    action::view_id,
     clipboard::Clipboard,
+    features::component_id::EVENT_TAB_ID,
     ui::{
         tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout},
         Tab,
@@ -23,7 +23,7 @@ impl EventTab {
 
         EventTab {
             tab: Tab::new(
-                view_id::tab_event,
+                EVENT_TAB_ID,
                 title,
                 [event_widget],
                 NestedWidgetLayout::default().nested_widget_layout([NestedLayoutElement(

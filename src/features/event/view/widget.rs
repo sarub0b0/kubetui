@@ -3,14 +3,14 @@ use std::{cell::RefCell, rc::Rc};
 use ratatui::widgets::Block;
 
 use crate::{
-    action::view_id,
     clipboard::Clipboard,
+    features::component_id::EVENT_WIDGET_ID,
     ui::widget::{config::WidgetConfig, Text, Widget, WidgetTrait as _},
 };
 
 pub fn event_widget(clipboard: &Option<Rc<RefCell<Clipboard>>>) -> Widget<'static> {
     let builder = Text::builder()
-        .id(view_id::tab_event_widget_event)
+        .id(EVENT_WIDGET_ID)
         .widget_config(&WidgetConfig::builder().title("Event").build())
         .wrap()
         .follow()

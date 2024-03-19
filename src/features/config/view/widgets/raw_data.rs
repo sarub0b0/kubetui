@@ -3,14 +3,14 @@ use std::{cell::RefCell, rc::Rc};
 use ratatui::widgets::Block;
 
 use crate::{
-    action::view_id,
     clipboard::Clipboard,
+    features::component_id::CONFIG_RAW_DATA_WIDGET_ID,
     ui::widget::{config::WidgetConfig, Text, Widget, WidgetTrait as _},
 };
 
 pub fn raw_data_widget(clipboard: &Option<Rc<RefCell<Clipboard>>>) -> Widget<'static> {
     let builder = Text::builder()
-        .id(view_id::tab_config_widget_raw_data)
+        .id(CONFIG_RAW_DATA_WIDGET_ID)
         .widget_config(&WidgetConfig::builder().title("Raw Data").build())
         .wrap()
         .block_injection(block_injection());

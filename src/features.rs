@@ -1,10 +1,11 @@
 pub mod api_resources;
+pub mod component_id;
 pub mod config;
 pub mod context;
 pub mod event;
+pub mod get;
 pub mod help;
 pub mod namespace;
 pub mod network;
 pub mod pod;
 pub mod yaml;
-pub mod get;

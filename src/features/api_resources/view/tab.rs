@@ -4,8 +4,8 @@ use ratatui::prelude::Constraint;
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
-    action::view_id,
     clipboard::Clipboard,
+    features::component_id::LIST_TAB_ID,
     message::Message,
     ui::{
         tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout},
@@ -31,7 +31,7 @@ impl ListTab {
 
         ListTab {
             tab: Tab::new(
-                view_id::tab_list,
+                LIST_TAB_ID,
                 title,
                 [list_widget],
                 NestedWidgetLayout::default().nested_widget_layout([NestedLayoutElement(

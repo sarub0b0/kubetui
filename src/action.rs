@@ -6,6 +6,13 @@ use crossbeam::channel::Receiver;
 use crate::{
     features::{
         api_resources::message::{ApiMessage, ApiResponse},
+        component_id::{
+            CONFIG_RAW_DATA_WIDGET_ID, CONFIG_WIDGET_ID, CONTEXT_POPUP_ID, EVENT_WIDGET_ID,
+            LIST_POPUP_ID, LIST_WIDGET_ID, MULTIPLE_NAMESPACES_POPUP_ID,
+            NETWORK_DESCRIPTION_WIDGET_ID, NETWORK_WIDGET_ID, POD_LOG_WIDGET_ID, POD_WIDGET_ID,
+            SINGLE_NAMESPACE_POPUP_ID, YAML_KIND_POPUP_ID, YAML_NAME_POPUP_ID,
+            YAML_NOT_FOUND_POPUP_ID, YAML_POPUP_ID, YAML_WIDGET_ID,
+        },
         config::message::ConfigMessage,
         context::message::{ContextMessage, ContextResponse},
         get::message::{GetMessage, GetResponse},
@@ -27,47 +34,6 @@ use crate::{
     },
     workers::kube::message::Kube,
 };
-
-pub mod view_id {
-
-    #![allow(non_upper_case_globals)]
-    macro_rules! generate_id {
-        ($id:ident) => {
-            pub const $id: &str = stringify!($id);
-        };
-    }
-
-    generate_id!(tab_pod);
-    generate_id!(tab_pod_widget_pod);
-    generate_id!(tab_pod_widget_log_query);
-    generate_id!(tab_pod_widget_log_query_help);
-    generate_id!(tab_pod_widget_log);
-    generate_id!(tab_config);
-    generate_id!(tab_config_widget_config);
-    generate_id!(tab_config_widget_raw_data);
-    generate_id!(tab_network);
-    generate_id!(tab_network_widget_network);
-    generate_id!(tab_network_widget_description);
-    generate_id!(tab_event);
-    generate_id!(tab_event_widget_event);
-    generate_id!(tab_list);
-    generate_id!(tab_list_widget_list);
-    generate_id!(tab_yaml);
-    generate_id!(tab_yaml_widget_yaml);
-
-    generate_id!(popup_ctx);
-    generate_id!(popup_ns);
-    generate_id!(popup_list);
-    generate_id!(popup_single_ns);
-
-    generate_id!(popup_yaml_name);
-    generate_id!(popup_yaml_kind);
-    generate_id!(popup_yaml_return);
-
-    generate_id!(popup_yaml);
-
-    generate_id!(popup_help);
-}
 
 macro_rules! error_format {
     ($fmt:literal, $($arg:tt)*) => {
@@ -217,11 +183,11 @@ pub fn update_contents(
 ) {
     match ev {
         Kube::Pod(pods_table) => {
-            update_widget_item_for_table(window, view_id::tab_pod_widget_pod, pods_table);
+            update_widget_item_for_table(window, POD_WIDGET_ID, pods_table);
         }
 
         Kube::Log(LogMessage::Response(res)) => {
-            let widget = window.find_widget_mut(view_id::tab_pod_widget_log);
+            let widget = window.find_widget_mut(POD_LOG_WIDGET_ID);
 
             match res {
                 Ok(i) => {
@@ -246,28 +212,28 @@ pub fn update_contents(
 
             match res {
                 Table(list) => {
-                    update_widget_item_for_table(window, view_id::tab_config_widget_config, list);
+                    update_widget_item_for_table(window, CONFIG_WIDGET_ID, list);
                 }
                 Data(data) => {
-                    update_widget_item_for_vec(window, view_id::tab_config_widget_raw_data, data);
+                    update_widget_item_for_vec(window, CONFIG_RAW_DATA_WIDGET_ID, data);
                 }
             }
         }
 
         Kube::Event(ev) => {
-            update_widget_item_for_vec(window, view_id::tab_event_widget_event, ev);
+            update_widget_item_for_vec(window, EVENT_WIDGET_ID, ev);
         }
 
         Kube::Namespace(NamespaceMessage::Response(res)) => match res {
             NamespaceResponse::Get(res) => match res {
                 Ok(namespaces) => {
                     window
-                        .find_widget_mut(view_id::popup_ns)
+                        .find_widget_mut(MULTIPLE_NAMESPACES_POPUP_ID)
                         .update_widget_item(Item::Array(
                             namespaces.iter().cloned().map(LiteralItem::from).collect(),
                         ));
                     window
-                        .find_widget_mut(view_id::popup_single_ns)
+                        .find_widget_mut(SINGLE_NAMESPACE_POPUP_ID)
                         .update_widget_item(Item::Array(
                             namespaces.iter().cloned().map(LiteralItem::from).collect(),
                         ));
@@ -275,11 +241,11 @@ pub fn update_contents(
                 Err(err) => {
                     let err = error_lines!(err);
                     window
-                        .find_widget_mut(view_id::popup_ns)
+                        .find_widget_mut(MULTIPLE_NAMESPACES_POPUP_ID)
                         .update_widget_item(Item::Array(err.to_vec()));
 
                     window
-                        .find_widget_mut(view_id::popup_single_ns)
+                        .find_widget_mut(SINGLE_NAMESPACE_POPUP_ID)
                         .update_widget_item(Item::Array(err));
                 }
             },
@@ -290,7 +256,7 @@ pub fn update_contents(
 
         Kube::Context(ContextMessage::Response(res)) => match res {
             ContextResponse::Get(res) => {
-                update_widget_item_for_vec(window, view_id::popup_ctx, Ok(res));
+                update_widget_item_for_vec(window, CONTEXT_POPUP_ID, Ok(res));
             }
         },
 
@@ -302,19 +268,19 @@ pub fn update_contents(
             namespace.update(ns.clone());
 
             window
-                .find_widget_mut(view_id::popup_ns)
+                .find_widget_mut(MULTIPLE_NAMESPACES_POPUP_ID)
                 .update_widget_item(Item::Array(
                     ns.iter().cloned().map(LiteralItem::from).collect(),
                 ));
             window
-                .find_widget_mut(view_id::popup_ns)
+                .find_widget_mut(MULTIPLE_NAMESPACES_POPUP_ID)
                 .as_mut_multiple_select()
                 .select_all();
         }
 
         Kube::RestoreAPIs(list) => {
             let w = window
-                .find_widget_mut(view_id::popup_list)
+                .find_widget_mut(LIST_POPUP_ID)
                 .as_mut_multiple_select();
 
             for key in list {
@@ -340,7 +306,7 @@ pub fn update_contents(
             use ApiResponse::*;
             match res {
                 Get(list) => {
-                    let widget = window.find_widget_mut(view_id::popup_list);
+                    let widget = window.find_widget_mut(LIST_POPUP_ID);
                     match list {
                         Ok(i) => {
                             let items = i
@@ -369,7 +335,7 @@ pub fn update_contents(
                     }
                 }
                 Poll(list) => {
-                    update_widget_item_for_vec(window, view_id::tab_list_widget_list, list);
+                    update_widget_item_for_vec(window, LIST_WIDGET_ID, list);
                 }
             }
         }
@@ -378,7 +344,7 @@ pub fn update_contents(
             use YamlResponse::*;
             match ev {
                 APIs(res) => {
-                    let widget = window.find_widget_mut(view_id::popup_yaml_kind);
+                    let widget = window.find_widget_mut(YAML_KIND_POPUP_ID);
                     match res {
                         Ok(vec) => {
                             let items = vec
@@ -411,11 +377,11 @@ pub fn update_contents(
                 Resource(res) => match res {
                     Ok(list) => {
                         if list.items.is_empty() {
-                            window.open_popup(view_id::popup_yaml_return);
+                            window.open_popup(YAML_NOT_FOUND_POPUP_ID);
                         } else {
-                            window.open_popup(view_id::popup_yaml_name);
+                            window.open_popup(YAML_NAME_POPUP_ID);
 
-                            let widget = window.find_widget_mut(view_id::popup_yaml_name);
+                            let widget = window.find_widget_mut(YAML_NAME_POPUP_ID);
 
                             let items = list
                                 .items
@@ -449,38 +415,30 @@ pub fn update_contents(
                         }
                     }
                     Err(e) => {
-                        let widget = window.find_widget_mut(view_id::popup_yaml_name);
+                        let widget = window.find_widget_mut(YAML_NAME_POPUP_ID);
                         widget.update_widget_item(Item::Array(error_lines!(e)));
                     }
                 },
                 Yaml(res) => {
-                    update_widget_item_for_vec(window, view_id::tab_yaml_widget_yaml, res);
+                    update_widget_item_for_vec(window, YAML_WIDGET_ID, res);
                 }
             }
         }
 
         Kube::Get(GetMessage::Response(GetResponse { kind, name, yaml })) => {
-            let widget = window
-                .find_widget_mut(view_id::popup_yaml)
-                .widget_config_mut();
+            let widget = window.find_widget_mut(YAML_POPUP_ID).widget_config_mut();
             *(widget.append_title_mut()) = Some(format!(" : {}/{}", kind, name).into());
 
-            update_widget_item_for_vec(window, view_id::popup_yaml, yaml);
+            update_widget_item_for_vec(window, YAML_POPUP_ID, yaml);
         }
 
         Kube::Network(NetworkMessage::Response(ev)) => {
             use NetworkResponse::*;
 
             match ev {
-                List(res) => {
-                    update_widget_item_for_table(window, view_id::tab_network_widget_network, res)
-                }
+                List(res) => update_widget_item_for_table(window, NETWORK_WIDGET_ID, res),
                 Yaml(res) => {
-                    update_widget_item_for_vec(
-                        window,
-                        view_id::tab_network_widget_description,
-                        res,
-                    );
+                    update_widget_item_for_vec(window, NETWORK_DESCRIPTION_WIDGET_ID, res);
                 }
             }
         }

@@ -1,7 +1,7 @@
 use crossterm::event::KeyCode;
 
 use crate::{
-    action::view_id,
+    features::component_id::{YAML_KIND_POPUP_ID, YAML_NOT_FOUND_POPUP_ID},
     ui::{
         event::EventResult,
         widget::{config::WidgetConfig, Text, Widget},
@@ -11,7 +11,7 @@ use crate::{
 
 pub fn not_found_popup() -> Widget<'static> {
     Text::builder()
-        .id(view_id::popup_yaml_return)
+        .id(YAML_NOT_FOUND_POPUP_ID)
         .widget_config(&WidgetConfig::builder().title("Name").build())
         .items(
             [
@@ -32,9 +32,9 @@ pub fn not_found_popup() -> Widget<'static> {
 
 fn open_kind_popup() -> impl Fn(&mut Window) -> EventResult {
     move |w: &mut Window| {
-        w.open_popup(view_id::popup_yaml_kind);
+        w.open_popup(YAML_KIND_POPUP_ID);
 
-        if let Widget::SingleSelect(w) = w.find_widget_mut(view_id::popup_yaml_kind) {
+        if let Widget::SingleSelect(w) = w.find_widget_mut(YAML_KIND_POPUP_ID) {
             w.clear_filter();
         }
 

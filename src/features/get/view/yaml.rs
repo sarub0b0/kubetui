@@ -1,8 +1,8 @@
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
-    action::view_id,
     clipboard::Clipboard,
+    features::component_id::YAML_POPUP_ID,
     ui::widget::{config::WidgetConfig, Text, Widget, WidgetTrait},
 };
 
@@ -20,7 +20,7 @@ impl YamlPopup {
 
 pub fn popup(clipboard: &Option<Rc<RefCell<Clipboard>>>) -> Widget<'static> {
     let mut builder = Text::builder()
-        .id(view_id::popup_yaml)
+        .id(YAML_POPUP_ID)
         .widget_config(&WidgetConfig::builder().title("Yaml").build())
         .block_injection(|text: &Text, is_active: bool, is_mouse_over: bool| {
             let (index, size) = text.state();

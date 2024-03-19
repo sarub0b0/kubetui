@@ -4,8 +4,8 @@ use crossbeam::channel::Sender;
 use ratatui::layout::{Constraint, Direction};
 
 use crate::{
-    action::view_id,
     clipboard::Clipboard,
+    features::component_id::{POD_TAB_ID, POD_WIDGET_ID},
     kube::context::Namespace,
     message::Message,
     ui::{
@@ -38,13 +38,13 @@ impl PodTab {
         let layout = layout(split_direction);
 
         let mut tab = Tab::new(
-            view_id::tab_pod,
+            POD_TAB_ID,
             title,
             [pod_widget, log_query_widget, log_widget],
             layout,
         );
 
-        tab.activate_widget_by_id(view_id::tab_pod_widget_pod);
+        tab.activate_widget_by_id(POD_WIDGET_ID);
 
         Self {
             tab,

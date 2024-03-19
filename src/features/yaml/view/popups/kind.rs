@@ -1,8 +1,7 @@
 use crossbeam::channel::Sender;
 
 use crate::{
-    action::view_id,
-    features::yaml::message::YamlRequest,
+    features::{component_id::YAML_KIND_POPUP_ID, yaml::message::YamlRequest},
     logger,
     message::Message,
     ui::{
@@ -16,7 +15,7 @@ pub fn kind_popup(tx: &Sender<Message>) -> Widget<'static> {
     let tx = tx.clone();
 
     SingleSelect::builder()
-        .id(view_id::popup_yaml_kind)
+        .id(YAML_KIND_POPUP_ID)
         .widget_config(&WidgetConfig::builder().title("Kind").build())
         .on_select(on_select(tx))
         .build()

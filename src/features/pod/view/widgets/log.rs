@@ -4,8 +4,8 @@ use crossterm::event::KeyCode;
 use ratatui::widgets::Block;
 
 use crate::{
-    action::view_id,
     clipboard::Clipboard,
+    features::component_id::POD_LOG_WIDGET_ID,
     message::UserEvent,
     ui::{
         event::EventResult,
@@ -16,7 +16,7 @@ use crate::{
 
 pub fn log_widget(clipboard: &Option<Rc<RefCell<Clipboard>>>) -> Widget<'static> {
     let builder = Text::builder()
-        .id(view_id::tab_pod_widget_log)
+        .id(POD_LOG_WIDGET_ID)
         .widget_config(&WidgetConfig::builder().title("Log").build())
         .wrap()
         .follow()
@@ -46,7 +46,7 @@ fn block_injection() -> impl Fn(&Text, bool, bool) -> Block<'static> {
 
 fn add_blankline() -> impl Fn(&mut Window) -> EventResult {
     move |w: &mut Window| {
-        let w = w.find_widget_mut(view_id::tab_pod_widget_log);
+        let w = w.find_widget_mut(POD_LOG_WIDGET_ID);
 
         w.select_last();
         w.append_widget_item(Item::Single(Default::default()));

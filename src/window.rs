@@ -5,10 +5,13 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{layout::Direction, text::Line, widgets::Paragraph};
 
 use crate::{
-    action::view_id,
     clipboard::Clipboard,
     features::{
         api_resources::view::ListTab,
+        component_id::{
+            CONFIG_WIDGET_ID, CONTEXT_POPUP_ID, HELP_POPUP_ID, MULTIPLE_NAMESPACES_POPUP_ID,
+            NETWORK_WIDGET_ID, POD_WIDGET_ID, SINGLE_NAMESPACE_POPUP_ID, YAML_POPUP_ID,
+        },
         config::view::ConfigTab,
         context::{message::ContextRequest, view::ContextPopup},
         event::view::EventTab,
@@ -69,7 +72,7 @@ impl WindowInit {
             move |w: &mut Window| {
                 tx.send(NamespaceRequest::Get.into())
                     .expect("Failed to send NamespaceRequest::Get");
-                w.open_popup(view_id::popup_ns);
+                w.open_popup(MULTIPLE_NAMESPACES_POPUP_ID);
                 EventResult::Nop
             },
         );
@@ -78,7 +81,7 @@ impl WindowInit {
         let builder = builder.action('n', move |w: &mut Window| {
             tx.send(NamespaceRequest::Get.into())
                 .expect("Failed to send NamespaceRequest::Get");
-            w.open_popup(view_id::popup_single_ns);
+            w.open_popup(SINGLE_NAMESPACE_POPUP_ID);
             EventResult::Nop
         });
 
@@ -95,12 +98,12 @@ impl WindowInit {
         let builder = builder.action('c', move |w: &mut Window| {
             tx.send(ContextRequest::Get.into())
                 .expect("Failed to send ContextRequest::Get");
-            w.open_popup(view_id::popup_ctx);
+            w.open_popup(CONTEXT_POPUP_ID);
             EventResult::Nop
         });
 
         let open_help = move |w: &mut Window| {
-            w.open_popup(view_id::popup_help);
+            w.open_popup(HELP_POPUP_ID);
             EventResult::Nop
         };
 
@@ -210,9 +213,7 @@ fn open_yaml(tx: Sender<Message>) -> impl CallbackFn {
         let widget = w.active_tab().active_widget();
 
         match widget.id() {
-            view_id::tab_pod_widget_pod
-            | view_id::tab_config_widget_config
-            | view_id::tab_network_widget_network => {}
+            POD_WIDGET_ID | CONFIG_WIDGET_ID | NETWORK_WIDGET_ID => {}
             _ => {
                 return EventResult::Ignore;
             }
@@ -235,15 +236,15 @@ fn open_yaml(tx: Sender<Message>) -> impl CallbackFn {
         };
 
         let kind = match widget.id() {
-            view_id::tab_pod_widget_pod => GetYamlKind::Pod,
-            view_id::tab_config_widget_config => match metadata.get("kind").map(|v| v.as_str()) {
+            POD_WIDGET_ID => GetYamlKind::Pod,
+            CONFIG_WIDGET_ID => match metadata.get("kind").map(|v| v.as_str()) {
                 Some("ConfigMap") => GetYamlKind::ConfigMap,
                 Some("Secret") => GetYamlKind::Secret,
                 _ => {
                     return EventResult::Ignore;
                 }
             },
-            view_id::tab_network_widget_network => match metadata.get("kind").map(|v| v.as_str()) {
+            NETWORK_WIDGET_ID => match metadata.get("kind").map(|v| v.as_str()) {
                 Some("Ingress") => GetYamlKind::Ingress,
                 Some("Service") => GetYamlKind::Service,
                 Some("Pod") => GetYamlKind::Pod,
@@ -265,8 +266,8 @@ fn open_yaml(tx: Sender<Message>) -> impl CallbackFn {
         )
         .expect("Failed to send YamlMessage::Request");
 
-        w.widget_clear(view_id::popup_yaml);
-        w.open_popup(view_id::popup_yaml);
+        w.widget_clear(YAML_POPUP_ID);
+        w.open_popup(YAML_POPUP_ID);
 
         EventResult::Nop
     }

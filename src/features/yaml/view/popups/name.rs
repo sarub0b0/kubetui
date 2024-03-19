@@ -2,8 +2,10 @@ use crossbeam::channel::Sender;
 use crossterm::event::KeyCode;
 
 use crate::{
-    action::view_id,
-    features::yaml::message::{YamlRequest, YamlTarget},
+    features::{
+        component_id::{YAML_KIND_POPUP_ID, YAML_NAME_POPUP_ID},
+        yaml::message::{YamlRequest, YamlTarget},
+    },
     logger,
     message::Message,
     ui::{
@@ -17,7 +19,7 @@ pub fn name_popup(tx: &Sender<Message>) -> Widget<'static> {
     let tx = tx.clone();
 
     SingleSelect::builder()
-        .id(view_id::popup_yaml_name)
+        .id(YAML_NAME_POPUP_ID)
         .widget_config(&WidgetConfig::builder().title("Name").build())
         .on_select(on_select(tx))
         .action(KeyCode::Esc, open_kind_popup())
@@ -67,8 +69,8 @@ fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &LiteralItem) -> Event
 
 fn open_kind_popup() -> impl Fn(&mut Window) -> EventResult {
     move |w: &mut Window| {
-        w.open_popup(view_id::popup_yaml_kind);
-        if let Widget::SingleSelect(w) = w.find_widget_mut(view_id::popup_yaml_kind) {
+        w.open_popup(YAML_KIND_POPUP_ID);
+        if let Widget::SingleSelect(w) = w.find_widget_mut(YAML_KIND_POPUP_ID) {
             w.clear_filter();
         }
         EventResult::Nop

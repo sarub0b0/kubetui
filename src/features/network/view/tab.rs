@@ -4,9 +4,11 @@ use crossbeam::channel::Sender;
 use ratatui::layout::{Constraint, Direction};
 
 use crate::{
-    action::view_id,
     clipboard::Clipboard,
-    features::network::view::widgets::{description_widget, network_widget},
+    features::{
+        component_id::NETWORK_TAB_ID,
+        network::view::widgets::{description_widget, network_widget},
+    },
     message::Message,
     ui::{
         tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout},
@@ -32,7 +34,7 @@ impl NetworkTab {
 
         NetworkTab {
             tab: Tab::new(
-                view_id::tab_network,
+                NETWORK_TAB_ID,
                 title,
                 [network_widget, description_widget],
                 layout,
