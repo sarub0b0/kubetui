@@ -56,6 +56,11 @@ impl Cursor {
             Mode::Hide => Style::default(),
         }
     }
+
+    fn reset(&mut self) {
+        self.last_tick = Instant::now();
+        self.mode = Mode::Show;
+    }
 }
 
 impl Default for Cursor {
@@ -95,6 +100,8 @@ impl Content {
     }
 
     fn cursor_forward(&mut self, addend: usize) {
+        self.cursor.reset();
+
         self.cursor_pos = self
             .cursor_pos
             .saturating_add(addend)
@@ -102,23 +109,33 @@ impl Content {
     }
 
     fn cursor_back(&mut self, subst: usize) {
+        self.cursor.reset();
+
         self.cursor_pos = self.cursor_pos.saturating_sub(subst);
     }
 
     fn cursor_top(&mut self) {
+        self.cursor.reset();
+
         self.cursor_pos = 0;
     }
 
     fn cursor_end(&mut self) {
+        self.cursor.reset();
+
         self.cursor_pos = self.max_cursor_pos();
     }
 
     fn insert_char(&mut self, c: char) {
+        self.cursor.reset();
+
         self.chars.insert(self.cursor_pos, c);
         self.cursor_forward(1);
     }
 
     fn remove_char(&mut self) {
+        self.cursor.reset();
+
         if self.chars.is_empty() {
             return;
         }
@@ -132,11 +149,15 @@ impl Content {
     }
 
     fn remove_chars_before_cursor(&mut self) {
+        self.cursor.reset();
+
         self.chars = self.chars[self.cursor_pos..].to_vec();
         self.cursor_pos = 0;
     }
 
     fn remove_chars_after_cursor(&mut self) {
+        self.cursor.reset();
+
         self.chars = self.chars[..self.cursor_pos].to_vec();
     }
 
