@@ -57,7 +57,7 @@ regex-syntax = { version = "0.8.2", default-features = false }
 
 indoc = "2.0.4"
 flate2 = "1.0.28"
-strum = { version = "0.25.0", features = ["derive"] }
+strum = { version = "0.26.2", features = ["derive"] }
 paste = "1.0.14"
 
 [dev-dependencies]
