@@ -13,11 +13,14 @@ use derivative::*;
 
 use super::{config::WidgetConfig, Item, LiteralItem, RenderTrait, SelectedItem, WidgetTrait};
 
-use crate::ui::{
-    event::{Callback, EventResult},
-    key_event_to_code,
-    util::{MousePosition, RectContainsPoint},
-    Window,
+use crate::{
+    define_callback,
+    ui::{
+        event::{Callback, EventResult},
+        key_event_to_code,
+        util::{MousePosition, RectContainsPoint},
+        Window,
+    },
 };
 
 mod inner_item {
@@ -68,8 +71,8 @@ mod inner_item {
     }
 }
 
-type RenderBlockInjection = Rc<dyn Fn(&List, bool) -> Block<'static>>;
-type OnSelectCallback = Rc<dyn Fn(&mut Window, &LiteralItem) -> EventResult>;
+define_callback!(pub OnSelectCallback, Fn(&mut Window, &LiteralItem) -> EventResult);
+define_callback!(pub RenderBlockInjection, Fn(&List, bool) -> Block<'static>);
 
 use inner_item::InnerItem;
 #[derive(Derivative)]
@@ -100,6 +103,7 @@ pub struct ListBuilder {
     block_injection: Option<RenderBlockInjection>,
 }
 
+#[allow(dead_code)]
 impl ListBuilder {
     pub fn id(mut self, id: impl Into<String>) -> Self {
         self.id = id.into();
@@ -121,17 +125,17 @@ impl ListBuilder {
 
     pub fn on_select<F>(mut self, cb: F) -> Self
     where
-        F: Fn(&mut Window, &LiteralItem) -> EventResult + 'static,
+        F: Into<OnSelectCallback>,
     {
-        self.on_select = Some(Rc::new(cb));
+        self.on_select = Some(cb.into());
         self
     }
 
     pub fn block_injection<F>(mut self, block_injection: F) -> Self
     where
-        F: Fn(&List, bool) -> Block<'static> + 'static,
+        F: Into<RenderBlockInjection>,
     {
-        self.block_injection = Some(Rc::new(block_injection));
+        self.block_injection = Some(block_injection.into());
         self
     }
 
@@ -150,6 +154,7 @@ impl ListBuilder {
     }
 }
 
+#[allow(dead_code)]
 impl<'a> List<'a> {
     pub fn builder() -> ListBuilder {
         ListBuilder::default()
@@ -321,7 +326,11 @@ impl<'a> WidgetTrait for List<'a> {
 
                 self.state.select(Some(row + self.state.offset()));
 
-                return EventResult::Callback(self.on_select_callback());
+                if let Some(cb) = self.on_select_callback() {
+                    return EventResult::Callback(cb);
+                }
+
+                return EventResult::Ignore;
             }
 
             MouseEventKind::ScrollDown => {
@@ -358,7 +367,11 @@ impl<'a> WidgetTrait for List<'a> {
             }
 
             KeyCode::Enter => {
-                return EventResult::Callback(self.on_select_callback());
+                if let Some(cb) = self.on_select_callback() {
+                    return EventResult::Callback(cb);
+                }
+
+                return EventResult::Ignore;
             }
             KeyCode::Char(_) => {
                 return EventResult::Ignore;
@@ -395,7 +408,7 @@ impl<'a> List<'a> {
     fn on_select_callback(&self) -> Option<Callback> {
         self.on_select.clone().and_then(|cb| {
             self.selected_item()
-                .map(|v| Callback::from_fn(move |w| cb(w, &v)))
+                .map(|v| Callback::new(move |w| cb(w, &v)))
         })
     }
 

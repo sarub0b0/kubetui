@@ -13,12 +13,19 @@ use std::{collections::BTreeSet, rc::Rc};
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 
 use crate::{
-    event::UserEvent,
+    define_callback,
+    message::UserEvent,
     ui::{
-        event::{Callback, EventResult, InnerCallback},
+        event::{Callback, EventResult},
         util::RectContainsPoint,
-        widget::{input::InputForm, *},
-        Window,
+        widget::{
+            input::InputForm,
+            list::{
+                OnSelectCallback as OnSelectCallbackForList,
+                RenderBlockInjection as RenderBlockInjectionForList,
+            },
+            *,
+        },
     },
 };
 
@@ -118,8 +125,7 @@ const LAYOUT_INDEX_FOR_INPUT_FORM: usize = 0;
 const LAYOUT_INDEX_FOR_STATUS: usize = 1;
 const LAYOUT_INDEX_FOR_SELECT_FORM: usize = 2;
 
-type RenderBlockInjection = Rc<dyn Fn(&SingleSelect, bool) -> Block<'static>>;
-type RenderBlockInjectionForList = Box<dyn Fn(&List, bool) -> Block<'static>>;
+define_callback!(pub RenderBlockInjection, Fn(&SingleSelect, bool) -> Block<'static>);
 
 #[derive(Derivative)]
 #[derivative(Debug)]
@@ -133,7 +139,7 @@ pub struct SingleSelect<'a> {
     chunk: Rect,
     inner_chunks: Rc<[Rect]>,
     #[derivative(Debug = "ignore")]
-    callbacks: Vec<(UserEvent, InnerCallback)>,
+    callbacks: Vec<(UserEvent, Callback)>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
 }
@@ -155,6 +161,7 @@ impl Default for SingleSelect<'_> {
     }
 }
 
+#[allow(dead_code)]
 impl<'a> SingleSelect<'a> {
     pub fn builder() -> SingleSelectBuilder {
         SingleSelectBuilder::default()
@@ -219,10 +226,10 @@ impl<'a> SingleSelect<'a> {
             .update_filter(self.input_widget.content());
     }
 
-    pub fn match_callback(&self, ev: UserEvent) -> Option<InnerCallback> {
+    pub fn match_callback(&self, ev: UserEvent) -> Option<&Callback> {
         self.callbacks
             .iter()
-            .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb.clone()) } else { None })
+            .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb) } else { None })
     }
 }
 
@@ -298,7 +305,7 @@ impl WidgetTrait for SingleSelect<'_> {
 
         if let EventResult::Ignore = event_result {
             if let Some(cb) = self.match_callback(UserEvent::Key(ev)) {
-                return EventResult::Callback(Some(Callback::from(cb)));
+                return EventResult::Callback(cb.clone());
             }
         }
 
@@ -349,23 +356,22 @@ impl RenderTrait for SingleSelect<'_> {
     }
 }
 
-type OnSelectCallback = Box<dyn Fn(&mut Window, &LiteralItem) -> EventResult>;
-
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
 pub struct SingleSelectBuilder {
     id: String,
     widget_config: WidgetConfig,
     #[derivative(Debug = "ignore")]
-    actions: Vec<(UserEvent, InnerCallback)>,
+    actions: Vec<(UserEvent, Callback)>,
     #[derivative(Debug = "ignore")]
-    on_select: Option<OnSelectCallback>,
+    on_select: Option<OnSelectCallbackForList>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
     #[derivative(Debug = "ignore")]
     block_injection_for_list: Option<RenderBlockInjectionForList>,
 }
 
+#[allow(dead_code)]
 impl SingleSelectBuilder {
     pub fn id(mut self, id: impl Into<String>) -> Self {
         self.id = id.into();
@@ -377,35 +383,36 @@ impl SingleSelectBuilder {
         self
     }
 
-    pub fn action<F, E: Into<UserEvent>>(mut self, ev: E, cb: F) -> Self
+    pub fn action<F, E>(mut self, ev: E, cb: F) -> Self
     where
-        F: Fn(&mut Window) -> EventResult + 'static,
+        E: Into<UserEvent>,
+        F: Into<Callback>,
     {
-        self.actions.push((ev.into(), Rc::new(cb)));
+        self.actions.push((ev.into(), cb.into()));
         self
     }
 
     pub fn on_select<F>(mut self, f: F) -> Self
     where
-        F: Fn(&mut Window, &LiteralItem) -> EventResult + 'static,
+        F: Into<OnSelectCallbackForList>,
     {
-        self.on_select = Some(Box::new(f));
+        self.on_select = Some(f.into());
         self
     }
 
     pub fn block_injection<F>(mut self, block_injection: F) -> Self
     where
-        F: Fn(&SingleSelect, bool) -> Block<'static> + 'static,
+        F: Into<RenderBlockInjection>,
     {
-        self.block_injection = Some(Rc::new(block_injection));
+        self.block_injection = Some(block_injection.into());
         self
     }
 
     pub fn block_injection_for_list<F>(mut self, block_injection: F) -> Self
     where
-        F: Fn(&List, bool) -> Block<'static> + 'static,
+        F: Into<RenderBlockInjectionForList>,
     {
-        self.block_injection_for_list = Some(Box::new(block_injection));
+        self.block_injection_for_list = Some(block_injection.into());
         self
     }
 

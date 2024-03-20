@@ -212,6 +212,7 @@ pub enum Widget<'a> {
     Input(InputForm),
 }
 
+#[allow(dead_code)]
 impl<'a> Widget<'a> {
     // as_*
     pub fn as_list(&self) -> &List<'a> {

@@ -1,10 +1,9 @@
 use crate::{
-    event::UserEvent,
+    message::UserEvent,
     ui::{
-        event::{Callback, EventResult, InnerCallback},
+        event::{Callback, CallbackFn, EventResult},
         key_event_to_code,
         widget::*,
-        Window,
     },
 };
 
@@ -18,10 +17,7 @@ use ratatui::{
     Frame,
 };
 
-use std::{
-    rc::Rc,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 #[derive(Debug)]
 enum Mode {
@@ -187,7 +183,7 @@ pub struct InputFormBuilder {
     id: String,
     widget_config: WidgetConfig,
     #[derivative(Debug = "ignore")]
-    actions: Vec<(UserEvent, InnerCallback)>,
+    actions: Vec<(UserEvent, Callback)>,
 }
 
 impl InputFormBuilder {
@@ -204,9 +200,9 @@ impl InputFormBuilder {
     pub fn actions<E, F>(mut self, ev: E, cb: F) -> Self
     where
         E: Into<UserEvent>,
-        F: Fn(&mut Window) -> EventResult + 'static,
+        F: CallbackFn,
     {
-        self.actions.push((ev.into(), Rc::new(cb)));
+        self.actions.push((ev.into(), Callback::new(cb)));
         self
     }
 
@@ -229,7 +225,7 @@ pub struct InputForm {
     widget_config: WidgetConfig,
     scroll: usize,
     #[derivative(Debug = "ignore")]
-    actions: Vec<(UserEvent, InnerCallback)>,
+    actions: Vec<(UserEvent, Callback)>,
 }
 
 impl InputForm {
@@ -390,7 +386,7 @@ impl InputForm {
             }
             _ => {
                 if let Some(cb) = self.match_action(UserEvent::Key(key)) {
-                    return EventResult::Callback(Some(Callback::from(cb)));
+                    return EventResult::Callback(cb.clone());
                 }
                 return EventResult::Ignore;
             }
@@ -399,10 +395,10 @@ impl InputForm {
         EventResult::Nop
     }
 
-    fn match_action(&self, ev: UserEvent) -> Option<InnerCallback> {
+    fn match_action(&self, ev: UserEvent) -> Option<&Callback> {
         self.actions
             .iter()
-            .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb.clone()) } else { None })
+            .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb) } else { None })
     }
 }
 

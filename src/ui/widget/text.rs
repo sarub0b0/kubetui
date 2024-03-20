@@ -16,14 +16,13 @@ use ratatui::{
 };
 
 use crate::{
-    clipboard_wrapper::Clipboard,
-    event::UserEvent,
-    logger,
+    clipboard::Clipboard,
+    define_callback, logger,
+    message::UserEvent,
     ui::{
-        event::{Callback, EventResult, InnerCallback},
+        event::{Callback, EventResult},
         key_event_to_code,
         util::{MousePosition, RectContainsPoint},
-        Window,
     },
 };
 
@@ -39,7 +38,7 @@ use super::{
     SelectedItem, WidgetTrait,
 };
 
-type RenderBlockInjection = Rc<dyn Fn(&Text, bool, bool) -> Block<'static>>;
+define_callback!(pub RenderBlockInjection, Fn(&Text, bool, bool) -> Block<'static> );
 
 mod highlight_content {
 
@@ -169,7 +168,7 @@ pub struct TextBuilder {
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
     #[derivative(Debug = "ignore")]
-    actions: Vec<(UserEvent, InnerCallback)>,
+    actions: Vec<(UserEvent, Callback)>,
     #[derivative(Debug = "ignore")]
     clipboard: Option<Rc<RefCell<Clipboard>>>,
 }
@@ -204,19 +203,20 @@ impl TextBuilder {
         self
     }
 
-    pub fn action<F, E: Into<UserEvent>>(mut self, ev: E, cb: F) -> Self
+    pub fn action<F, E>(mut self, ev: E, cb: F) -> Self
     where
-        F: Fn(&mut Window) -> EventResult + 'static,
+        E: Into<UserEvent>,
+        F: Into<Callback>,
     {
-        self.actions.push((ev.into(), Rc::new(cb)));
+        self.actions.push((ev.into(), cb.into()));
         self
     }
 
     pub fn block_injection<F>(mut self, block_injection: F) -> Self
     where
-        F: Fn(&Text, bool, bool) -> Block<'static> + 'static,
+        F: Into<RenderBlockInjection>,
     {
-        self.block_injection = Some(Rc::new(block_injection));
+        self.block_injection = Some(block_injection.into());
         self
     }
 
@@ -257,7 +257,7 @@ pub struct Text {
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
     #[derivative(Debug = "ignore")]
-    actions: Vec<(UserEvent, InnerCallback)>,
+    actions: Vec<(UserEvent, Callback)>,
     #[derivative(Debug = "ignore")]
     clipboard: Option<Rc<RefCell<Clipboard>>>,
 }
@@ -437,10 +437,10 @@ impl Text {
         (self.scroll.y, self.scroll_y_last_index())
     }
 
-    fn match_action(&self, ev: UserEvent) -> Option<InnerCallback> {
+    fn match_action(&self, ev: UserEvent) -> Option<&Callback> {
         self.actions
             .iter()
-            .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb.clone()) } else { None })
+            .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb) } else { None })
     }
 }
 
@@ -719,7 +719,7 @@ impl WidgetTrait for Text {
 
                 _ => {
                     if let Some(cb) = self.match_action(UserEvent::Key(ev)) {
-                        return EventResult::Callback(Some(Callback::from(cb)));
+                        return EventResult::Callback(cb.clone());
                     }
                     return EventResult::Ignore;
                 }

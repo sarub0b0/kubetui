@@ -1,8 +1,17 @@
-use crate::ui::{
-    event::EventResult,
-    util::{key_event_to_code, MousePosition, RectContainsPoint},
-    widget::{input::InputForm, *},
-    Window,
+use crate::{
+    define_callback,
+    ui::{
+        event::EventResult,
+        util::{key_event_to_code, MousePosition, RectContainsPoint},
+        widget::{
+            input::InputForm,
+            list::{
+                OnSelectCallback as OnSelectCallbackForList,
+                RenderBlockInjection as RenderBlockInjectionForList,
+            },
+            *,
+        },
+    },
 };
 
 use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
@@ -517,9 +526,7 @@ impl<'a> SelectForm<'a> {
     }
 }
 
-type RenderBlockInjection = Rc<dyn Fn(&MultipleSelect, bool) -> Block<'static>>;
-type RenderBlockInjectionForList = Box<dyn Fn(&List, bool) -> Block<'static>>;
-type OnSelectCallback = Box<dyn Fn(&mut Window, &LiteralItem) -> EventResult>;
+define_callback!(pub RenderBlockInjection, Fn(&MultipleSelect, bool) -> Block<'static>);
 
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
@@ -527,9 +534,9 @@ pub struct MultipleSelectBuilder {
     id: String,
     widget_config: WidgetConfig,
     #[derivative(Debug = "ignore")]
-    on_select_list: Option<OnSelectCallback>,
+    on_select_list: Option<OnSelectCallbackForList>,
     #[derivative(Debug = "ignore")]
-    on_select_selected: Option<OnSelectCallback>,
+    on_select_selected: Option<OnSelectCallbackForList>,
     #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
     #[derivative(Debug = "ignore")]
@@ -538,6 +545,7 @@ pub struct MultipleSelectBuilder {
     block_injection_for_selected: Option<RenderBlockInjectionForList>,
 }
 
+#[allow(dead_code)]
 impl MultipleSelectBuilder {
     pub fn id(mut self, id: impl Into<String>) -> Self {
         self.id = id.into();
@@ -551,35 +559,34 @@ impl MultipleSelectBuilder {
 
     pub fn on_select<F>(mut self, cb: F) -> Self
     where
-        F: Fn(&mut Window, &LiteralItem) -> EventResult + 'static,
-        F: Clone,
+        F: Into<OnSelectCallbackForList> + Clone,
     {
-        self.on_select_list = Some(Box::new(cb.clone()));
-        self.on_select_selected = Some(Box::new(cb));
+        self.on_select_list = Some(cb.clone().into());
+        self.on_select_selected = Some(cb.into());
         self
     }
 
     pub fn block_injection<F>(mut self, block_injection: F) -> Self
     where
-        F: Fn(&MultipleSelect, bool) -> Block<'static> + 'static,
+        F: Into<RenderBlockInjection>,
     {
-        self.block_injection = Some(Rc::new(block_injection));
+        self.block_injection = Some(block_injection.into());
         self
     }
 
     pub fn block_injection_for_list<F>(mut self, block_injection: F) -> Self
     where
-        F: Fn(&List, bool) -> Block<'static> + 'static,
+        F: Into<RenderBlockInjectionForList>,
     {
-        self.block_injection_for_list = Some(Box::new(block_injection));
+        self.block_injection_for_list = Some(block_injection.into());
         self
     }
 
     pub fn block_injection_for_selected<F>(mut self, block_injection: F) -> Self
     where
-        F: Fn(&List, bool) -> Block<'static> + 'static,
+        F: Into<RenderBlockInjectionForList>,
     {
-        self.block_injection_for_selected = Some(Box::new(block_injection));
+        self.block_injection_for_selected = Some(block_injection.into());
         self
     }
 

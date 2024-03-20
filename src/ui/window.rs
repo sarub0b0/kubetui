@@ -12,20 +12,17 @@ use ratatui::{
 
 use unicode_width::UnicodeWidthStr;
 
-use crate::{
-    event::{kubernetes::Kube, UserEvent},
-    logger,
-};
+use crate::{define_callback, logger, message::UserEvent, workers::kube::message::Kube};
 
 use super::{
-    event::{EventResult, InnerCallback},
+    event::{Callback, EventResult},
     popup::Popup,
     util::{key_event_to_code, MousePosition, RectContainsPoint},
     widget::{Widget, WidgetTrait},
     Tab,
 };
 
-type HeaderCallback = Rc<dyn Fn() -> Paragraph<'static>>;
+define_callback!(pub HeaderCallback, Fn() -> Paragraph<'static>);
 
 #[derive(Default)]
 pub struct Window<'a> {
@@ -34,7 +31,7 @@ pub struct Window<'a> {
     mouse_over_tab_index: Option<usize>,
     layout: Layout,
     chunk: Rect,
-    callbacks: Vec<(UserEvent, InnerCallback)>,
+    callbacks: Vec<(UserEvent, Callback)>,
     popups: Vec<Popup<'a>>,
     open_popup_id: Option<String>,
     header: Option<Header<'a>>,
@@ -66,6 +63,7 @@ pub struct Header<'a> {
     content: HeaderContent<'a>,
 }
 
+#[allow(dead_code)]
 impl<'a> Header<'a> {
     pub fn new_static(height: u16, content: Vec<Line<'a>>) -> Self {
         debug_assert!(0 < height, "Header height must be greater than 0");
@@ -78,13 +76,13 @@ impl<'a> Header<'a> {
 
     pub fn new_callback<F>(height: u16, callback: F) -> Self
     where
-        F: Fn() -> Paragraph<'static> + 'static,
+        F: Into<HeaderCallback>,
     {
         debug_assert!(0 < height, "Header height must be greater than 0");
 
         Self {
             height,
-            content: HeaderContent::Callback(Rc::new(callback)),
+            content: HeaderContent::Callback(callback.into()),
         }
     }
 
@@ -96,7 +94,7 @@ impl<'a> Header<'a> {
 #[derive(Default)]
 pub struct WindowBuilder<'a> {
     tabs: Vec<Tab<'a>>,
-    callbacks: Vec<(UserEvent, InnerCallback)>,
+    callbacks: Vec<(UserEvent, Callback)>,
     popups: Vec<Popup<'a>>,
     header: Option<Header<'a>>,
 }
@@ -107,11 +105,12 @@ impl<'a> WindowBuilder<'a> {
         self
     }
 
-    pub fn action<F, E: Into<UserEvent>>(mut self, ev: E, cb: F) -> Self
+    pub fn action<F, E>(mut self, ev: E, cb: F) -> Self
     where
-        F: Fn(&mut Window) -> EventResult + 'static,
+        E: Into<UserEvent>,
+        F: Into<Callback>,
     {
-        self.callbacks.push((ev.into(), Rc::new(cb)));
+        self.callbacks.push((ev.into(), cb.into()));
         self
     }
 
@@ -172,6 +171,7 @@ impl<'a> WindowBuilder<'a> {
 }
 
 // Window
+#[allow(dead_code)]
 impl<'a> Window<'a> {
     pub fn builder() -> WindowBuilder<'a> {
         WindowBuilder::default()
@@ -222,7 +222,7 @@ impl<'a> Window<'a> {
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
     }
 
-    pub fn match_callback(&self, ev: UserEvent) -> Option<InnerCallback> {
+    pub fn match_callback(&self, ev: UserEvent) -> Option<Callback> {
         self.callbacks.iter().find_map(|(cb_ev, cb)| {
             logger!(debug, "match_callback {:?} <=> {:?}", ev, cb_ev);
 
@@ -257,6 +257,7 @@ impl<'a> Window<'a> {
 }
 
 // Tab
+#[allow(dead_code)]
 impl<'a> Window<'a> {
     pub fn active_tab_id(&self) -> &str {
         self.tabs[self.active_tab_index].id()
@@ -304,6 +305,7 @@ impl<'a> Window<'a> {
 }
 
 // Pane
+#[allow(dead_code)]
 impl<'a> Window<'a> {
     pub fn find_widget(&self, id: &str) -> &Widget<'a> {
         if let Some(w) = self.popups.iter().find(|w| w.id() == id) {
@@ -418,7 +420,7 @@ enum AreaKind {
     OutSide,
 }
 
-pub enum WindowEvent {
+pub enum WindowAction {
     CloseWindow,
     Continue,
     UpdateContents(Kube),
@@ -495,7 +497,9 @@ impl Window<'_> {
             if let Some(popup) = self.popups.iter_mut().find(|w| w.id() == id) {
                 if popup.chunk().contains_point(ev.position()) {
                     return popup.on_mouse_event(ev);
-                } else if let MouseEventKind::Down(MouseButton::Left) = ev.kind {
+                }
+
+                if let MouseEventKind::Down(MouseButton::Left) = ev.kind {
                     self.close_popup();
                     return EventResult::Nop;
                 }
