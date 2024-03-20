@@ -54,20 +54,18 @@ impl PodTab {
 }
 
 fn layout(split_direction: Direction) -> NestedWidgetLayout {
-    let pod_layout = {
-        let constraint = match split_direction {
-            Direction::Horizontal => Constraint::Percentage(50),
-            Direction::Vertical => Constraint::Percentage(45), // log_query領域分小さくする
-        };
-
-        NestedLayoutElement(constraint, LayoutElement::WidgetIndex(0))
+    let (pod_constraint, log_constraint) = match split_direction {
+        Direction::Horizontal => (Constraint::Percentage(50), Constraint::Percentage(50)),
+        Direction::Vertical => (Constraint::Percentage(45), Constraint::Percentage(55)),
     };
+
+    let pod_layout = NestedLayoutElement(pod_constraint, LayoutElement::WidgetIndex(0));
 
     let log_query_layout =
         NestedLayoutElement(Constraint::Length(3), LayoutElement::WidgetIndex(1));
 
     let log_layout = NestedLayoutElement(
-        Constraint::Percentage(50),
+        log_constraint,
         LayoutElement::NestedElement(
             NestedWidgetLayout::default()
                 .direction(Direction::Vertical)
