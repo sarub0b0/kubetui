@@ -56,8 +56,10 @@ macro_rules! error_lines {
 /// 各ウィジェットのコールバックを実行する
 /// コールバックがコールバックを返す場合は再帰的に実行する
 fn exec_callback(cb: Callback, w: &mut Window) -> WindowAction {
-    if let EventResult::Callback(cb) = cb(w) {
-        return exec_callback(cb, w);
+    let mut result = cb(w);
+
+    while let EventResult::Callback(next_cb) = result {
+        result = next_cb(w);
     }
 
     WindowAction::Continue
