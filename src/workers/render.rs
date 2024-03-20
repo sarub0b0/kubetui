@@ -1,4 +1,5 @@
 mod action;
+mod window;
 
 use std::{
     cell::RefCell,
@@ -20,10 +21,12 @@ use crate::{
     message::Message,
     panic_set_hook,
     ui::WindowAction,
-    window::WindowInit,
 };
 
-use self::action::{update_contents, window_action};
+use self::{
+    action::{update_contents, window_action},
+    window::WindowInit,
+};
 
 pub struct Render {
     tx: Sender<Message>,

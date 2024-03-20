@@ -7,7 +7,6 @@ mod kube;
 mod logging;
 mod message;
 mod ui;
-mod window;
 mod workers;
 
 use std::panic;
