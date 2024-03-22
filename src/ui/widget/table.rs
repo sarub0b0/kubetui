@@ -5,8 +5,10 @@ use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKin
 use derivative::*;
 use ratatui::{
     layout::{Constraint, Rect},
-    style::{Modifier, Style},
-    widgets::{Scrollbar, ScrollbarOrientation, ScrollbarState, Table as TuiTable, TableState},
+    style::{Modifier, Style, Stylize},
+    widgets::{
+        Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Table as TuiTable, TableState,
+    },
     Frame,
 };
 use std::rc::Rc;
@@ -668,6 +670,12 @@ impl RenderTrait for Table<'_> {
             self.can_activate() && !self.mode.is_filter_input() && is_active,
             is_mouse_over,
         );
+
+        if self.items.is_empty() {
+            let paragraph = Paragraph::new(" No data".dark_gray()).block(block);
+            f.render_widget(paragraph, self.chunk());
+            return;
+        }
 
         let constraints = constraints(self.items.digits());
 
