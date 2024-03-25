@@ -1,13 +1,16 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use http::header::{HeaderValue, ACCEPT};
+use k8s_openapi::NamespaceResourceScope;
 use kube::{
     api::{GetParams, Request},
-    Client,
+    Api, Client, Resource,
 };
 use serde::de::DeserializeOwned;
 
 use crate::logger;
+
+use super::apis::v1_table::Table;
 
 const TABLE_REQUEST_HEADER: &str = "application/json;as=Table;v=v1;g=meta.k8s.io,application/json;as=Table;v=v1beta1;g=meta.k8s.io,application/json";
 
@@ -73,6 +76,11 @@ impl KubeClient {
 #[async_trait]
 pub trait KubeClientRequest: Send + Sync {
     async fn table_request<T: DeserializeOwned + 'static>(&self, path: &str) -> Result<T>;
+
+    async fn table_namespaced<K>(&self, namespace: &str) -> Result<Table>
+    where
+        K: Resource<DynamicType = (), Scope = NamespaceResourceScope> + 'static;
+
     async fn request<T: DeserializeOwned + 'static>(&self, path: &str) -> Result<T>;
 
     async fn request_text(&self, path: &str) -> Result<String>;
@@ -82,6 +90,16 @@ pub trait KubeClientRequest: Send + Sync {
 impl KubeClientRequest for KubeClient {
     async fn table_request<T: DeserializeOwned + 'static>(&self, path: &str) -> Result<T> {
         self.inner_request(path, TABLE_REQUEST_HEADER).await
+    }
+
+    async fn table_namespaced<K>(&self, namespace: &str) -> Result<Table>
+    where
+        K: Resource<DynamicType = (), Scope = NamespaceResourceScope> + 'static,
+    {
+        let api: Api<K> = Api::namespaced(self.client.clone(), namespace);
+
+        self.inner_request(api.resource_url(), TABLE_REQUEST_HEADER)
+            .await
     }
 
     async fn request<T: DeserializeOwned + 'static>(&self, path: &str) -> Result<T> {
@@ -107,7 +125,9 @@ impl KubeClientRequest for KubeClient {
 
 #[cfg(test)]
 pub mod mock {
-    use super::{DeserializeOwned, KubeClientRequest, Result};
+    use super::{DeserializeOwned, KubeClientRequest, Result, Table};
+    use k8s_openapi::NamespaceResourceScope;
+    use kube::Resource;
     use mockall::mock;
 
     mock! {
@@ -119,6 +139,7 @@ pub mod mock {
         #[async_trait::async_trait]
         impl KubeClientRequest for TestKubeClient {
             async fn table_request<T: DeserializeOwned + 'static>(&self, path: &str) -> Result<T>;
+            async fn table_namespaced<K: Resource<DynamicType=(), Scope = NamespaceResourceScope> + 'static>(&self, ns: &str) -> Result<Table>;
             async fn request<T: DeserializeOwned + 'static>(&self, path: &str) -> Result<T>;
             async fn request_text(&self, path: &str) -> Result<String>;
         }

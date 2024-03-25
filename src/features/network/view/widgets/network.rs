@@ -1,4 +1,11 @@
 use crossbeam::channel::Sender;
+use k8s_openapi::{
+    api::{
+        core::v1::{Pod, Service},
+        networking::v1::{Ingress, NetworkPolicy},
+    },
+    Resource,
+};
 
 use crate::{
     features::{
@@ -73,19 +80,19 @@ fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &TableItem) -> EventRe
         };
 
         match kind.as_str() {
-            "Pod" => {
+            Pod::KIND => {
                 tx.send(NetworkRequest::Pod(request_data).into())
                     .expect("Failed to send NetworkRequest::Pod");
             }
-            "Service" => {
+            Service::KIND => {
                 tx.send(NetworkRequest::Service(request_data).into())
                     .expect("Failed to send NetworkRequest::Service");
             }
-            "Ingress" => {
+            Ingress::KIND => {
                 tx.send(NetworkRequest::Ingress(request_data).into())
                     .expect("Failed to send NetworkRequest::Ingress");
             }
-            "NetworkPolicy" => {
+            NetworkPolicy::KIND => {
                 tx.send(NetworkRequest::NetworkPolicy(request_data).into())
                     .expect("Failed to send NetworkRequest::NetworkPolicy");
             }
