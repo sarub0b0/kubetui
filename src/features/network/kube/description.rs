@@ -1,3 +1,4 @@
+mod gateway;
 mod ingress;
 mod network_policy;
 mod pod;
@@ -16,8 +17,9 @@ use crate::{
 };
 
 use self::{
-    ingress::IngressDescriptionWorker, network_policy::NetworkPolicyDescriptionWorker,
-    pod::PodDescriptionWorker, service::ServiceDescriptionWorker,
+    gateway::GatewayDescriptionWorker, ingress::IngressDescriptionWorker,
+    network_policy::NetworkPolicyDescriptionWorker, pod::PodDescriptionWorker,
+    service::ServiceDescriptionWorker,
 };
 
 use anyhow::Result;
@@ -83,6 +85,10 @@ where
             }
             NetworkRequest::NetworkPolicy(_) => {
                 self.fetch_description::<NetworkPolicyDescriptionWorker<C>>()
+                    .await
+            }
+            NetworkRequest::Gateway(_) => {
+                self.fetch_description::<GatewayDescriptionWorker<C>>()
                     .await
             }
         };

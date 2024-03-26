@@ -84,6 +84,8 @@ pub trait KubeClientRequest: Send + Sync {
     async fn request<T: DeserializeOwned + 'static>(&self, path: &str) -> Result<T>;
 
     async fn request_text(&self, path: &str) -> Result<String>;
+
+    fn client(&self) -> &Client;
 }
 
 #[async_trait]
@@ -121,6 +123,10 @@ impl KubeClientRequest for KubeClient {
 
         ret.map_err(Into::into)
     }
+
+    fn client(&self) -> &Client {
+        &self.client
+    }
 }
 
 #[cfg(test)]
@@ -142,6 +148,7 @@ pub mod mock {
             async fn table_namespaced<K: Resource<DynamicType=(), Scope = NamespaceResourceScope> + 'static>(&self, ns: &str) -> Result<Table>;
             async fn request<T: DeserializeOwned + 'static>(&self, path: &str) -> Result<T>;
             async fn request_text(&self, path: &str) -> Result<String>;
+            fn client(&self) -> &kube::Client;
         }
     }
 

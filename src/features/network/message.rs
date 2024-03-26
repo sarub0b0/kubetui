@@ -14,6 +14,7 @@ pub enum NetworkRequest {
     Service(RequestData),
     Ingress(RequestData),
     NetworkPolicy(RequestData),
+    Gateway(RequestData),
 }
 
 #[derive(Debug)]
@@ -35,6 +36,7 @@ impl NetworkRequest {
             Self::Service(data) => data,
             Self::Ingress(data) => data,
             Self::NetworkPolicy(data) => data,
+            Self::Gateway(data) => data,
         }
     }
 }

@@ -14,7 +14,7 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
     features::get::message::{GetRequest, GetResponse},
-    kube::KubeClient,
+    kube::{apis::networking::gateway::v1::Gateway, KubeClient},
     logger,
     message::Message,
     workers::kube::AbortWorker,
@@ -28,6 +28,7 @@ pub enum GetYamlKind {
     Ingress,
     Service,
     NetworkPolicy,
+    Gateway,
 }
 
 impl std::fmt::Display for GetYamlKind {
@@ -39,6 +40,7 @@ impl std::fmt::Display for GetYamlKind {
             GetYamlKind::Ingress => write!(f, "ingresses"),
             GetYamlKind::Service => write!(f, "services"),
             GetYamlKind::NetworkPolicy => write!(f, "networkpolicies"),
+            GetYamlKind::Gateway => write!(f, "gateways"),
         }
     }
 }
@@ -100,6 +102,9 @@ impl AbortWorker for GetYamlWorker {
                 }
                 GetYamlKind::NetworkPolicy => {
                     fetch_resource_yaml::<NetworkPolicy>(&self.client, name, namespace).await
+                }
+                GetYamlKind::Gateway => {
+                    fetch_resource_yaml::<Gateway>(&self.client, name, namespace).await
                 }
             };
 

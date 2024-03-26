@@ -12,6 +12,7 @@ use crate::{
         component_id::{NETWORK_DESCRIPTION_WIDGET_ID, NETWORK_WIDGET_ID},
         network::message::{NetworkRequest, RequestData},
     },
+    kube::apis::networking::gateway::v1::Gateway,
     message::Message,
     ui::{
         event::EventResult,
@@ -96,7 +97,13 @@ fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &TableItem) -> EventRe
                 tx.send(NetworkRequest::NetworkPolicy(request_data).into())
                     .expect("Failed to send NetworkRequest::NetworkPolicy");
             }
-            _ => {}
+            Gateway::KIND => {
+                tx.send(NetworkRequest::Gateway(request_data).into())
+                    .expect("Failed to send NetworkRequest::Gateway");
+            }
+            _ => {
+                unreachable!()
+            }
         }
 
         EventResult::WindowAction(WindowAction::Continue)

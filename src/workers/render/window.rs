@@ -249,6 +249,7 @@ fn open_yaml(tx: Sender<Message>) -> impl CallbackFn {
                 Some("Service") => GetYamlKind::Service,
                 Some("Pod") => GetYamlKind::Pod,
                 Some("NetworkPolicy") => GetYamlKind::NetworkPolicy,
+                Some("Gateway") => GetYamlKind::Gateway,
                 _ => {
                     return EventResult::Ignore;
                 }
