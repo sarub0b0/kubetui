@@ -7,7 +7,7 @@ use k8s_openapi::{
         core::v1::{ConfigMap, Pod, Secret, Service},
         networking::v1::{Ingress, NetworkPolicy},
     },
-    NamespaceResourceScope,
+    NamespaceResourceScope, Resource as _,
 };
 use kube::{Api, Resource};
 use serde::{de::DeserializeOwned, Serialize};
@@ -34,13 +34,13 @@ pub enum GetYamlKind {
 impl std::fmt::Display for GetYamlKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            GetYamlKind::Pod => write!(f, "pods"),
-            GetYamlKind::ConfigMap => write!(f, "configmaps"),
-            GetYamlKind::Secret => write!(f, "secrets"),
-            GetYamlKind::Ingress => write!(f, "ingresses"),
-            GetYamlKind::Service => write!(f, "services"),
-            GetYamlKind::NetworkPolicy => write!(f, "networkpolicies"),
-            GetYamlKind::Gateway => write!(f, "gateways"),
+            Self::Pod => write!(f, "{}", Pod::URL_PATH_SEGMENT),
+            Self::ConfigMap => write!(f, "{}", ConfigMap::URL_PATH_SEGMENT),
+            Self::Secret => write!(f, "{}", Secret::URL_PATH_SEGMENT),
+            Self::Ingress => write!(f, "{}", Ingress::URL_PATH_SEGMENT),
+            Self::Service => write!(f, "{}", Service::URL_PATH_SEGMENT),
+            Self::NetworkPolicy => write!(f, "{}", NetworkPolicy::URL_PATH_SEGMENT),
+            Self::Gateway => write!(f, "{}", Gateway::URL_PATH_SEGMENT),
         }
     }
 }

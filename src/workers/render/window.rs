@@ -2,6 +2,13 @@ use std::{cell::RefCell, rc::Rc};
 
 use crossbeam::channel::Sender;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use k8s_openapi::{
+    api::{
+        core::v1::{ConfigMap, Pod, Secret, Service},
+        networking::v1::{Ingress, NetworkPolicy},
+    },
+    Resource as _,
+};
 use ratatui::{layout::Direction, text::Line, widgets::Paragraph};
 
 use crate::{
@@ -28,7 +35,10 @@ use crate::{
         pod::view::PodTab,
         yaml::view::YamlTab,
     },
-    kube::context::{Context, Namespace},
+    kube::{
+        apis::networking::gateway::v1::Gateway,
+        context::{Context, Namespace},
+    },
     message::{Message, UserEvent},
     ui::{
         event::{CallbackFn, EventResult},
@@ -235,26 +245,17 @@ fn open_yaml(tx: Sender<Message>) -> impl CallbackFn {
             return EventResult::Ignore;
         };
 
-        let kind = match widget.id() {
-            POD_WIDGET_ID => GetYamlKind::Pod,
-            CONFIG_WIDGET_ID => match metadata.get("kind").map(|v| v.as_str()) {
-                Some("ConfigMap") => GetYamlKind::ConfigMap,
-                Some("Secret") => GetYamlKind::Secret,
-                _ => {
-                    return EventResult::Ignore;
-                }
-            },
-            NETWORK_WIDGET_ID => match metadata.get("kind").map(|v| v.as_str()) {
-                Some("Ingress") => GetYamlKind::Ingress,
-                Some("Service") => GetYamlKind::Service,
-                Some("Pod") => GetYamlKind::Pod,
-                Some("NetworkPolicy") => GetYamlKind::NetworkPolicy,
-                Some("Gateway") => GetYamlKind::Gateway,
-                _ => {
-                    return EventResult::Ignore;
-                }
-            },
-            _ => return EventResult::Ignore,
+        let kind = match metadata.get("kind").map(|v| v.as_str()) {
+            Some(Pod::KIND) => GetYamlKind::Pod,
+            Some(ConfigMap::KIND) => GetYamlKind::ConfigMap,
+            Some(Secret::KIND) => GetYamlKind::Secret,
+            Some(Ingress::KIND) => GetYamlKind::Ingress,
+            Some(Service::KIND) => GetYamlKind::Service,
+            Some(NetworkPolicy::KIND) => GetYamlKind::NetworkPolicy,
+            Some(Gateway::KIND) => GetYamlKind::Gateway,
+            _ => {
+                unreachable!();
+            }
         };
 
         tx.send(
