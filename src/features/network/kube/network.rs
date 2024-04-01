@@ -15,7 +15,10 @@ use strum::{EnumIter, IntoEnumIterator};
 use crate::{
     features::network::message::NetworkResponse,
     kube::{
-        apis::{networking::gateway::v1::Gateway, v1_table::Table},
+        apis::{
+            networking::gateway::v1::{Gateway, HTTPRoute},
+            v1_table::Table,
+        },
         table::{insert_ns, KubeTable, KubeTableRow},
         KubeClient, KubeClientRequest,
     },
@@ -106,6 +109,7 @@ enum TargetResource {
     Pod,
     NetworkPolicy,
     Gateway,
+    HTTPRoute,
 }
 
 impl TargetResource {
@@ -116,6 +120,7 @@ impl TargetResource {
             Self::Pod => Pod::KIND,
             Self::NetworkPolicy => NetworkPolicy::KIND,
             Self::Gateway => Gateway::KIND,
+            Self::HTTPRoute => HTTPRoute::KIND,
         }
     }
 
@@ -126,6 +131,7 @@ impl TargetResource {
             Self::Pod => client.table_namespaced::<Pod>(ns).await,
             Self::NetworkPolicy => client.table_namespaced::<NetworkPolicy>(ns).await,
             Self::Gateway => client.table_namespaced::<Gateway>(ns).await,
+            Self::HTTPRoute => client.table_namespaced::<HTTPRoute>(ns).await,
         }
     }
 }

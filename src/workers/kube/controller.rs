@@ -499,6 +499,7 @@ impl Worker for EventController {
                                 tx,
                                 kube_client.clone(),
                                 req,
+                                shared_api_resources.clone(),
                             )
                             .spawn(),
                         );

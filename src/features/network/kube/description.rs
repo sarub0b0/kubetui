@@ -1,4 +1,5 @@
 mod gateway;
+mod http_route;
 mod ingress;
 mod network_policy;
 mod pod;
@@ -10,16 +11,19 @@ mod related_resources;
 use std::sync::{atomic::AtomicBool, Arc};
 
 use crate::{
-    features::network::message::{NetworkRequest, NetworkResponse, RequestData},
+    features::{
+        api_resources::kube::SharedApiResources,
+        network::message::{NetworkRequest, NetworkResponse, RequestData},
+    },
     kube::KubeClientRequest,
     message::Message,
     workers::kube::AbortWorker,
 };
 
 use self::{
-    gateway::GatewayDescriptionWorker, ingress::IngressDescriptionWorker,
-    network_policy::NetworkPolicyDescriptionWorker, pod::PodDescriptionWorker,
-    service::ServiceDescriptionWorker,
+    gateway::GatewayDescriptionWorker, http_route::HTTPRouteDescriptionWorker,
+    ingress::IngressDescriptionWorker, network_policy::NetworkPolicyDescriptionWorker,
+    pod::PodDescriptionWorker, service::ServiceDescriptionWorker,
 };
 
 use anyhow::Result;
@@ -46,6 +50,7 @@ where
     tx: Sender<Message>,
     client: C,
     req: NetworkRequest,
+    api_resources: SharedApiResources,
 }
 
 impl<C> NetworkDescriptionWorker<C>
@@ -57,12 +62,14 @@ where
         tx: Sender<Message>,
         client: C,
         req: NetworkRequest,
+        api_resources: SharedApiResources,
     ) -> Self {
         Self {
             is_terminated,
             tx,
             client,
             req,
+            api_resources,
         }
     }
 }
@@ -89,6 +96,10 @@ where
             }
             NetworkRequest::Gateway(_) => {
                 self.fetch_description::<GatewayDescriptionWorker<C>>()
+                    .await
+            }
+            NetworkRequest::HTTPRoute(_) => {
+                self.fetch_description::<HTTPRouteDescriptionWorker<C>>()
                     .await
             }
         };
@@ -167,8 +178,10 @@ mod tests {
     mod run {
 
         use crate::{
-            features::network::message::NetworkMessage, kube::mock::MockTestKubeClient,
-            mock_expect, workers::kube::message::Kube,
+            features::{api_resources::kube::ApiResources, network::message::NetworkMessage},
+            kube::mock::MockTestKubeClient,
+            mock_expect,
+            workers::kube::message::Kube,
         };
 
         use super::*;
@@ -214,7 +227,13 @@ mod tests {
             };
             let req = NetworkRequest::Pod(req_data);
 
-            let worker = NetworkDescriptionWorker::new(is_terminated.clone(), tx, client, req);
+            let worker = NetworkDescriptionWorker::new(
+                is_terminated.clone(),
+                tx,
+                client,
+                req,
+                ApiResources::shared(),
+            );
 
             let handle = tokio::spawn(async move { worker.run().await });
 
@@ -256,7 +275,13 @@ mod tests {
             let req = NetworkRequest::Pod(req_data);
 
             let is_terminated = Arc::new(AtomicBool::new(false));
-            let worker = NetworkDescriptionWorker::new(is_terminated.clone(), tx, client, req);
+            let worker = NetworkDescriptionWorker::new(
+                is_terminated.clone(),
+                tx,
+                client,
+                req,
+                ApiResources::shared(),
+            );
 
             let handle = tokio::spawn(async move { worker.run().await });
 
@@ -295,8 +320,10 @@ mod tests {
         use pretty_assertions::assert_eq;
 
         use crate::{
-            features::network::message::NetworkMessage, kube::mock::MockTestKubeClient,
-            mock_expect, workers::kube::message::Kube,
+            features::{api_resources::kube::ApiResources, network::message::NetworkMessage},
+            kube::mock::MockTestKubeClient,
+            mock_expect,
+            workers::kube::message::Kube,
         };
 
         #[tokio::test(flavor = "multi_thread")]
@@ -338,7 +365,13 @@ mod tests {
             };
             let req = NetworkRequest::Pod(req_data);
 
-            let worker = NetworkDescriptionWorker::new(is_terminated.clone(), tx, client, req);
+            let worker = NetworkDescriptionWorker::new(
+                is_terminated.clone(),
+                tx,
+                client,
+                req,
+                ApiResources::shared(),
+            );
 
             let handle = tokio::spawn(async move {
                 worker
@@ -398,7 +431,13 @@ mod tests {
             let req = NetworkRequest::Pod(req_data);
 
             let is_terminated = Arc::new(AtomicBool::new(true));
-            let worker = NetworkDescriptionWorker::new(is_terminated, tx, client, req);
+            let worker = NetworkDescriptionWorker::new(
+                is_terminated,
+                tx,
+                client,
+                req,
+                ApiResources::shared(),
+            );
 
             let handle = tokio::spawn(async move {
                 worker
@@ -449,7 +488,13 @@ mod tests {
             let req = NetworkRequest::Pod(req_data);
 
             let is_terminated = Arc::new(AtomicBool::new(false));
-            let worker = NetworkDescriptionWorker::new(is_terminated.clone(), tx, client, req);
+            let worker = NetworkDescriptionWorker::new(
+                is_terminated.clone(),
+                tx,
+                client,
+                req,
+                ApiResources::shared(),
+            );
 
             let handle = tokio::spawn(async move {
                 worker

@@ -12,7 +12,7 @@ use crate::{
         component_id::{NETWORK_DESCRIPTION_WIDGET_ID, NETWORK_WIDGET_ID},
         network::message::{NetworkRequest, RequestData},
     },
-    kube::apis::networking::gateway::v1::Gateway,
+    kube::apis::networking::gateway::v1::{Gateway, HTTPRoute},
     message::Message,
     ui::{
         event::EventResult,
@@ -100,6 +100,10 @@ fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &TableItem) -> EventRe
             Gateway::KIND => {
                 tx.send(NetworkRequest::Gateway(request_data).into())
                     .expect("Failed to send NetworkRequest::Gateway");
+            }
+            HTTPRoute::KIND => {
+                tx.send(NetworkRequest::HTTPRoute(request_data).into())
+                    .expect("Failed to send NetworkRequest::HTTPRoute");
             }
             _ => {
                 unreachable!()

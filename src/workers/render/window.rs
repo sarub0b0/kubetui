@@ -36,7 +36,7 @@ use crate::{
         yaml::view::YamlTab,
     },
     kube::{
-        apis::networking::gateway::v1::Gateway,
+        apis::networking::gateway::v1::{Gateway, HTTPRoute},
         context::{Context, Namespace},
     },
     message::{Message, UserEvent},
@@ -253,6 +253,7 @@ fn open_yaml(tx: Sender<Message>) -> impl CallbackFn {
             Some(Service::KIND) => GetYamlKind::Service,
             Some(NetworkPolicy::KIND) => GetYamlKind::NetworkPolicy,
             Some(Gateway::KIND) => GetYamlKind::Gateway,
+            Some(HTTPRoute::KIND) => GetYamlKind::HTTPRoute,
             _ => {
                 unreachable!();
             }

@@ -38,6 +38,11 @@ impl ApiResources {
     pub fn to_vec(&self) -> Vec<ApiResource> {
         self.inner.clone().into_iter().collect()
     }
+
+    /// SharedApiResourcesを生成
+    pub fn shared() -> SharedApiResources {
+        Arc::new(RwLock::new(Default::default()))
+    }
 }
 
 impl Deref for ApiResources {
@@ -240,7 +245,7 @@ impl Worker for ApiPoller {
             shared_api_resources,
         } = self;
 
-        match fetch_api_resources(kube_client).await {
+        match fetch_api_resources(&kube_client).await {
             Ok(fetched) => {
                 let mut api_resources = shared_api_resources.write().await;
                 *api_resources = fetched;
@@ -264,7 +269,7 @@ impl Worker for ApiPoller {
             if tick_rate < last_tick.elapsed() {
                 last_tick = Instant::now();
 
-                match fetch_api_resources(kube_client).await {
+                match fetch_api_resources(&kube_client).await {
                     Ok(fetched) => {
                         let mut api_resources = shared_api_resources.write().await;
                         *api_resources = fetched;
@@ -293,7 +298,7 @@ impl Worker for ApiPoller {
             }
 
             let result = FetchTargetApiResources::new(
-                kube_client,
+                &kube_client,
                 &target_api_resources,
                 &target_namespaces,
             )
