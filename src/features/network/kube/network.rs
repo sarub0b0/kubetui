@@ -117,7 +117,7 @@ enum TargetResource {
 }
 
 impl TargetResource {
-    fn to_str(&self) -> &'static str {
+    fn as_str(&self) -> &'static str {
         match self {
             Self::Ingress => Ingress::KIND,
             Self::Service => Service::KIND,
@@ -167,7 +167,7 @@ impl TargetResource {
         .with_context(|| {
             format!(
                 "Failed to fetch table: kind={} ({}) namespace={}",
-                self.to_str(),
+                self.as_str(),
                 self.version(),
                 ns
             )
@@ -177,7 +177,7 @@ impl TargetResource {
 
 impl std::fmt::Display for TargetResource {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.to_str())
+        write!(f, "{}", self.as_str())
     }
 }
 
