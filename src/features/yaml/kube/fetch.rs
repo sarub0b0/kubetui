@@ -68,7 +68,8 @@ impl<'a, C: KubeClientRequest> FetchResourceList<'a, C> {
 
         let api = self
             .api_resources
-            .get(kind)
+            .iter()
+            .find(|api| *api == kind)
             .ok_or_else(|| anyhow!("Can't get {} from API resource", kind))?;
 
         let kind = &api.name();

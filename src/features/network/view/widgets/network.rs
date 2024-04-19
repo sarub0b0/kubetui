@@ -10,7 +10,7 @@ use k8s_openapi::{
 use crate::{
     features::{
         component_id::{NETWORK_DESCRIPTION_WIDGET_ID, NETWORK_WIDGET_ID},
-        network::message::{NetworkRequest, RequestData},
+        network::message::{NetworkRequest, NetworkRequestTargetParams},
     },
     kube::apis::networking::gateway::v1::{Gateway, HTTPRoute},
     message::Message,
@@ -71,13 +71,18 @@ fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &TableItem) -> EventRe
             return EventResult::Ignore;
         };
 
+        let Some(version) = metadata.get("version") else {
+            return EventResult::Ignore;
+        };
+
         *(w.find_widget_mut(NETWORK_DESCRIPTION_WIDGET_ID)
             .widget_config_mut()
             .append_title_mut()) = Some((format!(" : {}", name)).into());
 
-        let request_data = RequestData {
+        let request_data = NetworkRequestTargetParams {
             namespace: namespace.to_string(),
             name: name.to_string(),
+            version: version.to_string(),
         };
 
         match kind.as_str() {

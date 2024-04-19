@@ -1,9 +1,10 @@
 mod gateway;
-mod http_route;
+mod httproute;
 mod ingress;
 mod network_policy;
 mod pod;
 mod service;
+mod utils;
 
 #[allow(dead_code)]
 mod related_resources;
@@ -13,7 +14,7 @@ use std::sync::{atomic::AtomicBool, Arc};
 use crate::{
     features::{
         api_resources::kube::SharedApiResources,
-        network::message::{NetworkRequest, NetworkResponse, RequestData},
+        network::message::{NetworkRequest, NetworkRequestTargetParams, NetworkResponse},
     },
     kube::KubeClientRequest,
     message::Message,
@@ -21,7 +22,7 @@ use crate::{
 };
 
 use self::{
-    gateway::GatewayDescriptionWorker, http_route::HTTPRouteDescriptionWorker,
+    gateway::GatewayDescriptionWorker, httproute::HTTPRouteDescriptionWorker,
     ingress::IngressDescriptionWorker, network_policy::NetworkPolicyDescriptionWorker,
     pod::PodDescriptionWorker, service::ServiceDescriptionWorker,
 };
@@ -36,7 +37,12 @@ type FetchedData = Vec<String>;
 
 #[async_trait]
 trait Fetch<'a, C: KubeClientRequest> {
-    fn new(client: &'a C, namespace: String, name: String) -> Self;
+    // TODO: 将来このメソッドはtraitから削除する
+    fn new(
+        client: &'a C,
+        params: NetworkRequestTargetParams,
+        api_resources: SharedApiResources,
+    ) -> Self;
 
     async fn fetch(&self) -> Result<FetchedData>;
 }
@@ -122,9 +128,11 @@ where
     {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(INTERVAL));
 
-        let RequestData { name, namespace } = self.req.data();
-
-        let worker = Worker::new(&self.client, namespace.to_string(), name.to_string());
+        let worker = Worker::new(
+            &self.client,
+            self.req.data().to_owned(),
+            self.api_resources.clone(),
+        );
 
         while !self
             .is_terminated
@@ -221,9 +229,10 @@ mod tests {
                 ]
             );
 
-            let req_data = RequestData {
+            let req_data = NetworkRequestTargetParams {
                 namespace: "default".to_string(),
                 name: "test".to_string(),
+                version: "v1".to_string(),
             };
             let req = NetworkRequest::Pod(req_data);
 
@@ -268,9 +277,10 @@ mod tests {
                 ]
             );
 
-            let req_data = RequestData {
+            let req_data = NetworkRequestTargetParams {
                 namespace: "default".to_string(),
                 name: "test".to_string(),
+                version: "v1".to_string(),
             };
             let req = NetworkRequest::Pod(req_data);
 
@@ -359,9 +369,10 @@ mod tests {
                 ]
             );
 
-            let req_data = RequestData {
+            let req_data = NetworkRequestTargetParams {
                 namespace: "default".to_string(),
                 name: "test".to_string(),
+                version: "v1".to_string(),
             };
             let req = NetworkRequest::Pod(req_data);
 
@@ -424,9 +435,10 @@ mod tests {
             let (tx, _rx): (Sender<Message>, Receiver<Message>) = bounded(3);
             let client = MockTestKubeClient::new();
 
-            let req_data = RequestData {
+            let req_data = NetworkRequestTargetParams {
                 namespace: "default".to_string(),
                 name: "test".to_string(),
+                version: "v1".to_string(),
             };
             let req = NetworkRequest::Pod(req_data);
 
@@ -481,9 +493,10 @@ mod tests {
                 ]
             );
 
-            let req_data = RequestData {
+            let req_data = NetworkRequestTargetParams {
                 namespace: "default".to_string(),
                 name: "test".to_string(),
+                version: "v1".to_string(),
             };
             let req = NetworkRequest::Pod(req_data);
 

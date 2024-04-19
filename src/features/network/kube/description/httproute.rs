@@ -13,7 +13,7 @@ use crate::{
 
 use super::{Fetch, FetchedData};
 
-pub(super) struct GatewayDescriptionWorker<'a, C>
+pub(super) struct HTTPRouteDescriptionWorker<'a, C>
 where
     C: KubeClientRequest,
 {
@@ -24,7 +24,7 @@ where
 }
 
 #[async_trait::async_trait]
-impl<'a, C> Fetch<'a, C> for GatewayDescriptionWorker<'a, C>
+impl<'a, C> Fetch<'a, C> for HTTPRouteDescriptionWorker<'a, C>
 where
     C: KubeClientRequest,
 {
@@ -48,7 +48,7 @@ where
             "v1" => fetch_v1(self.client.client().clone(), &self.name, &self.namespace).await,
 
             "v1beta1" => {
-                fetch_v1beta1(self.client.client().clone(), &self.name, &self.namespace).await
+                fetch_v1beat1(self.client.client().clone(), &self.name, &self.namespace).await
             }
 
             _ => {
@@ -59,17 +59,17 @@ where
 }
 
 async fn fetch_v1(client: Client, name: &str, namespace: &str) -> Result<FetchedData> {
-    let api = Api::<gateway::v1::Gateway>::namespaced(client.clone(), namespace);
+    let api = Api::<gateway::v1::HTTPRoute>::namespaced(client.clone(), namespace);
 
-    let gateway = api.get(name).await.context(format!(
-        "Failed to fetch Gateway: namespace={}, name={}",
+    let httproute = api.get(name).await.context(format!(
+        "Failed to fetch HTTPRoute: namespace={}, name={}",
         namespace, name
     ))?;
 
-    let description = v1::Description::new(gateway.clone());
+    let description = v1::Description::new(httproute.clone());
 
     let related_resources =
-        v1::discover_releated_resources(client, name, namespace, &gateway).await?;
+        v1::discover_releated_resources(client, name, namespace, &httproute).await?;
 
     let mut yaml = serde_yaml::to_string(&description)?
         .lines()
@@ -90,18 +90,18 @@ async fn fetch_v1(client: Client, name: &str, namespace: &str) -> Result<Fetched
     Ok(yaml)
 }
 
-async fn fetch_v1beta1(client: Client, name: &str, namespace: &str) -> Result<FetchedData> {
-    let api = Api::<gateway::v1beta1::Gateway>::namespaced(client.clone(), namespace);
+async fn fetch_v1beat1(client: Client, name: &str, namespace: &str) -> Result<FetchedData> {
+    let api = Api::<gateway::v1beta1::HTTPRoute>::namespaced(client.clone(), namespace);
 
-    let gateway = api.get(name).await.context(format!(
-        "Failed to fetch Gateway: namespace={}, name={}",
+    let httproute = api.get(name).await.context(format!(
+        "Failed to fetch HTTPRoute: namespace={}, name={}",
         namespace, name
     ))?;
 
-    let description = v1beta1::Description::new(gateway.clone());
+    let description = v1beta1::Description::new(httproute.clone());
 
     let related_resources =
-        v1beta1::discover_releated_resources(client, name, namespace, &gateway).await?;
+        v1beta1::discover_releated_resources(client, name, namespace, &httproute).await?;
 
     let mut yaml = serde_yaml::to_string(&description)?
         .lines()
@@ -121,3 +121,7 @@ async fn fetch_v1beta1(client: Client, name: &str, namespace: &str) -> Result<Fe
 
     Ok(yaml)
 }
+
+// fn compare_parent_ref_section_name(section_name: Option<&str>, gateway: &Gateway) -> bool {
+//     section_name.unwrap_or(gateway.name_any().as_str()) == gateway.name_any()
+// }

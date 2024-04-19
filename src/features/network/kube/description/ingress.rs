@@ -8,7 +8,12 @@ use k8s_openapi::api::{
 use kube::Resource;
 use serde_yaml::Mapping;
 
-use crate::kube::KubeClientRequest;
+use crate::{
+    features::{
+        api_resources::kube::SharedApiResources, network::message::NetworkRequestTargetParams,
+    },
+    kube::KubeClientRequest,
+};
 
 use super::{
     related_resources::{to_list_value::ToListValue, RelatedClient},
@@ -32,7 +37,11 @@ impl<'a, C> Fetch<'a, C> for IngressDescriptionWorker<'a, C>
 where
     C: KubeClientRequest,
 {
-    fn new(client: &'a C, namespace: String, name: String) -> Self {
+    fn new(client: &'a C, params: NetworkRequestTargetParams, _: SharedApiResources) -> Self {
+        let NetworkRequestTargetParams {
+            namespace, name, ..
+        } = params;
+
         Self {
             client,
             namespace,
@@ -156,7 +165,13 @@ mod tests {
     use mockall::predicate::eq;
     use pretty_assertions::assert_eq;
 
-    use crate::{kube::mock::MockTestKubeClient, mock_expect};
+    use crate::{
+        features::{
+            api_resources::kube::ApiResources, network::message::NetworkRequestTargetParams,
+        },
+        kube::mock::MockTestKubeClient,
+        mock_expect,
+    };
 
     use super::*;
 
@@ -291,8 +306,13 @@ mod tests {
             ]
         );
 
-        let worker =
-            IngressDescriptionWorker::new(&client, "default".to_string(), "ingress".to_string());
+        let target_params = NetworkRequestTargetParams {
+            namespace: "default".to_string(),
+            name: "ingress".to_string(),
+            version: "v1".to_string(),
+        };
+
+        let worker = IngressDescriptionWorker::new(&client, target_params, ApiResources::shared());
 
         let result = worker.fetch().await;
 
@@ -381,8 +401,13 @@ mod tests {
             ]
         );
 
-        let worker =
-            IngressDescriptionWorker::new(&client, "default".to_string(), "test".to_string());
+        let target_params = NetworkRequestTargetParams {
+            namespace: "default".to_string(),
+            name: "test".to_string(),
+            version: "v1".to_string(),
+        };
+
+        let worker = IngressDescriptionWorker::new(&client, target_params, ApiResources::shared());
 
         let result = worker.fetch().await;
 

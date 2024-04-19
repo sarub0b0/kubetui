@@ -1,21 +1,39 @@
 use anyhow::Result;
+use strum::EnumString;
 
 use crate::{kube::table::KubeTable, message::Message, workers::kube::message::Kube};
 
+#[derive(Copy, Clone, Default, Debug, EnumString)]
+#[strum(serialize_all = "lowercase")]
+pub enum GatewayVersion {
+    #[default]
+    V1,
+    V1Beta1,
+}
+
+#[derive(Copy, Clone, Default, Debug, EnumString)]
+#[strum(serialize_all = "lowercase")]
+pub enum HTTPRouteVersion {
+    #[default]
+    V1,
+    V1Beta1,
+}
+
 #[derive(Debug, Clone)]
-pub struct RequestData {
+pub struct NetworkRequestTargetParams {
     pub name: String,
     pub namespace: String,
+    pub version: String,
 }
 
 #[derive(Debug, Clone)]
 pub enum NetworkRequest {
-    Pod(RequestData),
-    Service(RequestData),
-    Ingress(RequestData),
-    NetworkPolicy(RequestData),
-    Gateway(RequestData),
-    HTTPRoute(RequestData),
+    Pod(NetworkRequestTargetParams),
+    Service(NetworkRequestTargetParams),
+    Ingress(NetworkRequestTargetParams),
+    NetworkPolicy(NetworkRequestTargetParams),
+    Gateway(NetworkRequestTargetParams),
+    HTTPRoute(NetworkRequestTargetParams),
 }
 
 #[derive(Debug)]
@@ -31,7 +49,7 @@ pub enum NetworkMessage {
 }
 
 impl NetworkRequest {
-    pub fn data(&self) -> &RequestData {
+    pub fn data(&self) -> &NetworkRequestTargetParams {
         match self {
             Self::Pod(data) => data,
             Self::Service(data) => data,

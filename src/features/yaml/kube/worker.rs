@@ -104,7 +104,8 @@ async fn fetch_resource_yaml<C: KubeClientRequest>(
     );
 
     let api = api_resources
-        .get(kind)
+        .iter()
+        .find(|api| *api == kind)
         .ok_or_else(|| anyhow!("Can't get {} from API resource", kind))?;
     // json string data
     let kind = api.name();

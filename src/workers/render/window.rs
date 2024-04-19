@@ -31,7 +31,10 @@ use crate::{
             message::NamespaceRequest,
             view::{MultipleNamespacesPopup, SingleNamespacePopup},
         },
-        network::view::NetworkTab,
+        network::{
+            message::{GatewayVersion, HTTPRouteVersion},
+            view::NetworkTab,
+        },
         pod::view::PodTab,
         yaml::view::YamlTab,
     },
@@ -245,6 +248,8 @@ fn open_yaml(tx: Sender<Message>) -> impl CallbackFn {
             return EventResult::Ignore;
         };
 
+        let version = metadata.get("version");
+
         let kind = match metadata.get("kind").map(|v| v.as_str()) {
             Some(Pod::KIND) => GetYamlKind::Pod,
             Some(ConfigMap::KIND) => GetYamlKind::ConfigMap,
@@ -252,8 +257,16 @@ fn open_yaml(tx: Sender<Message>) -> impl CallbackFn {
             Some(Ingress::KIND) => GetYamlKind::Ingress,
             Some(Service::KIND) => GetYamlKind::Service,
             Some(NetworkPolicy::KIND) => GetYamlKind::NetworkPolicy,
-            Some(Gateway::KIND) => GetYamlKind::Gateway,
-            Some(HTTPRoute::KIND) => GetYamlKind::HTTPRoute,
+            Some(Gateway::KIND) => match version.as_ref().map(|v| v.as_str()) {
+                Some("v1") => GetYamlKind::Gateway(GatewayVersion::V1),
+                Some("v1beta1") => GetYamlKind::Gateway(GatewayVersion::V1Beta1),
+                _ => unreachable!(),
+            },
+            Some(HTTPRoute::KIND) => match version.as_ref().map(|v| v.as_str()) {
+                Some("v1") => GetYamlKind::HTTPRoute(HTTPRouteVersion::V1),
+                Some("v1beta1") => GetYamlKind::HTTPRoute(HTTPRouteVersion::V1Beta1),
+                _ => unreachable!(),
+            },
             _ => {
                 unreachable!();
             }

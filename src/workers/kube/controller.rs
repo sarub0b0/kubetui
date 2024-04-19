@@ -45,6 +45,7 @@ use crate::{
         },
     },
     kube::KubeClient,
+    logger,
     message::Message,
     workers::kube::message::Kube,
 };
@@ -191,7 +192,8 @@ impl KubeController {
 
             let pod_handle = PodPoller::new(poller_base.clone()).spawn();
             let config_handle = ConfigPoller::new(poller_base.clone()).spawn();
-            let network_handle = NetworkPoller::new(poller_base.clone()).spawn();
+            let network_handle =
+                NetworkPoller::new(poller_base.clone(), shared_api_resources.clone()).spawn();
             let event_handle = EventPoller::new(poller_base.clone()).spawn();
             let api_handle = ApiPoller::new(
                 poller_base.clone(),
@@ -437,7 +439,11 @@ impl Worker for EventController {
                             APIs => {
                                 let api_resources = shared_api_resources.read().await;
 
-                                tx.send(YamlResponse::APIs(Ok(api_resources.to_vec())).into())
+                                let ret = api_resources.to_vec();
+
+                                logger!(info, "APIs: {:#?}", ret);
+
+                                tx.send(YamlResponse::APIs(Ok(ret)).into())
                                     .expect("Failed to send YamlResponse::Apis");
                             }
                             Resource(req) => {
