@@ -3,8 +3,10 @@ use std::{collections::BTreeSet, fmt::Display, hash::Hash, ops::Deref, sync::Arc
 use anyhow::Result;
 use async_trait::async_trait;
 use futures::future::try_join_all;
-use k8s_openapi::apimachinery::pkg::apis::meta::v1::{APIGroupList, APIResource, APIVersions};
-use kube::core::TypeMeta;
+use kube::{
+    discovery::{verbs, ApiGroup, Scope},
+    Discovery,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use tokio::{sync::RwLock, time::Instant};
@@ -59,13 +61,48 @@ pub enum ApiResource {
         group: String,
         version: String,
         preferred_version: bool,
-        namespaced: bool,
+        #[serde(with = "scope_format")]
+        scope: Scope,
     },
     Api {
         name: String,
         version: String,
-        namespaced: bool,
+        #[serde(with = "scope_format")]
+        scope: Scope,
     },
+}
+
+mod scope_format {
+    use kube::discovery::Scope;
+    use serde::Deserialize as _;
+
+    const NAMESPACED: &str = "Namespaced";
+    const CLUSTER: &str = "Cluster";
+
+    pub fn serialize<S>(scope: &Scope, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let value = match scope {
+            Scope::Namespaced => NAMESPACED,
+            Scope::Cluster => CLUSTER,
+        };
+
+        serializer.serialize_str(value)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Scope, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+
+        match value.as_str() {
+            NAMESPACED => Ok(Scope::Namespaced),
+            CLUSTER => Ok(Scope::Cluster),
+            _ => Err(serde::de::Error::custom("Invalid scope")),
+        }
+    }
 }
 
 impl ApiResource {
@@ -88,10 +125,7 @@ impl ApiResource {
     }
 
     pub fn is_namespaced(&self) -> bool {
-        match self {
-            Self::Api { namespaced, .. } => *namespaced,
-            Self::Apis { namespaced, .. } => *namespaced,
-        }
+        self.scope() == &Scope::Namespaced
     }
 
     pub fn name(&self) -> &str {
@@ -119,6 +153,13 @@ impl ApiResource {
 
     pub fn api_url(&self) -> String {
         format!("{}/{}", self.group_version_url(), self.name())
+    }
+
+    fn scope(&self) -> &Scope {
+        match self {
+            Self::Api { scope, .. } => scope,
+            Self::Apis { scope, .. } => scope,
+        }
     }
 
     fn to_table_header(&self) -> String {
@@ -267,151 +308,50 @@ impl Worker for ApiPoller {
     }
 }
 
-#[derive(Debug)]
-struct GroupVersion {
-    group: String,
-    version: String,
-    preferred_version: bool,
-}
-
-impl GroupVersion {
-    fn api_url(&self) -> String {
-        if self.group.is_empty() {
-            format!("api/{}", self.version)
-        } else {
-            format!("apis/{}/{}", self.group, self.version)
-        }
-    }
-}
-
-trait ContainListVerb {
-    fn contain_list_verb(&self) -> bool;
-}
-
-impl ContainListVerb for APIResource {
-    fn contain_list_verb(&self) -> bool {
-        self.verbs.contains(&"list".into())
-    }
-}
-
-struct FetchApiResources<'a> {
-    client: &'a KubeClient,
-}
-
-impl<'a> FetchApiResources<'a> {
-    fn new(client: &'a KubeClient) -> Self {
-        Self { client }
-    }
-
-    async fn fetch_all(&self) -> Result<ApiResources> {
-        let mut group_versions = self.fetch_api_versions().await?;
-        let api_groups = self.fetch_api_groups().await?;
-
-        group_versions.extend(api_groups);
-
-        // APIResourceListを取得
-        //      /api/v1
-        //      /api/v2
-        //      /api/v*
-        //      /apis/group/version
-        let job =
-            try_join_all(group_versions.iter().map(|gv| self.fetch_api_resources(gv))).await?;
-
-        Ok(job.into_iter().flatten().collect::<BTreeSet<_>>().into())
-    }
-
-    async fn fetch_api_versions(&self) -> Result<Vec<GroupVersion>> {
-        let api_versions: APIVersions = self.client.request("api").await?;
-
-        let ret = api_versions
-            .versions
-            .iter()
-            .map(|v| GroupVersion {
-                group: String::default(),
-                version: v.to_string(),
-                preferred_version: false,
-            })
-            .collect();
-
-        Ok(ret)
-    }
-
-    async fn fetch_api_groups(&self) -> Result<Vec<GroupVersion>> {
-        let api_groups: APIGroupList = self.client.request("apis").await?;
-
-        let ret = api_groups
-            .groups
-            .into_iter()
-            .flat_map(|group| {
-                group
-                    .versions
-                    .iter()
-                    .map(|gv| {
-                        if let Some(ref pv) = group.preferred_version {
-                            GroupVersion {
-                                group: group.name.to_string(),
-                                version: gv.version.to_string(),
-                                preferred_version: pv.version == gv.version,
-                            }
-                        } else {
-                            GroupVersion {
-                                group: group.name.to_string(),
-                                version: gv.version.to_string(),
-                                preferred_version: false,
-                            }
-                        }
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .collect();
-
-        Ok(ret)
-    }
-
-    async fn fetch_api_resources(&self, gv: &GroupVersion) -> Result<Vec<ApiResource>> {
-        #[derive(Debug, Deserialize)]
-        #[serde(rename_all = "camelCase")]
-        #[allow(dead_code)]
-        struct APIResourceList {
-            types: Option<TypeMeta>,
-            group_version: String,
-            resources: Vec<APIResource>,
-        }
-
-        let result = self
-            .client
-            .request::<APIResourceList>(&gv.api_url())
-            .await?;
-
-        Ok(result
-            .resources
-            .into_iter()
-            .filter(|resource| resource.contain_list_verb())
-            .map(|resource| {
-                if gv.group.is_empty() {
-                    ApiResource::Api {
-                        name: resource.name,
-                        version: gv.version.to_string(),
-                        namespaced: resource.namespaced,
-                    }
-                } else {
-                    ApiResource::Apis {
-                        name: resource.name,
-                        group: gv.group.to_string(),
-                        version: gv.version.to_string(),
-                        preferred_version: gv.preferred_version,
-                        namespaced: resource.namespaced,
-                    }
-                }
-            })
-            .collect())
-    }
-}
-
 pub async fn fetch_api_resources(client: &KubeClient) -> Result<ApiResources> {
-    let api_resources = FetchApiResources::new(client).fetch_all().await?;
+    let discovery = Discovery::new(client.to_client()).run().await?;
 
-    Ok(api_resources)
+    let ret = discovery
+        .groups()
+        .flat_map(|group| {
+            let preferred_version = group.preferred_version_or_latest();
+
+            group
+                .versions()
+                .flat_map(|version| {
+                    let is_preferred_version = preferred_version == version;
+
+                    group
+                        .versioned_resources(version)
+                        .iter()
+                        .filter_map(|(ar, caps)| {
+                            if !caps.supports_operation(verbs::LIST) {
+                                return None;
+                            }
+
+                            if group.name() == ApiGroup::CORE_GROUP {
+                                Some(ApiResource::Api {
+                                    name: ar.plural.to_string(),
+                                    version: ar.version.to_string(),
+                                    scope: caps.scope.clone(),
+                                })
+                            } else {
+                                Some(ApiResource::Apis {
+                                    name: ar.plural.to_string(),
+                                    group: ar.group.to_string(),
+                                    version: ar.version.to_string(),
+                                    preferred_version: is_preferred_version,
+                                    scope: caps.scope.clone(),
+                                })
+                            }
+                        })
+                        .collect::<BTreeSet<_>>()
+                })
+                .collect::<BTreeSet<_>>()
+        })
+        .collect::<BTreeSet<_>>();
+
+    Ok(ret.into())
 }
 
 fn merge_tables(fetch_data: Vec<FetchData>, insert_ns: bool) -> Table {
@@ -562,9 +502,9 @@ mod tests {
         use rstest::rstest;
 
         #[rstest]
-        #[case(ApiResource::Api { name: "pods".into(), version: "v1".into(), namespaced: true }, "pods")]
-        #[case(ApiResource::Apis { name: "horizontalpodautoscalers".into(), group: "autoscaling".into(), version: "v2".into(), preferred_version: true, namespaced: true }, "horizontalpodautoscalers.autoscaling (*v2)")]
-        #[case(ApiResource::Apis { name: "horizontalpodautoscalers".into(), group: "autoscaling".into(), version: "v1".into(), preferred_version: false, namespaced: true }, "horizontalpodautoscalers.autoscaling (v1)")]
+        #[case(ApiResource::Api { name: "pods".into(), version: "v1".into(), scope: Scope::Namespaced }, "pods")]
+        #[case(ApiResource::Apis { name: "horizontalpodautoscalers".into(), group: "autoscaling".into(), version: "v2".into(), preferred_version: true, scope: Scope::Namespaced }, "horizontalpodautoscalers.autoscaling (*v2)")]
+        #[case(ApiResource::Apis { name: "horizontalpodautoscalers".into(), group: "autoscaling".into(), version: "v1".into(), preferred_version: false, scope: Scope::Namespaced }, "horizontalpodautoscalers.autoscaling (v1)")]
         #[test]
         fn to_string(#[case] key: ApiResource, #[case] expected: &str) {
             assert_eq!(key.to_string(), expected)
