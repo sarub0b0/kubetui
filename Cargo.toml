@@ -13,42 +13,42 @@ exclude = ["/.github", "/test", "/script", "/screenshots", "/assets", ".gitignor
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-crossbeam = "0.8"
-clap = { version = "4", features = ["wrap_help", "derive", "cargo"] }
+crossbeam = "0.8.4"
+clap = { version = "4.5.4", features = ["wrap_help", "derive", "cargo"] }
 nom = { version = "7.1.3", features = ["alloc"] }
 
 # clipboard
 arboard = "3.4.0"
-base64 = "0.22"
+base64 = "0.22.1"
 
 # tui
-async-trait = "0.1"
-chrono = "0.4"
+async-trait = "0.1.80"
+chrono = "0.4.38"
 crossterm = "0.27.0"
 derivative = "2.2"
-enum_dispatch = "0.3"
-fuzzy-matcher = "0.3"
+enum_dispatch = "0.3.13"
+fuzzy-matcher = "0.3.7"
 ratatui = "0.26.2"
 rayon = "1.10"
 unicode-segmentation = "1.11"
-unicode-width = "0.1"
+unicode-width = "0.1.12"
 
 # log
-log = "0.4"
-log4rs = { version = "1", default-features = false, features = ["file_appender", "json_encoder"] }
+log = "0.4.21"
+log4rs = { version = "1.3.0", default-features = false, features = ["file_appender", "json_encoder"] }
 
-bytes = "1"
+bytes = "1.6.0"
 futures = "0.3"
 http = "1.1.0"
 k8s-openapi = { version = "0.21.1", default-features = false, features = ["v1_27"] }
 kube = { version = "0.90.0" }
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-serde_yaml = "0.9"
-tokio = { version = "1", features = ["rt", "rt-multi-thread"] }
+serde_json = "1.0.116"
+serde_yaml = "0.9.34"
+tokio = { version = "1.37.0", features = ["rt", "rt-multi-thread"] }
 
-thiserror = "1"
-anyhow = "1"
+thiserror = "1.0.59"
+anyhow = "1.0.82"
 
 ctrlc = { version = "3.4.3", features = ["termination"] }
 once_cell = "1.19.0"
@@ -65,5 +65,5 @@ pretty_assertions = "1.4.0"
 indoc = "2.0.5"
 mockall = "0.12.1"
 mockall_double = "0.3.1"
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros"] }
+tokio = { version = "1.37.0", features = ["rt", "rt-multi-thread", "macros"] }
 rstest = "0.19.0"
