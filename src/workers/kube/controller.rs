@@ -20,7 +20,7 @@ use tokio::{
 use crate::{
     features::{
         api_resources::{
-            kube::{ApiPoller, ApiResource, SharedApiResources},
+            kube::{ApiPoller, ApiResource, ApiResources, SharedApiResources},
             message::{ApiMessage, ApiRequest, ApiResponse},
         },
         config::{
@@ -168,7 +168,7 @@ impl KubeController {
 
             let shared_target_namespaces = Arc::new(RwLock::new(target_namespaces.to_vec()));
             let shared_target_api_resources = Arc::new(RwLock::new(target_api_resources.to_vec()));
-            let shared_api_resources = SharedApiResources::default();
+            let shared_api_resources = ApiResources::shared();
 
             let poller_base = PollerBase {
                 shared_target_namespaces: shared_target_namespaces.clone(),
