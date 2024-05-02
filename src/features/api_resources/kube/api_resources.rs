@@ -40,6 +40,11 @@ impl ApiResources {
     pub fn to_vec(&self) -> Vec<ApiResource> {
         self.inner.clone()
     }
+
+    /// SharedApiResourcesを生成
+    pub fn shared() -> SharedApiResources {
+        Arc::new(RwLock::new(Default::default()))
+    }
 }
 
 impl Deref for ApiResources {
