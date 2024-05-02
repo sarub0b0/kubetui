@@ -74,7 +74,7 @@ pub struct GatewayListeners {
     pub tls: Option<GatewayListenersTls>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GatewayListenersAllowedRoutes {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub kinds: Option<Vec<GatewayListenersAllowedRoutesKinds>>,
@@ -82,14 +82,14 @@ pub struct GatewayListenersAllowedRoutes {
     pub namespaces: Option<GatewayListenersAllowedRoutesNamespaces>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GatewayListenersAllowedRoutesKinds {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group: Option<String>,
     pub kind: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GatewayListenersAllowedRoutesNamespaces {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub from: Option<GatewayListenersAllowedRoutesNamespacesFrom>,
@@ -97,14 +97,14 @@ pub struct GatewayListenersAllowedRoutesNamespaces {
     pub selector: Option<GatewayListenersAllowedRoutesNamespacesSelector>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum GatewayListenersAllowedRoutesNamespacesFrom {
     All,
     Selector,
     Same,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GatewayListenersAllowedRoutesNamespacesSelector {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "matchExpressions")]
     pub match_expressions: Option<Vec<GatewayListenersAllowedRoutesNamespacesSelectorMatchExpressions>>,
@@ -112,7 +112,7 @@ pub struct GatewayListenersAllowedRoutesNamespacesSelector {
     pub match_labels: Option<BTreeMap<String, String>>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GatewayListenersAllowedRoutesNamespacesSelectorMatchExpressions {
     pub key: String,
     pub operator: String,

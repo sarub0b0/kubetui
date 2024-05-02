@@ -40,27 +40,16 @@ struct RelatedResource {
 
 pub async fn discover_releated_resources(
     client: Client,
-    httproute_name: &str,
     httproute_namespace: &str,
     httproute: &HTTPRoute,
 ) -> Result<HTTPRouteRelatedResources> {
-    let gateways = discover_gateways(
-        client.clone(),
-        httproute_name,
-        httproute_namespace,
-        httproute,
-    )
-    .await
-    .with_context(|| "discover gateways for httproute")?;
+    let gateways = discover_gateways(httproute_namespace, httproute)
+        .await
+        .with_context(|| "discover gateways for httproute")?;
 
-    let services = discover_services(
-        client.clone(),
-        httproute_name,
-        httproute_namespace,
-        httproute,
-    )
-    .await
-    .with_context(|| "discover services for httproute")?;
+    let services = discover_services(client.clone(), httproute_namespace, httproute)
+        .await
+        .with_context(|| "discover services for httproute")?;
 
     let pods = if let Some(services) = services.as_ref() {
         discover_pods(client.clone(), services)

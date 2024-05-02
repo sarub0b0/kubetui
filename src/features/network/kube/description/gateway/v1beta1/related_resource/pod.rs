@@ -56,7 +56,9 @@ pub async fn discover_pods(
         result.into_iter().flatten().flatten().collect::<Vec<_>>()
     });
 
-    let result = task.await?;
+    let mut result = task.await?;
+
+    result.sort();
 
     if result.is_empty() {
         Ok(None)

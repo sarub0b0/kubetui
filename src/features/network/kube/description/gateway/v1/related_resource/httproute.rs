@@ -1,5 +1,8 @@
-use anyhow::Result;
-use futures::future::try_join_all;
+use std::collections::BTreeSet;
+
+use anyhow::{Context, Result};
+use derivative::Derivative;
+use futures::future::{join_all, try_join_all};
 use k8s_openapi::{
     api::core::v1::Namespace, apimachinery::pkg::apis::meta::v1::LabelSelector, Resource as _,
 };
@@ -7,36 +10,40 @@ use kube::{api::ListParams, Api, Client, ResourceExt as _};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    features::network::kube::description::utils::{
-        label_selector_to_query, ExtractNamespace as _,
-    },
+    features::network::kube::description::utils::{label_selector_to_query, ExtractNamespace as _},
     kube::apis::networking::gateway::v1::{
         Gateway, GatewayListenersAllowedRoutes, GatewayListenersAllowedRoutesNamespaces,
         GatewayListenersAllowedRoutesNamespacesFrom, HTTPRoute, HTTPRouteParentRefs,
     },
+    logger,
 };
 
 pub type RelatedHTTPRoutes = Vec<RelatedHTTPRoute>;
 
 /// RelatedResourceHTTPRouteのための
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Derivative, Debug, Clone, Serialize, Deserialize)]
+#[derivative(PartialEq, Eq, Ord)]
 pub struct RelatedHTTPRoute {
     pub name: String,
 
     pub namespace: String,
 
-    pub gateway_listener: String,
-
+    #[derivative(PartialEq = "ignore", PartialOrd = "ignore", Ord = "ignore")]
     #[serde(skip)]
     pub resource: HTTPRoute,
 }
 
+impl PartialOrd for RelatedHTTPRoute {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl RelatedHTTPRoute {
-    fn new(resource: HTTPRoute, gateway_listener: String) -> Self {
+    fn new(resource: HTTPRoute) -> Self {
         Self {
             name: resource.name_any(),
             namespace: resource.extract_namespace(),
-            gateway_listener,
             resource,
         }
     }
@@ -48,69 +55,120 @@ pub async fn discover_httproutes(
     gateway_namespace: &str,
     gateway: &Gateway,
 ) -> Result<Option<RelatedHTTPRoutes>> {
-    let mut result = Vec::new();
+    let listeners: BTreeSet<_> = gateway
+        .spec
+        .listeners
+        .iter()
+        .cloned()
+        .filter_map(|listener| listener.allowed_routes)
+        .collect();
 
-    for listener in &gateway.spec.listeners {
-        let Some(GatewayListenersAllowedRoutes { kinds, namespaces }) =
-            listener.allowed_routes.as_ref()
-        else {
-            continue;
-        };
+    let jobs = join_all(listeners.iter().map(|listener| {
+        discover_httproute_per_listener(client.clone(), gateway_name, gateway_namespace, listener)
+    }))
+    .await;
 
-        // NOTE: kinds, protocolでのフィルタリングは実装に依存しそうなため一旦実装しない
-        if let Some(_kinds) = kinds {}
-
-        // namespacesがNoneのときは、Same（Gatewayとおなじnamespace）として扱う
-        if let Some(GatewayListenersAllowedRoutesNamespaces { from, selector }) = namespaces {
-            let Some(from) = from else {
-                continue;
-            };
-
-            let httproutes = match from {
-                GatewayListenersAllowedRoutesNamespacesFrom::All => {
-                    discover_httproute_for_all(client.clone(), gateway_name, gateway_namespace)
-                        .await?
-                }
-                GatewayListenersAllowedRoutesNamespacesFrom::Selector => {
-                    discover_httproute_for_selector(
-                        client.clone(),
-                        gateway_name,
-                        gateway_namespace,
-                        selector.as_ref().map(|s| LabelSelector::from(s.clone())),
-                    )
-                    .await?
-                }
-                GatewayListenersAllowedRoutesNamespacesFrom::Same => {
-                    discover_httproute_for_same(client.clone(), gateway_name, gateway_namespace)
-                        .await?
-                }
-            };
-
-            let httproutes: Vec<_> = httproutes
-                .into_iter()
-                .map(|httproute| RelatedHTTPRoute::new(httproute, listener.name.clone()))
-                .collect();
-
-            result.extend(httproutes);
-        } else {
-            // たぶんこのブロックが実行されることはない
-            let httproutes =
-                discover_httproute_for_same(client.clone(), gateway_name, gateway_namespace)
-                    .await?;
-
-            let httproutes: Vec<_> = httproutes
-                .into_iter()
-                .map(|httproute| RelatedHTTPRoute::new(httproute, listener.name.clone()))
-                .collect();
-
-            result.extend(httproutes);
-        }
-    }
+    let result: BTreeSet<_> = jobs
+        .into_iter()
+        .inspect(|res| {
+            if let Err(e) = res {
+                logger!(error, "Failed to discover httproute: {:?}", e);
+            }
+        })
+        .flatten()
+        .flatten()
+        .flatten()
+        .collect();
 
     if result.is_empty() {
         Ok(None)
     } else {
-        Ok(Some(result))
+        Ok(Some(result.into_iter().collect()))
+    }
+}
+
+async fn discover_httproute_per_listener(
+    client: Client,
+    gateway_name: &str,
+    gateway_namespace: &str,
+    allowed_routes: &GatewayListenersAllowedRoutes,
+) -> Result<Option<RelatedHTTPRoutes>> {
+    // NOTE: kinds, protocolでのフィルタリングは実装に依存しそうなため一旦実装しない
+    let GatewayListenersAllowedRoutes {
+        kinds: _,
+        namespaces,
+    } = allowed_routes;
+
+    // namespacesがNoneのときは、Same（Gatewayとおなじnamespace）として扱う
+    if let Some(GatewayListenersAllowedRoutesNamespaces { from, selector }) = namespaces {
+        let Some(from) = from else {
+            return Ok(None);
+        };
+
+        let httproutes = match from {
+            GatewayListenersAllowedRoutesNamespacesFrom::All => {
+                discover_httproute_for_all(client.clone(), gateway_name, gateway_namespace)
+                    .await
+                    .with_context(|| {
+                        format!(
+                            "Failed to discover httproute for all. Gateway: {}/{}",
+                            gateway_namespace, gateway_name
+                        )
+                    })?
+            }
+            GatewayListenersAllowedRoutesNamespacesFrom::Selector => {
+                discover_httproute_for_selector(
+                    client.clone(),
+                    gateway_name,
+                    gateway_namespace,
+                    selector.as_ref().map(|s| LabelSelector::from(s.clone())),
+                )
+                .await
+                .with_context(|| {
+                    format!(
+                        "Failed to discover httproute for selector. Gateway: {}/{}",
+                        gateway_namespace, gateway_name
+                    )
+                })?
+            }
+            GatewayListenersAllowedRoutesNamespacesFrom::Same => {
+                discover_httproute_for_same(client.clone(), gateway_name, gateway_namespace)
+                    .await
+                    .with_context(|| {
+                        format!(
+                            "Failed to discover httproute for same. Gateway: {}/{}",
+                            gateway_namespace, gateway_name
+                        )
+                    })?
+            }
+        };
+
+        let result: Vec<_> = httproutes.into_iter().map(RelatedHTTPRoute::new).collect();
+
+        if result.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(result))
+        }
+    } else {
+        // たぶんこのブロックが実行されることはない
+        let httproutes =
+            discover_httproute_for_same(client.clone(), gateway_name, gateway_namespace)
+                .await
+                .with_context(|| {
+                    format!(
+                        "Failed to discover httproute for same. Gateway: {}/{}",
+                        gateway_namespace, gateway_name
+                    )
+                })?;
+
+        let result: Vec<_> = httproutes.into_iter().map(RelatedHTTPRoute::new).collect();
+
+        if result.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(result))
+        }
     }
 }
 

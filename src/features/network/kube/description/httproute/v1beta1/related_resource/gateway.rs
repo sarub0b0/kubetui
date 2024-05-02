@@ -1,7 +1,6 @@
 use anyhow::Result;
 use derivative::Derivative;
 use k8s_openapi::Resource as _;
-use kube::Client;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -19,9 +18,6 @@ pub struct RelatedGateway {
 
     /// Gateway Namespace
     pub namespace: String,
-
-    /// Gateway Name
-    pub gateway: String,
 
     #[derivative(PartialEq = "ignore", PartialOrd = "ignore", Ord = "ignore")]
     #[serde(skip)]
@@ -65,8 +61,6 @@ fn extract_parent_refs(httproute: &HTTPRoute, httproute_namespace: &str) -> Opti
 }
 
 pub async fn discover_gateways(
-    client: Client,
-    httproute_name: &str,
     httproute_namespace: &str,
     httproute: &HTTPRoute,
 ) -> Result<Option<RelatedGateways>> {
@@ -74,7 +68,7 @@ pub async fn discover_gateways(
         return Ok(None);
     };
 
-    let result: Vec<_> = parent_refs.iter().flat_map(|ParentRef { group, kind, name, namespace }|{
+    let mut result: Vec<_> = parent_refs.iter().flat_map(|ParentRef { group, kind, name, namespace }|{
         if group != Gateway::GROUP || kind != Gateway::KIND {
             logger!(
                 warn,
@@ -87,10 +81,11 @@ pub async fn discover_gateways(
         Some(RelatedGateway {
             name: name.clone(),
             namespace: namespace.clone(),
-            gateway: name.clone(),
             resource: Gateway::default(),
         })
     }).collect();
+
+    result.sort();
 
     if result.is_empty() {
         Ok(None)

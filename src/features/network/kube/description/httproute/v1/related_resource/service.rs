@@ -1,7 +1,6 @@
-use std::collections::BTreeSet;
-
 use anyhow::Result;
 use derivative::Derivative;
+use futures::StreamExt as _;
 use k8s_openapi::{api::core::v1::Service, Resource};
 use kube::{Api, Client, ResourceExt};
 use serde::{Deserialize, Serialize};
@@ -22,9 +21,6 @@ pub struct RelatedService {
 
     /// Service Namespace
     pub namespace: String,
-
-    /// HTTPRoute Name
-    pub httproute: String,
 
     #[derivative(PartialEq = "ignore", PartialOrd = "ignore", Ord = "ignore")]
     #[serde(skip)]
@@ -61,45 +57,74 @@ impl<'a> From<&'a HTTPRoute> for BackendRefs<'a> {
 
 pub async fn discover_services(
     client: Client,
-    httproute_name: &str,
     httproute_namespace: &str,
     httproute: &HTTPRoute,
 ) -> Result<Option<RelatedServices>> {
     let BackendRefs { refs } = BackendRefs::from(httproute);
 
-    let mut result: BTreeSet<RelatedService> = BTreeSet::new();
+    let fetch_service_args: Vec<_> = refs
+        .into_iter()
+        .map(move |r| (httproute_namespace.to_string(), r.clone()))
+        .collect();
 
-    for r in refs {
-        if r.group.as_ref().is_some_and(|g| !g.is_empty())
-            || r.kind.as_ref().is_some_and(|k| k != Service::KIND)
-        {
-            continue;
-        }
-
-        let namespace = if let Some(namespace) = r.namespace.as_ref() {
-            namespace
-        } else {
-            httproute_namespace
-        };
-
-        let api = Api::<Service>::namespaced(client.clone(), namespace);
-
-        let Ok(service) = api.get(&r.name).await else {
-            logger!(error, "failed to get service {namespace}/{{r.name}}");
-            continue;
-        };
-
-        result.insert(RelatedService {
-            name: service.name_any(),
-            namespace: service.extract_namespace(),
-            httproute: httproute_name.to_string(),
-            resource: service,
+    let task = tokio::spawn(async move {
+        let futures = fetch_service_args.into_iter().map(|args| {
+            let client = client.clone();
+            async move { fetch_service(client, args.0, args.1).await }
         });
-    }
+
+        let stream = futures::stream::iter(futures).buffer_unordered(20);
+
+        let result: Vec<Option<RelatedService>> = stream.collect().await;
+
+        result.into_iter().flatten().collect::<Vec<_>>()
+    });
+
+    let mut result = task.await?;
+
+    result.sort();
 
     if result.is_empty() {
         Ok(None)
     } else {
-        Ok(Some(result.into_iter().collect()))
+        Ok(Some(result))
+    }
+}
+
+async fn fetch_service(
+    client: Client,
+    httproute_namespace: String,
+    r: HTTPRouteRulesBackendRefs,
+) -> Option<RelatedService> {
+    if r.group.as_ref().is_some_and(|g| !g.is_empty())
+        || r.kind.as_ref().is_some_and(|k| k != Service::KIND)
+    {
+        return None;
+    }
+
+    let namespace = if let Some(namespace) = r.namespace.as_ref() {
+        namespace
+    } else {
+        &httproute_namespace
+    };
+
+    let api = Api::<Service>::namespaced(client, namespace);
+
+    match api.get(&r.name).await {
+        Ok(service) => Some(RelatedService {
+            name: service.name_any(),
+            namespace: service.extract_namespace(),
+            resource: service,
+        }),
+
+        Err(err) => {
+            logger!(
+                error,
+                "failed to get service {namespace}/{name}: {err}",
+                name = r.name
+            );
+
+            None
+        }
     }
 }

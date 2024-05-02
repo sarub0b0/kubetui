@@ -95,12 +95,14 @@ pub async fn discover_services(
         result.into_iter().flatten().collect::<Vec<_>>()
     });
 
-    let result = task.await?;
+    let mut result = task.await?;
+
+    result.sort();
 
     if result.is_empty() {
         Ok(None)
     } else {
-        Ok(Some(result.into_iter().collect()))
+        Ok(Some(result))
     }
 }
 

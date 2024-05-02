@@ -68,8 +68,7 @@ async fn fetch_v1(client: Client, name: &str, namespace: &str) -> Result<Fetched
 
     let description = v1::Description::new(httproute.clone());
 
-    let related_resources =
-        v1::discover_releated_resources(client, name, namespace, &httproute).await?;
+    let related_resources = v1::discover_releated_resources(client, namespace, &httproute).await?;
 
     let mut yaml = serde_yaml::to_string(&description)?
         .lines()
@@ -101,7 +100,7 @@ async fn fetch_v1beat1(client: Client, name: &str, namespace: &str) -> Result<Fe
     let description = v1beta1::Description::new(httproute.clone());
 
     let related_resources =
-        v1beta1::discover_releated_resources(client, name, namespace, &httproute).await?;
+        v1beta1::discover_releated_resources(client, namespace, &httproute).await?;
 
     let mut yaml = serde_yaml::to_string(&description)?
         .lines()
@@ -121,7 +120,3 @@ async fn fetch_v1beat1(client: Client, name: &str, namespace: &str) -> Result<Fe
 
     Ok(yaml)
 }
-
-// fn compare_parent_ref_section_name(section_name: Option<&str>, gateway: &Gateway) -> bool {
-//     section_name.unwrap_or(gateway.name_any().as_str()) == gateway.name_any()
-// }
