@@ -13,6 +13,11 @@ create-kind: test/bin/kind
 delete-kind: test/bin/kind
 	test/bin/kind delete cluster --name kubetui
 
+deploy-nginx-gateway-fabric:
+	kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.0.0/standard-install.yaml
+	kubectl apply -f https://github.com/nginxinc/nginx-gateway-fabric/releases/download/v1.2.0/crds.yaml
+	kubectl apply -f https://github.com/nginxinc/nginx-gateway-fabric/releases/download/v1.2.0/nginx-gateway.yaml
+
 
 deploy: 
 	-kubectl apply -f test/manifests

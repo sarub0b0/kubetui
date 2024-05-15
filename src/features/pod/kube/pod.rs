@@ -1,6 +1,9 @@
+use std::collections::BTreeMap;
+
 use anyhow::Result;
 use async_trait::async_trait;
 use futures::future::try_join_all;
+use k8s_openapi::{api::core::v1::Pod, Resource as _};
 
 use crate::{
     kube::{
@@ -119,7 +122,10 @@ impl PodPoller {
                         namespace: ns.to_string(),
                         name,
                         row,
-                        ..Default::default()
+                        metadata: Some(BTreeMap::from([(
+                            "kind".to_string(),
+                            Pod::KIND.to_string(),
+                        )])),
                     }
                 },
             )

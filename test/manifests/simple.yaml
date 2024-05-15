@@ -6,10 +6,16 @@ spec:
   selector:
     matchLabels: # or matchExpressions:
       app: kubetui-simple
+    matchExpressions:
+      - key: version
+        operator: In
+        values:
+          - v1
   template:
     metadata:
       labels:
         app: kubetui-simple
+        version: v1
     spec:
       initContainers:
         - name: echo

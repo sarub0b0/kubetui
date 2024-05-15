@@ -1,4 +1,4 @@
-use std::{collections::BTreeSet, fmt::Display, hash::Hash, ops::Deref, sync::Arc, time};
+use std::{fmt::Display, hash::Hash, ops::Deref, sync::Arc, time};
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -29,28 +29,37 @@ use crate::{
 
 pub type SharedApiResources = Arc<RwLock<ApiResources>>;
 
+/// kubectl api-resources の結果を保持
+/// Network一覧機能のために順番が重要なためVecで保持
 #[derive(Debug, Default, Clone)]
 pub struct ApiResources {
-    inner: BTreeSet<ApiResource>,
+    inner: Vec<ApiResource>,
 }
 
 impl ApiResources {
     pub fn to_vec(&self) -> Vec<ApiResource> {
-        self.inner.clone().into_iter().collect()
+        self.inner.clone()
+    }
+
+    /// SharedApiResourcesを生成
+    pub fn shared() -> SharedApiResources {
+        Arc::new(RwLock::new(Default::default()))
     }
 }
 
 impl Deref for ApiResources {
-    type Target = BTreeSet<ApiResource>;
+    type Target = Vec<ApiResource>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 
-impl From<BTreeSet<ApiResource>> for ApiResources {
-    fn from(value: BTreeSet<ApiResource>) -> Self {
-        Self { inner: value }
+impl<T: Into<Vec<ApiResource>>> From<T> for ApiResources {
+    fn from(value: T) -> Self {
+        Self {
+            inner: value.into(),
+        }
     }
 }
 
@@ -139,6 +148,20 @@ impl ApiResource {
         match self {
             Self::Apis { group, version, .. } => format!("apis/{}/{}", group, version),
             Self::Api { version, .. } => format!("api/{}", version),
+        }
+    }
+
+    pub fn group(&self) -> &str {
+        match self {
+            Self::Apis { group, .. } => group,
+            Self::Api { .. } => "",
+        }
+    }
+
+    pub fn version(&self) -> &str {
+        match self {
+            Self::Apis { version, .. } => version,
+            Self::Api { version, .. } => version,
         }
     }
 
@@ -264,7 +287,7 @@ impl Worker for ApiPoller {
             if tick_rate < last_tick.elapsed() {
                 last_tick = Instant::now();
 
-                match fetch_api_resources(kube_client).await {
+                match fetch_api_resources(&kube_client).await {
                     Ok(fetched) => {
                         let mut api_resources = shared_api_resources.write().await;
                         *api_resources = fetched;
@@ -293,7 +316,7 @@ impl Worker for ApiPoller {
             }
 
             let result = FetchTargetApiResources::new(
-                kube_client,
+                &kube_client,
                 &target_api_resources,
                 &target_namespaces,
             )
@@ -345,11 +368,11 @@ pub async fn fetch_api_resources(client: &KubeClient) -> Result<ApiResources> {
                                 })
                             }
                         })
-                        .collect::<BTreeSet<_>>()
+                        .collect::<Vec<_>>()
                 })
-                .collect::<BTreeSet<_>>()
+                .collect::<Vec<_>>()
         })
-        .collect::<BTreeSet<_>>();
+        .collect::<Vec<_>>();
 
     Ok(ret.into())
 }

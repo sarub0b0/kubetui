@@ -20,7 +20,7 @@ use tokio::{
 use crate::{
     features::{
         api_resources::{
-            kube::{ApiPoller, ApiResource, SharedApiResources},
+            kube::{ApiPoller, ApiResource, ApiResources, SharedApiResources},
             message::{ApiMessage, ApiRequest, ApiResponse},
         },
         config::{
@@ -45,6 +45,7 @@ use crate::{
         },
     },
     kube::KubeClient,
+    logger,
     message::Message,
     workers::kube::message::Kube,
 };
@@ -167,7 +168,7 @@ impl KubeController {
 
             let shared_target_namespaces = Arc::new(RwLock::new(target_namespaces.to_vec()));
             let shared_target_api_resources = Arc::new(RwLock::new(target_api_resources.to_vec()));
-            let shared_api_resources = SharedApiResources::default();
+            let shared_api_resources = ApiResources::shared();
 
             let poller_base = PollerBase {
                 shared_target_namespaces: shared_target_namespaces.clone(),
@@ -191,7 +192,8 @@ impl KubeController {
 
             let pod_handle = PodPoller::new(poller_base.clone()).spawn();
             let config_handle = ConfigPoller::new(poller_base.clone()).spawn();
-            let network_handle = NetworkPoller::new(poller_base.clone()).spawn();
+            let network_handle =
+                NetworkPoller::new(poller_base.clone(), shared_api_resources.clone()).spawn();
             let event_handle = EventPoller::new(poller_base.clone()).spawn();
             let api_handle = ApiPoller::new(
                 poller_base.clone(),
@@ -437,7 +439,11 @@ impl Worker for EventController {
                             APIs => {
                                 let api_resources = shared_api_resources.read().await;
 
-                                tx.send(YamlResponse::APIs(Ok(api_resources.to_vec())).into())
+                                let ret = api_resources.to_vec();
+
+                                logger!(info, "APIs: {:#?}", ret);
+
+                                tx.send(YamlResponse::APIs(Ok(ret)).into())
                                     .expect("Failed to send YamlResponse::Apis");
                             }
                             Resource(req) => {
@@ -499,6 +505,7 @@ impl Worker for EventController {
                                 tx,
                                 kube_client.clone(),
                                 req,
+                                shared_api_resources.clone(),
                             )
                             .spawn(),
                         );

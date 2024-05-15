@@ -2,6 +2,13 @@ use std::{cell::RefCell, rc::Rc};
 
 use crossbeam::channel::Sender;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use k8s_openapi::{
+    api::{
+        core::v1::{ConfigMap, Pod, Secret, Service},
+        networking::v1::{Ingress, NetworkPolicy},
+    },
+    Resource as _,
+};
 use ratatui::{layout::Direction, text::Line, widgets::Paragraph};
 
 use crate::{
@@ -24,11 +31,17 @@ use crate::{
             message::NamespaceRequest,
             view::{MultipleNamespacesPopup, SingleNamespacePopup},
         },
-        network::view::NetworkTab,
+        network::{
+            message::{GatewayVersion, HTTPRouteVersion},
+            view::NetworkTab,
+        },
         pod::view::PodTab,
         yaml::view::YamlTab,
     },
-    kube::context::{Context, Namespace},
+    kube::{
+        apis::networking::gateway::v1::{Gateway, HTTPRoute},
+        context::{Context, Namespace},
+    },
     message::{Message, UserEvent},
     ui::{
         event::{CallbackFn, EventResult},
@@ -235,25 +248,28 @@ fn open_yaml(tx: Sender<Message>) -> impl CallbackFn {
             return EventResult::Ignore;
         };
 
-        let kind = match widget.id() {
-            POD_WIDGET_ID => GetYamlKind::Pod,
-            CONFIG_WIDGET_ID => match metadata.get("kind").map(|v| v.as_str()) {
-                Some("ConfigMap") => GetYamlKind::ConfigMap,
-                Some("Secret") => GetYamlKind::Secret,
-                _ => {
-                    return EventResult::Ignore;
-                }
+        let version = metadata.get("version");
+
+        let kind = match metadata.get("kind").map(|v| v.as_str()) {
+            Some(Pod::KIND) => GetYamlKind::Pod,
+            Some(ConfigMap::KIND) => GetYamlKind::ConfigMap,
+            Some(Secret::KIND) => GetYamlKind::Secret,
+            Some(Ingress::KIND) => GetYamlKind::Ingress,
+            Some(Service::KIND) => GetYamlKind::Service,
+            Some(NetworkPolicy::KIND) => GetYamlKind::NetworkPolicy,
+            Some(Gateway::KIND) => match version.as_ref().map(|v| v.as_str()) {
+                Some("v1") => GetYamlKind::Gateway(GatewayVersion::V1),
+                Some("v1beta1") => GetYamlKind::Gateway(GatewayVersion::V1Beta1),
+                _ => unreachable!(),
             },
-            NETWORK_WIDGET_ID => match metadata.get("kind").map(|v| v.as_str()) {
-                Some("Ingress") => GetYamlKind::Ingress,
-                Some("Service") => GetYamlKind::Service,
-                Some("Pod") => GetYamlKind::Pod,
-                Some("NetworkPolicy") => GetYamlKind::NetworkPolicy,
-                _ => {
-                    return EventResult::Ignore;
-                }
+            Some(HTTPRoute::KIND) => match version.as_ref().map(|v| v.as_str()) {
+                Some("v1") => GetYamlKind::HTTPRoute(HTTPRouteVersion::V1),
+                Some("v1beta1") => GetYamlKind::HTTPRoute(HTTPRouteVersion::V1Beta1),
+                _ => unreachable!(),
             },
-            _ => return EventResult::Ignore,
+            _ => {
+                unreachable!();
+            }
         };
 
         tx.send(

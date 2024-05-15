@@ -7,14 +7,20 @@ use k8s_openapi::{
         core::v1::{ConfigMap, Pod, Secret, Service},
         networking::v1::{Ingress, NetworkPolicy},
     },
-    NamespaceResourceScope,
+    NamespaceResourceScope, Resource as _,
 };
-use kube::{Api, Resource};
+use kube::Api;
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
-    features::get::message::{GetRequest, GetResponse},
-    kube::KubeClient,
+    features::{
+        get::message::{GetRequest, GetResponse},
+        network::message::{GatewayVersion, HTTPRouteVersion},
+    },
+    kube::{
+        apis::networking::gateway::{v1, v1beta1},
+        KubeClient,
+    },
     logger,
     message::Message,
     workers::kube::AbortWorker,
@@ -28,17 +34,27 @@ pub enum GetYamlKind {
     Ingress,
     Service,
     NetworkPolicy,
+    Gateway(GatewayVersion),
+    HTTPRoute(HTTPRouteVersion),
 }
 
 impl std::fmt::Display for GetYamlKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            GetYamlKind::Pod => write!(f, "pods"),
-            GetYamlKind::ConfigMap => write!(f, "configmaps"),
-            GetYamlKind::Secret => write!(f, "secrets"),
-            GetYamlKind::Ingress => write!(f, "ingresses"),
-            GetYamlKind::Service => write!(f, "services"),
-            GetYamlKind::NetworkPolicy => write!(f, "networkpolicies"),
+            Self::Pod => write!(f, "{}", Pod::URL_PATH_SEGMENT),
+            Self::ConfigMap => write!(f, "{}", ConfigMap::URL_PATH_SEGMENT),
+            Self::Secret => write!(f, "{}", Secret::URL_PATH_SEGMENT),
+            Self::Ingress => write!(f, "{}", Ingress::URL_PATH_SEGMENT),
+            Self::Service => write!(f, "{}", Service::URL_PATH_SEGMENT),
+            Self::NetworkPolicy => write!(f, "{}", NetworkPolicy::URL_PATH_SEGMENT),
+            Self::Gateway(version) => match version {
+                GatewayVersion::V1 => write!(f, "{}", v1::Gateway::URL_PATH_SEGMENT),
+                GatewayVersion::V1Beta1 => write!(f, "{}", v1beta1::Gateway::URL_PATH_SEGMENT),
+            },
+            Self::HTTPRoute(version) => match version {
+                HTTPRouteVersion::V1 => write!(f, "{}", v1::HTTPRoute::URL_PATH_SEGMENT),
+                HTTPRouteVersion::V1Beta1 => write!(f, "{}", v1beta1::HTTPRoute::URL_PATH_SEGMENT),
+            },
         }
     }
 }
@@ -101,6 +117,23 @@ impl AbortWorker for GetYamlWorker {
                 GetYamlKind::NetworkPolicy => {
                     fetch_resource_yaml::<NetworkPolicy>(&self.client, name, namespace).await
                 }
+                GetYamlKind::Gateway(version) => match version {
+                    GatewayVersion::V1 => {
+                        fetch_resource_yaml::<v1::Gateway>(&self.client, name, namespace).await
+                    }
+                    GatewayVersion::V1Beta1 => {
+                        fetch_resource_yaml::<v1beta1::Gateway>(&self.client, name, namespace).await
+                    }
+                },
+                GetYamlKind::HTTPRoute(version) => match version {
+                    HTTPRouteVersion::V1 => {
+                        fetch_resource_yaml::<v1::HTTPRoute>(&self.client, name, namespace).await
+                    }
+                    HTTPRouteVersion::V1Beta1 => {
+                        fetch_resource_yaml::<v1beta1::HTTPRoute>(&self.client, name, namespace)
+                            .await
+                    }
+                },
             };
 
             self.tx
@@ -120,7 +153,7 @@ impl AbortWorker for GetYamlWorker {
 /// 選択されているリソースのyamlを取得する
 async fn fetch_resource_yaml<K>(client: &KubeClient, name: &str, ns: &str) -> Result<Vec<String>>
 where
-    K: Resource<Scope = NamespaceResourceScope> + k8s_openapi::Resource,
+    K: kube::Resource<Scope = NamespaceResourceScope>,
     <K as kube::Resource>::DynamicType: Default,
     K: DeserializeOwned + Clone + std::fmt::Debug,
     K: Serialize,
@@ -128,7 +161,7 @@ where
     logger!(
         info,
         "Fetching resource target [kind={} ns={} name={}]",
-        K::KIND,
+        K::kind(&K::DynamicType::default()),
         ns,
         name
     );

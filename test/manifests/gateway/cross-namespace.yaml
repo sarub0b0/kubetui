@@ -1,0 +1,245 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cross-namespace-gateway-infra
+  labels:
+    shared-gateway-access: "true"
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cross-namespace-gateway-site
+  labels:
+    shared-gateway-access: "true"
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cross-namespace-gateway-store
+  labels:
+    shared-gateway-access: "true"
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cross-namespace-gateway-no-external-access
+  labels:
+    no-external-access: "true"
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: shared-gateway
+  namespace: cross-namespace-gateway-infra
+spec:
+  gatewayClassName: nginx
+  listeners:
+    - protocol: HTTP
+      port: 8080
+      name: share-0
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              shared-gateway-access: "true"
+    - protocol: HTTP
+      port: 8081
+      name: share-1
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchExpressions:
+              - key: shared-gateway-access
+                operator: DoesNotExist
+              - key: no-external-access
+                operator: In
+                values:
+                  - "true"
+    - protocol: HTTP
+      port: 8082
+      name: share-2
+      allowedRoutes:
+        namespaces:
+          from: All
+    - protocol: HTTP
+      port: 8083
+      name: share-3
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: infra
+  namespace: cross-namespace-gateway-infra
+spec:
+  parentRefs:
+    - name: shared-gateway
+      namespace: cross-namespace-gateway-infra
+  rules:
+    - backendRefs:
+        - name: infra
+          port: 80
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: site
+  namespace: cross-namespace-gateway-site
+spec:
+  parentRefs:
+    - name: shared-gateway
+      namespace: cross-namespace-gateway-infra
+  rules:
+    - backendRefs:
+        - name: app
+          port: 80
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: store
+  namespace: cross-namespace-gateway-store
+spec:
+  parentRefs:
+    - name: shared-gateway
+      namespace: cross-namespace-gateway-infra
+  rules:
+    - backendRefs:
+        - name: app
+          port: 80
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: no-external-access
+  namespace: cross-namespace-gateway-no-external-access
+spec:
+  parentRefs:
+    - name: shared-gateway
+      namespace: cross-namespace-gateway-infra
+  rules:
+    - backendRefs:
+        - name: app
+          port: 80
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app
+  namespace: cross-namespace-gateway-site
+spec:
+  type: ClusterIP
+  selector:
+    app: app
+  ports:
+    - port: 80
+      targetPort: 80
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app
+  namespace: cross-namespace-gateway-store
+spec:
+  type: ClusterIP
+  selector:
+    app: app
+  ports:
+    - port: 80
+      targetPort: 80
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app
+  namespace: cross-namespace-gateway-no-external-access
+spec:
+  type: ClusterIP
+  selector:
+    app: app
+  ports:
+    - port: 80
+      targetPort: 80
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: infra
+  namespace: cross-namespace-gateway-infra
+spec:
+  type: ClusterIP
+  selector:
+    app: app
+  ports:
+    - port: 80
+      targetPort: 80
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+  namespace: cross-namespace-gateway-site
+spec:
+  selector:
+    matchLabels: # or matchExpressions:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+        - name: app
+          image: nginx
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+  namespace: cross-namespace-gateway-store
+spec:
+  selector:
+    matchLabels: # or matchExpressions:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+        - name: app
+          image: nginx
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+  namespace: cross-namespace-gateway-no-external-access
+spec:
+  selector:
+    matchLabels: # or matchExpressions:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+        - name: app
+          image: nginx
