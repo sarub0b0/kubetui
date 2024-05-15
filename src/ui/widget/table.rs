@@ -674,33 +674,29 @@ impl RenderTrait for Table<'_> {
         if self.items.is_empty() {
             let paragraph = Paragraph::new(" No data".dark_gray()).block(block);
             f.render_widget(paragraph, self.chunk());
-            return;
-        }
+        } else {
+            let constraints = constraints(self.items.digits());
 
-        let constraints = constraints(self.items.digits());
+            let highlight_style = self.render_highlight_style();
 
-        let highlight_style = self.render_highlight_style();
+            let mut widget = TuiTable::new(self.items.to_rendered_rows(), constraints)
+                .block(block)
+                .highlight_style(highlight_style)
+                .highlight_symbol(HIGHLIGHT_SYMBOL)
+                .column_spacing(COLUMN_SPACING);
 
-        let mut widget = TuiTable::new(self.items.to_rendered_rows(), constraints)
-            .block(block)
-            .highlight_style(highlight_style)
-            .highlight_symbol(HIGHLIGHT_SYMBOL)
-            .column_spacing(COLUMN_SPACING);
+            if !self.items.header().is_empty() {
+                widget = widget.header(self.items.header().rendered());
+            }
 
-        if !self.items.header().is_empty() {
-            widget = widget.header(self.items.header().rendered());
+            f.render_stateful_widget(widget, self.chunk(), &mut self.state);
         }
 
         match self.mode {
-            Mode::Normal => {
-                f.render_stateful_widget(widget, self.chunk(), &mut self.state);
-            }
-
+            Mode::Normal => {}
             Mode::FilterInput | Mode::FilterConfirm => {
                 self.filter_widget
                     .render(f, self.mode.is_filter_input() && is_active);
-
-                f.render_stateful_widget(widget, self.chunk(), &mut self.state);
             }
         }
 
