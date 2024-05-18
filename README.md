@@ -96,6 +96,14 @@ If you prefer using winget, the Windows package manager, you can install kubetui
 winget install kubetui
 ```
 
+### [Chocolatey](https://community.chocolatey.org/packages/kubetui/) on Windows
+
+Kubetui is available on Chocolatey, the package manager for Windows. Install it by running the following command:
+
+```shell
+choco install kubetui
+```
+
 ### openSUSE Tumbleweed
 
 For openSUSE Tumbleweed, you can install kubetui using the `zypper` package manager. Run the following command to install:
