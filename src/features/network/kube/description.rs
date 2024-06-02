@@ -196,7 +196,10 @@ mod tests {
         use anyhow::bail;
         use crossbeam::channel::{bounded, Receiver};
         use k8s_openapi::{
-            api::{core::v1::Service, networking::v1::Ingress},
+            api::{
+                core::v1::Service,
+                networking::v1::{Ingress, NetworkPolicy},
+            },
             List,
         };
         use mockall::predicate::eq;
@@ -224,6 +227,11 @@ mod tests {
                     (
                         List<Ingress>,
                         eq("/apis/networking.k8s.io/v1/namespaces/default/ingresses"),
+                        Ok(Default::default())
+                    ),
+                    (
+                        List<NetworkPolicy>,
+                        eq("/apis/networking.k8s.io/v1/namespaces/default/networkpolicies"),
                         Ok(Default::default())
                     )
                 ]
