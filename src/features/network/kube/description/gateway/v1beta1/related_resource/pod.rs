@@ -1,5 +1,4 @@
 use anyhow::Result;
-use derivative::Derivative;
 use futures::StreamExt;
 use k8s_openapi::api::core::v1::{Pod, Service};
 use kube::{api::ListParams, Api, Client, ResourceExt as _};
@@ -11,8 +10,7 @@ use super::service::RelatedService;
 
 pub type RelatedPods = Vec<RelatedPod>;
 
-#[derive(Derivative, Debug, Clone, Serialize, Deserialize)]
-#[derivative(PartialEq, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct RelatedPod {
     /// Pod Name
     pub name: String,
@@ -22,16 +20,6 @@ pub struct RelatedPod {
 
     /// Service Name
     pub service: String,
-
-    #[derivative(PartialEq = "ignore", PartialOrd = "ignore", Ord = "ignore")]
-    #[serde(skip)]
-    pub resource: Pod,
-}
-
-impl PartialOrd for RelatedPod {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
 }
 
 pub async fn discover_pods(
@@ -90,7 +78,6 @@ async fn fetch_pods(
                     name: pod.name_any(),
                     namespace: pod.extract_namespace(),
                     service: svc_name.clone(),
-                    resource: pod,
                 })
                 .collect::<Vec<_>>(),
         ),

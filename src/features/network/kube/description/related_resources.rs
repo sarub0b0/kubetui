@@ -1,18 +1,11 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
-
 use anyhow::Result;
 use k8s_openapi::{List, ListableResource};
 use kube::Resource;
 use serde::de::DeserializeOwned;
-use serde_yaml::Value;
 
 use crate::kube::KubeClientRequest;
 
-use self::{
-    fetch::FetchClient,
-    to_list_value::{ResourceList, ToListValue},
-};
+use self::{fetch::FetchClient, to_list_value::ToListValue};
 
 pub mod ingress;
 pub mod network_policy;
@@ -270,10 +263,6 @@ pub mod label_selector {
                 assert_eq!(expr.expression(&labels), false)
             }
         }
-
-        mod complex_operator {
-            use super::*;
-        }
     }
 }
 
@@ -299,7 +288,6 @@ mod btree_map_contains_key_values {
 
     #[cfg(test)]
     mod tests {
-        use indoc::indoc;
 
         use super::*;
 
@@ -330,7 +318,6 @@ mod btree_map_contains_key_values {
 }
 
 mod fetch {
-    use std::marker::PhantomData;
 
     use k8s_openapi::{List, ListableResource};
     use kube::Resource;
@@ -478,7 +465,7 @@ mod fetch {
 
 pub mod to_list_value {
 
-    use k8s_openapi::{api::core::v1::Pod, List, ListableResource};
+    use k8s_openapi::{List, ListableResource};
     use kube::ResourceExt;
     use serde_yaml::Value;
 
@@ -519,7 +506,7 @@ pub mod to_list_value {
         use super::*;
 
         use indoc::indoc;
-        use k8s_openapi::api::core::v1::Service;
+        use k8s_openapi::api::core::v1::{Pod, Service};
 
         fn setup_pod_list() -> List<Pod> {
             let yaml = indoc! {

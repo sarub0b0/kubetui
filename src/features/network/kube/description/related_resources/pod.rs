@@ -1,19 +1,11 @@
-use anyhow::{Ok, Result};
-
 use k8s_openapi::{api::core::v1::Pod, List};
 
 use std::collections::BTreeMap;
 
-use kube::Resource;
-use serde_yaml::Value;
-
-use crate::kube::KubeClientRequest;
-
 use super::{
     btree_map_contains_key_values::BTreeMapContains,
-    fetch::FetchClient,
     label_selector::{LabelSelectorExpression, LabelSelectorWrapper},
-    Filter, RelatedClient,
+    Filter,
 };
 
 impl Filter<BTreeMap<String, String>> for List<Pod> {
@@ -169,8 +161,6 @@ mod tests {
         }
     }
 
-    use super::*;
-
     mod related_resources {
         use anyhow::bail;
         use indoc::indoc;
@@ -178,7 +168,10 @@ mod tests {
 
         use super::*;
 
-        use crate::{kube::mock::MockTestKubeClient, mock_expect};
+        use crate::{
+            features::network::kube::description::related_resources::RelatedClient,
+            kube::mock::MockTestKubeClient, mock_expect,
+        };
 
         fn setup_pod() -> List<Pod> {
             let yaml = indoc! {

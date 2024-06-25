@@ -1,15 +1,6 @@
-use anyhow::{Ok, Result};
-
 use k8s_openapi::{api::networking::v1::Ingress, List};
 
-use std::collections::BTreeMap;
-
-use kube::Resource;
-use serde_yaml::Value;
-
-use crate::kube::KubeClientRequest;
-
-use super::{btree_map_contains_key_values::BTreeMapContains, Filter, RelatedClient};
+use super::Filter;
 
 impl Filter<Vec<String>> for List<Ingress> {
     type Filtered = Ingress;
@@ -175,7 +166,10 @@ mod tests {
         use indoc::indoc;
         use mockall::predicate::eq;
 
-        use crate::{kube::mock::MockTestKubeClient, mock_expect};
+        use crate::{
+            features::network::kube::description::related_resources::RelatedClient,
+            kube::mock::MockTestKubeClient, mock_expect,
+        };
 
         fn ingresses() -> List<Ingress> {
             let yaml = indoc! {

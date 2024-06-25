@@ -1,5 +1,4 @@
 use anyhow::Result;
-use derivative::Derivative;
 use k8s_openapi::Resource as _;
 use serde::{Deserialize, Serialize};
 
@@ -10,24 +9,13 @@ use crate::{
 
 pub type RelatedGateways = Vec<RelatedGateway>;
 
-#[derive(Derivative, Debug, Clone, Serialize, Deserialize)]
-#[derivative(PartialEq, Eq, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct RelatedGateway {
     /// Gateway Name
     pub name: String,
 
     /// Gateway Namespace
     pub namespace: String,
-
-    #[derivative(PartialEq = "ignore", PartialOrd = "ignore", Ord = "ignore")]
-    #[serde(skip)]
-    pub resource: Gateway,
-}
-
-impl PartialOrd for RelatedGateway {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
 }
 
 struct ParentRef {
@@ -81,7 +69,6 @@ pub async fn discover_gateways(
         Some(RelatedGateway {
             name: name.clone(),
             namespace: namespace.clone(),
-            resource: Gateway::default(),
         })
     }).collect();
 
