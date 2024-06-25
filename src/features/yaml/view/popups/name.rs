@@ -1,5 +1,5 @@
 use crossbeam::channel::Sender;
-use crossterm::event::KeyCode;
+use ratatui::crossterm::event::KeyCode;
 
 use crate::{
     features::{

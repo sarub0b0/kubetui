@@ -4,7 +4,7 @@ use super::{
     widget::*,
 };
 
-use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+use ratatui::crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{
     layout::{Constraint, Layout, Rect},
     prelude::Direction,

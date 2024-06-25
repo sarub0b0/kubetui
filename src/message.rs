@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent};
 
 use crate::workers::kube::message::Kube;
 

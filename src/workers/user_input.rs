@@ -8,7 +8,7 @@ use std::{
 
 use anyhow::Result;
 use crossbeam::channel::Sender;
-use crossterm::event::{poll, read, Event as CEvent, KeyEvent, KeyEventKind};
+use ratatui::crossterm::event::{poll, read, Event as CEvent, KeyEvent, KeyEventKind};
 
 use crate::{
     logger,

@@ -1,5 +1,5 @@
-use crossterm::event::{KeyEvent, MouseEvent};
 use ratatui::{
+    crossterm::event::{KeyEvent, MouseEvent},
     layout::{Margin, Rect},
     widgets::Clear,
     Frame,
@@ -51,7 +51,7 @@ impl PopupChunkSize {
         let vertical_margin =
             (parent_chunk.height as f32 * ((100.0 - self.height) / 2.0 / 100.0)).round() as u16;
 
-        parent_chunk.inner(&Margin {
+        parent_chunk.inner(Margin {
             vertical: vertical_margin,
             horizontal: horizontal_margin,
         })
@@ -86,7 +86,7 @@ impl<'a> Popup<'a> {
 
         self.chunk = chunk;
 
-        self.widget.update_chunk(chunk.inner(&Margin {
+        self.widget.update_chunk(chunk.inner(Margin {
             vertical: 1,
             horizontal: 1,
         }));

@@ -1,9 +1,11 @@
 mod filter_form;
 mod item;
 
-use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
+use std::rc::Rc;
+
 use derivative::*;
 use ratatui::{
+    crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind},
     layout::{Constraint, Rect},
     style::{Modifier, Style, Stylize},
     widgets::{
@@ -11,10 +13,6 @@ use ratatui::{
     },
     Frame,
 };
-use std::rc::Rc;
-
-use filter_form::FilterForm;
-use item::InnerItem;
 
 use crate::{
     define_callback, logger,
@@ -27,11 +25,12 @@ use crate::{
     },
 };
 
-use self::filter_form::FILTER_HEIGHT;
-
 use super::{
     config::WidgetConfig, styled_graphemes, Item, RenderTrait, SelectedItem, TableItem, WidgetTrait,
 };
+
+use filter_form::{FilterForm, FILTER_HEIGHT};
+use item::InnerItem;
 
 const COLUMN_SPACING: u16 = 3;
 const HIGHLIGHT_SYMBOL: &str = " ";

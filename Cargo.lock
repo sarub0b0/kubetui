@@ -1254,7 +1254,6 @@ dependencies = [
  "chrono",
  "clap",
  "crossbeam",
- "crossterm",
  "ctrlc",
  "derivative",
  "enum_dispatch",

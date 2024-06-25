@@ -1,7 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
 use crossbeam::channel::Sender;
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use k8s_openapi::{
     api::{
         core::v1::{ConfigMap, Pod, Secret, Service},
@@ -9,7 +8,12 @@ use k8s_openapi::{
     },
     Resource as _,
 };
-use ratatui::{layout::Direction, text::Line, widgets::Paragraph};
+use ratatui::{
+    crossterm::event::{KeyCode, KeyEvent, KeyModifiers},
+    layout::Direction,
+    text::Line,
+    widgets::Paragraph,
+};
 
 use crate::{
     clipboard::Clipboard,

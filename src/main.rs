@@ -12,7 +12,7 @@ mod workers;
 use std::panic;
 
 use anyhow::Result;
-use crossterm::{
+use ratatui::crossterm::{
     cursor::Show,
     event::{DisableFocusChange, DisableMouseCapture, EnableFocusChange, EnableMouseCapture},
     execute,
