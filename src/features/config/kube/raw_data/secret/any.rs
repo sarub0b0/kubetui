@@ -45,9 +45,7 @@ struct Iter<'a> {
 impl Iterator for Iter<'_> {
     type Item = String;
     fn next(&mut self) -> std::option::Option<<Self as Iterator>::Item> {
-        let Some((key, ByteString(value))) = self.iter.next() else {
-            return None;
-        };
+        let (key, ByteString(value)) = self.iter.next()?;
 
         let color = self.color.next_color();
 
