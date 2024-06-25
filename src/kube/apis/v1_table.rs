@@ -77,18 +77,22 @@ impl Value {
     }
 }
 
-impl ToString for Value {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.0 {
-            JsonValue::Null => "Null".to_string(),
-            JsonValue::Bool(b) => if *b { "True" } else { "False" }.to_string(),
-            JsonValue::Number(n) => n.to_string(),
-            JsonValue::String(s) => s.to_string(),
+            JsonValue::Null => write!(f, "Null"),
+            JsonValue::Bool(b) => {
+                let s = if *b { "True" } else { "False" };
+
+                write!(f, "{}", s)
+            }
+            JsonValue::Number(n) => write!(f, "{}", n),
+            JsonValue::String(s) => write!(f, "{}", s),
             JsonValue::Array(_) => {
-                format!("{}", self.0)
+                write!(f, "{}", self.0)
             }
             JsonValue::Object(_) => {
-                format!("{}", self.0)
+                write!(f, "{}", self.0)
             }
         }
     }
