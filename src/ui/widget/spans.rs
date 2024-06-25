@@ -39,7 +39,7 @@ mod inner {
         let line = line.as_ref();
 
         if line.is_empty() {
-            return Line::from(Span::styled("", Style::default()));
+            return Line::from("");
         }
 
         let mut span_vec: Vec<Span> = vec![];
@@ -169,9 +169,8 @@ mod tests {
         ];
 
         let result = generate_spans_lines_for_multiline(&wrapped);
-        for (i, l) in result.iter().enumerate() {
-            assert_eq!(*l, expected[i]);
-        }
+
+        assert_eq!(result, expected);
     }
 
     mod generate_spans_color {
