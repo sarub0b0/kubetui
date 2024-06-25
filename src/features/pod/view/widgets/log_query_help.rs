@@ -1,5 +1,5 @@
-use crossterm::event::KeyCode;
 use indoc::indoc;
+use ratatui::crossterm::event::KeyCode;
 
 use crate::{
     features::component_id::POD_LOG_QUERY_HELP_POPUP_ID,

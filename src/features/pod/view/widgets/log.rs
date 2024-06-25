@@ -1,7 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crossterm::event::KeyCode;
-use ratatui::widgets::Block;
+use ratatui::{crossterm::event::KeyCode, widgets::Block};
 
 use crate::{
     clipboard::Clipboard,

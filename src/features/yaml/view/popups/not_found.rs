@@ -1,4 +1,4 @@
-use crossterm::event::KeyCode;
+use ratatui::crossterm::event::KeyCode;
 
 use crate::{
     features::component_id::{YAML_KIND_POPUP_ID, YAML_NOT_FOUND_POPUP_ID},

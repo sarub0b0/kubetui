@@ -1,13 +1,12 @@
 use std::rc::Rc;
 
 use ratatui::{
+    crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind},
     layout::Rect,
     style::{Modifier, Style},
     widgets::{self, Block, ListState, Scrollbar, ScrollbarOrientation, ScrollbarState},
     Frame,
 };
-
-use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 
 use derivative::*;
 

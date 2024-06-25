@@ -1,3 +1,15 @@
+use std::time::{Duration, Instant};
+
+use derivative::Derivative;
+use ratatui::{
+    crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent},
+    layout::Rect,
+    style::*,
+    text::{Line, Span},
+    widgets::{Block, Paragraph},
+    Frame,
+};
+
 use crate::{
     message::UserEvent,
     ui::{
@@ -6,18 +18,6 @@ use crate::{
         widget::*,
     },
 };
-
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
-use derivative::Derivative;
-use ratatui::{
-    layout::Rect,
-    style::*,
-    text::{Line, Span},
-    widgets::{Block, Paragraph},
-    Frame,
-};
-
-use std::time::{Duration, Instant};
 
 #[derive(Debug)]
 enum Mode {

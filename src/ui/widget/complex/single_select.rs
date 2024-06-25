@@ -1,14 +1,13 @@
-use crossterm::event::{KeyEvent, MouseEvent};
+use std::{collections::BTreeSet, rc::Rc};
 
 use ratatui::{
+    crossterm::event::{KeyEvent, MouseEvent},
     layout::{Constraint, Direction, Layout, Rect},
     widgets::{Block, Paragraph},
     Frame,
 };
 
 use derivative::*;
-
-use std::{collections::BTreeSet, rc::Rc};
 
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 

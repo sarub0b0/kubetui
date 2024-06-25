@@ -15,17 +15,18 @@ pub use list::*;
 pub use table::*;
 pub use text::*;
 
-use self::{config::WidgetConfig, input::InputForm, styled_graphemes::StyledGraphemes};
+use std::{collections::BTreeMap, hash::Hash};
+
+use enum_dispatch::enum_dispatch;
+use ratatui::{
+    crossterm::event::{KeyEvent, MouseEvent},
+    layout::Rect,
+    Frame,
+};
 
 use super::event::EventResult;
 
-use crossterm::event::{KeyEvent, MouseEvent};
-
-use enum_dispatch::enum_dispatch;
-
-use ratatui::{layout::Rect, Frame};
-
-use std::{collections::BTreeMap, hash::Hash};
+use self::{config::WidgetConfig, input::InputForm, styled_graphemes::StyledGraphemes};
 
 #[derive(Debug, Clone, Default, Hash, PartialEq, Eq)]
 pub struct LiteralItem {

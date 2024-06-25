@@ -5,11 +5,10 @@ mod wrap;
 
 use std::{cell::RefCell, rc::Rc};
 
-use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
-
 use derivative::Derivative;
 
 use ratatui::{
+    crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind},
     layout::Rect,
     widgets::{Block, Scrollbar, ScrollbarOrientation, ScrollbarState},
     Frame,
@@ -26,16 +25,16 @@ use crate::{
     },
 };
 
+use super::{
+    config::WidgetConfig, styled_graphemes::StyledGrapheme, Item, LiteralItem, RenderTrait,
+    SelectedItem, WidgetTrait,
+};
+
 use self::{
     highlight_content::{HighlightArea, HighlightContent, Point},
     item::TextItem,
     render::{Render, Scroll},
     search_form::SearchForm,
-};
-
-use super::{
-    config::WidgetConfig, styled_graphemes::StyledGrapheme, Item, LiteralItem, RenderTrait,
-    SelectedItem, WidgetTrait,
 };
 
 define_callback!(pub RenderBlockInjection, Fn(&Text, bool, bool) -> Block<'static> );
@@ -831,7 +830,7 @@ impl RenderTrait for Text {
                 Scrollbar::new(ScrollbarOrientation::HorizontalBottom)
                     .begin_symbol(None)
                     .end_symbol(None),
-                self.chunk().inner(&ratatui::prelude::Margin {
+                self.chunk().inner(ratatui::prelude::Margin {
                     horizontal: 1,
                     vertical: 0,
                 }),

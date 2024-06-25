@@ -1,3 +1,20 @@
+use std::rc::Rc;
+
+use derivative::*;
+
+use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
+
+use ratatui::{
+    crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::*,
+    text::Span,
+    widgets::{Block, Paragraph},
+    Frame,
+};
+
+use unicode_width::UnicodeWidthStr;
+
 use crate::{
     define_callback,
     ui::{
@@ -13,24 +30,6 @@ use crate::{
         },
     },
 };
-
-use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
-
-use derivative::*;
-
-use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
-
-use ratatui::{
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::*,
-    text::Span,
-    widgets::{Block, Paragraph},
-    Frame,
-};
-
-use std::rc::Rc;
-
-use unicode_width::UnicodeWidthStr;
 
 mod inner {
     use std::collections::BTreeMap;

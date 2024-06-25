@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use crossbeam::channel::Sender;
-use crossterm::event::KeyCode;
+use ratatui::crossterm::event::KeyCode;
 
 use crate::{
     features::{
