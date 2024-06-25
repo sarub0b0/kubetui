@@ -129,6 +129,7 @@ impl Item {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum SelectedItem {
     Literal {
         metadata: Option<BTreeMap<String, String>>,
