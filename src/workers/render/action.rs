@@ -25,6 +25,7 @@ use crate::{
         context::{Context, Namespace},
         table::{KubeTable, KubeTableRow},
     },
+    logger,
     message::Message,
     ui::{
         event::{Callback, EventResult},
@@ -87,7 +88,9 @@ pub fn window_action(window: &mut Window, rx: &Receiver<Message>) -> WindowActio
 
         Message::Tick => {}
         Message::Kube(k) => return WindowAction::UpdateContents(k),
-        Message::Error(_) => {}
+        Message::Error(err) => {
+            logger!(error, "Error: {:?}", err);
+        }
     }
     WindowAction::Continue
 }
