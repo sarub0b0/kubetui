@@ -155,7 +155,7 @@ impl LogStreamer {
         while let Some(line) = logs.try_next().await? {
             let mut buf = self.log_buffer.lock().await;
 
-            if let Ok((dt, content)) = chrono::DateTime::parse_and_remainder(&line, "%+ ") {
+            if let Ok((dt, content)) = chrono::DateTime::parse_and_remainder(&line, "%+") {
                 let dt: DateTime<Utc> = dt.into();
 
                 if last_timestamp.is_some_and(|lts| dt <= lts) {
