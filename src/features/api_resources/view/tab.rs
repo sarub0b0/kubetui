@@ -8,7 +8,7 @@ use crate::{
     features::component_id::LIST_TAB_ID,
     message::Message,
     ui::{
-        tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout},
+        tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout, TabLayout},
         widget::Widget,
         Tab,
     },
@@ -29,16 +29,18 @@ impl ListTab {
     ) -> Self {
         let list_widget = list_widget(tx, clipboard);
 
-        ListTab {
-            tab: Tab::new(
-                LIST_TAB_ID,
-                title,
-                [list_widget],
+        let layout = TabLayout::new(
+            |_| {
                 NestedWidgetLayout::default().nested_widget_layout([NestedLayoutElement(
                     Constraint::Percentage(100),
                     LayoutElement::WidgetIndex(0),
-                )]),
-            ),
+                )])
+            },
+            Default::default(),
+        );
+
+        ListTab {
+            tab: Tab::new(LIST_TAB_ID, title, [list_widget], layout),
             popup: popup_widget(tx),
         }
     }

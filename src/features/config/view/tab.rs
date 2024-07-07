@@ -8,7 +8,7 @@ use crate::{
     features::component_id::CONFIG_TAB_ID,
     message::Message,
     ui::{
-        tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout},
+        tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout, TabLayout},
         Tab,
     },
 };
@@ -29,7 +29,7 @@ impl ConfigTab {
         let config_widget = config_widget(tx);
         let raw_data_widget = raw_data_widget(clipboard);
 
-        let layout = layout(split_direction);
+        let layout = TabLayout::new(layout, split_direction);
 
         Self {
             tab: Tab::new(

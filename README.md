@@ -278,6 +278,7 @@ ESCAPED_CHAR = "\\" | "\"" | "\'"
 | <kbd>ESC</kbd>                       | Close the window or terminate the app (when the popup is not open) |
 | <kbd>q</kbd>                         | Terminate the app                                                  |
 | <kbd>f</kbd>                         | Open the popup for selecting multiple API resources                |
+| <kbd>Shift+s</kbd>                   | Toggle the split direction between vertical and horizontal         |
 
 ### Key Map
 

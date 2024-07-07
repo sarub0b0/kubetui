@@ -9,7 +9,7 @@ use crate::{
     kube::context::Namespace,
     message::Message,
     ui::{
-        tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout},
+        tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout, TabLayout},
         widget::Widget,
         Tab,
     },
@@ -35,7 +35,7 @@ impl PodTab {
         let log_widget = log_widget(clipboard);
         let log_query_help_widget = log_query_help_widget();
 
-        let layout = layout(split_direction);
+        let layout = TabLayout::new(layout, split_direction);
 
         let mut tab = Tab::new(
             POD_TAB_ID,

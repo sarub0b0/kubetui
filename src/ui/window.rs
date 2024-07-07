@@ -238,6 +238,12 @@ impl<'a> Window<'a> {
             h.content_update(content);
         }
     }
+
+    pub fn toggle_split_direction(&mut self) {
+        self.tabs
+            .iter_mut()
+            .for_each(|tab| tab.toggle_split_direction());
+    }
 }
 
 // Popup
