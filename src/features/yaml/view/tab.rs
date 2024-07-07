@@ -8,7 +8,7 @@ use crate::{
     features::component_id::YAML_TAB_ID,
     message::Message,
     ui::{
-        tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout},
+        tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout, TabLayout},
         widget::Widget,
         Tab,
     },
@@ -34,10 +34,15 @@ impl YamlTab {
     ) -> Self {
         let yaml_widget = yaml_widget(tx, clipboard);
 
-        let layout = NestedWidgetLayout::default().nested_widget_layout([NestedLayoutElement(
-            Constraint::Percentage(100),
-            LayoutElement::WidgetIndex(0),
-        )]);
+        let layout = TabLayout::new(
+            |_| {
+                NestedWidgetLayout::default().nested_widget_layout([NestedLayoutElement(
+                    Constraint::Percentage(100),
+                    LayoutElement::WidgetIndex(0),
+                )])
+            },
+            Default::default(),
+        );
 
         YamlTab {
             tab: Tab::new(YAML_TAB_ID, title, [yaml_widget], layout),

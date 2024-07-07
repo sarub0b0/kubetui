@@ -11,7 +11,7 @@ use crate::{
     },
     message::Message,
     ui::{
-        tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout},
+        tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout, TabLayout},
         Tab,
     },
 };
@@ -25,12 +25,12 @@ impl NetworkTab {
         title: &'static str,
         tx: &Sender<Message>,
         clipboard: &Option<Rc<RefCell<Clipboard>>>,
-        split_mode: Direction,
+        split_direction: Direction,
     ) -> Self {
         let network_widget = network_widget(tx);
         let description_widget = description_widget(clipboard);
 
-        let layout = layout(split_mode);
+        let layout = TabLayout::new(layout, split_direction);
 
         NetworkTab {
             tab: Tab::new(

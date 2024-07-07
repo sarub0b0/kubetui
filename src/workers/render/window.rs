@@ -46,6 +46,7 @@ use crate::{
         apis::networking::gateway::v1::{Gateway, HTTPRoute},
         context::{Context, Namespace},
     },
+    logger,
     message::{Message, UserEvent},
     ui::{
         event::{CallbackFn, EventResult},
@@ -128,6 +129,20 @@ impl WindowInit {
 
         let builder = builder.action('h', open_help).action('?', open_help);
         let builder = builder.action('y', open_yaml);
+
+        //　分割方向を変更する
+        let toggle_split_direction = move |w: &mut Window| {
+            logger!(info, "Toggle split direction");
+
+            w.toggle_split_direction();
+
+            EventResult::Nop
+        };
+
+        let builder = builder.action(
+            KeyEvent::new(KeyCode::Char('S'), KeyModifiers::SHIFT),
+            toggle_split_direction,
+        );
 
         let builder = builder.action('q', fn_close).action(KeyCode::Esc, fn_close);
 

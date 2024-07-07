@@ -1,83 +1,24 @@
+use std::rc::Rc;
+
 use super::{
     event::EventResult,
     util::{MousePosition, RectContainsPoint},
     widget::*,
 };
 
-use ratatui::crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{
-    layout::{Constraint, Layout, Rect},
-    prelude::Direction,
+    crossterm::event::{MouseButton, MouseEvent, MouseEventKind},
+    layout::Rect,
     Frame,
 };
 
-use std::rc::Rc;
-
-pub enum LayoutElement {
-    WidgetIndex(usize),
-    NestedElement(NestedWidgetLayout),
-}
-
-pub struct NestedLayoutElement(pub Constraint, pub LayoutElement);
-
-pub struct NestedWidgetLayout {
-    layout: Layout,
-    elements: Vec<LayoutElement>,
-}
-
-impl Default for NestedWidgetLayout {
-    fn default() -> Self {
-        Self {
-            layout: Layout::default().constraints([Constraint::Percentage(100)]),
-            elements: Default::default(),
-        }
-    }
-}
-
-impl NestedWidgetLayout {
-    pub fn direction(mut self, direction: Direction) -> Self {
-        self.layout = self.layout.direction(direction);
-        self
-    }
-
-    pub fn nested_widget_layout(
-        mut self,
-        nested_layout_elements: impl Into<Vec<NestedLayoutElement>>,
-    ) -> Self {
-        let configs: Vec<_> = nested_layout_elements.into();
-
-        let (constraints, elements): (Vec<_>, Vec<_>) = configs
-            .into_iter()
-            .map(|NestedLayoutElement(constraint, element)| (constraint, element))
-            .unzip();
-
-        self.layout = self.layout.constraints(constraints);
-        self.elements = elements;
-
-        self
-    }
-
-    fn split(&self, chunk: Rect) -> Rc<[Rect]> {
-        self.layout.split(chunk)
-    }
-
-    fn update_chunk(&mut self, chunk: Rect, widgets: &mut [Widget<'_>]) {
-        let chunks = self.layout.split(chunk);
-
-        chunks
-            .iter()
-            .zip(self.elements.iter_mut())
-            .for_each(|(chunk, layout_element)| match layout_element {
-                LayoutElement::WidgetIndex(i) => widgets[*i].update_chunk(*chunk),
-                LayoutElement::NestedElement(element) => element.update_chunk(*chunk, widgets),
-            });
-    }
-}
+pub use layout::*;
 
 pub struct Tab<'a> {
     id: String,
     title: String,
-    nested_widget_layout: NestedWidgetLayout,
+    chunk: Rect,
+    layout: TabLayout,
     widgets: Vec<Widget<'a>>,
     active_widget_index: usize,
     activatable_widget_indices: Vec<usize>,
@@ -90,7 +31,7 @@ impl<'a> Tab<'a> {
         id: impl Into<String>,
         title: impl Into<String>,
         widgets: impl Into<Vec<Widget<'a>>>,
-        layout: NestedWidgetLayout,
+        layout: TabLayout,
     ) -> Self {
         let widgets: Vec<_> = widgets.into();
 
@@ -104,7 +45,8 @@ impl<'a> Tab<'a> {
         Self {
             id: id.into(),
             title: title.into(),
-            nested_widget_layout: layout,
+            chunk: Rect::default(),
+            layout,
             widgets,
             activatable_widget_indices,
             active_widget_index: 0,
@@ -121,7 +63,7 @@ impl<'a> Tab<'a> {
     }
 
     pub fn chunks(&self, tab_size: Rect) -> Rc<[Rect]> {
-        self.nested_widget_layout.split(tab_size)
+        self.layout.split(tab_size)
     }
 
     pub fn as_ref_widgets(&self) -> Vec<&Widget<'a>> {
@@ -161,8 +103,8 @@ impl<'a> Tab<'a> {
     }
 
     pub fn update_chunk(&mut self, chunk: Rect) {
-        self.nested_widget_layout
-            .update_chunk(chunk, &mut self.widgets);
+        self.chunk = chunk;
+        self.layout.update_chunk(chunk, &mut self.widgets);
     }
 
     pub fn activate_widget_by_id(&mut self, id: &str) {
@@ -214,6 +156,11 @@ impl<'a> Tab<'a> {
 
         self.active_widget_mut().on_mouse_event(ev)
     }
+
+    pub fn toggle_split_direction(&mut self) {
+        self.layout
+            .toggle_split_direction(self.chunk, &mut self.widgets);
+    }
 }
 
 impl<'a> Tab<'a> {
@@ -225,5 +172,124 @@ impl<'a> Tab<'a> {
                 self.mouse_over_widget_index.is_some_and(|idx| idx == i),
             )
         });
+    }
+}
+
+mod layout {
+    use std::rc::Rc;
+
+    use ratatui::layout::{Constraint, Direction, Layout, Rect};
+
+    use super::{Widget, WidgetTrait as _};
+
+    pub struct TabLayout {
+        /// Callback to generate the nested widget layout.
+        /// The callback takes the current direction and returns the nested widget layout.
+        layout_fn: Rc<dyn Fn(Direction) -> NestedWidgetLayout>,
+
+        /// The current direction of the layout.
+        current_direction: Direction,
+
+        /// The current nested widget layout.
+        current_layout: NestedWidgetLayout,
+    }
+
+    impl TabLayout {
+        pub fn new<T>(layout_fn: T, direction: Direction) -> Self
+        where
+            T: Fn(Direction) -> NestedWidgetLayout + 'static,
+        {
+            let current_layout = (layout_fn)(direction);
+
+            Self {
+                layout_fn: Rc::new(layout_fn),
+                current_direction: direction,
+                current_layout,
+            }
+        }
+
+        pub fn toggle_split_direction(&mut self, chunk: Rect, widgets: &mut [Widget<'_>]) {
+            self.current_direction = match self.current_direction {
+                Direction::Horizontal => Direction::Vertical,
+                Direction::Vertical => Direction::Horizontal,
+            };
+
+            self.current_layout = self.update_layout();
+
+            self.update_chunk(chunk, widgets);
+        }
+
+        pub fn split(&self, chunk: Rect) -> Rc<[Rect]> {
+            self.current_layout.split(chunk)
+        }
+
+        pub fn update_chunk(&mut self, chunk: Rect, widgets: &mut [Widget<'_>]) {
+            self.current_layout.update_chunk(chunk, widgets);
+        }
+
+        fn update_layout(&self) -> NestedWidgetLayout {
+            (self.layout_fn)(self.current_direction)
+        }
+    }
+
+    pub enum LayoutElement {
+        WidgetIndex(usize),
+        NestedElement(NestedWidgetLayout),
+    }
+
+    pub struct NestedLayoutElement(pub Constraint, pub LayoutElement);
+
+    pub struct NestedWidgetLayout {
+        layout: Layout,
+        elements: Vec<LayoutElement>,
+    }
+
+    impl Default for NestedWidgetLayout {
+        fn default() -> Self {
+            Self {
+                layout: Layout::default().constraints([Constraint::Percentage(100)]),
+                elements: Default::default(),
+            }
+        }
+    }
+
+    impl NestedWidgetLayout {
+        pub fn direction(mut self, direction: Direction) -> Self {
+            self.layout = self.layout.direction(direction);
+            self
+        }
+
+        pub fn nested_widget_layout(
+            mut self,
+            nested_layout_elements: impl Into<Vec<NestedLayoutElement>>,
+        ) -> Self {
+            let configs: Vec<_> = nested_layout_elements.into();
+
+            let (constraints, elements): (Vec<_>, Vec<_>) = configs
+                .into_iter()
+                .map(|NestedLayoutElement(constraint, element)| (constraint, element))
+                .unzip();
+
+            self.layout = self.layout.constraints(constraints);
+            self.elements = elements;
+
+            self
+        }
+
+        fn split(&self, chunk: Rect) -> Rc<[Rect]> {
+            self.layout.split(chunk)
+        }
+
+        fn update_chunk(&mut self, chunk: Rect, widgets: &mut [Widget<'_>]) {
+            let chunks = self.layout.split(chunk);
+
+            chunks
+                .iter()
+                .zip(self.elements.iter_mut())
+                .for_each(|(chunk, layout_element)| match layout_element {
+                    LayoutElement::WidgetIndex(i) => widgets[*i].update_chunk(*chunk),
+                    LayoutElement::NestedElement(element) => element.update_chunk(*chunk, widgets),
+                });
+        }
     }
 }
