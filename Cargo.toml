@@ -63,7 +63,7 @@ paste = "1.0.14"
 [dev-dependencies]
 pretty_assertions = "1.4.0"
 indoc = "2.0.5"
-mockall = "0.12.1"
+mockall = "0.13.0"
 mockall_double = "0.3.1"
 tokio = { version = "1.37.0", features = ["rt", "rt-multi-thread", "macros"] }
 rstest = "0.21.0"
