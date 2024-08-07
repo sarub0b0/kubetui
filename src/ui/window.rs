@@ -218,6 +218,7 @@ impl<'a> Window<'a> {
         Tabs::new(titles)
             .block(Self::tab_block())
             .select(self.active_tab_index)
+            .padding("", "")
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
     }
 
@@ -297,7 +298,7 @@ impl<'a> Window<'a> {
     }
 
     fn tab_title_format(index: usize, title: &str) -> String {
-        format!("{}: {} ", index + 1, title)
+        format!(" {}: {}  ", index + 1, title)
     }
 
     fn tab_block() -> Block<'a> {
@@ -546,7 +547,6 @@ impl Window<'_> {
 
         for (i, tab) in self.tabs.iter().enumerate() {
             let w = Self::tab_title_format(i, tab.title()).width() as u16;
-            x = x.saturating_add(1);
 
             let title_chunk = Rect::new(x, y, w, h);
 
@@ -566,10 +566,7 @@ impl Window<'_> {
                 _ => {}
             }
 
-            x = x
-                .saturating_add(1)
-                .saturating_add(w)
-                .saturating_add(divider_width);
+            x = x.saturating_add(w).saturating_add(divider_width);
         }
     }
 }
