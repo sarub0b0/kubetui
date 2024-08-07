@@ -8,6 +8,7 @@ use crossbeam::channel::{bounded, Receiver, Sender};
 
 use crate::{
     cmd::Command,
+    config::Config,
     message::Message,
     workers::{KubeWorker, Render, Tick, UserInput},
 };
@@ -15,7 +16,7 @@ use crate::{
 pub struct App;
 
 impl App {
-    pub fn run(cmd: Command) -> Result<()> {
+    pub fn run(cmd: Command, config: Config) -> Result<()> {
         let split_direction = cmd.split_direction();
         let kube_worker_config = cmd.kube_worker_config();
 
