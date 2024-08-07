@@ -1,8 +1,9 @@
+use anyhow::Result;
 use clap::Parser;
 use ratatui::layout::Direction;
 use std::path::PathBuf;
 
-use crate::workers::kube::KubeWorkerConfig;
+use crate::{config::ConfigLoadOption, workers::kube::KubeWorkerConfig};
 
 use super::args::{AllNamespaces, SplitDirection};
 
@@ -65,6 +66,10 @@ pub struct Command {
     /// Logging
     #[arg(short = 'l', long, display_order = 1000)]
     pub logging: bool,
+
+    /// Config file path
+    #[arg(long, display_order = 1000)]
+    pub config_file: Option<PathBuf>,
 }
 
 impl Command {
@@ -91,6 +96,39 @@ impl Command {
             context,
             all_namespaces: all_namespaces.into(),
         }
+    }
+
+    pub fn config_load_option(&self) -> Result<ConfigLoadOption> {
+        let option = if let Some(path) = &self.config_file {
+            match path.try_exists() {
+                Ok(true) => ConfigLoadOption::Path(path.clone()),
+                Ok(false) => {
+                    eprintln!("Config file not found: {:?}", path);
+
+                    ConfigLoadOption::Default
+                }
+                Err(err) => {
+                    eprintln!("Failed to check config file exists: {}", err);
+
+                    ConfigLoadOption::Default
+                }
+            }
+        } else {
+            let base_dir = xdg::BaseDirectories::with_prefix("kubetui")?;
+            let path = base_dir.get_config_file("config.yaml");
+
+            match path.try_exists() {
+                Ok(true) => ConfigLoadOption::Path(path.clone()),
+                Ok(false) => ConfigLoadOption::Default,
+                Err(err) => {
+                    eprintln!("Failed to check config file exists: {}", err);
+
+                    ConfigLoadOption::Default
+                }
+            }
+        };
+
+        Ok(option)
     }
 }
 
