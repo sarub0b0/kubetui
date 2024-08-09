@@ -12,6 +12,7 @@ It provides an easy-to-use interface for developers and operators to access impo
 - [Features](#features)
 - [Installation](#installation)
   - [Homebrew on macOS and Linux](#homebrew-on-macos-and-linux)
+  - [Pacman on Arch Linux](#pacman-on-arch-linux)
   - [Scoop on Windows](#scoop-on-windows)
   - [WinGet on Windows](#winget-on-windows)
   - [openSUSE Tumbleweed](#opensuse-tumbleweed)
@@ -75,6 +76,14 @@ Kubetui is available on homebrew, the package manager for macOS and Linux. Insta
 
 ```shell
 brew install kubetui
+```
+
+### [Pacman](https://wiki.archlinux.org/title/pacman) on Arch Linux
+
+Kubetui is available in the [official repositories](https://archlinux.org/packages/extra/x86_64/kubetui/). Install it by running the following command:
+
+```shell
+pacman -S kubetui
 ```
 
 ### [Scoop](https://scoop.sh/) on Windows
