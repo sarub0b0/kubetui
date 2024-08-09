@@ -1,6 +1,41 @@
 use ratatui::style::{Color, Modifier};
 use serde::{Deserialize, Serialize};
+
+/// フォーカスイベントありのスタイル
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct FocusableThemeStyle {
+    #[serde(default)]
+    pub active: ThemeStyle,
+
+    #[serde(default = "default_inactive")]
+    pub inactive: ThemeStyle,
+
+    #[serde(default)]
+    pub mouse_over: ThemeStyle,
+}
+
+impl Default for FocusableThemeStyle {
+    fn default() -> Self {
+        Self {
+            active: ThemeStyle::default(),
+            inactive: default_inactive(),
+            mouse_over: ThemeStyle::default(),
+        }
+    }
+}
+
+/// FocusableThemeStyleのinactiveのデフォルト値となるThemeStyleを返す
+fn default_inactive() -> ThemeStyle {
+    ThemeStyle {
+        fg_color: Color::DarkGray,
+        ..Default::default()
+    }
+}
+
 /// Theme用のスタイル
+/// - 上位レイヤーで指定されていない場合は下位レイヤーのスタイルを継承する
+/// - 上位レイヤーで指定されている場合は上位レイヤーのスタイルを優先する
+/// - Modifierは加算方式
 #[derive(Default, Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct ThemeStyle {
     #[serde(with = "serde_color", default)]
@@ -98,6 +133,123 @@ mod serde_color {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    mod focusable {
+        use super::*;
+
+        use indoc::indoc;
+        use pretty_assertions::assert_eq;
+        use ratatui::style::Modifier;
+
+        #[test]
+        fn default_focusable_style() {
+            let actual = FocusableThemeStyle::default();
+
+            let expected = FocusableThemeStyle {
+                active: ThemeStyle::default(),
+                inactive: ThemeStyle {
+                    fg_color: Color::DarkGray,
+                    bg_color: Color::default(),
+                    modifier: Modifier::default(),
+                },
+                mouse_over: ThemeStyle::default(),
+            };
+
+            assert_eq!(actual, expected);
+        }
+
+        #[test]
+        fn serialize_focusable_style() {
+            let style = FocusableThemeStyle {
+                active: ThemeStyle {
+                    fg_color: Color::Red,
+                    bg_color: Color::Blue,
+                    modifier: Modifier::BOLD,
+                },
+                inactive: ThemeStyle {
+                    fg_color: Color::Green,
+                    bg_color: Color::Yellow,
+                    modifier: Modifier::ITALIC,
+                },
+                mouse_over: ThemeStyle {
+                    fg_color: Color::Cyan,
+                    bg_color: Color::Magenta,
+                    modifier: Modifier::UNDERLINED,
+                },
+            };
+
+            let serialized = serde_yaml::to_string(&style).unwrap();
+
+            let expected = indoc! {r#"
+                active:
+                  fg_color: red
+                  bg_color: blue
+                  modifier: bold
+                inactive:
+                  fg_color: green
+                  bg_color: yellow
+                  modifier: italic
+                mouse_over:
+                  fg_color: cyan
+                  bg_color: magenta
+                  modifier: underlined
+            "#};
+
+            assert_eq!(serialized, expected);
+        }
+
+        #[test]
+        fn deserialize_focusable_style() {
+            let data = indoc! {r#"
+                active:
+                  fg_color: red
+                  bg_color: blue
+                  modifier: bold
+                inactive:
+                  fg_color: green
+                  bg_color: yellow
+                  modifier: italic
+                mouse_over:
+                  fg_color: cyan
+                  bg_color: magenta
+                  modifier: underlined
+            "#};
+
+            let actual: FocusableThemeStyle = serde_yaml::from_str(data).unwrap();
+
+            let expected = FocusableThemeStyle {
+                active: ThemeStyle {
+                    fg_color: Color::Red,
+                    bg_color: Color::Blue,
+                    modifier: Modifier::BOLD,
+                },
+                inactive: ThemeStyle {
+                    fg_color: Color::Green,
+                    bg_color: Color::Yellow,
+                    modifier: Modifier::ITALIC,
+                },
+                mouse_over: ThemeStyle {
+                    fg_color: Color::Cyan,
+                    bg_color: Color::Magenta,
+                    modifier: Modifier::UNDERLINED,
+                },
+            };
+
+            assert_eq!(actual, expected);
+        }
+
+        /// 空文字を与えたときにDefault値が返ることを確認する
+        #[test]
+        fn deserialize_focusable_style_empty() {
+            let data = "";
+
+            let actual: FocusableThemeStyle = serde_yaml::from_str(data).unwrap();
+
+            let expected = FocusableThemeStyle::default();
+
+            assert_eq!(actual, expected);
+        }
+    }
 
     mod style {
         use super::*;

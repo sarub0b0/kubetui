@@ -1,0 +1,90 @@
+version: "1"
+
+# fg_color: name | hex | integer
+# bg_color: name | hex | integer
+# modifier: "bold" | "dim" | "italic" | "underlined" | "slow_blink" | "rapid_blink" | "reversed" | "hidden" | "crossed_out"
+
+theme:
+  tab:
+    divider: "|"
+    base:
+      fg_color: darkgray
+      bg_color: default
+      modifier: reversed
+    active:
+      fg_color: default
+      bg_color: default
+      modifier: reversed
+    mouse_over:
+      fg_color: green
+      bg_color: default
+      modifier: reversed
+  # context:
+  #   fg_color: default
+  #   bg_color: default
+  #   modifier: none
+  # component:
+  #   title:
+  #     fg_color: default
+  #     bg_color: default
+  #     modifier: none
+  #   border:
+  #     active:
+  #       fg_color: default
+  #       bg_color: default
+  #       modifier: none
+  #     inactive:
+  #       fg_color: default
+  #       bg_color: default
+  #       modifier: none
+  #     mouse_over:
+  #       fg_color: default
+  #       bg_color: default
+  #       modifier: none
+  #   body:
+  #     fg_color: default
+  #     bg_color: default
+  # pod:
+  #   table_header:
+  #     fg_color: default
+  #     bg_color: default
+  #     modifier: none
+  #   job_pod:
+  #     fg_color: default
+  #     bg_color: default
+  #     modifier: none
+  #   error_pod:
+  #     fg_color: default
+  #     bg_color: default
+  #     modifier: none
+  # event:
+  #   summary:
+  #     fg_color: default
+  #     bg_color: default
+  #     modifier: none
+  #   message:
+  #     fg_color: default
+  #     bg_color: default
+  #     modifier: none
+  # list:
+  #   resouce:
+  #     fg_color: default
+  #     bg_color: default
+  #     modifier: none
+  #   table_header:
+  #     fg_color: default
+  #     bg_color: default
+  #     modifier: none
+  #   table_item:
+  #     fg_color: default
+  #     bg_color: default
+  #     modifier: none
+
+# system:
+#   event:
+#     polling_interval: 5
+#
+# keybinding:
+#   up:
+#     - "up"
+#     - "k"

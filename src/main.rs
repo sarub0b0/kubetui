@@ -80,6 +80,8 @@ fn main() -> Result<()> {
 
     let config = Config::load(command.config_file.clone())?;
 
+    dbg!(&config);
+
     enable_raw_mode!();
 
     let result = App::run(command, config);
