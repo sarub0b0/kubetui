@@ -5,6 +5,8 @@
 # modifier: "none" | "bold" | "dim" | "italic" | "underlined" | "slow_blink" | "rapid_blink" | "reversed" | "hidden" | "crossed_out"
 
 theme:
+  base:
+    bg_color: "#000000"
   tab:
     divider:
       char: "|"
@@ -17,3 +19,8 @@ theme:
     mouse_over:
       fg_color: green
       modifier: reversed
+  header:
+    cluster:
+      fg_color: magenta
+    namespaces:
+      fg_color: yellow
