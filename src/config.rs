@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use figment::{
-    providers::{Format, Serialized, YamlExtended},
+    providers::{Env, Format, Serialized, YamlExtended},
     Figment,
 };
 use serde::{Deserialize, Serialize};
@@ -32,7 +32,8 @@ impl Config {
             ConfigLoadOption::Default => figment.merge(Serialized::defaults(Self::default())),
             ConfigLoadOption::Path(path) => figment.merge(YamlExtended::file(path)),
         }
-        .extract()?;
+        .merge(Env::prefixed("KUBETUI_").split("__"))
+        .extract_lossy()?;
 
         dbg!(&config);
 
