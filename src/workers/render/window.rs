@@ -53,7 +53,7 @@ use crate::{
         dialog::Dialog,
         event::{CallbackFn, EventResult},
         widget::{SelectedItem, WidgetTrait},
-        Header, Tab, TabTheme, Window, WindowAction,
+        Header, HeaderTheme, Tab, TabTheme, Window, WindowAction,
     },
 };
 
@@ -153,20 +153,28 @@ impl WindowInit {
         let context = self.context.clone();
         let namespaces = self.namespaces.clone();
 
-        let header = Header::new_callback(2, move || {
+        let header = Header::new_callback(2, move |theme: &HeaderTheme| {
             let context = context.borrow();
             let namespaces = namespaces.borrow();
+
             Paragraph::new(vec![
-                Line::from(format!(" ctx: {}", context)),
-                Line::from(format!(" ns: {}", namespaces)),
+                Line::from(format!(" ctx: {}", context)).style(theme.line_styles[0]),
+                Line::from(format!(" ns: {}", namespaces)).style(theme.line_styles[1]),
             ])
+            .style(theme.base_style)
         });
 
         let builder = builder.header(header);
 
-        let tab_theme = TabTheme::from(self.theme);
+        let tab_theme = TabTheme::from(self.theme.clone());
 
         let builder = builder.tab_theme(tab_theme);
+
+        let header_theme = HeaderTheme::from(self.theme.clone());
+
+        let builder = builder.header_theme(header_theme);
+
+        let builder = builder.base_style(self.theme.base);
 
         builder.build()
     }

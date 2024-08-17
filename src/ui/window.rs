@@ -21,7 +21,7 @@ use super::{
     Tab,
 };
 
-define_callback!(pub HeaderCallback, Fn() -> Paragraph<'static>);
+define_callback!(pub HeaderCallback, Fn(&HeaderTheme) -> Paragraph<'static>);
 
 pub struct TabTheme {
     divider: String,
@@ -73,7 +73,28 @@ impl Default for TabTheme {
 }
 
 #[derive(Default)]
+pub struct HeaderTheme {
+    pub base_style: Style,
+
+    /// 各行ごとのスタイル
+    pub line_styles: Vec<Style>,
+}
+
+impl HeaderTheme {
+    pub fn base_style(mut self, style: impl Into<Style>) -> Self {
+        self.base_style = style.into();
+        self
+    }
+
+    pub fn line_styles(mut self, styles: impl IntoIterator<Item = impl Into<Style>>) -> Self {
+        self.line_styles = styles.into_iter().map(Into::into).collect();
+        self
+    }
+}
+
+#[derive(Default)]
 pub struct Window<'a> {
+    base_style: Style,
     tabs: Vec<Tab<'a>>,
     tab_theme: TabTheme,
     active_tab_index: usize,
@@ -84,6 +105,7 @@ pub struct Window<'a> {
     dialogs: Vec<Dialog<'a>>,
     opening_dialog_id: Option<String>,
     header: Option<Header<'a>>,
+    header_theme: HeaderTheme,
     layout_index: WindowLayoutIndex,
     last_known_area: Rect,
 }
@@ -146,7 +168,9 @@ pub struct WindowBuilder<'a> {
     callbacks: Vec<(UserEvent, Callback)>,
     dialogs: Vec<Dialog<'a>>,
     header: Option<Header<'a>>,
+    base_style: Style,
     tab_theme: TabTheme,
+    header_theme: HeaderTheme,
 }
 
 impl<'a> WindowBuilder<'a> {
@@ -174,8 +198,18 @@ impl<'a> WindowBuilder<'a> {
         self
     }
 
+    pub fn base_style(mut self, style: impl Into<Style>) -> Self {
+        self.base_style = style.into();
+        self
+    }
+
     pub fn tab_theme(mut self, theme: TabTheme) -> Self {
         self.tab_theme = theme;
+        self
+    }
+
+    pub fn header_theme(mut self, theme: HeaderTheme) -> Self {
+        self.header_theme = theme;
         self
     }
 
@@ -214,6 +248,7 @@ impl<'a> WindowBuilder<'a> {
             .constraints(constraints);
 
         Window {
+            base_style: self.base_style,
             tabs: self.tabs,
             tab_theme: self.tab_theme,
             layout,
@@ -221,6 +256,7 @@ impl<'a> WindowBuilder<'a> {
             dialogs: self.dialogs,
             header: self.header,
             layout_index,
+            header_theme: self.header_theme,
             ..Default::default()
         }
     }
@@ -443,6 +479,8 @@ impl Window<'_> {
             self.last_known_area = area;
         }
 
+        self.render_base(f);
+
         self.render_tab(f);
 
         self.render_header(f);
@@ -450,6 +488,12 @@ impl Window<'_> {
         self.render_contents(f);
 
         self.render_dialog(f);
+    }
+
+    fn render_base(&mut self, f: &mut Frame) {
+        let block = Block::default().style(self.base_style);
+
+        f.render_widget(block, self.chunk);
     }
 
     fn render_tab(&mut self, f: &mut Frame) {
@@ -460,7 +504,7 @@ impl Window<'_> {
         if let Some(header) = &self.header {
             let w = match &header.content {
                 HeaderContent::Static(content) => Paragraph::new(content.to_vec()),
-                HeaderContent::Callback(callback) => (callback)(),
+                HeaderContent::Callback(callback) => (callback)(&self.header_theme),
             };
             f.render_widget(w, self.chunks()[self.layout_index.header]);
         }
