@@ -1,17 +1,27 @@
+mod base;
+mod header;
 mod style;
 mod tab;
 
 use serde::{Deserialize, Serialize};
 
-use crate::ui::TabTheme;
+use crate::ui::{HeaderTheme, TabTheme};
 
+pub use self::header::HeaderThemeConfig;
 pub use self::tab::TabThemeConfig;
+pub use base::BaseThemeConfig;
 pub use style::ThemeStyleConfig;
 
 #[derive(Default, Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct ThemeConfig {
     #[serde(default)]
+    pub base: BaseThemeConfig,
+
+    #[serde(default)]
     pub tab: TabThemeConfig,
+
+    #[serde(default)]
+    pub header: HeaderThemeConfig,
 }
 
 impl From<ThemeConfig> for TabTheme {
@@ -22,5 +32,13 @@ impl From<ThemeConfig> for TabTheme {
             .base_style(config.tab.base)
             .active_style(config.tab.active)
             .mouse_over_style(config.tab.mouse_over)
+    }
+}
+
+impl From<ThemeConfig> for HeaderTheme {
+    fn from(config: ThemeConfig) -> Self {
+        HeaderTheme::default()
+            .base_style(config.header.base)
+            .line_styles([config.header.cluster, config.header.namespaces])
     }
 }
