@@ -10,7 +10,7 @@
 /// 上位のレイヤーでスクロールの位置や折り返しを管理すること
 use ratatui::{
     buffer::Buffer,
-    layout::Rect,
+    layout::{Position, Rect},
     style::{Modifier, Style},
     widgets::{Block, Widget},
 };
@@ -100,26 +100,35 @@ impl Widget for Render<'_> {
                     }
                 }
 
-                buf.get_mut(text_area.left() + x as u16, text_area.top() + y as u16)
-                    .set_symbol(symbol)
-                    .set_style(style);
+                let pos = Position::new(text_area.left() + x as u16, text_area.top() + y as u16);
+
+                if let Some(cell) = buf.cell_mut(pos) {
+                    cell.set_symbol(symbol).set_style(style);
+                }
 
                 x += symbol.width()
             }
 
             if let Some(next_line) = self.lines.get(start + y + 1) {
                 if line.index() == next_line.index() && x < area_width {
-                    buf.get_mut(text_area.left() + x as u16, text_area.top() + y as u16)
-                        .set_symbol(RENDER_RIGHT_PADDING.symbol())
-                        .set_style(RENDER_RIGHT_PADDING.style);
+                    let pos =
+                        Position::new(text_area.left() + x as u16, text_area.top() + y as u16);
+
+                    if let Some(cell) = buf.cell_mut(pos) {
+                        cell.set_symbol(RENDER_RIGHT_PADDING.symbol())
+                            .set_style(RENDER_RIGHT_PADDING.style);
+                    }
 
                     x += 1
                 }
             }
 
             while x < area_width {
-                buf.get_mut(text_area.left() + x as u16, text_area.top() + y as u16)
-                    .set_symbol(" ");
+                if let Some(cell) =
+                    buf.cell_mut((text_area.left() + x as u16, text_area.top() + y as u16))
+                {
+                    cell.set_symbol(" ");
+                }
 
                 x += " ".width()
             }

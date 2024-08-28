@@ -35,7 +35,7 @@ pub struct Window<'a> {
     open_popup_id: Option<String>,
     header: Option<Header<'a>>,
     layout_index: WindowLayoutIndex,
-    last_known_size: Rect,
+    last_known_area: Rect,
 }
 
 #[derive(Default)]
@@ -375,12 +375,12 @@ impl<'a> Window<'a> {
 // Render
 impl<'a> Window<'a> {
     pub fn render(&mut self, f: &mut Frame) {
-        let size = f.size();
+        let area = f.area();
 
-        if self.last_known_size != size {
-            self.update_chunks(size);
+        if self.last_known_area != area {
+            self.update_chunks(area);
 
-            self.last_known_size = size;
+            self.last_known_area = area;
         }
 
         self.render_tab(f);
