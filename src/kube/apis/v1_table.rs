@@ -209,11 +209,12 @@ impl Table {
             .iter()
             .enumerate()
             .map(|(i, h)| {
-                format!(
-                    "\x1b[90m{:<digit$}\x1b[0m",
-                    h.1.to_uppercase(),
-                    digit = digits[i]
-                )
+                let header_text = h.1.to_uppercase();
+
+                let formatted_header = format!("\x1b[90m{}\x1b[39m", header_text);
+                let padding = " ".repeat(digits[i] - header_text.len());
+
+                format!("{}{}", formatted_header, padding)
             })
             .collect::<Vec<String>>()
             .join("   ");
