@@ -4,14 +4,23 @@ use ratatui::widgets::Block;
 
 use crate::{
     clipboard::Clipboard,
+    config::theme::WidgetThemeConfig,
     features::component_id::CONFIG_RAW_DATA_WIDGET_ID,
     ui::widget::{Text, Widget, WidgetBase, WidgetTrait as _},
 };
 
-pub fn raw_data_widget(clipboard: &Option<Rc<RefCell<Clipboard>>>) -> Widget<'static> {
+pub fn raw_data_widget(
+    clipboard: &Option<Rc<RefCell<Clipboard>>>,
+    theme: WidgetThemeConfig,
+) -> Widget<'static> {
+    let widget_base = WidgetBase::builder()
+        .title("Raw Data")
+        .theme(theme.into())
+        .build();
+
     let builder = Text::builder()
         .id(CONFIG_RAW_DATA_WIDGET_ID)
-        .widget_base(WidgetBase::builder().title("Raw Data").build())
+        .widget_base(widget_base)
         .wrap()
         .block_injection(block_injection());
 

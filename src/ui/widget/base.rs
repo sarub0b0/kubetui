@@ -6,6 +6,68 @@ use ratatui::{
     widgets::{Block, BorderType, Borders},
 };
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct WidgetTheme {
+    base_style: Style,
+    title_active_style: Style,
+    title_inactive_style: Style,
+    border_type: BorderType,
+    border_active_style: Style,
+    border_mouse_over_style: Style,
+    border_inactive_style: Style,
+}
+
+impl Default for WidgetTheme {
+    fn default() -> Self {
+        Self {
+            base_style: Style::default(),
+            title_active_style: Style::default().add_modifier(Modifier::BOLD),
+            title_inactive_style: Style::default().fg(Color::DarkGray),
+            border_type: BorderType::Plain,
+            border_active_style: Style::default(),
+            border_mouse_over_style: Style::default().fg(Color::Gray),
+            border_inactive_style: Style::default().fg(Color::DarkGray),
+        }
+    }
+}
+
+impl WidgetTheme {
+    pub fn base_style(mut self, style: impl Into<Style>) -> Self {
+        self.base_style = style.into();
+        self
+    }
+
+    pub fn title_active_style(mut self, style: impl Into<Style>) -> Self {
+        self.title_active_style = style.into();
+        self
+    }
+
+    pub fn title_inactive_style(mut self, style: impl Into<Style>) -> Self {
+        self.title_inactive_style = style.into();
+        self
+    }
+
+    pub fn border_type(mut self, border_type: BorderType) -> Self {
+        self.border_type = border_type;
+        self
+    }
+
+    pub fn border_active_style(mut self, style: impl Into<Style>) -> Self {
+        self.border_active_style = style.into();
+        self
+    }
+
+    pub fn border_mouse_over_style(mut self, style: impl Into<Style>) -> Self {
+        self.border_mouse_over_style = style.into();
+        self
+    }
+
+    pub fn border_inactive_style(mut self, style: impl Into<Style>) -> Self {
+        self.border_inactive_style = style.into();
+        self
+    }
+}
+
 #[derive(Debug, PartialEq, Clone, Default)]
 pub struct WidgetBaseBuilder(WidgetBase);
 
@@ -16,6 +78,7 @@ pub struct WidgetBase {
     append_title: Option<Title>,
     block: Block<'static>,
     can_activate: bool,
+    theme: WidgetTheme,
 }
 
 impl Default for WidgetBase {
@@ -27,6 +90,7 @@ impl Default for WidgetBase {
                 .border_type(BorderType::Plain)
                 .borders(Borders::ALL),
             can_activate: true,
+            theme: Default::default(),
         }
     }
 }
@@ -52,6 +116,11 @@ impl WidgetBaseBuilder {
     /// Border style and title style are default style
     pub fn disable_activation(mut self) -> Self {
         self.0.can_activate = false;
+        self
+    }
+
+    pub fn theme(mut self, theme: WidgetTheme) -> Self {
+        self.0.theme = theme;
         self
     }
 
@@ -108,13 +177,13 @@ impl WidgetBase {
                 title.insert(0, " + ".into());
 
                 title.iter_mut().for_each(|span| {
-                    span.style = span.style.add_modifier(Modifier::BOLD);
+                    *span = span.clone().style(self.theme.title_active_style);
                 });
             } else {
                 title.insert(0, " ".into());
 
                 title.iter_mut().for_each(|span| {
-                    span.style = span.style.fg(Color::DarkGray);
+                    *span = span.clone().style(self.theme.title_inactive_style);
                 });
             }
         } else {
@@ -131,21 +200,28 @@ impl WidgetBase {
     pub fn render_block(&self, is_active: bool, is_mouse_over: bool) -> Block<'static> {
         let block = if self.can_activate {
             if is_active {
-                self.block.clone()
+                self.block
+                    .clone()
+                    .border_style(self.theme.border_active_style)
             } else if is_mouse_over {
                 self.block
                     .clone()
-                    .border_style(Style::default().fg(Color::Gray))
+                    .border_style(self.theme.border_mouse_over_style)
             } else {
                 self.block
                     .clone()
-                    .border_style(Style::default().fg(Color::DarkGray))
+                    .border_style(self.theme.border_inactive_style)
             }
         } else {
             self.block.clone()
         };
 
+        let block = block
+            .border_type(self.theme.border_type)
+            .style(self.theme.base_style);
+
         let title = self.render_title(is_active);
+
         if title.is_empty() {
             block
         } else {

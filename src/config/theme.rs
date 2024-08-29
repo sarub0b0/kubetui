@@ -1,7 +1,9 @@
 mod base;
+mod border;
 mod header;
 mod style;
 mod tab;
+mod widget;
 
 use serde::{Deserialize, Serialize};
 
@@ -10,7 +12,9 @@ use crate::ui::{HeaderTheme, TabTheme};
 pub use self::header::HeaderThemeConfig;
 pub use self::tab::TabThemeConfig;
 pub use base::BaseThemeConfig;
+pub use border::BorderThemeConfig;
 pub use style::ThemeStyleConfig;
+pub use widget::WidgetThemeConfig;
 
 #[derive(Default, Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct ThemeConfig {
@@ -22,6 +26,9 @@ pub struct ThemeConfig {
 
     #[serde(default)]
     pub header: HeaderThemeConfig,
+
+    #[serde(default)]
+    pub component: WidgetThemeConfig,
 }
 
 impl From<ThemeConfig> for TabTheme {

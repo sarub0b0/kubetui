@@ -1,6 +1,7 @@
 use crossbeam::channel::Sender;
 
 use crate::{
+    config::theme::WidgetThemeConfig,
     features::{
         component_id::{POD_LOG_QUERY_WIDGET_ID, POD_LOG_WIDGET_ID, POD_WIDGET_ID},
         pod::{
@@ -17,12 +18,17 @@ use crate::{
     },
 };
 
-pub fn pod_widget(tx: &Sender<Message>) -> Widget<'static> {
+pub fn pod_widget(tx: &Sender<Message>, theme: WidgetThemeConfig) -> Widget<'static> {
     let tx = tx.clone();
+
+    let widget_base = WidgetBase::builder()
+        .title("Pod")
+        .theme(theme.into())
+        .build();
 
     Table::builder()
         .id(POD_WIDGET_ID)
-        .widget_base(WidgetBase::builder().title("Pod").build())
+        .widget_base(widget_base)
         .filtered_key("NAME")
         .block_injection(block_injection())
         .on_select(on_select(tx))

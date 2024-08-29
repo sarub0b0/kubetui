@@ -8,6 +8,7 @@ use k8s_openapi::{
 };
 
 use crate::{
+    config::theme::WidgetThemeConfig,
     features::{
         component_id::{NETWORK_DESCRIPTION_WIDGET_ID, NETWORK_WIDGET_ID},
         network::message::{NetworkRequest, NetworkRequestTargetParams},
@@ -21,12 +22,17 @@ use crate::{
     },
 };
 
-pub fn network_widget(tx: &Sender<Message>) -> Widget<'static> {
+pub fn network_widget(tx: &Sender<Message>, theme: WidgetThemeConfig) -> Widget<'static> {
     let tx = tx.clone();
+
+    let widget_base = WidgetBase::builder()
+        .title("Network")
+        .theme(theme.into())
+        .build();
 
     Table::builder()
         .id(NETWORK_WIDGET_ID)
-        .widget_base(WidgetBase::builder().title("Network").build())
+        .widget_base(widget_base)
         .filtered_key("NAME")
         .block_injection(block_injection())
         .on_select(on_select(tx))

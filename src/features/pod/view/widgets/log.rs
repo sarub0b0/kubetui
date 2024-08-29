@@ -5,6 +5,7 @@ use ratatui::{crossterm::event::KeyCode, widgets::Block};
 
 use crate::{
     clipboard::Clipboard,
+    config::theme::WidgetThemeConfig,
     features::{component_id::POD_LOG_WIDGET_ID, pod::message::LogMessage},
     message::{Message, UserEvent},
     ui::{
@@ -17,10 +18,16 @@ use crate::{
 pub fn log_widget(
     tx: &Sender<Message>,
     clipboard: &Option<Rc<RefCell<Clipboard>>>,
+    theme: WidgetThemeConfig,
 ) -> Widget<'static> {
+    let widget_base = WidgetBase::builder()
+        .title("Log")
+        .theme(theme.into())
+        .build();
+
     let builder = Text::builder()
         .id(POD_LOG_WIDGET_ID)
-        .widget_base(WidgetBase::builder().title("Log").build())
+        .widget_base(widget_base)
         .wrap()
         .follow()
         .block_injection(block_injection())

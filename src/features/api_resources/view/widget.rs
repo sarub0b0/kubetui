@@ -4,6 +4,7 @@ use crossbeam::channel::Sender;
 
 use crate::{
     clipboard::Clipboard,
+    config::theme::WidgetThemeConfig,
     features::{
         api_resources::message::ApiRequest,
         component_id::{API_DIALOG_ID, API_WIDGET_ID},
@@ -19,6 +20,7 @@ use crate::{
 pub fn api_widget(
     tx: &Sender<Message>,
     clipboard: &Option<Rc<RefCell<Clipboard>>>,
+    theme: WidgetThemeConfig,
 ) -> Widget<'static> {
     let tx = tx.clone();
 
@@ -29,9 +31,14 @@ pub fn api_widget(
         EventResult::Nop
     };
 
+    let widget_base = WidgetBase::builder()
+        .title("API")
+        .theme(theme.into())
+        .build();
+
     let builder = Text::builder()
         .id(API_WIDGET_ID)
-        .widget_base(WidgetBase::builder().title("API").build())
+        .widget_base(widget_base)
         .block_injection(|text: &Text, is_active: bool, is_mouse_over: bool| {
             let (index, size) = text.state();
 
