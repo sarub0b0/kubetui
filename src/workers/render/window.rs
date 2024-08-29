@@ -196,27 +196,39 @@ impl WindowInit {
             &clipboard,
             self.split_mode,
             self.namespaces.clone(),
+            self.theme.component.clone(),
         );
 
-        let ConfigTab { tab: config_tab } =
-            ConfigTab::new("Config", &self.tx, &clipboard, self.split_mode);
+        let ConfigTab { tab: config_tab } = ConfigTab::new(
+            "Config",
+            &self.tx,
+            &clipboard,
+            self.split_mode,
+            self.theme.component.clone(),
+        );
 
-        let NetworkTab { tab: network_tab } =
-            NetworkTab::new("Network", &self.tx, &clipboard, self.split_mode);
+        let NetworkTab { tab: network_tab } = NetworkTab::new(
+            "Network",
+            &self.tx,
+            &clipboard,
+            self.split_mode,
+            self.theme.component.clone(),
+        );
 
-        let EventTab { tab: event_tab } = EventTab::new("Event", &clipboard);
+        let EventTab { tab: event_tab } =
+            EventTab::new("Event", &clipboard, self.theme.component.clone());
 
         let ApiTab {
             tab: api_tab,
             dialog: api_dialog,
-        } = ApiTab::new("API", &self.tx, &clipboard);
+        } = ApiTab::new("API", &self.tx, &clipboard, self.theme.component.clone());
 
         let YamlTab {
             tab: yaml_tab,
             kind_dialog: yaml_kind_dialog,
             name_dialog: yaml_name_dialog,
             not_found_dialog: yaml_not_found_dialog,
-        } = YamlTab::new("Yaml", &self.tx, &clipboard);
+        } = YamlTab::new("Yaml", &self.tx, &clipboard, self.theme.component.clone());
 
         let ContextDialog {
             widget: context_dialog,

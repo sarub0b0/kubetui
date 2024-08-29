@@ -81,6 +81,12 @@ fn main() -> Result<()> {
 
     let config = Config::load(config_load_option)?;
 
+    dbg!(&config);
+
+    let yaml = serde_yaml::to_string(&config)?;
+
+    println!("{}", yaml);
+
     enable_raw_mode!();
 
     let result = App::run(command, config);

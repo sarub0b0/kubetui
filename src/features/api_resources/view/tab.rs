@@ -5,6 +5,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     clipboard::Clipboard,
+    config::theme::WidgetThemeConfig,
     features::component_id::API_TAB_ID,
     message::Message,
     ui::{
@@ -26,8 +27,9 @@ impl ApiTab {
         title: &'static str,
         tx: &Sender<Message>,
         clipboard: &Option<Rc<RefCell<Clipboard>>>,
+        theme: WidgetThemeConfig,
     ) -> Self {
-        let api_widget = api_widget(tx, clipboard);
+        let api_widget = api_widget(tx, clipboard, theme);
 
         let layout = TabLayout::new(
             |_| {

@@ -1,6 +1,7 @@
 use crossbeam::channel::Sender;
 
 use crate::{
+    config::theme::WidgetThemeConfig,
     features::{
         component_id::{CONFIG_RAW_DATA_WIDGET_ID, CONFIG_WIDGET_ID},
         config::message::{ConfigRequest, RequestData},
@@ -13,12 +14,17 @@ use crate::{
     },
 };
 
-pub fn config_widget(tx: &Sender<Message>) -> Widget<'static> {
+pub fn config_widget(tx: &Sender<Message>, theme: WidgetThemeConfig) -> Widget<'static> {
     let tx = tx.clone();
+
+    let widget_base = WidgetBase::builder()
+        .title("Config")
+        .theme(theme.into())
+        .build();
 
     Table::builder()
         .id(CONFIG_WIDGET_ID)
-        .widget_base(WidgetBase::builder().title("Config").build())
+        .widget_base(widget_base)
         .filtered_key("NAME")
         .block_injection(block_injection())
         .on_select(on_select(tx))
