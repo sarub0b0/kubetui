@@ -5,6 +5,7 @@ use ratatui::layout::{Constraint, Direction};
 
 use crate::{
     clipboard::Clipboard,
+    config::theme::WidgetThemeConfig,
     features::{
         component_id::NETWORK_TAB_ID,
         network::view::widgets::{description_widget, network_widget},
@@ -26,9 +27,10 @@ impl NetworkTab {
         tx: &Sender<Message>,
         clipboard: &Option<Rc<RefCell<Clipboard>>>,
         split_direction: Direction,
+        theme: WidgetThemeConfig,
     ) -> Self {
-        let network_widget = network_widget(tx);
-        let description_widget = description_widget(clipboard);
+        let network_widget = network_widget(tx, theme.clone());
+        let description_widget = description_widget(clipboard, theme);
 
         let layout = TabLayout::new(layout, split_direction);
 

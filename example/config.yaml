@@ -24,3 +24,19 @@ theme:
       fg_color: magenta
     namespaces:
       fg_color: yellow
+  component:
+    base:
+      fg_color: blue
+    title:
+      active:
+        fg_color: green
+      inactive:
+        fg_color: blue
+    border:
+      type: "plain"
+      active:
+        fg_color: green
+      inactive:
+        fg_color: blue
+      mouse_over:
+        fg_color: red
