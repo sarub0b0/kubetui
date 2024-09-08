@@ -1,6 +1,5 @@
 mod item;
 mod render;
-mod search_form;
 mod wrap;
 
 use std::{cell::RefCell, rc::Rc};
@@ -26,15 +25,14 @@ use crate::{
 };
 
 use super::{
-    config::WidgetConfig, styled_graphemes::StyledGrapheme, Item, LiteralItem, RenderTrait,
-    SelectedItem, WidgetTrait,
+    config::WidgetConfig, input::InputForm, styled_graphemes::StyledGrapheme, Item, LiteralItem,
+    RenderTrait, SelectedItem, WidgetTrait,
 };
 
 use self::{
     highlight_content::{HighlightArea, HighlightContent, Point},
     item::TextItem,
     render::{Render, Scroll},
-    search_form::SearchForm,
 };
 
 define_callback!(pub RenderBlockInjection, Fn(&Text, bool, bool) -> Block<'static> );
@@ -157,10 +155,12 @@ impl Mode {
 }
 
 #[derive(Derivative)]
-#[derivative(Debug, Default)]
+#[derivative(Debug)]
 pub struct TextBuilder {
     id: String,
     widget_config: WidgetConfig,
+    search_widget: InputForm,
+    search_height: u16,
     item: Vec<LiteralItem>,
     wrap: bool,
     follow: bool,
@@ -172,6 +172,27 @@ pub struct TextBuilder {
     clipboard: Option<Rc<RefCell<Clipboard>>>,
 }
 
+impl Default for TextBuilder {
+    fn default() -> Self {
+        Self {
+            id: Default::default(),
+            widget_config: Default::default(),
+            search_widget: InputForm::builder()
+                .widget_config(WidgetConfig::builder().block(Block::default()).build())
+                .prefix("Search: ")
+                .suffix(" [0/0]")
+                .build(),
+            search_height: 1,
+            item: Default::default(),
+            wrap: Default::default(),
+            follow: Default::default(),
+            block_injection: Default::default(),
+            actions: Default::default(),
+            clipboard: Default::default(),
+        }
+    }
+}
+
 impl TextBuilder {
     pub fn id(mut self, id: impl Into<String>) -> Self {
         self.id = id.into();
@@ -180,6 +201,12 @@ impl TextBuilder {
 
     pub fn widget_config(mut self, widget_config: &WidgetConfig) -> Self {
         self.widget_config = widget_config.clone();
+        self
+    }
+
+    pub fn search_widget(mut self, search_widget: InputForm, search_height: u16) -> Self {
+        self.search_widget = search_widget;
+        self.search_height = search_height;
         self
     }
 
@@ -228,6 +255,8 @@ impl TextBuilder {
         Text {
             id: self.id,
             widget_config: self.widget_config,
+            search_widget: self.search_widget,
+            search_height: self.search_height,
             item: TextItem::new(self.item, None),
             wrap: self.wrap,
             follow: self.follow,
@@ -249,7 +278,8 @@ pub struct Text {
     wrap: bool,
     follow: bool,
     scroll: Scroll,
-    search_widget: SearchForm,
+    search_widget: InputForm,
+    search_height: u16,
     /// 検索中、検索ワード入力中、オフの3つのモード
     mode: Mode,
     highlight_content: Option<HighlightContent>,
@@ -284,7 +314,7 @@ impl Text {
             self.select_last()
         }
 
-        let word = self.search_widget.word();
+        let word = self.search_widget.content();
 
         if word.is_empty() {
             // 入力文字が空の時に1文字だけハイライトが残るのを防ぐため
@@ -368,6 +398,12 @@ impl Text {
         let max = self.scroll.y + self.inner_chunk().height as usize;
 
         min <= index && index <= max
+    }
+
+    fn highlight_status_str(&self) -> String {
+        let (selected, total) = self.item.highlight_status();
+
+        format!(" [{}/{}]", selected, total)
     }
 }
 
@@ -755,7 +791,12 @@ impl WidgetTrait for Text {
             self.item.rewrap(self.inner_chunk().width as usize);
         };
 
-        self.search_widget.update_chunk(chunk);
+        self.search_widget.update_chunk(Rect::new(
+            chunk.x,
+            chunk.y + chunk.height.saturating_sub(self.search_height),
+            chunk.width,
+            self.search_height,
+        ));
 
         if self.follow && is_bottom {
             self.select_last()
@@ -812,11 +853,11 @@ impl RenderTrait for Text {
             Mode::SearchInput | Mode::SearchConfirm => {
                 f.render_widget(r, self.chunk());
 
-                self.search_widget.render(
-                    f,
-                    self.mode.is_search_input() && is_active,
-                    self.item.highlight_status(),
-                );
+                self.search_widget
+                    .update_suffix(self.highlight_status_str());
+
+                self.search_widget
+                    .render(f, self.mode.is_search_input() && is_active, false);
             }
         }
 

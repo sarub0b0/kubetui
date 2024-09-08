@@ -1,4 +1,4 @@
-mod filter_form;
+// mod filter_form;
 mod item;
 
 use std::rc::Rc;
@@ -26,10 +26,10 @@ use crate::{
 };
 
 use super::{
-    config::WidgetConfig, styled_graphemes, Item, RenderTrait, SelectedItem, TableItem, WidgetTrait,
+    config::WidgetConfig, input::InputForm, styled_graphemes, Item, RenderTrait, SelectedItem,
+    TableItem, WidgetTrait,
 };
 
-use filter_form::{FilterForm, FILTER_HEIGHT};
 use item::InnerItem;
 
 const COLUMN_SPACING: u16 = 3;
@@ -41,10 +41,12 @@ define_callback!(pub RenderBlockInjection, Fn(&Table) -> WidgetConfig);
 define_callback!(pub RenderHighlightInjection, Fn(Option<&TableItem>) -> Style);
 
 #[derive(Derivative)]
-#[derivative(Debug, Default)]
+#[derivative(Debug)]
 pub struct TableBuilder {
     id: String,
     widget_config: WidgetConfig,
+    filter_widget: InputForm,
+    filter_height: u16,
     show_status: bool,
     header: Vec<String>,
     items: Vec<TableItem>,
@@ -60,6 +62,26 @@ pub struct TableBuilder {
     highlight_injection: Option<RenderHighlightInjection>,
 }
 
+impl Default for TableBuilder {
+    fn default() -> Self {
+        Self {
+            id: Default::default(),
+            widget_config: Default::default(),
+            filter_widget: InputForm::builder().prefix("FILTER: ").build(),
+            filter_height: 3,
+            show_status: Default::default(),
+            header: Default::default(),
+            items: Default::default(),
+            state: Default::default(),
+            filtered_key: Default::default(),
+            on_select: Default::default(),
+            actions: Default::default(),
+            block_injection: Default::default(),
+            highlight_injection: Default::default(),
+        }
+    }
+}
+
 #[allow(dead_code)]
 impl TableBuilder {
     pub fn id(mut self, id: impl Into<String>) -> Self {
@@ -69,6 +91,12 @@ impl TableBuilder {
 
     pub fn widget_config(mut self, widget_config: &WidgetConfig) -> Self {
         self.widget_config = widget_config.clone();
+        self
+    }
+
+    pub fn filter_widget(mut self, filter_widget: InputForm, filter_height: u16) -> Self {
+        self.filter_widget = filter_widget;
+        self.filter_height = filter_height;
         self
     }
 
@@ -139,6 +167,8 @@ impl TableBuilder {
             block_injection: self.block_injection,
             highlight_injection: self.highlight_injection,
             filtered_key: self.filtered_key.clone(),
+            filter_widget: self.filter_widget,
+            filter_height: self.filter_height,
             ..Default::default()
         };
 
@@ -207,9 +237,9 @@ pub struct Table<'a> {
     items: InnerItem<'a>,
     state: TableState,
     chunk: Rect,
-    inner_chunk: Rect,
     row_bounds: Vec<(usize, usize)>,
-    filter_widget: FilterForm,
+    filter_widget: InputForm,
+    filter_height: u16,
     filtered_key: String,
     mode: Mode,
     #[derivative(Debug = "ignore")]
@@ -253,7 +283,7 @@ impl<'a> Table<'a> {
             .max_width(self.max_width())
             .build();
 
-        self.items.update_filter(self.filter_widget.word());
+        self.items.update_filter(self.filter_widget.content());
 
         self.adjust_selected(old_len, self.items.len());
 
@@ -307,9 +337,9 @@ impl<'a> Table<'a> {
 
             Mode::FilterInput | Mode::FilterConfirm => Rect::new(
                 x,
-                y + FILTER_HEIGHT,
+                y + self.filter_height,
                 width,
-                height.saturating_sub(FILTER_HEIGHT),
+                height.saturating_sub(self.filter_height),
             ),
         }
     }
@@ -321,7 +351,7 @@ impl<'a> Table<'a> {
     fn filter_items(&mut self) {
         let old_len = self.items.len();
 
-        self.items.update_filter(self.filter_widget.word());
+        self.items.update_filter(self.filter_widget.content());
 
         self.adjust_selected(old_len, self.items.len());
 
@@ -588,7 +618,12 @@ impl WidgetTrait for Table<'_> {
 
         self.update_row_bounds();
 
-        self.filter_widget.update_chunk(chunk);
+        self.filter_widget.update_chunk(Rect::new(
+            chunk.x,
+            chunk.y,
+            chunk.width,
+            self.filter_height,
+        ));
     }
 
     fn clear(&mut self) {
@@ -670,9 +705,11 @@ impl RenderTrait for Table<'_> {
             is_mouse_over,
         );
 
+        let chunk = self.chunk();
+
         if self.items.is_empty() {
             let paragraph = Paragraph::new(" No data".dark_gray()).block(block);
-            f.render_widget(paragraph, self.chunk());
+            f.render_widget(paragraph, chunk);
         } else {
             let constraints = constraints(self.items.digits());
 
@@ -688,14 +725,14 @@ impl RenderTrait for Table<'_> {
                 widget = widget.header(self.items.header().rendered());
             }
 
-            f.render_stateful_widget(widget, self.chunk(), &mut self.state);
+            f.render_stateful_widget(widget, chunk, &mut self.state);
         }
 
         match self.mode {
             Mode::Normal => {}
             Mode::FilterInput | Mode::FilterConfirm => {
                 self.filter_widget
-                    .render(f, self.mode.is_filter_input() && is_active);
+                    .render(f, self.mode.is_filter_input() && is_active, false);
             }
         }
 
@@ -715,7 +752,7 @@ impl RenderTrait for Table<'_> {
 
         f.render_stateful_widget(
             Scrollbar::new(ScrollbarOrientation::VerticalRight),
-            self.chunk(),
+            chunk,
             &mut scrollbar_state,
         )
     }
