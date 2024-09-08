@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use derivative::Derivative;
 use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent},
-    layout::Rect,
+    layout::{Constraint, Direction, Layout, Rect},
     style::*,
     text::{Line, Span},
     widgets::{Block, Paragraph},
@@ -203,6 +203,8 @@ impl Content {
 pub struct InputFormBuilder {
     id: String,
     widget_config: WidgetConfig,
+    prefix: Line<'static>,
+    suffix: Line<'static>,
     #[derivative(Debug = "ignore")]
     actions: Vec<(UserEvent, Callback)>,
 }
@@ -215,6 +217,16 @@ impl InputFormBuilder {
 
     pub fn widget_config(mut self, widget_config: WidgetConfig) -> Self {
         self.widget_config = widget_config;
+        self
+    }
+
+    pub fn prefix(mut self, prefix: impl Into<Line<'static>>) -> Self {
+        self.prefix = prefix.into();
+        self
+    }
+
+    pub fn suffix(mut self, suffix: impl Into<Line<'static>>) -> Self {
+        self.suffix = suffix.into();
         self
     }
 
@@ -231,18 +243,28 @@ impl InputFormBuilder {
         InputForm {
             id: self.id,
             widget_config: self.widget_config,
+            prefix: self.prefix,
+            suffix: self.suffix,
             actions: self.actions,
             ..Default::default()
         }
     }
 }
 
+/// 検索・フィルタリング用の入力フォーム
+/// 複数行は扱わない
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
 pub struct InputForm {
     id: String,
     content: Content,
     chunk: Rect,
+    content_chunk: Rect,
+    prefix_chunk: Rect,
+    suffix_chunk: Rect,
+    layout: Layout,
+    prefix: Line<'static>,
+    suffix: Line<'static>,
     widget_config: WidgetConfig,
     scroll: usize,
     #[derivative(Debug = "ignore")]
@@ -254,6 +276,16 @@ impl InputForm {
         InputFormBuilder::default()
     }
 
+    fn layout(&self, prefix: u16, suffix: u16) -> Layout {
+        Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Length(prefix),
+                Constraint::Percentage(100),
+                Constraint::Length(suffix),
+            ])
+    }
+
     fn block(&self, is_active: bool, is_mouse_over: bool) -> Block<'static> {
         self.widget_config
             .render_block(self.can_activate() && is_active, is_mouse_over)
@@ -262,7 +294,30 @@ impl InputForm {
     pub fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
 
+        let inner_chunk = self.widget_config().block().inner(chunk);
+
+        let prefix_width = self.prefix.width() as u16;
+        let suffix_width = self.suffix.width() as u16;
+
+        let chunks = self.layout(prefix_width, suffix_width).split(inner_chunk);
+
+        self.prefix_chunk = chunks[0];
+        self.content_chunk = chunks[1];
+        self.suffix_chunk = chunks[2];
+
         self.adjust_scroll_for_cursor();
+    }
+
+    pub fn update_prefix(&mut self, prefix: impl Into<Line<'static>>) {
+        self.prefix = prefix.into();
+
+        self.update_chunk(self.chunk);
+    }
+
+    pub fn update_suffix(&mut self, suffix: impl Into<Line<'static>>) {
+        self.suffix = suffix.into();
+
+        self.update_chunk(self.chunk);
     }
 
     pub fn update_content(&mut self, content: String) {
@@ -329,7 +384,7 @@ impl InputForm {
         self.scroll = self
             .content
             .cursor_pos
-            .saturating_sub(self.rendered_width())
+            .saturating_sub(self.content_width())
             .saturating_add(1)
             .min(self.max_scroll());
     }
@@ -355,17 +410,17 @@ impl InputForm {
     }
 
     fn is_cursor_right_inside_render_area(&self) -> bool {
-        self.content.cursor_pos < self.scroll.saturating_add(self.rendered_width())
+        self.content.cursor_pos < self.scroll.saturating_add(self.content_width())
     }
 
     fn max_scroll(&self) -> usize {
         const CURSOR_LEN: usize = 1;
 
-        (self.content.len() + CURSOR_LEN).saturating_sub(self.rendered_width())
+        (self.content.len() + CURSOR_LEN).saturating_sub(self.content_width())
     }
 
-    fn rendered_width(&self) -> usize {
-        self.block(true, true).inner(self.chunk).width as usize
+    fn content_width(&self) -> usize {
+        self.content_chunk.width as usize
     }
 
     pub fn on_mouse_event(&mut self, _: MouseEvent) -> EventResult {
@@ -504,14 +559,20 @@ impl WidgetTrait for InputForm {
 
 impl RenderTrait for InputForm {
     fn render(&mut self, f: &mut Frame, is_active: bool, is_mouse_over: bool) {
-        let content = self.content.rendered_content(is_active);
+        // ブロックの描画
         let block = self.block(is_active, is_mouse_over);
+        f.render_widget(block, self.chunk);
 
-        let widget = Paragraph::new(content)
-            .block(block)
-            .scroll((0, self.scroll as u16));
+        // プレフィックスの描画
+        f.render_widget(Paragraph::new(self.prefix.clone()), self.prefix_chunk);
 
-        f.render_widget(widget, self.chunk);
+        // コンテンツの描画
+        let content = self.content.rendered_content(is_active);
+        let widget = Paragraph::new(content).scroll((0, self.scroll as u16));
+        f.render_widget(widget, self.content_chunk);
+
+        // サフィックスの描画
+        f.render_widget(Paragraph::new(self.suffix.clone()), self.suffix_chunk);
     }
 }
 
