@@ -262,7 +262,6 @@ pub struct InputForm {
     content_chunk: Rect,
     prefix_chunk: Rect,
     suffix_chunk: Rect,
-    layout: Layout,
     prefix: Line<'static>,
     suffix: Line<'static>,
     widget_config: WidgetConfig,
