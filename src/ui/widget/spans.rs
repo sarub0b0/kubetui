@@ -112,44 +112,29 @@ mod tests {
             Line::from(""),
             Line::from(vec![
                 Span::styled("ℹ", Style::default().fg(Color::Blue)),
-                Span::styled(" ", Style::default().fg(Color::Reset)),
+                Span::styled(" ", Style::default()),
                 Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
-                Span::styled(
-                    ": Project is running at http://10",
-                    Style::default().fg(Color::Reset),
-                ),
+                Span::styled(": Project is running at http://10", Style::default()),
             ]),
-            Line::from(Span::styled(".1.157.9/", Style::default().fg(Color::Reset))),
+            Line::from(Span::styled(".1.157.9/", Style::default())),
             Line::from(vec![
                 Span::styled("ℹ", Style::default().fg(Color::Blue)),
-                Span::styled(" ", Style::default().fg(Color::Reset)),
+                Span::styled(" ", Style::default()),
                 Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
-                Span::styled(
-                    ": webpack output is served from",
-                    Style::default().fg(Color::Reset),
-                ),
+                Span::styled(": webpack output is served from", Style::default()),
             ]),
             Line::from(vec![
                 Span::styled("ℹ", Style::default().fg(Color::Blue)),
-                Span::styled(" ", Style::default().fg(Color::Reset)),
+                Span::styled(" ", Style::default()),
                 Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
-                Span::styled(
-                    ": Content not from webpack is ser",
-                    Style::default().fg(Color::Reset),
-                ),
+                Span::styled(": Content not from webpack is ser", Style::default()),
             ]),
-            Line::from(Span::styled(
-                "ved from /app/public",
-                Style::default().fg(Color::Reset),
-            )),
+            Line::from(Span::styled("ved from /app/public", Style::default())),
             Line::from(vec![
                 Span::styled("ℹ", Style::default().fg(Color::Blue)),
-                Span::styled(" ", Style::default().fg(Color::Reset)),
+                Span::styled(" ", Style::default()),
                 Span::styled("｢wds｣", Style::default().fg(Color::DarkGray)),
-                Span::styled(
-                    ": 404s will fallback to /",
-                    Style::default().fg(Color::Reset),
-                ),
+                Span::styled(": 404s will fallback to /", Style::default()),
             ]),
             Line::from("Starting the development server..."),
             Line::from(""),
@@ -186,7 +171,7 @@ mod tests {
                 vec![Line::from(vec![
                     Span::raw("hoge"),
                     Span::styled("hoge", Style::default().fg(Color::Yellow)),
-                    Span::styled("", Style::default().fg(Color::Reset)),
+                    Span::styled("", Style::default()),
                 ])]
             )
         }
@@ -204,7 +189,7 @@ mod tests {
                             .fg(Color::Yellow)
                             .add_modifier(Modifier::BOLD)
                     ),
-                    Span::styled("", Style::default().fg(Color::Reset)),
+                    Span::styled("", Style::default()),
                 ])]
             )
         }
@@ -217,7 +202,7 @@ mod tests {
                 generate_spans_lines_for_multiline(&text),
                 vec![Line::from(vec![
                     Span::styled("hoge", Style::default().fg(Color::Indexed(33))),
-                    Span::styled("", Style::default().fg(Color::Reset)),
+                    Span::styled("", Style::default()),
                 ])]
             )
         }
@@ -235,7 +220,7 @@ mod tests {
                             .fg(Color::Indexed(33))
                             .add_modifier(Modifier::BOLD)
                     ),
-                    Span::styled("", Style::default().fg(Color::Reset)),
+                    Span::styled("", Style::default()),
                 ])]
             )
         }
@@ -248,7 +233,7 @@ mod tests {
                 generate_spans_lines_for_multiline(&text),
                 vec![Line::from(vec![
                     Span::styled("hoge", Style::default().fg(Color::Rgb(33, 10, 10))),
-                    Span::styled("", Style::default().fg(Color::Reset)),
+                    Span::styled("", Style::default()),
                 ])]
             )
         }
@@ -266,7 +251,7 @@ mod tests {
                             .fg(Color::Rgb(33, 10, 10))
                             .add_modifier(Modifier::BOLD)
                     ),
-                    Span::styled("", Style::default().fg(Color::Reset)),
+                    Span::styled("", Style::default()),
                 ])]
             )
         }
@@ -279,7 +264,7 @@ mod tests {
                 generate_spans_lines_for_multiline(&text),
                 vec![Line::from(vec![
                     Span::styled("hoge", Style::default().bg(Color::Yellow)),
-                    Span::styled("", Style::default().bg(Color::Reset)),
+                    Span::styled("", Style::default()),
                 ])]
             )
         }
@@ -297,7 +282,7 @@ mod tests {
                             .bg(Color::Yellow)
                             .add_modifier(Modifier::BOLD)
                     ),
-                    Span::styled("", Style::default().bg(Color::Reset)),
+                    Span::styled("", Style::default()),
                 ])]
             );
 
@@ -312,7 +297,7 @@ mod tests {
                             .bg(Color::Yellow)
                             .add_modifier(Modifier::BOLD)
                     ),
-                    Span::styled("", Style::default().bg(Color::Reset)),
+                    Span::styled("", Style::default()),
                 ])]
             );
         }
@@ -325,7 +310,7 @@ mod tests {
                 generate_spans_lines_for_multiline(&text),
                 vec![Line::from(vec![
                     Span::styled("hoge", Style::default().bg(Color::Indexed(33))),
-                    Span::styled("", Style::default().bg(Color::Reset)),
+                    Span::styled("", Style::default()),
                 ])]
             );
         }
@@ -343,7 +328,7 @@ mod tests {
                             .bg(Color::Indexed(33))
                             .add_modifier(Modifier::BOLD)
                     ),
-                    Span::styled("", Style::default().bg(Color::Reset)),
+                    Span::styled("", Style::default()),
                 ])]
             );
 
@@ -358,7 +343,7 @@ mod tests {
                             .bg(Color::Indexed(33))
                             .add_modifier(Modifier::BOLD)
                     ),
-                    Span::styled("", Style::default().bg(Color::Reset)),
+                    Span::styled("", Style::default()),
                 ])]
             );
         }
@@ -371,7 +356,7 @@ mod tests {
                 generate_spans_lines_for_multiline(&text),
                 vec![Line::from(vec![
                     Span::styled("hoge", Style::default().bg(Color::Rgb(33, 10, 10))),
-                    Span::styled("", Style::default().bg(Color::Reset)),
+                    Span::styled("", Style::default()),
                 ])]
             );
         }
@@ -389,7 +374,7 @@ mod tests {
                             .bg(Color::Rgb(33, 10, 10))
                             .add_modifier(Modifier::BOLD)
                     ),
-                    Span::styled("", Style::default().bg(Color::Reset)),
+                    Span::styled("", Style::default()),
                 ])]
             );
 
@@ -404,7 +389,7 @@ mod tests {
                             .bg(Color::Rgb(33, 10, 10))
                             .add_modifier(Modifier::BOLD)
                     ),
-                    Span::styled("", Style::default().bg(Color::Reset)),
+                    Span::styled("", Style::default()),
                 ])]
             );
         }
@@ -446,7 +431,7 @@ mod tests {
                     Line::from(vec![
                         Span::styled(" ", Style::default().bg(Color::Rgb(9, 0, 0))),
                         Span::styled(" ", Style::default().bg(Color::Rgb(10, 0, 0))),
-                        Span::styled("", Style::reset())
+                        Span::styled("", Style::default())
                     ]),
                 ]
             );
@@ -467,7 +452,7 @@ mod tests {
                     )]),
                     Line::from(vec![
                         Span::styled("aaaaa", Style::default().fg(Color::Red)),
-                        Span::styled("", Style::reset())
+                        Span::styled("", Style::default())
                     ]),
                 ]
             )

@@ -70,30 +70,30 @@ fn color_3_4bit(style: Style, code: u8) -> Style {
         //////////////////////////
         n @ 1..=9 => style.add_modifier(modifiers(n)),
 
-        20 => Style::reset(),
-        21 => Style::reset(),
+        20 => Style::default(),
+        21 => Style::default(),
         22 => style.remove_modifier(Modifier::BOLD | Modifier::DIM),
         23 => style.remove_modifier(Modifier::ITALIC),
         24 => style.remove_modifier(Modifier::UNDERLINED),
         25 => style.remove_modifier(Modifier::SLOW_BLINK | Modifier::RAPID_BLINK),
         27 => style.remove_modifier(Modifier::REVERSED),
-        28 => Style::reset(),
+        28 => Style::default(),
         29 => style.remove_modifier(Modifier::CROSSED_OUT),
         //////////////////////////
         // foreground
         //////////////////////////
         n @ 30..=37 => style.fg(normal_color(n)),
         n @ 90..=97 => style.fg(bright_color(n)),
-        39 => style.fg(Color::Reset),
+        39 => Style { fg: None, ..style },
         //////////////////////////
         // background
         //////////////////////////
         n @ 40..=47 => style.bg(normal_color(n - 10)),
         n @ 100..=107 => style.bg(bright_color(n - 10)),
-        49 => style.bg(Color::Reset),
+        49 => Style { bg: None, ..style },
 
         // error
-        _ => Style::reset(),
+        _ => Style::default(),
     }
 }
 
@@ -163,7 +163,7 @@ pub fn generate_style_from_ansi_color(codes: Vec<u8>) -> Style {
             //////////////////////////////
             // 3bit, 4bit
             //////////////////////////////
-            0 => Style::reset(),
+            0 => Style::default(),
             _ => color_3_4bit(style, code),
         };
     }
@@ -213,8 +213,8 @@ mod tests {
     }
 
     #[test]
-    fn generate_style_color_3_4bit_reset() {
-        assert_eq!(generate_style_from_ansi_color(vec![0]), Style::reset());
+    fn generate_style_color_3_4bit_default() {
+        assert_eq!(generate_style_from_ansi_color(vec![0]), Style::default());
     }
 
     #[test]
@@ -283,6 +283,6 @@ mod tests {
 
     #[test]
     fn color_3_4bit_panic() {
-        assert_eq!(color_3_4bit(Style::default(), 108), Style::reset())
+        assert_eq!(color_3_4bit(Style::default(), 108), Style::default())
     }
 }
