@@ -1054,12 +1054,12 @@ mod tests {
                     Style::default().fg(ratatui::style::Color::Red),
                     Style::default().fg(ratatui::style::Color::Red),
                     Style::default().fg(ratatui::style::Color::Red),
-                    Style::reset(),
-                    Style::reset(),
-                    Style::reset(),
-                    Style::reset(),
-                    Style::reset(),
-                    Style::reset(),
+                    Style::default(),
+                    Style::default(),
+                    Style::default(),
+                    Style::default(),
+                    Style::default(),
+                    Style::default(),
                 ],
             );
         }
