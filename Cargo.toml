@@ -30,7 +30,7 @@ fuzzy-matcher = "0.3.7"
 ratatui = "0.28.0"
 rayon = "1.10"
 unicode-segmentation = "1.11"
-unicode-width = "0.1.12"
+unicode-width = "0.2.0"
 
 # log
 log = "0.4.21"
