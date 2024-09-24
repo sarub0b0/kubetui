@@ -17,6 +17,7 @@ use ratatui::{
 
 use crate::{
     clipboard::Clipboard,
+    config::theme::ThemeConfig,
     features::{
         api_resources::view::ApiTab,
         component_id::{
@@ -52,7 +53,7 @@ use crate::{
         dialog::Dialog,
         event::{CallbackFn, EventResult},
         widget::{SelectedItem, WidgetTrait},
-        Header, Tab, Window, WindowAction,
+        Header, Tab, TabTheme, Window, WindowAction,
     },
 };
 
@@ -61,6 +62,7 @@ pub struct WindowInit {
     tx: Sender<Message>,
     context: Rc<RefCell<Context>>,
     namespaces: Rc<RefCell<Namespace>>,
+    theme: ThemeConfig,
 }
 
 impl WindowInit {
@@ -69,12 +71,14 @@ impl WindowInit {
         tx: Sender<Message>,
         context: Rc<RefCell<Context>>,
         namespaces: Rc<RefCell<Namespace>>,
+        theme: ThemeConfig,
     ) -> Self {
         Self {
             split_mode,
             tx,
             context,
             namespaces,
+            theme,
         }
     }
 
@@ -159,6 +163,10 @@ impl WindowInit {
         });
 
         let builder = builder.header(header);
+
+        let tab_theme = TabTheme::from(self.theme);
+
+        let builder = builder.tab_theme(tab_theme);
 
         builder.build()
     }

@@ -1,3 +1,5 @@
+pub mod theme;
+
 use std::path::PathBuf;
 
 use anyhow::Result;
@@ -6,6 +8,8 @@ use figment::{
     Figment,
 };
 use serde::{Deserialize, Serialize};
+
+use theme::ThemeConfig;
 
 #[derive(Debug, Default)]
 pub enum ConfigLoadOption {
@@ -16,7 +20,9 @@ pub enum ConfigLoadOption {
 }
 
 #[derive(Default, Debug, Deserialize, Serialize)]
-pub struct Config {}
+pub struct Config {
+    pub theme: ThemeConfig,
+}
 
 impl Config {
     pub fn load(option: ConfigLoadOption) -> Result<Self> {

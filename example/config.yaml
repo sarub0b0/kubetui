@@ -1,0 +1,19 @@
+# version: "1"
+
+# fg_color: "default" | name | hex | integer
+# bg_color: "default" | name | hex | integer
+# modifier: "none" | "bold" | "dim" | "italic" | "underlined" | "slow_blink" | "rapid_blink" | "reversed" | "hidden" | "crossed_out"
+
+theme:
+  tab:
+    divider:
+      char: "|"
+    base:
+      fg_color: "#c0c0c0"
+      modifier: reversed
+    active:
+      fg_color: blue
+      modifier: reversed
+    mouse_over:
+      fg_color: green
+      modifier: reversed
