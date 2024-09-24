@@ -47,6 +47,7 @@ impl App {
             rx_main.clone(),
             is_terminated.clone(),
             split_direction,
+            config.theme.clone(),
         );
 
         thread::scope(|s| {
