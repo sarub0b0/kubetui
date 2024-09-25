@@ -18,6 +18,30 @@ use crate::{
     },
 };
 
+#[derive(Default, Debug, Clone)]
+pub struct InputFormTheme {
+    pub prefix_style: Style,
+    pub content_style: Style,
+    pub suffix_style: Style,
+}
+
+impl InputFormTheme {
+    pub fn prefix_style(mut self, style: impl Into<Style>) -> Self {
+        self.prefix_style = style.into();
+        self
+    }
+
+    pub fn content_style(mut self, style: impl Into<Style>) -> Self {
+        self.content_style = style.into();
+        self
+    }
+
+    pub fn suffix_style(mut self, style: impl Into<Style>) -> Self {
+        self.suffix_style = style.into();
+        self
+    }
+}
+
 #[derive(Debug)]
 enum Mode {
     Show,
@@ -201,6 +225,7 @@ impl Content {
 pub struct InputFormBuilder {
     id: String,
     widget_base: WidgetBase,
+    theme: InputFormTheme,
     prefix: Line<'static>,
     suffix: Line<'static>,
     actions: Vec<(UserEvent, Callback)>,
@@ -214,6 +239,11 @@ impl InputFormBuilder {
 
     pub fn widget_base(mut self, widget_base: WidgetBase) -> Self {
         self.widget_base = widget_base;
+        self
+    }
+
+    pub fn theme(mut self, theme: InputFormTheme) -> Self {
+        self.theme = theme;
         self
     }
 
@@ -241,6 +271,7 @@ impl InputFormBuilder {
         InputForm {
             id: self.id,
             widget_base: self.widget_base,
+            theme: self.theme,
             prefix: self.prefix,
             suffix: self.suffix,
             actions: self.actions,
@@ -255,6 +286,7 @@ impl InputFormBuilder {
 pub struct InputForm {
     id: String,
     content: Content,
+    theme: InputFormTheme,
     chunk: Rect,
     content_chunk: Rect,
     prefix_chunk: Rect,
@@ -560,15 +592,25 @@ impl RenderTrait for InputForm {
         f.render_widget(block, self.chunk);
 
         // プレフィックスの描画
-        f.render_widget(Paragraph::new(self.prefix.clone()), self.prefix_chunk);
+        f.render_widget(
+            Paragraph::new(self.prefix.clone()).style(self.theme.prefix_style),
+            self.prefix_chunk,
+        );
 
         // コンテンツの描画
         let content = self.content.rendered_content(is_active);
-        let widget = Paragraph::new(content).scroll((0, self.scroll as u16));
-        f.render_widget(widget, self.content_chunk);
+        f.render_widget(
+            Paragraph::new(content)
+                .scroll((0, self.scroll as u16))
+                .style(self.theme.content_style),
+            self.content_chunk,
+        );
 
         // サフィックスの描画
-        f.render_widget(Paragraph::new(self.suffix.clone()), self.suffix_chunk);
+        f.render_widget(
+            Paragraph::new(self.suffix.clone()).style(self.theme.suffix_style),
+            self.suffix_chunk,
+        );
     }
 }
 
