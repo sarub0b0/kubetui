@@ -16,7 +16,7 @@ impl Sgr {
 
 impl From<Sgr> for Style {
     fn from(sgr: Sgr) -> Self {
-        generate_style_from_ansi_color(sgr.0)
+        ansi_to_style(sgr.0)
     }
 }
 
@@ -97,7 +97,7 @@ fn color_3_4bit(style: Style, code: u8) -> Style {
     }
 }
 
-pub fn generate_style_from_ansi_color(codes: Vec<u8>) -> Style {
+pub fn ansi_to_style(codes: Vec<u8>) -> Style {
     let mut style = Style::default();
 
     let mut iter = codes.into_iter();
@@ -213,36 +213,36 @@ mod tests {
     }
 
     #[test]
-    fn generate_style_color_3_4bit_default() {
-        assert_eq!(generate_style_from_ansi_color(vec![0]), Style::default());
+    fn ansi_to_style_color_3_4bit_default() {
+        assert_eq!(ansi_to_style(vec![0]), Style::default());
     }
 
     #[test]
-    fn generate_style_color_8bit_fg() {
+    fn ansi_to_style_color_8bit_fg() {
         assert_eq!(
-            generate_style_from_ansi_color(vec![38, 5, 100]),
+            ansi_to_style(vec![38, 5, 100]),
             Style::default().fg(Color::Indexed(100))
         );
     }
 
     #[test]
-    fn generate_style_color_8bit_bg() {
+    fn ansi_to_style_color_8bit_bg() {
         assert_eq!(
-            generate_style_from_ansi_color(vec![48, 5, 100]),
+            ansi_to_style(vec![48, 5, 100]),
             Style::default().bg(Color::Indexed(100))
         );
     }
 
     #[test]
-    fn generate_style_color_8bit_fg_bold() {
+    fn ansi_to_style_color_8bit_fg_bold() {
         assert_eq!(
-            generate_style_from_ansi_color(vec![1, 38, 5, 100]),
+            ansi_to_style(vec![1, 38, 5, 100]),
             Style::default()
                 .fg(Color::Indexed(100))
                 .add_modifier(Modifier::BOLD)
         );
         assert_eq!(
-            generate_style_from_ansi_color(vec![38, 5, 100, 1]),
+            ansi_to_style(vec![38, 5, 100, 1]),
             Style::default()
                 .fg(Color::Indexed(100))
                 .add_modifier(Modifier::BOLD)
@@ -250,31 +250,31 @@ mod tests {
     }
 
     #[test]
-    fn generate_style_color_24bit_fg() {
+    fn ansi_to_style_color_24bit_fg() {
         assert_eq!(
-            generate_style_from_ansi_color(vec![38, 2, 10, 10, 10]),
+            ansi_to_style(vec![38, 2, 10, 10, 10]),
             Style::default().fg(Color::Rgb(10, 10, 10))
         );
     }
 
     #[test]
-    fn generate_style_color_24bit_bg() {
+    fn ansi_to_style_color_24bit_bg() {
         assert_eq!(
-            generate_style_from_ansi_color(vec![48, 2, 10, 10, 10]),
+            ansi_to_style(vec![48, 2, 10, 10, 10]),
             Style::default().bg(Color::Rgb(10, 10, 10))
         );
     }
 
     #[test]
-    fn generate_style_color_24bit_bold() {
+    fn ansi_to_style_color_24bit_bold() {
         assert_eq!(
-            generate_style_from_ansi_color(vec![1, 38, 2, 10, 10, 10]),
+            ansi_to_style(vec![1, 38, 2, 10, 10, 10]),
             Style::default()
                 .fg(Color::Rgb(10, 10, 10))
                 .add_modifier(Modifier::BOLD)
         );
         assert_eq!(
-            generate_style_from_ansi_color(vec![38, 2, 10, 10, 10, 1]),
+            ansi_to_style(vec![38, 2, 10, 10, 10, 1]),
             Style::default()
                 .fg(Color::Rgb(10, 10, 10))
                 .add_modifier(Modifier::BOLD)

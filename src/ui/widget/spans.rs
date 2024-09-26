@@ -52,7 +52,7 @@ mod inner {
                     span_vec.push(Span::styled(parsed.chars.to_string(), *style));
                 }
                 AnsiEscapeSequence::SelectGraphicRendition(color) => {
-                    *style = generate_style_from_ansi_color(color);
+                    *style = ansi_to_style(color);
 
                     if iter.peek().is_none() {
                         span_vec.push(Span::styled("", *style));
