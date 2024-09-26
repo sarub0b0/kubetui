@@ -3,15 +3,16 @@ mod spans;
 mod styled_graphemes;
 mod wrap;
 
-pub mod base;
-pub mod complex;
-pub mod input;
-pub mod list;
-pub mod table;
-pub mod text;
+mod base;
+mod complex;
+mod input;
+mod list;
+mod table;
+mod text;
 
 pub use base::*;
 pub use complex::*;
+pub use input::*;
 pub use list::*;
 pub use table::*;
 pub use text::*;
@@ -27,7 +28,7 @@ use ratatui::{
 
 use super::event::EventResult;
 
-use self::{base::WidgetBase, input::InputForm, styled_graphemes::StyledGraphemes};
+use self::styled_graphemes::StyledGraphemes;
 
 #[derive(Debug, Clone, Default, Hash, PartialEq, Eq)]
 pub struct LiteralItem {

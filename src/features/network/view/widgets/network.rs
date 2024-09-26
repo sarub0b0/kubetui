@@ -16,7 +16,7 @@ use crate::{
     message::Message,
     ui::{
         event::EventResult,
-        widget::{base::WidgetBase, Table, TableItem, Widget, WidgetTrait as _},
+        widget::{Table, TableItem, Widget, WidgetBase, WidgetTrait as _},
         Window, WindowAction,
     },
 };

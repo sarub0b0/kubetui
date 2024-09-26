@@ -15,9 +15,7 @@ use crate::{
     message::{Message, UserEvent},
     ui::{
         event::EventResult,
-        widget::{
-            base::WidgetBase, input::InputFormBuilder, SelectedItem, Widget, WidgetTrait as _,
-        },
+        widget::{InputFormBuilder, SelectedItem, Widget, WidgetBase, WidgetTrait as _},
         Window,
     },
 };

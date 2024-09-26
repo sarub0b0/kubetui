@@ -4,7 +4,7 @@ use crate::{
     features::component_id::{YAML_KIND_POPUP_ID, YAML_NOT_FOUND_POPUP_ID},
     ui::{
         event::EventResult,
-        widget::{base::WidgetBase, Text, Widget},
+        widget::{Text, Widget, WidgetBase},
         Window,
     },
 };

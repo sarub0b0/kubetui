@@ -5,7 +5,7 @@ use ratatui::widgets::Block;
 use crate::{
     clipboard::Clipboard,
     features::component_id::NETWORK_DESCRIPTION_WIDGET_ID,
-    ui::widget::{base::WidgetBase, Text, Widget, WidgetTrait as _},
+    ui::widget::{Text, Widget, WidgetBase, WidgetTrait as _},
 };
 
 pub fn description_widget(clipboard: &Option<Rc<RefCell<Clipboard>>>) -> Widget<'static> {

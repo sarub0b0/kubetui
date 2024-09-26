@@ -8,7 +8,7 @@ use crate::{
     message::UserEvent,
     ui::{
         event::EventResult,
-        widget::{base::WidgetBase, Item, Text, Widget, WidgetTrait as _},
+        widget::{Item, Text, Widget, WidgetBase, WidgetTrait as _},
         Window,
     },
 };

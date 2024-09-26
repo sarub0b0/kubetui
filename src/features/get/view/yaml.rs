@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 use crate::{
     clipboard::Clipboard,
     features::component_id::YAML_POPUP_ID,
-    ui::widget::{base::WidgetBase, Text, Widget, WidgetTrait},
+    ui::widget::{Text, Widget, WidgetBase, WidgetTrait},
 };
 
 pub struct YamlPopup {

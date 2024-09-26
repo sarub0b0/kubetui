@@ -12,7 +12,7 @@ use crate::{
     message::Message,
     ui::{
         event::EventResult,
-        widget::{base::WidgetBase, LiteralItem, MultipleSelect, Widget},
+        widget::{LiteralItem, MultipleSelect, Widget, WidgetBase},
         Window,
     },
 };

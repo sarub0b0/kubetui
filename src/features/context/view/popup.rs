@@ -3,14 +3,17 @@ use crossbeam::channel::Sender;
 use crate::{
     features::{
         component_id::{
-            CONFIG_RAW_DATA_WIDGET_ID, CONFIG_WIDGET_ID, CONTEXT_POPUP_ID, EVENT_WIDGET_ID, LIST_POPUP_ID, LIST_WIDGET_ID, MULTIPLE_NAMESPACES_POPUP_ID, NETWORK_DESCRIPTION_WIDGET_ID, NETWORK_WIDGET_ID, POD_LOG_QUERY_WIDGET_ID, POD_LOG_WIDGET_ID, POD_WIDGET_ID, YAML_WIDGET_ID
+            CONFIG_RAW_DATA_WIDGET_ID, CONFIG_WIDGET_ID, CONTEXT_POPUP_ID, EVENT_WIDGET_ID,
+            LIST_POPUP_ID, LIST_WIDGET_ID, MULTIPLE_NAMESPACES_POPUP_ID,
+            NETWORK_DESCRIPTION_WIDGET_ID, NETWORK_WIDGET_ID, POD_LOG_QUERY_WIDGET_ID,
+            POD_LOG_WIDGET_ID, POD_WIDGET_ID, YAML_WIDGET_ID,
         },
         context::message::ContextRequest,
     },
     message::Message,
     ui::{
         event::EventResult,
-        widget::{base::WidgetBase, LiteralItem, SingleSelect, Widget},
+        widget::{LiteralItem, SingleSelect, Widget, WidgetBase},
         Window,
     },
 };
