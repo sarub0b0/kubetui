@@ -307,6 +307,7 @@ impl InputForm {
         self.adjust_scroll_for_cursor();
     }
 
+    #[allow(dead_code)]
     pub fn update_prefix(&mut self, prefix: impl Into<Line<'static>>) {
         self.prefix = prefix.into();
 
