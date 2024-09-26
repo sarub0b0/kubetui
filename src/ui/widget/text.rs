@@ -1,5 +1,6 @@
 mod item;
 mod render;
+mod search;
 mod wrap;
 
 use std::{cell::RefCell, rc::Rc};
@@ -12,6 +13,7 @@ use ratatui::{
     widgets::{Block, Scrollbar, ScrollbarOrientation, ScrollbarState},
     Frame,
 };
+use search::SearchForm;
 
 use crate::{
     clipboard::Clipboard,
@@ -25,8 +27,8 @@ use crate::{
 };
 
 use super::{
-    base::WidgetBase, input::InputForm, styled_graphemes::StyledGrapheme, Item, LiteralItem,
-    RenderTrait, SelectedItem, WidgetTrait,
+    styled_graphemes::StyledGrapheme, Item, LiteralItem, RenderTrait, SelectedItem, WidgetBase,
+    WidgetTrait,
 };
 
 use self::{
@@ -155,12 +157,11 @@ impl Mode {
 }
 
 #[derive(Derivative)]
-#[derivative(Debug)]
+#[derivative(Debug, Default)]
 pub struct TextBuilder {
     id: String,
     widget_base: WidgetBase,
-    search_widget: InputForm,
-    search_height: u16,
+    search_form: SearchForm,
     item: Vec<LiteralItem>,
     wrap: bool,
     follow: bool,
@@ -170,27 +171,6 @@ pub struct TextBuilder {
     actions: Vec<(UserEvent, Callback)>,
     #[derivative(Debug = "ignore")]
     clipboard: Option<Rc<RefCell<Clipboard>>>,
-}
-
-impl Default for TextBuilder {
-    fn default() -> Self {
-        Self {
-            id: Default::default(),
-            widget_base: Default::default(),
-            search_widget: InputForm::builder()
-                .widget_base(WidgetBase::builder().block(Block::default()).build())
-                .prefix("Search: ")
-                .suffix(" [0/0]")
-                .build(),
-            search_height: 1,
-            item: Default::default(),
-            wrap: Default::default(),
-            follow: Default::default(),
-            block_injection: Default::default(),
-            actions: Default::default(),
-            clipboard: Default::default(),
-        }
-    }
 }
 
 impl TextBuilder {
@@ -204,9 +184,9 @@ impl TextBuilder {
         self
     }
 
-    pub fn search_widget(mut self, search_widget: InputForm, search_height: u16) -> Self {
-        self.search_widget = search_widget;
-        self.search_height = search_height;
+    #[allow(dead_code)]
+    pub fn search_form(mut self, search_form: SearchForm) -> Self {
+        self.search_form = search_form;
         self
     }
 
@@ -255,8 +235,7 @@ impl TextBuilder {
         Text {
             id: self.id,
             widget_base: self.widget_base,
-            search_widget: self.search_widget,
-            search_height: self.search_height,
+            search_form: self.search_form,
             item: TextItem::new(self.item, None),
             wrap: self.wrap,
             follow: self.follow,
@@ -278,8 +257,7 @@ pub struct Text {
     wrap: bool,
     follow: bool,
     scroll: Scroll,
-    search_widget: InputForm,
-    search_height: u16,
+    search_form: SearchForm,
     /// 検索中、検索ワード入力中、オフの3つのモード
     mode: Mode,
     highlight_content: Option<HighlightContent>,
@@ -314,7 +292,7 @@ impl Text {
             self.select_last()
         }
 
-        let word = self.search_widget.content();
+        let word = self.search_form.content();
 
         if word.is_empty() {
             // 入力文字が空の時に1文字だけハイライトが残るのを防ぐため
@@ -452,7 +430,12 @@ impl Text {
         if self.mode.is_normal() {
             self.chunk
         } else {
-            Rect::new(x, y, width, height.saturating_sub(1))
+            Rect::new(
+                x,
+                y,
+                width,
+                height.saturating_sub(self.search_form.form_height()),
+            )
         }
     }
 
@@ -770,7 +753,7 @@ impl WidgetTrait for Text {
                 }
 
                 _ => {
-                    let ev = self.search_widget.on_key_event(ev);
+                    let ev = self.search_form.on_key_event(ev);
 
                     self.search();
 
@@ -791,11 +774,13 @@ impl WidgetTrait for Text {
             self.item.rewrap(self.inner_chunk().width as usize);
         };
 
-        self.search_widget.update_chunk(Rect::new(
+        let search_height = self.search_form.form_height();
+
+        self.search_form.update_chunk(Rect::new(
             chunk.x,
-            chunk.y + chunk.height.saturating_sub(self.search_height),
+            chunk.y + chunk.height.saturating_sub(search_height),
             chunk.width,
-            self.search_height,
+            search_height,
         ));
 
         if self.follow && is_bottom {
@@ -853,10 +838,11 @@ impl RenderTrait for Text {
             Mode::SearchInput | Mode::SearchConfirm => {
                 f.render_widget(r, self.chunk());
 
-                self.search_widget
-                    .update_suffix(self.highlight_status_str());
+                let status = self.highlight_status_str();
 
-                self.search_widget
+                self.search_form.update_suffix(status);
+
+                self.search_form
                     .render(f, self.mode.is_search_input() && is_active, false);
             }
         }
