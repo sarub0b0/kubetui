@@ -1,5 +1,5 @@
 mod ansi_color;
-mod spans;
+mod line;
 mod styled_graphemes;
 mod wrap;
 

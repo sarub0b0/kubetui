@@ -24,7 +24,7 @@ use crate::{
 
 mod inner_item {
 
-    use crate::ui::widget::{spans::generate_spans_line, LiteralItem};
+    use crate::ui::widget::{line::convert_line_to_styled_line, LiteralItem};
 
     use super::Item;
     use ratatui::widgets::ListItem;
@@ -52,7 +52,7 @@ mod inner_item {
                 .items
                 .iter()
                 .cloned()
-                .map(|literal_item| ListItem::new(generate_spans_line(literal_item.item)))
+                .map(|literal_item| ListItem::new(convert_line_to_styled_line(literal_item.item)))
                 .collect();
         }
 
