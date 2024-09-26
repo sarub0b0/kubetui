@@ -26,7 +26,7 @@ use crate::{
 };
 
 use super::{
-    config::WidgetConfig, input::InputForm, styled_graphemes, Item, RenderTrait, SelectedItem,
+    base::WidgetBase, input::InputForm, styled_graphemes, Item, RenderTrait, SelectedItem,
     TableItem, WidgetTrait,
 };
 
@@ -37,14 +37,14 @@ const HIGHLIGHT_SYMBOL: &str = " ";
 const ROW_START_INDEX: usize = 2;
 
 define_callback!(pub OnSelectCallback, Fn(&mut Window, &TableItem) -> EventResult);
-define_callback!(pub RenderBlockInjection, Fn(&Table) -> WidgetConfig);
+define_callback!(pub RenderBlockInjection, Fn(&Table) -> WidgetBase);
 define_callback!(pub RenderHighlightInjection, Fn(Option<&TableItem>) -> Style);
 
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct TableBuilder {
     id: String,
-    widget_config: WidgetConfig,
+    widget_base: WidgetBase,
     filter_widget: InputForm,
     filter_height: u16,
     show_status: bool,
@@ -66,7 +66,7 @@ impl Default for TableBuilder {
     fn default() -> Self {
         Self {
             id: Default::default(),
-            widget_config: Default::default(),
+            widget_base: Default::default(),
             filter_widget: InputForm::builder().prefix("FILTER: ").build(),
             filter_height: 3,
             show_status: Default::default(),
@@ -89,8 +89,8 @@ impl TableBuilder {
         self
     }
 
-    pub fn widget_config(mut self, widget_config: &WidgetConfig) -> Self {
-        self.widget_config = widget_config.clone();
+    pub fn widget_base(mut self, widget_base: &WidgetBase) -> Self {
+        self.widget_base = widget_base.clone();
         self
     }
 
@@ -159,7 +159,7 @@ impl TableBuilder {
     pub fn build(self) -> Table<'static> {
         let mut table = Table {
             id: self.id,
-            widget_config: self.widget_config,
+            widget_base: self.widget_base,
             on_select: self.on_select,
             actions: self.actions,
             state: self.state,
@@ -231,7 +231,7 @@ impl Mode {
 #[derivative(Debug, Default)]
 pub struct Table<'a> {
     id: String,
-    widget_config: WidgetConfig,
+    widget_base: WidgetBase,
     show_status: bool,
     chunk_index: usize,
     items: InnerItem<'a>,
@@ -345,7 +345,7 @@ impl<'a> Table<'a> {
     }
 
     fn inner_chunk(&self) -> Rect {
-        self.widget_config.block().inner(self.chunk())
+        self.widget_base.block().inner(self.chunk())
     }
 
     fn filter_items(&mut self) {
@@ -636,15 +636,15 @@ impl WidgetTrait for Table<'_> {
 
         self.row_bounds = Vec::default();
 
-        *(self.widget_config.append_title_mut()) = None;
+        *(self.widget_base.append_title_mut()) = None;
     }
 
-    fn widget_config(&self) -> &WidgetConfig {
-        &self.widget_config
+    fn widget_base(&self) -> &WidgetBase {
+        &self.widget_base
     }
 
-    fn widget_config_mut(&mut self) -> &mut WidgetConfig {
-        &mut self.widget_config
+    fn widget_base_mut(&mut self) -> &mut WidgetBase {
+        &mut self.widget_base
     }
 }
 
@@ -694,13 +694,13 @@ impl<'a> Table<'a> {
 
 impl RenderTrait for Table<'_> {
     fn render(&mut self, f: &mut Frame<'_>, is_active: bool, is_mouse_over: bool) {
-        let widget_config = if let Some(block_injection) = &self.block_injection {
+        let widget_base = if let Some(block_injection) = &self.block_injection {
             (block_injection)(&*self)
         } else {
-            self.widget_config.clone()
+            self.widget_base.clone()
         };
 
-        let block = widget_config.render_block(
+        let block = widget_base.render_block(
             self.can_activate() && !self.mode.is_filter_input() && is_active,
             is_mouse_over,
         );

@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 use crate::{
     clipboard::Clipboard,
     features::component_id::YAML_POPUP_ID,
-    ui::widget::{config::WidgetConfig, Text, Widget, WidgetTrait},
+    ui::widget::{base::WidgetBase, Text, Widget, WidgetTrait},
 };
 
 pub struct YamlPopup {
@@ -21,15 +21,15 @@ impl YamlPopup {
 pub fn popup(clipboard: &Option<Rc<RefCell<Clipboard>>>) -> Widget<'static> {
     let mut builder = Text::builder()
         .id(YAML_POPUP_ID)
-        .widget_config(&WidgetConfig::builder().title("Yaml").build())
+        .widget_base(&WidgetBase::builder().title("Yaml").build())
         .block_injection(|text: &Text, is_active: bool, is_mouse_over: bool| {
             let (index, size) = text.state();
 
-            let mut config = text.widget_config().clone();
+            let mut base = text.widget_base().clone();
 
-            *config.title_mut() = format!("Yaml [{}/{}]", index, size).into();
+            *base.title_mut() = format!("Yaml [{}/{}]", index, size).into();
 
-            config.render_block(text.can_activate() && is_active, is_mouse_over)
+            base.render_block(text.can_activate() && is_active, is_mouse_over)
         })
         .wrap();
 

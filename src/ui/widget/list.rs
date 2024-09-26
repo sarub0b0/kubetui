@@ -10,7 +10,7 @@ use ratatui::{
 
 use derivative::*;
 
-use super::{config::WidgetConfig, Item, LiteralItem, RenderTrait, SelectedItem, WidgetTrait};
+use super::{base::WidgetBase, Item, LiteralItem, RenderTrait, SelectedItem, WidgetTrait};
 
 use crate::{
     define_callback,
@@ -78,7 +78,7 @@ use inner_item::InnerItem;
 #[derivative(Debug, Default)]
 pub struct List<'a> {
     id: String,
-    widget_config: WidgetConfig,
+    widget_base: WidgetBase,
     items: InnerItem<'a>,
     state: ListState,
     chunk: Rect,
@@ -93,7 +93,7 @@ pub struct List<'a> {
 #[derivative(Debug, Default)]
 pub struct ListBuilder {
     id: String,
-    widget_config: WidgetConfig,
+    widget_base: WidgetBase,
     items: Vec<LiteralItem>,
     state: ListState,
     #[derivative(Debug = "ignore")]
@@ -109,8 +109,8 @@ impl ListBuilder {
         self
     }
 
-    pub fn widget_config(mut self, widget_config: &WidgetConfig) -> Self {
-        self.widget_config = widget_config.clone();
+    pub fn widget_base(mut self, widget_base: &WidgetBase) -> Self {
+        self.widget_base = widget_base.clone();
         self
     }
 
@@ -141,7 +141,7 @@ impl ListBuilder {
     pub fn build(self) -> List<'static> {
         let mut list = List {
             id: self.id,
-            widget_config: self.widget_config,
+            widget_base: self.widget_base,
             on_select: self.on_select,
             state: self.state,
             block_injection: self.block_injection,
@@ -385,21 +385,21 @@ impl<'a> WidgetTrait for List<'a> {
 
     fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
-        self.inner_chunk = self.widget_config.block().inner(chunk);
+        self.inner_chunk = self.widget_base.block().inner(chunk);
     }
 
     fn clear(&mut self) {
         self.items = Default::default();
         self.state = Default::default();
-        *(self.widget_config.append_title_mut()) = None;
+        *(self.widget_base.append_title_mut()) = None;
     }
 
-    fn widget_config(&self) -> &WidgetConfig {
-        &self.widget_config
+    fn widget_base(&self) -> &WidgetBase {
+        &self.widget_base
     }
 
-    fn widget_config_mut(&mut self) -> &mut WidgetConfig {
-        &mut self.widget_config
+    fn widget_base_mut(&mut self) -> &mut WidgetBase {
+        &mut self.widget_base
     }
 }
 
@@ -423,7 +423,7 @@ impl RenderTrait for List<'_> {
         let block = if let Some(block_injection) = &self.block_injection {
             (block_injection)(&*self, is_active)
         } else {
-            self.widget_config
+            self.widget_base
                 .render_block(self.can_activate() && is_active, is_mouse_over)
         };
 

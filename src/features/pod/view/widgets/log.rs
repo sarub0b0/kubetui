@@ -8,7 +8,7 @@ use crate::{
     message::UserEvent,
     ui::{
         event::EventResult,
-        widget::{config::WidgetConfig, Item, Text, Widget, WidgetTrait as _},
+        widget::{base::WidgetBase, Item, Text, Widget, WidgetTrait as _},
         Window,
     },
 };
@@ -16,7 +16,7 @@ use crate::{
 pub fn log_widget(clipboard: &Option<Rc<RefCell<Clipboard>>>) -> Widget<'static> {
     let builder = Text::builder()
         .id(POD_LOG_WIDGET_ID)
-        .widget_config(&WidgetConfig::builder().title("Log").build())
+        .widget_base(&WidgetBase::builder().title("Log").build())
         .wrap()
         .follow()
         .block_injection(block_injection())
@@ -35,11 +35,11 @@ fn block_injection() -> impl Fn(&Text, bool, bool) -> Block<'static> {
     |text: &Text, is_active: bool, is_mouse_over: bool| {
         let (index, size) = text.state();
 
-        let mut config = text.widget_config().clone();
+        let mut base = text.widget_base().clone();
 
-        *config.title_mut() = format!("Log [{}/{}]", index, size).into();
+        *base.title_mut() = format!("Log [{}/{}]", index, size).into();
 
-        config.render_block(text.can_activate() && is_active, is_mouse_over)
+        base.render_block(text.can_activate() && is_active, is_mouse_over)
     }
 }
 

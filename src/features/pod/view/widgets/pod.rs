@@ -12,7 +12,7 @@ use crate::{
     message::Message,
     ui::{
         event::EventResult,
-        widget::{config::WidgetConfig, Item, Table, TableItem, Widget, WidgetTrait as _},
+        widget::{base::WidgetBase, Item, Table, TableItem, Widget, WidgetTrait as _},
         Window, WindowAction,
     },
 };
@@ -22,7 +22,7 @@ pub fn pod_widget(tx: &Sender<Message>) -> Widget<'static> {
 
     Table::builder()
         .id(POD_WIDGET_ID)
-        .widget_config(&WidgetConfig::builder().title("Pod").build())
+        .widget_base(&WidgetBase::builder().title("Pod").build())
         .filtered_key("NAME")
         .block_injection(block_injection())
         .on_select(on_select(tx))
@@ -30,7 +30,7 @@ pub fn pod_widget(tx: &Sender<Message>) -> Widget<'static> {
         .into()
 }
 
-fn block_injection() -> impl Fn(&Table) -> WidgetConfig {
+fn block_injection() -> impl Fn(&Table) -> WidgetBase {
     |table: &Table| {
         let index = if let Some(index) = table.state().selected() {
             index + 1
@@ -38,12 +38,11 @@ fn block_injection() -> impl Fn(&Table) -> WidgetConfig {
             0
         };
 
-        let mut widget_config = table.widget_config().clone();
+        let mut base = table.widget_base().clone();
 
-        *widget_config.append_title_mut() =
-            Some(format!(" [{}/{}]", index, table.items().len()).into());
+        *base.append_title_mut() = Some(format!(" [{}/{}]", index, table.items().len()).into());
 
-        widget_config
+        base
     }
 }
 

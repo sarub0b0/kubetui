@@ -10,7 +10,7 @@ use crate::{
     message::Message,
     ui::{
         event::EventResult,
-        widget::{config::WidgetConfig, LiteralItem, SingleSelect, Widget},
+        widget::{base::WidgetBase, LiteralItem, SingleSelect, Widget},
         Window,
     },
 };
@@ -30,7 +30,7 @@ impl ContextPopup {
 fn popup(tx: Sender<Message>) -> Widget<'static> {
     SingleSelect::builder()
         .id(CONTEXT_POPUP_ID)
-        .widget_config(&WidgetConfig::builder().title("Context").build())
+        .widget_base(&WidgetBase::builder().title("Context").build())
         .on_select(on_select(tx))
         .build()
         .into()

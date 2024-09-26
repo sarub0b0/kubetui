@@ -5,13 +5,13 @@ use ratatui::widgets::Block;
 use crate::{
     clipboard::Clipboard,
     features::component_id::NETWORK_DESCRIPTION_WIDGET_ID,
-    ui::widget::{config::WidgetConfig, Text, Widget, WidgetTrait as _},
+    ui::widget::{base::WidgetBase, Text, Widget, WidgetTrait as _},
 };
 
 pub fn description_widget(clipboard: &Option<Rc<RefCell<Clipboard>>>) -> Widget<'static> {
     let builder = Text::builder()
         .id(NETWORK_DESCRIPTION_WIDGET_ID)
-        .widget_config(&WidgetConfig::builder().title("Description").build())
+        .widget_base(&WidgetBase::builder().title("Description").build())
         .block_injection(block_injection());
 
     if let Some(cb) = clipboard {
@@ -27,10 +27,10 @@ fn block_injection() -> impl Fn(&Text, bool, bool) -> Block<'static> {
     |text: &Text, is_active: bool, is_mouse_over: bool| {
         let (index, size) = text.state();
 
-        let mut config = text.widget_config().clone();
+        let mut base = text.widget_base().clone();
 
-        *config.title_mut() = format!("Description [{}/{}]", index, size).into();
+        *base.title_mut() = format!("Description [{}/{}]", index, size).into();
 
-        config.render_block(text.can_activate() && is_active, is_mouse_over)
+        base.render_block(text.can_activate() && is_active, is_mouse_over)
     }
 }

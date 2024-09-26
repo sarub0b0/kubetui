@@ -25,7 +25,7 @@ use crate::{
 };
 
 use super::{
-    config::WidgetConfig, input::InputForm, styled_graphemes::StyledGrapheme, Item, LiteralItem,
+    base::WidgetBase, input::InputForm, styled_graphemes::StyledGrapheme, Item, LiteralItem,
     RenderTrait, SelectedItem, WidgetTrait,
 };
 
@@ -158,7 +158,7 @@ impl Mode {
 #[derivative(Debug)]
 pub struct TextBuilder {
     id: String,
-    widget_config: WidgetConfig,
+    widget_base: WidgetBase,
     search_widget: InputForm,
     search_height: u16,
     item: Vec<LiteralItem>,
@@ -176,9 +176,9 @@ impl Default for TextBuilder {
     fn default() -> Self {
         Self {
             id: Default::default(),
-            widget_config: Default::default(),
+            widget_base: Default::default(),
             search_widget: InputForm::builder()
-                .widget_config(WidgetConfig::builder().block(Block::default()).build())
+                .widget_base(WidgetBase::builder().block(Block::default()).build())
                 .prefix("Search: ")
                 .suffix(" [0/0]")
                 .build(),
@@ -199,8 +199,8 @@ impl TextBuilder {
         self
     }
 
-    pub fn widget_config(mut self, widget_config: &WidgetConfig) -> Self {
-        self.widget_config = widget_config.clone();
+    pub fn widget_base(mut self, widget_base: &WidgetBase) -> Self {
+        self.widget_base = widget_base.clone();
         self
     }
 
@@ -254,7 +254,7 @@ impl TextBuilder {
     pub fn build(self) -> Text {
         Text {
             id: self.id,
-            widget_config: self.widget_config,
+            widget_base: self.widget_base,
             search_widget: self.search_widget,
             search_height: self.search_height,
             item: TextItem::new(self.item, None),
@@ -272,7 +272,7 @@ impl TextBuilder {
 #[derivative(Debug, Default)]
 pub struct Text {
     id: String,
-    widget_config: WidgetConfig,
+    widget_base: WidgetBase,
     item: TextItem,
     chunk: Rect,
     wrap: bool,
@@ -459,7 +459,7 @@ impl Text {
     pub fn inner_chunk(&self) -> Rect {
         let chunk = self.chunk();
 
-        self.widget_config.block().inner(chunk)
+        self.widget_base.block().inner(chunk)
     }
 
     fn is_bottom(&self) -> bool {
@@ -494,12 +494,12 @@ impl WidgetTrait for Text {
         &self.id
     }
 
-    fn widget_config(&self) -> &WidgetConfig {
-        &self.widget_config
+    fn widget_base(&self) -> &WidgetBase {
+        &self.widget_base
     }
 
-    fn widget_config_mut(&mut self) -> &mut WidgetConfig {
-        &mut self.widget_config
+    fn widget_base_mut(&mut self) -> &mut WidgetBase {
+        &mut self.widget_base
     }
 
     fn can_activate(&self) -> bool {
@@ -819,7 +819,7 @@ impl WidgetTrait for Text {
         self.item = TextItem::new(vec![], wrap_width);
         self.search_cancel();
 
-        *(self.widget_config.append_title_mut()) = None;
+        *(self.widget_base.append_title_mut()) = None;
     }
 }
 
@@ -828,7 +828,7 @@ impl RenderTrait for Text {
         let block = if let Some(block_injection) = &self.block_injection {
             (block_injection)(&*self, self.can_activate() && is_active, is_mouse_over)
         } else {
-            self.widget_config
+            self.widget_base
                 .render_block(self.can_activate() && is_active, is_mouse_over)
         };
 

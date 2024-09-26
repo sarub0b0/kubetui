@@ -7,18 +7,18 @@ use ratatui::{
 };
 
 #[derive(Debug, PartialEq, Clone, Default)]
-pub struct WidgetConfigBuilder(WidgetConfig);
+pub struct WidgetBaseBuilder(WidgetBase);
 
 /// widgets::Block and Title wrapper
 #[derive(Debug, PartialEq, Clone)]
-pub struct WidgetConfig {
+pub struct WidgetBase {
     title: Title,
     append_title: Option<Title>,
     block: Block<'static>,
     can_activate: bool,
 }
 
-impl Default for WidgetConfig {
+impl Default for WidgetBase {
     fn default() -> Self {
         Self {
             title: Default::default(),
@@ -33,7 +33,7 @@ impl Default for WidgetConfig {
 
 /// builder
 #[allow(dead_code)]
-impl WidgetConfigBuilder {
+impl WidgetBaseBuilder {
     pub fn title(mut self, title: impl Into<Title>) -> Self {
         self.0.title = title.into();
         self
@@ -55,15 +55,15 @@ impl WidgetConfigBuilder {
         self
     }
 
-    pub fn build(self) -> WidgetConfig {
+    pub fn build(self) -> WidgetBase {
         self.0
     }
 }
 
 #[allow(dead_code)]
-impl WidgetConfig {
-    pub fn builder() -> WidgetConfigBuilder {
-        WidgetConfigBuilder::default()
+impl WidgetBase {
+    pub fn builder() -> WidgetBaseBuilder {
+        WidgetBaseBuilder::default()
     }
 
     pub fn block(&self) -> &Block {
@@ -236,7 +236,7 @@ mod tests {
 
     #[test]
     fn render_title() {
-        let wc = WidgetConfig::builder()
+        let wc = WidgetBase::builder()
             .title("Title")
             .disable_activation()
             .build();
@@ -251,7 +251,7 @@ mod tests {
 
     #[test]
     fn render_title_with_append() {
-        let wc = WidgetConfig::builder()
+        let wc = WidgetBase::builder()
             .title("Title")
             .append_title(" append")
             .disable_activation()

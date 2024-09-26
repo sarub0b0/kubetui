@@ -16,7 +16,7 @@ use crate::{
     ui::{
         event::EventResult,
         widget::{
-            config::WidgetConfig, input::InputFormBuilder, SelectedItem, Widget, WidgetTrait as _,
+            base::WidgetBase, input::InputFormBuilder, SelectedItem, Widget, WidgetTrait as _,
         },
         Window,
     },
@@ -30,7 +30,7 @@ pub fn log_query_widget(
 
     InputFormBuilder::default()
         .id(POD_LOG_QUERY_WIDGET_ID)
-        .widget_config(WidgetConfig::builder().title("Log Query").build())
+        .widget_base(WidgetBase::builder().title("Log Query").build())
         .actions(UserEvent::from(KeyCode::Enter), exec_query(tx, namespaces))
         .build()
         .into()

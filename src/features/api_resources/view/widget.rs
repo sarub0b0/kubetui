@@ -11,7 +11,7 @@ use crate::{
     message::Message,
     ui::{
         event::EventResult,
-        widget::{config::WidgetConfig, Text, Widget, WidgetTrait as _},
+        widget::{base::WidgetBase, Text, Widget, WidgetTrait as _},
         Window,
     },
 };
@@ -31,15 +31,15 @@ pub fn list_widget(
 
     let builder = Text::builder()
         .id(LIST_WIDGET_ID)
-        .widget_config(&WidgetConfig::builder().title("List").build())
+        .widget_base(&WidgetBase::builder().title("List").build())
         .block_injection(|text: &Text, is_active: bool, is_mouse_over: bool| {
             let (index, size) = text.state();
 
-            let mut config = text.widget_config().clone();
+            let mut base = text.widget_base().clone();
 
-            *config.append_title_mut() = Some(format!(" [{}/{}]", index, size).into());
+            *base.append_title_mut() = Some(format!(" [{}/{}]", index, size).into());
 
-            config.render_block(text.can_activate() && is_active, is_mouse_over)
+            base.render_block(text.can_activate() && is_active, is_mouse_over)
         })
         .action('f', open_subwin);
 
