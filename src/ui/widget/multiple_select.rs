@@ -531,7 +531,7 @@ define_callback!(pub RenderBlockInjection, Fn(&MultipleSelect, bool) -> Block<'s
 #[derivative(Debug, Default)]
 pub struct MultipleSelectBuilder {
     id: String,
-    widget_config: WidgetConfig,
+    widget_base: WidgetBase,
     #[derivative(Debug = "ignore")]
     on_select_list: Option<OnSelectCallbackForList>,
     #[derivative(Debug = "ignore")]
@@ -551,8 +551,8 @@ impl MultipleSelectBuilder {
         self
     }
 
-    pub fn widget_config(mut self, widget_config: &WidgetConfig) -> Self {
-        self.widget_config = widget_config.clone();
+    pub fn widget_base(mut self, widget_base: &WidgetBase) -> Self {
+        self.widget_base = widget_base.clone();
         self
     }
 
@@ -603,7 +603,7 @@ impl MultipleSelectBuilder {
         } else {
             List::builder()
         }
-        .widget_config(&WidgetConfig::builder().title("Items").build());
+        .widget_base(&WidgetBase::builder().title("Items").build());
 
         if let Some(block_injection) = self.block_injection_for_list {
             list_widget_builder = list_widget_builder.block_injection(block_injection);
@@ -614,7 +614,7 @@ impl MultipleSelectBuilder {
         } else {
             List::builder()
         }
-        .widget_config(&WidgetConfig::builder().title("Selected").build());
+        .widget_base(&WidgetBase::builder().title("Selected").build());
 
         if let Some(block_injection) = self.block_injection_for_selected {
             selected_widget_builder = selected_widget_builder.block_injection(block_injection);
@@ -628,12 +628,12 @@ impl MultipleSelectBuilder {
 
         MultipleSelect {
             id: self.id,
-            widget_config: self.widget_config,
+            widget_base: self.widget_base,
             layout,
             selected_widget,
             block_injection: self.block_injection,
             input_widget: InputForm::builder()
-                .widget_config(WidgetConfig::builder().title("Filter").build())
+                .widget_base(WidgetBase::builder().title("Filter").build())
                 .build(),
             inner_chunks: Rc::new([]),
             ..Default::default()
@@ -649,7 +649,7 @@ const LAYOUT_INDEX_FOR_SELECT_FORM: usize = 2;
 #[derivative(Debug)]
 pub struct MultipleSelect<'a> {
     id: String,
-    widget_config: WidgetConfig,
+    widget_base: WidgetBase,
     chunk_index: usize,
     input_widget: InputForm,
     selected_widget: SelectForm<'a>,
@@ -664,7 +664,7 @@ impl Default for MultipleSelect<'_> {
     fn default() -> Self {
         Self {
             id: Default::default(),
-            widget_config: Default::default(),
+            widget_base: Default::default(),
             chunk_index: Default::default(),
             input_widget: Default::default(),
             selected_widget: Default::default(),
@@ -681,7 +681,7 @@ impl RenderTrait for MultipleSelect<'_> {
         let block = if let Some(block_injection) = &self.block_injection {
             (block_injection)(&*self, is_active)
         } else {
-            self.widget_config
+            self.widget_base
                 .render_block(self.can_activate() && is_active, is_mouse_over)
         };
 
@@ -836,7 +836,7 @@ impl WidgetTrait for MultipleSelect<'_> {
     fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
 
-        self.inner_chunks = self.layout.split(self.widget_config.block().inner(chunk));
+        self.inner_chunks = self.layout.split(self.widget_base.block().inner(chunk));
 
         self.input_widget
             .update_chunk(self.inner_chunks[LAYOUT_INDEX_FOR_INPUT_FORM]);
@@ -846,17 +846,17 @@ impl WidgetTrait for MultipleSelect<'_> {
     }
 
     fn clear(&mut self) {
-        *(self.widget_config.append_title_mut()) = None;
+        *(self.widget_base.append_title_mut()) = None;
 
         unimplemented!()
     }
 
-    fn widget_config(&self) -> &WidgetConfig {
-        &self.widget_config
+    fn widget_base(&self) -> &WidgetBase {
+        &self.widget_base
     }
 
-    fn widget_config_mut(&mut self) -> &mut WidgetConfig {
-        &mut self.widget_config
+    fn widget_base_mut(&mut self) -> &mut WidgetBase {
+        &mut self.widget_base
     }
 }
 

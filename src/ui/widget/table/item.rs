@@ -8,7 +8,8 @@ use std::ops::Deref;
 use crate::{
     logger,
     ui::widget::{
-        spans::generate_spans_lines, styled_graphemes::StyledGraphemes, wrap::wrap_line, TableItem,
+        line::convert_lines_to_styled_lines, styled_graphemes::StyledGraphemes, wrap::wrap_line,
+        TableItem,
     },
 };
 
@@ -192,7 +193,7 @@ impl<'a> InnerItem<'a> {
                             row_height = wrapped_len;
                         }
 
-                        Cell::from(generate_spans_lines(&wrapped))
+                        Cell::from(convert_lines_to_styled_lines(&wrapped))
                     })
                     .collect();
 

@@ -12,7 +12,7 @@ use crate::{
     message::Message,
     ui::{
         event::EventResult,
-        widget::{config::WidgetConfig, Text, Widget, WidgetTrait as _},
+        widget::{Text, Widget, WidgetBase, WidgetTrait as _},
         Window,
     },
 };
@@ -25,7 +25,7 @@ pub fn yaml_widget(
 
     let builder = Text::builder()
         .id(YAML_WIDGET_ID)
-        .widget_config(&WidgetConfig::builder().title("Yaml").build())
+        .widget_base(&WidgetBase::builder().title("Yaml").build())
         .block_injection(block_injection())
         .action('f', open_kind_popup(tx))
         .wrap();
@@ -52,10 +52,10 @@ fn block_injection() -> impl Fn(&Text, bool, bool) -> Block<'static> {
     |text: &Text, is_active: bool, is_mouse_over: bool| {
         let (index, size) = text.state();
 
-        let mut config = text.widget_config().clone();
+        let mut base = text.widget_base().clone();
 
-        *config.append_title_mut() = Some(format!(" [{}/{}]", index, size).into());
+        *base.append_title_mut() = Some(format!(" [{}/{}]", index, size).into());
 
-        config.render_block(text.can_activate() && is_active, is_mouse_over)
+        base.render_block(text.can_activate() && is_active, is_mouse_over)
     }
 }

@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
@@ -7,6 +5,7 @@ use rayon::prelude::*;
 
 use crate::ansi::{AnsiEscapeSequence, TextParser};
 
+#[allow(dead_code)]
 pub fn wrap(lines: &[String], wrap_width: usize) -> Vec<Vec<String>> {
     lines
         .par_iter()
@@ -14,6 +13,7 @@ pub fn wrap(lines: &[String], wrap_width: usize) -> Vec<Vec<String>> {
         .collect()
 }
 
+/// 文字列を指定した幅で折り返して、文字列のベクタを返す
 pub fn wrap_line(text: &str, wrap_width: usize) -> Vec<String> {
     if text.is_empty() {
         return vec!["".to_string()];
@@ -22,75 +22,101 @@ pub fn wrap_line(text: &str, wrap_width: usize) -> Vec<String> {
     text.lines()
         .flat_map(|line| {
             if wrap_width < line.width() {
-                wrap_one_line(line, wrap_width)
+                wrap_line_internal(line, wrap_width)
             } else {
-                vec![line.to_string()]
+                vec![line.into()]
             }
         })
         .collect()
 }
 
-fn wrap_one_line(line: &str, wrap_width: usize) -> Vec<String> {
-    let mut ret = Vec::new();
+fn wrap_line_internal(line: &str, wrap_width: usize) -> Vec<String> {
+    let mut wrapped_lines = Vec::new();
 
-    let mut buf = String::with_capacity(line.len());
-    let mut sum_width = 0;
+    let mut line_buffer = String::with_capacity(line.len());
+    let mut current_width = 0;
 
-    for parsed in line.ansi_parse() {
-        if parsed.ty == AnsiEscapeSequence::Chars {
-            let parsed_width = parsed.chars.width();
+    //
+    // ANSIエスケープシーケンスを含む文字列をパースして、文字列とタイプを取得する
+    //
+    for segment in line.ansi_parse() {
+        //
+        // 表示文字数に関係しないANSIエスケープシーケンスの場合、そのままline_bufferに追加する
+        // それ以外の場合は、表示文字数を計算して、折り返し処理を行う
+        //
+        if segment.ty != AnsiEscapeSequence::Chars {
+            line_buffer += segment.chars;
+            continue;
+        }
 
-            if wrap_width <= sum_width + parsed_width {
-                let graphemes: Vec<&str> = parsed.chars.graphemes(true).collect();
+        // セグメントの表示文字数を取得
+        let parsed_width = segment.chars.width();
 
-                graphemes.iter().for_each(|c| {
-                    sum_width += c.width();
+        // 折り返す必要がない場合、line_bufferとcurrent_widthにセグメントを追加して、次のセグメントへ
+        if (current_width + parsed_width) < wrap_width {
+            line_buffer += segment.chars;
+            current_width += parsed_width;
+            continue;
+        }
 
-                    if wrap_width <= sum_width {
-                        if wrap_width == sum_width {
-                            buf += c;
-                            ret.push(buf.to_string());
-                            buf.clear();
+        //
+        // 折り返し幅を超える場合、セグメントを書記素単位に分割して、折り返し処理を行う
+        // 文字幅が１と２の場合があるため、１文字ずつ処理する
+        //
+        for grapheme in segment.chars.graphemes(true) {
+            let grapheme_width = grapheme.width();
 
-                            sum_width = 0;
-                        } else {
-                            ret.push(buf.to_string());
-                            buf.clear();
+            // 折り返し幅を超える場合、line_bufferをwrapped_linesに追加して、line_bufferをクリアし、
+            // 次の行となるgraphemeを初期化したline_bufferに追加する
+            if wrap_width < (current_width + grapheme_width) {
+                wrapped_lines.push(line_buffer.to_string());
 
-                            buf += c;
-                            sum_width = c.width();
-                        }
-                    } else {
-                        buf += c;
-                    }
-                });
-            } else {
-                buf += parsed.chars;
-                sum_width += parsed_width;
+                line_buffer.clear();
+
+                line_buffer += grapheme;
+
+                current_width = grapheme_width;
+
+                continue;
             }
-        } else {
-            buf += parsed.chars;
+
+            // 折り返し幅と同じ場合、line_bufferをwrapped_linesに追加して、line_bufferをクリアする
+            if wrap_width == (current_width + grapheme_width) {
+                line_buffer += grapheme;
+
+                wrapped_lines.push(line_buffer.to_string());
+
+                line_buffer.clear();
+
+                current_width = 0;
+
+                continue;
+            }
+
+            // 折り返さないため、line_bufferにgraphemeを追加する
+            line_buffer += grapheme;
+            current_width += grapheme_width;
         }
     }
 
-    if !buf.is_empty() {
-        if 0 < sum_width {
-            ret.push(buf);
-        } else if let Some(last) = ret.last_mut() {
-            *last += &buf;
+    if !line_buffer.is_empty() {
+        if 0 < current_width {
+            wrapped_lines.push(line_buffer);
+        } else if let Some(last_line) = wrapped_lines.last_mut() {
+            *last_line += &line_buffer;
         } else {
-            ret.push(buf);
+            wrapped_lines.push(line_buffer);
         }
     }
 
-    ret
+    wrapped_lines
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    mod one_line {
+    mod wrap_line {
         use super::*;
         use pretty_assertions::assert_eq;
 
@@ -99,7 +125,7 @@ mod tests {
             let text = "\x1b[1Aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\x1b[1A\x1b[1A";
 
             assert_eq!(
-                wrap_one_line(text, 10),
+                wrap_line_internal(text, 10),
                 vec![
                     "\x1b[1Aaaaaaaaaaa".to_string(),
                     "aaaaaaaaaa".to_string(),
@@ -111,7 +137,7 @@ mod tests {
                 "\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: Project is running at http://10.1.157.9/";
 
             assert_eq!(
-                wrap_one_line(text, 40),
+                wrap_line_internal(text, 40),
                 vec![
                     "\x1b[34mℹ\x1b[39m \x1b[90m｢wds｣\x1b[39m: Project is running at http://10"
                         .to_string(),
@@ -137,7 +163,7 @@ mod tests {
             let text = "あいうえおかきくけこさしすせそ";
 
             assert_eq!(
-                wrap_one_line(text, 10),
+                wrap_line_internal(text, 10),
                 vec![
                     "あいうえお".to_string(),
                     "かきくけこ".to_string(),
@@ -146,7 +172,7 @@ mod tests {
             );
 
             assert_eq!(
-                wrap_one_line(text, 9),
+                wrap_line_internal(text, 9),
                 vec![
                     "あいうえ".to_string(),
                     "おかきく".to_string(),

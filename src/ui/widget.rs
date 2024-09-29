@@ -1,17 +1,21 @@
 mod ansi_color;
-mod spans;
+mod line;
 mod styled_graphemes;
 mod wrap;
 
-pub mod complex;
-pub mod config;
-pub mod input;
-pub mod list;
-pub mod table;
-pub mod text;
+mod base;
+mod input;
+mod list;
+mod multiple_select;
+mod single_select;
+mod table;
+mod text;
 
-pub use complex::*;
+pub use base::*;
+pub use input::*;
 pub use list::*;
+pub use multiple_select::*;
+pub use single_select::*;
 pub use table::*;
 pub use text::*;
 
@@ -26,7 +30,7 @@ use ratatui::{
 
 use super::event::EventResult;
 
-use self::{config::WidgetConfig, input::InputForm, styled_graphemes::StyledGraphemes};
+use self::styled_graphemes::StyledGraphemes;
 
 #[derive(Debug, Clone, Default, Hash, PartialEq, Eq)]
 pub struct LiteralItem {
@@ -170,8 +174,8 @@ impl From<Vec<LiteralItem>> for SelectedItem {
 pub trait WidgetTrait {
     // Getter
     fn id(&self) -> &str;
-    fn widget_config(&self) -> &WidgetConfig;
-    fn widget_config_mut(&mut self) -> &mut WidgetConfig;
+    fn widget_base(&self) -> &WidgetBase;
+    fn widget_base_mut(&mut self) -> &mut WidgetBase;
     fn can_activate(&self) -> bool;
     /// selected item
     fn widget_item(&self) -> Option<SelectedItem>;

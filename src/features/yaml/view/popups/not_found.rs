@@ -4,7 +4,7 @@ use crate::{
     features::component_id::{YAML_KIND_POPUP_ID, YAML_NOT_FOUND_POPUP_ID},
     ui::{
         event::EventResult,
-        widget::{config::WidgetConfig, Text, Widget},
+        widget::{Text, Widget, WidgetBase},
         Window,
     },
 };
@@ -12,7 +12,7 @@ use crate::{
 pub fn not_found_popup() -> Widget<'static> {
     Text::builder()
         .id(YAML_NOT_FOUND_POPUP_ID)
-        .widget_config(&WidgetConfig::builder().title("Name").build())
+        .widget_base(&WidgetBase::builder().title("Name").build())
         .items(
             [
                 "No resources found.",

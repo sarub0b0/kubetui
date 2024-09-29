@@ -13,7 +13,7 @@ use crate::{
     message::Message,
     ui::{
         event::EventResult,
-        widget::{config::WidgetConfig, LiteralItem, SingleSelect, Widget},
+        widget::{LiteralItem, SingleSelect, Widget, WidgetBase},
         Window,
     },
 };
@@ -33,7 +33,7 @@ impl SingleNamespacePopup {
 fn popup(tx: Sender<Message>) -> Widget<'static> {
     SingleSelect::builder()
         .id(SINGLE_NAMESPACE_POPUP_ID)
-        .widget_config(&WidgetConfig::builder().title("Namespace").build())
+        .widget_base(&WidgetBase::builder().title("Namespace").build())
         .on_select(on_select(tx))
         .build()
         .into()

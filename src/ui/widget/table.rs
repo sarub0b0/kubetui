@@ -1,9 +1,11 @@
 // mod filter_form;
+mod filter;
 mod item;
 
 use std::rc::Rc;
 
 use derivative::*;
+use filter::FilterForm;
 use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind},
     layout::{Constraint, Rect},
@@ -26,8 +28,7 @@ use crate::{
 };
 
 use super::{
-    config::WidgetConfig, input::InputForm, styled_graphemes, Item, RenderTrait, SelectedItem,
-    TableItem, WidgetTrait,
+    base::WidgetBase, styled_graphemes, Item, RenderTrait, SelectedItem, TableItem, WidgetTrait,
 };
 
 use item::InnerItem;
@@ -37,16 +38,15 @@ const HIGHLIGHT_SYMBOL: &str = " ";
 const ROW_START_INDEX: usize = 2;
 
 define_callback!(pub OnSelectCallback, Fn(&mut Window, &TableItem) -> EventResult);
-define_callback!(pub RenderBlockInjection, Fn(&Table) -> WidgetConfig);
+define_callback!(pub RenderBlockInjection, Fn(&Table) -> WidgetBase);
 define_callback!(pub RenderHighlightInjection, Fn(Option<&TableItem>) -> Style);
 
 #[derive(Derivative)]
-#[derivative(Debug)]
+#[derivative(Debug, Default)]
 pub struct TableBuilder {
     id: String,
-    widget_config: WidgetConfig,
-    filter_widget: InputForm,
-    filter_height: u16,
+    widget_base: WidgetBase,
+    filter_form: FilterForm,
     show_status: bool,
     header: Vec<String>,
     items: Vec<TableItem>,
@@ -62,26 +62,6 @@ pub struct TableBuilder {
     highlight_injection: Option<RenderHighlightInjection>,
 }
 
-impl Default for TableBuilder {
-    fn default() -> Self {
-        Self {
-            id: Default::default(),
-            widget_config: Default::default(),
-            filter_widget: InputForm::builder().prefix("FILTER: ").build(),
-            filter_height: 3,
-            show_status: Default::default(),
-            header: Default::default(),
-            items: Default::default(),
-            state: Default::default(),
-            filtered_key: Default::default(),
-            on_select: Default::default(),
-            actions: Default::default(),
-            block_injection: Default::default(),
-            highlight_injection: Default::default(),
-        }
-    }
-}
-
 #[allow(dead_code)]
 impl TableBuilder {
     pub fn id(mut self, id: impl Into<String>) -> Self {
@@ -89,14 +69,13 @@ impl TableBuilder {
         self
     }
 
-    pub fn widget_config(mut self, widget_config: &WidgetConfig) -> Self {
-        self.widget_config = widget_config.clone();
+    pub fn widget_base(mut self, widget_base: &WidgetBase) -> Self {
+        self.widget_base = widget_base.clone();
         self
     }
 
-    pub fn filter_widget(mut self, filter_widget: InputForm, filter_height: u16) -> Self {
-        self.filter_widget = filter_widget;
-        self.filter_height = filter_height;
+    pub fn filter_form(mut self, filter_form: FilterForm) -> Self {
+        self.filter_form = filter_form;
         self
     }
 
@@ -159,7 +138,7 @@ impl TableBuilder {
     pub fn build(self) -> Table<'static> {
         let mut table = Table {
             id: self.id,
-            widget_config: self.widget_config,
+            widget_base: self.widget_base,
             on_select: self.on_select,
             actions: self.actions,
             state: self.state,
@@ -167,8 +146,7 @@ impl TableBuilder {
             block_injection: self.block_injection,
             highlight_injection: self.highlight_injection,
             filtered_key: self.filtered_key.clone(),
-            filter_widget: self.filter_widget,
-            filter_height: self.filter_height,
+            filter_form: self.filter_form,
             ..Default::default()
         };
 
@@ -231,15 +209,14 @@ impl Mode {
 #[derivative(Debug, Default)]
 pub struct Table<'a> {
     id: String,
-    widget_config: WidgetConfig,
+    widget_base: WidgetBase,
     show_status: bool,
     chunk_index: usize,
     items: InnerItem<'a>,
     state: TableState,
     chunk: Rect,
     row_bounds: Vec<(usize, usize)>,
-    filter_widget: InputForm,
-    filter_height: u16,
+    filter_form: FilterForm,
     filtered_key: String,
     mode: Mode,
     #[derivative(Debug = "ignore")]
@@ -283,7 +260,7 @@ impl<'a> Table<'a> {
             .max_width(self.max_width())
             .build();
 
-        self.items.update_filter(self.filter_widget.content());
+        self.items.update_filter(self.filter_form.content());
 
         self.adjust_selected(old_len, self.items.len());
 
@@ -335,23 +312,27 @@ impl<'a> Table<'a> {
         match self.mode {
             Mode::Normal => self.chunk,
 
-            Mode::FilterInput | Mode::FilterConfirm => Rect::new(
-                x,
-                y + self.filter_height,
-                width,
-                height.saturating_sub(self.filter_height),
-            ),
+            Mode::FilterInput | Mode::FilterConfirm => {
+                let filter_height = self.filter_form.form_height();
+
+                Rect::new(
+                    x,
+                    y + filter_height,
+                    width,
+                    height.saturating_sub(filter_height),
+                )
+            }
         }
     }
 
     fn inner_chunk(&self) -> Rect {
-        self.widget_config.block().inner(self.chunk())
+        self.widget_base.block().inner(self.chunk())
     }
 
     fn filter_items(&mut self) {
         let old_len = self.items.len();
 
-        self.items.update_filter(self.filter_widget.content());
+        self.items.update_filter(self.filter_form.content());
 
         self.adjust_selected(old_len, self.items.len());
 
@@ -388,7 +369,7 @@ impl<'a> Table<'a> {
     fn filter_cancel(&mut self) {
         self.mode.normal();
 
-        self.filter_widget.clear();
+        self.filter_form.clear();
 
         self.filter_items();
     }
@@ -597,7 +578,7 @@ impl WidgetTrait for Table<'_> {
                 }
 
                 _ => {
-                    let ev = self.filter_widget.on_key_event(ev);
+                    let ev = self.filter_form.on_key_event(ev);
 
                     self.filter_items();
 
@@ -618,12 +599,10 @@ impl WidgetTrait for Table<'_> {
 
         self.update_row_bounds();
 
-        self.filter_widget.update_chunk(Rect::new(
-            chunk.x,
-            chunk.y,
-            chunk.width,
-            self.filter_height,
-        ));
+        let filter_height = self.filter_form.form_height();
+
+        self.filter_form
+            .update_chunk(Rect::new(chunk.x, chunk.y, chunk.width, filter_height));
     }
 
     fn clear(&mut self) {
@@ -636,15 +615,15 @@ impl WidgetTrait for Table<'_> {
 
         self.row_bounds = Vec::default();
 
-        *(self.widget_config.append_title_mut()) = None;
+        *(self.widget_base.append_title_mut()) = None;
     }
 
-    fn widget_config(&self) -> &WidgetConfig {
-        &self.widget_config
+    fn widget_base(&self) -> &WidgetBase {
+        &self.widget_base
     }
 
-    fn widget_config_mut(&mut self) -> &mut WidgetConfig {
-        &mut self.widget_config
+    fn widget_base_mut(&mut self) -> &mut WidgetBase {
+        &mut self.widget_base
     }
 }
 
@@ -694,13 +673,13 @@ impl<'a> Table<'a> {
 
 impl RenderTrait for Table<'_> {
     fn render(&mut self, f: &mut Frame<'_>, is_active: bool, is_mouse_over: bool) {
-        let widget_config = if let Some(block_injection) = &self.block_injection {
+        let widget_base = if let Some(block_injection) = &self.block_injection {
             (block_injection)(&*self)
         } else {
-            self.widget_config.clone()
+            self.widget_base.clone()
         };
 
-        let block = widget_config.render_block(
+        let block = widget_base.render_block(
             self.can_activate() && !self.mode.is_filter_input() && is_active,
             is_mouse_over,
         );
@@ -731,7 +710,7 @@ impl RenderTrait for Table<'_> {
         match self.mode {
             Mode::Normal => {}
             Mode::FilterInput | Mode::FilterConfirm => {
-                self.filter_widget
+                self.filter_form
                     .render(f, self.mode.is_filter_input() && is_active, false);
             }
         }

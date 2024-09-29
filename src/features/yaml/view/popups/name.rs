@@ -10,7 +10,7 @@ use crate::{
     message::Message,
     ui::{
         event::EventResult,
-        widget::{config::WidgetConfig, LiteralItem, SingleSelect, Widget},
+        widget::{LiteralItem, SingleSelect, Widget, WidgetBase},
         Window,
     },
 };
@@ -20,7 +20,7 @@ pub fn name_popup(tx: &Sender<Message>) -> Widget<'static> {
 
     SingleSelect::builder()
         .id(YAML_NAME_POPUP_ID)
-        .widget_config(&WidgetConfig::builder().title("Name").build())
+        .widget_base(&WidgetBase::builder().title("Name").build())
         .on_select(on_select(tx))
         .action(KeyCode::Esc, open_kind_popup())
         .build()

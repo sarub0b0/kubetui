@@ -202,7 +202,7 @@ impl Content {
 #[derivative(Debug, Default)]
 pub struct InputFormBuilder {
     id: String,
-    widget_config: WidgetConfig,
+    widget_base: WidgetBase,
     prefix: Line<'static>,
     suffix: Line<'static>,
     #[derivative(Debug = "ignore")]
@@ -215,8 +215,8 @@ impl InputFormBuilder {
         self
     }
 
-    pub fn widget_config(mut self, widget_config: WidgetConfig) -> Self {
-        self.widget_config = widget_config;
+    pub fn widget_base(mut self, widget_base: WidgetBase) -> Self {
+        self.widget_base = widget_base;
         self
     }
 
@@ -242,7 +242,7 @@ impl InputFormBuilder {
     pub fn build(self) -> InputForm {
         InputForm {
             id: self.id,
-            widget_config: self.widget_config,
+            widget_base: self.widget_base,
             prefix: self.prefix,
             suffix: self.suffix,
             actions: self.actions,
@@ -264,7 +264,7 @@ pub struct InputForm {
     suffix_chunk: Rect,
     prefix: Line<'static>,
     suffix: Line<'static>,
-    widget_config: WidgetConfig,
+    widget_base: WidgetBase,
     scroll: usize,
     #[derivative(Debug = "ignore")]
     actions: Vec<(UserEvent, Callback)>,
@@ -286,14 +286,14 @@ impl InputForm {
     }
 
     fn block(&self, is_active: bool, is_mouse_over: bool) -> Block<'static> {
-        self.widget_config
+        self.widget_base
             .render_block(self.can_activate() && is_active, is_mouse_over)
     }
 
     pub fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
 
-        let inner_chunk = self.widget_config().block().inner(chunk);
+        let inner_chunk = self.widget_base().block().inner(chunk);
 
         let prefix_width = self.prefix.width() as u16;
         let suffix_width = self.suffix.width() as u16;
@@ -307,6 +307,7 @@ impl InputForm {
         self.adjust_scroll_for_cursor();
     }
 
+    #[allow(dead_code)]
     pub fn update_prefix(&mut self, prefix: impl Into<Line<'static>>) {
         self.prefix = prefix.into();
 
@@ -482,12 +483,12 @@ impl WidgetTrait for InputForm {
         &self.id
     }
 
-    fn widget_config(&self) -> &WidgetConfig {
-        &self.widget_config
+    fn widget_base(&self) -> &WidgetBase {
+        &self.widget_base
     }
 
-    fn widget_config_mut(&mut self) -> &mut WidgetConfig {
-        &mut self.widget_config
+    fn widget_base_mut(&mut self) -> &mut WidgetBase {
+        &mut self.widget_base
     }
 
     fn can_activate(&self) -> bool {
