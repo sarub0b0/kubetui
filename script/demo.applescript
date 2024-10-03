@@ -450,7 +450,7 @@ on select_context()
 	my delay_sec(1)
 end select_context
 
-on help_popup()
+on help_dialog()
 	delayed_keystroke("h")
 	my delay_sec(2)
 	
@@ -459,7 +459,7 @@ on help_popup()
 	
 	delayed_keystroke_escape()
 	my delay_sec(1)
-end help_popup
+end help_dialog
 
 on demo()
 	my delay_sec(1)
@@ -515,7 +515,7 @@ on demo()
 	my activate_tab_by_id("1")
 	my delay_sec(1)
 	
-	my help_popup()
+	my help_dialog()
 	my delay_sec(1)
 	
 	my close_kubetui()
