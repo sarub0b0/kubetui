@@ -29,15 +29,15 @@ component_id!(
     event_widget,
     list_widget,
     yaml_widget,
-    // popups
-    pod_log_query_help_popup,
-    context_popup,
-    single_namespace_popup,
-    multiple_namespaces_popup,
-    list_popup,
-    yaml_kind_popup,
-    yaml_name_popup,
-    yaml_not_found_popup,
-    help_popup,
-    yaml_popup
+    // dialogs
+    pod_log_query_help_dialog,
+    context_dialog,
+    single_namespace_dialog,
+    multiple_namespaces_dialog,
+    list_dialog,
+    yaml_kind_dialog,
+    yaml_name_dialog,
+    yaml_not_found_dialog,
+    help_dialog,
+    yaml_dialog
 );

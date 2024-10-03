@@ -1,6 +1,6 @@
 mod tab;
 mod widget;
-mod popup;
+mod dialog;
 
 pub use tab::*;
 

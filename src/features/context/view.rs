@@ -1,3 +1,3 @@
-mod popup;
+mod dialog;
 
-pub use popup::*;
+pub use dialog::*;

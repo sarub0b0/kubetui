@@ -1,4 +1,4 @@
-mod popups;
+mod dialogs;
 mod tab;
 mod widget;
 

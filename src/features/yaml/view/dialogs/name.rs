@@ -3,7 +3,7 @@ use ratatui::crossterm::event::KeyCode;
 
 use crate::{
     features::{
-        component_id::{YAML_KIND_POPUP_ID, YAML_NAME_POPUP_ID},
+        component_id::{YAML_KIND_DIALOG_ID, YAML_NAME_DIALOG_ID},
         yaml::message::{YamlRequest, YamlTarget},
     },
     logger,
@@ -15,14 +15,14 @@ use crate::{
     },
 };
 
-pub fn name_popup(tx: &Sender<Message>) -> Widget<'static> {
+pub fn name_dialog(tx: &Sender<Message>) -> Widget<'static> {
     let tx = tx.clone();
 
     SingleSelect::builder()
-        .id(YAML_NAME_POPUP_ID)
+        .id(YAML_NAME_DIALOG_ID)
         .widget_base(&WidgetBase::builder().title("Name").build())
         .on_select(on_select(tx))
-        .action(KeyCode::Esc, open_kind_popup())
+        .action(KeyCode::Esc, open_kind_dialog())
         .build()
         .into()
 }
@@ -31,7 +31,7 @@ fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &LiteralItem) -> Event
     move |w, v| {
         logger!(info, "Select Item: {:?}", v);
 
-        w.close_popup();
+        w.close_dialog();
 
         let Some(metadata) = v.metadata.as_ref() else {
             unreachable!()
@@ -67,10 +67,10 @@ fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &LiteralItem) -> Event
     }
 }
 
-fn open_kind_popup() -> impl Fn(&mut Window) -> EventResult {
+fn open_kind_dialog() -> impl Fn(&mut Window) -> EventResult {
     move |w: &mut Window| {
-        w.open_popup(YAML_KIND_POPUP_ID);
-        if let Widget::SingleSelect(w) = w.find_widget_mut(YAML_KIND_POPUP_ID) {
+        w.open_dialog(YAML_KIND_DIALOG_ID);
+        if let Widget::SingleSelect(w) = w.find_widget_mut(YAML_KIND_DIALOG_ID) {
             w.clear_filter();
         }
         EventResult::Nop

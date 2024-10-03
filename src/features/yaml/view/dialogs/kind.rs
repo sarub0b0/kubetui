@@ -1,7 +1,7 @@
 use crossbeam::channel::Sender;
 
 use crate::{
-    features::{component_id::YAML_KIND_POPUP_ID, yaml::message::YamlRequest},
+    features::{component_id::YAML_KIND_DIALOG_ID, yaml::message::YamlRequest},
     logger,
     message::Message,
     ui::{
@@ -11,11 +11,11 @@ use crate::{
     },
 };
 
-pub fn kind_popup(tx: &Sender<Message>) -> Widget<'static> {
+pub fn kind_dialog(tx: &Sender<Message>) -> Widget<'static> {
     let tx = tx.clone();
 
     SingleSelect::builder()
-        .id(YAML_KIND_POPUP_ID)
+        .id(YAML_KIND_DIALOG_ID)
         .widget_base(&WidgetBase::builder().title("Kind").build())
         .on_select(on_select(tx))
         .build()
@@ -26,7 +26,7 @@ fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &LiteralItem) -> Event
     move |w, v| {
         logger!(info, "Select Item: {:?}", v);
 
-        w.close_popup();
+        w.close_dialog();
 
         let Some(metadata) = v.metadata.as_ref() else {
             unreachable!()

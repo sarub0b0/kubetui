@@ -14,8 +14,8 @@ use unicode_width::UnicodeWidthStr;
 use crate::{define_callback, logger, message::UserEvent, workers::kube::message::Kube};
 
 use super::{
+    dialog::Dialog,
     event::{Callback, EventResult},
-    popup::Popup,
     util::{key_event_to_code, MousePosition, RectContainsPoint},
     widget::{Widget, WidgetTrait},
     Tab,
@@ -31,8 +31,8 @@ pub struct Window<'a> {
     layout: Layout,
     chunk: Rect,
     callbacks: Vec<(UserEvent, Callback)>,
-    popups: Vec<Popup<'a>>,
-    open_popup_id: Option<String>,
+    dialogs: Vec<Dialog<'a>>,
+    opening_dialog_id: Option<String>,
     header: Option<Header<'a>>,
     layout_index: WindowLayoutIndex,
     last_known_area: Rect,
@@ -94,7 +94,7 @@ impl<'a> Header<'a> {
 pub struct WindowBuilder<'a> {
     tabs: Vec<Tab<'a>>,
     callbacks: Vec<(UserEvent, Callback)>,
-    popups: Vec<Popup<'a>>,
+    dialogs: Vec<Dialog<'a>>,
     header: Option<Header<'a>>,
 }
 
@@ -113,8 +113,8 @@ impl<'a> WindowBuilder<'a> {
         self
     }
 
-    pub fn popup(mut self, popup: impl Into<Vec<Popup<'a>>>) -> Self {
-        self.popups = popup.into();
+    pub fn dialogs(mut self, dialogs: impl Into<Vec<Dialog<'a>>>) -> Self {
+        self.dialogs = dialogs.into();
         self
     }
 
@@ -161,7 +161,7 @@ impl<'a> WindowBuilder<'a> {
             tabs: self.tabs,
             layout,
             callbacks: self.callbacks,
-            popups: self.popups,
+            dialogs: self.dialogs,
             header: self.header,
             layout_index,
             ..Default::default()
@@ -186,7 +186,7 @@ impl<'a> Window<'a> {
             tab.update_chunk(chunks[contents_index]);
         });
 
-        self.popups.iter_mut().for_each(|w| w.update_chunk(chunk))
+        self.dialogs.iter_mut().for_each(|w| w.update_chunk(chunk))
     }
 
     fn chunks(&self) -> Rc<[Rect]> {
@@ -246,18 +246,18 @@ impl<'a> Window<'a> {
     }
 }
 
-// Popup
+// Dialog
 impl<'a> Window<'a> {
-    pub fn open_popup(&mut self, id: impl Into<String>) {
-        self.open_popup_id = Some(id.into());
+    pub fn open_dialog(&mut self, id: impl Into<String>) {
+        self.opening_dialog_id = Some(id.into());
     }
 
-    pub fn close_popup(&mut self) {
-        self.open_popup_id = None;
+    pub fn close_dialog(&mut self) {
+        self.opening_dialog_id = None;
     }
 
-    pub fn opening_popup(&self) -> bool {
-        self.open_popup_id.is_some()
+    pub fn opening_dialog(&self) -> bool {
+        self.opening_dialog_id.is_some()
     }
 }
 
@@ -313,7 +313,7 @@ impl<'a> Window<'a> {
 #[allow(dead_code)]
 impl<'a> Window<'a> {
     pub fn find_widget(&self, id: &str) -> &Widget<'a> {
-        if let Some(w) = self.popups.iter().find(|w| w.id() == id) {
+        if let Some(w) = self.dialogs.iter().find(|w| w.id() == id) {
             w.widget()
         } else {
             self.tabs
@@ -324,7 +324,7 @@ impl<'a> Window<'a> {
     }
 
     pub fn find_widget_mut(&mut self, id: &str) -> &mut Widget<'a> {
-        if let Some(w) = self.popups.iter_mut().find(|w| w.id() == id) {
+        if let Some(w) = self.dialogs.iter_mut().find(|w| w.id() == id) {
             w.widget_mut()
         } else {
             self.tabs
@@ -359,9 +359,9 @@ impl<'a> Window<'a> {
 
         self.active_tab_mut().clear_mouse_over();
 
-        if let Some(id) = &self.open_popup_id {
+        if let Some(id) = &self.opening_dialog_id {
             if let Some(Widget::MultipleSelect(w)) = self
-                .popups
+                .dialogs
                 .iter_mut()
                 .find(|w| w.id() == id)
                 .map(|w| w.widget_mut())
@@ -389,7 +389,7 @@ impl<'a> Window<'a> {
 
         self.render_contents(f);
 
-        self.render_popup(f);
+        self.render_dialog(f);
     }
 
     fn render_tab(&mut self, f: &mut Frame) {
@@ -410,10 +410,10 @@ impl<'a> Window<'a> {
         self.active_tab_mut().render(f);
     }
 
-    fn render_popup(&mut self, f: &mut Frame) {
-        if let Some(id) = &self.open_popup_id {
-            if let Some(popup) = self.popups.iter_mut().find(|p| p.id() == id) {
-                popup.render(f);
+    fn render_dialog(&mut self, f: &mut Frame) {
+        if let Some(id) = &self.opening_dialog_id {
+            if let Some(dialog) = self.dialogs.iter_mut().find(|dialog| dialog.id() == id) {
+                dialog.render(f);
             }
         }
     }
@@ -452,9 +452,9 @@ impl Window<'_> {
     pub fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
         self.clear_mouse_over();
 
-        if let Some(id) = &self.open_popup_id {
-            if let Some(popup) = self.popups.iter_mut().find(|w| w.id() == id) {
-                return popup.on_key_event(ev);
+        if let Some(id) = &self.opening_dialog_id {
+            if let Some(dialog) = self.dialogs.iter_mut().find(|w| w.id() == id) {
+                return dialog.on_key_event(ev);
             }
         }
 
@@ -498,14 +498,14 @@ impl Window<'_> {
     }
 
     pub fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
-        if let Some(id) = &self.open_popup_id {
-            if let Some(popup) = self.popups.iter_mut().find(|w| w.id() == id) {
-                if popup.chunk().contains_point(ev.position()) {
-                    return popup.on_mouse_event(ev);
+        if let Some(id) = &self.opening_dialog_id {
+            if let Some(dialog) = self.dialogs.iter_mut().find(|w| w.id() == id) {
+                if dialog.chunk().contains_point(ev.position()) {
+                    return dialog.on_mouse_event(ev);
                 }
 
                 if let MouseEventKind::Down(MouseButton::Left) = ev.kind {
-                    self.close_popup();
+                    self.close_dialog();
                     return EventResult::Nop;
                 }
             }

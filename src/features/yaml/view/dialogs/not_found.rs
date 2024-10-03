@@ -1,7 +1,7 @@
 use ratatui::crossterm::event::KeyCode;
 
 use crate::{
-    features::component_id::{YAML_KIND_POPUP_ID, YAML_NOT_FOUND_POPUP_ID},
+    features::component_id::{YAML_KIND_DIALOG_ID, YAML_NOT_FOUND_DIALOG_ID},
     ui::{
         event::EventResult,
         widget::{Text, Widget, WidgetBase},
@@ -9,9 +9,9 @@ use crate::{
     },
 };
 
-pub fn not_found_popup() -> Widget<'static> {
+pub fn not_found_dialog() -> Widget<'static> {
     Text::builder()
-        .id(YAML_NOT_FOUND_POPUP_ID)
+        .id(YAML_NOT_FOUND_DIALOG_ID)
         .widget_base(&WidgetBase::builder().title("Name").build())
         .items(
             [
@@ -24,17 +24,17 @@ pub fn not_found_popup() -> Widget<'static> {
             .collect::<Vec<_>>(),
         )
         .wrap()
-        .action(KeyCode::Enter, open_kind_popup())
-        .action(KeyCode::Esc, open_kind_popup())
+        .action(KeyCode::Enter, open_kind_dialog())
+        .action(KeyCode::Esc, open_kind_dialog())
         .build()
         .into()
 }
 
-fn open_kind_popup() -> impl Fn(&mut Window) -> EventResult {
+fn open_kind_dialog() -> impl Fn(&mut Window) -> EventResult {
     move |w: &mut Window| {
-        w.open_popup(YAML_KIND_POPUP_ID);
+        w.open_dialog(YAML_KIND_DIALOG_ID);
 
-        if let Widget::SingleSelect(w) = w.find_widget_mut(YAML_KIND_POPUP_ID) {
+        if let Widget::SingleSelect(w) = w.find_widget_mut(YAML_KIND_DIALOG_ID) {
             w.clear_filter();
         }
 

@@ -5,7 +5,7 @@ use ratatui::crossterm::event::KeyCode;
 
 use crate::{
     features::{
-        component_id::{POD_LOG_QUERY_HELP_POPUP_ID, POD_LOG_QUERY_WIDGET_ID, POD_LOG_WIDGET_ID},
+        component_id::{POD_LOG_QUERY_HELP_DIALOG_ID, POD_LOG_QUERY_WIDGET_ID, POD_LOG_WIDGET_ID},
         pod::{
             kube::{LogConfig, LogPrefixType},
             message::LogMessage,
@@ -47,7 +47,7 @@ fn exec_query(
 
         if item == "?" || item == "help" {
             widget.clear();
-            w.open_popup(POD_LOG_QUERY_HELP_POPUP_ID);
+            w.open_dialog(POD_LOG_QUERY_HELP_DIALOG_ID);
             return EventResult::Nop;
         }
 

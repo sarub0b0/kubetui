@@ -14,11 +14,11 @@ use crate::{
     },
 };
 
-use super::{popup::popup_widget, widget::list_widget};
+use super::{dialog::dialog_widget, widget::list_widget};
 
 pub struct ListTab {
     pub tab: Tab<'static>,
-    pub popup: Widget<'static>,
+    pub dialog: Widget<'static>,
 }
 
 impl ListTab {
@@ -41,7 +41,7 @@ impl ListTab {
 
         ListTab {
             tab: Tab::new(LIST_TAB_ID, title, [list_widget], layout),
-            popup: popup_widget(tx),
+            dialog: dialog_widget(tx),
         }
     }
 }

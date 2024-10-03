@@ -6,7 +6,7 @@ use ratatui::widgets::Block;
 use crate::{
     clipboard::Clipboard,
     features::{
-        component_id::{YAML_KIND_POPUP_ID, YAML_WIDGET_ID},
+        component_id::{YAML_KIND_DIALOG_ID, YAML_WIDGET_ID},
         yaml::message::YamlRequest,
     },
     message::Message,
@@ -27,7 +27,7 @@ pub fn yaml_widget(
         .id(YAML_WIDGET_ID)
         .widget_base(&WidgetBase::builder().title("Yaml").build())
         .block_injection(block_injection())
-        .action('f', open_kind_popup(tx))
+        .action('f', open_kind_dialog(tx))
         .wrap();
 
     if let Some(cb) = clipboard {
@@ -39,11 +39,11 @@ pub fn yaml_widget(
     .into()
 }
 
-fn open_kind_popup(tx: Sender<Message>) -> impl Fn(&mut Window) -> EventResult {
+fn open_kind_dialog(tx: Sender<Message>) -> impl Fn(&mut Window) -> EventResult {
     move |w: &mut Window| {
         tx.send(YamlRequest::APIs.into())
             .expect("YamlRequest::APIs");
-        w.open_popup(YAML_KIND_POPUP_ID);
+        w.open_dialog(YAML_KIND_DIALOG_ID);
         EventResult::Nop
     }
 }

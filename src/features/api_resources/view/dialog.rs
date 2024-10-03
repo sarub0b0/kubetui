@@ -3,7 +3,7 @@ use crossbeam::channel::Sender;
 use crate::{
     features::{
         api_resources::message::ApiRequest,
-        component_id::{LIST_POPUP_ID, LIST_WIDGET_ID},
+        component_id::{LIST_DIALOG_ID, LIST_WIDGET_ID},
     },
     message::Message,
     ui::{
@@ -13,14 +13,14 @@ use crate::{
     },
 };
 
-pub fn popup_widget(tx: &Sender<Message>) -> Widget<'static> {
+pub fn dialog_widget(tx: &Sender<Message>) -> Widget<'static> {
     let tx = tx.clone();
 
     MultipleSelect::builder()
-        .id(LIST_POPUP_ID)
+        .id(LIST_DIALOG_ID)
         .widget_base(&WidgetBase::builder().title("List").build())
         .on_select(move |w: &mut Window, _: &LiteralItem| {
-            let widget = w.find_widget_mut(LIST_POPUP_ID).as_mut_multiple_select();
+            let widget = w.find_widget_mut(LIST_DIALOG_ID).as_mut_multiple_select();
 
             if let Some(SelectedItem::Array(items)) = widget.widget_item() {
                 let list = items

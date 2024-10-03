@@ -15,15 +15,15 @@ use crate::{
 };
 
 use super::{
-    popups::{kind::kind_popup, name::name_popup, not_found::not_found_popup},
+    dialogs::{kind::kind_dialog, name::name_dialog, not_found::not_found_dialog},
     widget::yaml_widget,
 };
 
 pub struct YamlTab {
     pub tab: Tab<'static>,
-    pub kind_popup: Widget<'static>,
-    pub name_popup: Widget<'static>,
-    pub not_found_popup: Widget<'static>,
+    pub kind_dialog: Widget<'static>,
+    pub name_dialog: Widget<'static>,
+    pub not_found_dialog: Widget<'static>,
 }
 
 impl YamlTab {
@@ -46,9 +46,9 @@ impl YamlTab {
 
         YamlTab {
             tab: Tab::new(YAML_TAB_ID, title, [yaml_widget], layout),
-            kind_popup: kind_popup(tx),
-            name_popup: name_popup(tx),
-            not_found_popup: not_found_popup(),
+            kind_dialog: kind_dialog(tx),
+            name_dialog: name_dialog(tx),
+            not_found_dialog: not_found_dialog(),
         }
     }
 }

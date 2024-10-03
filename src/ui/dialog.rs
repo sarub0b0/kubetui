@@ -10,6 +10,8 @@ use super::{
     widget::{RenderTrait, Widget, WidgetTrait},
 };
 
+/// Dialogの大きさを決めるための構造体
+///
 /// ┌─────────────────────────────────────────────────┐
 /// │ margin                 ▲                        │
 /// │                        │ top                    │
@@ -28,14 +30,14 @@ use super::{
 /// │                        ▼                        │
 /// └─────────────────────────────────────────────────┘
 #[derive(Debug)]
-struct PopupChunkSize {
+struct DialogSize {
     /// content width percentage (0.0 ~ 100.0)
     width: f32,
     /// content height percentage (0.0 ~ 100.0)
     height: f32,
 }
 
-impl Default for PopupChunkSize {
+impl Default for DialogSize {
     fn default() -> Self {
         Self {
             width: 85.0,
@@ -44,7 +46,7 @@ impl Default for PopupChunkSize {
     }
 }
 
-impl PopupChunkSize {
+impl DialogSize {
     fn chunk(&self, parent_chunk: Rect) -> Rect {
         let horizontal_margin =
             (parent_chunk.width as f32 * ((100.0 - self.width) / 2.0 / 100.0)).round() as u16;
@@ -58,13 +60,13 @@ impl PopupChunkSize {
     }
 }
 
-pub struct Popup<'a> {
+pub struct Dialog<'a> {
     widget: Widget<'a>,
     chunk: Rect,
-    chunk_size: PopupChunkSize,
+    chunk_size: DialogSize,
 }
 
-impl<'a> Popup<'a> {
+impl<'a> Dialog<'a> {
     pub fn new(widget: Widget<'a>) -> Self {
         Self {
             widget,
