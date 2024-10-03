@@ -150,7 +150,7 @@ impl AbortWorker for LogWorker {
                 let msg = indoc::formatdoc! {r#"
                        {err}
                        Invalid query.
-                       You can display the help popup by entering "?" or "help" in the log query form.
+                       You can display the help dialog by entering "?" or "help" in the log query form.
                    "#,
                    err = err
                 };

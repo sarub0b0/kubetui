@@ -19,7 +19,7 @@ use super::widgets::{log_query_help_widget, log_query_widget, log_widget, pod_wi
 
 pub struct PodTab {
     pub tab: Tab<'static>,
-    pub log_query_help_popup: Widget<'static>,
+    pub log_query_help_dialog: Widget<'static>,
 }
 
 impl PodTab {
@@ -48,7 +48,7 @@ impl PodTab {
 
         Self {
             tab,
-            log_query_help_popup: log_query_help_widget,
+            log_query_help_dialog: log_query_help_widget,
         }
     }
 }

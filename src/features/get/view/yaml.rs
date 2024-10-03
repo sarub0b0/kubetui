@@ -2,25 +2,25 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     clipboard::Clipboard,
-    features::component_id::YAML_POPUP_ID,
+    features::component_id::YAML_DIALOG_ID,
     ui::widget::{Text, Widget, WidgetBase, WidgetTrait},
 };
 
-pub struct YamlPopup {
-    pub popup: Widget<'static>,
+pub struct YamlDialog {
+    pub widget: Widget<'static>,
 }
 
-impl YamlPopup {
+impl YamlDialog {
     pub fn new(clipboard: &Option<Rc<RefCell<Clipboard>>>) -> Self {
         Self {
-            popup: popup(clipboard),
+            widget: widget(clipboard),
         }
     }
 }
 
-pub fn popup(clipboard: &Option<Rc<RefCell<Clipboard>>>) -> Widget<'static> {
+fn widget(clipboard: &Option<Rc<RefCell<Clipboard>>>) -> Widget<'static> {
     let mut builder = Text::builder()
-        .id(YAML_POPUP_ID)
+        .id(YAML_DIALOG_ID)
         .widget_base(&WidgetBase::builder().title("Yaml").build())
         .block_injection(|text: &Text, is_active: bool, is_mouse_over: bool| {
             let (index, size) = text.state();

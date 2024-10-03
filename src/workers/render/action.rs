@@ -7,11 +7,11 @@ use crate::{
     features::{
         api_resources::message::{ApiMessage, ApiResponse},
         component_id::{
-            CONFIG_RAW_DATA_WIDGET_ID, CONFIG_WIDGET_ID, CONTEXT_POPUP_ID, EVENT_WIDGET_ID,
-            LIST_POPUP_ID, LIST_WIDGET_ID, MULTIPLE_NAMESPACES_POPUP_ID,
+            CONFIG_RAW_DATA_WIDGET_ID, CONFIG_WIDGET_ID, CONTEXT_DIALOG_ID, EVENT_WIDGET_ID,
+            LIST_DIALOG_ID, LIST_WIDGET_ID, MULTIPLE_NAMESPACES_DIALOG_ID,
             NETWORK_DESCRIPTION_WIDGET_ID, NETWORK_WIDGET_ID, POD_LOG_WIDGET_ID, POD_WIDGET_ID,
-            SINGLE_NAMESPACE_POPUP_ID, YAML_KIND_POPUP_ID, YAML_NAME_POPUP_ID,
-            YAML_NOT_FOUND_POPUP_ID, YAML_POPUP_ID, YAML_WIDGET_ID,
+            SINGLE_NAMESPACE_DIALOG_ID, YAML_DIALOG_ID, YAML_KIND_DIALOG_ID, YAML_NAME_DIALOG_ID,
+            YAML_NOT_FOUND_DIALOG_ID, YAML_WIDGET_ID,
         },
         config::message::ConfigMessage,
         context::message::{ContextMessage, ContextResponse},
@@ -233,12 +233,12 @@ pub fn update_contents(
             NamespaceResponse::Get(res) => match res {
                 Ok(namespaces) => {
                     window
-                        .find_widget_mut(MULTIPLE_NAMESPACES_POPUP_ID)
+                        .find_widget_mut(MULTIPLE_NAMESPACES_DIALOG_ID)
                         .update_widget_item(Item::Array(
                             namespaces.iter().cloned().map(LiteralItem::from).collect(),
                         ));
                     window
-                        .find_widget_mut(SINGLE_NAMESPACE_POPUP_ID)
+                        .find_widget_mut(SINGLE_NAMESPACE_DIALOG_ID)
                         .update_widget_item(Item::Array(
                             namespaces.iter().cloned().map(LiteralItem::from).collect(),
                         ));
@@ -246,11 +246,11 @@ pub fn update_contents(
                 Err(err) => {
                     let err = error_lines!(err);
                     window
-                        .find_widget_mut(MULTIPLE_NAMESPACES_POPUP_ID)
+                        .find_widget_mut(MULTIPLE_NAMESPACES_DIALOG_ID)
                         .update_widget_item(Item::Array(err.to_vec()));
 
                     window
-                        .find_widget_mut(SINGLE_NAMESPACE_POPUP_ID)
+                        .find_widget_mut(SINGLE_NAMESPACE_DIALOG_ID)
                         .update_widget_item(Item::Array(err));
                 }
             },
@@ -261,7 +261,7 @@ pub fn update_contents(
 
         Kube::Context(ContextMessage::Response(res)) => match res {
             ContextResponse::Get(res) => {
-                update_widget_item_for_vec(window, CONTEXT_POPUP_ID, Ok(res));
+                update_widget_item_for_vec(window, CONTEXT_DIALOG_ID, Ok(res));
             }
         },
 
@@ -273,19 +273,19 @@ pub fn update_contents(
             namespace.update(ns.clone());
 
             window
-                .find_widget_mut(MULTIPLE_NAMESPACES_POPUP_ID)
+                .find_widget_mut(MULTIPLE_NAMESPACES_DIALOG_ID)
                 .update_widget_item(Item::Array(
                     ns.iter().cloned().map(LiteralItem::from).collect(),
                 ));
             window
-                .find_widget_mut(MULTIPLE_NAMESPACES_POPUP_ID)
+                .find_widget_mut(MULTIPLE_NAMESPACES_DIALOG_ID)
                 .as_mut_multiple_select()
                 .select_all();
         }
 
         Kube::RestoreAPIs(list) => {
             let w = window
-                .find_widget_mut(LIST_POPUP_ID)
+                .find_widget_mut(LIST_DIALOG_ID)
                 .as_mut_multiple_select();
 
             for key in list {
@@ -311,7 +311,7 @@ pub fn update_contents(
             use ApiResponse::*;
             match res {
                 Get(list) => {
-                    let widget = window.find_widget_mut(LIST_POPUP_ID);
+                    let widget = window.find_widget_mut(LIST_DIALOG_ID);
                     match list {
                         Ok(i) => {
                             let items = i
@@ -349,7 +349,7 @@ pub fn update_contents(
             use YamlResponse::*;
             match ev {
                 APIs(res) => {
-                    let widget = window.find_widget_mut(YAML_KIND_POPUP_ID);
+                    let widget = window.find_widget_mut(YAML_KIND_DIALOG_ID);
                     match res {
                         Ok(vec) => {
                             let items = vec
@@ -382,11 +382,11 @@ pub fn update_contents(
                 Resource(res) => match res {
                     Ok(list) => {
                         if list.items.is_empty() {
-                            window.open_popup(YAML_NOT_FOUND_POPUP_ID);
+                            window.open_dialog(YAML_NOT_FOUND_DIALOG_ID);
                         } else {
-                            window.open_popup(YAML_NAME_POPUP_ID);
+                            window.open_dialog(YAML_NAME_DIALOG_ID);
 
-                            let widget = window.find_widget_mut(YAML_NAME_POPUP_ID);
+                            let widget = window.find_widget_mut(YAML_NAME_DIALOG_ID);
 
                             let items = list
                                 .items
@@ -420,7 +420,7 @@ pub fn update_contents(
                         }
                     }
                     Err(e) => {
-                        let widget = window.find_widget_mut(YAML_NAME_POPUP_ID);
+                        let widget = window.find_widget_mut(YAML_NAME_DIALOG_ID);
                         widget.update_widget_item(Item::Array(error_lines!(e)));
                     }
                 },
@@ -431,10 +431,10 @@ pub fn update_contents(
         }
 
         Kube::Get(GetMessage::Response(GetResponse { kind, name, yaml })) => {
-            let widget = window.find_widget_mut(YAML_POPUP_ID).widget_base_mut();
+            let widget = window.find_widget_mut(YAML_DIALOG_ID).widget_base_mut();
             *(widget.append_title_mut()) = Some(format!(" : {}/{}", kind, name).into());
 
-            update_widget_item_for_vec(window, YAML_POPUP_ID, yaml);
+            update_widget_item_for_vec(window, YAML_DIALOG_ID, yaml);
         }
 
         Kube::Network(NetworkMessage::Response(ev)) => {

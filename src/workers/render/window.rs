@@ -20,20 +20,20 @@ use crate::{
     features::{
         api_resources::view::ListTab,
         component_id::{
-            CONFIG_WIDGET_ID, CONTEXT_POPUP_ID, HELP_POPUP_ID, MULTIPLE_NAMESPACES_POPUP_ID,
-            NETWORK_WIDGET_ID, POD_WIDGET_ID, SINGLE_NAMESPACE_POPUP_ID, YAML_POPUP_ID,
+            CONFIG_WIDGET_ID, CONTEXT_DIALOG_ID, HELP_DIALOG_ID, MULTIPLE_NAMESPACES_DIALOG_ID,
+            NETWORK_WIDGET_ID, POD_WIDGET_ID, SINGLE_NAMESPACE_DIALOG_ID, YAML_DIALOG_ID,
         },
         config::view::ConfigTab,
-        context::{message::ContextRequest, view::ContextPopup},
+        context::{message::ContextRequest, view::ContextDialog},
         event::view::EventTab,
         get::{
             message::{GetRequest, GetYamlKind},
-            view::YamlPopup,
+            view::YamlDialog,
         },
-        help::HelpPopup,
+        help::HelpDialog,
         namespace::{
             message::NamespaceRequest,
-            view::{MultipleNamespacesPopup, SingleNamespacePopup},
+            view::{MultipleNamespacesDialog, SingleNamespaceDialog},
         },
         network::{
             message::{GatewayVersion, HTTPRouteVersion},
@@ -49,8 +49,8 @@ use crate::{
     logger,
     message::{Message, UserEvent},
     ui::{
+        dialog::Dialog,
         event::{CallbackFn, EventResult},
-        popup::Popup,
         widget::{SelectedItem, WidgetTrait},
         Header, Tab, Window, WindowAction,
     },
@@ -79,9 +79,9 @@ impl WindowInit {
     }
 
     pub fn build(self) -> Window<'static> {
-        let (tabs, popups) = self.tabs_popups();
+        let (tabs, dialogs) = self.tabs_dialogs();
 
-        let builder = Window::builder().tabs(tabs).popup(popups);
+        let builder = Window::builder().tabs(tabs).dialogs(dialogs);
 
         // Configure Action
         let tx = self.tx.clone();
@@ -90,7 +90,7 @@ impl WindowInit {
             move |w: &mut Window| {
                 tx.send(NamespaceRequest::Get.into())
                     .expect("Failed to send NamespaceRequest::Get");
-                w.open_popup(MULTIPLE_NAMESPACES_POPUP_ID);
+                w.open_dialog(MULTIPLE_NAMESPACES_DIALOG_ID);
                 EventResult::Nop
             },
         );
@@ -99,13 +99,13 @@ impl WindowInit {
         let builder = builder.action('n', move |w: &mut Window| {
             tx.send(NamespaceRequest::Get.into())
                 .expect("Failed to send NamespaceRequest::Get");
-            w.open_popup(SINGLE_NAMESPACE_POPUP_ID);
+            w.open_dialog(SINGLE_NAMESPACE_DIALOG_ID);
             EventResult::Nop
         });
 
         let fn_close = |w: &mut Window| {
-            if w.opening_popup() {
-                w.close_popup();
+            if w.opening_dialog() {
+                w.close_dialog();
                 EventResult::Nop
             } else {
                 EventResult::WindowAction(WindowAction::CloseWindow)
@@ -116,12 +116,12 @@ impl WindowInit {
         let builder = builder.action('c', move |w: &mut Window| {
             tx.send(ContextRequest::Get.into())
                 .expect("Failed to send ContextRequest::Get");
-            w.open_popup(CONTEXT_POPUP_ID);
+            w.open_dialog(CONTEXT_DIALOG_ID);
             EventResult::Nop
         });
 
         let open_help = move |w: &mut Window| {
-            w.open_popup(HELP_POPUP_ID);
+            w.open_dialog(HELP_DIALOG_ID);
             EventResult::Nop
         };
 
@@ -163,12 +163,12 @@ impl WindowInit {
         builder.build()
     }
 
-    fn tabs_popups(&self) -> (Vec<Tab<'static>>, Vec<Popup<'static>>) {
+    fn tabs_dialogs(&self) -> (Vec<Tab<'static>>, Vec<Dialog<'static>>) {
         let clipboard = Some(Rc::new(RefCell::new(Clipboard::new())));
 
         let PodTab {
             tab: pod_tab,
-            log_query_help_popup,
+            log_query_help_dialog,
         } = PodTab::new(
             "Pod",
             &self.tx,
@@ -187,31 +187,35 @@ impl WindowInit {
 
         let ListTab {
             tab: list_tab,
-            popup: list_popup,
+            dialog: list_dialog,
         } = ListTab::new("List", &self.tx, &clipboard);
 
         let YamlTab {
             tab: yaml_tab,
-            kind_popup: yaml_kind_popup,
-            name_popup: yaml_name_popup,
-            not_found_popup: yaml_not_found_popup,
+            kind_dialog: yaml_kind_dialog,
+            name_dialog: yaml_name_dialog,
+            not_found_dialog: yaml_not_found_dialog,
         } = YamlTab::new("Yaml", &self.tx, &clipboard);
 
-        let ContextPopup {
-            popup: context_popup,
-        } = ContextPopup::new(&self.tx);
+        let ContextDialog {
+            widget: context_dialog,
+        } = ContextDialog::new(&self.tx);
 
-        let SingleNamespacePopup {
-            popup: single_namespace_popup,
-        } = SingleNamespacePopup::new(&self.tx);
+        let SingleNamespaceDialog {
+            widget: single_namespace_dialog,
+        } = SingleNamespaceDialog::new(&self.tx);
 
-        let MultipleNamespacesPopup {
-            popup: multiple_namespaces_popup,
-        } = MultipleNamespacesPopup::new(&self.tx);
+        let MultipleNamespacesDialog {
+            widget: multiple_namespaces_dialog,
+        } = MultipleNamespacesDialog::new(&self.tx);
 
-        let HelpPopup { popup: help_popup } = HelpPopup::new();
+        let HelpDialog {
+            widget: help_dialog,
+        } = HelpDialog::new();
 
-        let YamlPopup { popup: yaml_popup } = YamlPopup::new(&clipboard);
+        let YamlDialog {
+            widget: yaml_dialog,
+        } = YamlDialog::new(&clipboard);
 
         // Init Window
         let tabs = vec![
@@ -223,20 +227,20 @@ impl WindowInit {
             yaml_tab,
         ];
 
-        let popups = vec![
-            Popup::new(context_popup),
-            Popup::new(single_namespace_popup),
-            Popup::new(multiple_namespaces_popup),
-            Popup::new(list_popup),
-            Popup::new(yaml_kind_popup),
-            Popup::new(yaml_name_popup),
-            Popup::new(yaml_not_found_popup),
-            Popup::new(help_popup),
-            Popup::new(log_query_help_popup),
-            Popup::new(yaml_popup),
+        let dialogs = vec![
+            Dialog::new(context_dialog),
+            Dialog::new(single_namespace_dialog),
+            Dialog::new(multiple_namespaces_dialog),
+            Dialog::new(list_dialog),
+            Dialog::new(yaml_kind_dialog),
+            Dialog::new(yaml_name_dialog),
+            Dialog::new(yaml_not_found_dialog),
+            Dialog::new(help_dialog),
+            Dialog::new(log_query_help_dialog),
+            Dialog::new(yaml_dialog),
         ];
 
-        (tabs, popups)
+        (tabs, dialogs)
     }
 }
 
@@ -301,8 +305,8 @@ fn open_yaml(tx: Sender<Message>) -> impl CallbackFn {
         )
         .expect("Failed to send YamlMessage::Request");
 
-        w.widget_clear(YAML_POPUP_ID);
-        w.open_popup(YAML_POPUP_ID);
+        w.widget_clear(YAML_DIALOG_ID);
+        w.open_dialog(YAML_DIALOG_ID);
 
         EventResult::Nop
     }

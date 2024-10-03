@@ -1,5 +1,5 @@
-mod multiple_namespaces_popup;
-mod single_namespace_popup;
+mod multiple_namespaces_dialog;
+mod single_namespace_dialog;
 
-pub use multiple_namespaces_popup::*;
-pub use single_namespace_popup::*;
+pub use multiple_namespaces_dialog::*;
+pub use single_namespace_dialog::*;

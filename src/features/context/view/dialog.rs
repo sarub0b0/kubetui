@@ -3,12 +3,12 @@ use crossbeam::channel::Sender;
 use crate::{
     features::{
         component_id::{
-            CONFIG_RAW_DATA_WIDGET_ID, CONFIG_WIDGET_ID, EVENT_WIDGET_ID, LIST_WIDGET_ID,
-            MULTIPLE_NAMESPACES_POPUP_ID, NETWORK_DESCRIPTION_WIDGET_ID, NETWORK_WIDGET_ID,
-            POD_LOG_QUERY_WIDGET_ID, POD_LOG_WIDGET_ID, POD_WIDGET_ID, SINGLE_NAMESPACE_POPUP_ID,
-            YAML_WIDGET_ID,
+            CONFIG_RAW_DATA_WIDGET_ID, CONFIG_WIDGET_ID, CONTEXT_DIALOG_ID, EVENT_WIDGET_ID,
+            LIST_DIALOG_ID, LIST_WIDGET_ID, MULTIPLE_NAMESPACES_DIALOG_ID,
+            NETWORK_DESCRIPTION_WIDGET_ID, NETWORK_WIDGET_ID, POD_LOG_QUERY_WIDGET_ID,
+            POD_LOG_WIDGET_ID, POD_WIDGET_ID, YAML_WIDGET_ID,
         },
-        namespace::message::NamespaceRequest,
+        context::message::ContextRequest,
     },
     message::Message,
     ui::{
@@ -18,34 +18,35 @@ use crate::{
     },
 };
 
-pub struct SingleNamespacePopup {
-    pub popup: Widget<'static>,
+pub struct ContextDialog {
+    pub widget: Widget<'static>,
 }
 
-impl SingleNamespacePopup {
+impl ContextDialog {
     pub fn new(tx: &Sender<Message>) -> Self {
         Self {
-            popup: popup(tx.clone()),
+            widget: widget(tx.clone()),
         }
     }
 }
 
-fn popup(tx: Sender<Message>) -> Widget<'static> {
+fn widget(tx: Sender<Message>) -> Widget<'static> {
     SingleSelect::builder()
-        .id(SINGLE_NAMESPACE_POPUP_ID)
-        .widget_base(&WidgetBase::builder().title("Namespace").build())
+        .id(CONTEXT_DIALOG_ID)
+        .widget_base(&WidgetBase::builder().title("Context").build())
         .on_select(on_select(tx))
         .build()
         .into()
 }
 
 fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &LiteralItem) -> EventResult {
-    move |w: &mut Window, v| {
-        let items = vec![v.item.to_string()];
-        tx.send(NamespaceRequest::Set(items).into())
-            .expect("Failed to send NamespaceRequest::Set");
+    move |w, v| {
+        let item = v.item.to_string();
 
-        w.close_popup();
+        tx.send(ContextRequest::Set(item).into())
+            .expect("Failed to send ContextRequest::Set");
+
+        w.close_dialog();
 
         w.widget_clear(POD_WIDGET_ID);
         w.widget_clear(POD_LOG_WIDGET_ID);
@@ -59,12 +60,14 @@ fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &LiteralItem) -> Event
         w.widget_clear(YAML_WIDGET_ID);
 
         let widget = w
-            .find_widget_mut(MULTIPLE_NAMESPACES_POPUP_ID)
+            .find_widget_mut(MULTIPLE_NAMESPACES_DIALOG_ID)
             .as_mut_multiple_select();
 
         widget.unselect_all();
 
-        widget.select_item(v);
+        let widget = w.find_widget_mut(LIST_DIALOG_ID).as_mut_multiple_select();
+
+        widget.unselect_all();
 
         EventResult::Nop
     }

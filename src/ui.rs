@@ -1,6 +1,6 @@
 mod callback;
+pub mod dialog;
 pub mod event;
-pub mod popup;
 pub mod tab;
 pub mod widget;
 mod window;

@@ -2,7 +2,7 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::{
     ansi::{AnsiEscapeSequence, TextParser},
-    features::component_id::HELP_POPUP_ID,
+    features::component_id::HELP_DIALOG_ID,
     ui::widget::{Text, Widget, WidgetBase},
 };
 
@@ -36,7 +36,7 @@ const LEFT_HELP_TEXT: &[HelpBlock] = &[
             },
             KeyBindings {
                 keys: &["y"],
-                desc: "open yaml popup",
+                desc: "open yaml dialog",
             },
             KeyBindings {
                 keys: &["q", "Esc"],
@@ -44,7 +44,7 @@ const LEFT_HELP_TEXT: &[HelpBlock] = &[
             },
             KeyBindings {
                 keys: &["q", "Esc"],
-                desc: "close popup",
+                desc: "close dialog",
             },
             KeyBindings {
                 keys: &["h", "?"],
@@ -158,7 +158,7 @@ const RIGHT_HELP_TEXT: &[HelpBlock] = &[
         title: "List / Yaml Tab",
         bindings: &[KeyBindings {
             keys: &["f"],
-            desc: "open select popup",
+            desc: "open select dialog",
         }],
     },
     HelpBlock {
@@ -322,15 +322,15 @@ fn generate() -> Vec<String> {
 }
 
 #[derive(Debug)]
-pub struct HelpPopup {
-    pub popup: Widget<'static>,
+pub struct HelpDialog {
+    pub widget: Widget<'static>,
 }
 
-impl HelpPopup {
+impl HelpDialog {
     pub fn new() -> Self {
         Self {
-            popup: Text::builder()
-                .id(HELP_POPUP_ID)
+            widget: Text::builder()
+                .id(HELP_DIALOG_ID)
                 .widget_base(&WidgetBase::builder().title("Help").build())
                 .items(generate())
                 .build()

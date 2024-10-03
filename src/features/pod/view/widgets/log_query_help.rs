@@ -2,7 +2,7 @@ use indoc::indoc;
 use ratatui::crossterm::event::KeyCode;
 
 use crate::{
-    features::component_id::POD_LOG_QUERY_HELP_POPUP_ID,
+    features::component_id::POD_LOG_QUERY_HELP_DIALOG_ID,
     message::UserEvent,
     ui::{
         event::EventResult,
@@ -13,10 +13,10 @@ use crate::{
 
 pub fn log_query_help_widget() -> Widget<'static> {
     Text::builder()
-        .id(POD_LOG_QUERY_HELP_POPUP_ID)
+        .id(POD_LOG_QUERY_HELP_DIALOG_ID)
         .widget_base(&WidgetBase::builder().title("Log Query Help").build())
         .items(content())
-        .action(UserEvent::from(KeyCode::Enter), close_popup())
+        .action(UserEvent::from(KeyCode::Enter), close_dialog())
         .build()
         .into()
 }
@@ -50,9 +50,9 @@ fn content() -> Vec<String> {
     .collect()
 }
 
-fn close_popup() -> impl Fn(&mut Window) -> EventResult {
+fn close_dialog() -> impl Fn(&mut Window) -> EventResult {
     move |w: &mut Window| {
-        w.close_popup();
+        w.close_dialog();
         EventResult::Nop
     }
 }

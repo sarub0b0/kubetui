@@ -6,7 +6,7 @@ use crate::{
     clipboard::Clipboard,
     features::{
         api_resources::message::ApiRequest,
-        component_id::{LIST_POPUP_ID, LIST_WIDGET_ID},
+        component_id::{LIST_DIALOG_ID, LIST_WIDGET_ID},
     },
     message::Message,
     ui::{
@@ -25,7 +25,7 @@ pub fn list_widget(
     let open_subwin = move |w: &mut Window| {
         tx.send(ApiRequest::Get.into())
             .expect("Failed to send ApiRequest::Get");
-        w.open_popup(LIST_POPUP_ID);
+        w.open_dialog(LIST_DIALOG_ID);
         EventResult::Nop
     };
 

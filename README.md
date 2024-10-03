@@ -15,6 +15,7 @@ It provides an easy-to-use interface for developers and operators to access impo
   - [Pacman on Arch Linux](#pacman-on-arch-linux)
   - [Scoop on Windows](#scoop-on-windows)
   - [WinGet on Windows](#winget-on-windows)
+  - [Chocolatey on Windows](#chocolatey-on-windows)
   - [openSUSE Tumbleweed](#opensuse-tumbleweed)
   - [Using `cargo install`](#using-cargo-install)
   - [Downloading the binary](#downloading-the-binary)
@@ -30,7 +31,7 @@ It provides an easy-to-use interface for developers and operators to access impo
   - [Text View](#text-view)
   - [Search Mode](#search-mode)
   - [Table View](#table-view)
-  - [Popup](#popup)
+  - [Dialog](#dialog)
   - [Input Form](#input-form)
 - [Contributing](#contributing)
 - [License](#license)
@@ -170,7 +171,7 @@ The Log Query feature empowers you to retrieve logs from multiple Pods and their
 pod:app container:nginx log:401
 ```
 
-When entering `?` or `help` in the log query form, the help popup will be displayed.
+When entering `?` or `help` in the log query form, the help dialog will be displayed.
 
 ### Supported Queries
 
@@ -274,20 +275,20 @@ ESCAPED_CHAR = "\\" | "\"" | "\'"
 
 ### General
 
-| Key                                  | Description                                                        |
-| ------------------------------------ | ------------------------------------------------------------------ |
-| <kbd>h</kbd>, <kbd>?</kbd>           | Open the popup for help                                            |
-| <kbd>Enter</kbd>                     | Select an item and trigger an event                                |
-| <kbd>n</kbd>                         | Open the popup for selecting the namespace                         |
-| <kbd>N</kbd>                         | Open the popup for selecting multiple namespaces                   |
-| <kbd>c</kbd>                         | Open the popup for selecting the context                           |
-| <kbd>y</kbd>                         | Open the popup for yaml                                            |
-| <kbd>Tab</kbd>, <kbd>Shift+Tab</kbd> | Change the focus of the view within the active tab                 |
-| <kbd>number</kbd>                    | Switch to the tab (number: 1~6)                                    |
-| <kbd>ESC</kbd>                       | Close the window or terminate the app (when the popup is not open) |
-| <kbd>q</kbd>                         | Terminate the app                                                  |
-| <kbd>f</kbd>                         | Open the popup for selecting multiple API resources                |
-| <kbd>Shift+s</kbd>                   | Toggle the split direction between vertical and horizontal         |
+| Key                                  | Description                                                         |
+| ------------------------------------ | ------------------------------------------------------------------- |
+| <kbd>h</kbd>, <kbd>?</kbd>           | Open the dialog for help                                            |
+| <kbd>Enter</kbd>                     | Select an item and trigger an event                                 |
+| <kbd>n</kbd>                         | Open the dialog for selecting the namespace                         |
+| <kbd>N</kbd>                         | Open the dialog for selecting multiple namespaces                   |
+| <kbd>c</kbd>                         | Open the dialog for selecting the context                           |
+| <kbd>y</kbd>                         | Open the dialog for yaml                                            |
+| <kbd>Tab</kbd>, <kbd>Shift+Tab</kbd> | Change the focus of the view within the active tab                  |
+| <kbd>number</kbd>                    | Switch to the tab (number: 1~6)                                     |
+| <kbd>ESC</kbd>                       | Close the window or terminate the app (when the dialog is not open) |
+| <kbd>q</kbd>                         | Terminate the app                                                   |
+| <kbd>f</kbd>                         | Open the dialog for selecting multiple API resources                |
+| <kbd>Shift+s</kbd>                   | Toggle the split direction between vertical and horizontal          |
 
 ### Key Map
 
@@ -335,14 +336,14 @@ ESCAPED_CHAR = "\\" | "\"" | "\'"
 | <kbd>/</kbd>                     | Open the filter form  |
 | <kbd>Enter</kbd>, <kbd>ESC</kbd> | Close the filter form |
 
-### Popup
+### Dialog
 
-| Key                                                              | Description                                                        |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------ |
-| <kbd>Down</kbd>, <kbd>Up</kbd>, <kbd>PgDn</kbd>, <kbd>PgUp</kbd> | Change the selected item / Scroll the view                         |
-| <kbd>Tab</kbd>, <kbd>Shift+Tab</kbd>                             | Change the focus of the view within the active tab                 |
-| <kbd>Enter</kbd>                                                 | Select an item and trigger an event                                |
-| <kbd>ESC</kbd>                                                   | Close the window or terminate the app (when the popup is not open) |
+| Key                                                              | Description                                                         |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------- |
+| <kbd>Down</kbd>, <kbd>Up</kbd>, <kbd>PgDn</kbd>, <kbd>PgUp</kbd> | Change the selected item / Scroll the view                          |
+| <kbd>Tab</kbd>, <kbd>Shift+Tab</kbd>                             | Change the focus of the view within the active tab                  |
+| <kbd>Enter</kbd>                                                 | Select an item and trigger an event                                 |
+| <kbd>ESC</kbd>                                                   | Close the window or terminate the app (when the dialog is not open) |
 
 ### Input Form
 
