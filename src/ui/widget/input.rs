@@ -225,6 +225,7 @@ impl InputFormBuilder {
         self
     }
 
+    #[allow(dead_code)]
     pub fn suffix(mut self, suffix: impl Into<Line<'static>>) -> Self {
         self.suffix = suffix.into();
         self
