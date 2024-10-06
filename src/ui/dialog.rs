@@ -1,14 +1,72 @@
 use ratatui::{
     crossterm::event::{KeyEvent, MouseEvent},
     layout::{Margin, Rect},
-    widgets::Clear,
+    style::Style,
     Frame,
 };
 
 use super::{
     event::EventResult,
-    widget::{RenderTrait, Widget, WidgetTrait},
+    widget::{RenderTrait, StyledClear, Text, Widget, WidgetTrait},
 };
+
+#[derive(Debug, Default, Clone)]
+pub struct DialogTheme {
+    pub base_style: Style,
+
+    pub size: DialogSize,
+}
+
+impl DialogTheme {
+    pub fn base_style(mut self, style: impl Into<Style>) -> Self {
+        self.base_style = style.into();
+        self
+    }
+
+    pub fn size(mut self, size: impl Into<DialogSize>) -> Self {
+        self.size = size.into();
+        self
+    }
+}
+
+pub struct DialogBuilder<'a> {
+    /// wiget to display in dialog
+    widget: Widget<'a>,
+
+    /// dialog theme
+    theme: DialogTheme,
+}
+
+impl Default for DialogBuilder<'_> {
+    fn default() -> Self {
+        Self {
+            widget: Widget::Text(Text::default()),
+            theme: DialogTheme::default(),
+        }
+    }
+}
+
+impl<'a> DialogBuilder<'a> {
+    #[must_use]
+    pub fn widget(mut self, widget: Widget<'a>) -> Self {
+        self.widget = widget;
+        self
+    }
+
+    pub fn theme(mut self, theme: DialogTheme) -> Self {
+        self.theme = theme;
+        self
+    }
+
+    pub fn build(self) -> Dialog<'a> {
+        Dialog {
+            widget: self.widget,
+            chunk: Default::default(),
+            chunk_size: self.theme.size,
+            base_style: self.theme.base_style,
+        }
+    }
+}
 
 /// Dialogの大きさを決めるための構造体
 ///
@@ -29,12 +87,12 @@ use super::{
 /// │                        │ bottom                 │
 /// │                        ▼                        │
 /// └─────────────────────────────────────────────────┘
-#[derive(Debug)]
-struct DialogSize {
+#[derive(Debug, Clone, Copy)]
+pub struct DialogSize {
     /// content width percentage (0.0 ~ 100.0)
-    width: f32,
+    pub width: f32,
     /// content height percentage (0.0 ~ 100.0)
-    height: f32,
+    pub height: f32,
 }
 
 impl Default for DialogSize {
@@ -64,15 +122,22 @@ pub struct Dialog<'a> {
     widget: Widget<'a>,
     chunk: Rect,
     chunk_size: DialogSize,
+    base_style: Style,
 }
 
 impl<'a> Dialog<'a> {
+    #[allow(dead_code)]
     pub fn new(widget: Widget<'a>) -> Self {
         Self {
             widget,
             chunk: Default::default(),
             chunk_size: Default::default(),
+            base_style: Style::default(),
         }
+    }
+
+    pub fn builder() -> DialogBuilder<'a> {
+        DialogBuilder::default()
     }
 
     pub fn chunk(&self) -> Rect {
@@ -103,7 +168,7 @@ impl<'a> Dialog<'a> {
     }
 
     pub fn render(&mut self, f: &mut Frame) {
-        f.render_widget(Clear, self.chunk);
+        f.render_widget(StyledClear::new(self.base_style), self.chunk);
 
         self.widget.render(f, true, false)
     }
