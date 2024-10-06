@@ -1,5 +1,6 @@
 mod base;
 mod border;
+mod dialog;
 mod header;
 mod style;
 mod tab;
@@ -9,12 +10,14 @@ mod widget;
 
 use serde::{Deserialize, Serialize};
 
+use crate::ui::dialog::DialogTheme;
 use crate::ui::{HeaderTheme, TabTheme};
 
 pub use self::header::HeaderThemeConfig;
 pub use self::tab::TabThemeConfig;
 pub use base::BaseThemeConfig;
 pub use border::BorderThemeConfig;
+pub use dialog::*;
 pub use style::ThemeStyleConfig;
 pub use table::*;
 pub use text::*;
@@ -51,5 +54,15 @@ impl From<ThemeConfig> for HeaderTheme {
         HeaderTheme::default()
             .base_style(config.header.base)
             .line_styles([config.header.cluster, config.header.namespaces])
+    }
+}
+
+impl From<ThemeConfig> for DialogTheme {
+    fn from(config: ThemeConfig) -> Self {
+        let base_style = config.component.dialog.base.unwrap_or_else(|| *config.base);
+
+        DialogTheme::default()
+            .base_style(base_style)
+            .size(config.component.dialog.size)
     }
 }
