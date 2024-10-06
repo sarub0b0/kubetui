@@ -1,4 +1,5 @@
 mod ansi_color;
+mod clear;
 mod line;
 mod styled_graphemes;
 mod wrap;
@@ -12,6 +13,7 @@ mod table;
 mod text;
 
 pub use base::*;
+pub use clear::*;
 pub use input::*;
 pub use list::*;
 pub use multiple_select::MultipleSelect;
