@@ -50,7 +50,7 @@ use crate::{
     logger,
     message::{Message, UserEvent},
     ui::{
-        dialog::Dialog,
+        dialog::{Dialog, DialogTheme},
         event::{CallbackFn, EventResult},
         widget::{SelectedItem, WidgetTrait},
         Header, HeaderTheme, Tab, TabTheme, Window, WindowAction,
@@ -260,18 +260,30 @@ impl WindowInit {
             yaml_tab,
         ];
 
-        let dialogs = vec![
-            Dialog::new(context_dialog),
-            Dialog::new(single_namespace_dialog),
-            Dialog::new(multiple_namespaces_dialog),
-            Dialog::new(api_dialog),
-            Dialog::new(yaml_kind_dialog),
-            Dialog::new(yaml_name_dialog),
-            Dialog::new(yaml_not_found_dialog),
-            Dialog::new(help_dialog),
-            Dialog::new(log_query_help_dialog),
-            Dialog::new(yaml_dialog),
+        let dialog_theme = DialogTheme::from(self.theme.clone());
+
+        let dialog_widgets = vec![
+            context_dialog,
+            single_namespace_dialog,
+            multiple_namespaces_dialog,
+            api_dialog,
+            yaml_kind_dialog,
+            yaml_name_dialog,
+            yaml_not_found_dialog,
+            help_dialog,
+            log_query_help_dialog,
+            yaml_dialog,
         ];
+
+        let dialogs: Vec<Dialog> = dialog_widgets
+            .into_iter()
+            .map(|widget| {
+                Dialog::builder()
+                    .widget(widget)
+                    .theme(dialog_theme.clone())
+                    .build()
+            })
+            .collect();
 
         (tabs, dialogs)
     }
