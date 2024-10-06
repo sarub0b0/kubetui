@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use crate::ui::widget::{FilterFormTheme, InputFormTheme, SearchFormTheme, TextTheme, WidgetTheme};
 
 use super::{
-    BorderThemeConfig, FilterFormThemeConfig, TableThemeConfig, TextThemeConfig, ThemeStyleConfig,
+    BorderThemeConfig, DialogThemeConfig, FilterFormThemeConfig, TableThemeConfig, TextThemeConfig,
+    ThemeStyleConfig,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -56,6 +57,9 @@ pub struct WidgetThemeConfig {
 
     #[serde(default)]
     pub table: TableThemeConfig,
+
+    #[serde(default)]
+    pub dialog: DialogThemeConfig,
 }
 
 impl From<WidgetThemeConfig> for WidgetTheme {
@@ -121,8 +125,8 @@ impl From<WidgetThemeConfig> for FilterFormTheme {
 #[cfg(test)]
 mod tests {
     use crate::config::theme::{
-        FilterFormThemeConfig, SearchFormThemeConfig, SearchHighlightThemeConfig,
-        SearchThemeConfig, SelectionThemeConfig,
+        DialogSizeThemeConfig, FilterFormThemeConfig, SearchFormThemeConfig,
+        SearchHighlightThemeConfig, SearchThemeConfig, SelectionThemeConfig,
     };
 
     use super::*;
@@ -144,6 +148,7 @@ mod tests {
             border: BorderThemeConfig::default(),
             text: TextThemeConfig::default(),
             table: TableThemeConfig::default(),
+            dialog: DialogThemeConfig::default(),
         };
 
         assert_eq!(actual, expected);
@@ -212,6 +217,17 @@ mod tests {
                     },
                 },
             },
+            dialog: DialogThemeConfig {
+                base: Some(ThemeStyleConfig {
+                    fg_color: Some(Color::Blue),
+                    bg_color: Some(Color::Red),
+                    modifier: Modifier::ITALIC,
+                }),
+                size: DialogSizeThemeConfig {
+                    width: 85.0,
+                    height: 85.0,
+                },
+            },
         };
 
         let actual = serde_yaml::to_string(&theme).unwrap();
@@ -268,6 +284,14 @@ mod tests {
                   fg_color: white
                 query:
                   fg_color: white
+            dialog:
+              base:
+                fg_color: blue
+                bg_color: red
+                modifier: italic
+              size:
+                width: 85.0
+                height: 85.0
         "#};
 
         assert_eq!(actual, expected);
@@ -322,6 +346,14 @@ mod tests {
                   fg_color: white
                 query:
                   fg_color: white
+            dialog:
+              base:
+                fg_color: blue
+                bg_color: red
+                modifier: italic
+              size:
+                width: 85.0
+                height: 85.0
         "#};
 
         let actual: WidgetThemeConfig = serde_yaml::from_str(data).unwrap();
@@ -410,6 +442,17 @@ mod tests {
                         fg_color: Some(Color::White),
                         ..Default::default()
                     },
+                },
+            },
+            dialog: DialogThemeConfig {
+                base: Some(ThemeStyleConfig {
+                    fg_color: Some(Color::Blue),
+                    bg_color: Some(Color::Red),
+                    modifier: Modifier::ITALIC,
+                }),
+                size: DialogSizeThemeConfig {
+                    width: 85.0,
+                    height: 85.0,
                 },
             },
         };
