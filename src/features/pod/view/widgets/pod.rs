@@ -22,7 +22,7 @@ pub fn pod_widget(tx: &Sender<Message>) -> Widget<'static> {
 
     Table::builder()
         .id(POD_WIDGET_ID)
-        .widget_base(&WidgetBase::builder().title("Pod").build())
+        .widget_base(WidgetBase::builder().title("Pod").build())
         .filtered_key("NAME")
         .block_injection(block_injection())
         .on_select(on_select(tx))

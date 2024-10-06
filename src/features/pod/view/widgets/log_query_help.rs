@@ -14,7 +14,7 @@ use crate::{
 pub fn log_query_help_widget() -> Widget<'static> {
     Text::builder()
         .id(POD_LOG_QUERY_HELP_DIALOG_ID)
-        .widget_base(&WidgetBase::builder().title("Log Query Help").build())
+        .widget_base(WidgetBase::builder().title("Log Query Help").build())
         .items(content())
         .action(UserEvent::from(KeyCode::Enter), close_dialog())
         .build()

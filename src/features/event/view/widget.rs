@@ -11,7 +11,7 @@ use crate::{
 pub fn event_widget(clipboard: &Option<Rc<RefCell<Clipboard>>>) -> Widget<'static> {
     let builder = Text::builder()
         .id(EVENT_WIDGET_ID)
-        .widget_base(&WidgetBase::builder().title("Event").build())
+        .widget_base(WidgetBase::builder().title("Event").build())
         .wrap()
         .follow()
         .block_injection(block_injection());

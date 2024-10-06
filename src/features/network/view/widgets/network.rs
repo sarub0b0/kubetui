@@ -26,7 +26,7 @@ pub fn network_widget(tx: &Sender<Message>) -> Widget<'static> {
 
     Table::builder()
         .id(NETWORK_WIDGET_ID)
-        .widget_base(&WidgetBase::builder().title("Network").build())
+        .widget_base(WidgetBase::builder().title("Network").build())
         .filtered_key("NAME")
         .block_injection(block_injection())
         .on_select(on_select(tx))

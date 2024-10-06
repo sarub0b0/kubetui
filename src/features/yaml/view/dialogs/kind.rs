@@ -16,7 +16,7 @@ pub fn kind_dialog(tx: &Sender<Message>) -> Widget<'static> {
 
     SingleSelect::builder()
         .id(YAML_KIND_DIALOG_ID)
-        .widget_base(&WidgetBase::builder().title("Kind").build())
+        .widget_base(WidgetBase::builder().title("Kind").build())
         .on_select(on_select(tx))
         .build()
         .into()

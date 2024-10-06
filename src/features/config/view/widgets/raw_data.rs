@@ -11,7 +11,7 @@ use crate::{
 pub fn raw_data_widget(clipboard: &Option<Rc<RefCell<Clipboard>>>) -> Widget<'static> {
     let builder = Text::builder()
         .id(CONFIG_RAW_DATA_WIDGET_ID)
-        .widget_base(&WidgetBase::builder().title("Raw Data").build())
+        .widget_base(WidgetBase::builder().title("Raw Data").build())
         .wrap()
         .block_injection(block_injection());
 

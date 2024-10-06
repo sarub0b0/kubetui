@@ -377,8 +377,8 @@ impl SingleSelectBuilder {
         self
     }
 
-    pub fn widget_base(mut self, widget_base: &WidgetBase) -> Self {
-        self.widget_base = widget_base.clone();
+    pub fn widget_base(mut self, widget_base: WidgetBase) -> Self {
+        self.widget_base = widget_base;
         self
     }
 
@@ -429,7 +429,7 @@ impl SingleSelectBuilder {
         } else {
             List::builder()
         }
-        .widget_base(&WidgetBase::builder().title("Items").build());
+        .widget_base(WidgetBase::builder().title("Items").build());
 
         if let Some(block_injection) = self.block_injection_for_list {
             list_widget_builder = list_widget_builder.block_injection(block_injection);

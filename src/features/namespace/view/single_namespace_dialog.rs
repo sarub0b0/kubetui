@@ -33,7 +33,7 @@ impl SingleNamespaceDialog {
 fn widget(tx: Sender<Message>) -> Widget<'static> {
     SingleSelect::builder()
         .id(SINGLE_NAMESPACE_DIALOG_ID)
-        .widget_base(&WidgetBase::builder().title("Namespace").build())
+        .widget_base(WidgetBase::builder().title("Namespace").build())
         .on_select(on_select(tx))
         .build()
         .into()

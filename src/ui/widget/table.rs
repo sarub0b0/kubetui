@@ -69,8 +69,8 @@ impl TableBuilder {
         self
     }
 
-    pub fn widget_base(mut self, widget_base: &WidgetBase) -> Self {
-        self.widget_base = widget_base.clone();
+    pub fn widget_base(mut self, widget_base: WidgetBase) -> Self {
+        self.widget_base = widget_base;
         self
     }
 

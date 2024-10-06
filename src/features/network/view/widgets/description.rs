@@ -11,7 +11,7 @@ use crate::{
 pub fn description_widget(clipboard: &Option<Rc<RefCell<Clipboard>>>) -> Widget<'static> {
     let builder = Text::builder()
         .id(NETWORK_DESCRIPTION_WIDGET_ID)
-        .widget_base(&WidgetBase::builder().title("Description").build())
+        .widget_base(WidgetBase::builder().title("Description").build())
         .block_injection(block_injection());
 
     if let Some(cb) = clipboard {

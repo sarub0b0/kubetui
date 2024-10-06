@@ -31,7 +31,7 @@ pub fn list_widget(
 
     let builder = Text::builder()
         .id(LIST_WIDGET_ID)
-        .widget_base(&WidgetBase::builder().title("List").build())
+        .widget_base(WidgetBase::builder().title("List").build())
         .block_injection(|text: &Text, is_active: bool, is_mouse_over: bool| {
             let (index, size) = text.state();
 

@@ -31,7 +31,7 @@ impl MultipleNamespacesDialog {
 fn widget(tx: Sender<Message>) -> Widget<'static> {
     MultipleSelect::builder()
         .id(MULTIPLE_NAMESPACES_DIALOG_ID)
-        .widget_base(&WidgetBase::builder().title("Namespace").build())
+        .widget_base(WidgetBase::builder().title("Namespace").build())
         .on_select(on_select(tx))
         .build()
         .into()

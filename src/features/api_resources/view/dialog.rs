@@ -18,7 +18,7 @@ pub fn dialog_widget(tx: &Sender<Message>) -> Widget<'static> {
 
     MultipleSelect::builder()
         .id(LIST_DIALOG_ID)
-        .widget_base(&WidgetBase::builder().title("List").build())
+        .widget_base(WidgetBase::builder().title("List").build())
         .on_select(move |w: &mut Window, _: &LiteralItem| {
             let widget = w.find_widget_mut(LIST_DIALOG_ID).as_mut_multiple_select();
 

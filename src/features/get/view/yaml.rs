@@ -21,7 +21,7 @@ impl YamlDialog {
 fn widget(clipboard: &Option<Rc<RefCell<Clipboard>>>) -> Widget<'static> {
     let mut builder = Text::builder()
         .id(YAML_DIALOG_ID)
-        .widget_base(&WidgetBase::builder().title("Yaml").build())
+        .widget_base(WidgetBase::builder().title("Yaml").build())
         .block_injection(|text: &Text, is_active: bool, is_mouse_over: bool| {
             let (index, size) = text.state();
 

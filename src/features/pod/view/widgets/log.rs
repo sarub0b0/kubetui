@@ -16,7 +16,7 @@ use crate::{
 pub fn log_widget(clipboard: &Option<Rc<RefCell<Clipboard>>>) -> Widget<'static> {
     let builder = Text::builder()
         .id(POD_LOG_WIDGET_ID)
-        .widget_base(&WidgetBase::builder().title("Log").build())
+        .widget_base(WidgetBase::builder().title("Log").build())
         .wrap()
         .follow()
         .block_injection(block_injection())

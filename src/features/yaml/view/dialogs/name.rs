@@ -20,7 +20,7 @@ pub fn name_dialog(tx: &Sender<Message>) -> Widget<'static> {
 
     SingleSelect::builder()
         .id(YAML_NAME_DIALOG_ID)
-        .widget_base(&WidgetBase::builder().title("Name").build())
+        .widget_base(WidgetBase::builder().title("Name").build())
         .on_select(on_select(tx))
         .action(KeyCode::Esc, open_kind_dialog())
         .build()

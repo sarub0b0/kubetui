@@ -25,7 +25,7 @@ pub fn yaml_widget(
 
     let builder = Text::builder()
         .id(YAML_WIDGET_ID)
-        .widget_base(&WidgetBase::builder().title("Yaml").build())
+        .widget_base(WidgetBase::builder().title("Yaml").build())
         .block_injection(block_injection())
         .action('f', open_kind_dialog(tx))
         .wrap();

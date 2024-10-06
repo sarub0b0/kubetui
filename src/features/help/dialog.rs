@@ -331,7 +331,7 @@ impl HelpDialog {
         Self {
             widget: Text::builder()
                 .id(HELP_DIALOG_ID)
-                .widget_base(&WidgetBase::builder().title("Help").build())
+                .widget_base(WidgetBase::builder().title("Help").build())
                 .items(generate())
                 .build()
                 .into(),

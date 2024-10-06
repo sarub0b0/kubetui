@@ -12,7 +12,7 @@ use crate::{
 pub fn not_found_dialog() -> Widget<'static> {
     Text::builder()
         .id(YAML_NOT_FOUND_DIALOG_ID)
-        .widget_base(&WidgetBase::builder().title("Name").build())
+        .widget_base(WidgetBase::builder().title("Name").build())
         .items(
             [
                 "No resources found.",
