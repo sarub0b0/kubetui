@@ -3,6 +3,7 @@ mod border;
 mod header;
 mod style;
 mod tab;
+mod table;
 mod text;
 mod widget;
 
@@ -15,6 +16,7 @@ pub use self::tab::TabThemeConfig;
 pub use base::BaseThemeConfig;
 pub use border::BorderThemeConfig;
 pub use style::ThemeStyleConfig;
+pub use table::*;
 pub use text::*;
 pub use widget::WidgetThemeConfig;
 
