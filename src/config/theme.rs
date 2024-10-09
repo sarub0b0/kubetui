@@ -2,6 +2,7 @@ mod base;
 mod border;
 mod dialog;
 mod header;
+mod help;
 mod style;
 mod tab;
 mod table;
@@ -18,6 +19,7 @@ pub use self::tab::TabThemeConfig;
 pub use base::BaseThemeConfig;
 pub use border::BorderThemeConfig;
 pub use dialog::*;
+pub use help::HelpThemeConfig;
 pub use style::ThemeStyleConfig;
 pub use table::*;
 pub use text::*;
@@ -36,6 +38,9 @@ pub struct ThemeConfig {
 
     #[serde(default)]
     pub component: WidgetThemeConfig,
+
+    #[serde(default)]
+    pub help: HelpThemeConfig,
 }
 
 impl From<ThemeConfig> for TabTheme {

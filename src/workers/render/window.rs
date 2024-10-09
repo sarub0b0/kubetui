@@ -244,7 +244,7 @@ impl WindowInit {
 
         let HelpDialog {
             widget: help_dialog,
-        } = HelpDialog::new();
+        } = HelpDialog::new(self.theme.clone());
 
         let YamlDialog {
             widget: yaml_dialog,

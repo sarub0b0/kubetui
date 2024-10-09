@@ -1,4 +1,4 @@
-mod ansi_color;
+pub mod ansi_color;
 mod clear;
 mod line;
 mod styled_graphemes;

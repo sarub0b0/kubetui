@@ -103,11 +103,19 @@ theme:
           fg_color: yellow
     dialog:
       ## 未設定の場合、theme.base で設定した背景色を使う
-      base:
-        fg_color: "#000000"
-        bg_color: "#ffffff"
+      # base:
+      #   bg_color: "#000000"
       size:
         ## 0.0 ~ 100.0
-        width: 50
+        width: 85
         ## 0.0 ~ 100.0
-        height: 50
+        height: 85
+  ## Help dialog
+  help:
+    title:
+      fg_color: yellow
+    key:
+      fg_color: lightcyan
+    desc:
+      fg_color: gray
+
