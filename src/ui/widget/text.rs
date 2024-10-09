@@ -13,7 +13,6 @@ use ratatui::{
     widgets::{Block, Scrollbar, ScrollbarOrientation, ScrollbarState},
     Frame,
 };
-use search::SearchForm;
 
 use crate::{
     clipboard::Clipboard,
@@ -39,6 +38,7 @@ use self::{
 
 pub use item::{SearchHighlightFocusStyle, SearchHighlightMatchesStyle, SearchHighlightStyle};
 pub use render::SelectionStyle;
+pub use search::{SearchForm, SearchFormTheme};
 
 define_callback!(pub RenderBlockInjection, Fn(&Text, bool, bool) -> Block<'static> );
 
