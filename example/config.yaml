@@ -69,3 +69,18 @@ theme:
       selection:
         fg_color: green
         modifier: reversed
+    table:
+      ## フィルターフォーム
+      filter:
+        # base:
+        #   fg_color: magenta
+        # border:
+        #   type: "double"
+        #   active:
+        #     fg_color: green
+        #   inactive:
+        #     fg_color: blue
+        prefix:
+          fg_color: dark_gray
+        query:
+          fg_color: yellow

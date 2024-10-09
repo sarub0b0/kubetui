@@ -5,7 +5,6 @@ mod item;
 use std::rc::Rc;
 
 use derivative::*;
-use filter::FilterForm;
 use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind},
     layout::{Constraint, Rect},
@@ -31,6 +30,7 @@ use super::{
     base::WidgetBase, styled_graphemes, Item, RenderTrait, SelectedItem, TableItem, WidgetTrait,
 };
 
+pub use filter::{FilterForm, FilterFormTheme};
 use item::InnerItem;
 
 const COLUMN_SPACING: u16 = 3;
