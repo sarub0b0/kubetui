@@ -1,9 +1,11 @@
 use ratatui::style::{Color, Modifier};
 use serde::{Deserialize, Serialize};
 
-use crate::ui::widget::{SearchFormTheme, TextTheme, WidgetTheme};
+use crate::ui::widget::{FilterFormTheme, InputFormTheme, SearchFormTheme, TextTheme, WidgetTheme};
 
-use super::{BorderThemeConfig, TextThemeConfig, ThemeStyleConfig};
+use super::{
+    BorderThemeConfig, FilterFormThemeConfig, TableThemeConfig, TextThemeConfig, ThemeStyleConfig,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct TitleThemeConfig {
@@ -51,6 +53,9 @@ pub struct WidgetThemeConfig {
 
     #[serde(default)]
     pub text: TextThemeConfig,
+
+    #[serde(default)]
+    pub table: TableThemeConfig,
 }
 
 impl From<WidgetThemeConfig> for WidgetTheme {
@@ -85,10 +90,39 @@ impl From<WidgetThemeConfig> for TextTheme {
     }
 }
 
+impl From<WidgetThemeConfig> for FilterFormTheme {
+    fn from(theme: WidgetThemeConfig) -> Self {
+        let FilterFormThemeConfig {
+            base,
+            border,
+            prefix,
+            query,
+        } = theme.table.filter;
+
+        let border = border.unwrap_or(theme.border);
+        let base = base.unwrap_or(theme.base);
+
+        let input_form_theme = InputFormTheme::default()
+            .prefix_style(prefix)
+            .content_style(query);
+
+        let widget_theme = WidgetTheme::default()
+            .base_style(base)
+            .border_type(border.ty)
+            .border_active_style(border.active)
+            .border_inactive_style(border.inactive);
+
+        Self::default()
+            .widget_theme(widget_theme)
+            .input_form_theme(input_form_theme)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::config::theme::{
-        SearchFormThemeConfig, SearchHighlightThemeConfig, SearchThemeConfig, SelectionThemeConfig,
+        FilterFormThemeConfig, SearchFormThemeConfig, SearchHighlightThemeConfig,
+        SearchThemeConfig, SelectionThemeConfig,
     };
 
     use super::*;
@@ -109,6 +143,7 @@ mod tests {
             title: TitleThemeConfig::default(),
             border: BorderThemeConfig::default(),
             text: TextThemeConfig::default(),
+            table: TableThemeConfig::default(),
         };
 
         assert_eq!(actual, expected);
@@ -149,6 +184,34 @@ mod tests {
                 mouse_over: ThemeStyleConfig::default(),
             },
             text: TextThemeConfig::default(),
+            table: TableThemeConfig {
+                filter: FilterFormThemeConfig {
+                    base: Some(ThemeStyleConfig {
+                        fg_color: Some(Color::White),
+                        ..Default::default()
+                    }),
+                    border: Some(BorderThemeConfig {
+                        ty: BorderType::Plain,
+                        active: ThemeStyleConfig {
+                            fg_color: Some(Color::White),
+                            ..Default::default()
+                        },
+                        inactive: ThemeStyleConfig {
+                            fg_color: Some(Color::White),
+                            ..Default::default()
+                        },
+                        mouse_over: ThemeStyleConfig::default(),
+                    }),
+                    prefix: ThemeStyleConfig {
+                        fg_color: Some(Color::White),
+                        ..Default::default()
+                    },
+                    query: ThemeStyleConfig {
+                        fg_color: Some(Color::White),
+                        ..Default::default()
+                    },
+                },
+            },
         };
 
         let actual = serde_yaml::to_string(&theme).unwrap();
@@ -190,6 +253,21 @@ mod tests {
                     modifier: reversed
               selection:
                 modifier: reversed
+            table:
+              filter:
+                base:
+                  fg_color: white
+                border:
+                  type: plain
+                  active:
+                    fg_color: white
+                  inactive:
+                    fg_color: white
+                  mouse_over: {}
+                prefix:
+                  fg_color: white
+                query:
+                  fg_color: white
         "#};
 
         assert_eq!(actual, expected);
@@ -229,6 +307,21 @@ mod tests {
                     fg_color: blue
               selection:
                 bg_color: red
+            table:
+              filter:
+                base:
+                  fg_color: white
+                border:
+                  type: plain
+                  active:
+                    fg_color: white
+                  inactive:
+                    fg_color: white
+                  mouse_over: {}
+                prefix:
+                  fg_color: white
+                query:
+                  fg_color: white
         "#};
 
         let actual: WidgetThemeConfig = serde_yaml::from_str(data).unwrap();
@@ -290,6 +383,34 @@ mod tests {
                     bg_color: Some(Color::Red),
                     ..Default::default()
                 }),
+            },
+            table: TableThemeConfig {
+                filter: FilterFormThemeConfig {
+                    base: Some(ThemeStyleConfig {
+                        fg_color: Some(Color::White),
+                        ..Default::default()
+                    }),
+                    border: Some(BorderThemeConfig {
+                        ty: BorderType::Plain,
+                        active: ThemeStyleConfig {
+                            fg_color: Some(Color::White),
+                            ..Default::default()
+                        },
+                        inactive: ThemeStyleConfig {
+                            fg_color: Some(Color::White),
+                            ..Default::default()
+                        },
+                        mouse_over: ThemeStyleConfig::default(),
+                    }),
+                    prefix: ThemeStyleConfig {
+                        fg_color: Some(Color::White),
+                        ..Default::default()
+                    },
+                    query: ThemeStyleConfig {
+                        fg_color: Some(Color::White),
+                        ..Default::default()
+                    },
+                },
             },
         };
 

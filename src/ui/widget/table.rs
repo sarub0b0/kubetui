@@ -4,7 +4,6 @@ mod item;
 
 use std::rc::Rc;
 
-use filter::FilterForm;
 use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind},
     layout::{Constraint, Rect},
@@ -29,6 +28,8 @@ use crate::{
 use super::{
     base::WidgetBase, styled_graphemes, Item, RenderTrait, SelectedItem, TableItem, WidgetTrait,
 };
+
+pub use filter::{FilterForm, FilterFormTheme};
 
 use item::InnerItem;
 
