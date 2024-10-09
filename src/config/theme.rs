@@ -3,6 +3,7 @@ mod border;
 mod header;
 mod style;
 mod tab;
+mod text;
 mod widget;
 
 use serde::{Deserialize, Serialize};
@@ -14,6 +15,7 @@ pub use self::tab::TabThemeConfig;
 pub use base::BaseThemeConfig;
 pub use border::BorderThemeConfig;
 pub use style::ThemeStyleConfig;
+pub use text::*;
 pub use widget::WidgetThemeConfig;
 
 #[derive(Default, Debug, Clone, PartialEq, Deserialize, Serialize)]

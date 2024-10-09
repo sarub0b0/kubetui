@@ -40,3 +40,32 @@ theme:
         fg_color: blue
       mouse_over:
         fg_color: red
+    text:
+      search:
+        ## 検索フォーム
+        form:
+          # base:
+          #   fg_color: yellow
+          prefix:
+            fg_color: yellow
+          query:
+            fg_color: yellow
+          suffix:
+            fg_color: yellow
+
+        ## 検索にマッチした文字列のハイライト
+        highlight:
+
+          ## 検索にマッチした文字列の中でフォーカスしている文字列のハイライト
+          focus:
+            fg_color: yellow
+            modifier: reversed
+
+          ## 検索にマッチした文字列のハイライト
+          matches:
+            modifier: reversed
+
+      ## マウスで範囲選択したときのハイライト
+      selection:
+        fg_color: green
+        modifier: reversed

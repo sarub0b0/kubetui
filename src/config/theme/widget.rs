@@ -1,9 +1,9 @@
 use ratatui::style::{Color, Modifier};
 use serde::{Deserialize, Serialize};
 
-use crate::ui::widget::WidgetTheme;
+use crate::ui::widget::{SearchFormTheme, TextTheme, WidgetTheme};
 
-use super::{BorderThemeConfig, ThemeStyleConfig};
+use super::{BorderThemeConfig, TextThemeConfig, ThemeStyleConfig};
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct TitleThemeConfig {
@@ -48,6 +48,9 @@ pub struct WidgetThemeConfig {
 
     #[serde(default)]
     pub border: BorderThemeConfig,
+
+    #[serde(default)]
+    pub text: TextThemeConfig,
 }
 
 impl From<WidgetThemeConfig> for WidgetTheme {
@@ -63,8 +66,31 @@ impl From<WidgetThemeConfig> for WidgetTheme {
     }
 }
 
+impl From<WidgetThemeConfig> for SearchFormTheme {
+    fn from(theme: WidgetThemeConfig) -> Self {
+        let base_style = theme.text.search.form.base.unwrap_or(theme.base);
+
+        Self::default()
+            .base_style(base_style)
+            .input_form_theme(theme.text.search.form)
+    }
+}
+
+impl From<WidgetThemeConfig> for TextTheme {
+    fn from(theme: WidgetThemeConfig) -> Self {
+        Self {
+            search: theme.text.search.highlight.into(),
+            selecton: theme.text.selection.into(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::config::theme::{
+        SearchFormThemeConfig, SearchHighlightThemeConfig, SearchThemeConfig, SelectionThemeConfig,
+    };
+
     use super::*;
 
     use indoc::indoc;
@@ -82,6 +108,7 @@ mod tests {
             base: ThemeStyleConfig::default(),
             title: TitleThemeConfig::default(),
             border: BorderThemeConfig::default(),
+            text: TextThemeConfig::default(),
         };
 
         assert_eq!(actual, expected);
@@ -121,6 +148,7 @@ mod tests {
                 },
                 mouse_over: ThemeStyleConfig::default(),
             },
+            text: TextThemeConfig::default(),
         };
 
         let actual = serde_yaml::to_string(&theme).unwrap();
@@ -148,6 +176,20 @@ mod tests {
               inactive:
                 fg_color: darkgray
               mouse_over: {}
+            text:
+              search:
+                form:
+                  prefix: {}
+                  query: {}
+                  suffix: {}
+                highlight:
+                  focus:
+                    fg_color: yellow
+                    modifier: reversed
+                  matches:
+                    modifier: reversed
+              selection:
+                modifier: reversed
         "#};
 
         assert_eq!(actual, expected);
@@ -175,6 +217,18 @@ mod tests {
                 bg_color: yellow
                 modifier: italic
               inactive: {}
+            text:
+              search:
+                form:
+                  base:
+                    fg_color: yellow
+                highlight:
+                  focus:
+                    fg_color: yellow
+                  matches:
+                    fg_color: blue
+              selection:
+                bg_color: red
         "#};
 
         let actual: WidgetThemeConfig = serde_yaml::from_str(data).unwrap();
@@ -211,6 +265,31 @@ mod tests {
                     bg_color: None,
                     modifier: Modifier::default(),
                 },
+            },
+            text: TextThemeConfig {
+                search: SearchThemeConfig {
+                    form: SearchFormThemeConfig {
+                        base: Some(ThemeStyleConfig {
+                            fg_color: Some(Color::Yellow),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    },
+                    highlight: SearchHighlightThemeConfig {
+                        focus: ThemeStyleConfig {
+                            fg_color: Some(Color::Yellow),
+                            ..Default::default()
+                        },
+                        matches: ThemeStyleConfig {
+                            fg_color: Some(Color::Blue),
+                            ..Default::default()
+                        },
+                    },
+                },
+                selection: SelectionThemeConfig(ThemeStyleConfig {
+                    bg_color: Some(Color::Red),
+                    ..Default::default()
+                }),
             },
         };
 
