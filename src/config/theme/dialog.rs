@@ -6,7 +6,7 @@ use super::ThemeStyleConfig;
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
 pub struct DialogThemeConfig {
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub base: Option<ThemeStyleConfig>,
 
     #[serde(default)]
