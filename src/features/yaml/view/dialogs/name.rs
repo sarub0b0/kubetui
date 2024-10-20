@@ -10,7 +10,7 @@ use crate::{
     message::Message,
     ui::{
         event::EventResult,
-        widget::{LiteralItem, SingleSelect, Widget, WidgetBase},
+        widget::{single_select::SelectForm, LiteralItem, SingleSelect, Widget, WidgetBase},
         Window,
     },
 };
@@ -18,10 +18,12 @@ use crate::{
 pub fn name_dialog(tx: &Sender<Message>) -> Widget<'static> {
     let tx = tx.clone();
 
+    let select_form = SelectForm::builder().on_select(on_select(tx)).build();
+
     SingleSelect::builder()
         .id(YAML_NAME_DIALOG_ID)
         .widget_base(WidgetBase::builder().title("Name").build())
-        .on_select(on_select(tx))
+        .select_form(select_form)
         .action(KeyCode::Esc, open_kind_dialog())
         .build()
         .into()
