@@ -1,6 +1,7 @@
 mod filter;
+mod select;
 
-use std::{collections::BTreeSet, rc::Rc};
+use std::rc::Rc;
 
 use ratatui::{
     crossterm::event::{KeyEvent, MouseEvent},
@@ -11,118 +12,18 @@ use ratatui::{
 
 use derivative::*;
 
-use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
-
 use crate::{
     define_callback,
     message::UserEvent,
     ui::{
         event::{Callback, EventResult},
         util::RectContainsPoint,
-        widget::{
-            list::{
-                OnSelectCallback as OnSelectCallbackForList,
-                RenderBlockInjection as RenderBlockInjectionForList,
-            },
-            styled_graphemes::StyledGraphemes,
-            Item, List, LiteralItem, RenderTrait, SelectedItem, WidgetBase, WidgetTrait,
-        },
+        widget::{Item, RenderTrait, SelectedItem, WidgetBase, WidgetTrait},
     },
 };
 
-use self::filter::FilterForm;
-
-#[derive(Derivative)]
-#[derivative(Debug, Default)]
-struct SelectForm<'a> {
-    list_items: BTreeSet<LiteralItem>,
-    list_widget: List<'a>,
-    filter: String,
-    chunk: Rect,
-    #[derivative(Debug = "ignore")]
-    matcher: SkimMatcherV2,
-}
-
-impl<'a> SelectForm<'a> {
-    fn render(&mut self, f: &mut Frame) {
-        self.list_widget.render(f, true, false);
-    }
-
-    fn filter_items(&self, items: &BTreeSet<LiteralItem>) -> Vec<LiteralItem> {
-        struct MatchedItem {
-            score: i64,
-            item: LiteralItem,
-        }
-
-        let mut ret: Vec<MatchedItem> = items
-            .iter()
-            .filter_map(|item| {
-                self.matcher
-                    .fuzzy_match(&item.item.styled_graphemes_symbols().concat(), &self.filter)
-                    .map(|score| MatchedItem {
-                        score,
-                        item: item.clone(),
-                    })
-            })
-            .collect();
-
-        ret.sort_by(|a, b| b.score.cmp(&a.score));
-
-        ret.into_iter().map(|i| i.item).collect()
-    }
-
-    fn update_chunk(&mut self, chunk: Rect) {
-        self.chunk = chunk;
-        self.list_widget.update_chunk(chunk);
-    }
-
-    fn update_widget_item(&mut self, items: Item) {
-        self.list_items = items.clone().array().into_iter().collect();
-
-        self.list_widget.update_widget_item(items);
-
-        let filter = self.filter.clone();
-        self.update_filter(&filter);
-    }
-
-    fn widget_item(&self) -> Option<SelectedItem> {
-        self.list_widget.widget_item()
-    }
-
-    fn update_filter(&mut self, filter: impl Into<String>) {
-        self.filter = filter.into();
-        self.list_widget
-            .update_widget_item(Item::Array(self.filter_items(&self.list_items)));
-
-        let current_pos = self.list_widget.state().selected();
-
-        if let Some(pos) = current_pos {
-            if self.list_widget.items().len() <= pos {
-                self.list_widget.select_last()
-            }
-        }
-    }
-
-    fn status(&self) -> (usize, usize) {
-        let mut pos = self.list_widget.state().selected().unwrap_or(0);
-
-        let size = self.list_widget.items().len();
-
-        if 0 < size {
-            pos += 1;
-        }
-
-        (pos, size)
-    }
-
-    fn on_mouse_event(&mut self, ev: MouseEvent) -> EventResult {
-        self.list_widget.on_mouse_event(ev)
-    }
-
-    fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
-        self.list_widget.on_key_event(ev)
-    }
-}
+pub use self::filter::FilterForm;
+pub use self::select::SelectForm;
 
 const LAYOUT_INDEX_FOR_INPUT_FORM: usize = 0;
 const LAYOUT_INDEX_FOR_STATUS: usize = 1;
@@ -253,19 +154,19 @@ impl WidgetTrait for SingleSelect<'_> {
     }
 
     fn select_next(&mut self, i: usize) {
-        self.select_form.list_widget.select_next(i)
+        self.select_form.select_next(i)
     }
 
     fn select_prev(&mut self, i: usize) {
-        self.select_form.list_widget.select_prev(i)
+        self.select_form.select_prev(i)
     }
 
     fn select_first(&mut self) {
-        self.select_form.list_widget.select_first()
+        self.select_form.select_first()
     }
 
     fn select_last(&mut self) {
-        self.select_form.list_widget.select_last()
+        self.select_form.select_last()
     }
 
     fn append_widget_item(&mut self, _: Item) {}
@@ -358,14 +259,12 @@ impl RenderTrait for SingleSelect<'_> {
 pub struct SingleSelectBuilder {
     id: String,
     widget_base: WidgetBase,
+    select_form: SelectForm<'static>,
+    filter_form: FilterForm,
     #[derivative(Debug = "ignore")]
     actions: Vec<(UserEvent, Callback)>,
     #[derivative(Debug = "ignore")]
-    on_select: Option<OnSelectCallbackForList>,
-    #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
-    #[derivative(Debug = "ignore")]
-    block_injection_for_list: Option<RenderBlockInjectionForList>,
 }
 
 #[allow(dead_code)]
@@ -380,6 +279,16 @@ impl SingleSelectBuilder {
         self
     }
 
+    pub fn select_form(mut self, select_form: SelectForm<'static>) -> Self {
+        self.select_form = select_form;
+        self
+    }
+
+    pub fn filter_form(mut self, filter_form: FilterForm) -> Self {
+        self.filter_form = filter_form;
+        self
+    }
+
     pub fn action<F, E>(mut self, ev: E, cb: F) -> Self
     where
         E: Into<UserEvent>,
@@ -389,27 +298,11 @@ impl SingleSelectBuilder {
         self
     }
 
-    pub fn on_select<F>(mut self, f: F) -> Self
-    where
-        F: Into<OnSelectCallbackForList>,
-    {
-        self.on_select = Some(f.into());
-        self
-    }
-
     pub fn block_injection<F>(mut self, block_injection: F) -> Self
     where
         F: Into<RenderBlockInjection>,
     {
         self.block_injection = Some(block_injection.into());
-        self
-    }
-
-    pub fn block_injection_for_list<F>(mut self, block_injection: F) -> Self
-    where
-        F: Into<RenderBlockInjectionForList>,
-    {
-        self.block_injection_for_list = Some(block_injection.into());
         self
     }
 
@@ -422,59 +315,15 @@ impl SingleSelectBuilder {
                 Constraint::Min(3),
             ]);
 
-        let mut list_widget_builder = if let Some(on_select) = self.on_select {
-            List::builder().on_select(on_select)
-        } else {
-            List::builder()
-        }
-        .widget_base(WidgetBase::builder().title("Items").build());
-
-        if let Some(block_injection) = self.block_injection_for_list {
-            list_widget_builder = list_widget_builder.block_injection(block_injection);
-        }
-
-        let select_widget = SelectForm {
-            list_widget: list_widget_builder.build(),
-            ..Default::default()
-        };
-
         SingleSelect {
             id: self.id,
             widget_base: self.widget_base,
             layout,
-            select_form: select_widget,
+            select_form: self.select_form,
             callbacks: self.actions,
             block_injection: self.block_injection,
-            filter_form: FilterForm::default(),
+            filter_form: self.filter_form,
             ..Default::default()
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use pretty_assertions::assert_eq;
-
-    #[test]
-    fn filter() {
-        let mut select_form = SelectForm::default();
-
-        select_form.update_widget_item(Item::Array(vec![
-            "\x1b[90mabb\x1b[39m".to_string().into(),
-            "abc".to_string().into(),
-            "hoge".to_string().into(),
-        ]));
-
-        select_form.update_filter("ab");
-
-        let res = select_form.list_widget.items().clone();
-
-        let expected: Vec<LiteralItem> = vec![
-            "\x1b[90mabb\x1b[39m".to_string().into(),
-            "abc".to_string().into(),
-        ];
-
-        assert_eq!(res, expected)
     }
 }

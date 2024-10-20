@@ -6,7 +6,7 @@ use crate::{
     message::Message,
     ui::{
         event::EventResult,
-        widget::{LiteralItem, SingleSelect, Widget, WidgetBase},
+        widget::{LiteralItem, single_select::SelectForm, SingleSelect, Widget, WidgetBase},
         Window,
     },
 };
@@ -14,10 +14,12 @@ use crate::{
 pub fn kind_dialog(tx: &Sender<Message>) -> Widget<'static> {
     let tx = tx.clone();
 
+    let select_form = SelectForm::builder().on_select(on_select(tx)).build();
+
     SingleSelect::builder()
         .id(YAML_KIND_DIALOG_ID)
         .widget_base(WidgetBase::builder().title("Kind").build())
-        .on_select(on_select(tx))
+        .select_form(select_form)
         .build()
         .into()
 }

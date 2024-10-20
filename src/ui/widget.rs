@@ -7,7 +7,7 @@ mod base;
 mod input;
 mod list;
 mod multiple_select;
-mod single_select;
+pub mod single_select;
 mod table;
 mod text;
 
@@ -15,7 +15,7 @@ pub use base::*;
 pub use input::*;
 pub use list::*;
 pub use multiple_select::*;
-pub use single_select::*;
+pub use single_select::SingleSelect;
 pub use table::*;
 pub use text::*;
 

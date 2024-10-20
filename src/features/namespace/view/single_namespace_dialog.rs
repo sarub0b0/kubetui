@@ -13,7 +13,7 @@ use crate::{
     message::Message,
     ui::{
         event::EventResult,
-        widget::{LiteralItem, SingleSelect, Widget, WidgetBase},
+        widget::{single_select::SelectForm, LiteralItem, SingleSelect, Widget, WidgetBase},
         Window,
     },
 };
@@ -31,10 +31,14 @@ impl SingleNamespaceDialog {
 }
 
 fn widget(tx: Sender<Message>) -> Widget<'static> {
+    let select_form = SelectForm::builder()
+        .on_select(on_select(tx.clone()))
+        .build();
+
     SingleSelect::builder()
         .id(SINGLE_NAMESPACE_DIALOG_ID)
         .widget_base(WidgetBase::builder().title("Namespace").build())
-        .on_select(on_select(tx))
+        .select_form(select_form)
         .build()
         .into()
 }
