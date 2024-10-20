@@ -32,6 +32,80 @@ const LAYOUT_INDEX_FOR_SELECT_FORM: usize = 2;
 define_callback!(pub RenderBlockInjection, Fn(&SingleSelect, bool) -> Block<'static>);
 
 #[derive(Derivative)]
+#[derivative(Debug, Default)]
+pub struct SingleSelectBuilder {
+    id: String,
+    widget_base: WidgetBase,
+    select_form: SelectForm<'static>,
+    filter_form: FilterForm,
+    #[derivative(Debug = "ignore")]
+    actions: Vec<(UserEvent, Callback)>,
+    #[derivative(Debug = "ignore")]
+    block_injection: Option<RenderBlockInjection>,
+}
+
+#[allow(dead_code)]
+impl SingleSelectBuilder {
+    pub fn id(mut self, id: impl Into<String>) -> Self {
+        self.id = id.into();
+        self
+    }
+
+    pub fn widget_base(mut self, widget_base: WidgetBase) -> Self {
+        self.widget_base = widget_base;
+        self
+    }
+
+    pub fn select_form(mut self, select_form: SelectForm<'static>) -> Self {
+        self.select_form = select_form;
+        self
+    }
+
+    pub fn filter_form(mut self, filter_form: FilterForm) -> Self {
+        self.filter_form = filter_form;
+        self
+    }
+
+    pub fn action<F, E>(mut self, ev: E, cb: F) -> Self
+    where
+        E: Into<UserEvent>,
+        F: Into<Callback>,
+    {
+        self.actions.push((ev.into(), cb.into()));
+        self
+    }
+
+    pub fn block_injection<F>(mut self, block_injection: F) -> Self
+    where
+        F: Into<RenderBlockInjection>,
+    {
+        self.block_injection = Some(block_injection.into());
+        self
+    }
+
+    pub fn build(self) -> SingleSelect<'static> {
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3),
+                Constraint::Length(1),
+                Constraint::Min(3),
+            ]);
+
+        SingleSelect {
+            id: self.id,
+            widget_base: self.widget_base,
+            layout,
+            select_form: self.select_form,
+            callbacks: self.actions,
+            block_injection: self.block_injection,
+            filter_form: self.filter_form,
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Derivative)]
 #[derivative(Debug)]
 pub struct SingleSelect<'a> {
     id: String,
@@ -251,79 +325,5 @@ impl RenderTrait for SingleSelect<'_> {
         self.filter_form.render(f, true, false);
         self.render_status(f);
         self.select_form.render(f);
-    }
-}
-
-#[derive(Derivative)]
-#[derivative(Debug, Default)]
-pub struct SingleSelectBuilder {
-    id: String,
-    widget_base: WidgetBase,
-    select_form: SelectForm<'static>,
-    filter_form: FilterForm,
-    #[derivative(Debug = "ignore")]
-    actions: Vec<(UserEvent, Callback)>,
-    #[derivative(Debug = "ignore")]
-    block_injection: Option<RenderBlockInjection>,
-}
-
-#[allow(dead_code)]
-impl SingleSelectBuilder {
-    pub fn id(mut self, id: impl Into<String>) -> Self {
-        self.id = id.into();
-        self
-    }
-
-    pub fn widget_base(mut self, widget_base: WidgetBase) -> Self {
-        self.widget_base = widget_base;
-        self
-    }
-
-    pub fn select_form(mut self, select_form: SelectForm<'static>) -> Self {
-        self.select_form = select_form;
-        self
-    }
-
-    pub fn filter_form(mut self, filter_form: FilterForm) -> Self {
-        self.filter_form = filter_form;
-        self
-    }
-
-    pub fn action<F, E>(mut self, ev: E, cb: F) -> Self
-    where
-        E: Into<UserEvent>,
-        F: Into<Callback>,
-    {
-        self.actions.push((ev.into(), cb.into()));
-        self
-    }
-
-    pub fn block_injection<F>(mut self, block_injection: F) -> Self
-    where
-        F: Into<RenderBlockInjection>,
-    {
-        self.block_injection = Some(block_injection.into());
-        self
-    }
-
-    pub fn build(self) -> SingleSelect<'static> {
-        let layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3),
-                Constraint::Length(1),
-                Constraint::Min(3),
-            ]);
-
-        SingleSelect {
-            id: self.id,
-            widget_base: self.widget_base,
-            layout,
-            select_form: self.select_form,
-            callbacks: self.actions,
-            block_injection: self.block_injection,
-            filter_form: self.filter_form,
-            ..Default::default()
-        }
     }
 }
