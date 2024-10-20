@@ -4,6 +4,7 @@ use crossbeam::channel::Sender;
 use ratatui::crossterm::event::KeyCode;
 
 use crate::{
+    config::theme::WidgetThemeConfig,
     features::{
         component_id::{POD_LOG_QUERY_HELP_DIALOG_ID, POD_LOG_QUERY_WIDGET_ID, POD_LOG_WIDGET_ID},
         pod::{
@@ -23,12 +24,18 @@ use crate::{
 pub fn log_query_widget(
     tx: &Sender<Message>,
     namespaces: Rc<RefCell<Namespace>>,
+    theme: WidgetThemeConfig,
 ) -> Widget<'static> {
     let tx = tx.clone();
 
+    let widget_base = WidgetBase::builder()
+        .title("Log Query")
+        .theme(theme.into())
+        .build();
+
     InputFormBuilder::default()
         .id(POD_LOG_QUERY_WIDGET_ID)
-        .widget_base(WidgetBase::builder().title("Log Query").build())
+        .widget_base(widget_base)
         .actions(UserEvent::from(KeyCode::Enter), exec_query(tx, namespaces))
         .build()
         .into()

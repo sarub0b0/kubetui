@@ -16,6 +16,7 @@ use crossbeam::channel::{Receiver, Sender};
 use ratatui::{backend::CrosstermBackend, layout::Direction, Terminal, TerminalOptions, Viewport};
 
 use crate::{
+    config::theme::ThemeConfig,
     kube::context::{Context, Namespace},
     logger,
     message::Message,
@@ -33,6 +34,7 @@ pub struct Render {
     rx: Receiver<Message>,
     is_terminated: Arc<AtomicBool>,
     direction: Direction,
+    theme: ThemeConfig,
 }
 
 impl Render {
@@ -41,12 +43,14 @@ impl Render {
         rx: Receiver<Message>,
         is_terminated: Arc<AtomicBool>,
         direction: Direction,
+        theme: ThemeConfig,
     ) -> Self {
         Self {
             direction,
             tx,
             rx,
             is_terminated,
+            theme,
         }
     }
 
@@ -79,6 +83,7 @@ impl Render {
             self.tx.clone(),
             context.clone(),
             namespace.clone(),
+            self.theme.clone(),
         )
         .build();
 

@@ -5,6 +5,7 @@ use ratatui::layout::{Constraint, Direction};
 
 use crate::{
     clipboard::Clipboard,
+    config::theme::WidgetThemeConfig,
     features::component_id::CONFIG_TAB_ID,
     message::Message,
     ui::{
@@ -25,9 +26,10 @@ impl ConfigTab {
         tx: &Sender<Message>,
         clipboard: &Option<Rc<RefCell<Clipboard>>>,
         split_direction: Direction,
+        theme: WidgetThemeConfig,
     ) -> Self {
-        let config_widget = config_widget(tx);
-        let raw_data_widget = raw_data_widget(clipboard);
+        let config_widget = config_widget(tx, theme.clone());
+        let raw_data_widget = raw_data_widget(clipboard, theme);
 
         let layout = TabLayout::new(layout, split_direction);
 
