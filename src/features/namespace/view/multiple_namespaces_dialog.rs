@@ -12,7 +12,7 @@ use crate::{
     message::Message,
     ui::{
         event::EventResult,
-        widget::{LiteralItem, MultipleSelect, Widget, WidgetBase},
+        widget::{multiple_select::SelectForm, LiteralItem, MultipleSelect, Widget, WidgetBase},
         Window,
     },
 };
@@ -28,11 +28,17 @@ impl MultipleNamespacesDialog {
         }
     }
 }
+
 fn widget(tx: Sender<Message>) -> Widget<'static> {
+    let select_form = SelectForm::builder()
+        .on_select_selected(on_select(tx.clone()))
+        .on_select_unselected(on_select(tx))
+        .build();
+
     MultipleSelect::builder()
         .id(MULTIPLE_NAMESPACES_DIALOG_ID)
         .widget_base(WidgetBase::builder().title("Namespace").build())
-        .on_select(on_select(tx))
+        .select_form(select_form)
         .build()
         .into()
 }
