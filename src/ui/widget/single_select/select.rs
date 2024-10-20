@@ -77,7 +77,7 @@ impl Default for SelectFormBuilder {
 }
 
 #[derive(Derivative)]
-#[derivative(Debug, Default)]
+#[derivative(Debug)]
 pub struct SelectForm<'a> {
     list_items: BTreeSet<LiteralItem>,
     list_widget: List<'a>,
@@ -85,6 +85,12 @@ pub struct SelectForm<'a> {
     chunk: Rect,
     #[derivative(Debug = "ignore")]
     matcher: SkimMatcherV2,
+}
+
+impl Default for SelectForm<'_> {
+    fn default() -> Self {
+        SelectFormBuilder::default().build()
+    }
 }
 
 impl<'a> SelectForm<'a> {
