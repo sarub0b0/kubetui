@@ -60,8 +60,11 @@ impl SelectFormBuilder {
         list_widget = list_widget.widget_base(self.widget_base);
 
         SelectForm {
+            list_items: BTreeSet::new(),
             list_widget: list_widget.build(),
-            ..Default::default()
+            filter: "".to_string(),
+            chunk: Rect::default(),
+            matcher: SkimMatcherV2::default(),
         }
     }
 }
@@ -77,7 +80,7 @@ impl Default for SelectFormBuilder {
 }
 
 #[derive(Derivative)]
-#[derivative(Debug, Default)]
+#[derivative(Debug)]
 pub struct SelectForm<'a> {
     list_items: BTreeSet<LiteralItem>,
     list_widget: List<'a>,
@@ -85,6 +88,12 @@ pub struct SelectForm<'a> {
     chunk: Rect,
     #[derivative(Debug = "ignore")]
     matcher: SkimMatcherV2,
+}
+
+impl Default for SelectForm<'_> {
+    fn default() -> Self {
+        SelectFormBuilder::default().build()
+    }
 }
 
 impl<'a> SelectForm<'a> {
