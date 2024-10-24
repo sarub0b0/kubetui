@@ -60,8 +60,11 @@ impl SelectFormBuilder {
         list_widget = list_widget.widget_base(self.widget_base);
 
         SelectForm {
+            list_items: BTreeSet::new(),
             list_widget: list_widget.build(),
-            ..Default::default()
+            filter: "".to_string(),
+            chunk: Rect::default(),
+            matcher: SkimMatcherV2::default(),
         }
     }
 }
