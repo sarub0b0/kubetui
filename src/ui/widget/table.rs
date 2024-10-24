@@ -45,7 +45,6 @@ pub struct TableBuilder {
     id: String,
     widget_base: WidgetBase,
     filter_form: FilterForm,
-    show_status: bool,
     header: Vec<String>,
     items: Vec<TableItem>,
     state: TableState,
@@ -124,11 +123,6 @@ impl TableBuilder {
         self
     }
 
-    pub fn show_status(mut self) -> Self {
-        self.show_status = true;
-        self
-    }
-
     pub fn build(self) -> Table<'static> {
         let mut table = Table {
             id: self.id,
@@ -136,7 +130,6 @@ impl TableBuilder {
             on_select: self.on_select,
             actions: self.actions,
             state: self.state,
-            show_status: self.show_status,
             block_injection: self.block_injection,
             highlight_injection: self.highlight_injection,
             filtered_key: self.filtered_key.clone(),
@@ -203,8 +196,6 @@ impl Mode {
 pub struct Table<'a> {
     id: String,
     widget_base: WidgetBase,
-    show_status: bool,
-    chunk_index: usize,
     items: InnerItem<'a>,
     state: TableState,
     chunk: Rect,

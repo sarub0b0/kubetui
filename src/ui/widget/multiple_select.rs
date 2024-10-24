@@ -95,7 +95,6 @@ const LAYOUT_INDEX_FOR_SELECT_FORM: usize = 2;
 pub struct MultipleSelect<'a> {
     id: String,
     widget_base: WidgetBase,
-    chunk_index: usize,
     filter_form: FilterForm,
     select_form: SelectForm<'a>,
     layout: Layout,
@@ -109,7 +108,6 @@ impl Default for MultipleSelect<'_> {
         Self {
             id: Default::default(),
             widget_base: Default::default(),
-            chunk_index: Default::default(),
             filter_form: Default::default(),
             select_form: Default::default(),
             layout: Default::default(),

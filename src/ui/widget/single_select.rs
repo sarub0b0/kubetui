@@ -104,7 +104,6 @@ impl SingleSelectBuilder {
 pub struct SingleSelect<'a> {
     id: String,
     widget_base: WidgetBase,
-    chunk_index: usize,
     filter_form: FilterForm,
     select_form: SelectForm<'a>,
     layout: Layout,
@@ -119,7 +118,6 @@ impl Default for SingleSelect<'_> {
         Self {
             id: Default::default(),
             widget_base: Default::default(),
-            chunk_index: Default::default(),
             filter_form: Default::default(),
             select_form: Default::default(),
             layout: Default::default(),
