@@ -1,5 +1,3 @@
-use derivative::*;
-
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 
 use ratatui::{
@@ -136,8 +134,6 @@ impl SelectFormBuilder {
     }
 }
 
-#[derive(Derivative)]
-#[derivative(Debug)]
 pub struct SelectForm<'a> {
     items: SelectItems,
     filter: String,
@@ -147,8 +143,23 @@ pub struct SelectForm<'a> {
     active_form_index: usize,
     mouse_over_widget_index: Option<usize>,
     direction: Direction,
-    #[derivative(Debug = "ignore")]
     matcher: SkimMatcherV2,
+}
+
+impl std::fmt::Debug for SelectForm<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SelectForm")
+            .field("items", &self.items)
+            .field("filter", &self.filter)
+            .field("selected_widget", &self.selected_widget)
+            .field("unselected_widget", &self.unselected_widget)
+            .field("chunk", &self.chunk)
+            .field("active_form_index", &self.active_form_index)
+            .field("mouse_over_widget_index", &self.mouse_over_widget_index)
+            .field("direction", &self.direction)
+            .field("matcher", &"SkimMatcherV2")
+            .finish()
+    }
 }
 
 impl Default for SelectForm<'_> {

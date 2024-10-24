@@ -1,5 +1,4 @@
 use anyhow::Result;
-use derivative::Derivative;
 use futures::StreamExt as _;
 use k8s_openapi::{api::core::v1::Service, Resource};
 use kube::{Api, Client, ResourceExt};
@@ -13,8 +12,7 @@ use crate::{
 
 pub type RelatedServices = Vec<RelatedService>;
 
-#[derive(Derivative, Debug, Clone, Serialize, Deserialize)]
-#[derivative(PartialEq, Eq, Ord)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RelatedService {
     /// Service Name
     pub name: String,
@@ -22,9 +20,24 @@ pub struct RelatedService {
     /// Service Namespace
     pub namespace: String,
 
-    #[derivative(PartialEq = "ignore", PartialOrd = "ignore", Ord = "ignore")]
     #[serde(skip)]
     pub resource: Service,
+}
+
+impl Eq for RelatedService {}
+
+impl Ord for RelatedService {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.name
+            .cmp(&other.name)
+            .then_with(|| self.namespace.cmp(&other.namespace))
+    }
+}
+
+impl PartialEq for RelatedService {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.namespace == other.namespace
+    }
 }
 
 impl PartialOrd for RelatedService {

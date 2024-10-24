@@ -1,4 +1,3 @@
-use derivative::*;
 use ratatui::{
     style::{Color, Style},
     widgets::{Cell, Row},
@@ -68,8 +67,7 @@ pub struct InnerRow<'a> {
     pub height: usize,
 }
 
-#[derive(Derivative)]
-#[derivative(Debug, Default)]
+#[derive(Debug, Default)]
 pub struct InnerItem<'a> {
     header: Header<'a>,
     original_items: Vec<TableItem>,

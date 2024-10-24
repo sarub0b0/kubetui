@@ -10,8 +10,6 @@ use ratatui::{
     Frame,
 };
 
-use derivative::*;
-
 use crate::{
     define_callback,
     message::UserEvent,
@@ -31,16 +29,13 @@ const LAYOUT_INDEX_FOR_SELECT_FORM: usize = 2;
 
 define_callback!(pub RenderBlockInjection, Fn(&SingleSelect, bool) -> Block<'static>);
 
-#[derive(Derivative)]
-#[derivative(Debug, Default)]
+#[derive(Debug, Default)]
 pub struct SingleSelectBuilder {
     id: String,
     widget_base: WidgetBase,
     select_form: SelectForm<'static>,
     filter_form: FilterForm,
-    #[derivative(Debug = "ignore")]
     actions: Vec<(UserEvent, Callback)>,
-    #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
 }
 
@@ -105,8 +100,7 @@ impl SingleSelectBuilder {
     }
 }
 
-#[derive(Derivative)]
-#[derivative(Debug)]
+#[derive(Debug)]
 pub struct SingleSelect<'a> {
     id: String,
     widget_base: WidgetBase,
@@ -116,9 +110,7 @@ pub struct SingleSelect<'a> {
     layout: Layout,
     chunk: Rect,
     inner_chunks: Rc<[Rect]>,
-    #[derivative(Debug = "ignore")]
     callbacks: Vec<(UserEvent, Callback)>,
-    #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
 }
 

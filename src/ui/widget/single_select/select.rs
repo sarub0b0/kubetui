@@ -6,8 +6,6 @@ use ratatui::{
     Frame,
 };
 
-use derivative::*;
-
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 
 use crate::ui::{
@@ -19,13 +17,10 @@ use crate::ui::{
     },
 };
 
-#[derive(Derivative)]
-#[derivative(Debug)]
+#[derive(Debug)]
 pub struct SelectFormBuilder {
     widget_base: WidgetBase,
-    #[derivative(Debug = "ignore")]
     on_select: Option<OnSelectCallback>,
-    #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
 }
 
@@ -79,15 +74,24 @@ impl Default for SelectFormBuilder {
     }
 }
 
-#[derive(Derivative)]
-#[derivative(Debug)]
 pub struct SelectForm<'a> {
     list_items: BTreeSet<LiteralItem>,
     list_widget: List<'a>,
     filter: String,
     chunk: Rect,
-    #[derivative(Debug = "ignore")]
     matcher: SkimMatcherV2,
+}
+
+impl std::fmt::Debug for SelectForm<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SelectForm")
+            .field("list_items", &self.list_items)
+            .field("list_widget", &self.list_widget)
+            .field("filter", &self.filter)
+            .field("chunk", &self.chunk)
+            .field("matcher", &"SkimMatcherV2")
+            .finish()
+    }
 }
 
 impl Default for SelectForm<'_> {
