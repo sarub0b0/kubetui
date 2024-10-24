@@ -1,6 +1,5 @@
 use std::time::{Duration, Instant};
 
-use derivative::Derivative;
 use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent},
     layout::{Constraint, Direction, Layout, Rect},
@@ -198,14 +197,12 @@ impl Content {
     }
 }
 
-#[derive(Derivative)]
-#[derivative(Debug, Default)]
+#[derive(Debug, Default)]
 pub struct InputFormBuilder {
     id: String,
     widget_base: WidgetBase,
     prefix: Line<'static>,
     suffix: Line<'static>,
-    #[derivative(Debug = "ignore")]
     actions: Vec<(UserEvent, Callback)>,
 }
 
@@ -254,8 +251,7 @@ impl InputFormBuilder {
 
 /// 検索・フィルタリング用の入力フォーム
 /// 複数行は扱わない
-#[derive(Derivative)]
-#[derivative(Debug, Default)]
+#[derive(Debug, Default)]
 pub struct InputForm {
     id: String,
     content: Content,
@@ -267,7 +263,6 @@ pub struct InputForm {
     suffix: Line<'static>,
     widget_base: WidgetBase,
     scroll: usize,
-    #[derivative(Debug = "ignore")]
     actions: Vec<(UserEvent, Callback)>,
 }
 

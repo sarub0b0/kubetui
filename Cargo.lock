@@ -1255,7 +1255,6 @@ dependencies = [
  "clap",
  "crossbeam",
  "ctrlc",
- "derivative",
  "enum_dispatch",
  "flate2",
  "futures",

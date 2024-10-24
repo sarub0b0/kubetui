@@ -5,8 +5,6 @@ mod wrap;
 
 use std::{cell::RefCell, rc::Rc};
 
-use derivative::Derivative;
-
 use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind},
     layout::Rect,
@@ -156,8 +154,7 @@ impl Mode {
     }
 }
 
-#[derive(Derivative)]
-#[derivative(Debug, Default)]
+#[derive(Debug, Default)]
 pub struct TextBuilder {
     id: String,
     widget_base: WidgetBase,
@@ -165,11 +162,8 @@ pub struct TextBuilder {
     item: Vec<LiteralItem>,
     wrap: bool,
     follow: bool,
-    #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
-    #[derivative(Debug = "ignore")]
     actions: Vec<(UserEvent, Callback)>,
-    #[derivative(Debug = "ignore")]
     clipboard: Option<Rc<RefCell<Clipboard>>>,
 }
 
@@ -247,8 +241,7 @@ impl TextBuilder {
     }
 }
 
-#[derive(Derivative)]
-#[derivative(Debug, Default)]
+#[derive(Debug, Default)]
 pub struct Text {
     id: String,
     widget_base: WidgetBase,
@@ -261,11 +254,8 @@ pub struct Text {
     /// 検索中、検索ワード入力中、オフの3つのモード
     mode: Mode,
     highlight_content: Option<HighlightContent>,
-    #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
-    #[derivative(Debug = "ignore")]
     actions: Vec<(UserEvent, Callback)>,
-    #[derivative(Debug = "ignore")]
     clipboard: Option<Rc<RefCell<Clipboard>>>,
 }
 

@@ -4,8 +4,6 @@ mod select;
 
 use std::rc::Rc;
 
-use derivative::*;
-
 use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, MouseEvent},
     layout::{Constraint, Direction, Layout, Rect},
@@ -28,14 +26,12 @@ pub use select::SelectForm;
 
 define_callback!(pub RenderBlockInjection, Fn(&MultipleSelect, bool) -> Block<'static>);
 
-#[derive(Derivative)]
-#[derivative(Debug, Default)]
+#[derive(Debug, Default)]
 pub struct MultipleSelectBuilder {
     id: String,
     widget_base: WidgetBase,
     select_form: SelectForm<'static>,
     filter_form: FilterForm,
-    #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
 }
 
@@ -95,8 +91,7 @@ const LAYOUT_INDEX_FOR_INPUT_FORM: usize = 0;
 const LAYOUT_INDEX_FOR_STATUS: usize = 1;
 const LAYOUT_INDEX_FOR_SELECT_FORM: usize = 2;
 
-#[derive(Derivative)]
-#[derivative(Debug)]
+#[derive(Debug)]
 pub struct MultipleSelect<'a> {
     id: String,
     widget_base: WidgetBase,
@@ -106,7 +101,6 @@ pub struct MultipleSelect<'a> {
     layout: Layout,
     chunk: Rect,
     inner_chunks: Rc<[Rect]>,
-    #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
 }
 

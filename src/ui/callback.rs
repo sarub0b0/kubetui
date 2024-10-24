@@ -11,6 +11,12 @@ macro_rules! define_callback {
                 $scope closure: std::rc::Rc<dyn [<$cb_name Fn>]>
             }
 
+            impl std::fmt::Debug for $cb_name {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    write!(f, "{} {{ closure: _ }}", stringify!($cb_name))
+                }
+            }
+
             impl $cb_name {
                 $scope fn new<F>(cb: F) -> $cb_name
                 where

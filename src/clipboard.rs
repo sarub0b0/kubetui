@@ -1,5 +1,6 @@
 use anyhow::Result;
 
+#[derive(Debug)]
 pub struct Clipboard;
 
 impl Clipboard {

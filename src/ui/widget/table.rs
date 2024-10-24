@@ -4,7 +4,6 @@ mod item;
 
 use std::rc::Rc;
 
-use derivative::*;
 use filter::FilterForm;
 use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind},
@@ -41,8 +40,7 @@ define_callback!(pub OnSelectCallback, Fn(&mut Window, &TableItem) -> EventResul
 define_callback!(pub RenderBlockInjection, Fn(&Table) -> WidgetBase);
 define_callback!(pub RenderHighlightInjection, Fn(Option<&TableItem>) -> Style);
 
-#[derive(Derivative)]
-#[derivative(Debug, Default)]
+#[derive(Debug, Default)]
 pub struct TableBuilder {
     id: String,
     widget_base: WidgetBase,
@@ -52,13 +50,9 @@ pub struct TableBuilder {
     items: Vec<TableItem>,
     state: TableState,
     filtered_key: String,
-    #[derivative(Debug = "ignore")]
     on_select: Option<OnSelectCallback>,
-    #[derivative(Debug = "ignore")]
     actions: Vec<(UserEvent, Callback)>,
-    #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
-    #[derivative(Debug = "ignore")]
     highlight_injection: Option<RenderHighlightInjection>,
 }
 
@@ -205,8 +199,7 @@ impl Mode {
     }
 }
 
-#[derive(Derivative)]
-#[derivative(Debug, Default)]
+#[derive(Debug, Default)]
 pub struct Table<'a> {
     id: String,
     widget_base: WidgetBase,
@@ -219,13 +212,9 @@ pub struct Table<'a> {
     filter_form: FilterForm,
     filtered_key: String,
     mode: Mode,
-    #[derivative(Debug = "ignore")]
     on_select: Option<OnSelectCallback>,
-    #[derivative(Debug = "ignore")]
     actions: Vec<(UserEvent, Callback)>,
-    #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
-    #[derivative(Debug = "ignore")]
     highlight_injection: Option<RenderHighlightInjection>,
 }
 

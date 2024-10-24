@@ -8,8 +8,6 @@ use ratatui::{
     Frame,
 };
 
-use derivative::*;
-
 use super::{base::WidgetBase, Item, LiteralItem, RenderTrait, SelectedItem, WidgetTrait};
 
 use crate::{
@@ -74,8 +72,8 @@ define_callback!(pub OnSelectCallback, Fn(&mut Window, &LiteralItem) -> EventRes
 define_callback!(pub RenderBlockInjection, Fn(&List, bool) -> Block<'static>);
 
 use inner_item::InnerItem;
-#[derive(Derivative)]
-#[derivative(Debug, Default)]
+
+#[derive(Debug, Default)]
 pub struct List<'a> {
     id: String,
     widget_base: WidgetBase,
@@ -83,22 +81,17 @@ pub struct List<'a> {
     state: ListState,
     chunk: Rect,
     inner_chunk: Rect,
-    #[derivative(Debug = "ignore")]
     on_select: Option<OnSelectCallback>,
-    #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
 }
 
-#[derive(Derivative)]
-#[derivative(Debug, Default)]
+#[derive(Debug, Default)]
 pub struct ListBuilder {
     id: String,
     widget_base: WidgetBase,
     items: Vec<LiteralItem>,
     state: ListState,
-    #[derivative(Debug = "ignore")]
     on_select: Option<OnSelectCallback>,
-    #[derivative(Debug = "ignore")]
     block_injection: Option<RenderBlockInjection>,
 }
 

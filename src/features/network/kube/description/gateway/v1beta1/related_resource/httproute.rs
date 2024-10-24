@@ -1,7 +1,6 @@
 use std::collections::BTreeSet;
 
 use anyhow::{Context as _, Result};
-use derivative::Derivative;
 use futures::future::{join_all, try_join_all};
 use k8s_openapi::{
     api::core::v1::Namespace, apimachinery::pkg::apis::meta::v1::LabelSelector, Resource as _,
@@ -21,16 +20,31 @@ use crate::{
 pub type RelatedHTTPRoutes = Vec<RelatedHTTPRoute>;
 
 /// RelatedResourceHTTPRouteのための
-#[derive(Derivative, Debug, Clone, Serialize, Deserialize)]
-#[derivative(PartialEq, Eq, Ord)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RelatedHTTPRoute {
     pub name: String,
 
     pub namespace: String,
 
-    #[derivative(PartialEq = "ignore", PartialOrd = "ignore", Ord = "ignore")]
     #[serde(skip)]
     pub resource: HTTPRoute,
+}
+
+impl Eq for RelatedHTTPRoute {}
+
+impl Ord for RelatedHTTPRoute {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // nameとnamespaceが同じであれば同じリソースとして扱う
+        self.name
+            .cmp(&other.name)
+            .then_with(|| self.namespace.cmp(&other.namespace))
+    }
+}
+
+impl PartialEq for RelatedHTTPRoute {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.namespace == other.namespace
+    }
 }
 
 impl PartialOrd for RelatedHTTPRoute {
