@@ -676,7 +676,7 @@ impl RenderTrait for Table<'_> {
 
             let mut widget = TuiTable::new(self.items.to_rendered_rows(), constraints)
                 .block(block)
-                .highlight_style(highlight_style)
+                .row_highlight_style(highlight_style)
                 .highlight_symbol(HIGHLIGHT_SYMBOL)
                 .column_spacing(COLUMN_SPACING);
 
