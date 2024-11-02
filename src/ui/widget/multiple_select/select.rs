@@ -17,7 +17,8 @@ use crate::ui::{
     widget::{
         list::{OnSelectCallback, RenderBlockInjection},
         styled_graphemes::StyledGraphemes,
-        Item, List, LiteralItem, RenderTrait as _, WidgetBase, WidgetTrait as _,
+        Item, List, ListTheme, LiteralItem, RenderTrait as _, WidgetBase, WidgetTheme,
+        WidgetTrait as _,
     },
 };
 
@@ -26,33 +27,27 @@ use super::SelectItems;
 const LIST_FORM_ID: usize = 0;
 const SELECTED_FORM_ID: usize = 1;
 
+#[derive(Debug, Default)]
+pub struct SelectFormTheme {
+    pub list_theme: ListTheme,
+    pub widget_theme: WidgetTheme,
+}
+
+#[derive(Debug, Default)]
 pub struct SelectFormBuilder {
-    widget_base_selected: WidgetBase,
+    theme: SelectFormTheme,
+
     on_select_selected: Option<OnSelectCallback>,
     block_injection_selected: Option<RenderBlockInjection>,
 
-    widget_base_unselected: WidgetBase,
     on_select_unselected: Option<OnSelectCallback>,
     block_injection_unselected: Option<RenderBlockInjection>,
 }
 
-impl Default for SelectFormBuilder {
-    fn default() -> Self {
-        Self {
-            widget_base_selected: WidgetBase::builder().title("Selected").build(),
-            on_select_selected: None,
-            block_injection_selected: None,
-            widget_base_unselected: WidgetBase::builder().title("Items").build(),
-            on_select_unselected: None,
-            block_injection_unselected: None,
-        }
-    }
-}
-
 #[allow(dead_code)]
 impl SelectFormBuilder {
-    pub fn widget_base_selected(mut self, widget_base: WidgetBase) -> Self {
-        self.widget_base_selected = widget_base;
+    pub fn theme(mut self, theme: SelectFormTheme) -> Self {
+        self.theme = theme;
         self
     }
 
@@ -66,11 +61,6 @@ impl SelectFormBuilder {
         block_injection: impl Into<RenderBlockInjection>,
     ) -> Self {
         self.block_injection_selected = Some(block_injection.into());
-        self
-    }
-
-    pub fn widget_base_unselected(mut self, widget_base: WidgetBase) -> Self {
-        self.widget_base_unselected = widget_base;
         self
     }
 
@@ -89,9 +79,14 @@ impl SelectFormBuilder {
 
     pub fn build(self) -> SelectForm<'static> {
         let selected_widget = {
-            let mut builder = List::builder();
+            let mut builder = List::builder().theme(self.theme.list_theme.clone());
 
-            builder = builder.widget_base(self.widget_base_selected);
+            let widget_base = WidgetBase::builder()
+                .theme(self.theme.widget_theme.clone())
+                .title("Selected")
+                .build();
+
+            builder = builder.widget_base(widget_base);
 
             if let Some(on_select) = self.on_select_unselected {
                 builder = builder.on_select(on_select);
@@ -105,9 +100,14 @@ impl SelectFormBuilder {
         };
 
         let unselected_widget = {
-            let mut builder = List::builder();
+            let mut builder = List::builder().theme(self.theme.list_theme);
 
-            builder = builder.widget_base(self.widget_base_unselected);
+            let widget_base = WidgetBase::builder()
+                .theme(self.theme.widget_theme)
+                .title("Items")
+                .build();
+
+            builder = builder.widget_base(widget_base);
 
             if let Some(on_select) = self.on_select_selected {
                 builder = builder.on_select(on_select);

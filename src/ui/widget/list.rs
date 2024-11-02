@@ -71,7 +71,7 @@ mod inner_item {
 define_callback!(pub OnSelectCallback, Fn(&mut Window, &LiteralItem) -> EventResult);
 define_callback!(pub RenderBlockInjection, Fn(&List, bool) -> Block<'static>);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ListTheme {
     pub selected: Style,
 }

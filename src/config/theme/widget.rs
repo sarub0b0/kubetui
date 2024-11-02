@@ -2,7 +2,8 @@ use ratatui::style::{Color, Modifier};
 use serde::{Deserialize, Serialize};
 
 use crate::ui::widget::{
-    single_select, table, InputFormTheme, ListTheme, SearchFormTheme, TextTheme, WidgetTheme,
+    multiple_select, single_select, table, InputFormTheme, ListTheme, SearchFormTheme, TextTheme,
+    WidgetTheme,
 };
 
 use super::{
@@ -135,6 +136,16 @@ impl From<WidgetThemeConfig> for table::FilterFormTheme {
     }
 }
 
+impl From<WidgetThemeConfig> for multiple_select::FilterFormTheme {
+    fn from(theme: WidgetThemeConfig) -> Self {
+        let (widget_theme, input_form_theme) = (theme).into();
+
+        Self::default()
+            .widget_theme(widget_theme)
+            .input_form_theme(input_form_theme)
+    }
+}
+
 impl From<WidgetThemeConfig> for single_select::FilterFormTheme {
     fn from(theme: WidgetThemeConfig) -> Self {
         let (widget_theme, input_form_theme) = (theme).into();
@@ -149,6 +160,15 @@ impl From<WidgetThemeConfig> for ListTheme {
     fn from(theme: WidgetThemeConfig) -> Self {
         Self {
             selected: theme.list.selection.into(),
+        }
+    }
+}
+
+impl From<WidgetThemeConfig> for multiple_select::SelectFormTheme {
+    fn from(theme: WidgetThemeConfig) -> Self {
+        Self {
+            list_theme: theme.clone().into(),
+            widget_theme: theme.into(),
         }
     }
 }

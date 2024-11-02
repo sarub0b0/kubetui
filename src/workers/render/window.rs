@@ -240,7 +240,7 @@ impl WindowInit {
 
         let MultipleNamespacesDialog {
             widget: multiple_namespaces_dialog,
-        } = MultipleNamespacesDialog::new(&self.tx);
+        } = MultipleNamespacesDialog::new(&self.tx, self.theme.clone());
 
         let HelpDialog {
             widget: help_dialog,
