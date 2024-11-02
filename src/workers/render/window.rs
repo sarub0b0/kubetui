@@ -236,7 +236,7 @@ impl WindowInit {
 
         let SingleNamespaceDialog {
             widget: single_namespace_dialog,
-        } = SingleNamespaceDialog::new(&self.tx);
+        } = SingleNamespaceDialog::new(&self.tx, self.theme.clone());
 
         let MultipleNamespacesDialog {
             widget: multiple_namespaces_dialog,

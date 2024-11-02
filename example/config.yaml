@@ -72,7 +72,6 @@ theme:
 
         ## 検索にマッチした文字列のハイライト
         highlight:
-
           ## 検索にマッチした文字列の中でフォーカスしている文字列のハイライト
           focus:
             fg_color: yellow
@@ -101,6 +100,30 @@ theme:
           fg_color: dark_gray
         query:
           fg_color: yellow
+    ## 選択リスト
+    list:
+      ## フィルターフォーム
+      filter:
+        # base:
+        #   fg_color: magenta
+        # border:
+        #   type: "double"
+        #   active:
+        #     fg_color: green
+        #   inactive:
+        #     fg_color: blue
+        query:
+          fg_color: yellow
+
+      ## 選択のハイライト
+      selection:
+        fg_color: green
+        modifier: reversed
+
+      ## ステータス
+      status:
+        fg_color: yellow
+
     dialog:
       ## 未設定の場合、theme.base で設定した背景色を使う
       # base:
@@ -118,4 +141,3 @@ theme:
       fg_color: lightcyan
     desc:
       fg_color: gray
-

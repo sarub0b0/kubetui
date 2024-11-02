@@ -1,11 +1,13 @@
 use ratatui::style::{Color, Modifier};
 use serde::{Deserialize, Serialize};
 
-use crate::ui::widget::{FilterFormTheme, InputFormTheme, SearchFormTheme, TextTheme, WidgetTheme};
+use crate::ui::widget::{
+    single_select, table, InputFormTheme, ListTheme, SearchFormTheme, TextTheme, WidgetTheme,
+};
 
 use super::{
-    BorderThemeConfig, DialogThemeConfig, FilterFormThemeConfig, TableThemeConfig, TextThemeConfig,
-    ThemeStyleConfig,
+    BorderThemeConfig, DialogThemeConfig, FilterFormThemeConfig, ListThemeConfig, TableThemeConfig,
+    TextThemeConfig, ThemeStyleConfig,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -59,6 +61,9 @@ pub struct WidgetThemeConfig {
     pub table: TableThemeConfig,
 
     #[serde(default)]
+    pub list: ListThemeConfig,
+
+    #[serde(default)]
     pub dialog: DialogThemeConfig,
 }
 
@@ -94,7 +99,7 @@ impl From<WidgetThemeConfig> for TextTheme {
     }
 }
 
-impl From<WidgetThemeConfig> for FilterFormTheme {
+impl From<WidgetThemeConfig> for (WidgetTheme, InputFormTheme) {
     fn from(theme: WidgetThemeConfig) -> Self {
         let FilterFormThemeConfig {
             base,
@@ -116,9 +121,44 @@ impl From<WidgetThemeConfig> for FilterFormTheme {
             .border_active_style(border.active)
             .border_inactive_style(border.inactive);
 
+        (widget_theme, input_form_theme)
+    }
+}
+
+impl From<WidgetThemeConfig> for table::FilterFormTheme {
+    fn from(theme: WidgetThemeConfig) -> Self {
+        let (widget_theme, input_form_theme) = (theme).into();
+
         Self::default()
             .widget_theme(widget_theme)
             .input_form_theme(input_form_theme)
+    }
+}
+
+impl From<WidgetThemeConfig> for single_select::FilterFormTheme {
+    fn from(theme: WidgetThemeConfig) -> Self {
+        let (widget_theme, input_form_theme) = (theme).into();
+
+        Self::default()
+            .widget_theme(widget_theme)
+            .input_form_theme(input_form_theme)
+    }
+}
+
+impl From<WidgetThemeConfig> for ListTheme {
+    fn from(theme: WidgetThemeConfig) -> Self {
+        Self {
+            selected: theme.list.selection.into(),
+        }
+    }
+}
+
+impl From<WidgetThemeConfig> for single_select::SelectFormTheme {
+    fn from(theme: WidgetThemeConfig) -> Self {
+        Self {
+            list_theme: theme.clone().into(),
+            widget_theme: theme.into(),
+        }
     }
 }
 
@@ -148,6 +188,7 @@ mod tests {
             border: BorderThemeConfig::default(),
             text: TextThemeConfig::default(),
             table: TableThemeConfig::default(),
+            list: ListThemeConfig::default(),
             dialog: DialogThemeConfig::default(),
         };
 
@@ -217,6 +258,43 @@ mod tests {
                     },
                 },
             },
+            list: ListThemeConfig {
+                filter: FilterFormThemeConfig {
+                    base: Some(ThemeStyleConfig {
+                        fg_color: Some(Color::White),
+                        ..Default::default()
+                    }),
+                    border: Some(BorderThemeConfig {
+                        ty: BorderType::Plain,
+                        active: ThemeStyleConfig {
+                            fg_color: Some(Color::White),
+                            ..Default::default()
+                        },
+                        inactive: ThemeStyleConfig {
+                            fg_color: Some(Color::White),
+                            ..Default::default()
+                        },
+                        mouse_over: ThemeStyleConfig::default(),
+                    }),
+                    prefix: ThemeStyleConfig {
+                        fg_color: Some(Color::White),
+                        ..Default::default()
+                    },
+                    query: ThemeStyleConfig {
+                        fg_color: Some(Color::White),
+                        ..Default::default()
+                    },
+                },
+                selection: ThemeStyleConfig {
+                    fg_color: Some(Color::Green),
+                    modifier: Modifier::REVERSED,
+                    ..Default::default()
+                },
+                status: ThemeStyleConfig {
+                    fg_color: Some(Color::Yellow),
+                    ..Default::default()
+                },
+            },
             dialog: DialogThemeConfig {
                 base: Some(ThemeStyleConfig {
                     fg_color: Some(Color::Blue),
@@ -284,6 +362,26 @@ mod tests {
                   fg_color: white
                 query:
                   fg_color: white
+            list:
+              filter:
+                base:
+                  fg_color: white
+                border:
+                  type: plain
+                  active:
+                    fg_color: white
+                  inactive:
+                    fg_color: white
+                  mouse_over: {}
+                prefix:
+                  fg_color: white
+                query:
+                  fg_color: white
+              selection:
+                fg_color: green
+                modifier: reversed
+              status:
+                fg_color: yellow
             dialog:
               base:
                 fg_color: blue
@@ -346,6 +444,26 @@ mod tests {
                   fg_color: white
                 query:
                   fg_color: white
+            list:
+              filter:
+                base:
+                  fg_color: white
+                border:
+                  type: plain
+                  active:
+                    fg_color: white
+                  inactive:
+                    fg_color: white
+                  mouse_over: {}
+                prefix:
+                  fg_color: white
+                query:
+                  fg_color: white
+              selection:
+                fg_color: green
+                modifier: reversed
+              status:
+                fg_color: yellow
             dialog:
               base:
                 fg_color: blue
@@ -442,6 +560,43 @@ mod tests {
                         fg_color: Some(Color::White),
                         ..Default::default()
                     },
+                },
+            },
+            list: ListThemeConfig {
+                filter: FilterFormThemeConfig {
+                    base: Some(ThemeStyleConfig {
+                        fg_color: Some(Color::White),
+                        ..Default::default()
+                    }),
+                    border: Some(BorderThemeConfig {
+                        ty: BorderType::Plain,
+                        active: ThemeStyleConfig {
+                            fg_color: Some(Color::White),
+                            ..Default::default()
+                        },
+                        inactive: ThemeStyleConfig {
+                            fg_color: Some(Color::White),
+                            ..Default::default()
+                        },
+                        mouse_over: ThemeStyleConfig::default(),
+                    }),
+                    prefix: ThemeStyleConfig {
+                        fg_color: Some(Color::White),
+                        ..Default::default()
+                    },
+                    query: ThemeStyleConfig {
+                        fg_color: Some(Color::White),
+                        ..Default::default()
+                    },
+                },
+                selection: ThemeStyleConfig {
+                    fg_color: Some(Color::Green),
+                    modifier: Modifier::REVERSED,
+                    ..Default::default()
+                },
+                status: ThemeStyleConfig {
+                    fg_color: Some(Color::Yellow),
+                    ..Default::default()
                 },
             },
             dialog: DialogThemeConfig {

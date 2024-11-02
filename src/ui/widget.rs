@@ -9,7 +9,7 @@ mod input;
 mod list;
 pub mod multiple_select;
 pub mod single_select;
-mod table;
+pub mod table;
 mod text;
 
 pub use base::*;
