@@ -13,21 +13,28 @@ use crate::ui::{
     widget::{
         list::{OnSelectCallback, RenderBlockInjection},
         styled_graphemes::StyledGraphemes,
-        Item, List, LiteralItem, RenderTrait, SelectedItem, WidgetBase, WidgetTrait,
+        Item, List, ListTheme, LiteralItem, RenderTrait, SelectedItem, WidgetBase, WidgetTheme,
+        WidgetTrait,
     },
 };
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
+pub struct SelectFormTheme {
+    pub list_theme: ListTheme,
+    pub widget_theme: WidgetTheme,
+}
+
+#[derive(Debug, Default)]
 pub struct SelectFormBuilder {
-    widget_base: WidgetBase,
+    theme: SelectFormTheme,
     on_select: Option<OnSelectCallback>,
     block_injection: Option<RenderBlockInjection>,
 }
 
 #[allow(dead_code)]
 impl SelectFormBuilder {
-    pub fn widget_base(mut self, widget_base: WidgetBase) -> Self {
-        self.widget_base = widget_base;
+    pub fn theme(mut self, theme: SelectFormTheme) -> Self {
+        self.theme = theme;
         self
     }
 
@@ -42,34 +49,32 @@ impl SelectFormBuilder {
     }
 
     pub fn build(self) -> SelectForm<'static> {
-        let mut list_widget = List::builder();
+        let mut builder = List::builder();
 
         if let Some(on_select) = self.on_select {
-            list_widget = list_widget.on_select(on_select);
+            builder = builder.on_select(on_select);
         }
 
         if let Some(block_injection) = self.block_injection {
-            list_widget = list_widget.block_injection(block_injection);
+            builder = builder.block_injection(block_injection);
         }
 
-        list_widget = list_widget.widget_base(self.widget_base);
+        let widget_base = WidgetBase::builder()
+            .theme(self.theme.widget_theme)
+            .title("Items")
+            .build();
+
+        let list_widget = builder
+            .widget_base(widget_base)
+            .theme(self.theme.list_theme)
+            .build();
 
         SelectForm {
             list_items: BTreeSet::new(),
-            list_widget: list_widget.build(),
+            list_widget,
             filter: "".to_string(),
             chunk: Rect::default(),
             matcher: SkimMatcherV2::default(),
-        }
-    }
-}
-
-impl Default for SelectFormBuilder {
-    fn default() -> Self {
-        Self {
-            widget_base: WidgetBase::builder().title("Items").build(),
-            on_select: None,
-            block_injection: None,
         }
     }
 }
