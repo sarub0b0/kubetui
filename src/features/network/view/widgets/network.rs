@@ -17,7 +17,10 @@ use crate::{
     message::Message,
     ui::{
         event::EventResult,
-        widget::{Table, TableItem, Widget, WidgetBase, WidgetTrait as _},
+        widget::{
+            FilterForm, FilterFormTheme, Table, TableItem, Widget, WidgetBase, WidgetTheme,
+            WidgetTrait as _,
+        },
         Window, WindowAction,
     },
 };
@@ -25,14 +28,20 @@ use crate::{
 pub fn network_widget(tx: &Sender<Message>, theme: WidgetThemeConfig) -> Widget<'static> {
     let tx = tx.clone();
 
+    let widget_theme = WidgetTheme::from(theme.clone());
+    let filter_theme = FilterFormTheme::from(theme.clone());
+
     let widget_base = WidgetBase::builder()
         .title("Network")
-        .theme(theme.into())
+        .theme(widget_theme)
         .build();
+
+    let filter_form = FilterForm::builder().theme(filter_theme).build();
 
     Table::builder()
         .id(NETWORK_WIDGET_ID)
         .widget_base(widget_base)
+        .filter_form(filter_form)
         .filtered_key("NAME")
         .block_injection(block_injection())
         .on_select(on_select(tx))

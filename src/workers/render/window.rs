@@ -232,7 +232,7 @@ impl WindowInit {
 
         let ContextDialog {
             widget: context_dialog,
-        } = ContextDialog::new(&self.tx);
+        } = ContextDialog::new(&self.tx, self.theme.clone());
 
         let SingleNamespaceDialog {
             widget: single_namespace_dialog,
@@ -248,7 +248,7 @@ impl WindowInit {
 
         let YamlDialog {
             widget: yaml_dialog,
-        } = YamlDialog::new(&clipboard);
+        } = YamlDialog::new(&clipboard, self.theme.clone());
 
         // Init Window
         let tabs = vec![

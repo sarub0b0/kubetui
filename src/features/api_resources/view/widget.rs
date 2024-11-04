@@ -12,7 +12,10 @@ use crate::{
     message::Message,
     ui::{
         event::EventResult,
-        widget::{Text, Widget, WidgetBase, WidgetTrait as _},
+        widget::{
+            SearchForm, SearchFormTheme, Text, TextTheme, Widget, WidgetBase, WidgetTheme,
+            WidgetTrait as _,
+        },
         Window,
     },
 };
@@ -31,14 +34,22 @@ pub fn api_widget(
         EventResult::Nop
     };
 
+    let widget_theme = WidgetTheme::from(theme.clone());
+    let search_theme = SearchFormTheme::from(theme.clone());
+    let text_theme = TextTheme::from(theme);
+
     let widget_base = WidgetBase::builder()
         .title("API")
-        .theme(theme.into())
+        .theme(widget_theme)
         .build();
+
+    let search_form = SearchForm::builder().theme(search_theme).build();
 
     let builder = Text::builder()
         .id(API_WIDGET_ID)
         .widget_base(widget_base)
+        .search_form(search_form)
+        .theme(text_theme)
         .block_injection(|text: &Text, is_active: bool, is_mouse_over: bool| {
             let (index, size) = text.state();
 
