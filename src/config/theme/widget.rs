@@ -2,8 +2,8 @@ use ratatui::style::{Color, Modifier};
 use serde::{Deserialize, Serialize};
 
 use crate::ui::widget::{
-    multiple_select, single_select, table, InputFormTheme, ListTheme, SearchFormTheme, TextTheme,
-    WidgetTheme,
+    multiple_select, single_select, table, InputFormTheme, ListTheme, SearchFormTheme, TableTheme,
+    TextTheme, WidgetTheme,
 };
 
 use super::{
@@ -81,6 +81,12 @@ impl From<WidgetThemeConfig> for WidgetTheme {
             .border_active_style(theme.border.active)
             .border_mouse_over_style(theme.border.mouse_over)
             .border_inactive_style(theme.border.inactive)
+    }
+}
+
+impl From<WidgetThemeConfig> for TableTheme {
+    fn from(theme: WidgetThemeConfig) -> Self {
+        Self::default().header_style(theme.table.header)
     }
 }
 
@@ -287,6 +293,10 @@ mod tests {
                         ..Default::default()
                     },
                 },
+                header: ThemeStyleConfig {
+                    fg_color: Some(Color::DarkGray),
+                    ..Default::default()
+                },
             },
             list: ListThemeConfig {
                 filter: FilterFormThemeConfig {
@@ -396,6 +406,8 @@ mod tests {
                   fg_color: white
                 query:
                   fg_color: white
+              header:
+                fg_color: darkgray
             list:
               filter:
                 base:
@@ -480,6 +492,8 @@ mod tests {
                   fg_color: white
                 query:
                   fg_color: white
+              header:
+                fg_color: darkgray
             list:
               filter:
                 base:
@@ -598,6 +612,10 @@ mod tests {
                         fg_color: Some(Color::White),
                         ..Default::default()
                     },
+                },
+                header: ThemeStyleConfig {
+                    fg_color: Some(Color::DarkGray),
+                    ..Default::default()
                 },
             },
             list: ListThemeConfig {
