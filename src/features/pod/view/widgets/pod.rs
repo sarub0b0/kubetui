@@ -14,8 +14,8 @@ use crate::{
     ui::{
         event::EventResult,
         widget::{
-            FilterForm, FilterFormTheme, Item, Table, TableItem, Widget, WidgetBase, WidgetTheme,
-            WidgetTrait as _,
+            FilterForm, FilterFormTheme, Item, Table, TableItem, TableTheme, Widget, WidgetBase,
+            WidgetTheme, WidgetTrait as _,
         },
         Window, WindowAction,
     },
@@ -25,6 +25,7 @@ pub fn pod_widget(tx: &Sender<Message>, theme: WidgetThemeConfig) -> Widget<'sta
     let tx = tx.clone();
 
     let widget_theme = WidgetTheme::from(theme.clone());
+    let table_theme = TableTheme::from(theme.clone());
 
     let widget_base = WidgetBase::builder()
         .title("Pod")
@@ -39,6 +40,7 @@ pub fn pod_widget(tx: &Sender<Message>, theme: WidgetThemeConfig) -> Widget<'sta
         .id(POD_WIDGET_ID)
         .widget_base(widget_base)
         .filter_form(filter_form)
+        .theme(table_theme)
         .filtered_key("NAME")
         .block_injection(block_injection())
         .on_select(on_select(tx))

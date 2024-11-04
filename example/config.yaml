@@ -100,6 +100,9 @@ theme:
           fg_color: dark_gray
         query:
           fg_color: yellow
+      header:
+        fg_color: lightblue
+        modifier: bold
     ## 選択リスト
     list:
       ## フィルターフォーム
