@@ -6,21 +6,32 @@ use crate::{
     clipboard::Clipboard,
     config::theme::WidgetThemeConfig,
     features::component_id::NETWORK_DESCRIPTION_WIDGET_ID,
-    ui::widget::{Text, Widget, WidgetBase, WidgetTrait as _},
+    ui::widget::{
+        SearchForm, SearchFormTheme, Text, TextTheme, Widget, WidgetBase, WidgetTheme,
+        WidgetTrait as _,
+    },
 };
 
 pub fn description_widget(
     clipboard: &Option<Rc<RefCell<Clipboard>>>,
     theme: WidgetThemeConfig,
 ) -> Widget<'static> {
+    let widget_theme = WidgetTheme::from(theme.clone());
+    let search_theme = SearchFormTheme::from(theme.clone());
+    let text_theme = TextTheme::from(theme);
+
     let widget_base = WidgetBase::builder()
         .title("Description")
-        .theme(theme.into())
+        .theme(widget_theme)
         .build();
+
+    let search_form = SearchForm::builder().theme(search_theme).build();
 
     let builder = Text::builder()
         .id(NETWORK_DESCRIPTION_WIDGET_ID)
         .widget_base(widget_base)
+        .search_form(search_form)
+        .theme(text_theme)
         .block_injection(block_injection());
 
     if let Some(cb) = clipboard {
