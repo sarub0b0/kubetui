@@ -7,8 +7,8 @@ use crate::ui::widget::{
 };
 
 use super::{
-    BorderThemeConfig, DialogThemeConfig, FilterFormThemeConfig, ListThemeConfig, TableThemeConfig,
-    TextThemeConfig, ThemeStyleConfig,
+    BorderThemeConfig, DialogThemeConfig, FilterFormThemeConfig, InputFormThemeConfig,
+    ListThemeConfig, TableThemeConfig, TextThemeConfig, ThemeStyleConfig,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -65,6 +65,9 @@ pub struct WidgetThemeConfig {
     pub list: ListThemeConfig,
 
     #[serde(default)]
+    pub input: InputFormThemeConfig,
+
+    #[serde(default)]
     pub dialog: DialogThemeConfig,
 }
 
@@ -88,6 +91,12 @@ impl From<WidgetThemeConfig> for SearchFormTheme {
         Self::default()
             .base_style(base_style)
             .input_form_theme(theme.text.search.form)
+    }
+}
+
+impl From<WidgetThemeConfig> for InputFormTheme {
+    fn from(theme: WidgetThemeConfig) -> Self {
+        Self::default().content_style(theme.input)
     }
 }
 
@@ -209,6 +218,7 @@ mod tests {
             text: TextThemeConfig::default(),
             table: TableThemeConfig::default(),
             list: ListThemeConfig::default(),
+            input: InputFormThemeConfig::default(),
             dialog: DialogThemeConfig::default(),
         };
 
@@ -315,6 +325,10 @@ mod tests {
                     ..Default::default()
                 },
             },
+            input: InputFormThemeConfig(ThemeStyleConfig {
+                fg_color: Some(Color::White),
+                ..Default::default()
+            }),
             dialog: DialogThemeConfig {
                 base: Some(ThemeStyleConfig {
                     fg_color: Some(Color::Blue),
@@ -402,6 +416,8 @@ mod tests {
                 modifier: reversed
               status:
                 fg_color: yellow
+            input:
+              fg_color: white
             dialog:
               base:
                 fg_color: blue
@@ -484,6 +500,8 @@ mod tests {
                 modifier: reversed
               status:
                 fg_color: yellow
+            input:
+              fg_color: white
             dialog:
               base:
                 fg_color: blue
@@ -619,6 +637,10 @@ mod tests {
                     ..Default::default()
                 },
             },
+            input: InputFormThemeConfig(ThemeStyleConfig {
+                fg_color: Some(Color::White),
+                ..Default::default()
+            }),
             dialog: DialogThemeConfig {
                 base: Some(ThemeStyleConfig {
                     fg_color: Some(Color::Blue),

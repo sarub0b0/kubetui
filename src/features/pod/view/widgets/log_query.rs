@@ -16,7 +16,9 @@ use crate::{
     message::{Message, UserEvent},
     ui::{
         event::EventResult,
-        widget::{InputFormBuilder, SelectedItem, Widget, WidgetBase, WidgetTrait as _},
+        widget::{
+            InputFormBuilder, InputFormTheme, SelectedItem, Widget, WidgetBase, WidgetTrait as _,
+        },
         Window,
     },
 };
@@ -28,6 +30,8 @@ pub fn log_query_widget(
 ) -> Widget<'static> {
     let tx = tx.clone();
 
+    let input_theme = InputFormTheme::from(theme.clone());
+
     let widget_base = WidgetBase::builder()
         .title("Log Query")
         .theme(theme.into())
@@ -36,6 +40,7 @@ pub fn log_query_widget(
     InputFormBuilder::default()
         .id(POD_LOG_QUERY_WIDGET_ID)
         .widget_base(widget_base)
+        .theme(input_theme)
         .actions(UserEvent::from(KeyCode::Enter), exec_query(tx, namespaces))
         .build()
         .into()
