@@ -29,7 +29,7 @@ impl ListTab {
         clipboard: &Option<Rc<RefCell<Clipboard>>>,
         theme: WidgetThemeConfig,
     ) -> Self {
-        let list_widget = list_widget(tx, clipboard, theme);
+        let list_widget = list_widget(tx, clipboard, theme.clone());
 
         let layout = TabLayout::new(
             |_| {
@@ -43,7 +43,7 @@ impl ListTab {
 
         ListTab {
             tab: Tab::new(LIST_TAB_ID, title, [list_widget], layout),
-            dialog: dialog_widget(tx),
+            dialog: dialog_widget(tx, theme),
         }
     }
 }
