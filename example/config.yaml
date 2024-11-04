@@ -124,6 +124,9 @@ theme:
       status:
         fg_color: yellow
 
+    ## 入力フォーム
+    input:
+      fg_color: white
     dialog:
       ## 未設定の場合、theme.base で設定した背景色を使う
       # base:
