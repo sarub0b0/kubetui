@@ -6,6 +6,7 @@ mod header;
 mod help;
 mod input;
 mod list;
+mod pod;
 mod style;
 mod tab;
 mod table;
@@ -26,6 +27,7 @@ pub use filter::*;
 pub use help::HelpThemeConfig;
 pub use input::*;
 pub use list::*;
+pub use pod::*;
 pub use style::ThemeStyleConfig;
 pub use table::*;
 pub use text::*;
@@ -44,6 +46,9 @@ pub struct ThemeConfig {
 
     #[serde(default)]
     pub component: WidgetThemeConfig,
+
+    #[serde(default)]
+    pub pod: PodThemeConfig,
 
     #[serde(default)]
     pub help: HelpThemeConfig,

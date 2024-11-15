@@ -8,7 +8,7 @@ use crate::ui::widget::{
 
 use super::{
     BorderThemeConfig, DialogThemeConfig, FilterFormThemeConfig, InputFormThemeConfig,
-    ListThemeConfig, TableThemeConfig, TextThemeConfig, ThemeStyleConfig,
+    ListThemeConfig, PodThemeConfig, TableThemeConfig, TextThemeConfig, ThemeStyleConfig,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]

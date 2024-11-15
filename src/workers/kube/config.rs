@@ -3,6 +3,8 @@ use std::{ops::Deref, path::PathBuf};
 use anyhow::{anyhow, Result};
 use kube::config::{Kubeconfig, KubeconfigError};
 
+use crate::features::pod::kube::PodConfig;
+
 use super::TargetNamespaces;
 
 #[derive(Debug, Default, Clone)]
@@ -11,6 +13,7 @@ pub struct KubeWorkerConfig {
     pub target_namespaces: Option<TargetNamespaces>,
     pub context: Option<String>,
     pub all_namespaces: bool,
+    pub pod_config: PodConfig,
 }
 
 pub struct Context(String);

@@ -36,7 +36,7 @@ use crate::{
             message::NetworkMessage,
         },
         pod::{
-            kube::{LogWorker, PodPoller},
+            kube::{LogWorker, PodConfig, PodPoller},
             message::LogMessage,
         },
         yaml::{
@@ -92,6 +92,7 @@ pub struct KubeController {
     kubeconfig: Kubeconfig,
     context: String,
     store: KubeStore,
+    pod_config: PodConfig,
 }
 
 impl KubeController {
@@ -106,6 +107,7 @@ impl KubeController {
             target_namespaces,
             context,
             all_namespaces,
+            pod_config,
         } = config;
 
         let kubeconfig = read_kubeconfig(kubeconfig)?;
@@ -137,6 +139,7 @@ impl KubeController {
             kubeconfig,
             context: context.to_string(),
             store,
+            pod_config,
         })
     }
 
@@ -148,6 +151,7 @@ impl KubeController {
             kubeconfig,
             mut context,
             mut store,
+            pod_config,
         } = self;
 
         while !is_terminated.load(Ordering::Relaxed) {
@@ -190,7 +194,7 @@ impl KubeController {
             )
             .spawn();
 
-            let pod_handle = PodPoller::new(poller_base.clone()).spawn();
+            let pod_handle = PodPoller::new(poller_base.clone(), pod_config.clone()).spawn();
             let config_handle = ConfigPoller::new(poller_base.clone()).spawn();
             let network_handle =
                 NetworkPoller::new(poller_base.clone(), shared_api_resources.clone()).spawn();

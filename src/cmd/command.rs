@@ -95,6 +95,7 @@ impl Command {
             target_namespaces: namespaces,
             context,
             all_namespaces: all_namespaces.into(),
+            ..Default::default()
         }
     }
 
