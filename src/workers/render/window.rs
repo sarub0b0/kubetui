@@ -61,6 +61,7 @@ pub struct WindowInit {
     tx: Sender<Message>,
     context: Rc<RefCell<Context>>,
     namespaces: Rc<RefCell<Namespace>>,
+    clipboard: Rc<RefCell<Clipboard>>,
 }
 
 impl WindowInit {
@@ -69,12 +70,14 @@ impl WindowInit {
         tx: Sender<Message>,
         context: Rc<RefCell<Context>>,
         namespaces: Rc<RefCell<Namespace>>,
+        clipboard: Rc<RefCell<Clipboard>>,
     ) -> Self {
         Self {
             split_mode,
             tx,
             context,
             namespaces,
+            clipboard,
         }
     }
 
@@ -164,7 +167,7 @@ impl WindowInit {
     }
 
     fn tabs_dialogs(&self) -> (Vec<Tab<'static>>, Vec<Dialog<'static>>) {
-        let clipboard = Some(Rc::new(RefCell::new(Clipboard::new())));
+        let clipboard = Some(self.clipboard.clone());
 
         let PodTab {
             tab: pod_tab,

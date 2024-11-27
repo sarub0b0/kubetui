@@ -16,6 +16,7 @@ use crossbeam::channel::{Receiver, Sender};
 use ratatui::{backend::CrosstermBackend, layout::Direction, Terminal, TerminalOptions, Viewport};
 
 use crate::{
+    clipboard::Clipboard,
     kube::context::{Context, Namespace},
     logger,
     message::Message,
@@ -73,12 +74,14 @@ impl Render {
     fn render(&self) -> Result<()> {
         let namespace = Rc::new(RefCell::new(Namespace::new()));
         let context = Rc::new(RefCell::new(Context::new()));
+        let clipboard = Rc::new(RefCell::new(Clipboard::new(arboard::Clipboard::new()?)));
 
         let mut window = WindowInit::new(
             self.direction,
             self.tx.clone(),
             context.clone(),
             namespace.clone(),
+            clipboard,
         )
         .build();
 
