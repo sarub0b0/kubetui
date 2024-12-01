@@ -18,7 +18,6 @@
     "automerge": true
   },
   "patch": {
-    "groupName": "all dependencies",
     "automerge": true
   },
   "minor": {
