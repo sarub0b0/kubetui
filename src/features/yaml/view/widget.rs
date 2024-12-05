@@ -5,6 +5,7 @@ use ratatui::widgets::Block;
 
 use crate::{
     clipboard::Clipboard,
+    config::theme::WidgetThemeConfig,
     features::{
         component_id::{YAML_KIND_DIALOG_ID, YAML_WIDGET_ID},
         yaml::message::YamlRequest,
@@ -12,7 +13,10 @@ use crate::{
     message::Message,
     ui::{
         event::EventResult,
-        widget::{Text, Widget, WidgetBase, WidgetTrait as _},
+        widget::{
+            SearchForm, SearchFormTheme, Text, TextTheme, Widget, WidgetBase, WidgetTheme,
+            WidgetTrait as _,
+        },
         Window,
     },
 };
@@ -20,12 +24,26 @@ use crate::{
 pub fn yaml_widget(
     tx: &Sender<Message>,
     clipboard: &Option<Rc<RefCell<Clipboard>>>,
+    theme: WidgetThemeConfig,
 ) -> Widget<'static> {
     let tx = tx.clone();
 
+    let widget_theme = WidgetTheme::from(theme.clone());
+    let search_theme = SearchFormTheme::from(theme.clone());
+    let text_theme = TextTheme::from(theme);
+
+    let widget_base = WidgetBase::builder()
+        .title("Yaml")
+        .theme(widget_theme)
+        .build();
+
+    let search_form = SearchForm::builder().theme(search_theme).build();
+
     let builder = Text::builder()
         .id(YAML_WIDGET_ID)
-        .widget_base(WidgetBase::builder().title("Yaml").build())
+        .widget_base(widget_base)
+        .search_form(search_form)
+        .theme(text_theme)
         .block_injection(block_injection())
         .action('f', open_kind_dialog(tx))
         .wrap();

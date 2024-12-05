@@ -71,6 +71,19 @@ mod inner_item {
 define_callback!(pub OnSelectCallback, Fn(&mut Window, &LiteralItem) -> EventResult);
 define_callback!(pub RenderBlockInjection, Fn(&List, bool) -> Block<'static>);
 
+#[derive(Debug, Clone)]
+pub struct ListTheme {
+    pub selected: Style,
+}
+
+impl Default for ListTheme {
+    fn default() -> Self {
+        Self {
+            selected: Style::default().add_modifier(Modifier::REVERSED),
+        }
+    }
+}
+
 use inner_item::InnerItem;
 
 #[derive(Debug, Default)]
@@ -81,6 +94,7 @@ pub struct List<'a> {
     state: ListState,
     chunk: Rect,
     inner_chunk: Rect,
+    theme: ListTheme,
     on_select: Option<OnSelectCallback>,
     block_injection: Option<RenderBlockInjection>,
 }
@@ -91,6 +105,7 @@ pub struct ListBuilder {
     widget_base: WidgetBase,
     items: Vec<LiteralItem>,
     state: ListState,
+    theme: ListTheme,
     on_select: Option<OnSelectCallback>,
     block_injection: Option<RenderBlockInjection>,
 }
@@ -115,6 +130,11 @@ impl ListBuilder {
         self
     }
 
+    pub fn theme(mut self, theme: ListTheme) -> Self {
+        self.theme = theme;
+        self
+    }
+
     pub fn on_select<F>(mut self, cb: F) -> Self
     where
         F: Into<OnSelectCallback>,
@@ -135,6 +155,7 @@ impl ListBuilder {
         let mut list = List {
             id: self.id,
             widget_base: self.widget_base,
+            theme: self.theme,
             on_select: self.on_select,
             state: self.state,
             block_injection: self.block_injection,
@@ -167,8 +188,7 @@ impl<'a> List<'a> {
     fn widget(&self, block: Block<'a>) -> widgets::List<'a> {
         widgets::List::new(self.items.widget_items().to_vec())
             .block(block)
-            .style(Style::default())
-            .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+            .highlight_style(self.theme.selected)
     }
 
     fn showable_height(&self) -> usize {

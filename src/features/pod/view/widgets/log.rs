@@ -4,19 +4,41 @@ use ratatui::{crossterm::event::KeyCode, widgets::Block};
 
 use crate::{
     clipboard::Clipboard,
+    config::theme::WidgetThemeConfig,
     features::component_id::POD_LOG_WIDGET_ID,
     message::UserEvent,
     ui::{
         event::EventResult,
-        widget::{Item, Text, Widget, WidgetBase, WidgetTrait as _},
+        widget::{
+            Item, SearchForm, SearchFormTheme, Text, TextTheme, Widget, WidgetBase, WidgetTheme,
+            WidgetTrait as _,
+        },
         Window,
     },
 };
 
-pub fn log_widget(clipboard: &Option<Rc<RefCell<Clipboard>>>) -> Widget<'static> {
+pub fn log_widget(
+    clipboard: &Option<Rc<RefCell<Clipboard>>>,
+    theme: WidgetThemeConfig,
+) -> Widget<'static> {
+    let widget_theme = WidgetTheme::from(theme.clone());
+
+    let widget_base = WidgetBase::builder()
+        .title("Log")
+        .theme(widget_theme)
+        .build();
+
+    let search_form_theme = SearchFormTheme::from(theme.clone());
+
+    let search_form = SearchForm::builder().theme(search_form_theme).build();
+
+    let text_theme = TextTheme::from(theme);
+
     let builder = Text::builder()
         .id(POD_LOG_WIDGET_ID)
-        .widget_base(WidgetBase::builder().title("Log").build())
+        .widget_base(widget_base)
+        .search_form(search_form)
+        .theme(text_theme)
         .wrap()
         .follow()
         .block_injection(block_injection())

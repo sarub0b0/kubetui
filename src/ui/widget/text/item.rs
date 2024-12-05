@@ -4,21 +4,9 @@ use crate::ui::widget::{
     LiteralItem,
 };
 use ratatui::style::{Color, Modifier, Style};
-use std::ops::Range;
+use std::ops::{Deref, Range};
 
 use search::Search;
-
-#[inline]
-fn highlight_style() -> Style {
-    Style::default().add_modifier(Modifier::REVERSED)
-}
-
-#[inline]
-fn selected_highlight_style() -> Style {
-    Style::default()
-        .fg(Color::Yellow)
-        .add_modifier(Modifier::REVERSED)
-}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Highlight {
@@ -49,6 +37,62 @@ struct Highlights {
     selected_index: usize,
 }
 
+#[derive(Default, Debug, Clone)]
+pub struct SearchHighlightStyle {
+    pub matches: SearchHighlightMatchesStyle,
+    pub focus: SearchHighlightFocusStyle,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SearchHighlightMatchesStyle(Style);
+
+impl SearchHighlightMatchesStyle {
+    pub fn new(style: impl Into<Style>) -> Self {
+        Self(style.into())
+    }
+}
+
+impl Default for SearchHighlightMatchesStyle {
+    fn default() -> Self {
+        Self(Style::default().add_modifier(Modifier::REVERSED))
+    }
+}
+
+impl Deref for SearchHighlightMatchesStyle {
+    type Target = Style;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SearchHighlightFocusStyle(Style);
+
+impl SearchHighlightFocusStyle {
+    pub fn new(style: impl Into<Style>) -> Self {
+        Self(style.into())
+    }
+}
+
+impl Default for SearchHighlightFocusStyle {
+    fn default() -> Self {
+        Self(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::REVERSED),
+        )
+    }
+}
+
+impl Deref for SearchHighlightFocusStyle {
+    type Target = Style;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct TextItem {
     /// 1行分のgraphemesに分割した文字列リスト
@@ -68,13 +112,20 @@ pub struct TextItem {
 
     /// 1行あたりの最大文字数
     max_chars: usize,
+
+    /// ハイライトスタイル
+    highlight_style: SearchHighlightStyle,
 }
 
 type Graphemes = Vec<StyledGrapheme>;
 type Wrappers<'a> = Vec<*const [StyledGrapheme]>;
 
 impl TextItem {
-    pub fn new(literal_item: Vec<LiteralItem>, wrap_width: Option<usize>) -> Self {
+    pub fn new(
+        literal_item: Vec<LiteralItem>,
+        wrap_width: Option<usize>,
+        highlight_style: SearchHighlightStyle,
+    ) -> Self {
         let (lines, wrapped_lines) = Self::new_or_extend(literal_item, wrap_width, 0, 0);
 
         let wrapped_lines: Vec<_> = wrapped_lines.into_iter().flatten().collect();
@@ -91,14 +142,16 @@ impl TextItem {
             highlights: None,
             wrap_width,
             max_chars,
+            highlight_style,
         }
     }
 
     pub fn update(&mut self, item: Vec<LiteralItem>) {
         let wrap_width = self.wrap_width;
         let highlights = self.highlights.clone();
+        let highlight_style = self.highlight_style.clone();
 
-        let mut new = Self::new(item, wrap_width);
+        let mut new = Self::new(item, wrap_width, highlight_style);
 
         if let Some(highlights) = highlights {
             let prev_line_number = highlights.item[highlights.selected_index].line_number;
@@ -157,6 +210,7 @@ impl TextItem {
             if let Some(hls) = line.highlight_word(
                 &highlights.word,
                 &self.wrapped_lines[line.wrapped_lines.clone()],
+                *self.highlight_style.matches,
             ) {
                 highlights.item.extend(hls);
             }
@@ -195,6 +249,7 @@ impl TextItem {
                     line.highlight_word(
                         &highlights.word,
                         &self.wrapped_lines[line.wrapped_lines.clone()],
+                        *self.highlight_style.matches,
                     )
                 })
                 .flatten()
@@ -288,7 +343,11 @@ impl TextItem {
             .lines
             .iter_mut()
             .filter_map(|line| {
-                line.highlight_word(word, &self.wrapped_lines[line.wrapped_lines.clone()])
+                line.highlight_word(
+                    word,
+                    &self.wrapped_lines[line.wrapped_lines.clone()],
+                    *self.highlight_style.matches,
+                )
             })
             .flatten()
             .collect();
@@ -315,7 +374,7 @@ impl TextItem {
         self.highlights = None;
     }
 
-    fn highlight_normal(&mut self, index: usize) {
+    fn highlight_matches(&mut self, index: usize) {
         if let Some(highlights) = &mut self.highlights {
             let hl = &highlights.item[index];
 
@@ -324,11 +383,11 @@ impl TextItem {
 
             graphemes
                 .iter_mut()
-                .for_each(|gs| *gs.style_mut() = highlight_style());
+                .for_each(|gs| *gs.style_mut() = *self.highlight_style.matches);
         }
     }
 
-    fn highlight_color(&mut self, index: usize) -> Option<usize> {
+    fn highlight_focus(&mut self, index: usize) -> Option<usize> {
         if let Some(highlights) = &mut self.highlights {
             let hl = &highlights.item[index];
 
@@ -337,7 +396,7 @@ impl TextItem {
 
             graphemes
                 .iter_mut()
-                .for_each(|gs| *gs.style_mut() = selected_highlight_style());
+                .for_each(|gs| *gs.style_mut() = *self.highlight_style.focus);
 
             highlights.selected_index = index;
 
@@ -359,9 +418,9 @@ impl TextItem {
                 .map(|(i, _)| i)
                 .unwrap_or(0);
 
-            self.highlight_normal(index);
+            self.highlight_matches(index);
 
-            self.highlight_color(nearest_index)
+            self.highlight_focus(nearest_index)
         } else {
             None
         }
@@ -373,11 +432,11 @@ impl TextItem {
 
             let item_len = highlights.item.len();
 
-            self.highlight_normal(index);
+            self.highlight_matches(index);
 
             let index = (index + 1) % item_len;
 
-            self.highlight_color(index)
+            self.highlight_focus(index)
         } else {
             None
         }
@@ -389,7 +448,7 @@ impl TextItem {
 
             let item_len = highlights.item.len();
 
-            self.highlight_normal(index);
+            self.highlight_matches(index);
 
             let index = if index == 0 {
                 item_len.saturating_sub(1)
@@ -397,7 +456,7 @@ impl TextItem {
                 index.saturating_sub(1)
             };
 
-            self.highlight_color(index)
+            self.highlight_focus(index)
         } else {
             None
         }
@@ -519,6 +578,7 @@ impl Line {
         &mut self,
         word: &str,
         wrapped_lines: &[WrappedLine],
+        highlight_style: Style,
     ) -> Option<Vec<Highlight>> {
         let word = word.styled_graphemes_symbols();
 
@@ -531,7 +591,7 @@ impl Line {
                         .iter_mut()
                         .map(|i| {
                             let ret = *i.style();
-                            *i.style_mut() = highlight_style();
+                            *i.style_mut() = highlight_style;
                             ret
                         })
                         .collect();
@@ -639,7 +699,7 @@ mod tests {
         #[test]
         fn new() {
             let item = LiteralItem::new("0123456789", None);
-            let item = TextItem::new(vec![item], Some(5));
+            let item = TextItem::new(vec![item], Some(5), SearchHighlightStyle::default());
 
             let lines = item.lines;
             let wrapped_lines = item.wrapped_lines;
@@ -657,7 +717,7 @@ mod tests {
         #[test]
         fn push() {
             let item = LiteralItem::new("0123456789", None);
-            let mut item = TextItem::new(vec![item], Some(5));
+            let mut item = TextItem::new(vec![item], Some(5), SearchHighlightStyle::default());
             item.push(LiteralItem::new("0123456789", None));
 
             let lines = item.lines;
@@ -684,7 +744,7 @@ mod tests {
         #[test]
         fn extend() {
             let item = LiteralItem::new("0123456789", None);
-            let mut item = TextItem::new(vec![item], Some(5));
+            let mut item = TextItem::new(vec![item], Some(5), SearchHighlightStyle::default());
             item.extend(vec![
                 LiteralItem::new("0123456789", None),
                 LiteralItem::new("あいうえ", None),
@@ -727,6 +787,7 @@ mod tests {
                     LiteralItem::new("hoge world", None),
                 ],
                 Some(5),
+                SearchHighlightStyle::default(),
             );
 
             item.highlight("world");
@@ -787,6 +848,7 @@ mod tests {
                     LiteralItem::new("hoge world", None),
                 ],
                 Some(5),
+                SearchHighlightStyle::default(),
             );
 
             item.highlight("world");
@@ -855,7 +917,7 @@ mod tests {
             ) {
                 let literal_item: Vec<LiteralItem> = literal_item.into_iter().collect();
 
-                let item = TextItem::new(literal_item, wrap_width);
+                let item = TextItem::new(literal_item, wrap_width, SearchHighlightStyle::default());
 
                 assert_eq!(item.max_chars(), expected);
             }
@@ -868,7 +930,11 @@ mod tests {
                 #[case] wrap_width: Option<usize>,
                 #[case] expected: usize,
             ) {
-                let mut item = TextItem::new(vec![literal_item.0], wrap_width);
+                let mut item = TextItem::new(
+                    vec![literal_item.0],
+                    wrap_width,
+                    SearchHighlightStyle::default(),
+                );
                 item.push(literal_item.1);
 
                 assert_eq!(item.max_chars(), expected);
@@ -882,7 +948,11 @@ mod tests {
                 #[case] wrap_width: Option<usize>,
                 #[case] expected: usize,
             ) {
-                let mut item = TextItem::new(vec![literal_item], wrap_width);
+                let mut item = TextItem::new(
+                    vec![literal_item],
+                    wrap_width,
+                    SearchHighlightStyle::default(),
+                );
                 item.extend(vec![
                     LiteralItem::new("0123456789", None),
                     LiteralItem::new("あいうえ", None),
@@ -893,7 +963,7 @@ mod tests {
 
             #[rstest]
             fn new_empty() {
-                let item = TextItem::new(vec![], None);
+                let item = TextItem::new(vec![], None, Default::default());
 
                 assert_eq!(item.max_chars(), 0);
             }
@@ -929,7 +999,13 @@ mod tests {
                 wrapped_lines: 0..1,
             };
 
-            let highlight = line.highlight_word("hello", &wrapped_lines).unwrap();
+            let highlight = line
+                .highlight_word(
+                    "hello",
+                    &wrapped_lines,
+                    *SearchHighlightMatchesStyle::default(),
+                )
+                .unwrap();
 
             assert_eq!(
                 highlight,
@@ -991,7 +1067,11 @@ mod tests {
                 wrapped_lines: 0..1,
             };
 
-            let highlight = line.highlight_word("hoge", &wrapped_lines);
+            let highlight = line.highlight_word(
+                "hoge",
+                &wrapped_lines,
+                *SearchHighlightMatchesStyle::default(),
+            );
 
             assert_eq!(highlight.is_none(), true);
 
@@ -1040,7 +1120,13 @@ mod tests {
                 wrapped_lines: 0..1,
             };
 
-            let highlight = line.highlight_word("hello", &wrapped_lines).unwrap();
+            let highlight = line
+                .highlight_word(
+                    "hello",
+                    &wrapped_lines,
+                    *SearchHighlightMatchesStyle::default(),
+                )
+                .unwrap();
 
             line.clear_highlight(highlight[0].range.clone(), &highlight[0].styles);
 

@@ -1,25 +1,48 @@
 use crossbeam::channel::Sender;
 
 use crate::{
+    config::theme::WidgetThemeConfig,
     features::{component_id::YAML_KIND_DIALOG_ID, yaml::message::YamlRequest},
     logger,
     message::Message,
     ui::{
         event::EventResult,
-        widget::{LiteralItem, single_select::SelectForm, SingleSelect, Widget, WidgetBase},
+        widget::{
+            single_select::{
+                FilterForm, FilterFormTheme, SelectForm, SelectFormTheme, SingleSelectTheme,
+            },
+            LiteralItem, SingleSelect, Widget, WidgetBase, WidgetTheme,
+        },
         Window,
     },
 };
 
-pub fn kind_dialog(tx: &Sender<Message>) -> Widget<'static> {
+pub fn kind_dialog(tx: &Sender<Message>, theme: WidgetThemeConfig) -> Widget<'static> {
     let tx = tx.clone();
 
-    let select_form = SelectForm::builder().on_select(on_select(tx)).build();
+    let widget_theme = WidgetTheme::from(theme.clone());
+    let filter_theme = FilterFormTheme::from(theme.clone());
+    let select_theme = SelectFormTheme::from(theme.clone());
+    let single_select_theme = SingleSelectTheme::default().status_style(theme.list.status);
+
+    let widget_base = WidgetBase::builder()
+        .title("Kind")
+        .theme(widget_theme)
+        .build();
+
+    let filter_form = FilterForm::builder().theme(filter_theme).build();
+
+    let select_form = SelectForm::builder()
+        .theme(select_theme)
+        .on_select(on_select(tx))
+        .build();
 
     SingleSelect::builder()
         .id(YAML_KIND_DIALOG_ID)
-        .widget_base(WidgetBase::builder().title("Kind").build())
+        .widget_base(widget_base)
+        .filter_form(filter_form)
         .select_form(select_form)
+        .theme(single_select_theme)
         .build()
         .into()
 }

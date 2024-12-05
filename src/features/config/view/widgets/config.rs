@@ -1,6 +1,7 @@
 use crossbeam::channel::Sender;
 
 use crate::{
+    config::theme::WidgetThemeConfig,
     features::{
         component_id::{CONFIG_RAW_DATA_WIDGET_ID, CONFIG_WIDGET_ID},
         config::message::{ConfigRequest, RequestData},
@@ -8,17 +9,33 @@ use crate::{
     message::Message,
     ui::{
         event::EventResult,
-        widget::{Table, TableItem, Widget, WidgetBase, WidgetTrait as _},
+        widget::{
+            FilterForm, FilterFormTheme, Table, TableItem, TableTheme, Widget, WidgetBase,
+            WidgetTheme, WidgetTrait as _,
+        },
         Window, WindowAction,
     },
 };
 
-pub fn config_widget(tx: &Sender<Message>) -> Widget<'static> {
+pub fn config_widget(tx: &Sender<Message>, theme: WidgetThemeConfig) -> Widget<'static> {
     let tx = tx.clone();
+
+    let widget_theme = WidgetTheme::from(theme.clone());
+    let filter_theme = FilterFormTheme::from(theme.clone());
+    let table_theme = TableTheme::from(theme.clone());
+
+    let widget_base = WidgetBase::builder()
+        .title("Config")
+        .theme(widget_theme)
+        .build();
+
+    let filter_form = FilterForm::builder().theme(filter_theme).build();
 
     Table::builder()
         .id(CONFIG_WIDGET_ID)
-        .widget_base(WidgetBase::builder().title("Config").build())
+        .widget_base(widget_base)
+        .filter_form(filter_form)
+        .theme(table_theme)
         .filtered_key("NAME")
         .block_injection(block_injection())
         .on_select(on_select(tx))

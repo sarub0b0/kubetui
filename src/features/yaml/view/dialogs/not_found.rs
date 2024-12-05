@@ -1,18 +1,32 @@
 use ratatui::crossterm::event::KeyCode;
 
 use crate::{
+    config::theme::WidgetThemeConfig,
     features::component_id::{YAML_KIND_DIALOG_ID, YAML_NOT_FOUND_DIALOG_ID},
     ui::{
         event::EventResult,
-        widget::{Text, Widget, WidgetBase},
+        widget::{SearchForm, SearchFormTheme, Text, TextTheme, Widget, WidgetBase, WidgetTheme},
         Window,
     },
 };
 
-pub fn not_found_dialog() -> Widget<'static> {
+pub fn not_found_dialog(theme: WidgetThemeConfig) -> Widget<'static> {
+    let widget_theme = WidgetTheme::from(theme.clone());
+    let search_theme = SearchFormTheme::from(theme.clone());
+    let text_theme = TextTheme::from(theme);
+
+    let widget_base = WidgetBase::builder()
+        .title("Name")
+        .theme(widget_theme)
+        .build();
+
+    let search_form = SearchForm::builder().theme(search_theme).build();
+
     Text::builder()
         .id(YAML_NOT_FOUND_DIALOG_ID)
-        .widget_base(WidgetBase::builder().title("Name").build())
+        .widget_base(widget_base)
+        .search_form(search_form)
+        .theme(text_theme)
         .items(
             [
                 "No resources found.",
