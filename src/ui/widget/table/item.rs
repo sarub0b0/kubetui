@@ -1,7 +1,4 @@
-use ratatui::{
-    style::{Color, Style},
-    widgets::{Cell, Row},
-};
+use ratatui::widgets::{Cell, Row};
 use std::ops::Deref;
 
 use crate::{
@@ -246,10 +243,12 @@ pub struct Header<'a> {
 
 impl Header<'_> {
     fn new(header: Vec<String>) -> Self {
-        let rendered = Row::new(header.iter().cloned().map(|h| {
-            Cell::from(h.styled_graphemes_symbols().concat())
-                .style(Style::default().fg(Color::DarkGray))
-        }))
+        let rendered = Row::new(
+            header
+                .iter()
+                .cloned()
+                .map(|h| Cell::from(h.styled_graphemes_symbols().concat())),
+        )
         .bottom_margin(HEADER_BOTTOM_MARGIN);
 
         Self {

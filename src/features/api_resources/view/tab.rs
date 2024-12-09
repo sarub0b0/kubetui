@@ -5,6 +5,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     clipboard::Clipboard,
+    config::theme::WidgetThemeConfig,
     features::component_id::LIST_TAB_ID,
     message::Message,
     ui::{
@@ -26,8 +27,9 @@ impl ListTab {
         title: &'static str,
         tx: &Sender<Message>,
         clipboard: &Option<Rc<RefCell<Clipboard>>>,
+        theme: WidgetThemeConfig,
     ) -> Self {
-        let list_widget = list_widget(tx, clipboard);
+        let list_widget = list_widget(tx, clipboard, theme.clone());
 
         let layout = TabLayout::new(
             |_| {
@@ -41,7 +43,7 @@ impl ListTab {
 
         ListTab {
             tab: Tab::new(LIST_TAB_ID, title, [list_widget], layout),
-            dialog: dialog_widget(tx),
+            dialog: dialog_widget(tx, theme),
         }
     }
 }
