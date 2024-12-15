@@ -164,7 +164,12 @@ impl WindowInit {
     }
 
     fn tabs_dialogs(&self) -> (Vec<Tab<'static>>, Vec<Dialog<'static>>) {
-        let clipboard = Some(Rc::new(RefCell::new(Clipboard::new())));
+        let clipboard = arboard::Clipboard::new()
+            .inspect_err(|err| {
+                logger!(error, "Failed to create clipboard. {}", err);
+            })
+            .ok()
+            .map(|clipboard| Rc::new(RefCell::new(Clipboard::new(clipboard))));
 
         let PodTab {
             tab: pod_tab,
