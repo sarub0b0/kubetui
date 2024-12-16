@@ -26,6 +26,10 @@ pub fn log_widget(
         .block_injection(block_injection())
         .action(UserEvent::from(KeyCode::Enter), add_blankline())
         .action(
+            UserEvent::from(KeyCode::Char('f')),
+            toggle_json_pretty_print(tx.clone()),
+        )
+        .action(
             UserEvent::from(KeyCode::Char('p')),
             toggle_json_pretty_print(tx.clone()),
         );

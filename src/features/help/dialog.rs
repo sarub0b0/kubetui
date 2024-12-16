@@ -207,7 +207,7 @@ const RIGHT_HELP_TEXT: &[HelpBlock] = &[
                 desc: "insert blank line",
             },
             KeyBindings {
-                keys: &["p"],
+                keys: &["f", "p"],
                 desc: "toggle json pretty print",
             },
         ],
