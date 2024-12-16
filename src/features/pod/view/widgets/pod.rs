@@ -72,6 +72,7 @@ fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &TableItem) -> EventRe
             format!("pod/{}", name),
             namespaces.to_owned(),
             LogPrefixType::OnlyContainer,
+            false,
         );
 
         tx.send(LogMessage::Request(config).into())
