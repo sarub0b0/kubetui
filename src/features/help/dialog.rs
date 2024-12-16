@@ -201,10 +201,16 @@ const RIGHT_HELP_TEXT: &[HelpBlock] = &[
     },
     HelpBlock {
         title: "Log",
-        bindings: &[KeyBindings {
-            keys: &["Enter"],
-            desc: "insert blank line",
-        }],
+        bindings: &[
+            KeyBindings {
+                keys: &["Enter"],
+                desc: "insert blank line",
+            },
+            KeyBindings {
+                keys: &["p"],
+                desc: "toggle json pretty print",
+            },
+        ],
     },
 ];
 
