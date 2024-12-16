@@ -32,7 +32,7 @@ impl PodTab {
     ) -> Self {
         let pod_widget = pod_widget(tx);
         let log_query_widget = log_query_widget(tx, namespaces);
-        let log_widget = log_widget(clipboard);
+        let log_widget = log_widget(tx, clipboard);
         let log_query_help_widget = log_query_help_widget();
 
         let layout = TabLayout::new(layout, split_direction);

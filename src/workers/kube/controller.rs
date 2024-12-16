@@ -36,7 +36,7 @@ use crate::{
             message::NetworkMessage,
         },
         pod::{
-            kube::{LogWorker, PodPoller},
+            kube::{LogConfig, LogWorker, PodPoller},
             message::LogMessage,
         },
         yaml::{
@@ -282,12 +282,31 @@ impl EventController {
     }
 }
 
+struct LogHandle {
+    handler: AbortHandle,
+    config: LogConfig,
+}
+
+impl LogHandle {
+    fn abort(&self) {
+        self.handler.abort();
+    }
+
+    fn toggle_json_pretty_print(&mut self, tx: Sender<Message>, client: KubeClient) {
+        self.abort();
+
+        self.config.json_pretty_print = !self.config.json_pretty_print;
+
+        self.handler = LogWorker::new(tx, client, self.config.clone()).spawn();
+    }
+}
+
 #[async_trait]
 impl Worker for EventController {
     type Output = WorkerResult;
 
     async fn run(&self) -> Self::Output {
-        let mut log_handler: Option<AbortHandle> = None;
+        let mut log_handler: Option<LogHandle> = None;
         let mut config_handler: Option<AbortHandle> = None;
         let mut network_handler: Option<AbortHandle> = None;
         let mut yaml_handler: Option<AbortHandle> = None;
@@ -365,9 +384,22 @@ impl Worker for EventController {
                             handler.abort();
                         }
 
-                        log_handler = Some(LogWorker::new(tx, kube_client.clone(), req).spawn());
+                        let abort_handle =
+                            LogWorker::new(tx, kube_client.clone(), req.clone()).spawn();
+
+                        log_handler = Some(LogHandle {
+                            handler: abort_handle,
+                            config: req,
+                        });
 
                         task::yield_now().await;
+                    }
+
+                    Kube::Log(LogMessage::ToggleJsonPrettyPrint) => {
+                        if let Some(ref mut handler) = log_handler {
+                            handler.toggle_json_pretty_print(tx.clone(), kube_client.clone());
+                            task::yield_now().await;
+                        }
                     }
 
                     Kube::Config(ConfigMessage::Request(req)) => {

@@ -1,4 +1,5 @@
 mod log_collector;
+mod log_content;
 mod log_streamer;
 mod pod_watcher;
 
@@ -44,17 +45,24 @@ macro_rules! send_response {
 
 #[derive(Debug, Clone)]
 pub struct LogConfig {
-    namespaces: Namespace,
-    query: String,
-    prefix_type: LogPrefixType,
+    pub namespaces: Namespace,
+    pub query: String,
+    pub prefix_type: LogPrefixType,
+    pub json_pretty_print: bool,
 }
 
 impl LogConfig {
-    pub fn new(query: String, namespaces: Namespace, prefix_type: LogPrefixType) -> Self {
+    pub fn new(
+        query: String,
+        namespaces: Namespace,
+        prefix_type: LogPrefixType,
+        json_pretty_print: bool,
+    ) -> Self {
         Self {
             namespaces,
             query,
             prefix_type,
+            json_pretty_print,
         }
     }
 }
@@ -63,7 +71,7 @@ impl LogConfig {
 pub struct LogWorker {
     tx: Sender<Message>,
     client: KubeClient,
-    config: LogConfig,
+    pub config: LogConfig,
 }
 
 impl LogWorker {
@@ -120,7 +128,12 @@ impl LogWorker {
         let mut handles: Vec<_> = pod_watchers.iter().map(PodWatcher::spawn).collect();
 
         // collector
-        let collector_handle = LogCollector::new(self.tx.clone(), log_buffer.clone()).spawn();
+        let collector_handle = LogCollector::new(
+            self.tx.clone(),
+            log_buffer.clone(),
+            self.config.json_pretty_print,
+        )
+        .spawn();
 
         handles.push(collector_handle);
 
