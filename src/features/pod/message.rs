@@ -8,6 +8,7 @@ use super::kube::LogConfig;
 pub enum LogMessage {
     Request(LogConfig),
     Response(Result<Vec<String>>),
+    ToggleJsonPrettyPrint,
 }
 
 impl From<LogMessage> for Message {
