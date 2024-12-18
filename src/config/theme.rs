@@ -6,6 +6,7 @@ mod header;
 mod help;
 mod input;
 mod list;
+mod pod;
 mod style;
 mod tab;
 mod table;
@@ -14,6 +15,7 @@ mod widget;
 
 use serde::{Deserialize, Serialize};
 
+use crate::features::pod::kube::{PodConfig, PodHighlightRule};
 use crate::ui::dialog::DialogTheme;
 use crate::ui::{HeaderTheme, TabTheme};
 
@@ -26,6 +28,7 @@ pub use filter::*;
 pub use help::HelpThemeConfig;
 pub use input::*;
 pub use list::*;
+pub use pod::*;
 pub use style::ThemeStyleConfig;
 pub use table::*;
 pub use text::*;
@@ -44,6 +47,9 @@ pub struct ThemeConfig {
 
     #[serde(default)]
     pub component: WidgetThemeConfig,
+
+    #[serde(default)]
+    pub pod: PodThemeConfig,
 
     #[serde(default)]
     pub help: HelpThemeConfig,
@@ -75,5 +81,21 @@ impl From<ThemeConfig> for DialogTheme {
         DialogTheme::default()
             .base_style(base_style)
             .size(config.component.dialog.size)
+    }
+}
+
+impl From<ThemeConfig> for PodConfig {
+    fn from(theme: ThemeConfig) -> Self {
+        PodConfig {
+            pod_highlight_rules: theme
+                .pod
+                .highlights
+                .into_iter()
+                .map(|hi| PodHighlightRule {
+                    status_regex: hi.status,
+                    style: hi.style.into(),
+                })
+                .collect(),
+        }
     }
 }
