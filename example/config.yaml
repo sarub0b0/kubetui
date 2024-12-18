@@ -103,6 +103,7 @@ theme:
       header:
         fg_color: lightblue
         modifier: bold
+
     ## 選択リスト
     list:
       ## フィルターフォーム
@@ -139,6 +140,18 @@ theme:
         width: 85
         ## 0.0 ~ 100.0
         height: 85
+
+  ## Pod table
+  pod:
+    ## podのステータスに応じたハイライトスタイルを設定
+    highlights:
+      - status: Running
+        fg_color: default
+      - status: (Completed|Evicted)
+        fg_color: green
+      - status: (BackOff|Err|Unknown)
+        fg_color: red
+
   ## Help dialog
   help:
     title:

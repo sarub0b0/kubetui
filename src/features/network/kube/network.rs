@@ -1,7 +1,12 @@
-use std::{collections::BTreeMap, time};
+use std::{
+    collections::BTreeMap,
+    sync::{atomic::AtomicBool, Arc},
+    time,
+};
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
+use crossbeam::channel::Sender;
 use futures::future::{join_all, try_join_all};
 use k8s_openapi::{
     api::{
@@ -25,7 +30,8 @@ use crate::{
         KubeClient, KubeClientRequest,
     },
     logger,
-    workers::kube::{PollerBase, Worker, WorkerResult},
+    message::Message,
+    workers::kube::{SharedTargetNamespaces, Worker, WorkerResult},
 };
 
 #[derive(Debug, Default, Clone)]
@@ -183,14 +189,26 @@ impl std::fmt::Display for TargetResource {
 
 #[derive(Clone)]
 pub struct NetworkPoller {
-    base: PollerBase,
+    is_terminated: Arc<AtomicBool>,
+    tx: Sender<Message>,
+    shared_target_namespaces: SharedTargetNamespaces,
+    kube_client: KubeClient,
     api_resources: SharedApiResources,
 }
 
 impl NetworkPoller {
-    pub fn new(base: PollerBase, api_resources: SharedApiResources) -> Self {
+    pub fn new(
+        is_terminated: Arc<AtomicBool>,
+        tx: Sender<Message>,
+        shared_target_namespaces: SharedTargetNamespaces,
+        kube_client: KubeClient,
+        api_resources: SharedApiResources,
+    ) -> Self {
         Self {
-            base,
+            is_terminated,
+            tx,
+            shared_target_namespaces,
+            kube_client,
             api_resources,
         }
     }
@@ -256,8 +274,8 @@ impl Worker for NetworkPoller {
     async fn run(&self) -> Self::Output {
         let mut interval = tokio::time::interval(time::Duration::from_secs(1));
 
-        let is_terminated = &self.base.is_terminated;
-        let tx = &self.base.tx;
+        let is_terminated = &self.is_terminated;
+        let tx = &self.tx;
 
         while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
             interval.tick().await;
@@ -281,7 +299,7 @@ const TARGET_COLUMNS: [&str; 2] = ["Name", "Age"];
 
 impl NetworkPoller {
     async fn polling(&self, target_resources: &[TargetResource]) -> Result<KubeTable> {
-        let target_namespaces = self.base.shared_target_namespaces.read().await;
+        let target_namespaces = self.shared_target_namespaces.read().await;
 
         let rows: Vec<_> = join_all(
             target_resources
@@ -311,7 +329,7 @@ impl NetworkPoller {
         kind: &TargetResource,
         namespaces: &[String],
     ) -> Result<Vec<NetworkTableRow>> {
-        let client = &self.base.kube_client;
+        let client = &self.kube_client;
 
         let jobs = try_join_all(
             namespaces
