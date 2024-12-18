@@ -9,6 +9,7 @@ use crossbeam::channel::{bounded, Receiver, Sender};
 use crate::{
     cmd::Command,
     config::Config,
+    features::pod::kube::PodConfig,
     message::Message,
     workers::{KubeWorker, Render, Tick, UserInput},
 };
@@ -18,7 +19,7 @@ pub struct App;
 impl App {
     pub fn run(cmd: Command, config: Config) -> Result<()> {
         let split_direction = cmd.split_direction();
-        let kube_worker_config = cmd.kube_worker_config();
+        let mut kube_worker_config = cmd.kube_worker_config();
 
         let (tx_input, rx_main): (Sender<Message>, Receiver<Message>) = bounded(128);
         let (tx_main, rx_kube): (Sender<Message>, Receiver<Message>) = bounded(256);
@@ -28,6 +29,8 @@ impl App {
         let is_terminated = Arc::new(AtomicBool::new(false));
 
         let user_input = UserInput::new(tx_input.clone(), is_terminated.clone());
+
+        kube_worker_config.pod_config = PodConfig::from(config.theme.clone());
 
         let kube = KubeWorker::new(
             tx_kube.clone(),
