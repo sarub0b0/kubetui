@@ -1,7 +1,14 @@
-use std::{fmt::Display, hash::Hash, ops::Deref, sync::Arc, time};
+use std::{
+    fmt::Display,
+    hash::Hash,
+    ops::Deref,
+    sync::{atomic::AtomicBool, Arc},
+    time,
+};
 
 use anyhow::Result;
 use async_trait::async_trait;
+use crossbeam::channel::Sender;
 use futures::future::try_join_all;
 use kube::{
     discovery::{verbs, ApiGroup, Scope},
@@ -21,9 +28,10 @@ use crate::{
         table::insert_ns,
         KubeClient, KubeClientRequest as _,
     },
+    message::Message,
     workers::kube::{
-        PollerBase, SharedTargetApiResources, TargetApiResources, TargetNamespaces, Worker,
-        WorkerResult,
+        SharedTargetApiResources, SharedTargetNamespaces, TargetApiResources, TargetNamespaces,
+        Worker, WorkerResult,
     },
 };
 
@@ -227,19 +235,28 @@ impl Display for ApiResource {
 
 #[derive(Clone)]
 pub struct ApiPoller {
-    base: PollerBase,
+    is_terminated: Arc<AtomicBool>,
+    tx: Sender<Message>,
+    shared_target_namespaces: SharedTargetNamespaces,
+    kube_client: KubeClient,
     shared_target_api_resources: SharedTargetApiResources,
     shared_api_resources: SharedApiResources,
 }
 
 impl ApiPoller {
     pub fn new(
-        base: PollerBase,
+        is_terminated: Arc<AtomicBool>,
+        tx: Sender<Message>,
+        shared_target_namespaces: SharedTargetNamespaces,
+        kube_client: KubeClient,
         shared_target_api_resources: SharedTargetApiResources,
         shared_api_resources: SharedApiResources,
     ) -> Self {
         Self {
-            base,
+            is_terminated,
+            tx,
+            shared_target_namespaces,
+            kube_client,
             shared_target_api_resources,
             shared_api_resources,
         }
@@ -252,13 +269,10 @@ impl Worker for ApiPoller {
 
     async fn run(&self) -> Self::Output {
         let Self {
-            base:
-                PollerBase {
-                    is_terminated,
-                    tx,
-                    shared_target_namespaces,
-                    kube_client,
-                },
+            is_terminated,
+            tx,
+            shared_target_namespaces,
+            kube_client,
             shared_target_api_resources,
             shared_api_resources,
         } = self;
