@@ -28,7 +28,7 @@ use crate::{
             message::ConfigMessage,
         },
         context::message::{ContextMessage, ContextRequest, ContextResponse},
-        event::kube::EventPoller,
+        event::kube::{EventConfig, EventPoller},
         get::{kube::yaml::GetYamlWorker, message::GetMessage},
         namespace::message::{NamespaceMessage, NamespaceRequest, NamespaceResponse},
         network::{
@@ -85,6 +85,7 @@ pub struct KubeController {
     context: String,
     store: KubeStore,
     pod_config: PodConfig,
+    event_config: EventConfig,
 }
 
 impl KubeController {
@@ -100,6 +101,7 @@ impl KubeController {
             context,
             all_namespaces,
             pod_config,
+            event_config,
         } = config;
 
         let kubeconfig = read_kubeconfig(kubeconfig)?;
@@ -132,6 +134,7 @@ impl KubeController {
             context: context.to_string(),
             store,
             pod_config,
+            event_config,
         })
     }
 
@@ -144,6 +147,7 @@ impl KubeController {
             mut context,
             mut store,
             pod_config,
+            event_config,
         } = self;
 
         while !is_terminated.load(Ordering::Relaxed) {
@@ -215,6 +219,7 @@ impl KubeController {
                 tx.clone(),
                 shared_target_namespaces.clone(),
                 client.clone(),
+                event_config.clone(),
             )
             .spawn();
 

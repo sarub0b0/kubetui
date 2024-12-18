@@ -1,6 +1,7 @@
 mod base;
 mod border;
 mod dialog;
+mod event;
 mod filter;
 mod header;
 mod help;
@@ -15,6 +16,7 @@ mod widget;
 
 use serde::{Deserialize, Serialize};
 
+use crate::features::event::kube::{EventConfig, EventHighlightRule};
 use crate::features::pod::kube::{PodConfig, PodHighlightRule};
 use crate::ui::dialog::DialogTheme;
 use crate::ui::{HeaderTheme, TabTheme};
@@ -24,6 +26,7 @@ pub use self::tab::TabThemeConfig;
 pub use base::BaseThemeConfig;
 pub use border::BorderThemeConfig;
 pub use dialog::*;
+pub use event::EventThemeConfig;
 pub use filter::*;
 pub use help::HelpThemeConfig;
 pub use input::*;
@@ -50,6 +53,9 @@ pub struct ThemeConfig {
 
     #[serde(default)]
     pub pod: PodThemeConfig,
+
+    #[serde(default)]
+    pub event: EventThemeConfig,
 
     #[serde(default)]
     pub help: HelpThemeConfig,
@@ -94,6 +100,23 @@ impl From<ThemeConfig> for PodConfig {
                 .map(|hi| PodHighlightRule {
                     status_regex: hi.status,
                     style: hi.style.into(),
+                })
+                .collect(),
+        }
+    }
+}
+
+impl From<ThemeConfig> for EventConfig {
+    fn from(theme: ThemeConfig) -> Self {
+        EventConfig {
+            highlight_rules: theme
+                .event
+                .highlights
+                .into_iter()
+                .map(|hi| EventHighlightRule {
+                    ty: hi.ty,
+                    summary: hi.summary.into(),
+                    message: hi.message.into(),
                 })
                 .collect(),
         }

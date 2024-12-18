@@ -152,6 +152,22 @@ theme:
       - status: (BackOff|Err|Unknown)
         fg_color: red
 
+   ## Event view
+  event:
+    ## イベントの種類に応じたハイライトスタイルを設定
+    highlights:
+      - type: Normal
+        summary:
+          fg_color: blue
+        message:
+          fg_color: dark_gray
+      - type: Warning
+        summary:
+          fg_color: yellow
+        message:
+          fg_color: dark_gray
+
+
   ## Help dialog
   help:
     title:
