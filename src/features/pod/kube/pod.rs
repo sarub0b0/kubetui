@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use crossbeam::channel::Sender;
 use futures::future::try_join_all;
 use k8s_openapi::{api::core::v1::Pod, Resource as _};
-use ratatui::style::Style;
+use ratatui::style::{Color, Style};
 use regex::Regex;
 
 use crate::{
@@ -22,9 +22,26 @@ use crate::{
     workers::kube::{message::Kube, SharedTargetNamespaces, Worker, WorkerResult},
 };
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct PodConfig {
     pub pod_highlight_rules: Vec<PodHighlightRule>,
+}
+
+impl Default for PodConfig {
+    fn default() -> Self {
+        Self {
+            pod_highlight_rules: vec![
+                PodHighlightRule {
+                    status_regex: Regex::new(r"(Completed|Evicted)").expect("invalid regex"),
+                    style: Style::default().fg(Color::DarkGray),
+                },
+                PodHighlightRule {
+                    status_regex: Regex::new(r"(BackOff|Err|Unknown)").expect("invalid regex"),
+                    style: Style::default().fg(Color::Red),
+                },
+            ],
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
