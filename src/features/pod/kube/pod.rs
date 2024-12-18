@@ -8,6 +8,8 @@ use async_trait::async_trait;
 use crossbeam::channel::Sender;
 use futures::future::try_join_all;
 use k8s_openapi::{api::core::v1::Pod, Resource as _};
+use ratatui::style::Style;
+use regex::Regex;
 
 use crate::{
     kube::{
@@ -16,8 +18,20 @@ use crate::{
         KubeClient,
     },
     message::Message,
+    ui::widget::ansi_color::style_to_ansi,
     workers::kube::{message::Kube, SharedTargetNamespaces, Worker, WorkerResult},
 };
+
+#[derive(Debug, Default, Clone)]
+pub struct PodConfig {
+    pub pod_highlight_rules: Vec<PodHighlightRule>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PodHighlightRule {
+    pub status_regex: Regex,
+    pub style: Style,
+}
 
 #[derive(Clone)]
 pub struct PodPoller {
@@ -25,6 +39,7 @@ pub struct PodPoller {
     tx: Sender<Message>,
     shared_target_namespaces: SharedTargetNamespaces,
     kube_client: KubeClient,
+    config: PodConfig,
 }
 
 impl PodPoller {
@@ -33,12 +48,14 @@ impl PodPoller {
         tx: Sender<Message>,
         shared_target_namespaces: SharedTargetNamespaces,
         kube_client: KubeClient,
+        config: PodConfig,
     ) -> Self {
         Self {
             is_terminated,
             tx,
             shared_target_namespaces,
             kube_client,
+            config,
         }
     }
 }
@@ -111,16 +128,14 @@ impl PodPoller {
 
                     let name = row[0].clone();
 
-                    let color = match row[2].as_str() {
-                        s if s == "Completed" || s.contains("Evicted") => Some(90),
-                        s if s.contains("BackOff")
-                            || s.contains("Err")
-                            || s.contains("Unknown") =>
-                        {
-                            Some(31)
-                        }
-                        _ => None,
-                    };
+                    let status = row[2].as_str();
+
+                    let color = self
+                        .config
+                        .pod_highlight_rules
+                        .iter()
+                        .find(|rule| rule.status_regex.is_match(status))
+                        .map(|rule| style_to_ansi(rule.style));
 
                     if insert_ns {
                         row.insert(0, ns.to_string())
@@ -128,7 +143,7 @@ impl PodPoller {
 
                     if let Some(color) = color {
                         row.iter_mut()
-                            .for_each(|r| *r = format!("\x1b[{}m{}\x1b[0m", color, r))
+                            .for_each(|r| *r = format!("{}{}\x1b[0m", color, r))
                     }
 
                     KubeTableRow {
