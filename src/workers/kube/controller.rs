@@ -72,14 +72,6 @@ async fn fetch_all_namespaces(client: KubeClient) -> Result<Vec<String>> {
 }
 
 #[derive(Clone)]
-pub struct PollerBase {
-    pub is_terminated: Arc<AtomicBool>,
-    pub tx: Sender<Message>,
-    pub shared_target_namespaces: SharedTargetNamespaces,
-    pub kube_client: KubeClient,
-}
-
-#[derive(Clone)]
 pub enum WorkerResult {
     ChangedContext(String),
     Terminated,
@@ -170,33 +162,62 @@ impl KubeController {
             let shared_target_api_resources = Arc::new(RwLock::new(target_api_resources.to_vec()));
             let shared_api_resources = ApiResources::shared();
 
-            let poller_base = PollerBase {
-                shared_target_namespaces: shared_target_namespaces.clone(),
-                tx: tx.clone(),
-                is_terminated: is_terminated.clone(),
-                kube_client: client.clone(),
-            };
+            let contexts = kubeconfig
+                .contexts
+                .iter()
+                .map(|ctx| ctx.name.to_string())
+                .collect();
 
             let event_controller_handle = EventController::new(
-                poller_base.clone(),
+                is_terminated.clone(),
+                shared_target_namespaces.clone(),
+                client.clone(),
+                tx.clone(),
                 rx.clone(),
-                kubeconfig
-                    .contexts
-                    .iter()
-                    .map(|ctx| ctx.name.to_string())
-                    .collect(),
+                contexts,
                 shared_target_api_resources.clone(),
                 shared_api_resources.clone(),
             )
             .spawn();
 
-            let pod_handle = PodPoller::new(poller_base.clone()).spawn();
-            let config_handle = ConfigPoller::new(poller_base.clone()).spawn();
-            let network_handle =
-                NetworkPoller::new(poller_base.clone(), shared_api_resources.clone()).spawn();
-            let event_handle = EventPoller::new(poller_base.clone()).spawn();
+            let pod_handle = PodPoller::new(
+                is_terminated.clone(),
+                tx.clone(),
+                shared_target_namespaces.clone(),
+                client.clone(),
+            )
+            .spawn();
+
+            let config_handle = ConfigPoller::new(
+                is_terminated.clone(),
+                tx.clone(),
+                shared_target_namespaces.clone(),
+                client.clone(),
+            )
+            .spawn();
+
+            let network_handle = NetworkPoller::new(
+                is_terminated.clone(),
+                tx.clone(),
+                shared_target_namespaces.clone(),
+                client.clone(),
+                shared_api_resources.clone(),
+            )
+            .spawn();
+
+            let event_handle = EventPoller::new(
+                is_terminated.clone(),
+                tx.clone(),
+                shared_target_namespaces.clone(),
+                client.clone(),
+            )
+            .spawn();
+
             let api_handle = ApiPoller::new(
-                poller_base.clone(),
+                is_terminated.clone(),
+                tx.clone(),
+                shared_target_namespaces.clone(),
+                client.clone(),
                 shared_target_api_resources.clone(),
                 shared_api_resources,
             )
@@ -257,7 +278,10 @@ impl KubeController {
 
 #[derive(Clone)]
 struct EventController {
-    base: PollerBase,
+    is_terminated: Arc<AtomicBool>,
+    shared_target_namespaces: SharedTargetNamespaces,
+    kube_client: KubeClient,
+    tx: Sender<Message>,
     rx: Receiver<Message>,
     contexts: Vec<String>,
     shared_target_api_resources: SharedTargetApiResources,
@@ -266,14 +290,20 @@ struct EventController {
 
 impl EventController {
     fn new(
-        base: PollerBase,
+        is_terminated: Arc<AtomicBool>,
+        shared_target_namespaces: SharedTargetNamespaces,
+        kube_client: KubeClient,
+        tx: Sender<Message>,
         rx: Receiver<Message>,
         contexts: Vec<String>,
         shared_target_api_resources: SharedTargetApiResources,
         shared_api_resources: SharedApiResources,
     ) -> Self {
         Self {
-            base,
+            is_terminated,
+            shared_target_namespaces,
+            kube_client,
+            tx,
             rx,
             contexts,
             shared_target_api_resources,
@@ -313,19 +343,15 @@ impl Worker for EventController {
         let mut get_handler: Option<AbortHandle> = None;
 
         let EventController {
-            base: poll_worker,
+            is_terminated,
+            shared_target_namespaces,
+            kube_client,
+            tx,
             rx,
             contexts,
             shared_target_api_resources,
             shared_api_resources,
         } = self;
-
-        let PollerBase {
-            shared_target_namespaces,
-            tx,
-            is_terminated,
-            kube_client,
-        } = poll_worker;
 
         while !is_terminated.load(Ordering::Relaxed) {
             let rx = rx.clone();

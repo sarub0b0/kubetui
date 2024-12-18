@@ -1,7 +1,11 @@
-use std::collections::BTreeMap;
+use std::{
+    collections::BTreeMap,
+    sync::{atomic::AtomicBool, Arc},
+};
 
 use anyhow::Result;
 use async_trait::async_trait;
+use crossbeam::channel::Sender;
 use futures::future::try_join_all;
 use k8s_openapi::{api::core::v1::Pod, Resource as _};
 
@@ -9,22 +13,33 @@ use crate::{
     kube::{
         apis::v1_table::TableRow,
         table::{get_resource_per_namespace, insert_ns, KubeTable, KubeTableRow},
+        KubeClient,
     },
     message::Message,
-    workers::kube::{
-        message::Kube,
-        WorkerResult, {PollerBase, Worker},
-    },
+    workers::kube::{message::Kube, SharedTargetNamespaces, Worker, WorkerResult},
 };
 
 #[derive(Clone)]
 pub struct PodPoller {
-    base: PollerBase,
+    is_terminated: Arc<AtomicBool>,
+    tx: Sender<Message>,
+    shared_target_namespaces: SharedTargetNamespaces,
+    kube_client: KubeClient,
 }
 
 impl PodPoller {
-    pub fn new(base: PollerBase) -> Self {
-        Self { base }
+    pub fn new(
+        is_terminated: Arc<AtomicBool>,
+        tx: Sender<Message>,
+        shared_target_namespaces: SharedTargetNamespaces,
+        kube_client: KubeClient,
+    ) -> Self {
+        Self {
+            is_terminated,
+            tx,
+            shared_target_namespaces,
+            kube_client,
+        }
     }
 }
 
@@ -36,9 +51,7 @@ impl Worker for PodPoller {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(1));
 
         let Self {
-            base: PollerBase {
-                is_terminated, tx, ..
-            },
+            is_terminated, tx, ..
         } = self;
 
         while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
@@ -56,7 +69,7 @@ impl Worker for PodPoller {
 
 impl PodPoller {
     async fn get_pod_info(&self) -> Result<KubeTable> {
-        let namespaces = self.base.shared_target_namespaces.read().await;
+        let namespaces = self.shared_target_namespaces.read().await;
 
         let jobs = self.get_pods_per_namespace(&namespaces).await;
 
@@ -89,7 +102,7 @@ impl PodPoller {
         let insert_ns = insert_ns(namespaces);
         try_join_all(namespaces.iter().map(|ns| {
             get_resource_per_namespace(
-                &self.base.kube_client,
+                &self.kube_client,
                 format!("api/v1/namespaces/{}/{}", ns, "pods"),
                 &["Name", "Ready", "Status", "Age"],
                 move |row: &TableRow, indexes: &[usize]| {

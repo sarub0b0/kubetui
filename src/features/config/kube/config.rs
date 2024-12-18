@@ -1,4 +1,8 @@
-use std::{collections::BTreeMap, time};
+use std::{
+    collections::BTreeMap,
+    sync::{atomic::AtomicBool, Arc},
+    time,
+};
 
 use crate::{
     features::config::message::ConfigResponse,
@@ -7,23 +11,36 @@ use crate::{
         table::{get_resource_per_namespace, insert_ns, KubeTable, KubeTableRow},
         KubeClient,
     },
-    workers::kube::{
-        WorkerResult, {PollerBase, Worker},
-    },
+    message::Message,
+    workers::kube::{SharedTargetNamespaces, Worker, WorkerResult},
 };
 
 use anyhow::Result;
 use async_trait::async_trait;
+use crossbeam::channel::Sender;
 use futures::future::try_join_all;
 
 #[derive(Clone)]
 pub struct ConfigPoller {
-    base: PollerBase,
+    is_terminated: Arc<AtomicBool>,
+    tx: Sender<Message>,
+    shared_target_namespaces: SharedTargetNamespaces,
+    kube_client: KubeClient,
 }
 
 impl ConfigPoller {
-    pub fn new(base: PollerBase) -> Self {
-        Self { base }
+    pub fn new(
+        is_terminated: Arc<AtomicBool>,
+        tx: Sender<Message>,
+        shared_target_namespaces: SharedTargetNamespaces,
+        kube_client: KubeClient,
+    ) -> Self {
+        Self {
+            is_terminated,
+            tx,
+            shared_target_namespaces,
+            kube_client,
+        }
     }
 }
 
@@ -35,13 +52,10 @@ impl Worker for ConfigPoller {
         let mut interval = tokio::time::interval(time::Duration::from_secs(1));
 
         let Self {
-            base:
-                PollerBase {
-                    is_terminated,
-                    tx,
-                    shared_target_namespaces,
-                    kube_client,
-                },
+            is_terminated,
+            tx,
+            shared_target_namespaces,
+            kube_client,
         } = self;
 
         while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {

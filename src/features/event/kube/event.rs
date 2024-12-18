@@ -1,7 +1,14 @@
-use std::{sync::atomic::Ordering, time};
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time,
+};
 
 use anyhow::Result;
 use async_trait::async_trait;
+use crossbeam::channel::Sender;
 use futures::future::try_join_all;
 
 use crate::{
@@ -11,17 +18,30 @@ use crate::{
         KubeClient,
     },
     message::Message,
-    workers::kube::{message::Kube, PollerBase, Worker, WorkerResult},
+    workers::kube::{message::Kube, SharedTargetNamespaces, Worker, WorkerResult},
 };
 
 #[derive(Clone)]
 pub struct EventPoller {
-    base: PollerBase,
+    is_terminated: Arc<AtomicBool>,
+    tx: Sender<Message>,
+    shared_target_namespaces: SharedTargetNamespaces,
+    kube_client: KubeClient,
 }
 
 impl EventPoller {
-    pub fn new(base: PollerBase) -> Self {
-        Self { base }
+    pub fn new(
+        is_terminated: Arc<AtomicBool>,
+        tx: Sender<Message>,
+        shared_target_namespaces: SharedTargetNamespaces,
+        kube_client: KubeClient,
+    ) -> Self {
+        Self {
+            is_terminated,
+            tx,
+            shared_target_namespaces,
+            kube_client,
+        }
     }
 }
 
@@ -30,13 +50,10 @@ impl Worker for EventPoller {
     type Output = WorkerResult;
     async fn run(&self) -> Self::Output {
         let Self {
-            base:
-                PollerBase {
-                    is_terminated,
-                    tx,
-                    shared_target_namespaces,
-                    kube_client,
-                },
+            is_terminated,
+            tx,
+            shared_target_namespaces,
+            kube_client,
         } = self;
 
         let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
