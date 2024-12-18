@@ -21,14 +21,14 @@ impl Default for PodThemeConfig {
 fn default_highlights() -> Vec<PodHighlightConfig> {
     vec![
         PodHighlightConfig {
-            status: Regex::new(r"(Completed|Evicted)").unwrap(),
+            status: Regex::new(r"(Completed|Evicted)").expect("invalid regex"),
             style: ThemeStyleConfig {
                 fg_color: Some(Color::DarkGray),
                 ..Default::default()
             },
         },
         PodHighlightConfig {
-            status: Regex::new(r"(BackOff|Err|Unknown)").unwrap(),
+            status: Regex::new(r"(BackOff|Err|Unknown)").expect("invalid regex"),
             style: ThemeStyleConfig {
                 fg_color: Some(Color::Red),
                 ..Default::default()
