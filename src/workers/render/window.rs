@@ -18,7 +18,7 @@ use ratatui::{
 use crate::{
     clipboard::Clipboard,
     features::{
-        api_resources::view::ListTab,
+        api_resources::view::ApiTab,
         component_id::{
             CONFIG_WIDGET_ID, CONTEXT_DIALOG_ID, HELP_DIALOG_ID, MULTIPLE_NAMESPACES_DIALOG_ID,
             NETWORK_WIDGET_ID, POD_WIDGET_ID, SINGLE_NAMESPACE_DIALOG_ID, YAML_DIALOG_ID,
@@ -190,10 +190,10 @@ impl WindowInit {
 
         let EventTab { tab: event_tab } = EventTab::new("Event", &clipboard);
 
-        let ListTab {
-            tab: list_tab,
-            dialog: list_dialog,
-        } = ListTab::new("List", &self.tx, &clipboard);
+        let ApiTab {
+            tab: api_tab,
+            dialog: api_dialog,
+        } = ApiTab::new("Api", &self.tx, &clipboard);
 
         let YamlTab {
             tab: yaml_tab,
@@ -228,7 +228,7 @@ impl WindowInit {
             config_tab,
             network_tab,
             event_tab,
-            list_tab,
+            api_tab,
             yaml_tab,
         ];
 
@@ -236,7 +236,7 @@ impl WindowInit {
             Dialog::new(context_dialog),
             Dialog::new(single_namespace_dialog),
             Dialog::new(multiple_namespaces_dialog),
-            Dialog::new(list_dialog),
+            Dialog::new(api_dialog),
             Dialog::new(yaml_kind_dialog),
             Dialog::new(yaml_name_dialog),
             Dialog::new(yaml_not_found_dialog),

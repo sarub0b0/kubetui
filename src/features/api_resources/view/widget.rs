@@ -6,7 +6,7 @@ use crate::{
     clipboard::Clipboard,
     features::{
         api_resources::message::ApiRequest,
-        component_id::{LIST_DIALOG_ID, LIST_WIDGET_ID},
+        component_id::{API_DIALOG_ID, API_WIDGET_ID},
     },
     message::Message,
     ui::{
@@ -16,7 +16,7 @@ use crate::{
     },
 };
 
-pub fn list_widget(
+pub fn api_widget(
     tx: &Sender<Message>,
     clipboard: &Option<Rc<RefCell<Clipboard>>>,
 ) -> Widget<'static> {
@@ -25,13 +25,13 @@ pub fn list_widget(
     let open_subwin = move |w: &mut Window| {
         tx.send(ApiRequest::Get.into())
             .expect("Failed to send ApiRequest::Get");
-        w.open_dialog(LIST_DIALOG_ID);
+        w.open_dialog(API_DIALOG_ID);
         EventResult::Nop
     };
 
     let builder = Text::builder()
-        .id(LIST_WIDGET_ID)
-        .widget_base(WidgetBase::builder().title("List").build())
+        .id(API_WIDGET_ID)
+        .widget_base(WidgetBase::builder().title("Api").build())
         .block_injection(|text: &Text, is_active: bool, is_mouse_over: bool| {
             let (index, size) = text.state();
 

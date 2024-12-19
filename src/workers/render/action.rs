@@ -7,8 +7,8 @@ use crate::{
     features::{
         api_resources::message::{ApiMessage, ApiResponse},
         component_id::{
-            CONFIG_RAW_DATA_WIDGET_ID, CONFIG_WIDGET_ID, CONTEXT_DIALOG_ID, EVENT_WIDGET_ID,
-            LIST_DIALOG_ID, LIST_WIDGET_ID, MULTIPLE_NAMESPACES_DIALOG_ID,
+            API_DIALOG_ID, API_WIDGET_ID, CONFIG_RAW_DATA_WIDGET_ID, CONFIG_WIDGET_ID,
+            CONTEXT_DIALOG_ID, EVENT_WIDGET_ID, MULTIPLE_NAMESPACES_DIALOG_ID,
             NETWORK_DESCRIPTION_WIDGET_ID, NETWORK_WIDGET_ID, POD_LOG_WIDGET_ID, POD_WIDGET_ID,
             SINGLE_NAMESPACE_DIALOG_ID, YAML_DIALOG_ID, YAML_KIND_DIALOG_ID, YAML_NAME_DIALOG_ID,
             YAML_NOT_FOUND_DIALOG_ID, YAML_WIDGET_ID,
@@ -283,22 +283,22 @@ pub fn update_contents(
                 .select_all();
         }
 
-        Kube::RestoreAPIs(list) => {
+        Kube::RestoreAPIs(apis) => {
             let w = window
-                .find_widget_mut(LIST_DIALOG_ID)
+                .find_widget_mut(API_DIALOG_ID)
                 .as_mut_multiple_select();
 
-            for key in list {
-                let Ok(json) = serde_json::to_string(&key) else {
+            for api in apis {
+                let Ok(json) = serde_json::to_string(&api) else {
                     unreachable!()
                 };
 
                 let metadata = BTreeMap::from([("key".into(), json)]);
 
-                let item = if key.is_api() || key.is_preferred_version() {
-                    key.to_string()
+                let item = if api.is_api() || api.is_preferred_version() {
+                    api.to_string()
                 } else {
-                    format!("\x1b[90m{}\x1b[39m", key)
+                    format!("\x1b[90m{}\x1b[39m", api)
                 };
 
                 let literal_item = LiteralItem::new(item, Some(metadata));
@@ -310,9 +310,9 @@ pub fn update_contents(
         Kube::Api(ApiMessage::Response(res)) => {
             use ApiResponse::*;
             match res {
-                Get(list) => {
-                    let widget = window.find_widget_mut(LIST_DIALOG_ID);
-                    match list {
+                Get(apis) => {
+                    let widget = window.find_widget_mut(API_DIALOG_ID);
+                    match apis {
                         Ok(i) => {
                             let items = i
                                 .into_iter()
@@ -339,8 +339,8 @@ pub fn update_contents(
                         }
                     }
                 }
-                Poll(list) => {
-                    update_widget_item_for_vec(window, LIST_WIDGET_ID, list);
+                Poll(apis) => {
+                    update_widget_item_for_vec(window, API_WIDGET_ID, apis);
                 }
             }
         }
