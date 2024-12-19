@@ -80,7 +80,7 @@ pub struct InnerItem<'a> {
     filtered_word: String,
 }
 
-impl<'a> InnerItem<'a> {
+impl InnerItem<'_> {
     pub fn builder() -> InnerItemBuilder {
         InnerItemBuilder::default()
     }
@@ -135,7 +135,7 @@ impl<'a> InnerItem<'a> {
     }
 }
 
-impl<'a> InnerItem<'a> {
+impl InnerItem<'_> {
     fn inner_filter_items(&mut self) {
         self.filtered_items = if self.filtered_word.is_empty() {
             self.original_items.clone()

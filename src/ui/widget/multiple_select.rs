@@ -151,7 +151,7 @@ impl RenderTrait for MultipleSelect<'_> {
 // |         |         |
 // |         |         |
 // ---------------------
-impl<'a> MultipleSelect<'a> {
+impl MultipleSelect<'_> {
     pub fn builder() -> MultipleSelectBuilder {
         MultipleSelectBuilder::default()
     }

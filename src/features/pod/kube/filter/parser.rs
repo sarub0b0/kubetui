@@ -16,23 +16,23 @@ use super::{FilterAttribute, SpecifiedResource};
 /// 空白文字を含まない文字列をパースする
 fn non_space<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&str, Cow<'_, str>, E> {
+) -> IResult<&'a str, Cow<'a, str>, E> {
     let (remaining, value) = verify(is_not(" \t\r\n"), |s: &str| !s.starts_with(['"', '\'']))(s)?;
     Ok((remaining, Cow::Borrowed(value)))
 }
 
 fn quoted<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, Cow<'_, str>, E> {
+) -> IResult<&'a str, Cow<'a, str>, E> {
     #[inline]
     fn multispace<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
-    ) -> impl FnMut(&'a str) -> IResult<&'a str, Cow<'_, str>, E> {
+    ) -> impl FnMut(&'a str) -> IResult<&'a str, Cow<'a, str>, E> {
         map(multispace1, Cow::Borrowed)
     }
 
     #[inline]
     fn escaped_char<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
-    ) -> impl FnMut(&'a str) -> IResult<&'a str, Cow<'_, str>, E> {
+    ) -> impl FnMut(&'a str) -> IResult<&'a str, Cow<'a, str>, E> {
         preceded(
             char('\\'),
             alt((
@@ -47,7 +47,7 @@ fn quoted<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     #[inline]
     fn not_quote_slash<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         quote_slash: &'a str,
-    ) -> impl FnMut(&'a str) -> IResult<&'a str, Cow<'_, str>, E> {
+    ) -> impl FnMut(&'a str) -> IResult<&'a str, Cow<'a, str>, E> {
         map(
             verify(is_not(quote_slash), |s: &str| !s.is_empty()),
             Cow::Borrowed,
@@ -56,7 +56,7 @@ fn quoted<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 
     #[inline]
     fn fold<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
-        parser: impl FnMut(&'a str) -> IResult<&'a str, Cow<'_, str>, E>,
+        parser: impl FnMut(&'a str) -> IResult<&'a str, Cow<'a, str>, E>,
     ) -> impl FnMut(&'a str) -> IResult<&'a str, String, E> {
         fold_many0(parser, String::default, |mut s, parsed| {
             s.push_str(&parsed);
@@ -91,31 +91,31 @@ fn quoted<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 
 fn unquoted<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, Cow<'_, str>, E> {
+) -> IResult<&'a str, Cow<'a, str>, E> {
     non_space(s)
 }
 
 fn regex<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, Cow<'_, str>, E> {
+) -> IResult<&'a str, Cow<'a, str>, E> {
     alt((quoted, unquoted))(s)
 }
 
 fn selector<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, Cow<'_, str>, E> {
+) -> IResult<&'a str, Cow<'a, str>, E> {
     alt((quoted, unquoted))(s)
 }
 
 fn resource_name<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&str, &str, E> {
+) -> IResult<&'a str, &'a str, E> {
     recognize(many1_count(alt((alphanumeric1, tag("-"), tag(".")))))(s)
 }
 
 fn pod<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, FilterAttribute, E> {
+) -> IResult<&'a str, FilterAttribute<'a>, E> {
     let (remaining, (_, value)) = separated_pair(
         alt((tag("pods"), tag("pod"), tag("po"), tag("p"))),
         char(':'),
@@ -126,7 +126,7 @@ fn pod<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 
 fn exclude_pod<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, FilterAttribute, E> {
+) -> IResult<&'a str, FilterAttribute<'a>, E> {
     let (remaining, (_, value)) = separated_pair(
         alt((tag("!pods"), tag("!pod"), tag("!po"), tag("!p"))),
         char(':'),
@@ -137,7 +137,7 @@ fn exclude_pod<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 
 fn container<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, FilterAttribute, E> {
+) -> IResult<&'a str, FilterAttribute<'a>, E> {
     let (remaining, (_, value)) = separated_pair(
         alt((tag("containers"), tag("container"), tag("co"), tag("c"))),
         char(':'),
@@ -148,7 +148,7 @@ fn container<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 
 fn exclude_container<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, FilterAttribute, E> {
+) -> IResult<&'a str, FilterAttribute<'a>, E> {
     let (remaining, (_, value)) = separated_pair(
         alt((tag("!containers"), tag("!container"), tag("!co"), tag("!c"))),
         char(':'),
@@ -159,7 +159,7 @@ fn exclude_container<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 
 fn include_log<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, FilterAttribute, E> {
+) -> IResult<&'a str, FilterAttribute<'a>, E> {
     let (remaining, (_, value)) = separated_pair(
         alt((tag("logs"), tag("log"), tag("lo"), tag("l"))),
         char(':'),
@@ -170,7 +170,7 @@ fn include_log<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 
 fn exclude_log<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, FilterAttribute, E> {
+) -> IResult<&'a str, FilterAttribute<'a>, E> {
     let (remaining, (_, value)) = separated_pair(
         alt((tag("!logs"), tag("!log"), tag("!lo"), tag("!l"))),
         char(':'),
@@ -181,7 +181,7 @@ fn exclude_log<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 
 fn label_selector<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, FilterAttribute, E> {
+) -> IResult<&'a str, FilterAttribute<'a>, E> {
     let (remaining, (_, value)) =
         separated_pair(alt((tag("labels"), tag("label"))), char(':'), selector)(s)?;
     Ok((remaining, FilterAttribute::LabelSelector(value)))
@@ -189,7 +189,7 @@ fn label_selector<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 
 fn field_selector<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, FilterAttribute, E> {
+) -> IResult<&'a str, FilterAttribute<'a>, E> {
     let (remaining, (_, value)) =
         separated_pair(alt((tag("fields"), tag("field"))), char(':'), selector)(s)?;
     Ok((remaining, FilterAttribute::FieldSelector(value)))
@@ -197,7 +197,7 @@ fn field_selector<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 
 fn specified_daemonset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, FilterAttribute, E> {
+) -> IResult<&'a str, FilterAttribute<'a>, E> {
     let (remaining, (_, value)) = separated_pair(
         alt((tag("daemonsets"), tag("daemonset"), tag("ds"))),
         char('/'),
@@ -211,7 +211,7 @@ fn specified_daemonset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 
 fn specified_deployment<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, FilterAttribute, E> {
+) -> IResult<&'a str, FilterAttribute<'a>, E> {
     let (remaining, (_, value)) = separated_pair(
         alt((tag("deployments"), tag("deployment"), tag("deploy"))),
         char('/'),
@@ -225,7 +225,7 @@ fn specified_deployment<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 
 fn specified_job<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, FilterAttribute, E> {
+) -> IResult<&'a str, FilterAttribute<'a>, E> {
     let (remaining, (_, value)) =
         separated_pair(alt((tag("jobs"), tag("job"))), char('/'), resource_name)(s)?;
     Ok((
@@ -236,7 +236,7 @@ fn specified_job<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 
 fn specified_pod<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, FilterAttribute, E> {
+) -> IResult<&'a str, FilterAttribute<'a>, E> {
     let (remaining, (_, value)) = separated_pair(
         alt((tag("pods"), tag("pod"), tag("po"))),
         char('/'),
@@ -250,7 +250,7 @@ fn specified_pod<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 
 fn specified_replicaset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, FilterAttribute, E> {
+) -> IResult<&'a str, FilterAttribute<'a>, E> {
     let (remaining, (_, value)) = separated_pair(
         alt((tag("replicasets"), tag("replicaset"), tag("rs"))),
         char('/'),
@@ -264,7 +264,7 @@ fn specified_replicaset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 
 fn specified_service<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, FilterAttribute, E> {
+) -> IResult<&'a str, FilterAttribute<'a>, E> {
     let (remaining, (_, value)) = separated_pair(
         alt((tag("services"), tag("service"), tag("svc"))),
         char('/'),
@@ -278,7 +278,7 @@ fn specified_service<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 
 fn specified_statefulset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, FilterAttribute, E> {
+) -> IResult<&'a str, FilterAttribute<'a>, E> {
     let (remaining, (_, value)) = separated_pair(
         alt((tag("statefulsets"), tag("statefulset"), tag("sts"))),
         char('/'),
@@ -292,7 +292,7 @@ fn specified_statefulset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 
 fn attribute<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, FilterAttribute, E> {
+) -> IResult<&'a str, FilterAttribute<'a>, E> {
     let (remaining, value) = alt((
         specified_pod,
         specified_daemonset,
@@ -316,7 +316,7 @@ fn attribute<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 
 fn split_attributes<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, Vec<FilterAttribute>, E> {
+) -> IResult<&'a str, Vec<FilterAttribute<'a>>, E> {
     let (remaining, value) = delimited(
         multispace0,
         separated_list1(multispace1, attribute),
@@ -328,7 +328,7 @@ fn split_attributes<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 
 pub fn parse_attributes<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
-) -> IResult<&'a str, Vec<FilterAttribute>, E> {
+) -> IResult<&'a str, Vec<FilterAttribute<'a>>, E> {
     all_consuming(split_attributes)(s)
 }
 
@@ -443,7 +443,7 @@ mod tests {
         assert_eq!(remaining, "");
     }
 
-    /// Specified resoruces
+    // Specified resoruces
 
     /// DaemonSet
     #[rstest]

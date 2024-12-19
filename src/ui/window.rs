@@ -247,7 +247,7 @@ impl<'a> Window<'a> {
 }
 
 // Dialog
-impl<'a> Window<'a> {
+impl Window<'_> {
     pub fn open_dialog(&mut self, id: impl Into<String>) {
         self.opening_dialog_id = Some(id.into());
     }
@@ -373,7 +373,7 @@ impl<'a> Window<'a> {
 }
 
 // Render
-impl<'a> Window<'a> {
+impl Window<'_> {
     pub fn render(&mut self, f: &mut Frame) {
         let area = f.area();
 

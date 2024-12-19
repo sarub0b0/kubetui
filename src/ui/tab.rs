@@ -163,7 +163,7 @@ impl<'a> Tab<'a> {
     }
 }
 
-impl<'a> Tab<'a> {
+impl Tab<'_> {
     pub fn render(&mut self, f: &mut Frame) {
         self.widgets.iter_mut().enumerate().for_each(|(i, w)| {
             w.render(

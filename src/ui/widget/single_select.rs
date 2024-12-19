@@ -130,7 +130,7 @@ impl Default for SingleSelect<'_> {
 }
 
 #[allow(dead_code)]
-impl<'a> SingleSelect<'a> {
+impl SingleSelect<'_> {
     pub fn builder() -> SingleSelectBuilder {
         SingleSelectBuilder::default()
     }

@@ -209,7 +209,7 @@ pub struct Table<'a> {
     highlight_injection: Option<RenderHighlightInjection>,
 }
 
-impl<'a> Table<'a> {
+impl Table<'_> {
     pub fn builder() -> TableBuilder {
         TableBuilder::default()
     }
@@ -607,7 +607,7 @@ impl WidgetTrait for Table<'_> {
     }
 }
 
-impl<'a> Table<'a> {
+impl Table<'_> {
     fn on_select_callback(&self) -> Option<Callback> {
         self.on_select.clone().and_then(|cb| {
             self.selected_item()
@@ -628,7 +628,7 @@ impl<'a> Table<'a> {
     }
 }
 
-impl<'a> Table<'a> {
+impl Table<'_> {
     fn render_highlight_style(&self) -> Style {
         if let Some(highlight_injection) = &self.highlight_injection {
             highlight_injection(self.selected_item().as_deref())

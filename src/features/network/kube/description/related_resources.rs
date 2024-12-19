@@ -338,7 +338,7 @@ mod fetch {
         }
     }
 
-    impl<'a, C: KubeClientRequest> FetchClient<'_, C> {
+    impl<C: KubeClientRequest> FetchClient<'_, C> {
         pub async fn fetch<K>(&self) -> Result<List<K>>
         where
             K: Resource<DynamicType = ()> + ListableResource,

@@ -100,7 +100,7 @@ impl Default for SelectForm<'_> {
     }
 }
 
-impl<'a> SelectForm<'a> {
+impl SelectForm<'_> {
     pub fn builder() -> SelectFormBuilder {
         SelectFormBuilder::default()
     }

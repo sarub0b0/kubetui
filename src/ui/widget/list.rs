@@ -217,7 +217,7 @@ impl<'a> List<'a> {
     }
 }
 
-impl<'a> WidgetTrait for List<'a> {
+impl WidgetTrait for List<'_> {
     fn id(&self) -> &str {
         &self.id
     }
@@ -396,7 +396,7 @@ impl<'a> WidgetTrait for List<'a> {
     }
 }
 
-impl<'a> List<'a> {
+impl List<'_> {
     fn on_select_callback(&self) -> Option<Callback> {
         self.on_select.clone().and_then(|cb| {
             self.selected_item()
