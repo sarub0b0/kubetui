@@ -26,7 +26,7 @@ pub fn dialog_widget(tx: &Sender<Message>) -> Widget<'static> {
 
     MultipleSelect::builder()
         .id(API_DIALOG_ID)
-        .widget_base(WidgetBase::builder().title("Api").build())
+        .widget_base(WidgetBase::builder().title("API").build())
         .select_form(select_form)
         .build()
         .into()

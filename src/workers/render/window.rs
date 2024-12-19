@@ -193,7 +193,7 @@ impl WindowInit {
         let ApiTab {
             tab: api_tab,
             dialog: api_dialog,
-        } = ApiTab::new("Api", &self.tx, &clipboard);
+        } = ApiTab::new("API", &self.tx, &clipboard);
 
         let YamlTab {
             tab: yaml_tab,

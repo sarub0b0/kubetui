@@ -31,7 +31,7 @@ pub fn api_widget(
 
     let builder = Text::builder()
         .id(API_WIDGET_ID)
-        .widget_base(WidgetBase::builder().title("Api").build())
+        .widget_base(WidgetBase::builder().title("API").build())
         .block_injection(|text: &Text, is_active: bool, is_mouse_over: bool| {
             let (index, size) = text.state();
 
