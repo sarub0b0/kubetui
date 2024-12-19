@@ -155,7 +155,7 @@ const RIGHT_HELP_TEXT: &[HelpBlock] = &[
         ],
     },
     HelpBlock {
-        title: "List / Yaml Tab",
+        title: "API / Yaml Tab",
         bindings: &[KeyBindings {
             keys: &["f"],
             desc: "open select dialog",
