@@ -3,7 +3,7 @@ use crossbeam::channel::Sender;
 use crate::{
     features::{
         api_resources::message::ApiRequest,
-        component_id::{LIST_DIALOG_ID, LIST_WIDGET_ID},
+        component_id::{API_DIALOG_ID, API_WIDGET_ID},
     },
     message::Message,
     ui::{
@@ -25,8 +25,8 @@ pub fn dialog_widget(tx: &Sender<Message>) -> Widget<'static> {
         .build();
 
     MultipleSelect::builder()
-        .id(LIST_DIALOG_ID)
-        .widget_base(WidgetBase::builder().title("List").build())
+        .id(API_DIALOG_ID)
+        .widget_base(WidgetBase::builder().title("API").build())
         .select_form(select_form)
         .build()
         .into()
@@ -34,10 +34,10 @@ pub fn dialog_widget(tx: &Sender<Message>) -> Widget<'static> {
 
 fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &LiteralItem) -> EventResult {
     move |w: &mut Window, _| {
-        let widget = w.find_widget_mut(LIST_DIALOG_ID).as_mut_multiple_select();
+        let widget = w.find_widget_mut(API_DIALOG_ID).as_mut_multiple_select();
 
         if let Some(SelectedItem::Array(items)) = widget.widget_item() {
-            let list = items
+            let apis = items
                 .iter()
                 .map(|item| {
                     let Some(metadata) = &item.metadata else {
@@ -56,12 +56,12 @@ fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &LiteralItem) -> Event
                 })
                 .collect();
 
-            tx.send(ApiRequest::Set(list).into())
+            tx.send(ApiRequest::Set(apis).into())
                 .expect("Failed to send ApiRequest::Set");
         }
 
         if widget.selected_items().is_empty() {
-            w.widget_clear(LIST_WIDGET_ID)
+            w.widget_clear(API_WIDGET_ID)
         }
 
         EventResult::Nop

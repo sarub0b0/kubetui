@@ -3,8 +3,8 @@ use crossbeam::channel::Sender;
 use crate::{
     features::{
         component_id::{
-            CONFIG_RAW_DATA_WIDGET_ID, CONFIG_WIDGET_ID, CONTEXT_DIALOG_ID, EVENT_WIDGET_ID,
-            LIST_DIALOG_ID, LIST_WIDGET_ID, MULTIPLE_NAMESPACES_DIALOG_ID,
+            API_DIALOG_ID, API_WIDGET_ID, CONFIG_RAW_DATA_WIDGET_ID, CONFIG_WIDGET_ID,
+            CONTEXT_DIALOG_ID, EVENT_WIDGET_ID, MULTIPLE_NAMESPACES_DIALOG_ID,
             NETWORK_DESCRIPTION_WIDGET_ID, NETWORK_WIDGET_ID, POD_LOG_QUERY_WIDGET_ID,
             POD_LOG_WIDGET_ID, POD_WIDGET_ID, YAML_WIDGET_ID,
         },
@@ -58,7 +58,7 @@ fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &LiteralItem) -> Event
         w.widget_clear(NETWORK_WIDGET_ID);
         w.widget_clear(NETWORK_DESCRIPTION_WIDGET_ID);
         w.widget_clear(EVENT_WIDGET_ID);
-        w.widget_clear(LIST_WIDGET_ID);
+        w.widget_clear(API_WIDGET_ID);
         w.widget_clear(YAML_WIDGET_ID);
 
         let widget = w
@@ -67,7 +67,7 @@ fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &LiteralItem) -> Event
 
         widget.unselect_all();
 
-        let widget = w.find_widget_mut(LIST_DIALOG_ID).as_mut_multiple_select();
+        let widget = w.find_widget_mut(API_DIALOG_ID).as_mut_multiple_select();
 
         widget.unselect_all();
 
