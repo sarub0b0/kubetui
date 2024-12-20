@@ -51,7 +51,9 @@ It provides an easy-to-use interface for developers and operators to access impo
 
 Kubetui offers the following features to help you monitor and manage your Kubernetes resources:
 
-- **Pods List and Container Logs**: Easily view a list of pods and their container logs.
+- **Pods List and Container Logs**:
+  - View a list of pods and their container logs.
+  - JSON logs display mode switching: toggle between pretty print and single-line display using the <kbd>f</kbd> or <kbd>p</kbd> keys.
 - **ConfigMap and Secret Watching**: Monitor ConfigMaps and secrets, and decode their data.
 - **Network-related Resources**: Explore a list of network-related resources and their descriptions.
 - **Events Watching**: Stay updated with a real-time view of Kubernetes events.
@@ -354,6 +356,13 @@ ESCAPED_CHAR = "\\" | "\"" | "\'"
 | <kbd>Ctrl+w</kbd>                 | Delete text from the cursor to the beginning     |
 | <kbd>Ctrl+k</kbd>                 | Delete text from the cursor to the end           |
 | <kbd>Left</kbd>, <kbd>Right</kbd> | Move the cursor to the previous / next character |
+
+### Container Logs View
+
+| Key                          | Description                                                        |
+| ---------------------------- | ------------------------------------------------------------------ |
+| <kbd>f</kbd>, <kbd>p</kbd>   | Toggle between pretty print and single-line display for JSON logs. |
+| <kbd>Enter</kbd>             | Insert a blank line.                                               |
 
 ## Contributing
 
