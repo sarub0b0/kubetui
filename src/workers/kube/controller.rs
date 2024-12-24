@@ -12,6 +12,7 @@ use crossbeam::channel::{Receiver, Sender};
 use futures::future::select_all;
 use k8s_openapi::api::core::v1::Namespace;
 use kube::{api::ListParams, config::Kubeconfig, Api, ResourceExt as _};
+use ratatui::style::{Color, Style};
 use tokio::{
     sync::RwLock,
     task::{self, AbortHandle, JoinHandle},
@@ -20,7 +21,7 @@ use tokio::{
 use crate::{
     features::{
         api_resources::{
-            kube::{ApiPoller, ApiResource, ApiResources, SharedApiResources},
+            kube::{ApiConfig, ApiPoller, ApiResource, ApiResources, SharedApiResources},
             message::{ApiMessage, ApiRequest, ApiResponse},
         },
         config::{
@@ -86,6 +87,7 @@ pub struct KubeController {
     store: KubeStore,
     pod_config: PodConfig,
     event_config: EventConfig,
+    api_config: ApiConfig,
 }
 
 impl KubeController {
@@ -102,6 +104,7 @@ impl KubeController {
             all_namespaces,
             pod_config,
             event_config,
+            api_config,
         } = config;
 
         let kubeconfig = read_kubeconfig(kubeconfig)?;
@@ -135,6 +138,7 @@ impl KubeController {
             store,
             pod_config,
             event_config,
+            api_config,
         })
     }
 
@@ -148,6 +152,7 @@ impl KubeController {
             mut store,
             pod_config,
             event_config,
+            api_config,
         } = self;
 
         while !is_terminated.load(Ordering::Relaxed) {
@@ -230,6 +235,7 @@ impl KubeController {
                 client.clone(),
                 shared_target_api_resources.clone(),
                 shared_api_resources,
+                api_config.clone(),
             )
             .spawn();
 

@@ -1,3 +1,4 @@
+mod api;
 mod base;
 mod border;
 mod dialog;
@@ -16,6 +17,7 @@ mod widget;
 
 use serde::{Deserialize, Serialize};
 
+use crate::features::api_resources::kube::ApiConfig;
 use crate::features::event::kube::{EventConfig, EventHighlightRule};
 use crate::features::pod::kube::{PodConfig, PodHighlightRule};
 use crate::ui::dialog::DialogTheme;
@@ -23,6 +25,7 @@ use crate::ui::{HeaderTheme, TabTheme};
 
 pub use self::header::HeaderThemeConfig;
 pub use self::tab::TabThemeConfig;
+pub use api::ApiThemeConfig;
 pub use base::BaseThemeConfig;
 pub use border::BorderThemeConfig;
 pub use dialog::*;
@@ -56,6 +59,9 @@ pub struct ThemeConfig {
 
     #[serde(default)]
     pub event: EventThemeConfig,
+
+    #[serde(default)]
+    pub api: ApiThemeConfig,
 
     #[serde(default)]
     pub help: HelpThemeConfig,
@@ -119,6 +125,16 @@ impl From<ThemeConfig> for EventConfig {
                     message: hi.message.into(),
                 })
                 .collect(),
+        }
+    }
+}
+
+impl From<ThemeConfig> for ApiConfig {
+    fn from(theme: ThemeConfig) -> Self {
+        ApiConfig {
+            resource: theme.api.table.resource.into(),
+            header: theme.api.table.header.into(),
+            rows: theme.api.table.rows.into(),
         }
     }
 }

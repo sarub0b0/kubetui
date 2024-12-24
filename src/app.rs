@@ -9,7 +9,7 @@ use crossbeam::channel::{bounded, Receiver, Sender};
 use crate::{
     cmd::Command,
     config::Config,
-    features::{event::kube::EventConfig, pod::kube::PodConfig},
+    features::{api_resources::kube::ApiConfig, event::kube::EventConfig, pod::kube::PodConfig},
     message::Message,
     workers::{KubeWorker, Render, Tick, UserInput},
 };
@@ -32,6 +32,7 @@ impl App {
 
         kube_worker_config.pod_config = PodConfig::from(config.theme.clone());
         kube_worker_config.event_config = EventConfig::from(config.theme.clone());
+        kube_worker_config.api_config = ApiConfig::from(config.theme.clone());
 
         let kube = KubeWorker::new(
             tx_kube.clone(),
