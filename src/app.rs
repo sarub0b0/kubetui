@@ -11,7 +11,7 @@ use crate::{
     config::Config,
     features::{api_resources::kube::ApiConfig, event::kube::EventConfig, pod::kube::PodConfig},
     message::Message,
-    workers::{KubeWorker, Render, Tick, UserInput},
+    workers::{kube::YamlConfig, ApisConfig, KubeWorker, Render, Tick, UserInput},
 };
 
 pub struct App;
@@ -33,6 +33,8 @@ impl App {
         kube_worker_config.pod_config = PodConfig::from(config.theme.clone());
         kube_worker_config.event_config = EventConfig::from(config.theme.clone());
         kube_worker_config.api_config = ApiConfig::from(config.theme.clone());
+        kube_worker_config.apis_config = ApisConfig::from(config.theme.clone());
+        kube_worker_config.yaml_config = YamlConfig::from(config.theme.clone());
 
         let kube = KubeWorker::new(
             tx_kube.clone(),

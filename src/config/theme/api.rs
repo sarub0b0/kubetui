@@ -7,6 +7,9 @@ use super::ThemeStyleConfig;
 pub struct ApiThemeConfig {
     #[serde(default)]
     pub table: ApiTableThemeConfig,
+
+    #[serde(default)]
+    pub dialog: ApiDialogThemeConfig,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -39,6 +42,31 @@ fn default_resource_style() -> ThemeStyleConfig {
 }
 
 fn default_header_style() -> ThemeStyleConfig {
+    ThemeStyleConfig {
+        fg_color: Some(Color::DarkGray),
+        ..Default::default()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct ApiDialogThemeConfig {
+    #[serde(default)]
+    pub preferred_version_or_latest: ThemeStyleConfig,
+
+    #[serde(default = "default_other_version_style")]
+    pub other_version: ThemeStyleConfig,
+}
+
+impl Default for ApiDialogThemeConfig {
+    fn default() -> Self {
+        Self {
+            preferred_version_or_latest: ThemeStyleConfig::default(),
+            other_version: default_other_version_style(),
+        }
+    }
+}
+
+fn default_other_version_style() -> ThemeStyleConfig {
     ThemeStyleConfig {
         fg_color: Some(Color::DarkGray),
         ..Default::default()
