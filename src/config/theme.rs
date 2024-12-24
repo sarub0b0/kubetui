@@ -14,6 +14,7 @@ mod tab;
 mod table;
 mod text;
 mod widget;
+mod yaml;
 
 use serde::{Deserialize, Serialize};
 
@@ -22,6 +23,7 @@ use crate::features::event::kube::{EventConfig, EventHighlightRule};
 use crate::features::pod::kube::{PodConfig, PodHighlightRule};
 use crate::ui::dialog::DialogTheme;
 use crate::ui::{HeaderTheme, TabTheme};
+use crate::workers::kube::{ApisConfig, YamlConfig};
 
 pub use self::header::HeaderThemeConfig;
 pub use self::tab::TabThemeConfig;
@@ -39,6 +41,7 @@ pub use style::ThemeStyleConfig;
 pub use table::*;
 pub use text::*;
 pub use widget::WidgetThemeConfig;
+pub use yaml::YamlThemeConfig;
 
 #[derive(Default, Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct ThemeConfig {
@@ -62,6 +65,9 @@ pub struct ThemeConfig {
 
     #[serde(default)]
     pub api: ApiThemeConfig,
+
+    #[serde(default)]
+    pub yaml: YamlThemeConfig,
 
     #[serde(default)]
     pub help: HelpThemeConfig,
@@ -135,6 +141,24 @@ impl From<ThemeConfig> for ApiConfig {
             resource: theme.api.table.resource.into(),
             header: theme.api.table.header.into(),
             rows: theme.api.table.rows.into(),
+        }
+    }
+}
+
+impl From<ThemeConfig> for ApisConfig {
+    fn from(theme: ThemeConfig) -> Self {
+        ApisConfig {
+            preferred_version_or_latest: theme.api.dialog.preferred_version_or_latest.into(),
+            other_version: theme.api.dialog.other_version.into(),
+        }
+    }
+}
+
+impl From<ThemeConfig> for YamlConfig {
+    fn from(theme: ThemeConfig) -> Self {
+        YamlConfig {
+            preferred_version_or_latest: theme.yaml.dialog.preferred_version_or_latest.into(),
+            other_version: theme.yaml.dialog.other_version.into(),
         }
     }
 }

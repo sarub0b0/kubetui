@@ -11,13 +11,13 @@ use crate::{
     message::Message,
 };
 
-use super::controller::{TargetApiResources, TargetNamespaces};
+use super::controller::{StyledTargetApiResources, TargetNamespaces};
 
 #[derive(Debug)]
 pub enum Kube {
     Context(ContextMessage),
     Api(ApiMessage),
-    RestoreAPIs(TargetApiResources),
+    RestoreAPIs(StyledTargetApiResources),
     RestoreContext {
         context: String,
         namespaces: TargetNamespaces,

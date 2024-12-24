@@ -152,7 +152,7 @@ theme:
       - status: (BackOff|Err|Unknown)
         fg_color: red
 
-   ## Event view
+  ## Event view
   event:
     ## イベントの種類に応じたハイライトスタイルを設定
     highlights:
@@ -176,6 +176,18 @@ theme:
         fg_color: magenta
       rows:
         fg_color: cyan
+    dialog:
+      preferred_version_or_latest:
+        fg_color: white
+      other_version:
+        fg_color: black
+
+  yaml:
+    dialog:
+      preferred_version_or_latest:
+        fg_color: yellow
+      other_version:
+        fg_color: green
 
   ## Help dialog
   help:

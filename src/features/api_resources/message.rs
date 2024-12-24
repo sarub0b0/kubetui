@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::{message::Message, workers::kube::message::Kube};
+use crate::{features::StyledApiResource, message::Message, workers::kube::message::Kube};
 
 use super::kube::ApiResource;
 
@@ -12,7 +12,7 @@ pub enum ApiRequest {
 
 #[derive(Debug)]
 pub enum ApiResponse {
-    Get(Result<Vec<ApiResource>>),
+    Get(Result<Vec<StyledApiResource>>),
     Poll(Result<Vec<String>>),
 }
 

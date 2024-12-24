@@ -44,6 +44,7 @@ use crate::{
             kube::{FetchResourceList, YamlWorker},
             message::{YamlMessage, YamlRequest, YamlResponse},
         },
+        StyledApiResource,
     },
     kube::KubeClient,
     logger,
@@ -63,6 +64,60 @@ pub type SharedTargetNamespaces = Arc<RwLock<TargetNamespaces>>;
 
 pub type TargetApiResources = Vec<ApiResource>;
 pub type SharedTargetApiResources = Arc<RwLock<TargetApiResources>>;
+
+pub type StyledTargetApiResources = Vec<StyledApiResource>;
+
+/// APIタブのダイアログで表示されるAPIリソースのスタイル設定
+#[derive(Debug, Clone)]
+pub struct ApisConfig {
+    pub preferred_version_or_latest: Style,
+    pub other_version: Style,
+}
+
+impl Default for ApisConfig {
+    fn default() -> Self {
+        Self {
+            preferred_version_or_latest: Style::default(),
+            other_version: Style::default().fg(Color::DarkGray),
+        }
+    }
+}
+
+/// Yamlタブのダイアログで表示されるAPIリソースのスタイル設定
+#[derive(Debug, Clone)]
+pub struct YamlConfig {
+    pub preferred_version_or_latest: Style,
+    pub other_version: Style,
+}
+
+impl Default for YamlConfig {
+    fn default() -> Self {
+        Self {
+            preferred_version_or_latest: Style::default(),
+            other_version: Style::default().fg(Color::DarkGray),
+        }
+    }
+}
+
+// target_api_resourcesとapis_configからStyledTargetApiResourcesを生成する
+pub fn styled_target_api_resources(
+    target_api_resources: &TargetApiResources,
+    preferred_version_or_latest: Style,
+    other_version: Style,
+) -> StyledTargetApiResources {
+    target_api_resources
+        .iter()
+        .map(|api| {
+            let style = if api.is_api() || api.is_preferred_version() {
+                preferred_version_or_latest
+            } else {
+                other_version
+            };
+
+            StyledApiResource::new(api.clone(), style)
+        })
+        .collect()
+}
 
 async fn fetch_all_namespaces(client: KubeClient) -> Result<Vec<String>> {
     let namespaces: Api<Namespace> = Api::all(client.as_client().clone());
@@ -88,6 +143,8 @@ pub struct KubeController {
     pod_config: PodConfig,
     event_config: EventConfig,
     api_config: ApiConfig,
+    apis_config: ApisConfig,
+    yaml_config: YamlConfig,
 }
 
 impl KubeController {
@@ -105,6 +162,8 @@ impl KubeController {
             pod_config,
             event_config,
             api_config,
+            apis_config,
+            yaml_config,
         } = config;
 
         let kubeconfig = read_kubeconfig(kubeconfig)?;
@@ -139,6 +198,8 @@ impl KubeController {
             pod_config,
             event_config,
             api_config,
+            apis_config,
+            yaml_config,
         })
     }
 
@@ -153,6 +214,8 @@ impl KubeController {
             pod_config,
             event_config,
             api_config,
+            apis_config,
+            yaml_config,
         } = self;
 
         while !is_terminated.load(Ordering::Relaxed) {
@@ -168,7 +231,11 @@ impl KubeController {
             }))?;
 
             tx.send(Message::Kube(Kube::RestoreAPIs(
-                target_api_resources.to_vec(),
+                styled_target_api_resources(
+                    &target_api_resources,
+                    apis_config.preferred_version_or_latest,
+                    apis_config.other_version,
+                ),
             )))?;
 
             let shared_target_namespaces = Arc::new(RwLock::new(target_namespaces.to_vec()));
@@ -190,6 +257,8 @@ impl KubeController {
                 contexts,
                 shared_target_api_resources.clone(),
                 shared_api_resources.clone(),
+                apis_config.clone(),
+                yaml_config.clone(),
             )
             .spawn();
 
@@ -302,6 +371,8 @@ struct EventController {
     contexts: Vec<String>,
     shared_target_api_resources: SharedTargetApiResources,
     shared_api_resources: SharedApiResources,
+    apis_config: ApisConfig,
+    yaml_config: YamlConfig,
 }
 
 impl EventController {
@@ -314,6 +385,8 @@ impl EventController {
         contexts: Vec<String>,
         shared_target_api_resources: SharedTargetApiResources,
         shared_api_resources: SharedApiResources,
+        apis_config: ApisConfig,
+        yaml_config: YamlConfig,
     ) -> Self {
         Self {
             is_terminated,
@@ -324,6 +397,8 @@ impl EventController {
             contexts,
             shared_target_api_resources,
             shared_api_resources,
+            apis_config,
+            yaml_config,
         }
     }
 }
@@ -367,6 +442,8 @@ impl Worker for EventController {
             contexts,
             shared_target_api_resources,
             shared_api_resources,
+            apis_config,
+            yaml_config,
         } = self;
 
         while !is_terminated.load(Ordering::Relaxed) {
@@ -467,7 +544,12 @@ impl Worker for EventController {
                         match req {
                             Get => {
                                 let api_resources = shared_api_resources.read().await;
-                                tx.send(ApiResponse::Get(Ok(api_resources.to_vec())).into())
+                                let styled_api_resources = styled_target_api_resources(
+                                    &api_resources,
+                                    apis_config.preferred_version_or_latest,
+                                    apis_config.other_version,
+                                );
+                                tx.send(ApiResponse::Get(Ok(styled_api_resources)).into())
                                     .expect("Failed to send ApiResponse::Get");
                             }
                             Set(req) => {
@@ -513,7 +595,11 @@ impl Worker for EventController {
                             APIs => {
                                 let api_resources = shared_api_resources.read().await;
 
-                                let ret = api_resources.to_vec();
+                                let ret = styled_target_api_resources(
+                                    &api_resources,
+                                    yaml_config.preferred_version_or_latest,
+                                    yaml_config.other_version,
+                                );
 
                                 logger!(info, "APIs: {:#?}", ret);
 

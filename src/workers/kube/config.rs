@@ -7,7 +7,7 @@ use crate::features::{
     api_resources::kube::ApiConfig, event::kube::EventConfig, pod::kube::PodConfig,
 };
 
-use super::TargetNamespaces;
+use super::{ApisConfig, TargetNamespaces, YamlConfig};
 
 #[derive(Debug, Default, Clone)]
 pub struct KubeWorkerConfig {
@@ -18,6 +18,8 @@ pub struct KubeWorkerConfig {
     pub pod_config: PodConfig,
     pub event_config: EventConfig,
     pub api_config: ApiConfig,
+    pub apis_config: ApisConfig,
+    pub yaml_config: YamlConfig,
 }
 
 pub struct Context(String);
