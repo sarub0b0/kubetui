@@ -8,16 +8,18 @@ use crossbeam::channel::{bounded, Receiver, Sender};
 
 use crate::{
     cmd::Command,
+    config::Config,
+    features::{api_resources::kube::ApiConfig, event::kube::EventConfig, pod::kube::PodConfig},
     message::Message,
-    workers::{KubeWorker, Render, Tick, UserInput},
+    workers::{kube::YamlConfig, ApisConfig, KubeWorker, Render, Tick, UserInput},
 };
 
 pub struct App;
 
 impl App {
-    pub fn run(cmd: Command) -> Result<()> {
+    pub fn run(cmd: Command, config: Config) -> Result<()> {
         let split_direction = cmd.split_direction();
-        let kube_worker_config = cmd.kube_worker_config();
+        let mut kube_worker_config = cmd.kube_worker_config();
 
         let (tx_input, rx_main): (Sender<Message>, Receiver<Message>) = bounded(128);
         let (tx_main, rx_kube): (Sender<Message>, Receiver<Message>) = bounded(256);
@@ -27,6 +29,12 @@ impl App {
         let is_terminated = Arc::new(AtomicBool::new(false));
 
         let user_input = UserInput::new(tx_input.clone(), is_terminated.clone());
+
+        kube_worker_config.pod_config = PodConfig::from(config.theme.clone());
+        kube_worker_config.event_config = EventConfig::from(config.theme.clone());
+        kube_worker_config.api_config = ApiConfig::from(config.theme.clone());
+        kube_worker_config.apis_config = ApisConfig::from(config.theme.clone());
+        kube_worker_config.yaml_config = YamlConfig::from(config.theme.clone());
 
         let kube = KubeWorker::new(
             tx_kube.clone(),
@@ -46,6 +54,7 @@ impl App {
             rx_main.clone(),
             is_terminated.clone(),
             split_direction,
+            config.theme.clone(),
         );
 
         thread::scope(|s| {

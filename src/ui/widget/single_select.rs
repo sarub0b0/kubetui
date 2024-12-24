@@ -6,6 +6,7 @@ use std::rc::Rc;
 use ratatui::{
     crossterm::event::{KeyEvent, MouseEvent},
     layout::{Constraint, Direction, Layout, Rect},
+    style::Style,
     widgets::{Block, Paragraph},
     Frame,
 };
@@ -20,8 +21,8 @@ use crate::{
     },
 };
 
-pub use self::filter::FilterForm;
-pub use self::select::SelectForm;
+pub use self::filter::{FilterForm, FilterFormTheme};
+pub use self::select::{SelectForm, SelectFormTheme};
 
 const LAYOUT_INDEX_FOR_INPUT_FORM: usize = 0;
 const LAYOUT_INDEX_FOR_STATUS: usize = 1;
@@ -30,11 +31,24 @@ const LAYOUT_INDEX_FOR_SELECT_FORM: usize = 2;
 define_callback!(pub RenderBlockInjection, Fn(&SingleSelect, bool) -> Block<'static>);
 
 #[derive(Debug, Default)]
+pub struct SingleSelectTheme {
+    status_style: Style,
+}
+
+impl SingleSelectTheme {
+    pub fn status_style(mut self, status_style: impl Into<Style>) -> Self {
+        self.status_style = status_style.into();
+        self
+    }
+}
+
+#[derive(Debug, Default)]
 pub struct SingleSelectBuilder {
     id: String,
     widget_base: WidgetBase,
     select_form: SelectForm<'static>,
     filter_form: FilterForm,
+    theme: SingleSelectTheme,
     actions: Vec<(UserEvent, Callback)>,
     block_injection: Option<RenderBlockInjection>,
 }
@@ -58,6 +72,11 @@ impl SingleSelectBuilder {
 
     pub fn filter_form(mut self, filter_form: FilterForm) -> Self {
         self.filter_form = filter_form;
+        self
+    }
+
+    pub fn theme(mut self, theme: SingleSelectTheme) -> Self {
+        self.theme = theme;
         self
     }
 
@@ -92,6 +111,7 @@ impl SingleSelectBuilder {
             widget_base: self.widget_base,
             layout,
             select_form: self.select_form,
+            theme: self.theme,
             callbacks: self.actions,
             block_injection: self.block_injection,
             filter_form: self.filter_form,
@@ -106,6 +126,7 @@ pub struct SingleSelect<'a> {
     widget_base: WidgetBase,
     filter_form: FilterForm,
     select_form: SelectForm<'a>,
+    theme: SingleSelectTheme,
     layout: Layout,
     chunk: Rect,
     inner_chunks: Rc<[Rect]>,
@@ -120,6 +141,7 @@ impl Default for SingleSelect<'_> {
             widget_base: Default::default(),
             filter_form: Default::default(),
             select_form: Default::default(),
+            theme: Default::default(),
             layout: Default::default(),
             chunk: Default::default(),
             inner_chunks: Rc::new([Rect::default()]),
@@ -129,6 +151,14 @@ impl Default for SingleSelect<'_> {
     }
 }
 
+// ---------------------
+// |      Filter       |
+// |-------------------|
+// |                   |
+// |      Select       |
+// |                   |
+// |                   |
+// ---------------------
 #[allow(dead_code)]
 impl SingleSelect<'_> {
     pub fn builder() -> SingleSelectBuilder {
@@ -142,7 +172,7 @@ impl SingleSelect<'_> {
     fn render_status(&mut self, f: &mut Frame) {
         let status = self.select_form.status();
         f.render_widget(
-            Paragraph::new(format!("[{}/{}]", status.0, status.1)),
+            Paragraph::new(format!("[{}/{}]", status.0, status.1)).style(self.theme.status_style),
             self.inner_chunks[LAYOUT_INDEX_FOR_STATUS],
         );
     }

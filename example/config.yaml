@@ -1,0 +1,199 @@
+# version: "1"
+
+# fg_color: "default" | name | hex | integer
+# bg_color: "default" | name | hex | integer
+# modifier: "none" | "bold" | "dim" | "italic" | "underlined" | "slow_blink" | "rapid_blink" | "reversed" | "hidden" | "crossed_out"
+
+## アプリケーション全体のスタイル設定
+## タブのスタイル設定
+## クラスター・名前空間情報のスタイル設定
+## 各コンポーネントのスタイル設定（共通項目に枠とタイトルも含めたい）
+## - テーブル
+##     - ヘッダー
+##     - フィルタ
+##     - 選択のハイライト
+## - リスト
+##     - 選択のハイライト
+##     - フィルタ
+## - テキスト
+##     - 検索フォーム
+##     - ヒットした文字列のハイライト
+##     - マウスでの範囲選択
+## - ダイアログ
+
+theme:
+  base:
+    bg_color: "#000000"
+  tab:
+    divider:
+      char: "|"
+    base:
+      fg_color: "#c0c0c0"
+      modifier: reversed
+    active:
+      fg_color: blue
+      modifier: reversed
+    mouse_over:
+      fg_color: green
+      modifier: reversed
+  header:
+    cluster:
+      fg_color: magenta
+    namespaces:
+      fg_color: yellow
+  component:
+    base:
+      fg_color: blue
+    title:
+      active:
+        fg_color: green
+      inactive:
+        fg_color: blue
+    border:
+      type: "plain"
+      active:
+        fg_color: green
+      inactive:
+        fg_color: blue
+      mouse_over:
+        fg_color: red
+    text:
+      search:
+        ## 検索フォーム
+        form:
+          # base:
+          #   fg_color: yellow
+          prefix:
+            fg_color: yellow
+          query:
+            fg_color: yellow
+          suffix:
+            fg_color: yellow
+
+        ## 検索にマッチした文字列のハイライト
+        highlight:
+          ## 検索にマッチした文字列の中でフォーカスしている文字列のハイライト
+          focus:
+            fg_color: yellow
+            modifier: reversed
+
+          ## 検索にマッチした文字列のハイライト
+          matches:
+            modifier: reversed
+
+      ## マウスで範囲選択したときのハイライト
+      selection:
+        fg_color: green
+        modifier: reversed
+    table:
+      ## フィルターフォーム
+      filter:
+        # base:
+        #   fg_color: magenta
+        # border:
+        #   type: "double"
+        #   active:
+        #     fg_color: green
+        #   inactive:
+        #     fg_color: blue
+        prefix:
+          fg_color: dark_gray
+        query:
+          fg_color: yellow
+      header:
+        fg_color: lightblue
+        modifier: bold
+
+    ## 選択リスト
+    list:
+      ## フィルターフォーム
+      filter:
+        # base:
+        #   fg_color: magenta
+        # border:
+        #   type: "double"
+        #   active:
+        #     fg_color: green
+        #   inactive:
+        #     fg_color: blue
+        query:
+          fg_color: yellow
+
+      ## 選択のハイライト
+      selection:
+        fg_color: green
+        modifier: reversed
+
+      ## ステータス
+      status:
+        fg_color: yellow
+
+    ## 入力フォーム
+    input:
+      fg_color: white
+    dialog:
+      ## 未設定の場合、theme.base で設定した背景色を使う
+      # base:
+      #   bg_color: "#000000"
+      size:
+        ## 0.0 ~ 100.0
+        width: 85
+        ## 0.0 ~ 100.0
+        height: 85
+
+  ## Pod table
+  pod:
+    ## podのステータスに応じたハイライトスタイルを設定
+    highlights:
+      - status: Running
+        fg_color: default
+      - status: (Completed|Evicted)
+        fg_color: green
+      - status: (BackOff|Err|Unknown)
+        fg_color: red
+
+  ## Event view
+  event:
+    ## イベントの種類に応じたハイライトスタイルを設定
+    highlights:
+      - type: Normal
+        summary:
+          fg_color: blue
+        message:
+          fg_color: dark_gray
+      - type: Warning
+        summary:
+          fg_color: yellow
+        message:
+          fg_color: dark_gray
+
+  ## API
+  api:
+    table:
+      resource:
+        fg_color: magenta
+      header:
+        fg_color: magenta
+      rows:
+        fg_color: cyan
+    dialog:
+      preferred_version_or_latest:
+        fg_color: white
+      other_version:
+        fg_color: black
+
+  yaml:
+    dialog:
+      preferred_version_or_latest:
+        fg_color: yellow
+      other_version:
+        fg_color: green
+
+  ## Help dialog
+  help:
+    title:
+      fg_color: yellow
+    key:
+      fg_color: lightcyan
+    desc:
+      fg_color: gray

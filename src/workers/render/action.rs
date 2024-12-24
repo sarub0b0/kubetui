@@ -289,19 +289,13 @@ pub fn update_contents(
                 .as_mut_multiple_select();
 
             for api in apis {
-                let Ok(json) = serde_json::to_string(&api) else {
+                let Ok(json) = serde_json::to_string(&api.resource) else {
                     unreachable!()
                 };
 
                 let metadata = BTreeMap::from([("key".into(), json)]);
 
-                let item = if api.is_api() || api.is_preferred_version() {
-                    api.to_string()
-                } else {
-                    format!("\x1b[90m{}\x1b[39m", api)
-                };
-
-                let literal_item = LiteralItem::new(item, Some(metadata));
+                let literal_item = LiteralItem::new(api.to_string(), Some(metadata));
 
                 w.select_item(&literal_item);
             }
@@ -316,19 +310,14 @@ pub fn update_contents(
                         Ok(i) => {
                             let items = i
                                 .into_iter()
-                                .map(|key| {
-                                    let Ok(json) = serde_json::to_string(&key) else {
+                                .map(|api_resource| {
+                                    let Ok(json) = serde_json::to_string(&api_resource.resource)
+                                    else {
                                         unreachable!()
                                     };
                                     let metadata = BTreeMap::from([("key".into(), json)]);
 
-                                    let item = if key.is_api() || key.is_preferred_version() {
-                                        key.to_string()
-                                    } else {
-                                        format!("\x1b[90m{}\x1b[39m", key)
-                                    };
-
-                                    LiteralItem::new(item, Some(metadata))
+                                    LiteralItem::new(api_resource.to_string(), Some(metadata))
                                 })
                                 .collect();
 
@@ -354,20 +343,15 @@ pub fn update_contents(
                         Ok(vec) => {
                             let items = vec
                                 .into_iter()
-                                .map(|key| {
-                                    let Ok(json) = serde_json::to_string(&key) else {
+                                .map(|api_resource| {
+                                    let Ok(json) = serde_json::to_string(&api_resource.resource)
+                                    else {
                                         unreachable!()
                                     };
 
                                     let metadata = BTreeMap::from([("key".into(), json)]);
 
-                                    let item = if key.is_api() || key.is_preferred_version() {
-                                        key.to_string()
-                                    } else {
-                                        format!("\x1b[90m{}\x1b[39m", key)
-                                    };
-
-                                    LiteralItem::new(item, Some(metadata))
+                                    LiteralItem::new(api_resource.to_string(), Some(metadata))
                                 })
                                 .collect();
 

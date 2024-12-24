@@ -7,6 +7,7 @@ use std::rc::Rc;
 use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, MouseEvent},
     layout::{Constraint, Direction, Layout, Rect},
+    style::Style,
     widgets::{Block, Paragraph},
     Frame,
 };
@@ -20,11 +21,23 @@ use crate::{
     },
 };
 
-pub use filter::FilterForm;
+pub use filter::{FilterForm, FilterFormTheme};
 use item::SelectItems;
-pub use select::SelectForm;
+pub use select::{SelectForm, SelectFormTheme};
 
 define_callback!(pub RenderBlockInjection, Fn(&MultipleSelect, bool) -> Block<'static>);
+
+#[derive(Debug, Default)]
+pub struct MultipleSelectTheme {
+    status_style: Style,
+}
+
+impl MultipleSelectTheme {
+    pub fn status_style(mut self, status_style: impl Into<Style>) -> Self {
+        self.status_style = status_style.into();
+        self
+    }
+}
 
 #[derive(Debug, Default)]
 pub struct MultipleSelectBuilder {
@@ -32,6 +45,7 @@ pub struct MultipleSelectBuilder {
     widget_base: WidgetBase,
     select_form: SelectForm<'static>,
     filter_form: FilterForm,
+    theme: MultipleSelectTheme,
     block_injection: Option<RenderBlockInjection>,
 }
 
@@ -57,6 +71,11 @@ impl MultipleSelectBuilder {
         self
     }
 
+    pub fn theme(mut self, theme: impl Into<MultipleSelectTheme>) -> Self {
+        self.theme = theme.into();
+        self
+    }
+
     pub fn block_injection<F>(mut self, block_injection: F) -> Self
     where
         F: Into<RenderBlockInjection>,
@@ -77,10 +96,11 @@ impl MultipleSelectBuilder {
         MultipleSelect {
             id: self.id,
             widget_base: self.widget_base,
-            layout,
+            filter_form: self.filter_form,
             select_form: self.select_form,
+            theme: self.theme,
+            layout,
             block_injection: self.block_injection,
-            filter_form: FilterForm::default(),
             inner_chunks: Rc::new([]),
             ..Default::default()
         }
@@ -97,6 +117,7 @@ pub struct MultipleSelect<'a> {
     widget_base: WidgetBase,
     filter_form: FilterForm,
     select_form: SelectForm<'a>,
+    theme: MultipleSelectTheme,
     layout: Layout,
     chunk: Rect,
     inner_chunks: Rc<[Rect]>,
@@ -110,6 +131,7 @@ impl Default for MultipleSelect<'_> {
             widget_base: Default::default(),
             filter_form: Default::default(),
             select_form: Default::default(),
+            theme: Default::default(),
             layout: Default::default(),
             chunk: Default::default(),
             inner_chunks: Rc::new([Rect::default()]),
@@ -135,7 +157,7 @@ impl RenderTrait for MultipleSelect<'_> {
 
         let status = self.select_form.status();
         f.render_widget(
-            Paragraph::new(format!("[{}/{}]", status.0, status.1)),
+            Paragraph::new(format!("[{}/{}]", status.0, status.1)).style(self.theme.status_style),
             self.layout.split(inner_chunk)[LAYOUT_INDEX_FOR_STATUS],
         );
         self.select_form.render(f);

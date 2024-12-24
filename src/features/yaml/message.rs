@@ -1,7 +1,9 @@
 use anyhow::Result;
 
 use crate::{
-    features::api_resources::kube::ApiResource, message::Message, workers::kube::message::Kube,
+    features::{api_resources::kube::ApiResource, StyledApiResource},
+    message::Message,
+    workers::kube::message::Kube,
 };
 
 pub use super::kube::YamlTarget;
@@ -40,7 +42,7 @@ impl From<YamlRequest> for Message {
 
 #[derive(Debug)]
 pub enum YamlResponse {
-    APIs(Result<Vec<ApiResource>>),
+    APIs(Result<Vec<StyledApiResource>>),
     Resource(Result<YamlResourceList>),
     Yaml(Result<Vec<String>>),
 }
