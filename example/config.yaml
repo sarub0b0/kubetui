@@ -167,6 +167,15 @@ theme:
         message:
           fg_color: dark_gray
 
+  ## API
+  api:
+    table:
+      resource:
+        fg_color: magenta
+      header:
+        fg_color: magenta
+      rows:
+        fg_color: cyan
 
   ## Help dialog
   help:
