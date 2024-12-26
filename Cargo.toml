@@ -58,8 +58,8 @@ flate2 = "1.0.30"
 strum = { version = "0.26.2", features = ["derive"] }
 paste = "1.0.14"
 figment = { version = "0.10.19", features = ["yaml", "env"] }
-xdg = "2.5.2"
 bitflags = "2.6.0"
+dirs = "5.0.1"
 
 
 [dev-dependencies]
