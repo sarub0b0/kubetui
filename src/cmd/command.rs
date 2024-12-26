@@ -115,8 +115,7 @@ impl Command {
                 }
             }
         } else {
-            let base_dir = xdg::BaseDirectories::with_prefix("kubetui")?;
-            let path = base_dir.get_config_file("config.yaml");
+            let path = xdg_config_home().join("config.yaml");
 
             match path.try_exists() {
                 Ok(true) => ConfigLoadOption::Path(path.clone()),
@@ -130,6 +129,16 @@ impl Command {
         };
 
         Ok(option)
+    }
+}
+
+fn xdg_config_home() -> PathBuf {
+    match std::env::var_os("XDG_CONFIG_HOME").map(|s| PathBuf::from(s).join("kubetui")) {
+        Some(path) => path,
+        None => dirs::home_dir()
+            .expect("Failed to get home directory")
+            .join(".config")
+            .join("kubetui"),
     }
 }
 
