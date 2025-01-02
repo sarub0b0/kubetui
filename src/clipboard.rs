@@ -1,20 +1,5 @@
-use anyhow::Result;
+#[cfg_attr(target_os = "linux", path = "clipboard/linux.rs")]
+#[cfg_attr(not(target_os = "linux"), path = "clipboard/generic.rs")]
+mod platform;
 
-pub struct Clipboard(arboard::Clipboard);
-
-impl Clipboard {
-    pub fn new(clipboard: arboard::Clipboard) -> Self {
-        Self(clipboard)
-    }
-
-    pub fn set_contents(&mut self, contents: String) -> Result<()> {
-        self.0.set_text(contents)?;
-        Ok(())
-    }
-}
-
-impl std::fmt::Debug for Clipboard {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Clipboard").finish()
-    }
-}
+pub use platform::Clipboard;
