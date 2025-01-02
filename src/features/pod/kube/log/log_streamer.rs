@@ -22,7 +22,7 @@ use crate::{
     workers::kube::{color::fg::Color, AbortWorker},
 };
 
-use super::log_collector::LogBuffer;
+use super::{log_collector::LogBuffer, log_content::LogContent};
 
 #[derive(Debug, Clone, Copy)]
 pub enum LogPrefixType {
@@ -166,7 +166,10 @@ impl LogStreamer {
                     continue;
                 }
 
-                buf.push(format!("{}{}", prefix, content));
+                buf.push(LogContent {
+                    prefix: prefix.to_string(),
+                    content: content.to_string(),
+                });
 
                 *last_timestamp = Some(dt);
             } else {
@@ -174,7 +177,10 @@ impl LogStreamer {
                     continue;
                 }
 
-                buf.push(format!("{}{}", prefix, line));
+                buf.push(LogContent {
+                    prefix: prefix.to_string(),
+                    content: line.to_string(),
+                });
             }
         }
 
@@ -201,7 +207,10 @@ impl LogStreamer {
 
         let mut buf = self.log_buffer.lock().await;
 
-        buf.push(format!("{} {}", sign, self.log_prefix_content()));
+        buf.push(LogContent {
+            prefix: sign,
+            content: self.log_prefix_content(),
+        });
     }
 
     async fn send_finished_message(&self) {
@@ -209,7 +218,10 @@ impl LogStreamer {
 
         let mut buf = self.log_buffer.lock().await;
 
-        buf.push(format!("{} {}", sign, self.log_prefix_content()));
+        buf.push(LogContent {
+            prefix: sign,
+            content: self.log_prefix_content(),
+        });
     }
 
     fn log_prefix_content(&self) -> String {
@@ -251,7 +263,7 @@ impl LogStreamer {
                 let close_bracket = prefix_color.container.wrap("]");
 
                 format!(
-                    "{}{}{} ",
+                    "{}{}{}",
                     open_bracket,
                     self.log_prefix_content(),
                     close_bracket
@@ -261,7 +273,7 @@ impl LogStreamer {
                 let open_bracket = prefix_color.pod.wrap("[");
                 let close_bracket = prefix_color.pod.wrap("]");
                 format!(
-                    "{}{}{} ",
+                    "{}{}{}",
                     open_bracket,
                     self.log_prefix_content(),
                     close_bracket

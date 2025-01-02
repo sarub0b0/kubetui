@@ -6,17 +6,24 @@ use tokio::{sync::Mutex, time};
 
 use crate::{message::Message, send_response, workers::kube::Worker};
 
-pub type LogBuffer = Arc<Mutex<Vec<String>>>;
+use super::log_content::LogContent;
+
+pub type LogBuffer = Arc<Mutex<Vec<LogContent>>>;
 
 #[derive(Clone)]
 pub struct LogCollector {
     tx: Sender<Message>,
     buffer: LogBuffer,
+    json_pretty_print: bool,
 }
 
 impl LogCollector {
-    pub fn new(tx: Sender<Message>, buffer: LogBuffer) -> Self {
-        Self { tx, buffer }
+    pub fn new(tx: Sender<Message>, buffer: LogBuffer, json_pretty_print: bool) -> Self {
+        Self {
+            tx,
+            buffer,
+            json_pretty_print,
+        }
     }
 }
 
@@ -32,9 +39,25 @@ impl Worker for LogCollector {
 
             let mut buf = self.buffer.lock().await;
 
-            if !buf.is_empty() {
-                send_response!(self.tx, Ok(std::mem::take(&mut buf)));
+            let contents = std::mem::take(&mut *buf);
+
+            if contents.is_empty() {
+                continue;
             }
+
+            let logs = if self.json_pretty_print {
+                contents
+                    .into_iter()
+                    .flat_map(|content| content.try_json_pritty_print())
+                    .collect()
+            } else {
+                contents
+                    .into_iter()
+                    .map(|content| content.print())
+                    .collect()
+            };
+
+            send_response!(self.tx, Ok(logs));
         }
     }
 }

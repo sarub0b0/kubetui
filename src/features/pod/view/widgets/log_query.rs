@@ -61,7 +61,7 @@ fn exec_query(
             LogPrefixType::PodAndContainer
         };
 
-        let config = LogConfig::new(item, namespaces.to_owned(), prefix_type);
+        let config = LogConfig::new(item, namespaces.to_owned(), prefix_type, false);
 
         tx.send(LogMessage::Request(config).into())
             .expect("Failed to send LogMessage::Request");
