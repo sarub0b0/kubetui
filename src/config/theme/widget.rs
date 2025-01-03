@@ -174,7 +174,7 @@ impl From<WidgetThemeConfig> for single_select::FilterFormTheme {
 impl From<WidgetThemeConfig> for ListTheme {
     fn from(theme: WidgetThemeConfig) -> Self {
         Self {
-            selected: theme.list.selection.into(),
+            selected: theme.list.selected_item.into(),
         }
     }
 }
@@ -325,7 +325,7 @@ mod tests {
                         ..Default::default()
                     },
                 },
-                selection: ThemeStyleConfig {
+                selected_item: ThemeStyleConfig {
                     fg_color: Some(Color::Green),
                     modifier: Modifier::REVERSED,
                     ..Default::default()
@@ -423,7 +423,7 @@ mod tests {
                   fg_color: white
                 query:
                   fg_color: white
-              selection:
+              selected_item:
                 fg_color: green
                 modifier: reversed
               status:
@@ -509,7 +509,7 @@ mod tests {
                   fg_color: white
                 query:
                   fg_color: white
-              selection:
+              selected_item:
                 fg_color: green
                 modifier: reversed
               status:
@@ -645,7 +645,7 @@ mod tests {
                         ..Default::default()
                     },
                 },
-                selection: ThemeStyleConfig {
+                selected_item: ThemeStyleConfig {
                     fg_color: Some(Color::Green),
                     modifier: Modifier::REVERSED,
                     ..Default::default()

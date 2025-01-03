@@ -107,8 +107,8 @@ theme:
         query:
           fg_color: yellow
 
-      selection:
       ## Highlight the selected item
+      selected_item:
         fg_color: green
         modifier: reversed
 
