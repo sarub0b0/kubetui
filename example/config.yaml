@@ -3,23 +3,7 @@
 # fg_color: "default" | name | hex | integer
 # bg_color: "default" | name | hex | integer
 # modifier: "none" | "bold" | "dim" | "italic" | "underlined" | "slow_blink" | "rapid_blink" | "reversed" | "hidden" | "crossed_out"
-
-## アプリケーション全体のスタイル設定
-## タブのスタイル設定
-## クラスター・名前空間情報のスタイル設定
-## 各コンポーネントのスタイル設定（共通項目に枠とタイトルも含めたい）
-## - テーブル
-##     - ヘッダー
-##     - フィルタ
-##     - 選択のハイライト
-## - リスト
-##     - 選択のハイライト
-##     - フィルタ
-## - テキスト
-##     - 検索フォーム
-##     - ヒットした文字列のハイライト
-##     - マウスでの範囲選択
-## - ダイアログ
+# border.type: "plain" | "rounded" | "double" | "thick"
 
 theme:
   base:
@@ -57,9 +41,11 @@ theme:
         fg_color: blue
       mouse_over:
         fg_color: red
+
+    ## Text component
     text:
+      ## Search form
       search:
-        ## 検索フォーム
         form:
           # base:
           #   fg_color: yellow
@@ -70,23 +56,25 @@ theme:
           suffix:
             fg_color: yellow
 
-        ## 検索にマッチした文字列のハイライト
+        ## Highlight the matched string in the search
         highlight:
-          ## 検索にマッチした文字列の中でフォーカスしている文字列のハイライト
+          ## Highlight the string that is focused in the string that matches the search
           focus:
             fg_color: yellow
             modifier: reversed
 
-          ## 検索にマッチした文字列のハイライト
+          ## Highlight the string that matches the search
           matches:
             modifier: reversed
 
-      ## マウスで範囲選択したときのハイライト
+      ## Highlight when selecting a range with the mouse
       selection:
         fg_color: green
         modifier: reversed
+
+    ## Table component
     table:
-      ## フィルターフォーム
+      ## Filter form
       filter:
         # base:
         #   fg_color: magenta
@@ -104,9 +92,9 @@ theme:
         fg_color: lightblue
         modifier: bold
 
-    ## 選択リスト
+    ## Select list component
     list:
-      ## フィルターフォーム
+      ## Filter form
       filter:
         # base:
         #   fg_color: magenta
@@ -119,33 +107,36 @@ theme:
         query:
           fg_color: yellow
 
-      ## 選択のハイライト
       selection:
+      ## Highlight the selected item
         fg_color: green
         modifier: reversed
 
-      ## ステータス
+      ## Item index and total count
       status:
         fg_color: yellow
 
-    ## 入力フォーム
+    ## Input form
     input:
       fg_color: white
+
+    ## Dialog component
     dialog:
-      ## 未設定の場合、theme.base で設定した背景色を使う
+      ## Override the theme.base
       # base:
       #   bg_color: "#000000"
+
       size:
         ## 0.0 ~ 100.0
         width: 85
         ## 0.0 ~ 100.0
         height: 85
 
-  ## Pod table
+  ## Pod view
   pod:
-    ## podのステータスに応じたハイライトスタイルを設定
+    ## Highlights according to the status of the pod
     highlights:
-      - status: Running
+      - status: Running # Regex
         fg_color: default
       - status: (Completed|Evicted)
         fg_color: green
@@ -154,9 +145,8 @@ theme:
 
   ## Event view
   event:
-    ## イベントの種類に応じたハイライトスタイルを設定
     highlights:
-      - type: Normal
+      - type: Normal # Regex
         summary:
           fg_color: blue
         message:
@@ -167,7 +157,7 @@ theme:
         message:
           fg_color: dark_gray
 
-  ## API
+  ## API view
   api:
     table:
       resource:
@@ -182,6 +172,7 @@ theme:
       other_version:
         fg_color: black
 
+  ## Yaml view
   yaml:
     dialog:
       preferred_version_or_latest:
