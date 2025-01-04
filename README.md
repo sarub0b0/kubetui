@@ -20,6 +20,7 @@ It provides an easy-to-use interface for developers and operators to access impo
   - [Using `cargo install`](#using-cargo-install)
   - [Downloading the binary](#downloading-the-binary)
 - [Usage](#usage)
+  - [Custom Configuration](#custom-configuration)
 - [Log Query](#log-query)
   - [Usage Example](#usage-example)
   - [Supported Queries](#supported-queries)
@@ -64,6 +65,7 @@ Kubetui offers the following features to help you monitor and manage your Kubern
 - **Mouse Event Support**: Leverage mouse events for a smoother user experience.
 - **Search Functionality**: Easily search for specific keywords within the interface.
 - **Item Filtering**: Filter items based on multiple keywords separated by spaces.
+- **Customizable UI Appearance**: Modify the appearance of the UI, including border styles, colors, and text attributes.
 
 Overall, kubetui is a powerful tool designed to provide a safe and efficient way to access and monitor your Kubernetes resources. With its user-friendly interface and comprehensive features, it simplifies the process of managing your applications and infrastructure.
 
@@ -158,10 +160,29 @@ Options:
   -A, --all-namespaces[=<true|false>]  Select all namespaces [default: false]
   -c, --context <CONTEXT>              Context
   -C, --kubeconfig <KUBECONFIG>        kubeconfig path
+      --config-file <CONFIG_FILE>      Config file path
   -l, --logging                        Logging
   -n, --namespaces <NAMESPACES>        Namespaces (e.g. -n val1,val2,val3 | -n val1 -n val2 -n val3)
   -s, --split-mode <v|h>               Window split mode [possible values: v, h, vertical, horizontal]
 ```
+
+### Custom Configuration
+
+You can customize the UI appearance by specifying a configuration file using the `--config-file` flag:
+
+```sh
+kubetui --config-file /path/to/your/config.yaml
+```
+
+The configuration file can also be located at `~/.config/kubetui/config.yaml` or `$XDG_CONFIG_FILE/kubetui/config.yaml`.
+
+The configuration file allows you to modify various aspects of the UI, including:
+
+- **Border Styles**: Customize the border styles of different UI components.
+- **Colors**: Change the colors of text, backgrounds, and borders.
+- **Text Attributes**: Modify text attributes such as bold, italic, and underline.
+
+A sample configuration file is available at `examples/config.yaml` to help you get started with customizing the UI.
 
 ## Log Query
 
