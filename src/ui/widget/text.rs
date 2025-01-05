@@ -11,7 +11,6 @@ use ratatui::{
     widgets::{Block, Scrollbar, ScrollbarOrientation, ScrollbarState},
     Frame,
 };
-use search::SearchForm;
 
 use crate::{
     clipboard::Clipboard,
@@ -34,6 +33,10 @@ use self::{
     item::TextItem,
     render::{Render, Scroll},
 };
+
+pub use item::{SearchHighlightFocusStyle, SearchHighlightMatchesStyle, SearchHighlightStyle};
+pub use render::SelectionStyle;
+pub use search::{SearchForm, SearchFormTheme};
 
 define_callback!(pub RenderBlockInjection, Fn(&Text, bool, bool) -> Block<'static> );
 
@@ -154,6 +157,15 @@ impl Mode {
     }
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct TextTheme {
+    /// 検索にマッチした文字列のスタイル
+    pub search: SearchHighlightStyle,
+
+    /// マウスで範囲選択中のスタイル
+    pub selecton: SelectionStyle,
+}
+
 #[derive(Debug, Default)]
 pub struct TextBuilder {
     id: String,
@@ -162,6 +174,7 @@ pub struct TextBuilder {
     item: Vec<LiteralItem>,
     wrap: bool,
     follow: bool,
+    theme: TextTheme,
     block_injection: Option<RenderBlockInjection>,
     actions: Vec<(UserEvent, Callback)>,
     clipboard: Option<Rc<RefCell<Clipboard>>>,
@@ -203,6 +216,11 @@ impl TextBuilder {
         self
     }
 
+    pub fn theme(mut self, theme: TextTheme) -> Self {
+        self.theme = theme;
+        self
+    }
+
     pub fn action<F, E>(mut self, ev: E, cb: F) -> Self
     where
         E: Into<UserEvent>,
@@ -230,9 +248,10 @@ impl TextBuilder {
             id: self.id,
             widget_base: self.widget_base,
             search_form: self.search_form,
-            item: TextItem::new(self.item, None),
+            item: TextItem::new(self.item, None, self.theme.search.clone()),
             wrap: self.wrap,
             follow: self.follow,
+            theme: self.theme,
             actions: self.actions,
             block_injection: self.block_injection,
             clipboard: self.clipboard,
@@ -254,6 +273,7 @@ pub struct Text {
     /// 検索中、検索ワード入力中、オフの3つのモード
     mode: Mode,
     highlight_content: Option<HighlightContent>,
+    theme: TextTheme,
     block_injection: Option<RenderBlockInjection>,
     actions: Vec<(UserEvent, Callback)>,
     clipboard: Option<Rc<RefCell<Clipboard>>>,
@@ -791,7 +811,7 @@ impl WidgetTrait for Text {
             None
         };
 
-        self.item = TextItem::new(vec![], wrap_width);
+        self.item = TextItem::new(vec![], wrap_width, self.theme.search.clone());
         self.search_cancel();
 
         *(self.widget_base.append_title_mut()) = None;
@@ -812,6 +832,7 @@ impl RenderTrait for Text {
         let mut builder = Render::builder()
             .block(block)
             .lines(wrapped_lines)
+            .highlight_style(self.theme.selecton)
             .scroll(self.scroll);
 
         if let Some(highlight_content) = &self.highlight_content {

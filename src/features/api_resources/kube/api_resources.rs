@@ -1,12 +1,20 @@
-use std::{fmt::Display, hash::Hash, ops::Deref, sync::Arc, time};
+use std::{
+    fmt::Display,
+    hash::Hash,
+    ops::Deref,
+    sync::{atomic::AtomicBool, Arc},
+    time,
+};
 
 use anyhow::Result;
 use async_trait::async_trait;
+use crossbeam::channel::Sender;
 use futures::future::try_join_all;
 use kube::{
     discovery::{verbs, ApiGroup, Scope},
     Discovery,
 };
+use ratatui::style::{Color, Style};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use tokio::{sync::RwLock, time::Instant};
@@ -21,11 +29,32 @@ use crate::{
         table::insert_ns,
         KubeClient, KubeClientRequest as _,
     },
+    message::Message,
+    ui::widget::ansi_color::style_to_ansi,
     workers::kube::{
-        PollerBase, SharedTargetApiResources, TargetApiResources, TargetNamespaces, Worker,
-        WorkerResult,
+        SharedTargetApiResources, SharedTargetNamespaces, TargetApiResources, TargetNamespaces,
+        Worker, WorkerResult,
     },
 };
+
+use super::styled_table::StyledTable;
+
+#[derive(Debug, Clone)]
+pub struct ApiConfig {
+    pub resource: Style,
+    pub header: Style,
+    pub rows: Style,
+}
+
+impl Default for ApiConfig {
+    fn default() -> Self {
+        Self {
+            resource: Style::default().fg(Color::DarkGray),
+            header: Style::default().fg(Color::DarkGray),
+            rows: Style::default(),
+        }
+    }
+}
 
 pub type SharedApiResources = Arc<RwLock<ApiResources>>;
 
@@ -37,10 +66,6 @@ pub struct ApiResources {
 }
 
 impl ApiResources {
-    pub fn to_vec(&self) -> Vec<ApiResource> {
-        self.inner.clone()
-    }
-
     /// SharedApiResourcesを生成
     pub fn shared() -> SharedApiResources {
         Arc::new(RwLock::new(Default::default()))
@@ -184,10 +209,6 @@ impl ApiResource {
             Self::Apis { scope, .. } => scope,
         }
     }
-
-    fn to_table_header(&self) -> String {
-        format!("\x1b[90m[ {} ]\x1b[0m\n", self)
-    }
 }
 
 impl Ord for ApiResource {
@@ -227,21 +248,33 @@ impl Display for ApiResource {
 
 #[derive(Clone)]
 pub struct ApiPoller {
-    base: PollerBase,
+    is_terminated: Arc<AtomicBool>,
+    tx: Sender<Message>,
+    shared_target_namespaces: SharedTargetNamespaces,
+    kube_client: KubeClient,
     shared_target_api_resources: SharedTargetApiResources,
     shared_api_resources: SharedApiResources,
+    config: ApiConfig,
 }
 
 impl ApiPoller {
     pub fn new(
-        base: PollerBase,
+        is_terminated: Arc<AtomicBool>,
+        tx: Sender<Message>,
+        shared_target_namespaces: SharedTargetNamespaces,
+        kube_client: KubeClient,
         shared_target_api_resources: SharedTargetApiResources,
         shared_api_resources: SharedApiResources,
+        config: ApiConfig,
     ) -> Self {
         Self {
-            base,
+            is_terminated,
+            tx,
+            shared_target_namespaces,
+            kube_client,
             shared_target_api_resources,
             shared_api_resources,
+            config,
         }
     }
 }
@@ -252,15 +285,13 @@ impl Worker for ApiPoller {
 
     async fn run(&self) -> Self::Output {
         let Self {
-            base:
-                PollerBase {
-                    is_terminated,
-                    tx,
-                    shared_target_namespaces,
-                    kube_client,
-                },
+            is_terminated,
+            tx,
+            shared_target_namespaces,
+            kube_client,
             shared_target_api_resources,
             shared_api_resources,
+            config,
         } = self;
 
         match fetch_api_resources(kube_client).await {
@@ -319,6 +350,7 @@ impl Worker for ApiPoller {
                 kube_client,
                 &target_api_resources,
                 &target_namespaces,
+                config,
             )
             .fetch_table()
             .await;
@@ -476,6 +508,7 @@ struct FetchTargetApiResources<'a> {
     client: &'a KubeClient,
     target_api_resources: &'a TargetApiResources,
     target_namespace: &'a TargetNamespaces,
+    config: &'a ApiConfig,
 }
 
 impl<'a> FetchTargetApiResources<'a> {
@@ -483,11 +516,13 @@ impl<'a> FetchTargetApiResources<'a> {
         client: &'a KubeClient,
         target_api_resources: &'a TargetApiResources,
         target_namespace: &'a TargetNamespaces,
+        config: &'a ApiConfig,
     ) -> Self {
         Self {
             client,
             target_api_resources,
             target_namespace,
+            config,
         }
     }
 
@@ -502,9 +537,10 @@ impl<'a> FetchTargetApiResources<'a> {
             }?;
 
             let data = if table.rows.is_empty() {
-                api_resource.to_table_header()
+                table_title(api_resource, self.config.resource)
             } else {
-                api_resource.to_table_header() + &table.to_print()
+                let styled_table = StyledTable::new(&table, self.config.header, self.config.rows);
+                table_title(api_resource, self.config.resource) + &styled_table.to_string()
             };
 
             ret.extend(data.lines().map(ToString::to_string).collect::<Vec<_>>());
@@ -513,6 +549,10 @@ impl<'a> FetchTargetApiResources<'a> {
 
         Ok(ret)
     }
+}
+
+fn table_title(api_resource: &ApiResource, style: Style) -> String {
+    format!("{}[ {} ]\x1b[39m\n", style_to_ansi(style), api_resource)
 }
 
 #[cfg(test)]

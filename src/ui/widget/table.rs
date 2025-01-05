@@ -4,11 +4,10 @@ mod item;
 
 use std::rc::Rc;
 
-use filter::FilterForm;
 use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind},
     layout::{Constraint, Rect},
-    style::{Modifier, Style, Stylize},
+    style::{Color, Modifier, Style, Stylize},
     widgets::{
         Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Table as TuiTable, TableState,
     },
@@ -30,6 +29,8 @@ use super::{
     base::WidgetBase, styled_graphemes, Item, RenderTrait, SelectedItem, TableItem, WidgetTrait,
 };
 
+pub use filter::{FilterForm, FilterFormTheme};
+
 use item::InnerItem;
 
 const COLUMN_SPACING: u16 = 3;
@@ -40,11 +41,32 @@ define_callback!(pub OnSelectCallback, Fn(&mut Window, &TableItem) -> EventResul
 define_callback!(pub RenderBlockInjection, Fn(&Table) -> WidgetBase);
 define_callback!(pub RenderHighlightInjection, Fn(Option<&TableItem>) -> Style);
 
+#[derive(Debug)]
+pub struct TableTheme {
+    header_style: Style,
+}
+
+impl Default for TableTheme {
+    fn default() -> Self {
+        Self {
+            header_style: Style::default().fg(Color::DarkGray),
+        }
+    }
+}
+
+impl TableTheme {
+    pub fn header_style(mut self, style: impl Into<Style>) -> Self {
+        self.header_style = style.into();
+        self
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct TableBuilder {
     id: String,
     widget_base: WidgetBase,
     filter_form: FilterForm,
+    theme: TableTheme,
     header: Vec<String>,
     items: Vec<TableItem>,
     state: TableState,
@@ -69,6 +91,11 @@ impl TableBuilder {
 
     pub fn filter_form(mut self, filter_form: FilterForm) -> Self {
         self.filter_form = filter_form;
+        self
+    }
+
+    pub fn theme(mut self, theme: TableTheme) -> Self {
+        self.theme = theme;
         self
     }
 
@@ -127,6 +154,7 @@ impl TableBuilder {
         let mut table = Table {
             id: self.id,
             widget_base: self.widget_base,
+            theme: self.theme,
             on_select: self.on_select,
             actions: self.actions,
             state: self.state,
@@ -196,6 +224,7 @@ impl Mode {
 pub struct Table<'a> {
     id: String,
     widget_base: WidgetBase,
+    theme: TableTheme,
     items: InnerItem<'a>,
     state: TableState,
     chunk: Rect,
@@ -681,7 +710,12 @@ impl RenderTrait for Table<'_> {
                 .column_spacing(COLUMN_SPACING);
 
             if !self.items.header().is_empty() {
-                widget = widget.header(self.items.header().rendered());
+                widget = widget.header(
+                    self.items
+                        .header()
+                        .rendered()
+                        .style(self.theme.header_style),
+                );
             }
 
             f.render_stateful_widget(widget, chunk, &mut self.state);

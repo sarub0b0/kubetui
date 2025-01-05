@@ -12,6 +12,7 @@ use crossbeam::channel::{Receiver, Sender};
 use futures::future::select_all;
 use k8s_openapi::api::core::v1::Namespace;
 use kube::{api::ListParams, config::Kubeconfig, Api, ResourceExt as _};
+use ratatui::style::{Color, Style};
 use tokio::{
     sync::RwLock,
     task::{self, AbortHandle, JoinHandle},
@@ -20,7 +21,7 @@ use tokio::{
 use crate::{
     features::{
         api_resources::{
-            kube::{ApiPoller, ApiResource, ApiResources, SharedApiResources},
+            kube::{ApiConfig, ApiPoller, ApiResource, ApiResources, SharedApiResources},
             message::{ApiMessage, ApiRequest, ApiResponse},
         },
         config::{
@@ -28,7 +29,7 @@ use crate::{
             message::ConfigMessage,
         },
         context::message::{ContextMessage, ContextRequest, ContextResponse},
-        event::kube::EventPoller,
+        event::kube::{EventConfig, EventPoller},
         get::{kube::yaml::GetYamlWorker, message::GetMessage},
         namespace::message::{NamespaceMessage, NamespaceRequest, NamespaceResponse},
         network::{
@@ -36,13 +37,14 @@ use crate::{
             message::NetworkMessage,
         },
         pod::{
-            kube::{LogConfig, LogWorker, PodPoller},
+            kube::{LogConfig, LogWorker, PodConfig, PodPoller},
             message::LogMessage,
         },
         yaml::{
             kube::{FetchResourceList, YamlWorker},
             message::{YamlMessage, YamlRequest, YamlResponse},
         },
+        StyledApiResource,
     },
     kube::KubeClient,
     logger,
@@ -63,20 +65,66 @@ pub type SharedTargetNamespaces = Arc<RwLock<TargetNamespaces>>;
 pub type TargetApiResources = Vec<ApiResource>;
 pub type SharedTargetApiResources = Arc<RwLock<TargetApiResources>>;
 
+pub type StyledTargetApiResources = Vec<StyledApiResource>;
+
+/// APIタブのダイアログで表示されるAPIリソースのスタイル設定
+#[derive(Debug, Clone)]
+pub struct ApisConfig {
+    pub preferred_version_or_latest: Style,
+    pub other_version: Style,
+}
+
+impl Default for ApisConfig {
+    fn default() -> Self {
+        Self {
+            preferred_version_or_latest: Style::default(),
+            other_version: Style::default().fg(Color::DarkGray),
+        }
+    }
+}
+
+/// Yamlタブのダイアログで表示されるAPIリソースのスタイル設定
+#[derive(Debug, Clone)]
+pub struct YamlConfig {
+    pub preferred_version_or_latest: Style,
+    pub other_version: Style,
+}
+
+impl Default for YamlConfig {
+    fn default() -> Self {
+        Self {
+            preferred_version_or_latest: Style::default(),
+            other_version: Style::default().fg(Color::DarkGray),
+        }
+    }
+}
+
+// target_api_resourcesとapis_configからStyledTargetApiResourcesを生成する
+pub fn styled_target_api_resources(
+    target_api_resources: &TargetApiResources,
+    preferred_version_or_latest: Style,
+    other_version: Style,
+) -> StyledTargetApiResources {
+    target_api_resources
+        .iter()
+        .map(|api| {
+            let style = if api.is_api() || api.is_preferred_version() {
+                preferred_version_or_latest
+            } else {
+                other_version
+            };
+
+            StyledApiResource::new(api.clone(), style)
+        })
+        .collect()
+}
+
 async fn fetch_all_namespaces(client: KubeClient) -> Result<Vec<String>> {
     let namespaces: Api<Namespace> = Api::all(client.as_client().clone());
     let lp = ListParams::default();
     let ns_list = namespaces.list(&lp).await?;
 
     Ok(ns_list.iter().map(|ns| ns.name_any()).collect())
-}
-
-#[derive(Clone)]
-pub struct PollerBase {
-    pub is_terminated: Arc<AtomicBool>,
-    pub tx: Sender<Message>,
-    pub shared_target_namespaces: SharedTargetNamespaces,
-    pub kube_client: KubeClient,
 }
 
 #[derive(Clone)]
@@ -92,6 +140,11 @@ pub struct KubeController {
     kubeconfig: Kubeconfig,
     context: String,
     store: KubeStore,
+    pod_config: PodConfig,
+    event_config: EventConfig,
+    api_config: ApiConfig,
+    apis_config: ApisConfig,
+    yaml_config: YamlConfig,
 }
 
 impl KubeController {
@@ -106,6 +159,11 @@ impl KubeController {
             target_namespaces,
             context,
             all_namespaces,
+            pod_config,
+            event_config,
+            api_config,
+            apis_config,
+            yaml_config,
         } = config;
 
         let kubeconfig = read_kubeconfig(kubeconfig)?;
@@ -137,6 +195,11 @@ impl KubeController {
             kubeconfig,
             context: context.to_string(),
             store,
+            pod_config,
+            event_config,
+            api_config,
+            apis_config,
+            yaml_config,
         })
     }
 
@@ -148,6 +211,11 @@ impl KubeController {
             kubeconfig,
             mut context,
             mut store,
+            pod_config,
+            event_config,
+            api_config,
+            apis_config,
+            yaml_config,
         } = self;
 
         while !is_terminated.load(Ordering::Relaxed) {
@@ -163,42 +231,80 @@ impl KubeController {
             }))?;
 
             tx.send(Message::Kube(Kube::RestoreAPIs(
-                target_api_resources.to_vec(),
+                styled_target_api_resources(
+                    &target_api_resources,
+                    apis_config.preferred_version_or_latest,
+                    apis_config.other_version,
+                ),
             )))?;
 
             let shared_target_namespaces = Arc::new(RwLock::new(target_namespaces.to_vec()));
             let shared_target_api_resources = Arc::new(RwLock::new(target_api_resources.to_vec()));
             let shared_api_resources = ApiResources::shared();
 
-            let poller_base = PollerBase {
-                shared_target_namespaces: shared_target_namespaces.clone(),
-                tx: tx.clone(),
-                is_terminated: is_terminated.clone(),
-                kube_client: client.clone(),
-            };
+            let contexts = kubeconfig
+                .contexts
+                .iter()
+                .map(|ctx| ctx.name.to_string())
+                .collect();
 
             let event_controller_handle = EventController::new(
-                poller_base.clone(),
+                is_terminated.clone(),
+                shared_target_namespaces.clone(),
+                client.clone(),
+                tx.clone(),
                 rx.clone(),
-                kubeconfig
-                    .contexts
-                    .iter()
-                    .map(|ctx| ctx.name.to_string())
-                    .collect(),
+                contexts,
                 shared_target_api_resources.clone(),
+                shared_api_resources.clone(),
+                apis_config.clone(),
+                yaml_config.clone(),
+            )
+            .spawn();
+
+            let pod_handle = PodPoller::new(
+                is_terminated.clone(),
+                tx.clone(),
+                shared_target_namespaces.clone(),
+                client.clone(),
+                pod_config.clone(),
+            )
+            .spawn();
+
+            let config_handle = ConfigPoller::new(
+                is_terminated.clone(),
+                tx.clone(),
+                shared_target_namespaces.clone(),
+                client.clone(),
+            )
+            .spawn();
+
+            let network_handle = NetworkPoller::new(
+                is_terminated.clone(),
+                tx.clone(),
+                shared_target_namespaces.clone(),
+                client.clone(),
                 shared_api_resources.clone(),
             )
             .spawn();
 
-            let pod_handle = PodPoller::new(poller_base.clone()).spawn();
-            let config_handle = ConfigPoller::new(poller_base.clone()).spawn();
-            let network_handle =
-                NetworkPoller::new(poller_base.clone(), shared_api_resources.clone()).spawn();
-            let event_handle = EventPoller::new(poller_base.clone()).spawn();
+            let event_handle = EventPoller::new(
+                is_terminated.clone(),
+                tx.clone(),
+                shared_target_namespaces.clone(),
+                client.clone(),
+                event_config.clone(),
+            )
+            .spawn();
+
             let api_handle = ApiPoller::new(
-                poller_base.clone(),
+                is_terminated.clone(),
+                tx.clone(),
+                shared_target_namespaces.clone(),
+                client.clone(),
                 shared_target_api_resources.clone(),
                 shared_api_resources,
+                api_config.clone(),
             )
             .spawn();
 
@@ -257,27 +363,42 @@ impl KubeController {
 
 #[derive(Clone)]
 struct EventController {
-    base: PollerBase,
+    is_terminated: Arc<AtomicBool>,
+    shared_target_namespaces: SharedTargetNamespaces,
+    kube_client: KubeClient,
+    tx: Sender<Message>,
     rx: Receiver<Message>,
     contexts: Vec<String>,
     shared_target_api_resources: SharedTargetApiResources,
     shared_api_resources: SharedApiResources,
+    apis_config: ApisConfig,
+    yaml_config: YamlConfig,
 }
 
 impl EventController {
     fn new(
-        base: PollerBase,
+        is_terminated: Arc<AtomicBool>,
+        shared_target_namespaces: SharedTargetNamespaces,
+        kube_client: KubeClient,
+        tx: Sender<Message>,
         rx: Receiver<Message>,
         contexts: Vec<String>,
         shared_target_api_resources: SharedTargetApiResources,
         shared_api_resources: SharedApiResources,
+        apis_config: ApisConfig,
+        yaml_config: YamlConfig,
     ) -> Self {
         Self {
-            base,
+            is_terminated,
+            shared_target_namespaces,
+            kube_client,
+            tx,
             rx,
             contexts,
             shared_target_api_resources,
             shared_api_resources,
+            apis_config,
+            yaml_config,
         }
     }
 }
@@ -313,19 +434,17 @@ impl Worker for EventController {
         let mut get_handler: Option<AbortHandle> = None;
 
         let EventController {
-            base: poll_worker,
+            is_terminated,
+            shared_target_namespaces,
+            kube_client,
+            tx,
             rx,
             contexts,
             shared_target_api_resources,
             shared_api_resources,
+            apis_config,
+            yaml_config,
         } = self;
-
-        let PollerBase {
-            shared_target_namespaces,
-            tx,
-            is_terminated,
-            kube_client,
-        } = poll_worker;
 
         while !is_terminated.load(Ordering::Relaxed) {
             let rx = rx.clone();
@@ -425,7 +544,12 @@ impl Worker for EventController {
                         match req {
                             Get => {
                                 let api_resources = shared_api_resources.read().await;
-                                tx.send(ApiResponse::Get(Ok(api_resources.to_vec())).into())
+                                let styled_api_resources = styled_target_api_resources(
+                                    &api_resources,
+                                    apis_config.preferred_version_or_latest,
+                                    apis_config.other_version,
+                                );
+                                tx.send(ApiResponse::Get(Ok(styled_api_resources)).into())
                                     .expect("Failed to send ApiResponse::Get");
                             }
                             Set(req) => {
@@ -471,7 +595,11 @@ impl Worker for EventController {
                             APIs => {
                                 let api_resources = shared_api_resources.read().await;
 
-                                let ret = api_resources.to_vec();
+                                let ret = styled_target_api_resources(
+                                    &api_resources,
+                                    yaml_config.preferred_version_or_latest,
+                                    yaml_config.other_version,
+                                );
 
                                 logger!(info, "APIs: {:#?}", ret);
 

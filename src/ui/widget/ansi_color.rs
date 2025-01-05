@@ -170,6 +170,107 @@ pub fn ansi_to_style(codes: Vec<u8>) -> Style {
     style
 }
 
+pub fn style_to_ansi(style: Style) -> String {
+    let Style {
+        fg,
+        bg,
+        add_modifier,
+        ..
+    } = style;
+
+    let mut codes = Vec::new();
+
+    if let Some(fg) = fg {
+        match fg {
+            Color::Reset => codes.push(39),
+            Color::Black => codes.push(30),
+            Color::Red => codes.push(31),
+            Color::Green => codes.push(32),
+            Color::Yellow => codes.push(33),
+            Color::Blue => codes.push(34),
+            Color::Magenta => codes.push(35),
+            Color::Cyan => codes.push(36),
+            Color::White => codes.push(37),
+            Color::DarkGray => codes.push(90),
+            Color::LightRed => codes.push(91),
+            Color::LightGreen => codes.push(92),
+            Color::LightYellow => codes.push(93),
+            Color::LightBlue => codes.push(94),
+            Color::LightMagenta => codes.push(95),
+            Color::LightCyan => codes.push(96),
+            Color::Gray => codes.push(97),
+            Color::Indexed(n) => {
+                codes.push(38);
+                codes.push(5);
+                codes.push(n);
+            }
+            Color::Rgb(r, g, b) => {
+                codes.push(38);
+                codes.push(2);
+                codes.push(r);
+                codes.push(g);
+                codes.push(b);
+            }
+        }
+    }
+
+    if let Some(bg) = bg {
+        match bg {
+            Color::Reset => codes.push(49),
+            Color::Black => codes.push(40),
+            Color::Red => codes.push(41),
+            Color::Green => codes.push(42),
+            Color::Yellow => codes.push(43),
+            Color::Blue => codes.push(44),
+            Color::Magenta => codes.push(45),
+            Color::Cyan => codes.push(46),
+            Color::White => codes.push(47),
+            Color::DarkGray => codes.push(100),
+            Color::LightRed => codes.push(101),
+            Color::LightGreen => codes.push(102),
+            Color::LightYellow => codes.push(103),
+            Color::LightBlue => codes.push(104),
+            Color::LightMagenta => codes.push(105),
+            Color::LightCyan => codes.push(106),
+            Color::Gray => codes.push(107),
+            Color::Indexed(n) => {
+                codes.push(48);
+                codes.push(5);
+                codes.push(n);
+            }
+            Color::Rgb(r, g, b) => {
+                codes.push(48);
+                codes.push(2);
+                codes.push(r);
+                codes.push(g);
+                codes.push(b);
+            }
+        }
+    }
+
+    match add_modifier {
+        Modifier::BOLD => codes.push(1),
+        Modifier::DIM => codes.push(2),
+        Modifier::ITALIC => codes.push(3),
+        Modifier::UNDERLINED => codes.push(4),
+        Modifier::SLOW_BLINK => codes.push(5),
+        Modifier::RAPID_BLINK => codes.push(6),
+        Modifier::REVERSED => codes.push(7),
+        Modifier::HIDDEN => codes.push(8),
+        Modifier::CROSSED_OUT => codes.push(9),
+        _ => {}
+    }
+
+    format!(
+        "\x1b[{}m",
+        codes
+            .iter()
+            .map(|c| c.to_string())
+            .collect::<Vec<_>>()
+            .join(";")
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

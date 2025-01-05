@@ -4,7 +4,7 @@ use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind},
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::{Line, Span},
+    text::{Line, ToSpan},
     widgets::{Block, Paragraph, Tabs},
     Frame,
 };
@@ -21,11 +21,82 @@ use super::{
     Tab,
 };
 
-define_callback!(pub HeaderCallback, Fn() -> Paragraph<'static>);
+define_callback!(pub HeaderCallback, Fn(&HeaderTheme) -> Paragraph<'static>);
+
+pub struct TabTheme {
+    divider: String,
+    divider_style: Style,
+    base_style: Style,
+    active_style: Style,
+    mouse_over_style: Style,
+}
+
+impl TabTheme {
+    pub fn divider(mut self, divider: impl Into<String>) -> Self {
+        self.divider = divider.into();
+        self
+    }
+
+    pub fn divider_style(mut self, style: impl Into<Style>) -> Self {
+        self.divider_style = style.into();
+        self
+    }
+
+    pub fn base_style(mut self, style: impl Into<Style>) -> Self {
+        self.base_style = style.into();
+        self
+    }
+
+    pub fn active_style(mut self, style: impl Into<Style>) -> Self {
+        self.active_style = style.into();
+        self
+    }
+
+    pub fn mouse_over_style(mut self, style: impl Into<Style>) -> Self {
+        self.mouse_over_style = style.into();
+        self
+    }
+}
+
+impl Default for TabTheme {
+    fn default() -> Self {
+        Self {
+            divider: ratatui::symbols::line::VERTICAL.to_string(),
+            divider_style: Style::default(),
+            base_style: Style::default(),
+            active_style: Style::default().add_modifier(Modifier::REVERSED),
+            mouse_over_style: Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::REVERSED),
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct HeaderTheme {
+    pub base_style: Style,
+
+    /// 各行ごとのスタイル
+    pub line_styles: Vec<Style>,
+}
+
+impl HeaderTheme {
+    pub fn base_style(mut self, style: impl Into<Style>) -> Self {
+        self.base_style = style.into();
+        self
+    }
+
+    pub fn line_styles(mut self, styles: impl IntoIterator<Item = impl Into<Style>>) -> Self {
+        self.line_styles = styles.into_iter().map(Into::into).collect();
+        self
+    }
+}
 
 #[derive(Default)]
 pub struct Window<'a> {
+    base_style: Style,
     tabs: Vec<Tab<'a>>,
+    tab_theme: TabTheme,
     active_tab_index: usize,
     mouse_over_tab_index: Option<usize>,
     layout: Layout,
@@ -34,6 +105,7 @@ pub struct Window<'a> {
     dialogs: Vec<Dialog<'a>>,
     opening_dialog_id: Option<String>,
     header: Option<Header<'a>>,
+    header_theme: HeaderTheme,
     layout_index: WindowLayoutIndex,
     last_known_area: Rect,
 }
@@ -96,6 +168,9 @@ pub struct WindowBuilder<'a> {
     callbacks: Vec<(UserEvent, Callback)>,
     dialogs: Vec<Dialog<'a>>,
     header: Option<Header<'a>>,
+    base_style: Style,
+    tab_theme: TabTheme,
+    header_theme: HeaderTheme,
 }
 
 impl<'a> WindowBuilder<'a> {
@@ -120,6 +195,21 @@ impl<'a> WindowBuilder<'a> {
 
     pub fn header(mut self, header: Header<'a>) -> Self {
         self.header = Some(header);
+        self
+    }
+
+    pub fn base_style(mut self, style: impl Into<Style>) -> Self {
+        self.base_style = style.into();
+        self
+    }
+
+    pub fn tab_theme(mut self, theme: TabTheme) -> Self {
+        self.tab_theme = theme;
+        self
+    }
+
+    pub fn header_theme(mut self, theme: HeaderTheme) -> Self {
+        self.header_theme = theme;
         self
     }
 
@@ -158,12 +248,15 @@ impl<'a> WindowBuilder<'a> {
             .constraints(constraints);
 
         Window {
+            base_style: self.base_style,
             tabs: self.tabs,
+            tab_theme: self.tab_theme,
             layout,
             callbacks: self.callbacks,
             dialogs: self.dialogs,
             header: self.header,
             layout_index,
+            header_theme: self.header_theme,
             ..Default::default()
         }
     }
@@ -203,12 +296,8 @@ impl<'a> Window<'a> {
                     .mouse_over_tab_index
                     .is_some_and(|index| index == tab_index && index != self.active_tab_index)
                 {
-                    Line::from(Span::styled(
-                        Self::tab_title_format(tab_index, tab.title()),
-                        Style::default()
-                            .fg(Color::DarkGray)
-                            .add_modifier(Modifier::REVERSED),
-                    ))
+                    Line::from(Self::tab_title_format(tab_index, tab.title()))
+                        .style(self.tab_theme.mouse_over_style)
                 } else {
                     Line::from(Self::tab_title_format(tab_index, tab.title()))
                 }
@@ -216,9 +305,16 @@ impl<'a> Window<'a> {
             .collect();
 
         Tabs::new(titles)
-            .block(Self::tab_block())
+            .block(self.tab_block())
             .select(self.active_tab_index)
-            .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+            .divider(
+                self.tab_theme
+                    .divider
+                    .to_span()
+                    .style(self.tab_theme.divider_style),
+            )
+            .padding("", "")
+            .highlight_style(self.tab_theme.active_style)
     }
 
     pub fn match_callback(&self, ev: UserEvent) -> Option<Callback> {
@@ -297,11 +393,11 @@ impl<'a> Window<'a> {
     }
 
     fn tab_title_format(index: usize, title: &str) -> String {
-        format!("{}: {} ", index + 1, title)
+        format!(" {}: {}  ", index + 1, title)
     }
 
-    fn tab_block() -> Block<'a> {
-        Block::default().style(Style::default())
+    fn tab_block(&self) -> Block<'a> {
+        Block::default().style(self.tab_theme.base_style)
     }
 
     pub fn tab_chunk(&self) -> Rect {
@@ -383,6 +479,8 @@ impl Window<'_> {
             self.last_known_area = area;
         }
 
+        self.render_base(f);
+
         self.render_tab(f);
 
         self.render_header(f);
@@ -390,6 +488,12 @@ impl Window<'_> {
         self.render_contents(f);
 
         self.render_dialog(f);
+    }
+
+    fn render_base(&mut self, f: &mut Frame) {
+        let block = Block::default().style(self.base_style);
+
+        f.render_widget(block, self.chunk);
     }
 
     fn render_tab(&mut self, f: &mut Frame) {
@@ -400,7 +504,7 @@ impl Window<'_> {
         if let Some(header) = &self.header {
             let w = match &header.content {
                 HeaderContent::Static(content) => Paragraph::new(content.to_vec()),
-                HeaderContent::Callback(callback) => (callback)(),
+                HeaderContent::Callback(callback) => (callback)(&self.header_theme),
             };
             f.render_widget(w, self.chunks()[self.layout_index.header]);
         }
@@ -537,7 +641,8 @@ impl Window<'_> {
     fn on_tab_area_mouse_event(&mut self, ev: MouseEvent) {
         let pos = ev.position();
 
-        let chunk = Self::tab_block().inner(self.tab_chunk());
+        let chunk = self.tab_block().inner(self.tab_chunk());
+
         let divider_width = 1;
 
         let mut x = chunk.left();
@@ -546,7 +651,6 @@ impl Window<'_> {
 
         for (i, tab) in self.tabs.iter().enumerate() {
             let w = Self::tab_title_format(i, tab.title()).width() as u16;
-            x = x.saturating_add(1);
 
             let title_chunk = Rect::new(x, y, w, h);
 
@@ -566,10 +670,7 @@ impl Window<'_> {
                 _ => {}
             }
 
-            x = x
-                .saturating_add(1)
-                .saturating_add(w)
-                .saturating_add(divider_width);
+            x = x.saturating_add(w).saturating_add(divider_width);
         }
     }
 }

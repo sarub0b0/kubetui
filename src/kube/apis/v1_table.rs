@@ -11,6 +11,15 @@ use super::metrics::{NodeMetricsList, PodMetricsList};
 #[derive(Default, Clone, Debug, Eq, PartialEq, Deserialize)]
 pub struct Value(pub JsonValue);
 
+impl<T> From<T> for Value
+where
+    T: AsRef<str>,
+{
+    fn from(s: T) -> Self {
+        Value(JsonValue::String(s.as_ref().to_string()))
+    }
+}
+
 #[derive(Default, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Table {

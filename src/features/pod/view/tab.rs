@@ -5,6 +5,7 @@ use ratatui::layout::{Constraint, Direction};
 
 use crate::{
     clipboard::Clipboard,
+    config::theme::WidgetThemeConfig,
     features::component_id::{POD_TAB_ID, POD_WIDGET_ID},
     kube::context::Namespace,
     message::Message,
@@ -29,10 +30,11 @@ impl PodTab {
         clipboard: &Option<Rc<RefCell<Clipboard>>>,
         split_direction: Direction,
         namespaces: Rc<RefCell<Namespace>>,
+        theme: WidgetThemeConfig,
     ) -> Self {
-        let pod_widget = pod_widget(tx);
-        let log_query_widget = log_query_widget(tx, namespaces);
-        let log_widget = log_widget(tx, clipboard);
+        let pod_widget = pod_widget(tx, theme.clone());
+        let log_query_widget = log_query_widget(tx, namespaces, theme.clone());
+        let log_widget = log_widget(tx, clipboard, theme);
         let log_query_help_widget = log_query_help_widget();
 
         let layout = TabLayout::new(layout, split_direction);

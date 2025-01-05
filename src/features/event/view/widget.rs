@@ -4,14 +4,34 @@ use ratatui::widgets::Block;
 
 use crate::{
     clipboard::Clipboard,
+    config::theme::WidgetThemeConfig,
     features::component_id::EVENT_WIDGET_ID,
-    ui::widget::{Text, Widget, WidgetBase, WidgetTrait as _},
+    ui::widget::{
+        SearchForm, SearchFormTheme, Text, TextTheme, Widget, WidgetBase, WidgetTheme,
+        WidgetTrait as _,
+    },
 };
 
-pub fn event_widget(clipboard: &Option<Rc<RefCell<Clipboard>>>) -> Widget<'static> {
+pub fn event_widget(
+    clipboard: &Option<Rc<RefCell<Clipboard>>>,
+    theme: WidgetThemeConfig,
+) -> Widget<'static> {
+    let widget_theme = WidgetTheme::from(theme.clone());
+    let search_theme = SearchFormTheme::from(theme.clone());
+    let text_theme = TextTheme::from(theme);
+
+    let widget_base = WidgetBase::builder()
+        .title("Event")
+        .theme(widget_theme)
+        .build();
+
+    let search_form = SearchForm::builder().theme(search_theme).build();
+
     let builder = Text::builder()
         .id(EVENT_WIDGET_ID)
-        .widget_base(WidgetBase::builder().title("Event").build())
+        .widget_base(widget_base)
+        .search_form(search_form)
+        .theme(text_theme)
         .wrap()
         .follow()
         .block_injection(block_injection());

@@ -1,30 +1,79 @@
-use std::collections::BTreeMap;
+use std::{
+    collections::BTreeMap,
+    sync::{atomic::AtomicBool, Arc},
+};
 
 use anyhow::Result;
 use async_trait::async_trait;
+use crossbeam::channel::Sender;
 use futures::future::try_join_all;
 use k8s_openapi::{api::core::v1::Pod, Resource as _};
+use ratatui::style::{Color, Style};
+use regex::Regex;
 
 use crate::{
     kube::{
         apis::v1_table::TableRow,
         table::{get_resource_per_namespace, insert_ns, KubeTable, KubeTableRow},
+        KubeClient,
     },
     message::Message,
-    workers::kube::{
-        message::Kube,
-        WorkerResult, {PollerBase, Worker},
-    },
+    ui::widget::ansi_color::style_to_ansi,
+    workers::kube::{message::Kube, SharedTargetNamespaces, Worker, WorkerResult},
 };
+
+#[derive(Debug, Clone)]
+pub struct PodConfig {
+    pub pod_highlight_rules: Vec<PodHighlightRule>,
+}
+
+impl Default for PodConfig {
+    fn default() -> Self {
+        Self {
+            pod_highlight_rules: vec![
+                PodHighlightRule {
+                    status_regex: Regex::new(r"(Completed|Evicted)").expect("invalid regex"),
+                    style: Style::default().fg(Color::DarkGray),
+                },
+                PodHighlightRule {
+                    status_regex: Regex::new(r"(BackOff|Err|Unknown)").expect("invalid regex"),
+                    style: Style::default().fg(Color::Red),
+                },
+            ],
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PodHighlightRule {
+    pub status_regex: Regex,
+    pub style: Style,
+}
 
 #[derive(Clone)]
 pub struct PodPoller {
-    base: PollerBase,
+    is_terminated: Arc<AtomicBool>,
+    tx: Sender<Message>,
+    shared_target_namespaces: SharedTargetNamespaces,
+    kube_client: KubeClient,
+    config: PodConfig,
 }
 
 impl PodPoller {
-    pub fn new(base: PollerBase) -> Self {
-        Self { base }
+    pub fn new(
+        is_terminated: Arc<AtomicBool>,
+        tx: Sender<Message>,
+        shared_target_namespaces: SharedTargetNamespaces,
+        kube_client: KubeClient,
+        config: PodConfig,
+    ) -> Self {
+        Self {
+            is_terminated,
+            tx,
+            shared_target_namespaces,
+            kube_client,
+            config,
+        }
     }
 }
 
@@ -36,9 +85,7 @@ impl Worker for PodPoller {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(1));
 
         let Self {
-            base: PollerBase {
-                is_terminated, tx, ..
-            },
+            is_terminated, tx, ..
         } = self;
 
         while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
@@ -56,7 +103,7 @@ impl Worker for PodPoller {
 
 impl PodPoller {
     async fn get_pod_info(&self) -> Result<KubeTable> {
-        let namespaces = self.base.shared_target_namespaces.read().await;
+        let namespaces = self.shared_target_namespaces.read().await;
 
         let jobs = self.get_pods_per_namespace(&namespaces).await;
 
@@ -89,7 +136,7 @@ impl PodPoller {
         let insert_ns = insert_ns(namespaces);
         try_join_all(namespaces.iter().map(|ns| {
             get_resource_per_namespace(
-                &self.base.kube_client,
+                &self.kube_client,
                 format!("api/v1/namespaces/{}/{}", ns, "pods"),
                 &["Name", "Ready", "Status", "Age"],
                 move |row: &TableRow, indexes: &[usize]| {
@@ -98,16 +145,14 @@ impl PodPoller {
 
                     let name = row[0].clone();
 
-                    let color = match row[2].as_str() {
-                        s if s == "Completed" || s.contains("Evicted") => Some(90),
-                        s if s.contains("BackOff")
-                            || s.contains("Err")
-                            || s.contains("Unknown") =>
-                        {
-                            Some(31)
-                        }
-                        _ => None,
-                    };
+                    let status = row[2].as_str();
+
+                    let color = self
+                        .config
+                        .pod_highlight_rules
+                        .iter()
+                        .find(|rule| rule.status_regex.is_match(status))
+                        .map(|rule| style_to_ansi(rule.style));
 
                     if insert_ns {
                         row.insert(0, ns.to_string())
@@ -115,7 +160,7 @@ impl PodPoller {
 
                     if let Some(color) = color {
                         row.iter_mut()
-                            .for_each(|r| *r = format!("\x1b[{}m{}\x1b[0m", color, r))
+                            .for_each(|r| *r = format!("{}{}\x1b[0m", color, r))
                     }
 
                     KubeTableRow {

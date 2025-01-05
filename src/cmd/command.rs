@@ -1,8 +1,9 @@
+use anyhow::Result;
 use clap::Parser;
 use ratatui::layout::Direction;
 use std::path::PathBuf;
 
-use crate::workers::kube::KubeWorkerConfig;
+use crate::{config::ConfigLoadOption, workers::kube::KubeWorkerConfig};
 
 use super::args::{AllNamespaces, SplitDirection};
 
@@ -65,6 +66,10 @@ pub struct Command {
     /// Logging
     #[arg(short = 'l', long, display_order = 1000)]
     pub logging: bool,
+
+    /// Config file path
+    #[arg(long, display_order = 1000)]
+    pub config_file: Option<PathBuf>,
 }
 
 impl Command {
@@ -90,7 +95,50 @@ impl Command {
             target_namespaces: namespaces,
             context,
             all_namespaces: all_namespaces.into(),
+            ..Default::default()
         }
+    }
+
+    pub fn config_load_option(&self) -> Result<ConfigLoadOption> {
+        let option = if let Some(path) = &self.config_file {
+            match path.try_exists() {
+                Ok(true) => ConfigLoadOption::Path(path.clone()),
+                Ok(false) => {
+                    eprintln!("Config file not found: {:?}", path);
+
+                    ConfigLoadOption::Default
+                }
+                Err(err) => {
+                    eprintln!("Failed to check config file exists: {}", err);
+
+                    ConfigLoadOption::Default
+                }
+            }
+        } else {
+            let path = xdg_config_home().join("config.yaml");
+
+            match path.try_exists() {
+                Ok(true) => ConfigLoadOption::Path(path.clone()),
+                Ok(false) => ConfigLoadOption::Default,
+                Err(err) => {
+                    eprintln!("Failed to check config file exists: {}", err);
+
+                    ConfigLoadOption::Default
+                }
+            }
+        };
+
+        Ok(option)
+    }
+}
+
+fn xdg_config_home() -> PathBuf {
+    match std::env::var_os("XDG_CONFIG_HOME").map(|s| PathBuf::from(s).join("kubetui")) {
+        Some(path) => path,
+        None => dirs::home_dir()
+            .expect("Failed to get home directory")
+            .join(".config")
+            .join("kubetui"),
     }
 }
 

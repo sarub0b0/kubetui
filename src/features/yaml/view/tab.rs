@@ -5,6 +5,7 @@ use ratatui::prelude::Constraint;
 
 use crate::{
     clipboard::Clipboard,
+    config::theme::WidgetThemeConfig,
     features::component_id::YAML_TAB_ID,
     message::Message,
     ui::{
@@ -31,8 +32,9 @@ impl YamlTab {
         title: &'static str,
         tx: &Sender<Message>,
         clipboard: &Option<Rc<RefCell<Clipboard>>>,
+        theme: WidgetThemeConfig,
     ) -> Self {
-        let yaml_widget = yaml_widget(tx, clipboard);
+        let yaml_widget = yaml_widget(tx, clipboard, theme.clone());
 
         let layout = TabLayout::new(
             |_| {
@@ -46,9 +48,9 @@ impl YamlTab {
 
         YamlTab {
             tab: Tab::new(YAML_TAB_ID, title, [yaml_widget], layout),
-            kind_dialog: kind_dialog(tx),
-            name_dialog: name_dialog(tx),
-            not_found_dialog: not_found_dialog(),
+            kind_dialog: kind_dialog(tx, theme.clone()),
+            name_dialog: name_dialog(tx, theme.clone()),
+            not_found_dialog: not_found_dialog(theme),
         }
     }
 }

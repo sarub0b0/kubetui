@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 /// 文字列を描画するためのモジュ&ール
 /// - 渡された１行ずつのデータを描画する
 /// - 渡された縦横スクロールの位置をもとに描画位置を決定する
@@ -29,12 +31,36 @@ pub struct Scroll {
     pub y: usize,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone, Copy)]
+pub struct SelectionStyle(Style);
+
+impl Default for SelectionStyle {
+    fn default() -> Self {
+        Self(Style::default().add_modifier(Modifier::REVERSED))
+    }
+}
+
+impl Deref for SelectionStyle {
+    type Target = Style;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl SelectionStyle {
+    pub fn new(style: impl Into<Style>) -> Self {
+        Self(style.into())
+    }
+}
+
+#[derive(Debug, Clone, Default)]
 pub struct Render<'a> {
     block: Block<'a>,
     lines: &'a [WrappedLine],
     scroll: Scroll,
     highlight_area: Option<HighlightArea>,
+    highlight_style: SelectionStyle,
 }
 
 pub struct RenderBuilder<'a>(Render<'a>);
@@ -57,6 +83,11 @@ impl<'a> RenderBuilder<'a> {
 
     pub fn highlight_area(mut self, highlight_area: Option<HighlightArea>) -> Self {
         self.0.highlight_area = highlight_area;
+        self
+    }
+
+    pub fn highlight_style(mut self, highlight_style: SelectionStyle) -> Self {
+        self.0.highlight_style = highlight_style;
         self
     }
 
@@ -96,7 +127,7 @@ impl Widget for Render<'_> {
                         x: x + self.scroll.x,
                         y: y + self.scroll.y,
                     }) {
-                        style = style.add_modifier(Modifier::REVERSED);
+                        style = style.patch(*self.highlight_style);
                     }
                 }
 

@@ -1,6 +1,7 @@
 use crossbeam::channel::Sender;
 
 use crate::{
+    config::theme::WidgetThemeConfig,
     features::{
         component_id::{POD_LOG_QUERY_WIDGET_ID, POD_LOG_WIDGET_ID, POD_WIDGET_ID},
         pod::{
@@ -12,17 +13,34 @@ use crate::{
     message::Message,
     ui::{
         event::EventResult,
-        widget::{Item, Table, TableItem, Widget, WidgetBase, WidgetTrait as _},
+        widget::{
+            FilterForm, FilterFormTheme, Item, Table, TableItem, TableTheme, Widget, WidgetBase,
+            WidgetTheme, WidgetTrait as _,
+        },
         Window, WindowAction,
     },
 };
 
-pub fn pod_widget(tx: &Sender<Message>) -> Widget<'static> {
+pub fn pod_widget(tx: &Sender<Message>, theme: WidgetThemeConfig) -> Widget<'static> {
     let tx = tx.clone();
+
+    let widget_theme = WidgetTheme::from(theme.clone());
+    let table_theme = TableTheme::from(theme.clone());
+
+    let widget_base = WidgetBase::builder()
+        .title("Pod")
+        .theme(widget_theme)
+        .build();
+
+    let filter_form_theme = FilterFormTheme::from(theme.clone());
+
+    let filter_form = FilterForm::builder().theme(filter_form_theme).build();
 
     Table::builder()
         .id(POD_WIDGET_ID)
-        .widget_base(WidgetBase::builder().title("Pod").build())
+        .widget_base(widget_base)
+        .filter_form(filter_form)
+        .theme(table_theme)
         .filtered_key("NAME")
         .block_injection(block_injection())
         .on_select(on_select(tx))
