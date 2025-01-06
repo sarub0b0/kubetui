@@ -150,20 +150,21 @@ kubetui
 
 ```sh
 $ kubetui -h
-kubernetes terminal user interface
+An intuitive Terminal User Interface (TUI) tool for real-time monitoring and exploration of Kubernetes
+resources.
 
 Usage: kubetui [OPTIONS]
 
 Options:
-  -h, --help                           Print help information
-  -V, --version                        Print version information
+  -h, --help                           Print help
+  -V, --version                        Print version
   -A, --all-namespaces[=<true|false>]  Select all namespaces [default: false]
   -c, --context <CONTEXT>              Context
   -C, --kubeconfig <KUBECONFIG>        kubeconfig path
       --config-file <CONFIG_FILE>      Config file path
   -l, --logging                        Logging
   -n, --namespaces <NAMESPACES>        Namespaces (e.g. -n val1,val2,val3 | -n val1 -n val2 -n val3)
-  -s, --split-mode <v|h>               Window split mode [possible values: v, h, vertical, horizontal]
+  -s, --split-direction <v|h>          Window split direction [default: v]
 ```
 
 ### Custom Configuration
