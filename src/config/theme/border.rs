@@ -58,8 +58,6 @@ mod serde_border_type {
     {
         let lowercase_str = ty.to_string().to_lowercase();
 
-        dbg!(&lowercase_str);
-
         serializer.serialize_str(&lowercase_str)
     }
 
@@ -70,8 +68,6 @@ mod serde_border_type {
         let s = String::deserialize(deserializer)?;
 
         let capitalized = capitalize(&s);
-
-        dbg!(&capitalized);
 
         BorderType::from_str(&capitalized).map_err(serde::de::Error::custom)
     }

@@ -35,8 +35,6 @@ impl Config {
         .merge(Env::prefixed("KUBETUI_").split("__"))
         .extract_lossy()?;
 
-        dbg!(&config);
-
         Ok(config)
     }
 }

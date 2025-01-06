@@ -151,15 +151,11 @@ mod tests {
             Style::default().fg(Color::White),
         );
 
-        dbg!(styled_table.to_string());
-
         let expected = indoc! {"
             \x1b[90mNAME    AGE\x1b[39m
             \x1b[37mAlice   20 \x1b[39m
             \x1b[37mBob     30 \x1b[39m
         "};
-
-        dbg!(expected.trim_end());
 
         assert_eq!(styled_table.to_string(), expected.trim_end());
     }
