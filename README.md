@@ -65,7 +65,7 @@ Kubetui offers the following features to help you monitor and manage your Kubern
 - **Mouse Event Support**: Leverage mouse events for a smoother user experience.
 - **Search Functionality**: Easily search for specific keywords within the interface.
 - **Item Filtering**: Filter items based on multiple keywords separated by spaces.
-- **Customizable UI Appearance**: Modify the appearance of the UI, including border styles, colors, and text attributes.
+- **(beta) Customizable UI Appearance**: Modify the appearance of the UI, including border styles, colors, and text attributes.
 
 Overall, kubetui is a powerful tool designed to provide a safe and efficient way to access and monitor your Kubernetes resources. With its user-friendly interface and comprehensive features, it simplifies the process of managing your applications and infrastructure.
 
