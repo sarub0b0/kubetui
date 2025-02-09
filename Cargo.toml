@@ -54,7 +54,7 @@ regex = "1.10.4"
 
 indoc = "2.0.5"
 flate2 = "1.0.30"
-strum = { version = "0.26.2", features = ["derive"] }
+strum = { version = "0.27.0", features = ["derive"] }
 paste = "1.0.14"
 figment = { version = "0.10.19", features = ["yaml", "env"] }
 bitflags = "2.6.0"
