@@ -17,6 +17,7 @@ use crate::{
         network::message::{NetworkRequest, NetworkRequestTargetParams, NetworkResponse},
     },
     kube::KubeClientRequest,
+    logger,
     message::Message,
     workers::kube::AbortWorker,
 };
@@ -111,6 +112,8 @@ where
         };
 
         if let Err(e) = ret {
+            logger!(error, "Failed to fetch description: {:?}", e);
+
             self.tx
                 .send(NetworkResponse::Yaml(Err(e)).into())
                 .expect("Failed to send NetworkResponse::Yaml");
@@ -142,9 +145,7 @@ where
 
             let fetched_data = worker.fetch().await;
 
-            self.tx
-                .send(NetworkResponse::Yaml(fetched_data).into())
-                .expect("Failed to send NetworkResponse::Yaml");
+            self.tx.send(NetworkResponse::Yaml(fetched_data).into())?;
         }
 
         Ok(())
@@ -260,7 +261,7 @@ mod tests {
         }
 
         #[tokio::test(flavor = "multi_thread")]
-        async fn 内部でエラーがでたとき処理を停止してtxにerrを送信してokを返す() {
+        async fn 内部でエラーがでたときtxにエラーを送信する() {
             let (tx, rx): (Sender<Message>, Receiver<Message>) = bounded(3);
             let mut client = MockTestKubeClient::new();
             mock_expect!(
@@ -317,6 +318,56 @@ mod tests {
             let ret = handle.await;
 
             assert!(ret.is_ok())
+        }
+
+        #[tokio::test(flavor = "multi_thread")]
+        async fn txがエラーのときエラーを返す() {
+            let (tx, rx): (Sender<Message>, Receiver<Message>) = bounded(0);
+            let mut client = MockTestKubeClient::new();
+
+            mock_expect!(
+                client,
+                request,
+                [
+                    (
+                        Pod,
+                        eq("/api/v1/namespaces/default/pods/test"),
+                        bail!("error")
+                    ),
+                    (
+                        List<Service>,
+                        eq("/api/v1/namespaces/default/services"),
+                        bail!("error")
+                    ),
+                    (
+                        List<Ingress>,
+                        eq("/apis/networking.k8s.io/v1/namespaces/default/ingresses"),
+                        bail!("error")
+                    )
+                ]
+            );
+
+            let req_data = NetworkRequestTargetParams {
+                namespace: "default".to_string(),
+                name: "test".to_string(),
+                version: "v1".to_string(),
+            };
+            let req = NetworkRequest::Pod(req_data);
+
+            let is_terminated = Arc::new(AtomicBool::new(false));
+            let worker = NetworkDescriptionWorker::new(
+                is_terminated.clone(),
+                tx,
+                client,
+                req,
+                ApiResources::shared(),
+            );
+
+            drop(rx);
+
+            let ret = tokio::spawn(async move { worker.run().await }).await;
+
+            assert!(ret.is_err())
         }
     }
 
@@ -471,7 +522,7 @@ mod tests {
         }
 
         #[tokio::test(flavor = "multi_thread")]
-        async fn 内部でエラーがでたときループを抜けてerrを返す() {
+        async fn 内部でエラーがでたときtxにエラーを送信する() {
             let (tx, rx): (Sender<Message>, Receiver<Message>) = bounded(3);
             let mut client = MockTestKubeClient::new();
             mock_expect!(
@@ -523,11 +574,72 @@ mod tests {
                     .await
             });
 
-            drop(rx);
+            if let Message::Kube(Kube::Network(NetworkMessage::Response(NetworkResponse::Yaml(
+                msg,
+            )))) = rx.recv().unwrap()
+            {
+                assert!(msg.is_err())
+            } else {
+                unreachable!()
+            }
+
+            is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
 
             let ret = handle.await;
 
-            assert_eq!(ret.is_err(), true)
+            assert_eq!(ret.is_ok(), true)
+        }
+
+        #[tokio::test(flavor = "multi_thread")]
+        async fn txがエラーのときエラーを返す() {
+            let (tx, rx): (Sender<Message>, Receiver<Message>) = bounded(0);
+            let mut client = MockTestKubeClient::new();
+
+            mock_expect!(
+                client,
+                request,
+                [
+                    (
+                        Pod,
+                        eq("/api/v1/namespaces/default/pods/test"),
+                        bail!("error")
+                    ),
+                    (
+                        List<Service>,
+                        eq("/api/v1/namespaces/default/services"),
+                        bail!("error")
+                    ),
+                    (
+                        List<Ingress>,
+                        eq("/apis/networking.k8s.io/v1/namespaces/default/ingresses"),
+                        bail!("error")
+                    )
+                ]
+            );
+
+            let req_data = NetworkRequestTargetParams {
+                namespace: "default".to_string(),
+                name: "test".to_string(),
+                version: "v1".to_string(),
+            };
+            let req = NetworkRequest::Pod(req_data);
+
+            let is_terminated = Arc::new(AtomicBool::new(false));
+            let worker = NetworkDescriptionWorker::new(
+                is_terminated.clone(),
+                tx,
+                client,
+                req,
+                ApiResources::shared(),
+            );
+
+            drop(rx);
+
+            let ret = worker
+                .fetch_description::<PodDescriptionWorker<MockTestKubeClient>>()
+                .await;
+
+            assert!(ret.is_err())
         }
     }
 }
