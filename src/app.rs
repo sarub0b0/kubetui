@@ -3,13 +3,14 @@ use std::{
     thread, time,
 };
 
-use anyhow::{Context as _, Result};
+use anyhow::Result;
 use crossbeam::channel::{bounded, Receiver, Sender};
 
 use crate::{
     cmd::Command,
     config::Config,
     features::{api_resources::kube::ApiConfig, event::kube::EventConfig, pod::kube::PodConfig},
+    logger,
     message::Message,
     workers::{kube::YamlConfig, ApisConfig, KubeWorker, Render, Tick, UserInput},
 };
@@ -57,49 +58,37 @@ impl App {
             config.theme.clone(),
         );
 
-        thread::scope(|s| {
-            let kube_handler = s.spawn(|| {
-                kube.set_panic_hook();
-                kube.start()
-            });
+        thread::spawn(|| {
+            kube.set_panic_hook();
+            if let Err(err) = kube.start() {
+                logger!(error, "kube_worker error: {:?}", err);
+            }
+        });
 
-            let tick_handler = s.spawn(move || {
-                tick.set_panic_hook();
-                tick.start()
-            });
+        thread::spawn(move || {
+            tick.set_panic_hook();
+            if let Err(err) = tick.start() {
+                logger!(error, "tick error: {:?}", err);
+            }
+        });
 
-            let user_input_handler = s.spawn(move || {
-                user_input.set_panic_hook();
-                user_input.start()
-            });
+        thread::spawn(move || {
+            user_input.set_panic_hook();
+            if let Err(err) = user_input.start() {
+                logger!(error, "user_input error: {:?}", err);
+            }
+        });
 
-            let render_handler = s.spawn(move || {
-                render.set_panic_hook();
-                render.start()
-            });
+        thread::spawn(move || {
+            render.set_panic_hook();
+            if let Err(err) = render.start() {
+                logger!(error, "render error: {:?}", err);
+            }
+        });
 
-            kube_handler
-                .join()
-                .expect("kube thread panicked")
-                .context("kube thread error")?;
-
-            tick_handler
-                .join()
-                .expect("tick thread panicked")
-                .context("tick thread error")?;
-
-            user_input_handler
-                .join()
-                .expect("user_input thread panicked")
-                .context("user_input thread error")?;
-
-            render_handler
-                .join()
-                .expect("render thread panicked")
-                .context("render thread error")?;
-
-            anyhow::Ok(())
-        })?;
+        while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
+            thread::sleep(time::Duration::from_millis(100));
+        }
 
         Ok(())
     }

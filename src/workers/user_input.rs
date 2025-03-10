@@ -49,7 +49,7 @@ impl UserInput {
     }
 
     fn poll(&self) -> Result<()> {
-        while !self.is_terminated.load(Ordering::Relaxed) {
+        loop {
             if let Ok(true) = poll(Duration::from_secs(1)) {
                 let ev = read()?;
 
@@ -73,7 +73,5 @@ impl UserInput {
                 }
             }
         }
-
-        Ok(())
     }
 }
