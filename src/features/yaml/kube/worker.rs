@@ -1,5 +1,3 @@
-use std::sync::{atomic::AtomicBool, Arc};
-
 use anyhow::{anyhow, Result};
 use crossbeam::channel::Sender;
 use serde_yaml::Value;
@@ -27,7 +25,6 @@ pub struct YamlWorker<C>
 where
     C: KubeClientRequest,
 {
-    is_terminated: Arc<AtomicBool>,
     tx: Sender<Message>,
     client: C,
     req: YamlTarget,
@@ -36,14 +33,12 @@ where
 
 impl<C: KubeClientRequest> YamlWorker<C> {
     pub fn new(
-        is_terminated: Arc<AtomicBool>,
         tx: Sender<Message>,
         client: C,
         shared_api_resources: SharedApiResources,
         req: YamlTarget,
     ) -> Self {
         Self {
-            is_terminated,
             tx,
             client,
             req,
@@ -63,10 +58,7 @@ impl<C: KubeClientRequest> AbortWorker for YamlWorker<C> {
             namespace,
         } = &self.req;
 
-        while !self
-            .is_terminated
-            .load(std::sync::atomic::Ordering::Relaxed)
-        {
+        loop {
             interval.tick().await;
 
             let api_resources = self.shared_api_resources.read().await;

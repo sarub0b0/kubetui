@@ -1,10 +1,4 @@
-use std::{
-    fmt::Display,
-    hash::Hash,
-    ops::Deref,
-    sync::{atomic::AtomicBool, Arc},
-    time,
-};
+use std::{fmt::Display, hash::Hash, ops::Deref, sync::Arc, time};
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -248,7 +242,6 @@ impl Display for ApiResource {
 
 #[derive(Clone)]
 pub struct ApiPoller {
-    is_terminated: Arc<AtomicBool>,
     tx: Sender<Message>,
     shared_target_namespaces: SharedTargetNamespaces,
     kube_client: KubeClient,
@@ -259,7 +252,6 @@ pub struct ApiPoller {
 
 impl ApiPoller {
     pub fn new(
-        is_terminated: Arc<AtomicBool>,
         tx: Sender<Message>,
         shared_target_namespaces: SharedTargetNamespaces,
         kube_client: KubeClient,
@@ -268,7 +260,6 @@ impl ApiPoller {
         config: ApiConfig,
     ) -> Self {
         Self {
-            is_terminated,
             tx,
             shared_target_namespaces,
             kube_client,
@@ -285,7 +276,6 @@ impl Worker for ApiPoller {
 
     async fn run(&self) -> Self::Output {
         let Self {
-            is_terminated,
             tx,
             shared_target_namespaces,
             kube_client,
@@ -312,7 +302,7 @@ impl Worker for ApiPoller {
 
         let mut is_error = false;
 
-        while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
+        loop {
             interval.tick().await;
 
             if tick_rate < last_tick.elapsed() {
@@ -358,8 +348,6 @@ impl Worker for ApiPoller {
             tx.send(ApiResponse::Poll(result).into())
                 .expect("Failed to send ApiResponse::Poll");
         }
-
-        WorkerResult::Terminated
     }
 }
 

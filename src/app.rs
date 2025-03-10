@@ -1,7 +1,4 @@
-use std::{
-    sync::{atomic::AtomicBool, Arc},
-    thread, time,
-};
+use std::{thread, time};
 
 use anyhow::Result;
 use crossbeam::channel::{bounded, Receiver, Sender};
@@ -27,9 +24,9 @@ impl App {
         let tx_kube = tx_input.clone();
         let tx_tick = tx_input.clone();
 
-        let is_terminated = Arc::new(AtomicBool::new(false));
+        let (tx_shutdown, rx_shutdown) = bounded::<()>(1);
 
-        let user_input = UserInput::new(tx_input.clone(), is_terminated.clone());
+        let user_input = UserInput::new(tx_input.clone(), tx_shutdown.clone());
 
         kube_worker_config.pod_config = PodConfig::from(config.theme.clone());
         kube_worker_config.event_config = EventConfig::from(config.theme.clone());
@@ -40,55 +37,49 @@ impl App {
         let kube = KubeWorker::new(
             tx_kube.clone(),
             rx_kube.clone(),
-            is_terminated.clone(),
+            tx_shutdown.clone(),
             kube_worker_config,
         );
 
         let tick = Tick::new(
             tx_tick.clone(),
             time::Duration::from_millis(200),
-            is_terminated.clone(),
+            tx_shutdown.clone(),
         );
 
         let render = Render::new(
             tx_main.clone(),
             rx_main.clone(),
-            is_terminated.clone(),
+            tx_shutdown.clone(),
             split_direction,
             config.theme.clone(),
         );
 
+        logger!(info, "app start");
+
         thread::spawn(|| {
             kube.set_panic_hook();
-            if let Err(err) = kube.start() {
-                logger!(error, "kube_worker error: {:?}", err);
-            }
+            kube.start();
         });
 
         thread::spawn(move || {
             tick.set_panic_hook();
-            if let Err(err) = tick.start() {
-                logger!(error, "tick error: {:?}", err);
-            }
+            tick.start();
         });
 
         thread::spawn(move || {
             user_input.set_panic_hook();
-            if let Err(err) = user_input.start() {
-                logger!(error, "user_input error: {:?}", err);
-            }
+            user_input.start();
         });
 
         thread::spawn(move || {
             render.set_panic_hook();
-            if let Err(err) = render.start() {
-                logger!(error, "render error: {:?}", err);
-            }
+            render.start();
         });
 
-        while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
-            thread::sleep(time::Duration::from_millis(100));
-        }
+        rx_shutdown.recv()?;
+
+        logger!(info, "app end");
 
         Ok(())
     }

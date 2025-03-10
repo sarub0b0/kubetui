@@ -1,10 +1,4 @@
-use std::{
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    time::Duration,
-};
+use std::{sync::Arc, time::Duration};
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -130,13 +124,11 @@ async fn fetch_all_namespaces(client: KubeClient) -> Result<Vec<String>> {
 #[derive(Clone)]
 pub enum WorkerResult {
     ChangedContext(String),
-    Terminated,
 }
 
 pub struct KubeController {
     tx: Sender<Message>,
     rx: Receiver<Message>,
-    is_terminated: Arc<AtomicBool>,
     kubeconfig: Kubeconfig,
     context: String,
     store: KubeStore,
@@ -151,7 +143,6 @@ impl KubeController {
     pub async fn new(
         tx: Sender<Message>,
         rx: Receiver<Message>,
-        is_terminated: Arc<AtomicBool>,
         config: KubeWorkerConfig,
     ) -> Result<Self> {
         let KubeWorkerConfig {
@@ -191,7 +182,6 @@ impl KubeController {
         Ok(Self {
             tx,
             rx,
-            is_terminated,
             kubeconfig,
             context: context.to_string(),
             store,
@@ -207,7 +197,6 @@ impl KubeController {
         let Self {
             tx,
             rx,
-            is_terminated,
             kubeconfig,
             mut context,
             mut store,
@@ -218,7 +207,7 @@ impl KubeController {
             yaml_config,
         } = self;
 
-        while !is_terminated.load(Ordering::Relaxed) {
+        loop {
             let KubeState {
                 client,
                 target_namespaces,
@@ -249,7 +238,6 @@ impl KubeController {
                 .collect();
 
             let event_controller_handle = EventController::new(
-                is_terminated.clone(),
                 shared_target_namespaces.clone(),
                 client.clone(),
                 tx.clone(),
@@ -263,7 +251,6 @@ impl KubeController {
             .spawn();
 
             let pod_handle = PodPoller::new(
-                is_terminated.clone(),
                 tx.clone(),
                 shared_target_namespaces.clone(),
                 client.clone(),
@@ -271,16 +258,11 @@ impl KubeController {
             )
             .spawn();
 
-            let config_handle = ConfigPoller::new(
-                is_terminated.clone(),
-                tx.clone(),
-                shared_target_namespaces.clone(),
-                client.clone(),
-            )
-            .spawn();
+            let config_handle =
+                ConfigPoller::new(tx.clone(), shared_target_namespaces.clone(), client.clone())
+                    .spawn();
 
             let network_handle = NetworkPoller::new(
-                is_terminated.clone(),
                 tx.clone(),
                 shared_target_namespaces.clone(),
                 client.clone(),
@@ -289,7 +271,6 @@ impl KubeController {
             .spawn();
 
             let event_handle = EventPoller::new(
-                is_terminated.clone(),
                 tx.clone(),
                 shared_target_namespaces.clone(),
                 client.clone(),
@@ -298,7 +279,6 @@ impl KubeController {
             .spawn();
 
             let api_handle = ApiPoller::new(
-                is_terminated.clone(),
                 tx.clone(),
                 shared_target_namespaces.clone(),
                 client.clone(),
@@ -341,7 +321,6 @@ impl KubeController {
 
                             context = ctx;
                         }
-                        WorkerResult::Terminated => {}
                     },
                     Err(e) => {
                         Self::abort(&handles);
@@ -350,8 +329,6 @@ impl KubeController {
                 }
             }
         }
-
-        Ok(())
     }
 
     fn abort<T>(handlers: &[JoinHandle<T>]) {
@@ -363,7 +340,6 @@ impl KubeController {
 
 #[derive(Clone)]
 struct EventController {
-    is_terminated: Arc<AtomicBool>,
     shared_target_namespaces: SharedTargetNamespaces,
     kube_client: KubeClient,
     tx: Sender<Message>,
@@ -377,7 +353,6 @@ struct EventController {
 
 impl EventController {
     fn new(
-        is_terminated: Arc<AtomicBool>,
         shared_target_namespaces: SharedTargetNamespaces,
         kube_client: KubeClient,
         tx: Sender<Message>,
@@ -389,7 +364,6 @@ impl EventController {
         yaml_config: YamlConfig,
     ) -> Self {
         Self {
-            is_terminated,
             shared_target_namespaces,
             kube_client,
             tx,
@@ -434,7 +408,6 @@ impl Worker for EventController {
         let mut get_handler: Option<AbortHandle> = None;
 
         let EventController {
-            is_terminated,
             shared_target_namespaces,
             kube_client,
             tx,
@@ -446,7 +419,7 @@ impl Worker for EventController {
             yaml_config,
         } = self;
 
-        while !is_terminated.load(Ordering::Relaxed) {
+        loop {
             let rx = rx.clone();
             let tx = tx.clone();
 
@@ -526,15 +499,8 @@ impl Worker for EventController {
                             handler.abort();
                         }
 
-                        config_handler = Some(
-                            ConfigsDataWorker::new(
-                                is_terminated.clone(),
-                                tx,
-                                kube_client.clone(),
-                                req,
-                            )
-                            .spawn(),
-                        );
+                        config_handler =
+                            Some(ConfigsDataWorker::new(tx, kube_client.clone(), req).spawn());
 
                         task::yield_now().await;
                     }
@@ -629,7 +595,6 @@ impl Worker for EventController {
 
                                 yaml_handler = Some(
                                     YamlWorker::new(
-                                        is_terminated.clone(),
                                         tx,
                                         kube_client.clone(),
                                         shared_api_resources.clone(),
@@ -637,6 +602,7 @@ impl Worker for EventController {
                                     )
                                     .spawn(),
                                 );
+
                                 task::yield_now().await;
                             }
                         }
@@ -647,10 +613,9 @@ impl Worker for EventController {
                             handler.abort();
                         }
 
-                        get_handler = Some(
-                            GetYamlWorker::new(is_terminated.clone(), tx, kube_client.clone(), req)
-                                .spawn(),
-                        );
+                        get_handler =
+                            Some(GetYamlWorker::new(tx, kube_client.clone(), req).spawn());
+
                         task::yield_now().await;
                     }
 
@@ -661,7 +626,6 @@ impl Worker for EventController {
 
                         network_handler = Some(
                             NetworkDescriptionWorker::new(
-                                is_terminated.clone(),
                                 tx,
                                 kube_client.clone(),
                                 req,
@@ -678,8 +642,6 @@ impl Worker for EventController {
                 Err(_) => {}
             }
         }
-
-        WorkerResult::Terminated
     }
 }
 

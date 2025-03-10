@@ -9,11 +9,6 @@ pub use config::KubeWorkerConfig;
 pub use controller::*;
 pub use worker::*;
 
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
-
 use anyhow::Result;
 use crossbeam::channel::{Receiver, Sender};
 use tokio::runtime::Runtime;
@@ -24,7 +19,7 @@ use crate::{logger, message::Message, panic_set_hook};
 pub struct KubeWorker {
     pub(super) tx: Sender<Message>,
     pub(super) rx: Receiver<Message>,
-    pub(super) is_terminated: Arc<AtomicBool>,
+    pub(super) tx_shutdown: Sender<()>,
     pub(super) config: KubeWorkerConfig,
 }
 
@@ -32,46 +27,40 @@ impl KubeWorker {
     pub fn new(
         tx: Sender<Message>,
         rx: Receiver<Message>,
-        is_terminated: Arc<AtomicBool>,
+        tx_shutdown: Sender<()>,
         config: KubeWorkerConfig,
     ) -> Self {
         KubeWorker {
             tx,
             rx,
-            is_terminated,
+            tx_shutdown,
             config,
         }
     }
 
-    pub fn start(self) -> Result<()> {
+    pub fn start(self) {
         logger!(info, "KubeWorker start");
 
-        let rt = Runtime::new()?;
+        let rt = Runtime::new().expect("failed to create runtime");
 
-        let is_terminated = self.is_terminated.clone();
-        let ret = rt.block_on(start_controller(
-            self.tx,
-            self.rx,
-            is_terminated,
-            self.config,
-        ));
+        if let Err(err) = rt.block_on(start_controller(self.tx, self.rx, self.config)) {
+            logger!(error, "{}", err);
+        }
 
         logger!(info, "KubeWorker end");
 
-        if let Err(e) = ret {
-            self.is_terminated.store(true, Ordering::Relaxed);
-
-            Err(e)
-        } else {
-            Ok(())
-        }
+        self.tx_shutdown
+            .send(())
+            .expect("failed to send shutdown signal");
     }
 
     pub fn set_panic_hook(&self) {
-        let is_terminated = self.is_terminated.clone();
+        let tx_shutdown = self.tx_shutdown.clone();
 
         panic_set_hook!({
-            is_terminated.store(true, Ordering::Relaxed);
+            tx_shutdown
+                .send(())
+                .expect("failed to send shutdown signal");
         });
     }
 }
@@ -79,9 +68,8 @@ impl KubeWorker {
 async fn start_controller(
     tx: Sender<Message>,
     rx: Receiver<Message>,
-    is_terminated: Arc<AtomicBool>,
     config: KubeWorkerConfig,
 ) -> Result<()> {
-    let controller = KubeController::new(tx, rx, is_terminated, config).await?;
+    let controller = KubeController::new(tx, rx, config).await?;
     controller.run().await
 }

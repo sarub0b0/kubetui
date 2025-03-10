@@ -5,10 +5,6 @@ use std::{
     cell::RefCell,
     io::{self},
     rc::Rc,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
 };
 
 use anyhow::Result;
@@ -32,7 +28,7 @@ use self::{
 pub struct Render {
     tx: Sender<Message>,
     rx: Receiver<Message>,
-    is_terminated: Arc<AtomicBool>,
+    tx_shutdown: Sender<()>,
     direction: Direction,
     theme: ThemeConfig,
 }
@@ -41,7 +37,7 @@ impl Render {
     pub fn new(
         tx: Sender<Message>,
         rx: Receiver<Message>,
-        is_terminated: Arc<AtomicBool>,
+        tx_shutdown: Sender<()>,
         direction: Direction,
         theme: ThemeConfig,
     ) -> Self {
@@ -49,28 +45,32 @@ impl Render {
             direction,
             tx,
             rx,
-            is_terminated,
+            tx_shutdown,
             theme,
         }
     }
 
-    pub fn start(self) -> Result<()> {
+    pub fn start(self) {
         logger!(info, "render start");
 
-        let ret = self.render();
-
-        self.is_terminated.store(true, Ordering::Relaxed);
+        if let Err(err) = self.render() {
+            logger!(error, "{}", err);
+        }
 
         logger!(info, "render end");
 
-        ret
+        self.tx_shutdown
+            .send(())
+            .expect("failed to send shutdown signal");
     }
 
     pub fn set_panic_hook(&self) {
-        let is_terminated = self.is_terminated.clone();
+        let tx_shutdown = self.tx_shutdown.clone();
 
         panic_set_hook!({
-            is_terminated.store(true, Ordering::Relaxed);
+            tx_shutdown
+                .send(())
+                .expect("failed to send shutdown signal");
         });
     }
 
@@ -96,7 +96,7 @@ impl Render {
 
         terminal.clear()?;
 
-        while !self.is_terminated.load(Ordering::Relaxed) {
+        loop {
             terminal.draw(|f| {
                 window.render(f);
             })?;
@@ -104,9 +104,7 @@ impl Render {
             match window_action(&mut window, &self.rx) {
                 WindowAction::Continue => {}
                 WindowAction::CloseWindow => {
-                    self.is_terminated
-                        .store(true, std::sync::atomic::Ordering::Relaxed);
-                    // break
+                    break;
                 }
                 WindowAction::UpdateContents(ev) => {
                     update_contents(

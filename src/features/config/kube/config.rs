@@ -1,8 +1,4 @@
-use std::{
-    collections::BTreeMap,
-    sync::{atomic::AtomicBool, Arc},
-    time,
-};
+use std::{collections::BTreeMap, time};
 
 use crate::{
     features::config::message::ConfigResponse,
@@ -22,7 +18,6 @@ use futures::future::try_join_all;
 
 #[derive(Clone)]
 pub struct ConfigPoller {
-    is_terminated: Arc<AtomicBool>,
     tx: Sender<Message>,
     shared_target_namespaces: SharedTargetNamespaces,
     kube_client: KubeClient,
@@ -30,13 +25,11 @@ pub struct ConfigPoller {
 
 impl ConfigPoller {
     pub fn new(
-        is_terminated: Arc<AtomicBool>,
         tx: Sender<Message>,
         shared_target_namespaces: SharedTargetNamespaces,
         kube_client: KubeClient,
     ) -> Self {
         Self {
-            is_terminated,
             tx,
             shared_target_namespaces,
             kube_client,
@@ -52,13 +45,12 @@ impl Worker for ConfigPoller {
         let mut interval = tokio::time::interval(time::Duration::from_secs(1));
 
         let Self {
-            is_terminated,
             tx,
             shared_target_namespaces,
             kube_client,
         } = self;
 
-        while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
+        loop {
             interval.tick().await;
 
             let target_namespaces = shared_target_namespaces.read().await;
@@ -68,8 +60,6 @@ impl Worker for ConfigPoller {
             tx.send(ConfigResponse::Table(table).into())
                 .expect("Failed to send ConfigResponse::Table");
         }
-
-        WorkerResult::Terminated
     }
 }
 

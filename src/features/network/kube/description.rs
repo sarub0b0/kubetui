@@ -9,8 +9,6 @@ mod utils;
 #[allow(dead_code)]
 mod related_resources;
 
-use std::sync::{atomic::AtomicBool, Arc};
-
 use crate::{
     features::{
         api_resources::kube::SharedApiResources,
@@ -53,7 +51,6 @@ pub struct NetworkDescriptionWorker<C>
 where
     C: KubeClientRequest,
 {
-    is_terminated: Arc<AtomicBool>,
     tx: Sender<Message>,
     client: C,
     req: NetworkRequest,
@@ -65,14 +62,12 @@ where
     C: KubeClientRequest,
 {
     pub fn new(
-        is_terminated: Arc<AtomicBool>,
         tx: Sender<Message>,
         client: C,
         req: NetworkRequest,
         api_resources: SharedApiResources,
     ) -> Self {
         Self {
-            is_terminated,
             tx,
             client,
             req,
@@ -137,18 +132,13 @@ where
             self.api_resources.clone(),
         );
 
-        while !self
-            .is_terminated
-            .load(std::sync::atomic::Ordering::Relaxed)
-        {
+        loop {
             interval.tick().await;
 
             let fetched_data = worker.fetch().await;
 
             self.tx.send(NetworkResponse::Yaml(fetched_data).into())?;
         }
-
-        Ok(())
     }
 }
 
@@ -197,72 +187,15 @@ mod tests {
         use anyhow::bail;
         use crossbeam::channel::{bounded, Receiver};
         use k8s_openapi::{
-            api::{
-                core::v1::Service,
-                networking::v1::{Ingress, NetworkPolicy},
-            },
+            api::{core::v1::Service, networking::v1::Ingress},
             List,
         };
         use mockall::predicate::eq;
 
         #[tokio::test(flavor = "multi_thread")]
-        async fn is_terminatedで処理を停止したときokを返す() {
-            let is_terminated = Arc::new(AtomicBool::new(false));
-            let (tx, _rx): (Sender<Message>, Receiver<Message>) = bounded(3);
-            let mut client = MockTestKubeClient::new();
-
-            mock_expect!(
-                client,
-                request,
-                [
-                    (
-                        Pod,
-                        eq("/api/v1/namespaces/default/pods/test"),
-                        Ok(pod())
-                    ),
-                    (
-                        List<Service>,
-                        eq("/api/v1/namespaces/default/services"),
-                        Ok(Default::default())
-                    ),
-                    (
-                        List<Ingress>,
-                        eq("/apis/networking.k8s.io/v1/namespaces/default/ingresses"),
-                        Ok(Default::default())
-                    ),
-                    (
-                        List<NetworkPolicy>,
-                        eq("/apis/networking.k8s.io/v1/namespaces/default/networkpolicies"),
-                        Ok(Default::default())
-                    )
-                ]
-            );
-
-            let req_data = NetworkRequestTargetParams {
-                namespace: "default".to_string(),
-                name: "test".to_string(),
-                version: "v1".to_string(),
-            };
-            let req = NetworkRequest::Pod(req_data);
-
-            let worker = NetworkDescriptionWorker::new(
-                is_terminated.clone(),
-                tx,
-                client,
-                req,
-                ApiResources::shared(),
-            );
-
-            let handle = tokio::spawn(async move { worker.run().await });
-
-            is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
-
-            assert!(handle.await.is_ok());
-        }
-
-        #[tokio::test(flavor = "multi_thread")]
-        async fn 内部でエラーがでたときtxにエラーを送信する() {
+        async fn 内部でエラーがでたときtxにerrを送信する() {
             let (tx, rx): (Sender<Message>, Receiver<Message>) = bounded(3);
+
             let mut client = MockTestKubeClient::new();
             mock_expect!(
                 client,
@@ -293,16 +226,9 @@ mod tests {
             };
             let req = NetworkRequest::Pod(req_data);
 
-            let is_terminated = Arc::new(AtomicBool::new(false));
-            let worker = NetworkDescriptionWorker::new(
-                is_terminated.clone(),
-                tx,
-                client,
-                req,
-                ApiResources::shared(),
-            );
+            let worker = NetworkDescriptionWorker::new(tx, client, req, ApiResources::shared());
 
-            let handle = tokio::spawn(async move { worker.run().await });
+            tokio::spawn(async move { worker.run().await });
 
             if let Message::Kube(Kube::Network(NetworkMessage::Response(NetworkResponse::Yaml(
                 msg,
@@ -312,12 +238,6 @@ mod tests {
             } else {
                 unreachable!()
             }
-
-            is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
-
-            let ret = handle.await;
-
-            assert!(ret.is_ok())
         }
 
         #[tokio::test(flavor = "multi_thread")]
@@ -354,14 +274,7 @@ mod tests {
             };
             let req = NetworkRequest::Pod(req_data);
 
-            let is_terminated = Arc::new(AtomicBool::new(false));
-            let worker = NetworkDescriptionWorker::new(
-                is_terminated.clone(),
-                tx,
-                client,
-                req,
-                ApiResources::shared(),
-            );
+            let worker = NetworkDescriptionWorker::new(tx, client, req, ApiResources::shared());
 
             drop(rx);
 
@@ -397,7 +310,6 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread")]
         async fn 正常系のときtxにデータを送信する() {
-            let is_terminated = Arc::new(AtomicBool::new(false));
             let (tx, rx): (Sender<Message>, Receiver<Message>) = bounded(3);
             let mut client = MockTestKubeClient::new();
 
@@ -435,25 +347,15 @@ mod tests {
             };
             let req = NetworkRequest::Pod(req_data);
 
-            let worker = NetworkDescriptionWorker::new(
-                is_terminated.clone(),
-                tx,
-                client,
-                req,
-                ApiResources::shared(),
-            );
+            let worker = NetworkDescriptionWorker::new(tx, client, req, ApiResources::shared());
 
-            let handle = tokio::spawn(async move {
+            tokio::spawn(async move {
                 worker
                     .fetch_description::<PodDescriptionWorker<MockTestKubeClient>>()
                     .await
             });
 
             let event = rx.recv().unwrap();
-
-            is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
-
-            let _ret = handle.await;
 
             let expected: Vec<String> = indoc!(
                 "
@@ -490,39 +392,7 @@ mod tests {
         }
 
         #[tokio::test(flavor = "multi_thread")]
-        async fn is_terminatedがtrueのときループを抜けてokを返す() {
-            let (tx, _rx): (Sender<Message>, Receiver<Message>) = bounded(3);
-            let client = MockTestKubeClient::new();
-
-            let req_data = NetworkRequestTargetParams {
-                namespace: "default".to_string(),
-                name: "test".to_string(),
-                version: "v1".to_string(),
-            };
-            let req = NetworkRequest::Pod(req_data);
-
-            let is_terminated = Arc::new(AtomicBool::new(true));
-            let worker = NetworkDescriptionWorker::new(
-                is_terminated,
-                tx,
-                client,
-                req,
-                ApiResources::shared(),
-            );
-
-            let handle = tokio::spawn(async move {
-                worker
-                    .fetch_description::<PodDescriptionWorker<MockTestKubeClient>>()
-                    .await
-            });
-
-            let ret = handle.await.unwrap();
-
-            assert!(ret.is_ok())
-        }
-
-        #[tokio::test(flavor = "multi_thread")]
-        async fn 内部でエラーがでたときtxにエラーを送信する() {
+        async fn 内部でエラーがでたときtxにerrを送信する() {
             let (tx, rx): (Sender<Message>, Receiver<Message>) = bounded(3);
             let mut client = MockTestKubeClient::new();
             mock_expect!(
@@ -559,16 +429,9 @@ mod tests {
             };
             let req = NetworkRequest::Pod(req_data);
 
-            let is_terminated = Arc::new(AtomicBool::new(false));
-            let worker = NetworkDescriptionWorker::new(
-                is_terminated.clone(),
-                tx,
-                client,
-                req,
-                ApiResources::shared(),
-            );
+            let worker = NetworkDescriptionWorker::new(tx, client, req, ApiResources::shared());
 
-            let handle = tokio::spawn(async move {
+            tokio::spawn(async move {
                 worker
                     .fetch_description::<PodDescriptionWorker<MockTestKubeClient>>()
                     .await
@@ -582,12 +445,6 @@ mod tests {
             } else {
                 unreachable!()
             }
-
-            is_terminated.store(true, std::sync::atomic::Ordering::Relaxed);
-
-            let ret = handle.await;
-
-            assert_eq!(ret.is_ok(), true)
         }
 
         #[tokio::test(flavor = "multi_thread")]
@@ -624,14 +481,7 @@ mod tests {
             };
             let req = NetworkRequest::Pod(req_data);
 
-            let is_terminated = Arc::new(AtomicBool::new(false));
-            let worker = NetworkDescriptionWorker::new(
-                is_terminated.clone(),
-                tx,
-                client,
-                req,
-                ApiResources::shared(),
-            );
+            let worker = NetworkDescriptionWorker::new(tx, client, req, ApiResources::shared());
 
             drop(rx);
 

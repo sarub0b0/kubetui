@@ -1,10 +1,4 @@
-use std::{
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    thread::sleep,
-};
+use std::thread::sleep;
 
 use crate::{logger, message::Message, panic_set_hook};
 
@@ -15,45 +9,47 @@ use tokio::time;
 pub struct Tick {
     tx: Sender<Message>,
     duration: time::Duration,
-    is_terminated: Arc<AtomicBool>,
+    tx_shutdown: Sender<()>,
 }
 
 impl Tick {
-    pub fn new(tx: Sender<Message>, rate: time::Duration, is_terminated: Arc<AtomicBool>) -> Self {
+    pub fn new(tx: Sender<Message>, rate: time::Duration, tx_shutdown: Sender<()>) -> Self {
         Self {
             tx,
             duration: rate,
-            is_terminated,
+            tx_shutdown,
         }
     }
 
-    pub fn start(&self) -> Result<()> {
+    pub fn start(&self) {
         logger!(info, "tick start");
 
-        let ret = self.tick();
-
-        self.is_terminated.store(true, Ordering::Relaxed);
+        if let Err(err) = self.tick() {
+            logger!(error, "{}", err);
+        }
 
         logger!(info, "tick end");
 
-        ret
+        self.tx_shutdown
+            .send(())
+            .expect("failed to send shutdown signal");
     }
 
     pub fn set_panic_hook(&self) {
-        let is_terminated = self.is_terminated.clone();
+        let tx_shutdown = self.tx_shutdown.clone();
 
         panic_set_hook!({
-            is_terminated.store(true, Ordering::Relaxed);
+            tx_shutdown
+                .send(())
+                .expect("failed to send shutdown signal");
         });
     }
 
     fn tick(&self) -> Result<()> {
-        while !self.is_terminated.load(Ordering::Relaxed) {
+        loop {
             sleep(self.duration);
 
             self.tx.send(Message::Tick)?;
         }
-
-        Ok(())
     }
 }
