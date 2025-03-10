@@ -1,10 +1,4 @@
-use std::{
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    time,
-};
+use std::time;
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -47,7 +41,6 @@ pub struct EventHighlightRule {
 
 #[derive(Clone)]
 pub struct EventPoller {
-    is_terminated: Arc<AtomicBool>,
     tx: Sender<Message>,
     shared_target_namespaces: SharedTargetNamespaces,
     kube_client: KubeClient,
@@ -56,14 +49,12 @@ pub struct EventPoller {
 
 impl EventPoller {
     pub fn new(
-        is_terminated: Arc<AtomicBool>,
         tx: Sender<Message>,
         shared_target_namespaces: SharedTargetNamespaces,
         kube_client: KubeClient,
         config: EventConfig,
     ) -> Self {
         Self {
-            is_terminated,
             tx,
             shared_target_namespaces,
             kube_client,
@@ -77,7 +68,6 @@ impl Worker for EventPoller {
     type Output = WorkerResult;
     async fn run(&self) -> Self::Output {
         let Self {
-            is_terminated,
             tx,
             shared_target_namespaces,
             kube_client,
@@ -85,7 +75,8 @@ impl Worker for EventPoller {
         } = self;
 
         let mut interval = tokio::time::interval(time::Duration::from_millis(1000));
-        while !is_terminated.load(Ordering::Relaxed) {
+
+        loop {
             interval.tick().await;
             let target_namespaces = shared_target_namespaces.read().await;
 
@@ -94,8 +85,6 @@ impl Worker for EventPoller {
             tx.send(Message::Kube(Kube::Event(event_list)))
                 .expect("Failed to send Kube::Event");
         }
-
-        WorkerResult::Terminated
     }
 }
 

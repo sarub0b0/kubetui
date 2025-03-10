@@ -1,7 +1,4 @@
-use std::{
-    collections::BTreeMap,
-    sync::{atomic::AtomicBool, Arc},
-};
+use std::collections::BTreeMap;
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -52,7 +49,6 @@ pub struct PodHighlightRule {
 
 #[derive(Clone)]
 pub struct PodPoller {
-    is_terminated: Arc<AtomicBool>,
     tx: Sender<Message>,
     shared_target_namespaces: SharedTargetNamespaces,
     kube_client: KubeClient,
@@ -61,14 +57,12 @@ pub struct PodPoller {
 
 impl PodPoller {
     pub fn new(
-        is_terminated: Arc<AtomicBool>,
         tx: Sender<Message>,
         shared_target_namespaces: SharedTargetNamespaces,
         kube_client: KubeClient,
         config: PodConfig,
     ) -> Self {
         Self {
-            is_terminated,
             tx,
             shared_target_namespaces,
             kube_client,
@@ -84,11 +78,9 @@ impl Worker for PodPoller {
     async fn run(&self) -> Self::Output {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(1));
 
-        let Self {
-            is_terminated, tx, ..
-        } = self;
+        let Self { tx, .. } = self;
 
-        while !is_terminated.load(std::sync::atomic::Ordering::Relaxed) {
+        loop {
             interval.tick().await;
 
             let pod_info = self.get_pod_info().await;
@@ -96,8 +88,6 @@ impl Worker for PodPoller {
             tx.send(Message::Kube(Kube::Pod(pod_info)))
                 .expect("Failed to Kube::Pod");
         }
-
-        WorkerResult::Terminated
     }
 }
 

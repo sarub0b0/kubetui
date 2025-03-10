@@ -1,5 +1,3 @@
-use std::sync::{atomic::AtomicBool, Arc};
-
 use anyhow::Result;
 use crossbeam::channel::Sender;
 use k8s_openapi::{
@@ -61,25 +59,14 @@ impl std::fmt::Display for GetYamlKind {
 
 #[derive(Clone)]
 pub struct GetYamlWorker {
-    is_terminated: Arc<AtomicBool>,
     tx: Sender<Message>,
     client: KubeClient,
     req: GetRequest,
 }
 
 impl GetYamlWorker {
-    pub fn new(
-        is_terminated: Arc<AtomicBool>,
-        tx: Sender<Message>,
-        client: KubeClient,
-        req: GetRequest,
-    ) -> Self {
-        Self {
-            is_terminated,
-            tx,
-            client,
-            req,
-        }
+    pub fn new(tx: Sender<Message>, client: KubeClient, req: GetRequest) -> Self {
+        Self { tx, client, req }
     }
 }
 
@@ -94,10 +81,7 @@ impl AbortWorker for GetYamlWorker {
             namespace,
         } = &self.req;
 
-        while !self
-            .is_terminated
-            .load(std::sync::atomic::Ordering::Relaxed)
-        {
+        loop {
             interval.tick().await;
 
             let yaml = match kind {

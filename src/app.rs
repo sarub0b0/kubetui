@@ -1,15 +1,13 @@
-use std::{
-    sync::{atomic::AtomicBool, Arc},
-    thread, time,
-};
+use std::{thread, time};
 
-use anyhow::{Context as _, Result};
+use anyhow::Result;
 use crossbeam::channel::{bounded, Receiver, Sender};
 
 use crate::{
     cmd::Command,
     config::Config,
     features::{api_resources::kube::ApiConfig, event::kube::EventConfig, pod::kube::PodConfig},
+    logger,
     message::Message,
     workers::{kube::YamlConfig, ApisConfig, KubeWorker, Render, Tick, UserInput},
 };
@@ -26,9 +24,9 @@ impl App {
         let tx_kube = tx_input.clone();
         let tx_tick = tx_input.clone();
 
-        let is_terminated = Arc::new(AtomicBool::new(false));
+        let (tx_shutdown, rx_shutdown) = bounded::<()>(1);
 
-        let user_input = UserInput::new(tx_input.clone(), is_terminated.clone());
+        let user_input = UserInput::new(tx_input.clone(), tx_shutdown.clone());
 
         kube_worker_config.pod_config = PodConfig::from(config.theme.clone());
         kube_worker_config.event_config = EventConfig::from(config.theme.clone());
@@ -39,67 +37,49 @@ impl App {
         let kube = KubeWorker::new(
             tx_kube.clone(),
             rx_kube.clone(),
-            is_terminated.clone(),
+            tx_shutdown.clone(),
             kube_worker_config,
         );
 
         let tick = Tick::new(
             tx_tick.clone(),
             time::Duration::from_millis(200),
-            is_terminated.clone(),
+            tx_shutdown.clone(),
         );
 
         let render = Render::new(
             tx_main.clone(),
             rx_main.clone(),
-            is_terminated.clone(),
+            tx_shutdown.clone(),
             split_direction,
             config.theme.clone(),
         );
 
-        thread::scope(|s| {
-            let kube_handler = s.spawn(|| {
-                kube.set_panic_hook();
-                kube.start()
-            });
+        logger!(info, "app start");
 
-            let tick_handler = s.spawn(move || {
-                tick.set_panic_hook();
-                tick.start()
-            });
+        thread::spawn(|| {
+            kube.set_panic_hook();
+            kube.start();
+        });
 
-            let user_input_handler = s.spawn(move || {
-                user_input.set_panic_hook();
-                user_input.start()
-            });
+        thread::spawn(move || {
+            tick.set_panic_hook();
+            tick.start();
+        });
 
-            let render_handler = s.spawn(move || {
-                render.set_panic_hook();
-                render.start()
-            });
+        thread::spawn(move || {
+            user_input.set_panic_hook();
+            user_input.start();
+        });
 
-            kube_handler
-                .join()
-                .expect("kube thread panicked")
-                .context("kube thread error")?;
+        thread::spawn(move || {
+            render.set_panic_hook();
+            render.start();
+        });
 
-            tick_handler
-                .join()
-                .expect("tick thread panicked")
-                .context("tick thread error")?;
+        rx_shutdown.recv()?;
 
-            user_input_handler
-                .join()
-                .expect("user_input thread panicked")
-                .context("user_input thread error")?;
-
-            render_handler
-                .join()
-                .expect("render thread panicked")
-                .context("render thread error")?;
-
-            anyhow::Ok(())
-        })?;
+        logger!(info, "app end");
 
         Ok(())
     }
