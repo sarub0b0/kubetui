@@ -28,7 +28,7 @@ use self::{
 pub struct Render {
     tx: Sender<Message>,
     rx: Receiver<Message>,
-    tx_shutdown: Sender<()>,
+    tx_shutdown: Sender<Result<()>>,
     direction: Direction,
     theme: ThemeConfig,
 }
@@ -37,7 +37,7 @@ impl Render {
     pub fn new(
         tx: Sender<Message>,
         rx: Receiver<Message>,
-        tx_shutdown: Sender<()>,
+        tx_shutdown: Sender<Result<()>>,
         direction: Direction,
         theme: ThemeConfig,
     ) -> Self {
@@ -53,14 +53,16 @@ impl Render {
     pub fn start(self) {
         logger!(info, "render start");
 
-        if let Err(err) = self.render() {
-            logger!(error, "{}", err);
+        let ret = self.render();
+
+        if let Err(e) = &ret {
+            logger!(error, "{}", e);
         }
 
         logger!(info, "render end");
 
         self.tx_shutdown
-            .send(())
+            .send(ret)
             .expect("failed to send shutdown signal");
     }
 
@@ -69,7 +71,7 @@ impl Render {
 
         panic_set_hook!({
             tx_shutdown
-                .send(())
+                .send(Err(anyhow::anyhow!("panic occurred in Render worker")))
                 .expect("failed to send shutdown signal");
         });
     }

@@ -9,11 +9,11 @@ use tokio::time;
 pub struct Tick {
     tx: Sender<Message>,
     duration: time::Duration,
-    tx_shutdown: Sender<()>,
+    tx_shutdown: Sender<Result<()>>,
 }
 
 impl Tick {
-    pub fn new(tx: Sender<Message>, rate: time::Duration, tx_shutdown: Sender<()>) -> Self {
+    pub fn new(tx: Sender<Message>, rate: time::Duration, tx_shutdown: Sender<Result<()>>) -> Self {
         Self {
             tx,
             duration: rate,
@@ -24,14 +24,16 @@ impl Tick {
     pub fn start(&self) {
         logger!(info, "tick start");
 
-        if let Err(err) = self.tick() {
-            logger!(error, "{}", err);
+        let ret = self.tick();
+
+        if let Err(e) = &ret {
+            logger!(error, "{}", e);
         }
 
         logger!(info, "tick end");
 
         self.tx_shutdown
-            .send(())
+            .send(ret)
             .expect("failed to send shutdown signal");
     }
 
@@ -40,7 +42,7 @@ impl Tick {
 
         panic_set_hook!({
             tx_shutdown
-                .send(())
+                .send(Err(anyhow::anyhow!("panic occurred in Tick worker")))
                 .expect("failed to send shutdown signal");
         });
     }

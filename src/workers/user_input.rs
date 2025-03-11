@@ -14,25 +14,27 @@ use crate::{
 /// イベントデータはチャネルを介してメインスレッドに送信される
 pub struct UserInput {
     tx: Sender<Message>,
-    tx_shutdown: Sender<()>,
+    tx_shutdown: Sender<Result<()>>,
 }
 
 impl UserInput {
-    pub fn new(tx: Sender<Message>, tx_shutdown: Sender<()>) -> Self {
+    pub fn new(tx: Sender<Message>, tx_shutdown: Sender<Result<()>>) -> Self {
         Self { tx, tx_shutdown }
     }
 
     pub fn start(&self) {
         logger!(info, "user_input start");
 
-        if let Err(err) = self.poll() {
-            logger!(error, "{}", err);
+        let ret = self.poll();
+
+        if let Err(e) = &ret {
+            logger!(error, "{}", e);
         }
 
         logger!(info, "user_input end");
 
         self.tx_shutdown
-            .send(())
+            .send(ret)
             .expect("failed to send shutdown signal");
     }
 
@@ -41,7 +43,7 @@ impl UserInput {
 
         panic_set_hook!({
             tx_shutdown
-                .send(())
+                .send(Err(anyhow::anyhow!("panic occurred in UserInput worker")))
                 .expect("failed to send shutdown signal");
         });
     }
