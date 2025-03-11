@@ -19,7 +19,7 @@ use crate::{logger, message::Message, panic_set_hook};
 pub struct KubeWorker {
     pub(super) tx: Sender<Message>,
     pub(super) rx: Receiver<Message>,
-    pub(super) tx_shutdown: Sender<()>,
+    pub(super) tx_shutdown: Sender<Result<()>>,
     pub(super) config: KubeWorkerConfig,
 }
 
@@ -27,7 +27,7 @@ impl KubeWorker {
     pub fn new(
         tx: Sender<Message>,
         rx: Receiver<Message>,
-        tx_shutdown: Sender<()>,
+        tx_shutdown: Sender<Result<()>>,
         config: KubeWorkerConfig,
     ) -> Self {
         KubeWorker {
@@ -43,14 +43,16 @@ impl KubeWorker {
 
         let rt = Runtime::new().expect("failed to create runtime");
 
-        if let Err(err) = rt.block_on(start_controller(self.tx, self.rx, self.config)) {
-            logger!(error, "{}", err);
+        let ret = rt.block_on(start_controller(self.tx, self.rx, self.config));
+
+        if let Err(e) = &ret {
+            logger!(error, "{}", e);
         }
 
         logger!(info, "KubeWorker end");
 
         self.tx_shutdown
-            .send(())
+            .send(ret)
             .expect("failed to send shutdown signal");
     }
 
@@ -59,7 +61,7 @@ impl KubeWorker {
 
         panic_set_hook!({
             tx_shutdown
-                .send(())
+                .send(Err(anyhow::anyhow!("panic occurred in KubeWorker worker")))
                 .expect("failed to send shutdown signal");
         });
     }

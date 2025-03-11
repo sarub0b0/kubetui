@@ -24,7 +24,7 @@ impl App {
         let tx_kube = tx_input.clone();
         let tx_tick = tx_input.clone();
 
-        let (tx_shutdown, rx_shutdown) = bounded::<()>(1);
+        let (tx_shutdown, rx_shutdown) = bounded::<Result<()>>(1);
 
         let user_input = UserInput::new(tx_input.clone(), tx_shutdown.clone());
 
@@ -77,10 +77,10 @@ impl App {
             render.start();
         });
 
-        rx_shutdown.recv()?;
+        let result = rx_shutdown.recv()?;
 
         logger!(info, "app end");
 
-        Ok(())
+        result
     }
 }
