@@ -287,10 +287,8 @@ struct FilterAttributes;
 
 impl FilterAttributes {
     fn parse(query: &str) -> Result<Vec<FilterAttribute<'_>>> {
-        use nom::{
-            error::{convert_error, VerboseError},
-            Err,
-        };
+        use nom::Err;
+        use nom_language::error::{convert_error, VerboseError};
 
         match parse_attributes::<VerboseError<_>>(query) {
             Ok((_, filter)) => Ok(filter),

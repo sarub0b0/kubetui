@@ -4,7 +4,7 @@ use nom::{
     character::complete::{char, digit0, multispace0},
     multi::separated_list0,
     sequence::delimited,
-    IResult,
+    IResult, Parser as _,
 };
 
 use super::AnsiEscapeSequence::{self, *};
@@ -54,7 +54,7 @@ fn escape(s: &str) -> IResult<&str, char> {
 }
 
 fn control_sequence(s: &str) -> IResult<&str, (char, char)> {
-    permutation((escape, char('[')))(s)
+    permutation((escape, char('['))).parse(s)
 }
 
 // "", "n", "n;", ";m", "n;m"
@@ -64,7 +64,8 @@ fn row_col(s: &str, close: char) -> IResult<&str, (u16, u16)> {
         control_sequence,
         delimited(multispace0, separated_list0(char(';'), digit0), multispace0),
         char(close),
-    )(s)?;
+    )
+    .parse(s)?;
 
     if nums.is_empty() {
         return Ok((s, (1, 1)));
@@ -88,14 +89,15 @@ fn graphic(s: &str) -> IResult<&str, AnsiEscapeSequence> {
         control_sequence,
         delimited(multispace0, separated_list0(char(';'), digit0), multispace0),
         char('m'),
-    )(s)?;
+    )
+    .parse(s)?;
 
     let nums = nums.iter().map(|s| s.parse().unwrap_or(0)).collect();
     Ok((s, SelectGraphicRendition(nums)))
 }
 
 fn digit(s: &str, c: char) -> IResult<&str, &str> {
-    delimited(control_sequence, digit0, char(c))(s)
+    delimited(control_sequence, digit0, char(c)).parse(s)
 }
 
 fn cursor_up(s: &str) -> IResult<&str, AnsiEscapeSequence> {
@@ -164,37 +166,37 @@ fn horizontal_vertical_pos(s: &str) -> IResult<&str, AnsiEscapeSequence> {
 }
 
 fn aux_port_on(s: &str) -> IResult<&str, AnsiEscapeSequence> {
-    let (s, _) = permutation((control_sequence, tag("5i")))(s)?;
+    let (s, _) = permutation((control_sequence, tag("5i"))).parse(s)?;
     Ok((s, AuxPortOn))
 }
 
 fn aux_port_off(s: &str) -> IResult<&str, AnsiEscapeSequence> {
-    let (s, _) = permutation((control_sequence, tag("4i")))(s)?;
+    let (s, _) = permutation((control_sequence, tag("4i"))).parse(s)?;
     Ok((s, AuxPortOff))
 }
 
 fn device_status_report(s: &str) -> IResult<&str, AnsiEscapeSequence> {
-    let (s, _) = permutation((control_sequence, tag("6n")))(s)?;
+    let (s, _) = permutation((control_sequence, tag("6n"))).parse(s)?;
     Ok((s, DeviceStatusReport))
 }
 
 fn save_current_cursor_pos(s: &str) -> IResult<&str, AnsiEscapeSequence> {
-    let (s, _) = permutation((control_sequence, char('s')))(s)?;
+    let (s, _) = permutation((control_sequence, char('s'))).parse(s)?;
     Ok((s, SaveCurrentCursorPos))
 }
 
 fn restore_saved_cursor_pos(s: &str) -> IResult<&str, AnsiEscapeSequence> {
-    let (s, _) = permutation((control_sequence, char('u')))(s)?;
+    let (s, _) = permutation((control_sequence, char('u'))).parse(s)?;
     Ok((s, RestoreSavedCursorPos))
 }
 
 fn cursor_show(s: &str) -> IResult<&str, AnsiEscapeSequence> {
-    let (s, _) = permutation((control_sequence, tag("25h")))(s)?;
+    let (s, _) = permutation((control_sequence, tag("25h"))).parse(s)?;
     Ok((s, CursorShow))
 }
 
 fn cursor_hide(s: &str) -> IResult<&str, AnsiEscapeSequence> {
-    let (s, _) = permutation((control_sequence, tag("25l")))(s)?;
+    let (s, _) = permutation((control_sequence, tag("25l"))).parse(s)?;
     Ok((s, CursorHide))
 }
 
@@ -224,7 +226,8 @@ pub fn parse(s: &str) -> IResult<&str, AnsiEscapeSequence> {
         restore_saved_cursor_pos,
         cursor_show,
         cursor_hide,
-    ))(s)
+    ))
+    .parse(s)
 }
 
 #[cfg(test)]
