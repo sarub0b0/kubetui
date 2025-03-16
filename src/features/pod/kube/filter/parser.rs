@@ -8,7 +8,7 @@ use nom::{
     error::{ContextError, ParseError},
     multi::{fold_many0, many1_count, separated_list1},
     sequence::{delimited, preceded, separated_pair},
-    IResult,
+    IResult, Parser,
 };
 
 use super::{FilterAttribute, SpecifiedResource};
@@ -17,7 +17,8 @@ use super::{FilterAttribute, SpecifiedResource};
 fn non_space<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, Cow<'a, str>, E> {
-    let (remaining, value) = verify(is_not(" \t\r\n"), |s: &str| !s.starts_with(['"', '\'']))(s)?;
+    let (remaining, value) =
+        verify(is_not(" \t\r\n"), |s: &str| !s.starts_with(['"', '\''])).parse(s)?;
     Ok((remaining, Cow::Borrowed(value)))
 }
 
@@ -26,13 +27,13 @@ fn quoted<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 ) -> IResult<&'a str, Cow<'a, str>, E> {
     #[inline]
     fn multispace<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
-    ) -> impl FnMut(&'a str) -> IResult<&'a str, Cow<'a, str>, E> {
+    ) -> impl Parser<&'a str, Output = Cow<'a, str>, Error = E> {
         map(multispace1, Cow::Borrowed)
     }
 
     #[inline]
     fn escaped_char<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
-    ) -> impl FnMut(&'a str) -> IResult<&'a str, Cow<'a, str>, E> {
+    ) -> impl Parser<&'a str, Output = Cow<'a, str>, Error = E> {
         preceded(
             char('\\'),
             alt((
@@ -47,7 +48,7 @@ fn quoted<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     #[inline]
     fn not_quote_slash<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         quote_slash: &'a str,
-    ) -> impl FnMut(&'a str) -> IResult<&'a str, Cow<'a, str>, E> {
+    ) -> impl Parser<&'a str, Output = Cow<'a, str>, Error = E> {
         map(
             verify(is_not(quote_slash), |s: &str| !s.is_empty()),
             Cow::Borrowed,
@@ -56,8 +57,8 @@ fn quoted<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 
     #[inline]
     fn fold<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
-        parser: impl FnMut(&'a str) -> IResult<&'a str, Cow<'a, str>, E>,
-    ) -> impl FnMut(&'a str) -> IResult<&'a str, String, E> {
+        parser: impl Parser<&'a str, Output = Cow<'a, str>, Error = E>,
+    ) -> impl Parser<&'a str, Output = String, Error = E> {
         fold_many0(parser, String::default, |mut s, parsed| {
             s.push_str(&parsed);
             s
@@ -84,7 +85,7 @@ fn quoted<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         char('\''),
     );
 
-    let (remaining, value) = alt((double_quoted, single_quoted))(s)?;
+    let (remaining, value) = alt((double_quoted, single_quoted)).parse(s)?;
 
     Ok((remaining, Cow::Owned(value)))
 }
@@ -98,19 +99,19 @@ fn unquoted<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 fn regex<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, Cow<'a, str>, E> {
-    alt((quoted, unquoted))(s)
+    alt((quoted, unquoted)).parse(s)
 }
 
 fn selector<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, Cow<'a, str>, E> {
-    alt((quoted, unquoted))(s)
+    alt((quoted, unquoted)).parse(s)
 }
 
 fn resource_name<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, &'a str, E> {
-    recognize(many1_count(alt((alphanumeric1, tag("-"), tag(".")))))(s)
+    recognize(many1_count(alt((alphanumeric1, tag("-"), tag("."))))).parse(s)
 }
 
 fn pod<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
@@ -120,7 +121,8 @@ fn pod<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         alt((tag("pods"), tag("pod"), tag("po"), tag("p"))),
         char(':'),
         regex,
-    )(s)?;
+    )
+    .parse(s)?;
     Ok((remaining, FilterAttribute::Pod(value)))
 }
 
@@ -131,7 +133,8 @@ fn exclude_pod<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         alt((tag("!pods"), tag("!pod"), tag("!po"), tag("!p"))),
         char(':'),
         regex,
-    )(s)?;
+    )
+    .parse(s)?;
     Ok((remaining, FilterAttribute::ExcludePod(value)))
 }
 
@@ -142,7 +145,8 @@ fn container<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         alt((tag("containers"), tag("container"), tag("co"), tag("c"))),
         char(':'),
         regex,
-    )(s)?;
+    )
+    .parse(s)?;
     Ok((remaining, FilterAttribute::Container(value)))
 }
 
@@ -153,7 +157,8 @@ fn exclude_container<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         alt((tag("!containers"), tag("!container"), tag("!co"), tag("!c"))),
         char(':'),
         regex,
-    )(s)?;
+    )
+    .parse(s)?;
     Ok((remaining, FilterAttribute::ExcludeContainer(value)))
 }
 
@@ -164,7 +169,8 @@ fn include_log<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         alt((tag("logs"), tag("log"), tag("lo"), tag("l"))),
         char(':'),
         regex,
-    )(s)?;
+    )
+    .parse(s)?;
     Ok((remaining, FilterAttribute::IncludeLog(value)))
 }
 
@@ -175,7 +181,8 @@ fn exclude_log<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         alt((tag("!logs"), tag("!log"), tag("!lo"), tag("!l"))),
         char(':'),
         regex,
-    )(s)?;
+    )
+    .parse(s)?;
     Ok((remaining, FilterAttribute::ExcludeLog(value)))
 }
 
@@ -183,7 +190,7 @@ fn label_selector<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute<'a>, E> {
     let (remaining, (_, value)) =
-        separated_pair(alt((tag("labels"), tag("label"))), char(':'), selector)(s)?;
+        separated_pair(alt((tag("labels"), tag("label"))), char(':'), selector).parse(s)?;
     Ok((remaining, FilterAttribute::LabelSelector(value)))
 }
 
@@ -191,7 +198,7 @@ fn field_selector<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute<'a>, E> {
     let (remaining, (_, value)) =
-        separated_pair(alt((tag("fields"), tag("field"))), char(':'), selector)(s)?;
+        separated_pair(alt((tag("fields"), tag("field"))), char(':'), selector).parse(s)?;
     Ok((remaining, FilterAttribute::FieldSelector(value)))
 }
 
@@ -202,7 +209,8 @@ fn specified_daemonset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         alt((tag("daemonsets"), tag("daemonset"), tag("ds"))),
         char('/'),
         resource_name,
-    )(s)?;
+    )
+    .parse(s)?;
     Ok((
         remaining,
         FilterAttribute::from(SpecifiedResource::DaemonSet(value)),
@@ -216,7 +224,8 @@ fn specified_deployment<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         alt((tag("deployments"), tag("deployment"), tag("deploy"))),
         char('/'),
         resource_name,
-    )(s)?;
+    )
+    .parse(s)?;
     Ok((
         remaining,
         FilterAttribute::from(SpecifiedResource::Deployment(value)),
@@ -227,7 +236,7 @@ fn specified_job<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute<'a>, E> {
     let (remaining, (_, value)) =
-        separated_pair(alt((tag("jobs"), tag("job"))), char('/'), resource_name)(s)?;
+        separated_pair(alt((tag("jobs"), tag("job"))), char('/'), resource_name).parse(s)?;
     Ok((
         remaining,
         FilterAttribute::from(SpecifiedResource::Job(value)),
@@ -241,7 +250,8 @@ fn specified_pod<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         alt((tag("pods"), tag("pod"), tag("po"))),
         char('/'),
         resource_name,
-    )(s)?;
+    )
+    .parse(s)?;
     Ok((
         remaining,
         FilterAttribute::from(SpecifiedResource::Pod(value)),
@@ -255,7 +265,8 @@ fn specified_replicaset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         alt((tag("replicasets"), tag("replicaset"), tag("rs"))),
         char('/'),
         resource_name,
-    )(s)?;
+    )
+    .parse(s)?;
     Ok((
         remaining,
         FilterAttribute::from(SpecifiedResource::ReplicaSet(value)),
@@ -269,7 +280,8 @@ fn specified_service<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         alt((tag("services"), tag("service"), tag("svc"))),
         char('/'),
         resource_name,
-    )(s)?;
+    )
+    .parse(s)?;
     Ok((
         remaining,
         FilterAttribute::from(SpecifiedResource::Service(value)),
@@ -283,7 +295,8 @@ fn specified_statefulset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         alt((tag("statefulsets"), tag("statefulset"), tag("sts"))),
         char('/'),
         resource_name,
-    )(s)?;
+    )
+    .parse(s)?;
     Ok((
         remaining,
         FilterAttribute::from(SpecifiedResource::StatefulSet(value)),
@@ -309,7 +322,8 @@ fn attribute<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         exclude_container,
         include_log,
         exclude_log,
-    ))(s)?;
+    ))
+    .parse(s)?;
 
     Ok((remaining, value))
 }
@@ -321,7 +335,8 @@ fn split_attributes<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         multispace0,
         separated_list1(multispace1, attribute),
         multispace0,
-    )(s)?;
+    )
+    .parse(s)?;
 
     Ok((remaining, value))
 }
@@ -329,7 +344,7 @@ fn split_attributes<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 pub fn parse_attributes<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, Vec<FilterAttribute<'a>>, E> {
-    all_consuming(split_attributes)(s)
+    all_consuming(split_attributes).parse(s)
 }
 
 #[cfg(test)]

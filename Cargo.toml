@@ -59,6 +59,7 @@ paste = "1.0.14"
 figment = { version = "0.10.19", features = ["yaml", "env"] }
 bitflags = "2.6.0"
 dirs = "6.0.0"
+nom-language = "0.1.0"
 
 
 [dev-dependencies]
