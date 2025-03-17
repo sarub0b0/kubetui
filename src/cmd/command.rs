@@ -5,10 +5,13 @@ use std::path::PathBuf;
 
 use crate::{config::ConfigLoadOption, workers::kube::KubeWorkerConfig};
 
-use super::args::{AllNamespaces, SplitDirection};
+use super::{
+    args::{AllNamespaces, SplitDirection},
+    SubCommand,
+};
 
 #[derive(Parser, Debug, Clone)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about, long_about = None, disable_help_subcommand = true)]
 pub struct Command {
     /// Window split direction
     #[arg(
@@ -70,6 +73,9 @@ pub struct Command {
     /// Config file path
     #[arg(long, display_order = 1000)]
     pub config_file: Option<PathBuf>,
+
+    #[command(subcommand)]
+    pub subcommand: Option<SubCommand>,
 }
 
 impl Command {
