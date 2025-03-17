@@ -46,59 +46,50 @@ _kubetui() {
 (( $+functions[_complete_command] )) ||
 _complete_command(){
     local cmd last_param last_char;
-
     local -a truncated_words;
 
     truncated_words=("${=words[1,CURRENT]}")
     __kubetui_debug "Truncated words[*]: ${truncated_words[*]},"
 
-    cmd="${truncated_words[1]} __complete $1 -- ${truncated_words[1]} ${truncated_words[2,-1]}"
+    # `kubetui __complete <command> -- <args>`
+    cmd="${truncated_words[1]} __complete $1 -- ${truncated_words[*]}"
 
     last_param="${truncated_words[-1]}"
     last_char="${last_param[-1]}"
     __kubetui_debug "last_param: ${last_param}, last_char: ${last_char}"
+
     if [ "${last_char}" = "" ]; then
         cmd="${cmd} \"\""
     fi
 
     __kubetui_debug "About to call: eval ${cmd}"
-
     echo $cmd
+}
+
+(( $+functions[_get_kubernetes_resources] )) ||
+_get_kubernetes_resources() {
+    local type=$1;
+    local cmd result;
+
+    __kubetui_debug "Getting ${type}s..."
+
+    cmd=$(_complete_command "${type}")
+
+    result=("${(@f)$(eval $cmd 2>/dev/null)}")
+
+    __kubetui_debug "${type}s: ${result[*]}"
+
+    _describe -t "${type}s" "${type}s" result
 }
 
 (( $+functions[_get_kubernetes_namespaces] )) ||
 _get_kubernetes_namespaces() {
-    __kubetui_debug "Getting namespaces..."
-
-    local cmd;
-
-    cmd=$(_complete_command "namespace")
-
-
-    local -a namespaces;
-
-    namespaces=("${(@f)$(eval $cmd 2>/dev/null)}")
-
-    __kubetui_debug "namespaces: ${namespaces[*]}"
-
-    _describe -t namespaces "namespaces" namespaces
+    _get_kubernetes_resources "namespace"
 }
 
 (( $+functions[_get_kubernetes_contexts] )) ||
 _get_kubernetes_contexts() {
-    __kubetui_debug "Getting contexts..."
-
-    local cmd;
-
-    cmd=$(_complete_command "context")
-
-    local -a contexts;
-
-    contexts=("${(@f)$(eval $cmd 2>/dev/null)}")
-
-    __kubetui_debug "contexts: ${contexts[*]}"
-
-    _describe -t contexts "contexts" contexts
+    _get_kubernetes_resources "context"
 }
 
 if [ "$funcstack[1]" = "_kubetui" ]; then
