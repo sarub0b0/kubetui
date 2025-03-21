@@ -73,6 +73,10 @@ fn main() -> Result<()> {
 
     let command = Command::init();
 
+    if let Some(subcommand) = command.subcommand {
+        return subcommand.run();
+    }
+
     if command.logging {
         Logger::init()?;
     }
