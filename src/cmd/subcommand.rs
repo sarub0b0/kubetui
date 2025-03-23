@@ -11,7 +11,10 @@ use kube::{
 
 use crate::kube::KubeClient;
 
-use super::{completion::generate_zsh_completion, Command};
+use super::{
+    completion::{generate_bash_completion, generate_zsh_completion},
+    Command,
+};
 
 #[derive(ValueEnum, Debug, Clone)]
 pub enum Shell {
@@ -64,7 +67,7 @@ fn generate_completion_script(shell: Shell) {
             generate_zsh_completion();
         }
         Shell::Bash => {
-            eprintln!("Bash completion is not supported yet");
+            generate_bash_completion();
         }
     }
 }
