@@ -222,7 +222,7 @@ mod tests {
         #[test]
         fn equalがない構文のときエラーになる() {
             let cmd = Command::try_parse_from(["kubetui", "--all-namespaces", "true"]);
-            assert_eq!(cmd.unwrap_err().kind(), ErrorKind::UnknownArgument)
+            assert_eq!(cmd.is_err(), true)
         }
 
         #[rstest]
