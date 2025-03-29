@@ -150,10 +150,12 @@ kubetui
 
 ```sh
 $ kubetui -h
-An intuitive Terminal User Interface (TUI) tool for real-time monitoring and exploration of Kubernetes
-resources.
+An intuitive Terminal User Interface (TUI) tool for real-time monitoring and exploration of Kubernetes resources.
 
-Usage: kubetui [OPTIONS]
+Usage: kubetui [OPTIONS] [COMMAND]
+
+Commands:
+  completion  Generate completion script
 
 Options:
   -h, --help                           Print help
@@ -165,6 +167,22 @@ Options:
   -l, --logging                        Logging
   -n, --namespaces <NAMESPACES>        Namespaces (e.g. -n val1,val2,val3 | -n val1 -n val2 -n val3)
   -s, --split-direction <v|h>          Window split direction [default: v]
+```
+
+### Shell Completion
+
+Kubetui supports shell completion for Bash and Zsh. You can enable the completion by adding the following to your shell configuration file:
+
+For Bash (add to `~/.bashrc` or `~/.bash_profile`):
+
+```bash
+source <(kubetui completion bash)
+```
+
+For Zsh (add to `~/.zshrc`):
+
+```bash
+source <(kubetui completion zsh)
 ```
 
 ### Custom Configuration
