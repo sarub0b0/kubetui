@@ -67,7 +67,11 @@ __get_kubernetes_resources() {
 
     __kubetui_debug "${type}s: ${result[*]:-none}"
 
-    _describe -t "${type}s" "${type}s" result
+    if [[ -n "${result[@]}" ]]; then
+        _describe -t "${type}s" "${type}s" result
+    else
+        _message -e "${type}s" "no ${type}s found"
+    fi
 }
 
 (( $+functions[__get_kubernetes_namespaces] )) ||
