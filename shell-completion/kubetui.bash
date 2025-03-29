@@ -48,11 +48,7 @@ _kubetui() {
 		COMPREPLY=($(compgen -W "$(__get_kubernetes_contexts)" -- "${cur}"))
 		return 0
 		;;
-	-C | --kubeconfig)
-		COMPREPLY=($(compgen -f "${cur}"))
-		return 0
-		;;
-	--config-file)
+	-C | --kubeconfig | --config-file)
 		COMPREPLY=($(compgen -f "${cur}"))
 		return 0
 		;;
