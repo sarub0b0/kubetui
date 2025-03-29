@@ -88,7 +88,7 @@ __get_kubernetes_resources() {
 
 	local result="$(eval $cmd 2>/dev/null)"
 
-	__kubetui_debug "${type}s: ${result[@]}"
+	__kubetui_debug "${type}s: ${result[@]:-none}"
 
 	echo "${result[*]}"
 }
