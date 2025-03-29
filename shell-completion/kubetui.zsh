@@ -20,15 +20,15 @@ _kubetui() {
     __kubetui_debug "CURRENT: ${CURRENT}, words[*]: ${words[*]}"
 
     local options=(
-        '(-s --split-direction)'{-s+,--split-direction=}'[Window split direction]:v|h:((v\:"Vertical" h\:"Horizontal"))'
-        '(-c --context)'{-c+,--context=}'[Context]:CONTEXT:__get_kubernetes_contexts'
+        '(-s --split-direction)'{-s,--split-direction}'[Window split direction]:v|h:((v\:"Vertical" h\:"Horizontal"))'
+        '(-c --context)'{-c,--context}'[Context]:CONTEXT:__get_kubernetes_contexts'
         '(-A --all-namespaces -n --namespaces)'{-A,--all-namespaces=-}'[Select all namespaces]:true|false:(true false)'
-        '(-C --kubeconfig)'{-C+,--kubeconfig=}'[kubeconfig path]:KUBECONFIG:_files'
+        '(-C --kubeconfig)'{-C,--kubeconfig}'[kubeconfig path]:KUBECONFIG:_files'
         '(-l --logging)'{-l,--logging}'[Logging]'
         '(-h --help)'{-h,--help}'[Print help]'
         '(-V --version)'{-V,--version}'[Print version]'
-        '(-A --all-namespaces)'\*{-n+,--namespaces=}'[Namespaces (e.g. -n val1,val2,val3 | -n val1 -n val2 -n val3)]:NAMESPACES:_sequence __get_kubernetes_namespaces'
-        '--config-file=[Config file path]:CONFIG_FILE:_files'
+        '(-A --all-namespaces)'\*{-n,--namespaces}'[Namespaces (e.g. -n val1,val2,val3 | -n val1 -n val2 -n val3)]:NAMESPACES:_sequence __get_kubernetes_namespaces'
+        '--config-file[Config file path]:CONFIG_FILE:_files'
     )
 
     _arguments "${_arguments_options[@]}" $options
