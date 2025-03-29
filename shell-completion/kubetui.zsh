@@ -11,9 +11,9 @@ _kubetui() {
     typeset -a _arguments_options
 
     if is-at-least 5.2; then
-        _arguments_options=(-s -S -C)
+        _arguments_options=(-S)
     else
-        _arguments_options=(-s -C)
+        _arguments_options=()
     fi
 
     __kubetui_debug "\n========= starting completion logic =========="
