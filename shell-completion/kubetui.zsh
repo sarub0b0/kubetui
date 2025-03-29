@@ -21,21 +21,21 @@ _kubetui() {
 
     local options=(
         '(-s --split-direction)'{-s,--split-direction}'[Window split direction]:v|h:((v\:"Vertical" h\:"Horizontal"))'
-        '(-c --context)'{-c,--context}'[Context]:CONTEXT:__get_kubernetes_contexts'
+        '(-c --context)'{-c,--context}'[Context]:CONTEXT:__kubetui_get_kubernetes_contexts'
         '(-A --all-namespaces -n --namespaces)'{-A,--all-namespaces=-}'[Select all namespaces]:true|false:(true false)'
         '(-C --kubeconfig)'{-C,--kubeconfig}'[kubeconfig path]:KUBECONFIG:_files'
         '(-l --logging)'{-l,--logging}'[Logging]'
         '(-h --help)'{-h,--help}'[Print help]'
         '(-V --version)'{-V,--version}'[Print version]'
-        '(-A --all-namespaces)'\*{-n,--namespaces}'[Namespaces (e.g. -n val1,val2,val3 | -n val1 -n val2 -n val3)]:NAMESPACES:_sequence __get_kubernetes_namespaces'
+        '(-A --all-namespaces)'\*{-n,--namespaces}'[Namespaces (e.g. -n val1,val2,val3 | -n val1 -n val2 -n val3)]:NAMESPACES:_sequence __kubetui_get_kubernetes_namespaces'
         '--config-file[Config file path]:CONFIG_FILE:_files'
     )
 
     _arguments "${_arguments_options[@]}" $options
 }
 
-(( $+functions[__complete_command] )) ||
-__complete_command(){
+(( $+functions[__kubetui_complete_command] )) ||
+__kubetui_complete_command(){
     local truncated_words=("${=words[1,CURRENT]}")
     __kubetui_debug "Truncated words[*]: ${truncated_words[*]},"
 
@@ -55,13 +55,13 @@ __complete_command(){
     echo $cmd
 }
 
-(( $+functions[__get_kubernetes_resources] )) ||
-__get_kubernetes_resources() {
+(( $+functions[__kubetui_get_kubernetes_resources] )) ||
+__kubetui_get_kubernetes_resources() {
     local type=$1;
 
     __kubetui_debug "Getting ${type}s..."
 
-    local cmd=$(__complete_command "${type}")
+    local cmd=$(__kubetui_complete_command "${type}")
 
     local result=("${(@f)$(eval $cmd 2>/dev/null)}")
 
@@ -74,14 +74,14 @@ __get_kubernetes_resources() {
     fi
 }
 
-(( $+functions[__get_kubernetes_namespaces] )) ||
-__get_kubernetes_namespaces() {
-    __get_kubernetes_resources "namespace"
+(( $+functions[__kubetui_get_kubernetes_namespaces] )) ||
+__kubetui_get_kubernetes_namespaces() {
+    __kubetui_get_kubernetes_resources "namespace"
 }
 
-(( $+functions[__get_kubernetes_contexts] )) ||
-__get_kubernetes_contexts() {
-    __get_kubernetes_resources "context"
+(( $+functions[__kubetui_get_kubernetes_contexts] )) ||
+__kubetui_get_kubernetes_contexts() {
+    __kubetui_get_kubernetes_resources "context"
 }
 
 if [ "$funcstack[1]" = "_kubetui" ]; then
