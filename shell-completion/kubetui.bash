@@ -41,11 +41,11 @@ _kubetui() {
 		return 0
 		;;
 	-n | --namespaces)
-		COMPREPLY=($(compgen -W "$(__get_kubernetes_namespaces)" -- "${cur}"))
+		COMPREPLY=($(compgen -W "$(__kubetui_get_kubernetes_namespaces)" -- "${cur}"))
 		return 0
 		;;
 	-c | --context)
-		COMPREPLY=($(compgen -W "$(__get_kubernetes_contexts)" -- "${cur}"))
+		COMPREPLY=($(compgen -W "$(__kubetui_get_kubernetes_contexts)" -- "${cur}"))
 		return 0
 		;;
 	-C | --kubeconfig | --config-file)
@@ -59,7 +59,7 @@ _kubetui() {
 	return 0
 }
 
-__complete_command() {
+__kubetui_complete_command() {
 	local truncated_words=("${words[@]:0:$cword+1}")
 	__kubetui_debug "Truncated words[*]: '${truncated_words[*]}'"
 
@@ -79,12 +79,12 @@ __complete_command() {
 	echo $cmd
 }
 
-__get_kubernetes_resources() {
+__kubetui_get_kubernetes_resources() {
 	local type=$1
 
 	__kubetui_debug "Getting ${type}s..."
 
-	local cmd=$(__complete_command "${type}")
+	local cmd=$(__kubetui_complete_command "${type}")
 
 	local result="$(eval $cmd 2>/dev/null)"
 
@@ -93,12 +93,12 @@ __get_kubernetes_resources() {
 	echo "${result[*]}"
 }
 
-__get_kubernetes_namespaces() {
-	__get_kubernetes_resources "namespace"
+__kubetui_get_kubernetes_namespaces() {
+	__kubetui_get_kubernetes_resources "namespace"
 }
 
-__get_kubernetes_contexts() {
-	__get_kubernetes_resources "context"
+__kubetui_get_kubernetes_contexts() {
+	__kubetui_get_kubernetes_resources "context"
 }
 
 if [[ "${BASH_VERSINFO[0]}" -eq 4 && "${BASH_VERSINFO[1]}" -ge 4 || "${BASH_VERSINFO[0]}" -gt 4 ]]; then
