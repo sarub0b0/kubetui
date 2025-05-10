@@ -1,5 +1,7 @@
 #compdef kubetui
 
+autoload -Uz is-at-least
+
 __kubetui_debug() {
     local file="$KUBETUI_COMP_DEBUG_FILE"
     if [[ -n ${file} ]]; then
