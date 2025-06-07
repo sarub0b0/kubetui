@@ -29,6 +29,7 @@ impl App {
         let user_input = UserInput::new(tx_input.clone(), tx_shutdown.clone());
 
         kube_worker_config.pod_config = PodConfig::from(config.theme.clone());
+        kube_worker_config.pod_config.columns = cmd.pod_columns.columns;
         kube_worker_config.event_config = EventConfig::from(config.theme.clone());
         kube_worker_config.api_config = ApiConfig::from(config.theme.clone());
         kube_worker_config.apis_config = ApisConfig::from(config.theme.clone());
