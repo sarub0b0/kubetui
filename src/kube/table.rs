@@ -84,7 +84,7 @@ where
 {
     let table: Table = client.table_request(&path).await?;
 
-    let indexes = table.find_indexes(target_values);
+    let indexes = table.find_indexes(target_values)?;
 
     Ok(table
         .rows
