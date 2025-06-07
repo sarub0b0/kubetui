@@ -1,0 +1,170 @@
+use std::collections::HashMap;
+
+use anyhow::Result;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PodColumns {
+    pub columns: Vec<&'static str>,
+}
+
+impl PodColumns {
+    #[allow(dead_code)]
+    pub fn new(columns: impl IntoIterator<Item = &'static str>) -> Self {
+        Self {
+            columns: columns.into_iter().collect(),
+        }
+    }
+}
+
+const COLUMN_MAP: [(&str, &str); 9] = [
+    ("name", "Name"),
+    ("ready", "Ready"),
+    ("status", "Status"),
+    ("restarts", "Restarts"),
+    ("age", "Age"),
+    ("ip", "IP"),
+    ("node", "Node"),
+    ("nominatednode", "Nominated Node"),
+    ("readinessgates", "Readiness Gates"),
+];
+
+fn valid_columns() -> String {
+    COLUMN_MAP
+        .iter()
+        .map(|(k, _)| *k)
+        .collect::<Vec<&str>>()
+        .join(", ")
+}
+
+pub fn parse_pod_columns(input: &str) -> Result<PodColumns> {
+    if input.trim().is_empty() {
+        return Err(anyhow::anyhow!("Columns list must not be empty",));
+    }
+
+    if input == "full" {
+        return Ok(PodColumns {
+            columns: COLUMN_MAP.iter().map(|(_, v)| *v).collect::<Vec<&str>>(),
+        });
+    }
+
+    let column_map: HashMap<&str, &str> = COLUMN_MAP.into_iter().collect();
+
+    let mut result = Vec::new();
+
+    for column in input.split(',').map(str::trim) {
+        let normalized = normalize_column(column);
+
+        if let Some(&display_name) = column_map.get(normalized.as_str()) {
+            result.push(display_name);
+        } else {
+            return Err(anyhow::anyhow!(
+                "Invalid column name: {}. Valid options are: {}",
+                column,
+                valid_columns()
+            ));
+        }
+    }
+
+    if !result.contains(&"Name") {
+        result.insert(0, "Name");
+    }
+
+    Ok(PodColumns { columns: result })
+}
+
+fn normalize_column(column: &str) -> String {
+    column.to_lowercase().replace([' ', '_', '-'], "")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod parse_pod_columns {
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn 空文字列を渡すとパニックする() {
+            let input = "";
+            let result = parse_pod_columns(input);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn フルを渡すと全カラムを返す() {
+            let input = "full";
+            let actual = parse_pod_columns(input).unwrap();
+            let expected: Vec<String> = COLUMN_MAP.iter().map(|(_, v)| v.to_string()).collect();
+            assert_eq!(actual.columns, expected);
+        }
+
+        #[test]
+        fn カンマ区切りのカラム名を渡すと対応するカラム名を返す() {
+            let input = "name, ready, status";
+            let actual = parse_pod_columns(input).unwrap();
+            let expected = vec!["Name", "Ready", "Status"];
+            assert_eq!(actual.columns, expected);
+        }
+
+        #[test]
+        fn カラム名に空白が含まれていても正しく処理される() {
+            let input = "  name ,  ready , status ";
+            let actual = parse_pod_columns(input).unwrap();
+            let expected = vec!["Name", "Ready", "Status"];
+            assert_eq!(actual.columns, expected);
+        }
+
+        #[test]
+        fn アンダースコアやハイフンを含むカラム名も正しく処理される() {
+            let input = "name, nominated_node, readiness-gates";
+            let actual = parse_pod_columns(input).unwrap();
+            let expected = vec!["Name", "Nominated Node", "Readiness Gates"];
+            assert_eq!(actual.columns, expected);
+        }
+
+        #[test]
+        fn 無効なカラム名が含まれているとエラーを返す() {
+            let input = "name, invalid_column";
+            let result = parse_pod_columns(input);
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err().to_string(),
+                "Invalid column name: invalid_column. Valid options are: name, ready, status, restarts, age, ip, node, nominatednode, readinessgates"
+            );
+        }
+
+        #[test]
+        #[allow(non_snake_case)]
+        fn Nameカラムが常に含まれる() {
+            let input = "ready, status";
+            let actual = parse_pod_columns(input).unwrap();
+            assert!(actual.columns.contains(&"Name"));
+        }
+    }
+
+    mod normalize_column {
+        use super::*;
+
+        #[test]
+        fn 空白を削除して小文字に変換する() {
+            let name = "  Name  ";
+            let actual = normalize_column(name);
+            assert_eq!(actual, "name");
+        }
+
+        #[test]
+        fn アンダースコアを削除して小文字に変換する() {
+            let name = "Nominated_Node";
+            let actual = normalize_column(name);
+            assert_eq!(actual, "nominatednode");
+        }
+
+        #[test]
+        fn ハイフンを削除して小文字に変換する() {
+            let name = "Readiness-Gates";
+            let actual = normalize_column(name);
+            assert_eq!(actual, "readinessgates");
+        }
+    }
+}
