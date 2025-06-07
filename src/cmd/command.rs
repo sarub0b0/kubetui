@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use crate::{config::ConfigLoadOption, workers::kube::KubeWorkerConfig};
 
 use super::{
-    args::{AllNamespaces, SplitDirection},
+    args::{parse_pod_columns, AllNamespaces, PodColumns, SplitDirection},
     SubCommand,
 };
 
@@ -73,6 +73,14 @@ pub struct Command {
     /// Config file path
     #[arg(long, display_order = 1000)]
     pub config_file: Option<PathBuf>,
+
+    /// Comma-separated list of columns to show in pod table (e.g. name,status,ip). Use "full" to show all available columns.
+    #[arg(
+        long,
+        value_parser = parse_pod_columns,
+        default_value = "name,ready,status,age",
+        display_order = 1000)]
+    pub pod_columns: PodColumns,
 
     #[command(subcommand)]
     pub subcommand: Option<SubCommand>,
@@ -244,6 +252,49 @@ mod tests {
         fn namespaceと併用するとエラーを返す() {
             let cmd = Command::try_parse_from(["kubetui", "-A", "-n", "hoge"]);
             assert_eq!(cmd.unwrap_err().kind(), ErrorKind::ArgumentConflict)
+        }
+    }
+
+    mod pod_columns {
+        use pretty_assertions::assert_eq;
+
+        use crate::features::pod::kube::POD_DEFAULT_COLUMNS;
+
+        use super::*;
+
+        #[test]
+        fn デフォルトのカラムを設定する() {
+            let cmd = Command::try_parse_from(["kubetui"]).unwrap();
+            assert_eq!(cmd.pod_columns, PodColumns::new(POD_DEFAULT_COLUMNS));
+        }
+
+        #[test]
+        fn フルを設定すると全カラムを設定する() {
+            let cmd = Command::try_parse_from(["kubetui", "--pod-columns=full"]).unwrap();
+            assert_eq!(
+                cmd.pod_columns,
+                PodColumns::new([
+                    "Name",
+                    "Ready",
+                    "Status",
+                    "Restarts",
+                    "Age",
+                    "IP",
+                    "Node",
+                    "Nominated Node",
+                    "Readiness Gates"
+                ])
+            );
+        }
+
+        #[test]
+        fn カンマ区切りでカラムを指定できる() {
+            let cmd =
+                Command::try_parse_from(["kubetui", "--pod-columns=name,ready,status"]).unwrap();
+            assert_eq!(
+                cmd.pod_columns,
+                PodColumns::new(["Name", "Ready", "Status"])
+            );
         }
     }
 }
