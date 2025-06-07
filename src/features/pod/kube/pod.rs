@@ -19,9 +19,12 @@ use crate::{
     workers::kube::{message::Kube, SharedTargetNamespaces, Worker, WorkerResult},
 };
 
+pub const POD_DEFAULT_COLUMNS: [&str; 4] = ["Name", "Ready", "Status", "Age"];
+
 #[derive(Debug, Clone)]
 pub struct PodConfig {
     pub pod_highlight_rules: Vec<PodHighlightRule>,
+    pub columns: Vec<&'static str>,
 }
 
 impl Default for PodConfig {
@@ -37,6 +40,7 @@ impl Default for PodConfig {
                     style: Style::default().fg(Color::Red),
                 },
             ],
+            columns: POD_DEFAULT_COLUMNS.into_iter().collect(),
         }
     }
 }
@@ -99,18 +103,19 @@ impl PodPoller {
 
         let ok_only: Vec<KubeTableRow> = jobs?.into_iter().flatten().collect();
 
+        let mut display_columns: Vec<String> = self
+            .config
+            .columns
+            .iter()
+            .map(|col| col.to_uppercase())
+            .collect();
+
+        if namespaces.len() != 1 {
+            display_columns.insert(0, "NAMESPACE".to_string());
+        }
+
         let mut table = KubeTable {
-            header: if namespaces.len() == 1 {
-                ["NAME", "READY", "STATUS", "AGE"]
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect()
-            } else {
-                ["NAMESPACE", "NAME", "READY", "STATUS", "AGE"]
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect()
-            },
+            header: display_columns,
             ..Default::default()
         };
 
@@ -124,25 +129,38 @@ impl PodPoller {
         namespaces: &[String],
     ) -> Result<Vec<Vec<KubeTableRow>>> {
         let insert_ns = insert_ns(namespaces);
+
+        let name_index = self
+            .config
+            .columns
+            .iter()
+            .position(|&col| col == "Name")
+            .expect("Name column must be present in pod columns");
+
+        let status_index = self.config.columns.iter().position(|&col| col == "Status");
+
         try_join_all(namespaces.iter().map(|ns| {
             get_resource_per_namespace(
                 &self.kube_client,
                 format!("api/v1/namespaces/{}/{}", ns, "pods"),
-                &["Name", "Ready", "Status", "Age"],
+                self.config.columns.as_slice(),
                 move |row: &TableRow, indexes: &[usize]| {
                     let mut row: Vec<String> =
                         indexes.iter().map(|i| row.cells[*i].to_string()).collect();
 
-                    let name = row[0].clone();
+                    let name = row[name_index].clone();
 
-                    let status = row[2].as_str();
+                    let color = if let Some(index) = status_index {
+                        let status = row[index].as_str();
 
-                    let color = self
-                        .config
-                        .pod_highlight_rules
-                        .iter()
-                        .find(|rule| rule.status_regex.is_match(status))
-                        .map(|rule| style_to_ansi(rule.style));
+                        self.config
+                            .pod_highlight_rules
+                            .iter()
+                            .find(|rule| rule.status_regex.is_match(status))
+                            .map(|rule| style_to_ansi(rule.style))
+                    } else {
+                        None
+                    };
 
                     if insert_ns {
                         row.insert(0, ns.to_string())

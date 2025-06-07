@@ -114,6 +114,7 @@ impl From<ThemeConfig> for PodConfig {
                     style: hi.style.into(),
                 })
                 .collect(),
+            ..Default::default()
         }
     }
 }
