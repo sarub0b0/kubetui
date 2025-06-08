@@ -58,7 +58,7 @@ Kubetui offers the following features to help you monitor and manage your Kubern
 - **Pods List and Container Logs**:
   - View a list of pods and their container logs.
   - JSON logs display mode switching: toggle between pretty print and single-line display using the <kbd>f</kbd> or <kbd>p</kbd> keys.
-  - **(new) Customizable pod columns**  
+  - **(new) Customizable pod columns**: Use `--pod-columns` to control which columns are shown in the pod table view. Supports comma-separated lists or `full` to show all columns.
 - **ConfigMap and Secret Watching**: Monitor ConfigMaps and secrets, and decode their data.
 - **Network-related Resources**: Explore a list of network-related resources and their descriptions.
 - **Events Watching**: Stay updated with a real-time view of Kubernetes events.
