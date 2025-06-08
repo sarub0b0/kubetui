@@ -20,6 +20,7 @@ It provides an easy-to-use interface for developers and operators to access impo
   - [Using `cargo install`](#using-cargo-install)
   - [Downloading the binary](#downloading-the-binary)
 - [Usage](#usage)
+  - [Shell Completion](#shell-completion)
   - [Custom Configuration](#custom-configuration)
 - [Log Query](#log-query)
   - [Usage Example](#usage-example)
@@ -34,6 +35,7 @@ It provides an easy-to-use interface for developers and operators to access impo
   - [Table View](#table-view)
   - [Dialog](#dialog)
   - [Input Form](#input-form)
+  - [Container Logs View](#container-logs-view)
 - [Contributing](#contributing)
 - [License](#license)
 
