@@ -37,11 +37,15 @@ fn valid_columns() -> String {
 }
 
 pub fn parse_pod_columns(input: &str) -> Result<PodColumns> {
-    if input.trim().is_empty() {
+    let entries: Vec<&str> = input
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    if entries.is_empty() {
         return Err(anyhow::anyhow!("Columns list must not be empty",));
     }
-
-    let entries: Vec<&str> = input.split(',').map(str::trim).collect();
 
     let has_full = entries.iter().any(|e| normalize_column(e) == "full");
     if has_full && entries.len() > 1 {
@@ -169,6 +173,25 @@ mod tests {
             let actual = parse_pod_columns(input).unwrap();
             let expected: Vec<&str> = COLUMN_MAP.iter().map(|(_, v)| *v).collect();
             assert_eq!(actual.columns, expected);
+        }
+
+        #[test]
+        fn 空要素が含まれていても無視される() {
+            let input = "ready,,status";
+            let actual = parse_pod_columns(input).unwrap();
+            let expected = vec!["Name", "Ready", "Status"];
+            assert_eq!(actual.columns, expected);
+        }
+
+        #[test]
+        fn 空要素だけだとエラーになる() {
+            let input = ", , ";
+            let result = parse_pod_columns(input);
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err().to_string(),
+                "Columns list must not be empty"
+            );
         }
     }
 
