@@ -20,6 +20,7 @@ It provides an easy-to-use interface for developers and operators to access impo
   - [Using `cargo install`](#using-cargo-install)
   - [Downloading the binary](#downloading-the-binary)
 - [Usage](#usage)
+  - [Pod Column Customization](#pod-column-customization)
   - [Shell Completion](#shell-completion)
   - [Custom Configuration](#custom-configuration)
 - [Log Query](#log-query)
@@ -57,6 +58,7 @@ Kubetui offers the following features to help you monitor and manage your Kubern
 - **Pods List and Container Logs**:
   - View a list of pods and their container logs.
   - JSON logs display mode switching: toggle between pretty print and single-line display using the <kbd>f</kbd> or <kbd>p</kbd> keys.
+  - **(new) Customizable pod columns**  
 - **ConfigMap and Secret Watching**: Monitor ConfigMaps and secrets, and decode their data.
 - **Network-related Resources**: Explore a list of network-related resources and their descriptions.
 - **Events Watching**: Stay updated with a real-time view of Kubernetes events.
@@ -168,8 +170,24 @@ Options:
       --config-file <CONFIG_FILE>      Config file path
   -l, --logging                        Logging
   -n, --namespaces <NAMESPACES>        Namespaces (e.g. -n val1,val2,val3 | -n val1 -n val2 -n val3)
+      --pod-columns <POD_COLUMNS>      Comma-separated list of columns to show in pod table (e.g. name,status,ip). Use "full" to show all available columns [default: name,ready,status,age]
   -s, --split-direction <v|h>          Window split direction [default: v]
 ```
+
+### Pod Column Customization
+
+Use `--pod-columns` to customize the columns displayed in the pod table.
+
+- Specify columns using a comma-separated list:  
+  `--pod-columns=ready,status,age`
+
+- Use `full` to show all available columns:  
+  `--pod-columns=full`
+
+Notes:
+- The `Name` column is always included even if not specified.
+- The `full` keyword cannot be combined with other columns.
+
 
 ### Shell Completion
 
