@@ -107,4 +107,4 @@ else
 	complete -F _kubetui kubetui
 fi
 
-# ex: ts=4 sw=4 et filetype=sh
+# vim: ts=4 sw=4 sts=4 noet filetype=sh
