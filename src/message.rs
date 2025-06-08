@@ -49,6 +49,8 @@ macro_rules! panic_set_hook {
         let default_hook = panic::take_hook();
 
         panic::set_hook(Box::new(move |info| {
+            logger!(error, "{}", info);
+
             $t;
 
             default_hook(info);

@@ -164,11 +164,29 @@ impl Table {
             .position(|cd| cd.name == target)
     }
 
-    pub fn find_indexes(&self, targets: &[&str]) -> Vec<usize> {
-        targets
-            .iter()
-            .filter_map(|target| self.find_index(target))
-            .collect()
+    pub fn find_indexes(&self, targets: &[&str]) -> Result<Vec<usize>> {
+        let mut ret = Vec::with_capacity(targets.len());
+
+        for target in targets {
+            if let Some(index) = self.find_index(target) {
+                ret.push(index);
+            } else {
+                let cols = self
+                    .column_definitions
+                    .iter()
+                    .map(|cd| cd.name.as_str())
+                    .collect::<Vec<&str>>()
+                    .join(", ");
+
+                anyhow::bail!(
+                    "Column '{}' not found in table. Available columns: {}",
+                    target,
+                    cols
+                );
+            }
+        }
+
+        Ok(ret)
     }
 
     #[allow(dead_code)]
@@ -317,11 +335,30 @@ mod tests {
 
             let targets = vec!["A", "B", "C", "D"];
 
-            assert_eq!(table.find_indexes(&targets), vec![0, 1, 2, 3]);
+            assert_eq!(table.find_indexes(&targets).unwrap(), vec![0, 1, 2, 3]);
+        }
 
-            let targets = vec!["A", "B", "E"];
+        #[test]
+        fn indexes_with_error() {
+            let table = Table {
+                type_meta: Default::default(),
+                metadata: Default::default(),
+                column_definitions: vec![
+                    TableColumnDefinition {
+                        name: "A".to_string(),
+                        ..Default::default()
+                    },
+                    TableColumnDefinition {
+                        name: "B".to_string(),
+                        ..Default::default()
+                    },
+                ],
+                rows: Default::default(),
+            };
 
-            assert_eq!(table.find_indexes(&targets), vec![0, 1]);
+            let targets = vec!["A", "B", "C"];
+
+            assert!(table.find_indexes(&targets).is_err());
         }
     }
 

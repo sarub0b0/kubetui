@@ -340,7 +340,7 @@ async fn fetch_resource_per_namespace(
 ) -> Result<Vec<NetworkTableRow>> {
     let table = kind.fetch_table(client, ns).await?;
 
-    let indexes = table.find_indexes(target_columns);
+    let indexes = table.find_indexes(target_columns)?;
 
     let rows = table
         .rows

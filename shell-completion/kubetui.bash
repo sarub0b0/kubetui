@@ -14,6 +14,7 @@ __kubetui_options() {
 		"-c" "--context"
 		"-C" "--kubeconfig"
 		"--config-file"
+		"--pod-columns"
 		"-l" "--logging"
 		"-n" "--namespaces"
 		"-s" "--split-direction"
@@ -50,6 +51,10 @@ _kubetui() {
 		;;
 	-C | --kubeconfig | --config-file)
 		COMPREPLY=($(compgen -f "${cur}"))
+		return 0
+		;;
+	--pod-columns)
+		__kubetui_pod_columns "${cur}"
 		return 0
 		;;
 	esac
@@ -101,10 +106,91 @@ __kubetui_get_kubernetes_contexts() {
 	__kubetui_get_kubernetes_resources "context"
 }
 
+__kubetui_pod_columns() {
+	local cur="$1"
+
+	local all_values=(name ready status restarts age ip node nominatednode readinessgates full)
+
+	local old_ifs="$IFS"
+	IFS=',' read -ra used <<<"$cur"
+	IFS="$old_ifs"
+
+	local last=""
+	if [[ "$cur" == *, ]]; then
+		last=""
+	elif [[ ${#used[@]} -gt 0 ]]; then
+		last="${used[${#used[@]} - 1]}"
+	fi
+
+	for u in "${used[@]}"; do
+		[[ "$u" == "full" ]] && return 0
+	done
+
+	# すでに何か指定済みの場合、候補から full を除外
+	if [[ ${#used[@]} -gt 1 || "$cur" == *,* ]]; then
+		local filtered=()
+		for val in "${all_values[@]}"; do
+			[[ "$val" == "full" ]] && continue
+			filtered+=("$val")
+		done
+		all_values=("${filtered[@]}")
+	fi
+
+	local candidates=()
+	for val in "${all_values[@]}"; do
+		local found=false
+		for u in "${used[@]}"; do
+			[[ "$u" == "$val" ]] && {
+				found=true
+				break
+			}
+		done
+		! $found && candidates+=("$val")
+	done
+
+	COMPREPLY=($(compgen -W "${candidates[*]}" -- "$last"))
+
+	if [[ ${#used[@]} -gt 1 || "$cur" == *, ]]; then
+		__kubetui_debug "Used values: ${used[*]}, length: ${#used[@]}"
+		local -a prefix_parts
+		local last="${used[-1]}"
+		local exact_match=false
+		for v in "${all_values[@]}"; do
+			if [[ "$v" == "$last" ]]; then
+				exact_match=true
+				break
+			fi
+		done
+
+		if $exact_match; then
+			prefix_parts=("${used[@]}")
+			last=""
+		else
+			prefix_parts=("${used[@]:0:${#used[@]}-1}")
+			last="${used[-1]}"
+		fi
+
+		local old_ifs="$IFS"
+		IFS=,
+		local prefix="${prefix_parts[*]}"
+		IFS="$old_ifs"
+
+		__kubetui_debug "Prefix: '${prefix}'"
+		for i in "${!COMPREPLY[@]}"; do
+			if [[ -n "$prefix" ]]; then
+				COMPREPLY[$i]="${prefix},${COMPREPLY[$i]}"
+			fi
+		done
+
+		__kubetui_debug "Updated COMPREPLY: ${COMPREPLY[*]}"
+	fi
+
+}
+
 if [[ "${BASH_VERSINFO[0]}" -eq 4 && "${BASH_VERSINFO[1]}" -ge 4 || "${BASH_VERSINFO[0]}" -gt 4 ]]; then
 	complete -F _kubetui -o nosort kubetui
 else
 	complete -F _kubetui kubetui
 fi
 
-# ex: ts=4 sw=4 et filetype=sh
+# vim: ts=4 sw=4 sts=4 noet filetype=sh
