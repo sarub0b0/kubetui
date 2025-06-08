@@ -30,6 +30,7 @@ _kubetui() {
         '(-h --help)'{-h,--help}'[Print help]'
         '(-V --version)'{-V,--version}'[Print version]'
         '(-A --all-namespaces)'\*{-n,--namespaces}'[Namespaces (e.g. -n val1,val2,val3 | -n val1 -n val2 -n val3)]:NAMESPACES:_sequence __kubetui_get_kubernetes_namespaces'
+        '--pod-columns[Comma-separated list of columns to show in pod table (e.g. name,status,ip). Use "full" to show all available columns.]:POD_COLUMNS:_sequence __kubetui_pod_columns'
         '--config-file[Config file path]:CONFIG_FILE:_files'
     )
 
@@ -84,6 +85,74 @@ __kubetui_get_kubernetes_namespaces() {
 (( $+functions[__kubetui_get_kubernetes_contexts] )) ||
 __kubetui_get_kubernetes_contexts() {
     __kubetui_get_kubernetes_resources "context"
+}
+
+(( $+functions[__kubetui_pod_columns] )) ||
+__kubetui_pod_columns() {
+    local pod_columns_values=(
+        name
+        ready
+        status
+        restarts
+        age
+        ip
+        node
+        nominatednode
+        readinessgates
+    )
+
+    ## 入力済み値を取得（カンマで分割）
+    local cur="${words[CURRENT]##*,}"
+    local used=("${(s:,:)words[CURRENT]}")
+    local last_param="${used[-1]}"
+
+    __kubetui_debug "Current value: ${cur}"
+    __kubetui_debug "Used values: ${used[*]}, length: ${#used[@]}"
+    __kubetui_debug "Last parameter: ${last_param}"
+
+    # usedの要素数が0のときpod_columns_valuesにfullを追加
+    if [[ ${#used[@]} -eq 1 ]]; then
+        pod_columns_values+=("full")
+    fi
+
+    __kubetui_debug "Pod columns values: ${pod_columns_values[*]}"
+
+    # `full` が入っていたら補完を無効化
+    if [[ "${used[*]}" =~ "full" ]]; then
+        _message -e 'pod columns' "The 'full' option is already selected, no further columns can be added."
+        return
+    fi
+
+    # 候補にない値が入力さている場合は、処理を停止
+    if [[ -n "${cur}" && ! "${pod_columns_values[*]}" =~ "${cur}" ]]; then
+        _message -e 'pod columns' "Invalid pod column: '${cur}'."
+        return
+    fi
+
+    ## 補完候補リストから used を除外
+    local -a filtered_values=()
+    for val in "${pod_columns_values[@]}"; do
+        local is_used=false
+
+        for used_val in "${used[@]}"; do
+            if [[ "${val}" == "${used_val}" ]] && [[ "$last_param" != "${used_val}" ]]; then
+                is_used=true
+                break
+            fi
+        done
+
+        if [[ "${is_used}" == false ]]; then
+            filtered_values+=("${val}")
+        fi
+    done
+
+    __kubetui_debug "Filtered values: ${filtered_values[*]}"
+
+    if [[ -n "${filtered_values[*]}" ]]; then
+        _describe -t 'pod columns' 'pod columns' filtered_values
+    else
+        _message -e 'pod columns' "No more pod columns available to add."
+    fi
 }
 
 if [ "$funcstack[1]" = "_kubetui" ]; then
