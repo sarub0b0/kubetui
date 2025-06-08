@@ -41,7 +41,16 @@ pub fn parse_pod_columns(input: &str) -> Result<PodColumns> {
         return Err(anyhow::anyhow!("Columns list must not be empty",));
     }
 
-    if input == "full" {
+    let entries: Vec<&str> = input.split(',').map(str::trim).collect();
+
+    let has_full = entries.iter().any(|e| normalize_column(e) == "full");
+    if has_full && entries.len() > 1 {
+        return Err(anyhow::anyhow!(
+            "Cannot specify 'full' with other columns. Use 'full' alone to get all columns."
+        ));
+    }
+
+    if entries.len() == 1 && has_full {
         return Ok(PodColumns {
             columns: COLUMN_MAP.iter().map(|(_, v)| *v).collect::<Vec<&str>>(),
         });
@@ -51,7 +60,7 @@ pub fn parse_pod_columns(input: &str) -> Result<PodColumns> {
 
     let mut result = Vec::new();
 
-    for column in input.split(',').map(str::trim) {
+    for column in entries {
         let normalized = normalize_column(column);
 
         if let Some(&display_name) = column_map.get(normalized.as_str()) {
@@ -140,6 +149,26 @@ mod tests {
             let input = "ready, status";
             let actual = parse_pod_columns(input).unwrap();
             assert!(actual.columns.contains(&"Name"));
+        }
+
+        #[test]
+        fn fullと他のカラムを同時に指定するとエラー() {
+            let input = "full, ready";
+            let result = parse_pod_columns(input);
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err().to_string(),
+                "Cannot specify 'full' with other columns. Use 'full' alone to get all columns."
+            );
+        }
+
+        #[test]
+        #[allow(non_snake_case)]
+        fn full単体ならOK() {
+            let input = "full";
+            let actual = parse_pod_columns(input).unwrap();
+            let expected: Vec<&str> = COLUMN_MAP.iter().map(|(_, v)| *v).collect();
+            assert_eq!(actual.columns, expected);
         }
     }
 
