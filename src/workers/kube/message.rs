@@ -2,10 +2,14 @@ use anyhow::Result;
 
 use crate::{
     features::{
-        api_resources::message::ApiMessage, config::message::ConfigMessage,
-        context::message::ContextMessage, get::message::GetMessage,
-        namespace::message::NamespaceMessage, network::message::NetworkMessage,
-        pod::message::LogMessage, yaml::message::YamlMessage,
+        api_resources::message::ApiMessage,
+        config::message::ConfigMessage,
+        context::message::ContextMessage,
+        get::message::GetMessage,
+        namespace::message::NamespaceMessage,
+        network::message::NetworkMessage,
+        pod::message::{LogMessage, PodColumnsMessage},
+        yaml::message::YamlMessage,
     },
     kube::table::KubeTable,
     message::Message,
@@ -25,6 +29,7 @@ pub enum Kube {
     Event(Result<Vec<String>>),
     Namespace(NamespaceMessage),
     Pod(Result<KubeTable>),
+    PodColumns(PodColumnsMessage),
     Log(LogMessage),
     Config(ConfigMessage),
     Network(NetworkMessage),

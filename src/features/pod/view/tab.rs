@@ -16,11 +16,14 @@ use crate::{
     },
 };
 
-use super::widgets::{log_query_help_widget, log_query_widget, log_widget, pod_widget};
+use super::widgets::{
+    log_query_help_widget, log_query_widget, log_widget, pod_columns_dialog, pod_widget,
+};
 
 pub struct PodTab {
     pub tab: Tab<'static>,
     pub log_query_help_dialog: Widget<'static>,
+    pub pod_columns_dialog: Widget<'static>,
 }
 
 impl PodTab {
@@ -31,6 +34,7 @@ impl PodTab {
         split_direction: Direction,
         namespaces: Rc<RefCell<Namespace>>,
         theme: WidgetThemeConfig,
+        pod_columns: Vec<&'static str>,
     ) -> Self {
         let pod_widget = pod_widget(tx, theme.clone());
         let log_query_widget = log_query_widget(tx, namespaces, theme.clone());
@@ -51,6 +55,7 @@ impl PodTab {
         Self {
             tab,
             log_query_help_dialog: log_query_help_widget,
+            pod_columns_dialog: pod_columns_dialog(tx.clone(), &pod_columns),
         }
     }
 }

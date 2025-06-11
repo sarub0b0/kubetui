@@ -16,7 +16,7 @@ impl PodColumns {
     }
 }
 
-const COLUMN_MAP: [(&str, &str); 9] = [
+pub const POD_COLUMN_MAP: [(&str, &str); 9] = [
     ("name", "Name"),
     ("ready", "Ready"),
     ("status", "Status"),
@@ -29,7 +29,7 @@ const COLUMN_MAP: [(&str, &str); 9] = [
 ];
 
 fn valid_columns() -> String {
-    COLUMN_MAP
+    POD_COLUMN_MAP
         .iter()
         .map(|(k, _)| *k)
         .collect::<Vec<&str>>()
@@ -56,11 +56,14 @@ pub fn parse_pod_columns(input: &str) -> Result<PodColumns> {
 
     if entries.len() == 1 && has_full {
         return Ok(PodColumns {
-            columns: COLUMN_MAP.iter().map(|(_, v)| *v).collect::<Vec<&str>>(),
+            columns: POD_COLUMN_MAP
+                .iter()
+                .map(|(_, v)| *v)
+                .collect::<Vec<&str>>(),
         });
     }
 
-    let column_map: HashMap<&str, &str> = COLUMN_MAP.into_iter().collect();
+    let column_map: HashMap<&str, &str> = POD_COLUMN_MAP.into_iter().collect();
 
     let mut result = Vec::new();
 
@@ -108,7 +111,7 @@ mod tests {
         fn フルを渡すと全カラムを返す() {
             let input = "full";
             let actual = parse_pod_columns(input).unwrap();
-            let expected: Vec<String> = COLUMN_MAP.iter().map(|(_, v)| v.to_string()).collect();
+            let expected: Vec<String> = POD_COLUMN_MAP.iter().map(|(_, v)| v.to_string()).collect();
             assert_eq!(actual.columns, expected);
         }
 
@@ -171,7 +174,7 @@ mod tests {
         fn full単体ならOK() {
             let input = "full";
             let actual = parse_pod_columns(input).unwrap();
-            let expected: Vec<&str> = COLUMN_MAP.iter().map(|(_, v)| *v).collect();
+            let expected: Vec<&str> = POD_COLUMN_MAP.iter().map(|(_, v)| *v).collect();
             assert_eq!(actual.columns, expected);
         }
 

@@ -13,6 +13,7 @@ use tokio::{
 };
 
 use crate::{
+    cmd::POD_COLUMN_MAP,
     features::{
         api_resources::{
             kube::{ApiConfig, ApiPoller, ApiResource, ApiResources, SharedApiResources},
@@ -32,7 +33,7 @@ use crate::{
         },
         pod::{
             kube::{LogConfig, LogWorker, PodConfig, PodPoller},
-            message::LogMessage,
+            message::{LogMessage, PodColumnsMessage, PodColumnsRequest, PodColumnsResponse},
         },
         yaml::{
             kube::{FetchResourceList, YamlWorker},
@@ -60,6 +61,8 @@ pub type TargetApiResources = Vec<ApiResource>;
 pub type SharedTargetApiResources = Arc<RwLock<TargetApiResources>>;
 
 pub type StyledTargetApiResources = Vec<StyledApiResource>;
+
+pub type SharedPodColumns = Arc<RwLock<Vec<&'static str>>>;
 
 /// APIタブのダイアログで表示されるAPIリソースのスタイル設定
 #[derive(Debug, Clone)]
@@ -230,6 +233,7 @@ impl KubeController {
             let shared_target_namespaces = Arc::new(RwLock::new(target_namespaces.to_vec()));
             let shared_target_api_resources = Arc::new(RwLock::new(target_api_resources.to_vec()));
             let shared_api_resources = ApiResources::shared();
+            let shared_pod_columns = Arc::new(RwLock::new(pod_config.columns.clone()));
 
             let contexts = kubeconfig
                 .contexts
@@ -245,6 +249,7 @@ impl KubeController {
                 contexts,
                 shared_target_api_resources.clone(),
                 shared_api_resources.clone(),
+                shared_pod_columns.clone(),
                 apis_config.clone(),
                 yaml_config.clone(),
             )
@@ -253,6 +258,7 @@ impl KubeController {
             let pod_handle = PodPoller::new(
                 tx.clone(),
                 shared_target_namespaces.clone(),
+                shared_pod_columns.clone(),
                 client.clone(),
                 pod_config.clone(),
             )
@@ -347,6 +353,7 @@ struct EventController {
     contexts: Vec<String>,
     shared_target_api_resources: SharedTargetApiResources,
     shared_api_resources: SharedApiResources,
+    shared_pod_columns: SharedPodColumns,
     apis_config: ApisConfig,
     yaml_config: YamlConfig,
 }
@@ -360,6 +367,7 @@ impl EventController {
         contexts: Vec<String>,
         shared_target_api_resources: SharedTargetApiResources,
         shared_api_resources: SharedApiResources,
+        shared_pod_columns: SharedPodColumns,
         apis_config: ApisConfig,
         yaml_config: YamlConfig,
     ) -> Self {
@@ -371,6 +379,7 @@ impl EventController {
             contexts,
             shared_target_api_resources,
             shared_api_resources,
+            shared_pod_columns,
             apis_config,
             yaml_config,
         }
@@ -415,6 +424,7 @@ impl Worker for EventController {
             contexts,
             shared_target_api_resources,
             shared_api_resources,
+            shared_pod_columns,
             apis_config,
             yaml_config,
         } = self;
@@ -470,6 +480,29 @@ impl Worker for EventController {
                                 .expect("Failed to send NamespaceResponse:Set");
                         }
                     },
+
+                    Kube::PodColumns(PodColumnsMessage::Request(req)) => {
+                        match req {
+                            PodColumnsRequest::Get => {
+                                tx.send(
+                                    PodColumnsMessage::Response(PodColumnsResponse {
+                                        columns: Ok(POD_COLUMN_MAP
+                                            .iter()
+                                            .map(|(k, _)| k.to_uppercase())
+                                            .collect()),
+                                    })
+                                    .into(),
+                                )
+                                .expect("Failed to send PodColumnsResponse::Get");
+                            }
+                            PodColumnsRequest::Set(columns) => {
+                                let mut pod_columns = shared_pod_columns.write().await;
+                                *pod_columns = columns;
+
+                                logger!(info, "Pod columns updated: {:#?}", pod_columns);
+                            }
+                        };
+                    }
 
                     Kube::Log(LogMessage::Request(req)) => {
                         if let Some(handler) = log_handler {

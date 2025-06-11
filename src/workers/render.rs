@@ -31,6 +31,7 @@ pub struct Render {
     tx_shutdown: Sender<Result<()>>,
     direction: Direction,
     theme: ThemeConfig,
+    pod_columns: Vec<&'static str>,
 }
 
 impl Render {
@@ -40,6 +41,7 @@ impl Render {
         tx_shutdown: Sender<Result<()>>,
         direction: Direction,
         theme: ThemeConfig,
+        pod_columns: Vec<&'static str>,
     ) -> Self {
         Self {
             direction,
@@ -47,6 +49,7 @@ impl Render {
             rx,
             tx_shutdown,
             theme,
+            pod_columns,
         }
     }
 
@@ -86,6 +89,7 @@ impl Render {
             context.clone(),
             namespace.clone(),
             self.theme.clone(),
+            self.pod_columns.clone(),
         )
         .build();
 

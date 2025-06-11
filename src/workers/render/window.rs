@@ -63,6 +63,7 @@ pub struct WindowInit {
     context: Rc<RefCell<Context>>,
     namespaces: Rc<RefCell<Namespace>>,
     theme: ThemeConfig,
+    pod_columns: Vec<&'static str>,
 }
 
 impl WindowInit {
@@ -72,6 +73,7 @@ impl WindowInit {
         context: Rc<RefCell<Context>>,
         namespaces: Rc<RefCell<Namespace>>,
         theme: ThemeConfig,
+        pod_columns: Vec<&'static str>,
     ) -> Self {
         Self {
             split_mode,
@@ -79,6 +81,7 @@ impl WindowInit {
             context,
             namespaces,
             theme,
+            pod_columns,
         }
     }
 
@@ -190,6 +193,7 @@ impl WindowInit {
         let PodTab {
             tab: pod_tab,
             log_query_help_dialog,
+            pod_columns_dialog,
         } = PodTab::new(
             "Pod",
             &self.tx,
@@ -197,6 +201,7 @@ impl WindowInit {
             self.split_mode,
             self.namespaces.clone(),
             self.theme.component.clone(),
+            self.pod_columns.clone(),
         );
 
         let ConfigTab { tab: config_tab } = ConfigTab::new(
@@ -272,6 +277,7 @@ impl WindowInit {
             yaml_not_found_dialog,
             help_dialog,
             log_query_help_dialog,
+            pod_columns_dialog,
             yaml_dialog,
         ];
 
