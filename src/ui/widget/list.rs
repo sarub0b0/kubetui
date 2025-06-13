@@ -25,7 +25,7 @@ mod inner_item {
     use crate::ui::widget::{line::convert_line_to_styled_line, LiteralItem};
 
     use super::Item;
-    use ratatui::widgets::ListItem;
+    use ratatui::widgets::{ListItem, ListState};
 
     #[derive(Debug, Default)]
     pub struct InnerItem<'a> {
@@ -64,6 +64,34 @@ mod inner_item {
 
         pub fn is_empty(&self) -> bool {
             self.items.is_empty()
+        }
+
+        pub fn move_up(&mut self, state: &mut ListState) {
+            let Some(selected) = state.selected() else {
+                return;
+            };
+
+            if selected == 0 || self.items.len() <= selected || self.items.is_empty() {
+                return;
+            }
+
+            self.items.swap(selected, selected - 1);
+            self.list_item.swap(selected, selected - 1);
+            state.select(Some(selected - 1));
+        }
+
+        pub fn move_down(&mut self, state: &mut ListState) {
+            let Some(selected) = state.selected() else {
+                return;
+            };
+
+            if selected >= self.items.len().saturating_sub(1) || self.items.is_empty() {
+                return;
+            }
+
+            self.items.swap(selected, selected + 1);
+            self.list_item.swap(selected, selected + 1);
+            state.select(Some(selected + 1));
         }
     }
 }
@@ -234,6 +262,14 @@ impl<'a> List<'a> {
         if shown_item_len < self.showable_height() {
             *self.state.offset_mut() = self.max_offset();
         }
+    }
+
+    pub fn move_up(&mut self) {
+        self.items.move_up(&mut self.state);
+    }
+
+    pub fn move_down(&mut self) {
+        self.items.move_down(&mut self.state);
     }
 }
 

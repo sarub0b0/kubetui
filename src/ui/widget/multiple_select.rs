@@ -14,8 +14,9 @@ use ratatui::{
 
 use crate::{
     define_callback,
+    message::UserEvent,
     ui::{
-        event::EventResult,
+        event::{Callback, EventResult},
         util::{key_event_to_code, RectContainsPoint},
         widget::{Item, LiteralItem, RenderTrait, SelectedItem, WidgetBase, WidgetTrait},
     },
@@ -47,6 +48,7 @@ pub struct MultipleSelectBuilder {
     filter_form: FilterForm,
     theme: MultipleSelectTheme,
     block_injection: Option<RenderBlockInjection>,
+    actions: Vec<(UserEvent, Callback)>,
 }
 
 #[allow(dead_code)]
@@ -84,6 +86,15 @@ impl MultipleSelectBuilder {
         self
     }
 
+    pub fn action<F, E>(mut self, ev: E, cb: F) -> Self
+    where
+        E: Into<UserEvent>,
+        F: Into<Callback>,
+    {
+        self.actions.push((ev.into(), cb.into()));
+        self
+    }
+
     pub fn build(self) -> MultipleSelect<'static> {
         let layout = Layout::default()
             .direction(Direction::Vertical)
@@ -101,6 +112,7 @@ impl MultipleSelectBuilder {
             theme: self.theme,
             layout,
             block_injection: self.block_injection,
+            actions: self.actions,
             inner_chunks: Rc::new([]),
             ..Default::default()
         }
@@ -122,6 +134,7 @@ pub struct MultipleSelect<'a> {
     chunk: Rect,
     inner_chunks: Rc<[Rect]>,
     block_injection: Option<RenderBlockInjection>,
+    actions: Vec<(UserEvent, Callback)>,
 }
 
 impl Default for MultipleSelect<'_> {
@@ -136,6 +149,7 @@ impl Default for MultipleSelect<'_> {
             chunk: Default::default(),
             inner_chunks: Rc::new([Rect::default()]),
             block_injection: Default::default(),
+            actions: Default::default(),
         }
     }
 }
@@ -163,6 +177,11 @@ impl RenderTrait for MultipleSelect<'_> {
         self.select_form.render(f);
     }
 }
+impl<'a> MultipleSelect<'a> {
+    pub fn select_form_mut(&mut self) -> &mut SelectForm<'a> {
+        &mut self.select_form
+    }
+}
 
 // split [InputForm, SelectForms]
 // ---------------------
@@ -176,6 +195,10 @@ impl RenderTrait for MultipleSelect<'_> {
 impl MultipleSelect<'_> {
     pub fn builder() -> MultipleSelectBuilder {
         MultipleSelectBuilder::default()
+    }
+
+    pub fn select_form(&self) -> &SelectForm<'_> {
+        &self.select_form
     }
 
     fn clear_filter(&mut self) {
@@ -205,6 +228,20 @@ impl MultipleSelect<'_> {
 
     pub fn clear_mouse_over(&mut self) {
         self.select_form.clear_mouse_over();
+    }
+
+    // pub fn move_up(&mut self) {
+    //     self.select_form.move_up();
+    // }
+    //
+    // pub fn move_down(&mut self) {
+    //     self.select_form.move_down();
+    // }
+    //
+    fn match_action(&self, ev: UserEvent) -> Option<&Callback> {
+        self.actions
+            .iter()
+            .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb) } else { None })
     }
 }
 
@@ -286,7 +323,13 @@ impl WidgetTrait for MultipleSelect<'_> {
                     self.toggle_select_unselect();
                     ret
                 }
-                _ => self.select_form.on_key_event(ev),
+                _ => {
+                    if let Some(cb) = self.match_action(UserEvent::Key(ev)) {
+                        return EventResult::Callback(cb.clone());
+                    } else {
+                        self.select_form.on_key_event(ev)
+                    }
+                }
             },
             _ => {
                 self.select_form.activate_form_by_index(0);

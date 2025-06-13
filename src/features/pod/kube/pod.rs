@@ -16,7 +16,9 @@ use crate::{
     },
     message::Message,
     ui::widget::ansi_color::style_to_ansi,
-    workers::kube::{message::Kube, SharedTargetNamespaces, Worker, WorkerResult},
+    workers::kube::{
+        message::Kube, SharedPodColumns, SharedTargetNamespaces, Worker, WorkerResult,
+    },
 };
 
 pub const POD_DEFAULT_COLUMNS: [&str; 4] = ["Name", "Ready", "Status", "Age"];
@@ -55,6 +57,7 @@ pub struct PodHighlightRule {
 pub struct PodPoller {
     tx: Sender<Message>,
     shared_target_namespaces: SharedTargetNamespaces,
+    shared_pod_columns: SharedPodColumns,
     kube_client: KubeClient,
     config: PodConfig,
 }
@@ -63,12 +66,14 @@ impl PodPoller {
     pub fn new(
         tx: Sender<Message>,
         shared_target_namespaces: SharedTargetNamespaces,
+        shared_pod_columns: SharedPodColumns,
         kube_client: KubeClient,
         config: PodConfig,
     ) -> Self {
         Self {
             tx,
             shared_target_namespaces,
+            shared_pod_columns,
             kube_client,
             config,
         }
@@ -98,17 +103,16 @@ impl Worker for PodPoller {
 impl PodPoller {
     async fn get_pod_info(&self) -> Result<KubeTable> {
         let namespaces = self.shared_target_namespaces.read().await;
+        let pod_columns = self.shared_pod_columns.read().await;
 
-        let jobs = self.get_pods_per_namespace(&namespaces).await;
+        let jobs = self
+            .get_pods_per_namespace(&namespaces, pod_columns.as_slice())
+            .await;
 
         let ok_only: Vec<KubeTableRow> = jobs?.into_iter().flatten().collect();
 
-        let mut display_columns: Vec<String> = self
-            .config
-            .columns
-            .iter()
-            .map(|col| col.to_uppercase())
-            .collect();
+        let mut display_columns: Vec<String> =
+            pod_columns.iter().map(|col| col.to_uppercase()).collect();
 
         if namespaces.len() != 1 {
             display_columns.insert(0, "NAMESPACE".to_string());
@@ -127,23 +131,22 @@ impl PodPoller {
     async fn get_pods_per_namespace(
         &self,
         namespaces: &[String],
+        pod_columns: &[&'static str],
     ) -> Result<Vec<Vec<KubeTableRow>>> {
         let insert_ns = insert_ns(namespaces);
 
-        let name_index = self
-            .config
-            .columns
+        let name_index = pod_columns
             .iter()
             .position(|&col| col == "Name")
             .expect("Name column must be present in pod columns");
 
-        let status_index = self.config.columns.iter().position(|&col| col == "Status");
+        let status_index = pod_columns.iter().position(|&col| col == "Status");
 
         try_join_all(namespaces.iter().map(|ns| {
             get_resource_per_namespace(
                 &self.kube_client,
                 format!("api/v1/namespaces/{}/{}", ns, "pods"),
-                self.config.columns.as_slice(),
+                pod_columns,
                 move |row: &TableRow, indexes: &[usize]| {
                     let mut row: Vec<String> =
                         indexes.iter().map(|i| row.cells[*i].to_string()).collect();

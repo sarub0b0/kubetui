@@ -9,16 +9,16 @@ use crate::{
         component_id::{
             API_DIALOG_ID, API_WIDGET_ID, CONFIG_RAW_DATA_WIDGET_ID, CONFIG_WIDGET_ID,
             CONTEXT_DIALOG_ID, EVENT_WIDGET_ID, MULTIPLE_NAMESPACES_DIALOG_ID,
-            NETWORK_DESCRIPTION_WIDGET_ID, NETWORK_WIDGET_ID, POD_LOG_WIDGET_ID, POD_WIDGET_ID,
-            SINGLE_NAMESPACE_DIALOG_ID, YAML_DIALOG_ID, YAML_KIND_DIALOG_ID, YAML_NAME_DIALOG_ID,
-            YAML_NOT_FOUND_DIALOG_ID, YAML_WIDGET_ID,
+            NETWORK_DESCRIPTION_WIDGET_ID, NETWORK_WIDGET_ID, POD_COLUMNS_DIALOG_ID,
+            POD_LOG_WIDGET_ID, POD_WIDGET_ID, SINGLE_NAMESPACE_DIALOG_ID, YAML_DIALOG_ID,
+            YAML_KIND_DIALOG_ID, YAML_NAME_DIALOG_ID, YAML_NOT_FOUND_DIALOG_ID, YAML_WIDGET_ID,
         },
         config::message::ConfigMessage,
         context::message::{ContextMessage, ContextResponse},
         get::message::{GetMessage, GetResponse},
         namespace::message::{NamespaceMessage, NamespaceResponse},
         network::message::{NetworkMessage, NetworkResponse},
-        pod::message::LogMessage,
+        pod::message::{LogMessage, PodColumnsMessage, PodColumnsResponse},
         yaml::message::{YamlMessage, YamlResourceListItem, YamlResponse},
     },
     kube::{
@@ -190,6 +190,24 @@ pub fn update_contents(
         Kube::Pod(pods_table) => {
             update_widget_item_for_table(window, POD_WIDGET_ID, pods_table);
         }
+
+        Kube::PodColumns(PodColumnsMessage::Response(res)) => match res.columns {
+            Ok(columns) => {
+                window
+                    .find_widget_mut(POD_COLUMNS_DIALOG_ID)
+                    .update_widget_item(Item::Array(
+                        columns.into_iter().map(LiteralItem::from).collect(),
+                    ));
+            }
+
+            Err(e) => {
+                let err = error_lines!(e);
+
+                window
+                    .find_widget_mut(POD_COLUMNS_DIALOG_ID)
+                    .update_widget_item(Item::Array(err.to_vec()));
+            }
+        },
 
         Kube::Log(LogMessage::Response(res)) => {
             let widget = window.find_widget_mut(POD_LOG_WIDGET_ID);

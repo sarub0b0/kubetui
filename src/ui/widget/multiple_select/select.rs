@@ -173,6 +173,14 @@ impl<'a> SelectForm<'a> {
         SelectFormBuilder::default()
     }
 
+    pub fn selected_widget(&self) -> &List<'a> {
+        &self.selected_widget
+    }
+
+    pub fn selected_widget_mut(&mut self) -> &mut List<'a> {
+        &mut self.selected_widget
+    }
+
     fn chunks_and_arrow(&self) -> ([Rect; 3], String) {
         match self.direction {
             Direction::Horizontal => {
