@@ -3,10 +3,10 @@ use clap::Parser;
 use ratatui::layout::Direction;
 use std::path::PathBuf;
 
-use crate::{config::ConfigLoadOption, workers::kube::KubeWorkerConfig};
+use crate::{config::ConfigLoadOption, features::pod::PodColumns, workers::kube::KubeWorkerConfig};
 
 use super::{
-    args::{parse_pod_columns, AllNamespaces, PodColumns, SplitDirection},
+    args::{parse_pod_columns, AllNamespaces, SplitDirection},
     SubCommand,
 };
 
@@ -258,14 +258,24 @@ mod tests {
     mod pod_columns {
         use pretty_assertions::assert_eq;
 
-        use crate::features::pod::kube::POD_DEFAULT_COLUMNS;
+        use crate::features::pod::PodColumn;
 
         use super::*;
 
         #[test]
         fn デフォルトのカラムを設定する() {
             let cmd = Command::try_parse_from(["kubetui"]).unwrap();
-            assert_eq!(cmd.pod_columns, PodColumns::new(POD_DEFAULT_COLUMNS));
+            assert_eq!(
+                cmd.pod_columns,
+                PodColumns {
+                    columns: vec![
+                        PodColumn::Name,
+                        PodColumn::Ready,
+                        PodColumn::Status,
+                        PodColumn::Age
+                    ]
+                }
+            );
         }
 
         #[test]
@@ -274,15 +284,15 @@ mod tests {
             assert_eq!(
                 cmd.pod_columns,
                 PodColumns::new([
-                    "Name",
-                    "Ready",
-                    "Status",
-                    "Restarts",
-                    "Age",
-                    "IP",
-                    "Node",
-                    "Nominated Node",
-                    "Readiness Gates"
+                    PodColumn::Name,
+                    PodColumn::Ready,
+                    PodColumn::Status,
+                    PodColumn::Restarts,
+                    PodColumn::Age,
+                    PodColumn::IP,
+                    PodColumn::Node,
+                    PodColumn::NominatedNode,
+                    PodColumn::ReadinessGates
                 ])
             );
         }
@@ -293,7 +303,7 @@ mod tests {
                 Command::try_parse_from(["kubetui", "--pod-columns=name,ready,status"]).unwrap();
             assert_eq!(
                 cmd.pod_columns,
-                PodColumns::new(["Name", "Ready", "Status"])
+                PodColumns::new([PodColumn::Name, PodColumn::Ready, PodColumn::Status])
             );
         }
     }
