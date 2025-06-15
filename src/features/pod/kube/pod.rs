@@ -9,6 +9,7 @@ use ratatui::style::{Color, Style};
 use regex::Regex;
 
 use crate::{
+    features::pod::{PodColumn, PodColumns},
     kube::{
         apis::v1_table::TableRow,
         table::{get_resource_per_namespace, insert_ns, KubeTable, KubeTableRow},
@@ -19,12 +20,10 @@ use crate::{
     workers::kube::{message::Kube, SharedTargetNamespaces, Worker, WorkerResult},
 };
 
-pub const POD_DEFAULT_COLUMNS: [&str; 4] = ["Name", "Ready", "Status", "Age"];
-
 #[derive(Debug, Clone)]
 pub struct PodConfig {
     pub pod_highlight_rules: Vec<PodHighlightRule>,
-    pub columns: Vec<&'static str>,
+    pub columns: PodColumns,
 }
 
 impl Default for PodConfig {
@@ -40,7 +39,7 @@ impl Default for PodConfig {
                     style: Style::default().fg(Color::Red),
                 },
             ],
-            columns: POD_DEFAULT_COLUMNS.into_iter().collect(),
+            columns: PodColumns::default(),
         }
     }
 }
@@ -106,8 +105,9 @@ impl PodPoller {
         let mut display_columns: Vec<String> = self
             .config
             .columns
+            .columns
             .iter()
-            .map(|col| col.to_uppercase())
+            .map(|col| col.display().to_string())
             .collect();
 
         if namespaces.len() != 1 {
@@ -133,17 +133,31 @@ impl PodPoller {
         let name_index = self
             .config
             .columns
+            .columns
             .iter()
-            .position(|&col| col == "Name")
+            .position(|&col| col == PodColumn::Name)
             .expect("Name column must be present in pod columns");
 
-        let status_index = self.config.columns.iter().position(|&col| col == "Status");
+        let status_index = self
+            .config
+            .columns
+            .columns
+            .iter()
+            .position(|&col| col == PodColumn::Status);
+
+        let columns = self
+            .config
+            .columns
+            .columns
+            .iter()
+            .map(|col| col.as_str())
+            .collect::<Vec<_>>();
 
         try_join_all(namespaces.iter().map(|ns| {
             get_resource_per_namespace(
                 &self.kube_client,
                 format!("api/v1/namespaces/{}/{}", ns, "pods"),
-                self.config.columns.as_slice(),
+                &columns,
                 move |row: &TableRow, indexes: &[usize]| {
                     let mut row: Vec<String> =
                         indexes.iter().map(|i| row.cells[*i].to_string()).collect();
