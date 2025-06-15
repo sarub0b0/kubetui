@@ -17,10 +17,12 @@ mod widget;
 mod yaml;
 
 use serde::{Deserialize, Serialize};
+use strum::IntoEnumIterator as _;
 
 use crate::features::api_resources::kube::ApiConfig;
 use crate::features::event::kube::{EventConfig, EventHighlightRule};
 use crate::features::pod::kube::{PodConfig, PodHighlightRule};
+use crate::features::pod::{PodColumn, PodColumns};
 use crate::ui::dialog::DialogTheme;
 use crate::ui::{HeaderTheme, TabTheme};
 use crate::workers::kube::{ApisConfig, YamlConfig};
@@ -114,7 +116,11 @@ impl From<ThemeConfig> for PodConfig {
                     style: hi.style.into(),
                 })
                 .collect(),
-            ..Default::default()
+            default_columns: theme.pod.default_columns.map(|columns| {
+                let columns = columns.into_iter().map(|col| col.0).collect::<Vec<_>>();
+
+                PodColumns::new(PodColumn::iter().filter(|c| columns.contains(c)))
+            }),
         }
     }
 }

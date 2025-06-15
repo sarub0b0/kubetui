@@ -5,6 +5,7 @@ mod styled_graphemes;
 mod wrap;
 
 mod base;
+mod check_list;
 mod input;
 mod list;
 pub mod multiple_select;
@@ -13,6 +14,7 @@ pub mod table;
 mod text;
 
 pub use base::*;
+pub use check_list::*;
 pub use clear::*;
 pub use input::*;
 pub use list::*;
@@ -93,6 +95,14 @@ impl From<Vec<String>> for TableItem {
     }
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct CheckListItem {
+    pub label: String,
+    pub checked: bool,
+    pub required: bool,
+    pub metadata: Option<BTreeMap<String, String>>,
+}
+
 #[derive(Debug, Clone)]
 pub enum Item {
     Single(LiteralItem),
@@ -146,6 +156,12 @@ pub enum SelectedItem {
         item: Vec<String>,
     },
     Array(Vec<LiteralItem>),
+    CheckListItem {
+        label: String,
+        checked: bool,
+        required: bool,
+        metadata: Option<BTreeMap<String, String>>,
+    },
 }
 
 impl From<LiteralItem> for SelectedItem {
@@ -169,6 +185,17 @@ impl From<TableItem> for SelectedItem {
 impl From<Vec<LiteralItem>> for SelectedItem {
     fn from(item: Vec<LiteralItem>) -> Self {
         Self::Array(item)
+    }
+}
+
+impl From<CheckListItem> for SelectedItem {
+    fn from(item: CheckListItem) -> Self {
+        Self::CheckListItem {
+            label: item.label,
+            checked: item.checked,
+            required: item.required,
+            metadata: item.metadata,
+        }
     }
 }
 
@@ -209,6 +236,7 @@ pub trait RenderTrait {
     fn render(&mut self, f: &mut Frame, is_active: bool, is_mouse_over: bool);
 }
 
+#[allow(clippy::large_enum_variant)]
 #[enum_dispatch(WidgetTrait, RenderTrait)]
 #[derive(Debug)]
 pub enum Widget<'a> {
@@ -218,6 +246,7 @@ pub enum Widget<'a> {
     SingleSelect(SingleSelect<'a>),
     MultipleSelect(MultipleSelect<'a>),
     Input(InputForm),
+    CheckList(CheckList),
 }
 
 #[allow(dead_code)]
@@ -263,6 +292,14 @@ impl<'a> Widget<'a> {
         }
     }
 
+    pub fn as_check_list(&self) -> &CheckList {
+        if let Self::CheckList(w) = self {
+            w
+        } else {
+            panic!("called as_check_list() on {:?}", self)
+        }
+    }
+
     // as_mut_*
     pub fn as_mut_list(&mut self) -> &mut List<'a> {
         if let Self::List(w) = self {
@@ -301,6 +338,14 @@ impl<'a> Widget<'a> {
             w
         } else {
             panic!("called as_mut_multiple_select() on {:?}", self)
+        }
+    }
+
+    pub fn as_mut_check_list(&mut self) -> &mut CheckList {
+        if let Self::CheckList(w) = self {
+            w
+        } else {
+            panic!("called as_mut_check_list() on {:?}", self)
         }
     }
 }
