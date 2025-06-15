@@ -18,7 +18,7 @@ use crate::{
         get::message::{GetMessage, GetResponse},
         namespace::message::{NamespaceMessage, NamespaceResponse},
         network::message::{NetworkMessage, NetworkResponse},
-        pod::message::LogMessage,
+        pod::message::{LogMessage, PodMessage},
         yaml::message::{YamlMessage, YamlResourceListItem, YamlResponse},
     },
     kube::{
@@ -187,7 +187,7 @@ pub fn update_contents(
     namespace: &mut Namespace,
 ) {
     match ev {
-        Kube::Pod(pods_table) => {
+        Kube::Pod(PodMessage::Poll(pods_table)) => {
             update_widget_item_for_table(window, POD_WIDGET_ID, pods_table);
         }
 

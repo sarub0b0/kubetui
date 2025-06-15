@@ -4,7 +4,9 @@ use anyhow::{anyhow, Result};
 use kube::config::{Kubeconfig, KubeconfigError};
 
 use crate::features::{
-    api_resources::kube::ApiConfig, event::kube::EventConfig, pod::kube::PodConfig,
+    api_resources::kube::ApiConfig,
+    event::kube::EventConfig,
+    pod::{kube::PodConfig, PodColumns},
 };
 
 use super::{ApisConfig, TargetNamespaces, YamlConfig};

@@ -40,7 +40,7 @@ use crate::{
             message::{GatewayVersion, HTTPRouteVersion},
             view::NetworkTab,
         },
-        pod::view::PodTab,
+        pod::{view::PodTab, PodColumns},
         yaml::view::YamlTab,
     },
     kube::{
@@ -62,6 +62,7 @@ pub struct WindowInit {
     tx: Sender<Message>,
     context: Rc<RefCell<Context>>,
     namespaces: Rc<RefCell<Namespace>>,
+    default_pod_columns: Option<PodColumns>,
     theme: ThemeConfig,
 }
 
@@ -71,6 +72,7 @@ impl WindowInit {
         tx: Sender<Message>,
         context: Rc<RefCell<Context>>,
         namespaces: Rc<RefCell<Namespace>>,
+        default_pod_columns: Option<PodColumns>,
         theme: ThemeConfig,
     ) -> Self {
         Self {
@@ -78,6 +80,7 @@ impl WindowInit {
             tx,
             context,
             namespaces,
+            default_pod_columns,
             theme,
         }
     }
@@ -190,12 +193,14 @@ impl WindowInit {
         let PodTab {
             tab: pod_tab,
             log_query_help_dialog,
+            pod_columns_dialog,
         } = PodTab::new(
             "Pod",
             &self.tx,
             &clipboard,
             self.split_mode,
             self.namespaces.clone(),
+            self.default_pod_columns.clone(),
             self.theme.component.clone(),
         );
 
@@ -272,6 +277,7 @@ impl WindowInit {
             yaml_not_found_dialog,
             help_dialog,
             log_query_help_dialog,
+            pod_columns_dialog,
             yaml_dialog,
         ];
 

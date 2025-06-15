@@ -78,9 +78,8 @@ pub struct Command {
     #[arg(
         long,
         value_parser = parse_pod_columns,
-        default_value = "name,ready,status,age",
         display_order = 1000)]
-    pub pod_columns: PodColumns,
+    pub pod_columns: Option<PodColumns>,
 
     #[command(subcommand)]
     pub subcommand: Option<SubCommand>,
@@ -265,17 +264,7 @@ mod tests {
         #[test]
         fn デフォルトのカラムを設定する() {
             let cmd = Command::try_parse_from(["kubetui"]).unwrap();
-            assert_eq!(
-                cmd.pod_columns,
-                PodColumns {
-                    columns: vec![
-                        PodColumn::Name,
-                        PodColumn::Ready,
-                        PodColumn::Status,
-                        PodColumn::Age
-                    ]
-                }
-            );
+            assert_eq!(cmd.pod_columns, None);
         }
 
         #[test]
@@ -283,7 +272,7 @@ mod tests {
             let cmd = Command::try_parse_from(["kubetui", "--pod-columns=full"]).unwrap();
             assert_eq!(
                 cmd.pod_columns,
-                PodColumns::new([
+                Some(PodColumns::new([
                     PodColumn::Name,
                     PodColumn::Ready,
                     PodColumn::Status,
@@ -293,7 +282,7 @@ mod tests {
                     PodColumn::Node,
                     PodColumn::NominatedNode,
                     PodColumn::ReadinessGates
-                ])
+                ]))
             );
         }
 
@@ -303,7 +292,11 @@ mod tests {
                 Command::try_parse_from(["kubetui", "--pod-columns=name,ready,status"]).unwrap();
             assert_eq!(
                 cmd.pod_columns,
-                PodColumns::new([PodColumn::Name, PodColumn::Ready, PodColumn::Status])
+                Some(PodColumns::new([
+                    PodColumn::Name,
+                    PodColumn::Ready,
+                    PodColumn::Status
+                ]))
             );
         }
     }
