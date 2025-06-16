@@ -59,6 +59,8 @@ pub fn parse_pod_columns(input: &str) -> Result<PodColumns> {
         columns.insert(0, PodColumn::Name);
     }
 
+    columns.sort();
+
     Ok(PodColumns { columns })
 }
 
@@ -166,5 +168,13 @@ mod tests {
             result.unwrap_err().to_string(),
             "Columns list must not be empty"
         );
+    }
+
+    #[test]
+    fn カラム名の順序はソートされる() {
+        let input = "status, name, ready";
+        let actual = parse_pod_columns(input).unwrap();
+        let expected = vec![PodColumn::Name, PodColumn::Ready, PodColumn::Status];
+        assert_eq!(actual.columns, expected);
     }
 }
