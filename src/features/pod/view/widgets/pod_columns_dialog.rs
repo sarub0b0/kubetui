@@ -12,7 +12,7 @@ use crate::{
     message::Message,
     ui::{
         event::EventResult,
-        widget::{CheckList, CheckListItem, Widget, WidgetBase},
+        widget::{CheckList, CheckListItem, CheckListTheme, Widget, WidgetBase, WidgetTheme},
         Window,
     },
 };
@@ -20,7 +20,7 @@ use crate::{
 pub fn pod_columns_dialog(
     tx: &Sender<Message>,
     default_columns: Option<PodColumns>,
-    _theme: WidgetThemeConfig,
+    theme: WidgetThemeConfig,
 ) -> Widget<'static> {
     let default_columns = default_columns.unwrap_or_default();
 
@@ -39,9 +39,17 @@ pub fn pod_columns_dialog(
         })
         .collect::<Vec<_>>();
 
+    let check_list_theme = CheckListTheme::from(theme.clone());
+    let widget_theme = WidgetTheme::from(theme.clone());
+    let widget_base = WidgetBase::builder()
+        .title("Pod Columns")
+        .theme(widget_theme)
+        .build();
+
     CheckList::builder()
         .id(POD_COLUMNS_DIALOG_ID)
-        .widget_base(WidgetBase::builder().title("Pod Columns").build())
+        .widget_base(widget_base)
+        .theme(check_list_theme)
         .items(columns)
         .on_change(on_change(tx.clone()))
         .build()
