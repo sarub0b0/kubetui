@@ -32,7 +32,7 @@ const DEFAULT_POD_COLUMNS: &[PodColumn] = &[
     PodColumn::Age,
 ];
 
-#[derive(EnumIter, PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(EnumIter, PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Copy)]
 pub enum PodColumn {
     Name,
     Ready,
@@ -145,6 +145,37 @@ mod tests {
 
     mod pod_column {
         use super::*;
+
+        #[test]
+        fn 並び替えが定義順と一致する() {
+            let mut columns = vec![
+                PodColumn::IP,
+                PodColumn::Ready,
+                PodColumn::Node,
+                PodColumn::Name,
+                PodColumn::Age,
+                PodColumn::Restarts,
+                PodColumn::ReadinessGates,
+                PodColumn::Status,
+                PodColumn::NominatedNode,
+            ];
+
+            columns.sort();
+
+            let expected = vec![
+                PodColumn::Name,
+                PodColumn::Ready,
+                PodColumn::Status,
+                PodColumn::Restarts,
+                PodColumn::Age,
+                PodColumn::IP,
+                PodColumn::Node,
+                PodColumn::NominatedNode,
+                PodColumn::ReadinessGates,
+            ];
+
+            assert_eq!(columns, expected);
+        }
 
         mod normalize_column {
             use super::*;
