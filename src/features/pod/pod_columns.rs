@@ -91,19 +91,34 @@ impl PodColumn {
     pub fn normalize_column(column: &str) -> String {
         column.to_lowercase().replace([' ', '_', '-'], "")
     }
+}
 
-    pub fn from_str(column: &str) -> Option<Self> {
-        match Self::normalize_column(column).as_str() {
-            "name" => Some(PodColumn::Name),
-            "ready" => Some(PodColumn::Ready),
-            "status" => Some(PodColumn::Status),
-            "restarts" => Some(PodColumn::Restarts),
-            "age" => Some(PodColumn::Age),
-            "ip" => Some(PodColumn::IP),
-            "node" => Some(PodColumn::Node),
-            "nominatednode" => Some(PodColumn::NominatedNode),
-            "readinessgates" => Some(PodColumn::ReadinessGates),
-            _ => None,
+#[derive(Debug)]
+pub struct PodColumnParseError;
+
+impl std::fmt::Display for PodColumnParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Invalid PodColumn string representation")
+    }
+}
+
+impl std::error::Error for PodColumnParseError {}
+
+impl std::str::FromStr for PodColumn {
+    type Err = PodColumnParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match Self::normalize_column(s).as_str() {
+            "name" => Ok(PodColumn::Name),
+            "ready" => Ok(PodColumn::Ready),
+            "status" => Ok(PodColumn::Status),
+            "restarts" => Ok(PodColumn::Restarts),
+            "age" => Ok(PodColumn::Age),
+            "ip" => Ok(PodColumn::IP),
+            "node" => Ok(PodColumn::Node),
+            "nominatednode" => Ok(PodColumn::NominatedNode),
+            "readinessgates" => Ok(PodColumn::ReadinessGates),
+            _ => Err(PodColumnParseError),
         }
     }
 }
