@@ -60,6 +60,7 @@ pub fn parse_pod_columns(input: &str) -> Result<PodColumns> {
     }
 
     columns.sort();
+    columns.dedup();
 
     Ok(PodColumns { columns })
 }
@@ -173,6 +174,15 @@ mod tests {
     #[test]
     fn カラム名の順序はソートされる() {
         let input = "status, name, ready";
+        let actual = parse_pod_columns(input).unwrap();
+        let expected = vec![PodColumn::Name, PodColumn::Ready, PodColumn::Status];
+        assert_eq!(actual.columns, expected);
+    }
+
+    // 重複排除のテスト
+    #[test]
+    fn 重複したカラム名が含まれていても一つだけ保持される() {
+        let input = "name, ready, ready, status";
         let actual = parse_pod_columns(input).unwrap();
         let expected = vec![PodColumn::Name, PodColumn::Ready, PodColumn::Status];
         assert_eq!(actual.columns, expected);
