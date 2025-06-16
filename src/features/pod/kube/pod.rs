@@ -9,7 +9,7 @@ use ratatui::style::{Color, Style};
 use regex::Regex;
 
 use crate::{
-    features::pod::{PodColumn, PodColumns},
+    features::pod::{message::PodMessage, PodColumn, PodColumns},
     kube::{
         apis::v1_table::TableRow,
         table::{get_resource_per_namespace, insert_ns, KubeTable, KubeTableRow},
@@ -88,7 +88,7 @@ impl Worker for PodPoller {
 
             let pod_info = self.get_pod_info().await;
 
-            tx.send(Message::Kube(Kube::Pod(pod_info)))
+            tx.send(PodMessage::Poll(pod_info).into())
                 .expect("Failed to Kube::Pod");
         }
     }

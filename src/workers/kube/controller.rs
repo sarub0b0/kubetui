@@ -32,7 +32,7 @@ use crate::{
         },
         pod::{
             kube::{LogConfig, LogWorker, PodConfig, PodPoller},
-            message::LogMessage,
+            message::{LogMessage, PodMessage},
         },
         yaml::{
             kube::{FetchResourceList, YamlWorker},
