@@ -142,6 +142,9 @@ theme:
         fg_color: green
       - status: (BackOff|Err|Unknown)
         fg_color: red
+    default_columns:
+      - status
+      - name
 
   ## Event view
   event:

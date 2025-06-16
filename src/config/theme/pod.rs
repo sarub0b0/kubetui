@@ -2,18 +2,23 @@ use ratatui::style::Color;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+use crate::features::pod::PodColumn;
+
 use super::ThemeStyleConfig;
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PodThemeConfig {
     #[serde(default = "default_highlights")]
     pub highlights: Vec<PodHighlightConfig>,
+
+    pub default_columns: Option<Vec<PodColumnConfig>>,
 }
 
 impl Default for PodThemeConfig {
     fn default() -> Self {
         Self {
             highlights: default_highlights(),
+            default_columns: None,
         }
     }
 }
@@ -68,5 +73,29 @@ mod serde_regex {
 impl PartialEq for PodHighlightConfig {
     fn eq(&self, other: &Self) -> bool {
         self.status.as_str() == other.status.as_str() && self.style == other.style
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+pub struct PodColumnConfig(#[serde(with = "serde_pod_column")] pub PodColumn);
+
+mod serde_pod_column {
+    use std::str::FromStr as _;
+
+    use serde::{de, Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S>(column: &super::PodColumn, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(column.normalize())
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<super::PodColumn, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        super::PodColumn::from_str(&s).map_err(de::Error::custom)
     }
 }

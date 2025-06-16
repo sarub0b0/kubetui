@@ -3,7 +3,9 @@ use crossbeam::channel::Sender;
 use crate::{
     config::theme::WidgetThemeConfig,
     features::{
-        component_id::{POD_LOG_QUERY_WIDGET_ID, POD_LOG_WIDGET_ID, POD_WIDGET_ID},
+        component_id::{
+            POD_COLUMNS_DIALOG_ID, POD_LOG_QUERY_WIDGET_ID, POD_LOG_WIDGET_ID, POD_WIDGET_ID,
+        },
         pod::{
             kube::{LogConfig, LogPrefixType},
             message::LogMessage,
@@ -42,10 +44,19 @@ pub fn pod_widget(tx: &Sender<Message>, theme: WidgetThemeConfig) -> Widget<'sta
         .filter_form(filter_form)
         .theme(table_theme)
         .filtered_key("NAME")
+        .action('t', open_pod_columns_dialog())
         .block_injection(block_injection())
         .on_select(on_select(tx))
         .build()
         .into()
+}
+
+fn open_pod_columns_dialog() -> impl Fn(&mut Window) -> EventResult {
+    move |w: &mut Window| {
+        w.open_dialog(POD_COLUMNS_DIALOG_ID);
+
+        EventResult::Nop
+    }
 }
 
 fn block_injection() -> impl Fn(&Table) -> WidgetBase {

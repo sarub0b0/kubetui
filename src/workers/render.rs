@@ -13,6 +13,7 @@ use ratatui::{backend::CrosstermBackend, layout::Direction, Terminal, TerminalOp
 
 use crate::{
     config::theme::ThemeConfig,
+    features::pod::PodColumns,
     kube::context::{Context, Namespace},
     logger,
     message::Message,
@@ -30,6 +31,7 @@ pub struct Render {
     rx: Receiver<Message>,
     tx_shutdown: Sender<Result<()>>,
     direction: Direction,
+    default_pod_columns: Option<PodColumns>,
     theme: ThemeConfig,
 }
 
@@ -39,6 +41,7 @@ impl Render {
         rx: Receiver<Message>,
         tx_shutdown: Sender<Result<()>>,
         direction: Direction,
+        default_pod_columns: Option<PodColumns>,
         theme: ThemeConfig,
     ) -> Self {
         Self {
@@ -46,6 +49,7 @@ impl Render {
             tx,
             rx,
             tx_shutdown,
+            default_pod_columns,
             theme,
         }
     }
@@ -85,6 +89,7 @@ impl Render {
             self.tx.clone(),
             context.clone(),
             namespace.clone(),
+            self.default_pod_columns.clone(),
             self.theme.clone(),
         )
         .build();
