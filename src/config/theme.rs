@@ -1,6 +1,7 @@
 mod api;
 mod base;
 mod border;
+mod check_list;
 mod dialog;
 mod event;
 mod filter;
@@ -31,6 +32,7 @@ pub use self::tab::TabThemeConfig;
 pub use api::ApiThemeConfig;
 pub use base::BaseThemeConfig;
 pub use border::BorderThemeConfig;
+pub use check_list::*;
 pub use dialog::*;
 pub use event::EventThemeConfig;
 pub use filter::*;

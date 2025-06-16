@@ -24,18 +24,36 @@ use super::{CheckListItem, Item, RenderTrait, SelectedItem, WidgetBase, WidgetTr
 define_callback!(pub OnChangeCallback, Fn(&mut Window, &CheckListItem) -> EventResult);
 define_callback!(pub RenderBlockInjection, Fn(&CheckList, bool) -> Block<'static>);
 
-const REQUIRED_STYLE: Style = Style::new().fg(Color::DarkGray);
+#[derive(Debug, Clone)]
+pub struct CheckListTheme {
+    // カーソル（選択中）が当たっているアイテムのスタイル
+    pub selected: Style,
 
-impl std::convert::From<&CheckListItem> for ListItem<'_> {
-    fn from(value: &CheckListItem) -> Self {
-        if value.required {
-            ListItem::new(Line::styled(
-                format!(" [x] {} {}", value.label, "(required)"),
-                REQUIRED_STYLE,
-            ))
-        } else {
-            let checked = if value.checked { "[x]" } else { "[ ]" };
-            ListItem::new(Line::from(format!(" {} {}", checked, value.label)))
+    // カーソル（選択中）のシンボル
+    pub selected_symbol: String,
+
+    // 必須項目のスタイル
+    pub required: Style,
+
+    // 必須項目のシンボル
+    pub required_symbol: String,
+
+    // チェック済みのアイテムのシンボル
+    pub checked_symbol: String,
+
+    // チェックされていないアイテムのシンボル
+    pub unchecked_symbol: String,
+}
+
+impl Default for CheckListTheme {
+    fn default() -> Self {
+        Self {
+            selected: Style::new().add_modifier(Modifier::REVERSED),
+            required: Style::new().fg(Color::DarkGray),
+            required_symbol: "(required)".to_string(),
+            selected_symbol: ">".to_string(),
+            checked_symbol: "[x]".to_string(),
+            unchecked_symbol: "[ ]".to_string(),
         }
     }
 }
@@ -44,6 +62,7 @@ impl std::convert::From<&CheckListItem> for ListItem<'_> {
 pub struct CheckListBuilder {
     id: String,
     widget_base: WidgetBase,
+    theme: CheckListTheme,
     items: Vec<CheckListItem>,
     state: ListState,
     on_change: Option<OnChangeCallback>,
@@ -59,6 +78,11 @@ impl CheckListBuilder {
 
     pub fn widget_base(mut self, widget_base: WidgetBase) -> Self {
         self.widget_base = widget_base;
+        self
+    }
+
+    pub fn theme(mut self, theme: CheckListTheme) -> Self {
+        self.theme = theme;
         self
     }
 
@@ -95,6 +119,7 @@ impl CheckListBuilder {
         CheckList {
             id: self.id,
             widget_base: self.widget_base,
+            theme: self.theme,
             items: self.items,
             state: self.state,
             chunk: Rect::default(),
@@ -109,6 +134,7 @@ impl CheckListBuilder {
 pub struct CheckList {
     id: String,
     widget_base: WidgetBase,
+    theme: CheckListTheme,
     items: Vec<CheckListItem>,
     state: ListState,
     chunk: Rect,
@@ -384,14 +410,41 @@ impl RenderTrait for CheckList {
                 .render_block(self.can_activate() && is_active, is_mouse_over)
         };
 
-        let items = self.items.iter().map(ListItem::from).collect::<Vec<_>>();
+        let items = create_list_items(&self.items, &self.theme);
 
         let widget = ratatui::widgets::List::new(items)
             .block(block)
-            .highlight_style(Style::new().add_modifier(Modifier::BOLD))
-            .highlight_symbol(">")
+            .highlight_style(self.theme.selected)
+            .highlight_symbol(self.theme.selected_symbol.as_str())
             .highlight_spacing(HighlightSpacing::Always);
 
         f.render_stateful_widget(widget, self.chunk, &mut self.state);
     }
+}
+
+fn create_list_items<'a, 'b>(
+    items: &'a [CheckListItem],
+    theme: &'a CheckListTheme,
+) -> Vec<ListItem<'b>> {
+    items
+        .iter()
+        .map(|item| {
+            if item.required {
+                ListItem::new(Line::styled(
+                    format!(
+                        " {} {} {}",
+                        theme.checked_symbol, item.label, theme.required_symbol,
+                    ),
+                    theme.required,
+                ))
+            } else {
+                let symbol = if item.checked {
+                    &theme.checked_symbol
+                } else {
+                    &theme.unchecked_symbol
+                };
+                ListItem::new(Line::from(format!(" {} {}", symbol, item.label)))
+            }
+        })
+        .collect()
 }
