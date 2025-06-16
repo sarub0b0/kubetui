@@ -1,3 +1,5 @@
+use std::str::FromStr as _;
+
 use anyhow::Result;
 use strum::IntoEnumIterator;
 
@@ -37,13 +39,13 @@ pub fn parse_pod_columns(input: &str) -> Result<PodColumns> {
         });
     }
 
-    let mut result = Vec::new();
+    let mut columns = Vec::new();
 
     for column in entries {
         let normalized = PodColumn::normalize_column(column);
 
-        if let Some(display_name) = PodColumn::from_str(normalized.as_str()) {
-            result.push(display_name);
+        if let Ok(display_name) = PodColumn::from_str(normalized.as_str()) {
+            columns.push(display_name);
         } else {
             return Err(anyhow::anyhow!(
                 "Invalid column name: {}. Valid options are: {}",
@@ -53,11 +55,11 @@ pub fn parse_pod_columns(input: &str) -> Result<PodColumns> {
         }
     }
 
-    if !result.contains(&PodColumn::Name) {
-        result.insert(0, PodColumn::Name);
+    if !columns.contains(&PodColumn::Name) {
+        columns.insert(0, PodColumn::Name);
     }
 
-    Ok(PodColumns { columns: result })
+    Ok(PodColumns { columns })
 }
 
 #[cfg(test)]
