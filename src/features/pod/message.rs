@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use crate::{kube::table::KubeTable, message::Message, workers::kube::message::Kube};
 
-use super::kube::LogConfig;
+use super::{kube::LogConfig, PodColumns};
 
 #[derive(Debug)]
 pub enum LogMessage {
@@ -19,6 +19,7 @@ impl From<LogMessage> for Message {
 
 #[derive(Debug)]
 pub enum PodMessage {
+    Request(PodColumns),
     Poll(Result<KubeTable>),
 }
 
