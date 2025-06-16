@@ -217,6 +217,27 @@ const RIGHT_HELP_TEXT: &[HelpBlock] = &[
             },
         ],
     },
+    HelpBlock {
+        title: "Pod Columns",
+        bindings: &[
+            KeyBindings {
+                keys: &["j", "k", "Up", "Down"],
+                desc: "move cursor up/down",
+            },
+            KeyBindings {
+                keys: &["g", "G", "PgUp", "PgDn"],
+                desc: "move cursor to the first/last line",
+            },
+            KeyBindings {
+                keys: &["Space", "Enter"],
+                desc: "toggle column visibility",
+            },
+            KeyBindings {
+                keys: &["J", "K"],
+                desc: "move column up/down",
+            },
+        ],
+    },
 ];
 
 struct KeyBindings {
