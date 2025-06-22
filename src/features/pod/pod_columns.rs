@@ -20,10 +20,6 @@ impl PodColumns {
         }
     }
 
-    pub fn contains(&self, column: &PodColumn) -> bool {
-        self.columns.contains(column)
-    }
-
     pub fn columns(&self) -> &[PodColumn] {
         &self.columns
     }

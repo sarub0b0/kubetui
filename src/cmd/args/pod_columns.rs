@@ -128,7 +128,7 @@ mod tests {
     fn Nameカラムが常に含まれる() {
         let input = "ready, status";
         let actual = parse_pod_columns(input).unwrap();
-        assert!(actual.contains(&PodColumn::Name));
+        assert!(actual.columns().contains(&PodColumn::Name));
     }
 
     #[test]

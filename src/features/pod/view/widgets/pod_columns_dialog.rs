@@ -27,7 +27,7 @@ pub fn pod_columns_dialog(
     let columns = PodColumn::iter()
         .map(|column| {
             let name = column.display().to_string();
-            let checked = default_columns.contains(&column);
+            let checked = default_columns.columns().contains(&column);
             let required = column == PodColumn::Name;
 
             CheckListItem {
