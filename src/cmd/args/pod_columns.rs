@@ -34,7 +34,7 @@ pub fn parse_pod_columns(input: &str) -> Result<PodColumns> {
     }
 
     if entries.len() == 1 && has_full {
-        return Ok(PodColumns::new(PodColumn::iter()));
+        return Ok(PodColumns::full());
     }
 
     let mut columns = Vec::new();

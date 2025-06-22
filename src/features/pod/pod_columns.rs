@@ -1,4 +1,4 @@
-use strum::EnumIter;
+use strum::{EnumIter, IntoEnumIterator};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PodColumns {
@@ -17,6 +17,12 @@ impl PodColumns {
     pub fn new(columns: impl IntoIterator<Item = PodColumn>) -> Self {
         PodColumns {
             columns: columns.into_iter().collect(),
+        }
+    }
+
+    pub fn full() -> Self {
+        PodColumns {
+            columns: PodColumn::iter().collect(),
         }
     }
 
@@ -139,6 +145,24 @@ mod tests {
                 PodColumn::Status,
                 PodColumn::Age,
             ];
+            assert_eq!(actual.columns, expected);
+        }
+
+        #[test]
+        fn 全カラムを設定する() {
+            let actual = PodColumns::full();
+            let expected: Vec<PodColumn> = vec![
+                PodColumn::Name,
+                PodColumn::Ready,
+                PodColumn::Status,
+                PodColumn::Restarts,
+                PodColumn::Age,
+                PodColumn::IP,
+                PodColumn::Node,
+                PodColumn::NominatedNode,
+                PodColumn::ReadinessGates,
+            ];
+
             assert_eq!(actual.columns, expected);
         }
     }
