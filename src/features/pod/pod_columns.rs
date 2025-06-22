@@ -63,7 +63,7 @@ const DEFAULT_POD_COLUMNS: &[PodColumn] = &[
     PodColumn::Age,
 ];
 
-#[derive(EnumIter, PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Copy)]
+#[derive(EnumIter, PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Copy, Hash)]
 pub enum PodColumn {
     Name,
     Ready,
