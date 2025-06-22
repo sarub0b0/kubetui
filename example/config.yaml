@@ -165,8 +165,10 @@ theme:
       - status: (BackOff|Err|Unknown)
         fg_color: red
     default_columns:
-      - status
       - name
+      - status
+      - ip
+      - age
 
   ## Event view
   event:
