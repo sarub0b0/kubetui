@@ -225,7 +225,7 @@ const RIGHT_HELP_TEXT: &[HelpBlock] = &[
                 desc: "move cursor up/down",
             },
             KeyBindings {
-                keys: &["g", "G", "PgUp", "PgDn"],
+                keys: &["g", "G", "Home", "End"],
                 desc: "move cursor to the first/last line",
             },
             KeyBindings {
