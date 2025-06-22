@@ -107,7 +107,7 @@ impl PodPoller {
         let ok_only: Vec<KubeTableRow> = jobs?.into_iter().flatten().collect();
 
         let mut display_columns: Vec<String> = pod_columns
-            .columns
+            .columns()
             .iter()
             .map(|col| col.display().to_string())
             .collect();
@@ -134,18 +134,18 @@ impl PodPoller {
         let insert_ns = insert_ns(namespaces);
 
         let name_index = pod_columns
-            .columns
+            .columns()
             .iter()
             .position(|&col| col == PodColumn::Name)
             .expect("Name column must be present in pod columns");
 
         let status_index = pod_columns
-            .columns
+            .columns()
             .iter()
             .position(|&col| col == PodColumn::Status);
 
         let columns = pod_columns
-            .columns
+            .columns()
             .iter()
             .map(|col| col.as_str())
             .collect::<Vec<_>>();

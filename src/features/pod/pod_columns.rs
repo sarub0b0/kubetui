@@ -2,7 +2,7 @@ use strum::EnumIter;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PodColumns {
-    pub columns: Vec<PodColumn>,
+    columns: Vec<PodColumn>,
 }
 
 impl Default for PodColumns {
@@ -22,6 +22,10 @@ impl PodColumns {
 
     pub fn contains(&self, column: &PodColumn) -> bool {
         self.columns.contains(column)
+    }
+
+    pub fn columns(&self) -> &[PodColumn] {
+        &self.columns
     }
 }
 

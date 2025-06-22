@@ -34,9 +34,7 @@ pub fn parse_pod_columns(input: &str) -> Result<PodColumns> {
     }
 
     if entries.len() == 1 && has_full {
-        return Ok(PodColumns {
-            columns: PodColumn::iter().collect::<Vec<_>>(),
-        });
+        return Ok(PodColumns::new(PodColumn::iter()));
     }
 
     let mut columns = Vec::new();
@@ -62,7 +60,7 @@ pub fn parse_pod_columns(input: &str) -> Result<PodColumns> {
     columns.sort();
     columns.dedup();
 
-    Ok(PodColumns { columns })
+    Ok(PodColumns::new(columns))
 }
 
 #[cfg(test)]
@@ -83,7 +81,7 @@ mod tests {
         let input = "full";
         let actual = parse_pod_columns(input).unwrap();
         let expected: Vec<PodColumn> = PodColumn::iter().collect();
-        assert_eq!(actual.columns, expected);
+        assert_eq!(actual.columns(), expected);
     }
 
     #[test]
@@ -91,7 +89,7 @@ mod tests {
         let input = "name, ready, status";
         let actual = parse_pod_columns(input).unwrap();
         let expected = vec![PodColumn::Name, PodColumn::Ready, PodColumn::Status];
-        assert_eq!(actual.columns, expected);
+        assert_eq!(actual.columns(), expected);
     }
 
     #[test]
@@ -99,7 +97,7 @@ mod tests {
         let input = "  name ,  ready , status ";
         let actual = parse_pod_columns(input).unwrap();
         let expected = vec![PodColumn::Name, PodColumn::Ready, PodColumn::Status];
-        assert_eq!(actual.columns, expected);
+        assert_eq!(actual.columns(), expected);
     }
 
     #[test]
@@ -111,7 +109,7 @@ mod tests {
             PodColumn::NominatedNode,
             PodColumn::ReadinessGates,
         ];
-        assert_eq!(actual.columns, expected);
+        assert_eq!(actual.columns(), expected);
     }
 
     #[test]
@@ -130,7 +128,7 @@ mod tests {
     fn Nameカラムが常に含まれる() {
         let input = "ready, status";
         let actual = parse_pod_columns(input).unwrap();
-        assert!(actual.columns.contains(&PodColumn::Name));
+        assert!(actual.contains(&PodColumn::Name));
     }
 
     #[test]
@@ -157,7 +155,7 @@ mod tests {
         let input = "ready,,status";
         let actual = parse_pod_columns(input).unwrap();
         let expected = vec![PodColumn::Name, PodColumn::Ready, PodColumn::Status];
-        assert_eq!(actual.columns, expected);
+        assert_eq!(actual.columns(), expected);
     }
 
     #[test]
@@ -176,7 +174,7 @@ mod tests {
         let input = "status, name, ready";
         let actual = parse_pod_columns(input).unwrap();
         let expected = vec![PodColumn::Name, PodColumn::Ready, PodColumn::Status];
-        assert_eq!(actual.columns, expected);
+        assert_eq!(actual.columns(), expected);
     }
 
     // 重複排除のテスト
@@ -185,6 +183,6 @@ mod tests {
         let input = "name, ready, ready, status";
         let actual = parse_pod_columns(input).unwrap();
         let expected = vec![PodColumn::Name, PodColumn::Ready, PodColumn::Status];
-        assert_eq!(actual.columns, expected);
+        assert_eq!(actual.columns(), expected);
     }
 }
