@@ -56,7 +56,7 @@ impl PodColumns {
     }
 }
 
-const DEFAULT_POD_COLUMNS: &[PodColumn] = &[
+pub const DEFAULT_POD_COLUMNS: &[PodColumn] = &[
     PodColumn::Name,
     PodColumn::Ready,
     PodColumn::Status,
