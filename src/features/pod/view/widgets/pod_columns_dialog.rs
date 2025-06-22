@@ -7,7 +7,7 @@ use crate::{
     config::theme::WidgetThemeConfig,
     features::{
         component_id::POD_COLUMNS_DIALOG_ID,
-        pod::{message::PodMessage, PodColumn, PodColumns},
+        pod::{message::PodMessage, pod_columns::DEFAULT_POD_COLUMNS, PodColumn, PodColumns},
     },
     message::Message,
     ui::{
@@ -22,23 +22,6 @@ pub fn pod_columns_dialog(
     default_columns: Option<PodColumns>,
     theme: WidgetThemeConfig,
 ) -> Widget<'static> {
-    let default_columns = default_columns.unwrap_or_default();
-
-    let columns = PodColumn::iter()
-        .map(|column| {
-            let name = column.display().to_string();
-            let checked = default_columns.columns().contains(&column);
-            let required = column == PodColumn::Name;
-
-            CheckListItem {
-                label: name,
-                checked,
-                required,
-                metadata: None,
-            }
-        })
-        .collect::<Vec<_>>();
-
     let check_list_theme = CheckListTheme::from(theme.clone());
     let widget_theme = WidgetTheme::from(theme.clone());
     let widget_base = WidgetBase::builder()
@@ -46,11 +29,13 @@ pub fn pod_columns_dialog(
         .theme(widget_theme)
         .build();
 
+    let check_list_items = build_check_list_items(default_columns);
+
     CheckList::builder()
         .id(POD_COLUMNS_DIALOG_ID)
         .widget_base(widget_base)
         .theme(check_list_theme)
-        .items(columns)
+        .items(check_list_items)
         .on_change(on_change(tx.clone()))
         .build()
         .into()
@@ -71,5 +56,193 @@ fn on_change(tx: Sender<Message>) -> impl Fn(&mut Window, &CheckListItem) -> Eve
             .expect("Failed to send PodColumnsRequest::Set");
 
         EventResult::Nop
+    }
+}
+
+fn build_check_list_items(default_columns: Option<PodColumns>) -> Vec<CheckListItem> {
+    match default_columns {
+        Some(columns) => {
+            build_check_list_items_from_existing(columns.ensure_name_column().dedup_columns())
+        }
+        None => build_default_check_list_items(),
+    }
+}
+
+fn build_check_list_items_from_existing(pod_columns: PodColumns) -> Vec<CheckListItem> {
+    pod_columns
+        .columns()
+        .iter()
+        .map(|column| make_item(*column, true))
+        .chain(
+            PodColumn::iter()
+                .filter(|c| !pod_columns.columns().contains(c))
+                .map(|column| make_item(column, false)),
+        )
+        .collect()
+}
+
+fn build_default_check_list_items() -> Vec<CheckListItem> {
+    PodColumn::iter()
+        .map(|column| {
+            let checked = DEFAULT_POD_COLUMNS.contains(&column);
+
+            make_item(column, checked)
+        })
+        .collect()
+}
+
+fn make_item(column: PodColumn, checked: bool) -> CheckListItem {
+    CheckListItem {
+        label: column.display().to_string(),
+        checked,
+        required: column == PodColumn::Name,
+        metadata: None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(non_snake_case)]
+
+    use super::*;
+
+    mod build_check_list_items_from_existing {
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn ユーザーが指定したカラムをチェック済みで最初に配置して残りのカラムを未チェック状態で追加する(
+        ) {
+            let pod_columns =
+                PodColumns::new([PodColumn::Name, PodColumn::Ready, PodColumn::Status]);
+            let columns = build_check_list_items_from_existing(pod_columns);
+
+            let expected: Vec<CheckListItem> = vec![
+                CheckListItem {
+                    label: "NAME".to_string(),
+                    checked: true,
+                    required: true,
+                    metadata: None,
+                },
+                CheckListItem {
+                    label: "READY".to_string(),
+                    checked: true,
+                    required: false,
+                    metadata: None,
+                },
+                CheckListItem {
+                    label: "STATUS".to_string(),
+                    checked: true,
+                    required: false,
+                    metadata: None,
+                },
+                CheckListItem {
+                    label: "RESTARTS".to_string(),
+                    checked: false,
+                    required: false,
+                    metadata: None,
+                },
+                CheckListItem {
+                    label: "AGE".to_string(),
+                    checked: false,
+                    required: false,
+                    metadata: None,
+                },
+                CheckListItem {
+                    label: "IP".to_string(),
+                    checked: false,
+                    required: false,
+                    metadata: None,
+                },
+                CheckListItem {
+                    label: "NODE".to_string(),
+                    checked: false,
+                    required: false,
+                    metadata: None,
+                },
+                CheckListItem {
+                    label: "NOMINATED NODE".to_string(),
+                    checked: false,
+                    required: false,
+                    metadata: None,
+                },
+                CheckListItem {
+                    label: "READINESS GATES".to_string(),
+                    checked: false,
+                    required: false,
+                    metadata: None,
+                },
+            ];
+
+            assert_eq!(columns, expected);
+        }
+    }
+
+    mod build_default_check_list_items {
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn デフォルトのカラムがチェック済みの状態で構築できる() {
+            let columns = build_default_check_list_items();
+            let expected: Vec<CheckListItem> = vec![
+                CheckListItem {
+                    label: "NAME".to_string(),
+                    checked: true,
+                    required: true,
+                    metadata: None,
+                },
+                CheckListItem {
+                    label: "READY".to_string(),
+                    checked: true,
+                    required: false,
+                    metadata: None,
+                },
+                CheckListItem {
+                    label: "STATUS".to_string(),
+                    checked: true,
+                    required: false,
+                    metadata: None,
+                },
+                CheckListItem {
+                    label: "RESTARTS".to_string(),
+                    checked: false,
+                    required: false,
+                    metadata: None,
+                },
+                CheckListItem {
+                    label: "AGE".to_string(),
+                    checked: true,
+                    required: false,
+                    metadata: None,
+                },
+                CheckListItem {
+                    label: "IP".to_string(),
+                    checked: false,
+                    required: false,
+                    metadata: None,
+                },
+                CheckListItem {
+                    label: "NODE".to_string(),
+                    checked: false,
+                    required: false,
+                    metadata: None,
+                },
+                CheckListItem {
+                    label: "NOMINATED NODE".to_string(),
+                    checked: false,
+                    required: false,
+                    metadata: None,
+                },
+                CheckListItem {
+                    label: "READINESS GATES".to_string(),
+                    checked: false,
+                    required: false,
+                    metadata: None,
+                },
+            ];
+
+            assert_eq!(columns, expected);
+        }
     }
 }
