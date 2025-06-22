@@ -29,6 +29,31 @@ impl PodColumns {
     pub fn columns(&self) -> &[PodColumn] {
         &self.columns
     }
+
+    pub fn ensure_name_column(mut self) -> Self {
+        if self.columns.contains(&PodColumn::Name) {
+            return self;
+        }
+
+        self.columns.insert(0, PodColumn::Name);
+        self
+    }
+
+    pub fn dedup_columns(self) -> Self {
+        let mut unique_columns = Vec::new();
+
+        for column in self.columns {
+            if unique_columns.contains(&column) {
+                continue; // 重複をスキップ
+            }
+
+            unique_columns.push(column);
+        }
+
+        PodColumns {
+            columns: unique_columns,
+        }
+    }
 }
 
 const DEFAULT_POD_COLUMNS: &[PodColumn] = &[
@@ -164,6 +189,52 @@ mod tests {
             ];
 
             assert_eq!(actual.columns, expected);
+        }
+
+        mod dedup_columns {
+            use super::*;
+            use pretty_assertions::assert_eq;
+
+            #[test]
+            fn 重複が排除される() {
+                let columns = PodColumns::new([
+                    PodColumn::Ready,
+                    PodColumn::Status,
+                    PodColumn::Ready,
+                    PodColumn::Name,
+                ])
+                .dedup_columns();
+
+                assert_eq!(
+                    columns.columns,
+                    &[PodColumn::Ready, PodColumn::Status, PodColumn::Name,]
+                );
+            }
+        }
+
+        mod ensure_name_column {
+            use super::*;
+            use pretty_assertions::assert_eq;
+
+            #[test]
+            fn nameカラムがすでに含まれている場合は変更されない() {
+                let columns = vec![PodColumn::Name, PodColumn::Ready, PodColumn::Status];
+                let pod_columns = PodColumns::new(columns.clone());
+                let actual = pod_columns.ensure_name_column();
+
+                assert_eq!(actual.columns, columns);
+            }
+
+            #[test]
+            fn nameカラムが含まれていない場合は先頭に追加される() {
+                let columns = vec![PodColumn::Ready, PodColumn::Status];
+                let pod_columns = PodColumns::new(columns);
+
+                let actual = pod_columns.ensure_name_column();
+                let expected = vec![PodColumn::Name, PodColumn::Ready, PodColumn::Status];
+
+                assert_eq!(actual.columns, expected);
+            }
         }
     }
 

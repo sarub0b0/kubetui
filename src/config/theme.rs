@@ -118,12 +118,9 @@ impl From<ThemeConfig> for PodConfig {
                 })
                 .collect(),
             default_columns: theme.pod.default_columns.map(|columns| {
-                let mut columns = columns.into_iter().map(|col| col.0).collect::<Vec<_>>();
-
-                columns.sort();
-                columns.dedup();
-
-                PodColumns::new(columns)
+                PodColumns::new(columns.into_iter().map(|col| col.0))
+                    .ensure_name_column()
+                    .dedup_columns()
             }),
         }
     }

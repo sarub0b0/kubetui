@@ -53,14 +53,9 @@ pub fn parse_pod_columns(input: &str) -> Result<PodColumns> {
         }
     }
 
-    if !columns.contains(&PodColumn::Name) {
-        columns.insert(0, PodColumn::Name);
-    }
-
-    columns.sort();
-    columns.dedup();
-
-    Ok(PodColumns::new(columns))
+    Ok(PodColumns::new(columns)
+        .ensure_name_column()
+        .dedup_columns())
 }
 
 #[cfg(test)]
@@ -170,16 +165,16 @@ mod tests {
     }
 
     #[test]
-    fn カラム名の順序はソートされる() {
+    fn カラム名の順序は維持される() {
         let input = "status, name, ready";
         let actual = parse_pod_columns(input).unwrap();
-        let expected = vec![PodColumn::Name, PodColumn::Ready, PodColumn::Status];
+        let expected = vec![PodColumn::Status, PodColumn::Name, PodColumn::Ready];
         assert_eq!(actual.columns(), expected);
     }
 
     // 重複排除のテスト
     #[test]
-    fn 重複したカラム名が含まれていても一つだけ保持される() {
+    fn 入力されたカラムに重複がある場合は最初の1つのみを保持する() {
         let input = "name, ready, ready, status";
         let actual = parse_pod_columns(input).unwrap();
         let expected = vec![PodColumn::Name, PodColumn::Ready, PodColumn::Status];
