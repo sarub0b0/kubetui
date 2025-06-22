@@ -331,11 +331,11 @@ impl WidgetTrait for CheckList {
 
     fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
         match key_event_to_code(ev) {
-            KeyCode::Char('j') | KeyCode::Down => {
+            KeyCode::Char('j') | KeyCode::Down | KeyCode::PageDown => {
                 self.select_next(1);
             }
 
-            KeyCode::Char('k') | KeyCode::Up => {
+            KeyCode::Char('k') | KeyCode::Up | KeyCode::PageUp => {
                 self.select_prev(1);
             }
 
