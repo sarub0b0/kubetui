@@ -2,10 +2,10 @@ use std::rc::Rc;
 
 use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind},
-    layout::Rect,
+    layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::Line,
-    widgets::{Block, HighlightSpacing, ListItem, ListState},
+    text::{Line, Span},
+    widgets::{Block, HighlightSpacing, ListItem, ListState, Paragraph},
     Frame,
 };
 
@@ -123,7 +123,8 @@ impl CheckListBuilder {
             items: self.items,
             state: self.state,
             chunk: Rect::default(),
-            inner_chunk: Rect::default(),
+            main_chunk: Rect::default(),
+            footer_chunk: Rect::default(),
             on_change: self.on_change,
             block_injection: self.block_injection,
         }
@@ -138,7 +139,8 @@ pub struct CheckList {
     items: Vec<CheckListItem>,
     state: ListState,
     chunk: Rect,
-    inner_chunk: Rect,
+    main_chunk: Rect,
+    footer_chunk: Rect,
     on_change: Option<OnChangeCallback>,
     block_injection: Option<RenderBlockInjection>,
 }
@@ -150,6 +152,13 @@ impl CheckList {
 
     pub fn items(&self) -> &[CheckListItem] {
         &self.items
+    }
+
+    fn layout() -> Layout {
+        Layout::vertical([
+            Constraint::Fill(1),   // Main content
+            Constraint::Length(1), // Footer
+        ])
     }
 
     fn toggle_selected(&mut self) -> bool {
@@ -292,11 +301,11 @@ impl WidgetTrait for CheckList {
             return EventResult::Nop;
         }
 
-        let y = ev.row.saturating_sub(self.inner_chunk.top()) as usize;
+        let y = ev.row.saturating_sub(self.main_chunk.top()) as usize;
 
         match ev.kind {
             MouseEventKind::Down(MouseButton::Left) => {
-                if !self.inner_chunk.contains_point(ev.position()) {
+                if !self.main_chunk.contains_point(ev.position()) {
                     return EventResult::Nop;
                 }
 
@@ -392,12 +401,34 @@ impl WidgetTrait for CheckList {
 
     fn update_chunk(&mut self, chunk: Rect) {
         self.chunk = chunk;
-        self.inner_chunk = self.widget_base.block().inner(chunk)
+
+        let inner_chunk = self.widget_base.block().inner(chunk);
+        let [main_chunk, footer_chunk] = Self::layout().areas(inner_chunk);
+
+        self.main_chunk = main_chunk;
+        self.footer_chunk = footer_chunk;
     }
 
     fn clear(&mut self) {
         self.items.clear();
         self.state = ListState::default();
+    }
+}
+
+impl CheckList {
+    fn render_footer(&self, f: &mut Frame) {
+        let widget = Paragraph::new(Line::from(vec![
+            Span::raw(" Press ["),
+            Span::styled("Space", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw("/"),
+            Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw("] to toggle, ["),
+            Span::styled("J", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw("/"),
+            Span::styled("K", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw("] to move."),
+        ]));
+        f.render_widget(widget, self.footer_chunk);
     }
 }
 
@@ -413,12 +444,15 @@ impl RenderTrait for CheckList {
         let items = create_list_items(&self.items, &self.theme);
 
         let widget = ratatui::widgets::List::new(items)
-            .block(block)
             .highlight_style(self.theme.selected)
             .highlight_symbol(self.theme.selected_symbol.as_str())
             .highlight_spacing(HighlightSpacing::Always);
 
-        f.render_stateful_widget(widget, self.chunk, &mut self.state);
+        f.render_widget(block, self.chunk);
+
+        f.render_stateful_widget(widget, self.main_chunk, &mut self.state);
+
+        self.render_footer(f);
     }
 }
 
