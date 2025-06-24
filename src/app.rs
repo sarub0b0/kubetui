@@ -29,11 +29,17 @@ impl App {
         let user_input = UserInput::new(tx_input.clone(), tx_shutdown.clone());
 
         kube_worker_config.pod_config = PodConfig::from(config.theme.clone());
-        kube_worker_config.pod_config.columns = cmd.pod_columns.columns;
+
+        if let Some(columns) = cmd.pod_columns {
+            kube_worker_config.pod_config.default_columns = Some(columns)
+        };
+
         kube_worker_config.event_config = EventConfig::from(config.theme.clone());
         kube_worker_config.api_config = ApiConfig::from(config.theme.clone());
         kube_worker_config.apis_config = ApisConfig::from(config.theme.clone());
         kube_worker_config.yaml_config = YamlConfig::from(config.theme.clone());
+
+        let default_pod_columns = kube_worker_config.pod_config.default_columns.clone();
 
         let kube = KubeWorker::new(
             tx_kube.clone(),
@@ -53,6 +59,7 @@ impl App {
             rx_main.clone(),
             tx_shutdown.clone(),
             split_direction,
+            default_pod_columns,
             config.theme.clone(),
         );
 

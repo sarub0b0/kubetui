@@ -205,6 +205,13 @@ const RIGHT_HELP_TEXT: &[HelpBlock] = &[
         ],
     },
     HelpBlock {
+        title: "Pod",
+        bindings: &[KeyBindings {
+            keys: &["t"],
+            desc: "customize visible columns",
+        }],
+    },
+    HelpBlock {
         title: "Log",
         bindings: &[
             KeyBindings {
@@ -214,6 +221,27 @@ const RIGHT_HELP_TEXT: &[HelpBlock] = &[
             KeyBindings {
                 keys: &["f", "p"],
                 desc: "toggle json pretty print",
+            },
+        ],
+    },
+    HelpBlock {
+        title: "Pod Columns",
+        bindings: &[
+            KeyBindings {
+                keys: &["j", "k", "Up", "Down"],
+                desc: "move cursor up/down",
+            },
+            KeyBindings {
+                keys: &["g", "G", "Home", "End"],
+                desc: "move cursor to the first/last line",
+            },
+            KeyBindings {
+                keys: &["Space", "Enter"],
+                desc: "toggle column visibility",
+            },
+            KeyBindings {
+                keys: &["J", "K"],
+                desc: "move column up/down",
             },
         ],
     },

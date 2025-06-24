@@ -1,8 +1,8 @@
 use anyhow::Result;
 
-use crate::{message::Message, workers::kube::message::Kube};
+use crate::{kube::table::KubeTable, message::Message, workers::kube::message::Kube};
 
-use super::kube::LogConfig;
+use super::{kube::LogConfig, PodColumns};
 
 #[derive(Debug)]
 pub enum LogMessage {
@@ -14,5 +14,17 @@ pub enum LogMessage {
 impl From<LogMessage> for Message {
     fn from(m: LogMessage) -> Message {
         Message::Kube(Kube::Log(m))
+    }
+}
+
+#[derive(Debug)]
+pub enum PodMessage {
+    Request(PodColumns),
+    Poll(Result<KubeTable>),
+}
+
+impl From<PodMessage> for Message {
+    fn from(m: PodMessage) -> Message {
+        Message::Kube(Kube::Pod(m))
     }
 }

@@ -6,7 +6,10 @@ use ratatui::layout::{Constraint, Direction};
 use crate::{
     clipboard::Clipboard,
     config::theme::WidgetThemeConfig,
-    features::component_id::{POD_TAB_ID, POD_WIDGET_ID},
+    features::{
+        component_id::{POD_TAB_ID, POD_WIDGET_ID},
+        pod::PodColumns,
+    },
     kube::context::Namespace,
     message::Message,
     ui::{
@@ -16,11 +19,14 @@ use crate::{
     },
 };
 
-use super::widgets::{log_query_help_widget, log_query_widget, log_widget, pod_widget};
+use super::widgets::{
+    log_query_help_widget, log_query_widget, log_widget, pod_columns_dialog, pod_widget,
+};
 
 pub struct PodTab {
     pub tab: Tab<'static>,
     pub log_query_help_dialog: Widget<'static>,
+    pub pod_columns_dialog: Widget<'static>,
 }
 
 impl PodTab {
@@ -30,10 +36,12 @@ impl PodTab {
         clipboard: &Option<Rc<RefCell<Clipboard>>>,
         split_direction: Direction,
         namespaces: Rc<RefCell<Namespace>>,
+        default_columns: Option<PodColumns>,
         theme: WidgetThemeConfig,
     ) -> Self {
         let pod_widget = pod_widget(tx, theme.clone());
         let log_query_widget = log_query_widget(tx, namespaces, theme.clone());
+        let pod_columns_dialog = pod_columns_dialog(tx, default_columns, theme.clone());
         let log_widget = log_widget(tx, clipboard, theme);
         let log_query_help_widget = log_query_help_widget();
 
@@ -51,6 +59,7 @@ impl PodTab {
         Self {
             tab,
             log_query_help_dialog: log_query_help_widget,
+            pod_columns_dialog,
         }
     }
 }

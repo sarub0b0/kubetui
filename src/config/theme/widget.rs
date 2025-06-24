@@ -2,13 +2,13 @@ use ratatui::style::{Color, Modifier};
 use serde::{Deserialize, Serialize};
 
 use crate::ui::widget::{
-    multiple_select, single_select, table, InputFormTheme, ListTheme, SearchFormTheme, TableTheme,
-    TextTheme, WidgetTheme,
+    multiple_select, single_select, table, CheckListTheme, InputFormTheme, ListTheme,
+    SearchFormTheme, TableTheme, TextTheme, WidgetTheme,
 };
 
 use super::{
-    BorderThemeConfig, DialogThemeConfig, FilterFormThemeConfig, InputFormThemeConfig,
-    ListThemeConfig, TableThemeConfig, TextThemeConfig, ThemeStyleConfig,
+    BorderThemeConfig, CheckListThemeConfig, DialogThemeConfig, FilterFormThemeConfig,
+    InputFormThemeConfig, ListThemeConfig, TableThemeConfig, TextThemeConfig, ThemeStyleConfig,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -63,6 +63,9 @@ pub struct WidgetThemeConfig {
 
     #[serde(default)]
     pub list: ListThemeConfig,
+
+    #[serde(default)]
+    pub check_list: CheckListThemeConfig,
 
     #[serde(default)]
     pub input: InputFormThemeConfig,
@@ -179,6 +182,19 @@ impl From<WidgetThemeConfig> for ListTheme {
     }
 }
 
+impl From<WidgetThemeConfig> for CheckListTheme {
+    fn from(theme: WidgetThemeConfig) -> Self {
+        Self {
+            selected: theme.check_list.selected.into(),
+            required: theme.check_list.required.into(),
+            required_symbol: theme.check_list.required_symbol,
+            selected_symbol: theme.check_list.selected_symbol,
+            checked_symbol: theme.check_list.checked_symbol,
+            unchecked_symbol: theme.check_list.unchecked_symbol,
+        }
+    }
+}
+
 impl From<WidgetThemeConfig> for multiple_select::SelectFormTheme {
     fn from(theme: WidgetThemeConfig) -> Self {
         Self {
@@ -224,6 +240,7 @@ mod tests {
             text: TextThemeConfig::default(),
             table: TableThemeConfig::default(),
             list: ListThemeConfig::default(),
+            check_list: CheckListThemeConfig::default(),
             input: InputFormThemeConfig::default(),
             dialog: DialogThemeConfig::default(),
         };
@@ -335,6 +352,20 @@ mod tests {
                     ..Default::default()
                 },
             },
+            check_list: CheckListThemeConfig {
+                selected: ThemeStyleConfig {
+                    modifier: Modifier::REVERSED,
+                    ..Default::default()
+                },
+                required: ThemeStyleConfig {
+                    fg_color: Some(Color::DarkGray),
+                    ..Default::default()
+                },
+                required_symbol: "(required)".to_string(),
+                selected_symbol: ">".to_string(),
+                checked_symbol: "[x]".to_string(),
+                unchecked_symbol: "[ ]".to_string(),
+            },
             input: InputFormThemeConfig(ThemeStyleConfig {
                 fg_color: Some(Color::White),
                 ..Default::default()
@@ -428,6 +459,15 @@ mod tests {
                 modifier: reversed
               status:
                 fg_color: yellow
+            check_list:
+              selected:
+                modifier: reversed
+              selected_symbol: '>'
+              required:
+                fg_color: darkgray
+              required_symbol: (required)
+              checked_symbol: '[x]'
+              unchecked_symbol: '[ ]'
             input:
               fg_color: white
             dialog:
@@ -514,6 +554,15 @@ mod tests {
                 modifier: reversed
               status:
                 fg_color: yellow
+            check_list:
+              selected:
+                modifier: reversed
+              selected_symbol: '>'
+              required:
+                fg_color: darkgray
+              required_symbol: (required)
+              checked_symbol: '[x]'
+              unchecked_symbol: '[ ]'
             input:
               fg_color: white
             dialog:
@@ -654,6 +703,20 @@ mod tests {
                     fg_color: Some(Color::Yellow),
                     ..Default::default()
                 },
+            },
+            check_list: CheckListThemeConfig {
+                selected: ThemeStyleConfig {
+                    modifier: Modifier::REVERSED,
+                    ..Default::default()
+                },
+                required: ThemeStyleConfig {
+                    fg_color: Some(Color::DarkGray),
+                    ..Default::default()
+                },
+                required_symbol: "(required)".to_string(),
+                selected_symbol: ">".to_string(),
+                checked_symbol: "[x]".to_string(),
+                unchecked_symbol: "[ ]".to_string(),
             },
             input: InputFormThemeConfig(ThemeStyleConfig {
                 fg_color: Some(Color::White),

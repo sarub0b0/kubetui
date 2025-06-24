@@ -116,6 +116,28 @@ theme:
       status:
         fg_color: yellow
 
+    ## Check list component
+    check_list:
+      # Style for the currently selected (focused) item
+      selected:
+        fg_color: green # Foreground color (e.g., yellow, red, blue, etc.)
+
+      # Symbol shown at the beginning of the selected item
+      selected_symbol: "→" # Examples: →, >, *, etc.
+
+      # Style for required (non-editable) items
+      required:
+        fg_color: red # Foreground color (e.g., red, gray, etc.)
+
+      # Symbol or label displayed next to required items
+      required_symbol: "✗" # Examples: "required", "✱", "[!]", etc.
+
+      # Symbol used for checked items
+      checked_symbol: "✓" # Examples: [x], ✔, *, etc.
+
+      # Symbol used for unchecked items
+      unchecked_symbol: "☐" # Examples: [ ], -, _, etc.
+
     ## Input form
     input:
       fg_color: white
@@ -142,6 +164,11 @@ theme:
         fg_color: green
       - status: (BackOff|Err|Unknown)
         fg_color: red
+    default_columns:
+      - name
+      - status
+      - ip
+      - age
 
   ## Event view
   event:
