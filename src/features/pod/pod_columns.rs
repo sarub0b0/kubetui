@@ -39,6 +39,8 @@ impl PodColumns {
         self
     }
 
+    // 順序を保ちながら重複を排除します。
+    // 列数が少ない前提のため、線形探索を使用しています。
     pub fn dedup_columns(self) -> Self {
         let mut unique_columns = Vec::new();
 
