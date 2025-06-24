@@ -58,7 +58,8 @@ Kubetui offers the following features to help you monitor and manage your Kubern
 - **Pods List and Container Logs**:
   - View a list of pods and their container logs.
   - JSON logs display mode switching: toggle between pretty print and single-line display using the <kbd>f</kbd> or <kbd>p</kbd> keys.
-  - **(new) Customizable pod columns**: Use `--pod-columns` to control which columns are shown in the pod table view. Supports comma-separated lists or `full` to show all columns.
+  - **Customizable pod columns**: Use `--pod-columns` to control which columns are shown in the pod table view. Supports comma-separated lists or `full` to show all columns.
+  - **Dynamic column selection**: You can now customize pod columns at runtime using a column selection dialog. Press <kbd>t</kbd> while the pod table is focused to open the dialog. Selected columns are immediately applied.
 - **ConfigMap and Secret Watching**: Monitor ConfigMaps and secrets, and decode their data.
 - **Network-related Resources**: Explore a list of network-related resources and their descriptions.
 - **Events Watching**: Stay updated with a real-time view of Kubernetes events.
@@ -185,9 +186,15 @@ Use `--pod-columns` to customize the columns displayed in the pod table.
   `--pod-columns=full`
 
 Notes:
+
 - The `Name` column is always included even if not specified.
 - The `full` keyword cannot be combined with other columns.
 
+You can also customize columns dynamically at runtime:
+
+- Press <kbd>t</kbd> in the pod view to open the column selection dialog.
+- Use <kbd>Space</kbd>/<kbd>Enter</kbd> to toggle visibility and <kbd>J</kbd>/<kbd>K</kbd> to reorder columns.
+- Required columns like `NAME` are always enabled and fixed.
 
 ### Shell Completion
 
