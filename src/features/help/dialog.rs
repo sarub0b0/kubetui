@@ -205,6 +205,13 @@ const RIGHT_HELP_TEXT: &[HelpBlock] = &[
         ],
     },
     HelpBlock {
+        title: "Pod",
+        bindings: &[KeyBindings {
+            keys: &["t"],
+            desc: "customize visible columns",
+        }],
+    },
+    HelpBlock {
         title: "Log",
         bindings: &[
             KeyBindings {
