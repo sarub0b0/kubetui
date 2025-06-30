@@ -164,11 +164,20 @@ theme:
         fg_color: green
       - status: (BackOff|Err|Unknown)
         fg_color: red
-    default_columns:
-      - name
-      - status
-      - ip
-      - age
+    ## Name of the column preset to use when starting the application if no CLI flag is given
+    default_preset: minimal
+    ## Define multiple column presets which can be selected by name
+    column_presets:
+      default:
+        - name
+        - status
+        - age
+        - ip
+        - node
+      minimal:
+        - name
+        - status
+        - age
 
   ## Event view
   event:

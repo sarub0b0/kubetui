@@ -21,8 +21,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::features::api_resources::kube::ApiConfig;
 use crate::features::event::kube::{EventConfig, EventHighlightRule};
-use crate::features::pod::kube::{PodConfig, PodHighlightRule};
-use crate::features::pod::PodColumns;
 use crate::ui::dialog::DialogTheme;
 use crate::ui::{HeaderTheme, TabTheme};
 use crate::workers::kube::{ApisConfig, YamlConfig};
@@ -102,27 +100,6 @@ impl From<ThemeConfig> for DialogTheme {
         DialogTheme::default()
             .base_style(base_style)
             .size(config.component.dialog.size)
-    }
-}
-
-impl From<ThemeConfig> for PodConfig {
-    fn from(theme: ThemeConfig) -> Self {
-        PodConfig {
-            pod_highlight_rules: theme
-                .pod
-                .highlights
-                .into_iter()
-                .map(|hi| PodHighlightRule {
-                    status_regex: hi.status,
-                    style: hi.style.into(),
-                })
-                .collect(),
-            default_columns: theme.pod.default_columns.map(|columns| {
-                PodColumns::new(columns.into_iter().map(|col| col.0))
-                    .ensure_name_column()
-                    .dedup_columns()
-            }),
-        }
     }
 }
 

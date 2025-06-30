@@ -21,6 +21,8 @@ It provides an easy-to-use interface for developers and operators to access impo
   - [Downloading the binary](#downloading-the-binary)
 - [Usage](#usage)
   - [Pod Column Customization](#pod-column-customization)
+    - [Define presets in config.yaml](#define-presets-in-configyaml)
+    - [Example config](#example-config)
   - [Shell Completion](#shell-completion)
   - [Custom Configuration](#custom-configuration)
 - [Log Query](#log-query)
@@ -58,7 +60,7 @@ Kubetui offers the following features to help you monitor and manage your Kubern
 - **Pods List and Container Logs**:
   - View a list of pods and their container logs.
   - JSON logs display mode switching: toggle between pretty print and single-line display using the <kbd>f</kbd> or <kbd>p</kbd> keys.
-  - **Customizable pod columns**: Use `--pod-columns` to control which columns are shown in the pod table view. Supports comma-separated lists or `full` to show all columns.
+  - **Customizable pod columns (via CLI flags or config presets)**: Use `--pod-columns` or `--pod-columns-preset` to control which columns appear in the pod list view. Also supports dynamic selection at runtime.
   - **Dynamic column selection**: You can now customize pod columns at runtime using a column selection dialog. Press <kbd>t</kbd> while the pod table is focused to open the dialog. Selected columns are immediately applied.
 - **ConfigMap and Secret Watching**: Monitor ConfigMaps and secrets, and decode their data.
 - **Network-related Resources**: Explore a list of network-related resources and their descriptions.
@@ -163,16 +165,17 @@ Commands:
   completion  Generate completion script
 
 Options:
-  -h, --help                           Print help
-  -V, --version                        Print version
-  -A, --all-namespaces[=<true|false>]  Select all namespaces [default: false]
-  -c, --context <CONTEXT>              Context
-  -C, --kubeconfig <KUBECONFIG>        kubeconfig path
-      --config-file <CONFIG_FILE>      Config file path
-  -l, --logging                        Logging
-  -n, --namespaces <NAMESPACES>        Namespaces (e.g. -n val1,val2,val3 | -n val1 -n val2 -n val3)
-      --pod-columns <POD_COLUMNS>      Comma-separated list of columns to show in pod table (e.g. name,status,ip). Use "full" to show all available columns [default: name,ready,status,age]
-  -s, --split-direction <v|h>          Window split direction [default: v]
+  -h, --help                                     Print help
+  -V, --version                                  Print version
+  -A, --all-namespaces[=<true|false>]            Select all namespaces [default: false]
+  -c, --context <CONTEXT>                        Context
+  -C, --kubeconfig <KUBECONFIG>                  kubeconfig path
+      --config-file <CONFIG_FILE>                Config file path
+  -l, --logging                                  Logging
+  -n, --namespaces <NAMESPACES>                  Namespaces (e.g. -n val1,val2,val3 | -n val1 -n val2 -n val3)
+      --pod-columns <POD_COLUMNS>                Comma-separated list of columns to show in pod table (e.g. name,status,ip). Use "full" to show all available columns
+      --pod-columns-preset <POD_COLUMNS_PRESET>  Preset name for pod columns (e.g. "default", "full"). If both are specified, `--pod-columns` overrides this
+  -s, --split-direction <v|h>                    Window split direction [default: v]
 ```
 
 ### Pod Column Customization
@@ -195,6 +198,43 @@ You can also customize columns dynamically at runtime:
 - Press <kbd>t</kbd> in the pod view to open the column selection dialog.
 - Use <kbd>Space</kbd>/<kbd>Enter</kbd> to toggle visibility and <kbd>J</kbd>/<kbd>K</kbd> to reorder columns.
 - Required columns like `NAME` are always enabled and fixed.
+
+#### Define presets in config.yaml
+
+You can define reusable column presets under `pod.column_presets` in your config file, and set a default preset with `pod.default_preset`.
+
+#### Example config
+
+```yaml
+theme:
+  pod:
+    # Name of the default preset to use at startup (optional)
+    default_preset: minimal
+
+    # Define named presets of pod columns
+    column_presets:
+      default:
+        - name
+        - status
+        - age
+        - ip
+        - node
+      minimal:
+        - name
+        - status
+        - age
+```
+
+To use a preset defined in your config file at runtime:
+
+```sh
+kubetui --pod-columns-preset=default
+```
+
+This will apply the preset named "default" defined in your configuration file.
+
+If both `--pod-columns` and `--pod-columns-preset` are specified, `--pod-columns` takes precedence.
+If neither is specified, the preset defined in `pod.default_preset` (if any) is used.
 
 ### Shell Completion
 
