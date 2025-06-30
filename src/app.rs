@@ -159,11 +159,7 @@ fn build_pod_columns(
             anyhow::bail!("Pod column preset '{}' was specified via '--pod-columns-preset' but is not defined in config file", preset);
         };
 
-        return Ok(Some(
-            PodColumns::from(columns)
-                .ensure_name_column()
-                .dedup_columns(),
-        ));
+        return Ok(Some(convert_columns(columns)));
     }
 
     if let Some(default_preset) = default_preset {
@@ -180,12 +176,14 @@ fn build_pod_columns(
             );
         };
 
-        return Ok(Some(
-            PodColumns::from(columns)
-                .ensure_name_column()
-                .dedup_columns(),
-        ));
+        return Ok(Some(convert_columns(columns)));
     }
 
     Ok(None)
+}
+
+fn convert_columns(columns: &[PodColumnConfig]) -> PodColumns {
+    PodColumns::from(columns)
+        .ensure_name_column()
+        .dedup_columns()
 }
