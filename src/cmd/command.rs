@@ -81,7 +81,7 @@ pub struct Command {
         display_order = 1000)]
     pub pod_columns: Option<PodColumns>,
 
-    /// Preset name for pod columns (e.g. "default", "full"). if both are specified, `--pod-columns` overrides this.
+    /// Preset name for pod columns (e.g. "default", "full"). If both are specified, `--pod-columns` overrides this.
     #[arg(long, display_order = 1000)]
     pub pod_columns_preset: Option<String>,
 

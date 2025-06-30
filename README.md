@@ -174,7 +174,7 @@ Options:
   -l, --logging                                  Logging
   -n, --namespaces <NAMESPACES>                  Namespaces (e.g. -n val1,val2,val3 | -n val1 -n val2 -n val3)
       --pod-columns <POD_COLUMNS>                Comma-separated list of columns to show in pod table (e.g. name,status,ip). Use "full" to show all available columns
-      --pod-columns-preset <POD_COLUMNS_PRESET>  Preset name for pod columns (e.g. "default", "full"). if both are specified, `--pod-columns` overrides this
+      --pod-columns-preset <POD_COLUMNS_PRESET>  Preset name for pod columns (e.g. "default", "full"). If both are specified, `--pod-columns` overrides this
   -s, --split-direction <v|h>                    Window split direction [default: v]
 ```
 
