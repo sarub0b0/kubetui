@@ -1,8 +1,10 @@
+use std::collections::HashMap;
+
 use ratatui::style::Color;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::features::pod::PodColumn;
+use crate::features::pod::{PodColumn, PodColumns};
 
 use super::ThemeStyleConfig;
 
@@ -11,14 +13,17 @@ pub struct PodThemeConfig {
     #[serde(default = "default_highlights")]
     pub highlights: Vec<PodHighlightConfig>,
 
-    pub default_columns: Option<Vec<PodColumnConfig>>,
+    pub default_preset: Option<String>,
+
+    pub column_presets: Option<HashMap<String, Vec<PodColumnConfig>>>,
 }
 
 impl Default for PodThemeConfig {
     fn default() -> Self {
         Self {
             highlights: default_highlights(),
-            default_columns: None,
+            default_preset: None,
+            column_presets: None,
         }
     }
 }
@@ -97,5 +102,11 @@ mod serde_pod_column {
     {
         let s = String::deserialize(deserializer)?;
         super::PodColumn::from_str(&s).map_err(de::Error::custom)
+    }
+}
+
+impl<T: AsRef<[PodColumnConfig]>> From<T> for PodColumns {
+    fn from(value: T) -> Self {
+        PodColumns::new(value.as_ref().iter().map(|c| c.0))
     }
 }
