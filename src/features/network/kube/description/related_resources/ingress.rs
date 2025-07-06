@@ -10,12 +10,12 @@ impl Filter<Vec<String>> for List<Ingress> {
             .items
             .iter()
             .filter(|ing| {
-                ing.spec.as_ref().map_or(false, |spec| {
-                    spec.rules.as_ref().map_or(false, |rules| {
+                ing.spec.as_ref().is_some_and(|spec| {
+                    spec.rules.as_ref().is_some_and(|rules| {
                         rules.iter().any(|rule| {
-                            rule.http.as_ref().map_or(false, |http| {
+                            rule.http.as_ref().is_some_and(|http| {
                                 http.paths.iter().any(|path| {
-                                    path.backend.service.as_ref().map_or(false, |service| {
+                                    path.backend.service.as_ref().is_some_and(|service| {
                                         arg.iter().any(|arg_name| arg_name == &service.name)
                                     })
                                 })
