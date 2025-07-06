@@ -2,7 +2,7 @@
 name = "kubetui"
 version = "1.9.0"
 authors = ["kosay <ekr59uv25@gmail.com>"]
-edition = "2021"
+edition = "2024"
 license = "MIT"
 description = "An intuitive Terminal User Interface (TUI) tool for real-time monitoring and exploration of Kubernetes resources."
 documentation = "https://github.com/sarub0b0/kubetui"
