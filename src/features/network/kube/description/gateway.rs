@@ -65,8 +65,7 @@ async fn fetch_v1(client: Client, name: &str, namespace: &str) -> Result<Fetched
     let api = Api::<gateway::v1::Gateway>::namespaced(client.clone(), namespace);
 
     let gateway = api.get(name).await.context(format!(
-        "Failed to fetch Gateway: namespace={}, name={}",
-        namespace, name
+        "Failed to fetch Gateway: namespace={namespace}, name={name}"
     ))?;
 
     let description = v1::Description::new(gateway.clone());
@@ -97,8 +96,7 @@ async fn fetch_v1beta1(client: Client, name: &str, namespace: &str) -> Result<Fe
     let api = Api::<gateway::v1beta1::Gateway>::namespaced(client.clone(), namespace);
 
     let gateway = api.get(name).await.context(format!(
-        "Failed to fetch Gateway: namespace={}, name={}",
-        namespace, name
+        "Failed to fetch Gateway: namespace={namespace}, name={name}"
     ))?;
 
     let description = v1beta1::Description::new(gateway.clone());

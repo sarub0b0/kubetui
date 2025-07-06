@@ -93,10 +93,10 @@ impl std::fmt::Display for Value {
             JsonValue::Bool(b) => {
                 let s = if *b { "True" } else { "False" };
 
-                write!(f, "{}", s)
+                write!(f, "{s}")
             }
-            JsonValue::Number(n) => write!(f, "{}", n),
-            JsonValue::String(s) => write!(f, "{}", s),
+            JsonValue::Number(n) => write!(f, "{n}"),
+            JsonValue::String(s) => write!(f, "{s}"),
             JsonValue::Array(_) => {
                 write!(f, "{}", self.0)
             }
@@ -238,10 +238,10 @@ impl Table {
             .map(|(i, h)| {
                 let header_text = h.1.to_uppercase();
 
-                let formatted_header = format!("\x1b[90m{}\x1b[39m", header_text);
+                let formatted_header = format!("\x1b[90m{header_text}\x1b[39m");
                 let padding = " ".repeat(digits[i] - header_text.len());
 
-                format!("{}{}", formatted_header, padding)
+                format!("{formatted_header}{padding}")
             })
             .collect::<Vec<String>>()
             .join("   ");

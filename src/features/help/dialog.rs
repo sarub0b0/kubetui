@@ -348,7 +348,7 @@ fn generate(theme: HelpItemTheme) -> Vec<String> {
             });
 
             let pad = view_padding + escape_len;
-            format!(" {:pad$}   {}", l, r)
+            format!(" {l:pad$}   {r}")
         })
         .collect()
 }

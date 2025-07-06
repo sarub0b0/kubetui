@@ -133,7 +133,7 @@ fn complete_context(args: Vec<String>) -> Result<()> {
             }
         })
         .for_each(|ctx| {
-            println!("{}", ctx);
+            println!("{ctx}");
         });
 
     Ok(())
@@ -187,7 +187,7 @@ fn complete_namespace(args: Vec<String>) -> Result<()> {
                 }
             })
             .for_each(|ns| {
-                println!("{}", ns);
+                println!("{ns}");
             });
 
         anyhow::Ok(())

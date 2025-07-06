@@ -57,7 +57,7 @@ impl ConfigMapData {
                         key = key
                     )];
 
-                    let value: Vec<String> = value.lines().map(|l| format!("  {}\n", l)).collect();
+                    let value: Vec<String> = value.lines().map(|l| format!("  {l}\n")).collect();
 
                     ret.extend(value);
 

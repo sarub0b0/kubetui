@@ -73,7 +73,7 @@ impl Display for StyledTable<'_> {
             .collect::<Vec<String>>()
             .join(WIDTH_PADDING);
 
-        write!(f, "{}\x1b[39m", header_str)?;
+        write!(f, "{header_str}\x1b[39m")?;
 
         // 行を表示
         for row in rows.iter() {
@@ -86,7 +86,7 @@ impl Display for StyledTable<'_> {
                 .collect::<Vec<String>>()
                 .join(WIDTH_PADDING);
 
-            write!(f, "{}\x1b[39m", rows_str)?;
+            write!(f, "{rows_str}\x1b[39m")?;
         }
 
         Ok(())

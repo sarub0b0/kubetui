@@ -93,12 +93,12 @@ fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &TableItem) -> EventRe
 
         let query_form = w.find_widget_mut(POD_LOG_QUERY_WIDGET_ID);
 
-        query_form.update_widget_item(Item::Single(format!("pod/{}", name).into()));
+        query_form.update_widget_item(Item::Single(format!("pod/{name}").into()));
 
         let namespaces = Namespace(vec![namespace.to_string()]);
 
         let config = LogConfig::new(
-            format!("pod/{}", name),
+            format!("pod/{name}"),
             namespaces.to_owned(),
             LogPrefixType::OnlyContainer,
             false,

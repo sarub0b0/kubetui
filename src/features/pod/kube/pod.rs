@@ -179,7 +179,7 @@ impl PodPoller {
 
                     if let Some(color) = color {
                         row.iter_mut()
-                            .for_each(|r| *r = format!("{}{}\x1b[0m", color, r))
+                            .for_each(|r| *r = format!("{color}{r}\x1b[0m"))
                     }
 
                     KubeTableRow {

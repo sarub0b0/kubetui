@@ -50,7 +50,7 @@ fn block_injection() -> impl Fn(&Text, bool, bool) -> Block<'static> {
 
         let mut base = text.widget_base().clone();
 
-        *base.title_mut() = format!("Raw Data [{}/{}]", index, size).into();
+        *base.title_mut() = format!("Raw Data [{index}/{size}]").into();
 
         base.render_block(text.can_activate() && is_active, is_mouse_over)
     }

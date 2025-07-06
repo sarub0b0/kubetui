@@ -165,8 +165,8 @@ impl ApiResource {
 
     pub fn group_version_url(&self) -> String {
         match self {
-            Self::Apis { group, version, .. } => format!("apis/{}/{}", group, version),
-            Self::Api { version, .. } => format!("api/{}", version),
+            Self::Apis { group, version, .. } => format!("apis/{group}/{version}"),
+            Self::Api { version, .. } => format!("api/{version}"),
         }
     }
 
@@ -221,7 +221,7 @@ impl Display for ApiResource {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Api { name, .. } => {
-                write!(f, "{}", name)
+                write!(f, "{name}")
             }
             Self::Apis {
                 name,
@@ -231,9 +231,9 @@ impl Display for ApiResource {
                 ..
             } => {
                 if *preferred_version {
-                    write!(f, "{}.{} (*{})", name, group, version)
+                    write!(f, "{name}.{group} (*{version})")
                 } else {
-                    write!(f, "{}.{} ({})", name, group, version)
+                    write!(f, "{name}.{group} ({version})")
                 }
             }
         }

@@ -115,7 +115,7 @@ impl Item {
         if let Self::Single(v) = self {
             v
         } else {
-            panic!("called single() on {:?}", self)
+            panic!("called single() on {self:?}")
         }
     }
 
@@ -123,7 +123,7 @@ impl Item {
         if let Self::Array(v) = self {
             v
         } else {
-            panic!("called array() on {:?}", self)
+            panic!("called array() on {self:?}")
         }
     }
 
@@ -131,7 +131,7 @@ impl Item {
         if let Self::Table(v) = self {
             v
         } else {
-            panic!("called double_array() on {:?}", self)
+            panic!("called double_array() on {self:?}")
         }
     }
 
@@ -139,7 +139,7 @@ impl Item {
         if let Self::Array(v) = self {
             v
         } else {
-            panic!("called as_array() on {:?}", self)
+            panic!("called as_array() on {self:?}")
         }
     }
 }
@@ -256,7 +256,7 @@ impl<'a> Widget<'a> {
         if let Self::List(w) = self {
             w
         } else {
-            panic!("called as_list() on {:?}", self)
+            panic!("called as_list() on {self:?}")
         }
     }
 
@@ -264,7 +264,7 @@ impl<'a> Widget<'a> {
         if let Self::Text(w) = self {
             w
         } else {
-            panic!("called as_text() on {:?}", self)
+            panic!("called as_text() on {self:?}")
         }
     }
 
@@ -272,7 +272,7 @@ impl<'a> Widget<'a> {
         if let Self::Table(w) = self {
             w
         } else {
-            panic!("called as_table() on {:?}", self)
+            panic!("called as_table() on {self:?}")
         }
     }
 
@@ -280,7 +280,7 @@ impl<'a> Widget<'a> {
         if let Self::SingleSelect(w) = self {
             w
         } else {
-            panic!("called as_single_select() on {:?}", self)
+            panic!("called as_single_select() on {self:?}")
         }
     }
 
@@ -288,7 +288,7 @@ impl<'a> Widget<'a> {
         if let Self::MultipleSelect(w) = self {
             w
         } else {
-            panic!("called as_multiple_select() on {:?}", self)
+            panic!("called as_multiple_select() on {self:?}")
         }
     }
 
@@ -296,7 +296,7 @@ impl<'a> Widget<'a> {
         if let Self::CheckList(w) = self {
             w
         } else {
-            panic!("called as_check_list() on {:?}", self)
+            panic!("called as_check_list() on {self:?}")
         }
     }
 
@@ -305,7 +305,7 @@ impl<'a> Widget<'a> {
         if let Self::List(w) = self {
             w
         } else {
-            panic!("called as_mut_list() on {:?}", self)
+            panic!("called as_mut_list() on {self:?}")
         }
     }
 
@@ -313,7 +313,7 @@ impl<'a> Widget<'a> {
         if let Self::Text(w) = self {
             w
         } else {
-            panic!("called as_mut_text() on {:?}", self)
+            panic!("called as_mut_text() on {self:?}")
         }
     }
 
@@ -321,7 +321,7 @@ impl<'a> Widget<'a> {
         if let Self::Table(w) = self {
             w
         } else {
-            panic!("called as_mut_table() on {:?}", self)
+            panic!("called as_mut_table() on {self:?}")
         }
     }
 
@@ -329,7 +329,7 @@ impl<'a> Widget<'a> {
         if let Self::SingleSelect(w) = self {
             w
         } else {
-            panic!("called as_mut_single_select() on {:?}", self)
+            panic!("called as_mut_single_select() on {self:?}")
         }
     }
 
@@ -337,7 +337,7 @@ impl<'a> Widget<'a> {
         if let Self::MultipleSelect(w) = self {
             w
         } else {
-            panic!("called as_mut_multiple_select() on {:?}", self)
+            panic!("called as_mut_multiple_select() on {self:?}")
         }
     }
 
@@ -345,7 +345,7 @@ impl<'a> Widget<'a> {
         if let Self::CheckList(w) = self {
             w
         } else {
-            panic!("called as_mut_check_list() on {:?}", self)
+            panic!("called as_mut_check_list() on {self:?}")
         }
     }
 }

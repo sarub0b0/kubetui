@@ -161,8 +161,8 @@ impl WindowInit {
             let namespaces = namespaces.borrow();
 
             Paragraph::new(vec![
-                Line::from(format!(" ctx: {}", context)).style(theme.line_styles[0]),
-                Line::from(format!(" ns: {}", namespaces)).style(theme.line_styles[1]),
+                Line::from(format!(" ctx: {context}")).style(theme.line_styles[0]),
+                Line::from(format!(" ns: {namespaces}")).style(theme.line_styles[1]),
             ])
             .style(theme.base_style)
         });

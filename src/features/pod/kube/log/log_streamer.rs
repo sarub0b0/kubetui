@@ -237,7 +237,7 @@ impl LogStreamer {
 
                 prefix_color
                     .pod
-                    .wrap(format!("{} {}", pod_name, container_name))
+                    .wrap(format!("{pod_name} {container_name}"))
             }
             All => {
                 let container_name = prefix_color.container.wrap(self.container_name());

@@ -121,12 +121,12 @@ impl Command {
             match path.try_exists() {
                 Ok(true) => ConfigLoadOption::Path(path.clone()),
                 Ok(false) => {
-                    eprintln!("Config file not found: {:?}", path);
+                    eprintln!("Config file not found: {path:?}");
 
                     ConfigLoadOption::Default
                 }
                 Err(err) => {
-                    eprintln!("Failed to check config file exists: {}", err);
+                    eprintln!("Failed to check config file exists: {err}");
 
                     ConfigLoadOption::Default
                 }
@@ -138,7 +138,7 @@ impl Command {
                 Ok(true) => ConfigLoadOption::Path(path.clone()),
                 Ok(false) => ConfigLoadOption::Default,
                 Err(err) => {
-                    eprintln!("Failed to check config file exists: {}", err);
+                    eprintln!("Failed to check config file exists: {err}");
 
                     ConfigLoadOption::Default
                 }
@@ -240,8 +240,8 @@ mod tests {
         #[case::is_true(AllNamespaces::True)]
         #[case::is_false(AllNamespaces::False)]
         fn 設定した値になる(#[case] value: AllNamespaces) {
-            let cmd = Command::try_parse_from(["kubetui", &format!("--all-namespaces={}", value)])
-                .unwrap();
+            let cmd =
+                Command::try_parse_from(["kubetui", &format!("--all-namespaces={value}")]).unwrap();
             assert_eq!(cmd.all_namespaces, value)
         }
 

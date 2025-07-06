@@ -415,7 +415,7 @@ impl<'a> Window<'a> {
             self.tabs
                 .iter()
                 .find_map(|t| t.find_widget(id))
-                .unwrap_or_else(|| panic!("Could not find widget id [{}]", id))
+                .unwrap_or_else(|| panic!("Could not find widget id [{id}]"))
         }
     }
 
@@ -426,7 +426,7 @@ impl<'a> Window<'a> {
             self.tabs
                 .iter_mut()
                 .find_map(|t| t.find_widget_mut(id))
-                .unwrap_or_else(|| panic!("Could not find widget id [{}]", id))
+                .unwrap_or_else(|| panic!("Could not find widget id [{id}]"))
         }
     }
 

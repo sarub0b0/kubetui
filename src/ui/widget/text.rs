@@ -391,7 +391,7 @@ impl Text {
     fn highlight_status_str(&self) -> String {
         let (selected, total) = self.item.highlight_status();
 
-        format!(" [{}/{}]", selected, total)
+        format!(" [{selected}/{total}]")
     }
 }
 

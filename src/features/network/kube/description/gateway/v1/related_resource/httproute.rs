@@ -123,12 +123,7 @@ async fn discover_httproute_per_listener(
             GatewayListenersAllowedRoutesNamespacesFrom::All => {
                 discover_httproute_for_all(client.clone(), gateway_name, gateway_namespace)
                     .await
-                    .with_context(|| {
-                        format!(
-                            "Failed to discover httproute for all. Gateway: {}/{}",
-                            gateway_namespace, gateway_name
-                        )
-                    })?
+                    .with_context(|| format!( "Failed to discover httproute for all. Gateway: {gateway_namespace}/{gateway_name}"))?
             }
             GatewayListenersAllowedRoutesNamespacesFrom::Selector => {
                 discover_httproute_for_selector(
@@ -138,22 +133,12 @@ async fn discover_httproute_per_listener(
                     selector.as_ref().map(|s| LabelSelector::from(s.clone())),
                 )
                 .await
-                .with_context(|| {
-                    format!(
-                        "Failed to discover httproute for selector. Gateway: {}/{}",
-                        gateway_namespace, gateway_name
-                    )
-                })?
+                .with_context(|| format!( "Failed to discover httproute for selector. Gateway: {gateway_namespace}/{gateway_name}"))?
             }
             GatewayListenersAllowedRoutesNamespacesFrom::Same => {
                 discover_httproute_for_same(client.clone(), gateway_name, gateway_namespace)
                     .await
-                    .with_context(|| {
-                        format!(
-                            "Failed to discover httproute for same. Gateway: {}/{}",
-                            gateway_namespace, gateway_name
-                        )
-                    })?
+                    .with_context(|| format!( "Failed to discover httproute for same. Gateway: {gateway_namespace}/{gateway_name}"))?
             }
         };
 
@@ -166,15 +151,17 @@ async fn discover_httproute_per_listener(
         }
     } else {
         // たぶんこのブロックが実行されることはない
-        let httproutes =
-            discover_httproute_for_same(client.clone(), gateway_name, gateway_namespace)
-                .await
-                .with_context(|| {
-                    format!(
-                        "Failed to discover httproute for same. Gateway: {}/{}",
-                        gateway_namespace, gateway_name
-                    )
-                })?;
+        let httproutes = discover_httproute_for_same(
+            client.clone(),
+            gateway_name,
+            gateway_namespace,
+        )
+        .await
+        .with_context(|| {
+            format!(
+                "Failed to discover httproute for same. Gateway: {gateway_namespace}/{gateway_name}"
+            )
+        })?;
 
         let result: Vec<_> = httproutes.into_iter().map(RelatedHTTPRoute::new).collect();
 

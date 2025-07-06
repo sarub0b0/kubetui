@@ -64,11 +64,11 @@ impl ClipboardError {
         let mut message = Vec::new();
 
         if let Some(err) = &self.primary {
-            message.push(format!("primary selection error: {}", err));
+            message.push(format!("primary selection error: {err}"));
         }
 
         if let Some(err) = &self.clipboard {
-            message.push(format!("clipboard selection error: {}", err));
+            message.push(format!("clipboard selection error: {err}"));
         }
 
         message.join(", ")

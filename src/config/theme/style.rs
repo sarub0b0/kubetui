@@ -57,7 +57,7 @@ mod serde_modifier {
             return serializer.serialize_str(&DEFAULT_MODIFIER_NAME.to_lowercase());
         }
 
-        let lowercase_str = format!("{:?}", modifier).to_lowercase();
+        let lowercase_str = format!("{modifier:?}").to_lowercase();
 
         serializer.serialize_str(&lowercase_str)
     }

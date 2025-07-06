@@ -42,7 +42,7 @@ pub fn label_selector_to_query(selector: Option<LabelSelector>) -> String {
 pub fn match_labels_to_query(match_labels: BTreeMap<String, String>) -> Vec<String> {
     match_labels
         .into_iter()
-        .map(|(key, value)| format!("{}={}", key, value))
+        .map(|(key, value)| format!("{key}={value}"))
         .collect::<Vec<_>>()
 }
 
@@ -75,7 +75,7 @@ pub fn match_expressions_to_query(match_expressions: Vec<LabelSelectorRequiremen
                 }
                 "Exists" => key.to_string(),
                 "DoesNotExist" => {
-                    format!("!{}", key)
+                    format!("!{key}")
                 }
                 _ => {
                     unreachable!()

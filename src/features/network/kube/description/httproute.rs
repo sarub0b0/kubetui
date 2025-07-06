@@ -62,10 +62,8 @@ async fn fetch_v1(client: Client, name: &str, namespace: &str) -> Result<Fetched
     let api = Api::<gateway::v1::HTTPRoute>::namespaced(client.clone(), namespace);
 
     let httproute = api.get(name).await.context(format!(
-        "Failed to fetch HTTPRoute: namespace={}, name={}",
-        namespace, name
+        "Failed to fetch HTTPRoute: namespace={namespace}, name={name}",
     ))?;
-
     let description = v1::Description::new(httproute.clone());
 
     let related_resources = v1::discover_releated_resources(client, namespace, &httproute).await?;
@@ -93,8 +91,7 @@ async fn fetch_v1beat1(client: Client, name: &str, namespace: &str) -> Result<Fe
     let api = Api::<gateway::v1beta1::HTTPRoute>::namespaced(client.clone(), namespace);
 
     let httproute = api.get(name).await.context(format!(
-        "Failed to fetch HTTPRoute: namespace={}, name={}",
-        namespace, name
+        "Failed to fetch HTTPRoute: namespace={namespace}, name={name}"
     ))?;
 
     let description = v1beta1::Description::new(httproute.clone());

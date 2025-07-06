@@ -93,7 +93,7 @@ fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &TableItem) -> EventRe
 
         *(w.find_widget_mut(NETWORK_DESCRIPTION_WIDGET_ID)
             .widget_base_mut()
-            .append_title_mut()) = Some((format!(" : {}", name)).into());
+            .append_title_mut()) = Some((format!(" : {name}")).into());
 
         let request_data = NetworkRequestTargetParams {
             namespace: namespace.to_string(),

@@ -40,7 +40,7 @@ fn quoted<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
                 value(Cow::Borrowed("\""), char('"')),
                 value(Cow::Borrowed("'"), char('\'')),
                 value(Cow::Borrowed("\\"), char('\\')),
-                map(anychar, |c| Cow::Owned(format!(r"\{}", c))),
+                map(anychar, |c| Cow::Owned(format!(r"\{c}"))),
             )),
         )
     }

@@ -416,7 +416,7 @@ pub fn update_contents(
 
         Kube::Get(GetMessage::Response(GetResponse { kind, name, yaml })) => {
             let widget = window.find_widget_mut(YAML_DIALOG_ID).widget_base_mut();
-            *(widget.append_title_mut()) = Some(format!(" : {}/{}", kind, name).into());
+            *(widget.append_title_mut()) = Some(format!(" : {kind}/{name}").into());
 
             update_widget_item_for_vec(window, YAML_DIALOG_ID, yaml);
         }

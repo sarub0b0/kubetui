@@ -88,7 +88,7 @@ async fn fetch_pods(
 fn selector_to_query(selector: &std::collections::BTreeMap<String, String>) -> String {
     selector
         .iter()
-        .map(|(k, v)| format!("{}={}", k, v))
+        .map(|(k, v)| format!("{k}={v}"))
         .collect::<Vec<String>>()
         .join(",")
 }

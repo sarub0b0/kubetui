@@ -168,7 +168,7 @@ async fn get_event_table(
             summary.push_str(&format!("{:<4}  {:<4}", ev.last_seen, ev.ty));
 
             if let Some(ns) = &ev.namespace {
-                summary.push_str(&format!("  {:<4}", ns));
+                summary.push_str(&format!("  {ns:<4}"));
             }
 
             summary.push_str(&format!("  {:<4}  {:<4}", ev.object, ev.reason));

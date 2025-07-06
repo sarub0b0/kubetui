@@ -368,7 +368,7 @@ impl<'a> RetrieveLabelSelector<'a> {
 
     fn btreemap_to_comma_string(map: &BTreeMap<String, String>) -> String {
         map.iter()
-            .map(|(k, v)| format!("{}={}", k, v))
+            .map(|(k, v)| format!("{k}={v}"))
             .collect::<Vec<String>>()
             .join(",")
     }

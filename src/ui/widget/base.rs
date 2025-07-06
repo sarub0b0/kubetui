@@ -251,7 +251,7 @@ impl Title {
 impl Display for Title {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Title::Raw(title) => write!(f, "{}", title),
+            Title::Raw(title) => write!(f, "{title}"),
             Title::Line(title) => write!(
                 f,
                 "{}",

@@ -55,7 +55,7 @@ pub fn api_widget(
 
             let mut base = text.widget_base().clone();
 
-            *base.append_title_mut() = Some(format!(" [{}/{}]", index, size).into());
+            *base.append_title_mut() = Some(format!(" [{index}/{size}]").into());
 
             base.render_block(text.can_activate() && is_active, is_mouse_over)
         })

@@ -69,7 +69,7 @@ impl Filter {
 
                 FilterAttribute::Resource(resource) => match resource {
                     SpecifiedResource::Pod(name) => {
-                        let regex = Regex::new(&format!("^{}$", name))?;
+                        let regex = Regex::new(&format!("^{name}$"))?;
                         filter.pod = Some(regex);
                     }
 
@@ -190,7 +190,7 @@ impl std::fmt::Display for Filter {
         }
 
         if let Some(field_selector) = &self.field_selector {
-            buf.push(format!("field_selector={}", field_selector));
+            buf.push(format!("field_selector={field_selector}"));
         }
 
         if let Some(include) = &self.include_log {
@@ -228,8 +228,8 @@ pub enum RetrievableResource {
 impl std::fmt::Display for LabelSelector {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LabelSelector::Resource(resource) => write!(f, "label_selector_from={}", resource),
-            LabelSelector::String(value) => write!(f, "label_selector={}", value),
+            LabelSelector::Resource(resource) => write!(f, "label_selector_from={resource}"),
+            LabelSelector::String(value) => write!(f, "label_selector={value}"),
         }
     }
 }
@@ -238,22 +238,22 @@ impl std::fmt::Display for RetrievableResource {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RetrievableResource::DaemonSet(name) => {
-                write!(f, "daemonset/{}", name)
+                write!(f, "daemonset/{name}")
             }
             RetrievableResource::Deployment(name) => {
-                write!(f, "deployment/{}", name)
+                write!(f, "deployment/{name}")
             }
             RetrievableResource::Job(name) => {
-                write!(f, "job/{}", name)
+                write!(f, "job/{name}")
             }
             RetrievableResource::ReplicaSet(name) => {
-                write!(f, "replicaset/{}", name)
+                write!(f, "replicaset/{name}")
             }
             RetrievableResource::Service(name) => {
-                write!(f, "service/{}", name)
+                write!(f, "service/{name}")
             }
             RetrievableResource::StatefulSet(name) => {
-                write!(f, "statefulset/{}", name)
+                write!(f, "statefulset/{name}")
             }
         }
     }
