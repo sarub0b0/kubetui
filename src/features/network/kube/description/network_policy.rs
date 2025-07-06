@@ -1,10 +1,10 @@
 use anyhow::Result;
 use k8s_openapi::{
+    List,
     api::{
         core::v1::Pod,
         networking::v1::{NetworkPolicy, NetworkPolicySpec},
     },
-    List,
 };
 use kube::Resource;
 use serde_yaml::Mapping;
@@ -19,10 +19,10 @@ use crate::{
 use self::{extract::Extract, to_value::ToValue};
 
 use super::{
-    related_resources::{
-        label_selector::LabelSelectorWrapper, to_list_value::ToListValue, RelatedClient,
-    },
     Fetch, FetchedData,
+    related_resources::{
+        RelatedClient, label_selector::LabelSelectorWrapper, to_list_value::ToListValue,
+    },
 };
 
 pub(super) struct NetworkPolicyDescriptionWorker<'a, C>
@@ -237,7 +237,7 @@ mod extract {
 mod tests {
     use anyhow::bail;
     use indoc::indoc;
-    use k8s_openapi::{api::core::v1::Pod, List};
+    use k8s_openapi::{List, api::core::v1::Pod};
     use mockall::predicate::eq;
     use pretty_assertions::assert_eq;
 

@@ -27,9 +27,9 @@ use std::{collections::BTreeMap, hash::Hash};
 
 use enum_dispatch::enum_dispatch;
 use ratatui::{
+    Frame,
     crossterm::event::{KeyEvent, MouseEvent},
     layout::Rect,
-    Frame,
 };
 
 use super::event::EventResult;

@@ -13,14 +13,14 @@ use crate::{
     },
     message::Message,
     ui::{
+        Window,
         event::EventResult,
         widget::{
+            LiteralItem, SingleSelect, Widget, WidgetBase, WidgetTheme,
             single_select::{
                 FilterForm, FilterFormTheme, SelectForm, SelectFormTheme, SingleSelectTheme,
             },
-            LiteralItem, SingleSelect, Widget, WidgetBase, WidgetTheme,
         },
-        Window,
     },
 };
 

@@ -13,9 +13,9 @@ use crate::{
     kube::context::Namespace,
     message::Message,
     ui::{
+        Tab,
         tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout, TabLayout},
         widget::Widget,
-        Tab,
     },
 };
 

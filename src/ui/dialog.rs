@@ -1,8 +1,8 @@
 use ratatui::{
+    Frame,
     crossterm::event::{KeyEvent, MouseEvent},
     layout::{Margin, Rect},
     style::Style,
-    Frame,
 };
 
 use super::{

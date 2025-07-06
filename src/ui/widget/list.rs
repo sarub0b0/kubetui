@@ -1,28 +1,28 @@
 use std::rc::Rc;
 
 use ratatui::{
+    Frame,
     crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind},
     layout::Rect,
     style::{Modifier, Style},
     widgets::{self, Block, ListState, Scrollbar, ScrollbarOrientation, ScrollbarState},
-    Frame,
 };
 
-use super::{base::WidgetBase, Item, LiteralItem, RenderTrait, SelectedItem, WidgetTrait};
+use super::{Item, LiteralItem, RenderTrait, SelectedItem, WidgetTrait, base::WidgetBase};
 
 use crate::{
     define_callback,
     ui::{
+        Window,
         event::{Callback, EventResult},
         key_event_to_code,
         util::{MousePosition, RectContainsPoint},
-        Window,
     },
 };
 
 mod inner_item {
 
-    use crate::ui::widget::{line::convert_line_to_styled_line, LiteralItem};
+    use crate::ui::widget::{LiteralItem, line::convert_line_to_styled_line};
 
     use super::Item;
     use ratatui::widgets::ListItem;

@@ -9,9 +9,9 @@ use crate::{
     features::component_id::API_TAB_ID,
     message::Message,
     ui::{
+        Tab,
         tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout, TabLayout},
         widget::Widget,
-        Tab,
     },
 };
 

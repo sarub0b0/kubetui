@@ -5,7 +5,7 @@ mod pod_watcher;
 
 use std::collections::BTreeMap;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use async_trait::async_trait;
 use crossbeam::channel::Sender;
 use futures::future::join_all;
@@ -18,7 +18,7 @@ use kube::Api;
 use tokio::task::{JoinError, JoinHandle};
 
 use crate::{
-    kube::{context::Namespace, KubeClient},
+    kube::{KubeClient, context::Namespace},
     logger,
     message::Message,
     workers::kube::{AbortWorker, Worker},

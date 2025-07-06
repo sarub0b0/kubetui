@@ -7,9 +7,9 @@ use super::{
 };
 
 use ratatui::{
+    Frame,
     crossterm::event::{MouseButton, MouseEvent, MouseEventKind},
     layout::Rect,
-    Frame,
 };
 
 pub use layout::*;

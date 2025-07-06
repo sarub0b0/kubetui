@@ -1,11 +1,11 @@
-use k8s_openapi::{api::core::v1::Pod, List};
+use k8s_openapi::{List, api::core::v1::Pod};
 
 use std::collections::BTreeMap;
 
 use super::{
+    Filter,
     btree_map_contains_key_values::BTreeMapContains,
     label_selector::{LabelSelectorExpression, LabelSelectorWrapper},
-    Filter,
 };
 
 impl Filter<BTreeMap<String, String>> for List<Pod> {

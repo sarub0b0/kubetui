@@ -1,10 +1,10 @@
 use crossbeam::channel::Sender;
 use k8s_openapi::{
+    Resource,
     api::{
         core::v1::{Pod, Service},
         networking::v1::{Ingress, NetworkPolicy},
     },
-    Resource,
 };
 
 use crate::{
@@ -16,12 +16,12 @@ use crate::{
     kube::apis::networking::gateway::v1::{Gateway, HTTPRoute},
     message::Message,
     ui::{
+        Window, WindowAction,
         event::EventResult,
         widget::{
             FilterForm, FilterFormTheme, Table, TableItem, TableTheme, Widget, WidgetBase,
             WidgetTheme, WidgetTrait as _,
         },
-        Window, WindowAction,
     },
 };
 

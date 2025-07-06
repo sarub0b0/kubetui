@@ -1,6 +1,6 @@
 use anyhow::Result;
 use futures::StreamExt;
-use k8s_openapi::{api::core::v1::Service, Resource};
+use k8s_openapi::{Resource, api::core::v1::Service};
 use kube::{Api, Client, ResourceExt};
 use serde::{Deserialize, Serialize};
 

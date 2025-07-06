@@ -185,10 +185,10 @@ mod tests {
 
         use super::*;
         use anyhow::bail;
-        use crossbeam::channel::{bounded, Receiver};
+        use crossbeam::channel::{Receiver, bounded};
         use k8s_openapi::{
-            api::{core::v1::Service, networking::v1::Ingress},
             List,
+            api::{core::v1::Service, networking::v1::Ingress},
         };
         use mockall::predicate::eq;
 
@@ -289,14 +289,14 @@ mod tests {
         use super::*;
 
         use anyhow::bail;
-        use crossbeam::channel::{bounded, Receiver};
+        use crossbeam::channel::{Receiver, bounded};
         use indoc::indoc;
         use k8s_openapi::{
+            List,
             api::{
                 core::v1::Service,
                 networking::v1::{Ingress, NetworkPolicy},
             },
-            List,
         };
         use mockall::predicate::eq;
         use pretty_assertions::assert_eq;

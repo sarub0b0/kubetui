@@ -1,10 +1,10 @@
 use anyhow::Result;
 use k8s_openapi::{
+    List,
     api::{
         core::v1::{Pod, Service, ServiceSpec},
         networking::v1::Ingress,
     },
-    List,
 };
 use kube::{Resource, ResourceExt};
 use serde_yaml::Mapping;
@@ -19,8 +19,8 @@ use crate::{
 use self::to_value::ToValue;
 
 use super::{
-    related_resources::{to_list_value::ToListValue, RelatedClient},
     Fetch, FetchedData,
+    related_resources::{RelatedClient, to_list_value::ToListValue},
 };
 
 use extract::Extract;
@@ -123,8 +123,8 @@ mod tests {
     use anyhow::bail;
     use indoc::indoc;
     use k8s_openapi::{
-        api::{core::v1::Pod, networking::v1::Ingress},
         List,
+        api::{core::v1::Pod, networking::v1::Ingress},
     };
     use mockall::predicate::eq;
     use pretty_assertions::assert_eq;

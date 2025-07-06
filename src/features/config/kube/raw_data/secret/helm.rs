@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, io::prelude::*};
 
 use anyhow::Result;
-use base64::{engine::general_purpose, Engine};
+use base64::{Engine, engine::general_purpose};
 use k8s_openapi::ByteString;
 
 use crate::workers::kube::color::{self, Color};

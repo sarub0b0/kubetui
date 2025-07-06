@@ -1,12 +1,12 @@
 use std::rc::Rc;
 
 use ratatui::{
+    Frame,
     crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind},
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, ToSpan},
     widgets::{Block, Paragraph, Tabs},
-    Frame,
 };
 
 use unicode_width::UnicodeWidthStr;
@@ -14,11 +14,11 @@ use unicode_width::UnicodeWidthStr;
 use crate::{define_callback, logger, message::UserEvent, workers::kube::message::Kube};
 
 use super::{
+    Tab,
     dialog::Dialog,
     event::{Callback, EventResult},
-    util::{key_event_to_code, MousePosition, RectContainsPoint},
+    util::{MousePosition, RectContainsPoint, key_event_to_code},
     widget::{Widget, WidgetTrait},
-    Tab,
 };
 
 define_callback!(pub HeaderCallback, Fn(&HeaderTheme) -> Paragraph<'static>);

@@ -17,7 +17,7 @@ use ratatui::crossterm::{
     cursor::Show,
     event::{DisableFocusChange, DisableMouseCapture, EnableFocusChange, EnableMouseCapture},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 
 use crate::{app::App, cmd::Command, config::Config, logging::Logger};

@@ -8,13 +8,13 @@ use ratatui::style::{Color, Style};
 
 use crate::{
     kube::{
-        apis::v1_table::{TableRow, ToTime as _},
-        table::{get_resource_per_namespace, insert_ns, KubeTableRow},
         KubeClient,
+        apis::v1_table::{TableRow, ToTime as _},
+        table::{KubeTableRow, get_resource_per_namespace, insert_ns},
     },
     message::Message,
     ui::widget::ansi_color::style_to_ansi,
-    workers::kube::{message::Kube, SharedTargetNamespaces, Worker, WorkerResult},
+    workers::kube::{SharedTargetNamespaces, Worker, WorkerResult, message::Kube},
 };
 
 #[derive(Default, Debug, Clone)]

@@ -5,28 +5,28 @@ mod item;
 use std::rc::Rc;
 
 use ratatui::{
+    Frame,
     crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind},
     layout::{Constraint, Rect},
     style::{Color, Modifier, Style, Stylize},
     widgets::{
         Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Table as TuiTable, TableState,
     },
-    Frame,
 };
 
 use crate::{
     define_callback, logger,
     message::UserEvent,
     ui::{
+        Window,
         event::{Callback, EventResult},
         key_event_to_code,
         util::{MousePosition, RectContainsPoint},
-        Window,
     },
 };
 
 use super::{
-    base::WidgetBase, styled_graphemes, Item, RenderTrait, SelectedItem, TableItem, WidgetTrait,
+    Item, RenderTrait, SelectedItem, TableItem, WidgetTrait, base::WidgetBase, styled_graphemes,
 };
 
 pub use filter::{FilterForm, FilterFormTheme};
@@ -760,7 +760,7 @@ fn constraints(digits: &[usize]) -> Vec<Constraint> {
 
 #[cfg(test)]
 mod tests {
-    use ratatui::{backend::TestBackend, Terminal};
+    use ratatui::{Terminal, backend::TestBackend};
 
     use super::*;
 

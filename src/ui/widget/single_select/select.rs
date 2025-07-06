@@ -1,20 +1,20 @@
 use std::collections::BTreeSet;
 
 use ratatui::{
+    Frame,
     crossterm::event::{KeyEvent, MouseEvent},
     layout::Rect,
-    Frame,
 };
 
-use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
+use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
 
 use crate::ui::{
     event::EventResult,
     widget::{
-        list::{OnSelectCallback, RenderBlockInjection},
-        styled_graphemes::StyledGraphemes,
         Item, List, ListTheme, LiteralItem, RenderTrait, SelectedItem, WidgetBase, WidgetTheme,
         WidgetTrait,
+        list::{OnSelectCallback, RenderBlockInjection},
+        styled_graphemes::StyledGraphemes,
     },
 };
 

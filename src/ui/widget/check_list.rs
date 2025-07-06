@@ -1,21 +1,21 @@
 use std::rc::Rc;
 
 use ratatui::{
+    Frame,
     crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind},
     layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, HighlightSpacing, ListItem, ListState, Paragraph},
-    Frame,
 };
 
 use crate::{
     define_callback,
     ui::{
+        Window,
         event::{Callback, EventResult},
         key_event_to_code,
         util::{MousePosition, RectContainsPoint as _},
-        Window,
     },
 };
 

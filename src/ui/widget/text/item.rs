@@ -1,7 +1,7 @@
 use super::wrap::WrapTrait;
 use crate::ui::widget::{
-    styled_graphemes::{StyledGrapheme, StyledGraphemes},
     LiteralItem,
+    styled_graphemes::{StyledGrapheme, StyledGraphemes},
 };
 use ratatui::style::{Color, Modifier, Style};
 use std::ops::{Deref, Range};

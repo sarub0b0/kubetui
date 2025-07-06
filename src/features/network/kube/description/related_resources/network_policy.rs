@@ -1,10 +1,10 @@
-use k8s_openapi::{api::networking::v1::NetworkPolicy, List};
+use k8s_openapi::{List, api::networking::v1::NetworkPolicy};
 
 use std::collections::BTreeMap;
 
 use super::{
-    label_selector::{LabelSelectorExpression, LabelSelectorWrapper},
     Filter,
+    label_selector::{LabelSelectorExpression, LabelSelectorWrapper},
 };
 
 impl Filter<BTreeMap<String, String>> for List<NetworkPolicy> {

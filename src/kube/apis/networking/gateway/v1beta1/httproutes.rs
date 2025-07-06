@@ -2,9 +2,9 @@
 // kopium command: kopium --api-version=v1beta1 --schema=disabled -f -
 // kopium version: 0.17.2
 
-use kube::CustomResource;
-use serde::{Serialize, Deserialize};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;
+use kube::CustomResource;
+use serde::{Deserialize, Serialize};
 
 impl k8s_openapi::Resource for HTTPRoute {
     const API_VERSION: &'static str = "gateway.networking.k8s.io/v1beta1";

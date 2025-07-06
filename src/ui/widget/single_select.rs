@@ -4,11 +4,11 @@ mod select;
 use std::rc::Rc;
 
 use ratatui::{
+    Frame,
     crossterm::event::{KeyEvent, MouseEvent},
     layout::{Constraint, Direction, Layout, Rect},
     style::Style,
     widgets::{Block, Paragraph},
-    Frame,
 };
 
 use crate::{

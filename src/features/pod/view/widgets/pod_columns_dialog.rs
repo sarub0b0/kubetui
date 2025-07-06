@@ -7,13 +7,13 @@ use crate::{
     config::theme::WidgetThemeConfig,
     features::{
         component_id::POD_COLUMNS_DIALOG_ID,
-        pod::{message::PodMessage, pod_columns::DEFAULT_POD_COLUMNS, PodColumn, PodColumns},
+        pod::{PodColumn, PodColumns, message::PodMessage, pod_columns::DEFAULT_POD_COLUMNS},
     },
     message::Message,
     ui::{
+        Window,
         event::EventResult,
         widget::{CheckList, CheckListItem, CheckListTheme, Widget, WidgetBase, WidgetTheme},
-        Window,
     },
 };
 

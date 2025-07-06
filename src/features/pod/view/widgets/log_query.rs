@@ -15,11 +15,11 @@ use crate::{
     kube::context::Namespace,
     message::{Message, UserEvent},
     ui::{
+        Window,
         event::EventResult,
         widget::{
             InputFormBuilder, InputFormTheme, SelectedItem, Widget, WidgetBase, WidgetTrait as _,
         },
-        Window,
     },
 };
 

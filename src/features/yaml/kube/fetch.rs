@@ -2,7 +2,7 @@ mod multiple_namespaces;
 mod not_namespace;
 mod single_namespace;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use serde::Deserialize;
 

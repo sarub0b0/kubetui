@@ -16,8 +16,8 @@ use crate::{
 };
 
 use super::{
-    related_resources::{to_list_value::ToListValue, RelatedClient},
     Fetch, FetchedData,
+    related_resources::{RelatedClient, to_list_value::ToListValue},
 };
 
 use extract::Extract;
@@ -156,11 +156,11 @@ mod tests {
     use anyhow::bail;
     use indoc::indoc;
     use k8s_openapi::{
+        List,
         api::{
             core::v1::{Pod, Service},
             networking::v1::Ingress,
         },
-        List,
     };
     use mockall::predicate::eq;
     use pretty_assertions::assert_eq;

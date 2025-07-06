@@ -2,11 +2,11 @@ use std::{cell::RefCell, rc::Rc};
 
 use crossbeam::channel::Sender;
 use k8s_openapi::{
+    Resource as _,
     api::{
         core::v1::{ConfigMap, Pod, Secret, Service},
         networking::v1::{Ingress, NetworkPolicy},
     },
-    Resource as _,
 };
 use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, KeyModifiers},
@@ -40,7 +40,7 @@ use crate::{
             message::{GatewayVersion, HTTPRouteVersion},
             view::NetworkTab,
         },
-        pod::{view::PodTab, PodColumns},
+        pod::{PodColumns, view::PodTab},
         yaml::view::YamlTab,
     },
     kube::{
@@ -50,10 +50,10 @@ use crate::{
     logger,
     message::{Message, UserEvent},
     ui::{
+        Header, HeaderTheme, Tab, TabTheme, Window, WindowAction,
         dialog::{Dialog, DialogTheme},
         event::{CallbackFn, EventResult},
         widget::{SelectedItem, WidgetTrait},
-        Header, HeaderTheme, Tab, TabTheme, Window, WindowAction,
     },
 };
 

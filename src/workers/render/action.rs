@@ -28,10 +28,10 @@ use crate::{
     logger,
     message::Message,
     ui::{
+        Window, WindowAction,
         event::{Callback, EventResult},
         util::chars::convert_tabs_to_spaces,
         widget::{Item, LiteralItem, TableItem, WidgetTrait},
-        Window, WindowAction,
     },
     workers::kube::message::Kube,
 };

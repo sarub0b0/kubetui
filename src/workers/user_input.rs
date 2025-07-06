@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use anyhow::Result;
 use crossbeam::channel::Sender;
-use ratatui::crossterm::event::{poll, read, Event as CEvent, KeyEvent, KeyEventKind};
+use ratatui::crossterm::event::{Event as CEvent, KeyEvent, KeyEventKind, poll, read};
 
 use crate::{
     logger,

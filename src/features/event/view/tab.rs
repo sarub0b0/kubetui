@@ -7,8 +7,8 @@ use crate::{
     config::theme::WidgetThemeConfig,
     features::component_id::EVENT_TAB_ID,
     ui::{
-        tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout, TabLayout},
         Tab,
+        tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout, TabLayout},
     },
 };
 

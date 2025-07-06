@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use nom::{
+    IResult, Parser,
     branch::alt,
     bytes::complete::{is_not, tag},
     character::complete::{alphanumeric1, anychar, char, multispace0, multispace1},
@@ -8,7 +9,6 @@ use nom::{
     error::{ContextError, ParseError},
     multi::{fold_many0, many1_count, separated_list1},
     sequence::{delimited, preceded, separated_pair},
-    IResult, Parser,
 };
 
 use super::{FilterAttribute, SpecifiedResource};

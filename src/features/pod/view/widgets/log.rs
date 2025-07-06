@@ -9,12 +9,12 @@ use crate::{
     features::{component_id::POD_LOG_WIDGET_ID, pod::message::LogMessage},
     message::{Message, UserEvent},
     ui::{
+        Window,
         event::EventResult,
         widget::{
             Item, SearchForm, SearchFormTheme, Text, TextTheme, Widget, WidgetBase, WidgetTheme,
             WidgetTrait as _,
         },
-        Window,
     },
 };
 

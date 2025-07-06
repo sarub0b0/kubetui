@@ -12,8 +12,8 @@ use crate::{
     },
     message::Message,
     ui::{
-        tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout, TabLayout},
         Tab,
+        tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout, TabLayout},
     },
 };
 

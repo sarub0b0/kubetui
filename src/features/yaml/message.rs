@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use crate::{
-    features::{api_resources::kube::ApiResource, StyledApiResource},
+    features::{StyledApiResource, api_resources::kube::ApiResource},
     message::Message,
     workers::kube::message::Kube,
 };

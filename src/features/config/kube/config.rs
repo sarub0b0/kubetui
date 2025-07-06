@@ -3,9 +3,9 @@ use std::{collections::BTreeMap, time};
 use crate::{
     features::config::message::ConfigResponse,
     kube::{
-        apis::v1_table::TableRow,
-        table::{get_resource_per_namespace, insert_ns, KubeTable, KubeTableRow},
         KubeClient,
+        apis::v1_table::TableRow,
+        table::{KubeTable, KubeTableRow, get_resource_per_namespace, insert_ns},
     },
     message::Message,
     workers::kube::{SharedTargetNamespaces, Worker, WorkerResult},

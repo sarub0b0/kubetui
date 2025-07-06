@@ -4,8 +4,8 @@ use std::ops::Deref;
 use crate::{
     logger,
     ui::widget::{
-        line::convert_lines_to_styled_lines, styled_graphemes::StyledGraphemes, wrap::wrap_line,
-        TableItem,
+        TableItem, line::convert_lines_to_styled_lines, styled_graphemes::StyledGraphemes,
+        wrap::wrap_line,
     },
 };
 

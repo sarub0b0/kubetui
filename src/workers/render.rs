@@ -9,7 +9,7 @@ use std::{
 
 use anyhow::Result;
 use crossbeam::channel::{Receiver, Sender};
-use ratatui::{backend::CrosstermBackend, layout::Direction, Terminal, TerminalOptions, Viewport};
+use ratatui::{Terminal, TerminalOptions, Viewport, backend::CrosstermBackend, layout::Direction};
 
 use crate::{
     config::theme::ThemeConfig,

@@ -6,8 +6,8 @@ use crate::{
     config::theme::ThemeConfig,
     features::component_id::HELP_DIALOG_ID,
     ui::widget::{
-        ansi_color::style_to_ansi, SearchForm, SearchFormTheme, Text, TextTheme, Widget,
-        WidgetBase, WidgetTheme,
+        SearchForm, SearchFormTheme, Text, TextTheme, Widget, WidgetBase, WidgetTheme,
+        ansi_color::style_to_ansi,
     },
 };
 

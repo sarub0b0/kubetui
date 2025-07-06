@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 use crate::kube::apis::networking::gateway::v1::HTTPRoute;
 
 use self::{
-    gateway::{discover_gateways, RelatedGateways},
-    pod::{discover_pods, RelatedPods},
-    service::{discover_services, RelatedServices},
+    gateway::{RelatedGateways, discover_gateways},
+    pod::{RelatedPods, discover_pods},
+    service::{RelatedServices, discover_services},
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

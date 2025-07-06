@@ -1,6 +1,6 @@
 use std::{ops::Deref, path::PathBuf};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use kube::config::{Kubeconfig, KubeconfigError};
 
 use crate::features::{

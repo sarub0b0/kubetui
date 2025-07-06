@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 use anyhow::Result;
 
 use crate::kube::{
-    apis::v1_table::{Table, TableRow},
     KubeClient, KubeClientRequest as _,
+    apis::v1_table::{Table, TableRow},
 };
 
 #[derive(Debug, Default)]

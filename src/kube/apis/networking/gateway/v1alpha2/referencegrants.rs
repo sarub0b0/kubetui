@@ -3,7 +3,7 @@
 // kopium version: 0.17.2
 
 use kube::CustomResource;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]
 #[kube(group = "gateway.networking.k8s.io", version = "v1alpha2", kind = "ReferenceGrant", plural = "referencegrants")]

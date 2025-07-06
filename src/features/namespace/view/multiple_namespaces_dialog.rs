@@ -12,14 +12,14 @@ use crate::{
     },
     message::Message,
     ui::{
+        Window,
         event::EventResult,
         widget::{
+            LiteralItem, MultipleSelect, Widget, WidgetBase, WidgetTheme,
             multiple_select::{
                 FilterForm, FilterFormTheme, MultipleSelectTheme, SelectForm, SelectFormTheme,
             },
-            LiteralItem, MultipleSelect, Widget, WidgetBase, WidgetTheme,
         },
-        Window,
     },
 };
 

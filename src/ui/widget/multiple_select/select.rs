@@ -1,12 +1,12 @@
-use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
+use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
 
 use ratatui::{
+    Frame,
     crossterm::event::{KeyEvent, MouseButton, MouseEvent, MouseEventKind},
     layout::{Alignment, Direction, Rect},
     style::*,
     text::Span,
     widgets::{Block, Paragraph},
-    Frame,
 };
 
 use unicode_width::UnicodeWidthStr;
@@ -15,10 +15,10 @@ use crate::ui::{
     event::EventResult,
     util::{MousePosition, RectContainsPoint},
     widget::{
-        list::{OnSelectCallback, RenderBlockInjection},
-        styled_graphemes::StyledGraphemes,
         Item, List, ListTheme, LiteralItem, RenderTrait as _, WidgetBase, WidgetTheme,
         WidgetTrait as _,
+        list::{OnSelectCallback, RenderBlockInjection},
+        styled_graphemes::StyledGraphemes,
     },
 };
 

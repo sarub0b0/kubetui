@@ -12,12 +12,12 @@ use crate::{
     },
     message::Message,
     ui::{
+        Window,
         event::EventResult,
         widget::{
             SearchForm, SearchFormTheme, Text, TextTheme, Widget, WidgetBase, WidgetTheme,
             WidgetTrait as _,
         },
-        Window,
     },
 };
 

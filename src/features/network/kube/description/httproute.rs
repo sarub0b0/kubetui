@@ -8,7 +8,7 @@ use crate::{
     features::{
         api_resources::kube::SharedApiResources, network::message::NetworkRequestTargetParams,
     },
-    kube::{apis::networking::gateway, KubeClientRequest},
+    kube::{KubeClientRequest, apis::networking::gateway},
 };
 
 use super::{Fetch, FetchedData};

@@ -1,14 +1,14 @@
 use anyhow::Result;
 use crossbeam::channel::Sender;
 use k8s_openapi::{
+    NamespaceResourceScope, Resource as _,
     api::{
         core::v1::{ConfigMap, Pod, Secret, Service},
         networking::v1::{Ingress, NetworkPolicy},
     },
-    NamespaceResourceScope, Resource as _,
 };
 use kube::Api;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 
 use crate::{
     features::{
@@ -16,8 +16,8 @@ use crate::{
         network::message::{GatewayVersion, HTTPRouteVersion},
     },
     kube::{
-        apis::networking::gateway::{v1, v1beta1},
         KubeClient,
+        apis::networking::gateway::{v1, v1beta1},
     },
     logger,
     message::Message,

@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use k8s_openapi::{api::core::v1::Secret, ByteString};
+use k8s_openapi::{ByteString, api::core::v1::Secret};
 use kube::Api;
 
 use crate::{features::config::message::ConfigData, kube::KubeClient};

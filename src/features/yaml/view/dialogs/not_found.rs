@@ -4,9 +4,9 @@ use crate::{
     config::theme::WidgetThemeConfig,
     features::component_id::{YAML_KIND_DIALOG_ID, YAML_NOT_FOUND_DIALOG_ID},
     ui::{
+        Window,
         event::EventResult,
         widget::{SearchForm, SearchFormTheme, Text, TextTheme, Widget, WidgetBase, WidgetTheme},
-        Window,
     },
 };
 

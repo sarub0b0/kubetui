@@ -1,10 +1,10 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use http::header::{HeaderValue, ACCEPT};
+use http::header::{ACCEPT, HeaderValue};
 use k8s_openapi::NamespaceResourceScope;
 use kube::{
-    api::{GetParams, Request},
     Api, Client, Resource,
+    api::{GetParams, Request},
 };
 use serde::de::DeserializeOwned;
 

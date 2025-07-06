@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
-use k8s_openapi::{api::core::v1::Service, List};
+use k8s_openapi::{List, api::core::v1::Service};
 use kube::ResourceExt;
 
-use super::{btree_map_contains_key_values::BTreeMapContains, Filter};
+use super::{Filter, btree_map_contains_key_values::BTreeMapContains};
 
 impl Filter<Vec<String>> for List<Service> {
     type Filtered = Service;
@@ -312,7 +312,7 @@ mod tests {
         mod related_resources {
             use anyhow::bail;
             use indoc::indoc;
-            use k8s_openapi::{api::core::v1::Service, List};
+            use k8s_openapi::{List, api::core::v1::Service};
             use mockall::predicate::eq;
 
             use crate::{

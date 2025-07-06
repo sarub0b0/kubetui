@@ -1,6 +1,6 @@
-use std::collections::{btree_map, BTreeMap};
+use std::collections::{BTreeMap, btree_map};
 
-use base64::{engine::general_purpose, Engine};
+use base64::{Engine, engine::general_purpose};
 use k8s_openapi::ByteString;
 
 use crate::workers::kube::color::Color;

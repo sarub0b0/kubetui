@@ -1,10 +1,10 @@
 use std::{collections::BTreeMap, fmt::Debug};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use futures::future::try_join_all;
 use kube::{
-    config::{KubeConfigOptions, Kubeconfig},
     Client, Config,
+    config::{KubeConfigOptions, Kubeconfig},
 };
 
 use crate::kube::KubeClient;

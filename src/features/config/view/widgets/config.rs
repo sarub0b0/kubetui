@@ -8,12 +8,12 @@ use crate::{
     },
     message::Message,
     ui::{
+        Window, WindowAction,
         event::EventResult,
         widget::{
             FilterForm, FilterFormTheme, Table, TableItem, TableTheme, Widget, WidgetBase,
             WidgetTheme, WidgetTrait as _,
         },
-        Window, WindowAction,
     },
 };
 

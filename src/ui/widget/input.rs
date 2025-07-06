@@ -1,12 +1,12 @@
 use std::time::{Duration, Instant};
 
 use ratatui::{
+    Frame,
     crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent},
     layout::{Constraint, Direction, Layout, Rect},
     style::*,
     text::{Line, Span},
     widgets::{Block, Paragraph},
-    Frame,
 };
 
 use crate::{

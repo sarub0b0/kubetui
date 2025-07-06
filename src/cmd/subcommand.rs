@@ -1,19 +1,19 @@
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
 use k8s_openapi::api::core::v1::Namespace;
 use kube::{
+    Api, Client, Config, ResourceExt as _,
     api::ListParams,
     config::{KubeConfigOptions, Kubeconfig, KubeconfigError, NamedContext},
-    Api, Client, Config, ResourceExt as _,
 };
 
 use crate::kube::KubeClient;
 
 use super::{
-    completion::{generate_bash_completion, generate_zsh_completion},
     Command,
+    completion::{generate_bash_completion, generate_zsh_completion},
 };
 
 #[derive(ValueEnum, Debug, Clone)]

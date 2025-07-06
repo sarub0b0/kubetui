@@ -5,8 +5,8 @@ use async_trait::async_trait;
 use crossbeam::channel::Sender;
 use futures::future::try_join_all;
 use kube::{
-    discovery::{verbs, ApiGroup, Scope},
     Discovery,
+    discovery::{ApiGroup, Scope, verbs},
 };
 use ratatui::style::{Color, Style};
 use serde::{Deserialize, Serialize};
@@ -16,12 +16,12 @@ use tokio::{sync::RwLock, time::Instant};
 use crate::{
     features::api_resources::message::ApiResponse,
     kube::{
+        KubeClient, KubeClientRequest as _,
         apis::{
             metrics::{NodeMetricsList, PodMetricsList},
             v1_table::{Table, TableColumnDefinition, Value},
         },
         table::insert_ns,
-        KubeClient, KubeClientRequest as _,
     },
     message::Message,
     ui::widget::ansi_color::style_to_ansi,

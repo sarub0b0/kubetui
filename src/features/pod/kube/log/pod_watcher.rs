@@ -3,8 +3,8 @@ use std::{
     fmt::Display,
     ops::{Deref, DerefMut},
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
 };
 
@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use crossbeam::channel::Sender;
 use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::core::v1::{ContainerState, ContainerStatus, Pod};
-use kube::{api::WatchParams, core::WatchEvent, Api, ResourceExt};
+use kube::{Api, ResourceExt, api::WatchParams, core::WatchEvent};
 use regex::Regex;
 use tokio::task::AbortHandle;
 

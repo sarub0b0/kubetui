@@ -4,16 +4,16 @@ use anyhow::Result;
 use async_trait::async_trait;
 use crossbeam::channel::Sender;
 use futures::future::try_join_all;
-use k8s_openapi::{api::core::v1::Pod, Resource as _};
+use k8s_openapi::{Resource as _, api::core::v1::Pod};
 use ratatui::style::{Color, Style};
 use regex::Regex;
 
 use crate::{
-    features::pod::{message::PodMessage, PodColumn, PodColumns},
+    features::pod::{PodColumn, PodColumns, message::PodMessage},
     kube::{
-        apis::v1_table::TableRow,
-        table::{get_resource_per_namespace, insert_ns, KubeTable, KubeTableRow},
         KubeClient,
+        apis::v1_table::TableRow,
+        table::{KubeTable, KubeTableRow, get_resource_per_namespace, insert_ns},
     },
     message::Message,
     ui::widget::ansi_color::style_to_ansi,

@@ -2,8 +2,8 @@ use std::{
     collections::hash_map::DefaultHasher,
     hash::Hasher,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
 };
 
@@ -12,14 +12,14 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use futures::{AsyncBufReadExt, TryStreamExt};
 use k8s_openapi::api::core::v1::Pod;
-use kube::{api::LogParams, Api};
+use kube::{Api, api::LogParams};
 use regex::Regex;
 use tokio::time;
 
 use crate::{
     kube::KubeClient,
     logger,
-    workers::kube::{color::fg::Color, AbortWorker},
+    workers::kube::{AbortWorker, color::fg::Color},
 };
 
 use super::{log_collector::LogBuffer, log_content::LogContent};

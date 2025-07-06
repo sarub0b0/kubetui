@@ -4,8 +4,8 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use figment::{
-    providers::{Env, Format, Serialized, YamlExtended},
     Figment,
+    providers::{Env, Format, Serialized, YamlExtended},
 };
 use serde::{Deserialize, Serialize};
 

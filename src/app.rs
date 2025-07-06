@@ -1,22 +1,22 @@
 use std::{collections::HashMap, thread, time};
 
 use anyhow::Result;
-use crossbeam::channel::{bounded, Receiver, Sender};
+use crossbeam::channel::{Receiver, Sender, bounded};
 
 use crate::{
     cmd::Command,
     config::{
-        theme::{PodColumnConfig, PodHighlightConfig},
         Config,
+        theme::{PodColumnConfig, PodHighlightConfig},
     },
     features::{
         api_resources::kube::ApiConfig,
         event::kube::EventConfig,
-        pod::{kube::PodHighlightRule, PodColumns},
+        pod::{PodColumns, kube::PodHighlightRule},
     },
     logger,
     message::Message,
-    workers::{kube::YamlConfig, ApisConfig, KubeWorker, Render, Tick, UserInput},
+    workers::{ApisConfig, KubeWorker, Render, Tick, UserInput, kube::YamlConfig},
 };
 
 pub struct App;

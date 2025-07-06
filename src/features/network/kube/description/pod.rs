@@ -1,9 +1,9 @@
 use k8s_openapi::{
+    List,
     api::{
         core::v1::{Pod, Service},
         networking::v1::{Ingress, NetworkPolicy},
     },
-    List,
 };
 use kube::{Resource, ResourceExt};
 use serde_yaml::Mapping;
@@ -11,8 +11,8 @@ use serde_yaml::Mapping;
 use self::{extract::Extract, to_value::ToValue};
 
 use super::{
-    related_resources::{to_list_value::ToListValue, RelatedClient},
     Fetch, FetchedData, Result,
+    related_resources::{RelatedClient, to_list_value::ToListValue},
 };
 
 use crate::{
@@ -130,11 +130,11 @@ mod tests {
     };
     use indoc::indoc;
     use k8s_openapi::{
+        List,
         api::{
             core::v1::{Pod, Service},
             networking::v1::{Ingress, NetworkPolicy},
         },
-        List,
     };
     use mockall::predicate::eq;
 

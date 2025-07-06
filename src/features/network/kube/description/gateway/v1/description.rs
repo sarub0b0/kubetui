@@ -98,4 +98,3 @@ struct ListenerStatusDef {
 
     supported_kinds: Vec<GatewayStatusListenersSupportedKinds>,
 }
-

@@ -6,10 +6,10 @@ mod wrap;
 use std::{cell::RefCell, rc::Rc};
 
 use ratatui::{
+    Frame,
     crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind},
     layout::Rect,
     widgets::{Block, Scrollbar, ScrollbarOrientation, ScrollbarState},
-    Frame,
 };
 
 use crate::{
@@ -24,8 +24,8 @@ use crate::{
 };
 
 use super::{
-    styled_graphemes::StyledGrapheme, Item, LiteralItem, RenderTrait, SelectedItem, WidgetBase,
-    WidgetTrait,
+    Item, LiteralItem, RenderTrait, SelectedItem, WidgetBase, WidgetTrait,
+    styled_graphemes::StyledGrapheme,
 };
 
 use self::{

@@ -5,18 +5,18 @@ mod select;
 use std::rc::Rc;
 
 use ratatui::{
+    Frame,
     crossterm::event::{KeyCode, KeyEvent, MouseEvent},
     layout::{Constraint, Direction, Layout, Rect},
     style::Style,
     widgets::{Block, Paragraph},
-    Frame,
 };
 
 use crate::{
     define_callback,
     ui::{
         event::EventResult,
-        util::{key_event_to_code, RectContainsPoint},
+        util::{RectContainsPoint, key_event_to_code},
         widget::{Item, LiteralItem, RenderTrait, SelectedItem, WidgetBase, WidgetTrait},
     },
 };

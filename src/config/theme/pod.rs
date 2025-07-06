@@ -57,7 +57,7 @@ pub struct PodHighlightConfig {
 }
 
 mod serde_regex {
-    use serde::{de, Deserialize, Deserializer, Serializer};
+    use serde::{Deserialize, Deserializer, Serializer, de};
 
     pub fn serialize<S>(regex: &regex::Regex, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -87,7 +87,7 @@ pub struct PodColumnConfig(#[serde(with = "serde_pod_column")] pub PodColumn);
 mod serde_pod_column {
     use std::str::FromStr as _;
 
-    use serde::{de, Deserialize, Deserializer, Serializer};
+    use serde::{Deserialize, Deserializer, Serializer, de};
 
     pub fn serialize<S>(column: &super::PodColumn, serializer: S) -> Result<S::Ok, S::Error>
     where

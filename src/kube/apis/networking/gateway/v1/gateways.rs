@@ -2,10 +2,10 @@
 // kopium command: kopium --api-version=v1 --schema=disabled -f -
 // kopium version: 0.17.2
 
+use k8s_openapi::{NamespaceResourceScope, apimachinery::pkg::apis::meta::v1::Condition};
 use kube::CustomResource;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use k8s_openapi::{apimachinery::pkg::apis::meta::v1::Condition, NamespaceResourceScope};
 
 impl k8s_openapi::Resource for Gateway {
     const API_VERSION: &'static str = "gateway.networking.k8s.io/v1";

@@ -5,11 +5,11 @@ use async_trait::async_trait;
 use crossbeam::channel::Sender;
 use futures::future::{join_all, try_join_all};
 use k8s_openapi::{
+    Resource,
     api::{
         core::v1::{Pod, Service},
         networking::v1::{Ingress, NetworkPolicy},
     },
-    Resource,
 };
 
 use crate::{
@@ -18,12 +18,12 @@ use crate::{
         network::message::{GatewayVersion, HTTPRouteVersion, NetworkResponse},
     },
     kube::{
+        KubeClient, KubeClientRequest,
         apis::{
             networking::gateway::{v1, v1beta1},
             v1_table::Table,
         },
-        table::{insert_ns, KubeTable, KubeTableRow},
-        KubeClient, KubeClientRequest,
+        table::{KubeTable, KubeTableRow, insert_ns},
     },
     logger,
     message::Message,

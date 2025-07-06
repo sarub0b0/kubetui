@@ -5,9 +5,9 @@ use crate::{
     features::component_id::POD_LOG_QUERY_HELP_DIALOG_ID,
     message::UserEvent,
     ui::{
+        Window,
         event::EventResult,
         widget::{Text, Widget, WidgetBase},
-        Window,
     },
 };
 

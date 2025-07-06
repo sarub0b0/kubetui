@@ -14,12 +14,12 @@ use crate::{
     kube::context::Namespace,
     message::Message,
     ui::{
+        Window, WindowAction,
         event::EventResult,
         widget::{
             FilterForm, FilterFormTheme, Item, Table, TableItem, TableTheme, Widget, WidgetBase,
             WidgetTheme, WidgetTrait as _,
         },
-        Window, WindowAction,
     },
 };
 

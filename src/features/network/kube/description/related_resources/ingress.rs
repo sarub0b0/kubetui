@@ -1,4 +1,4 @@
-use k8s_openapi::{api::networking::v1::Ingress, List};
+use k8s_openapi::{List, api::networking::v1::Ingress};
 
 use super::Filter;
 

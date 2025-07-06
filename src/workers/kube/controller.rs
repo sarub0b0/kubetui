@@ -1,11 +1,11 @@
 use std::{sync::Arc, time::Duration};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use crossbeam::channel::{Receiver, Sender};
 use futures::future::select_all;
 use k8s_openapi::api::core::v1::Namespace;
-use kube::{api::ListParams, config::Kubeconfig, Api, ResourceExt as _};
+use kube::{Api, ResourceExt as _, api::ListParams, config::Kubeconfig};
 use ratatui::style::{Color, Style};
 use tokio::{
     sync::RwLock,
@@ -14,6 +14,7 @@ use tokio::{
 
 use crate::{
     features::{
+        StyledApiResource,
         api_resources::{
             kube::{ApiConfig, ApiPoller, ApiResource, ApiResources, SharedApiResources},
             message::{ApiMessage, ApiRequest, ApiResponse},
@@ -31,15 +32,14 @@ use crate::{
             message::NetworkMessage,
         },
         pod::{
+            PodColumns,
             kube::{LogConfig, LogWorker, PodConfig, PodPoller},
             message::{LogMessage, PodMessage},
-            PodColumns,
         },
         yaml::{
             kube::{FetchResourceList, YamlWorker},
             message::{YamlMessage, YamlRequest, YamlResponse},
         },
-        StyledApiResource,
     },
     kube::KubeClient,
     logger,
@@ -48,10 +48,10 @@ use crate::{
 };
 
 use super::{
-    config::{read_kubeconfig, Context, KubeWorkerConfig},
+    AbortWorker as _,
+    config::{Context, KubeWorkerConfig, read_kubeconfig},
     store::{KubeState, KubeStore},
     worker::Worker,
-    AbortWorker as _,
 };
 
 pub type TargetNamespaces = Vec<String>;

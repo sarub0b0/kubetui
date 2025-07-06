@@ -2,7 +2,7 @@ mod parser;
 
 use std::borrow::Cow;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use regex::Regex;
 
 use self::parser::parse_attributes;
@@ -288,7 +288,7 @@ struct FilterAttributes;
 impl FilterAttributes {
     fn parse(query: &str) -> Result<Vec<FilterAttribute<'_>>> {
         use nom::Err;
-        use nom_language::error::{convert_error, VerboseError};
+        use nom_language::error::{VerboseError, convert_error};
 
         match parse_attributes::<VerboseError<_>>(query) {
             Ok((_, filter)) => Ok(filter),

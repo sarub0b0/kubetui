@@ -293,7 +293,7 @@ impl<'a> Iterator for LineIterator<'a> {
 
 #[cfg(test)]
 mod tests {
-    use ratatui::{backend::TestBackend, widgets::Borders, Terminal};
+    use ratatui::{Terminal, backend::TestBackend, widgets::Borders};
     use unicode_segmentation::UnicodeSegmentation;
 
     use crate::ui::widget::styled_graphemes::StyledGrapheme;

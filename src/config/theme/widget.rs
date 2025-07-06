@@ -2,8 +2,8 @@ use ratatui::style::{Color, Modifier};
 use serde::{Deserialize, Serialize};
 
 use crate::ui::widget::{
-    multiple_select, single_select, table, CheckListTheme, InputFormTheme, ListTheme,
-    SearchFormTheme, TableTheme, TextTheme, WidgetTheme,
+    CheckListTheme, InputFormTheme, ListTheme, SearchFormTheme, TableTheme, TextTheme, WidgetTheme,
+    multiple_select, single_select, table,
 };
 
 use super::{

@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use crate::{kube::table::KubeTable, message::Message, workers::kube::message::Kube};
 
-use super::{kube::LogConfig, PodColumns};
+use super::{PodColumns, kube::LogConfig};
 
 #[derive(Debug)]
 pub enum LogMessage {

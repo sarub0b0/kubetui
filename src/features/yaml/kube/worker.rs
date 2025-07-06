@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use crossbeam::channel::Sender;
 use serde_yaml::Value;
 

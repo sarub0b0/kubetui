@@ -20,7 +20,7 @@ pub struct EventHighlightConfig {
 }
 
 mod serde_regex {
-    use serde::{de, Deserialize, Deserializer, Serializer};
+    use serde::{Deserialize, Deserializer, Serializer, de};
 
     pub fn serialize<S>(regex: &regex::Regex, serializer: S) -> Result<S::Ok, S::Error>
     where

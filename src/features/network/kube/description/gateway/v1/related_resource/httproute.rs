@@ -3,13 +3,13 @@ use std::collections::BTreeSet;
 use anyhow::{Context, Result};
 use futures::future::{join_all, try_join_all};
 use k8s_openapi::{
-    api::core::v1::Namespace, apimachinery::pkg::apis::meta::v1::LabelSelector, Resource as _,
+    Resource as _, api::core::v1::Namespace, apimachinery::pkg::apis::meta::v1::LabelSelector,
 };
-use kube::{api::ListParams, Api, Client, ResourceExt as _};
+use kube::{Api, Client, ResourceExt as _, api::ListParams};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    features::network::kube::description::utils::{label_selector_to_query, ExtractNamespace as _},
+    features::network::kube::description::utils::{ExtractNamespace as _, label_selector_to_query},
     kube::apis::networking::gateway::v1::{
         Gateway, GatewayListenersAllowedRoutes, GatewayListenersAllowedRoutesNamespaces,
         GatewayListenersAllowedRoutesNamespacesFrom, HTTPRoute, HTTPRouteParentRefs,

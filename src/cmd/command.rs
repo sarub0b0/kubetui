@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use crate::{config::ConfigLoadOption, features::pod::PodColumns, workers::kube::KubeWorkerConfig};
 
 use super::{
-    args::{parse_pod_columns, AllNamespaces, SplitDirection},
     SubCommand,
+    args::{AllNamespaces, SplitDirection, parse_pod_columns},
 };
 
 #[derive(Parser, Debug, Clone)]

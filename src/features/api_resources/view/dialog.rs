@@ -8,15 +8,15 @@ use crate::{
     },
     message::Message,
     ui::{
+        Window,
         event::EventResult,
         widget::{
+            LiteralItem, MultipleSelect, SelectedItem, Widget, WidgetBase, WidgetTheme,
+            WidgetTrait as _,
             multiple_select::{
                 FilterForm, FilterFormTheme, MultipleSelectTheme, SelectForm, SelectFormTheme,
             },
-            LiteralItem, MultipleSelect, SelectedItem, Widget, WidgetBase, WidgetTheme,
-            WidgetTrait as _,
         },
-        Window,
     },
 };
 

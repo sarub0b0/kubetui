@@ -1,7 +1,7 @@
 use anyhow::Result;
 use futures::StreamExt;
 use k8s_openapi::api::core::v1::{Pod, Service};
-use kube::{api::ListParams, Api, Client, ResourceExt as _};
+use kube::{Api, Client, ResourceExt as _, api::ListParams};
 use serde::{Deserialize, Serialize};
 
 use crate::features::network::kube::description::utils::ExtractNamespace as _;
