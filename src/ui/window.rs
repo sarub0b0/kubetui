@@ -613,7 +613,7 @@ impl Window<'_> {
 
         let pos = (ev.column, ev.row);
 
-        let result = match self.area_kind_by_cursor_position(pos) {
+        match self.area_kind_by_cursor_position(pos) {
             AreaKind::Tab => {
                 self.on_tab_area_mouse_event(ev);
 
@@ -629,9 +629,7 @@ impl Window<'_> {
 
                 EventResult::Ignore
             }
-        };
-
-        result
+        }
     }
 
     fn on_tab_area_mouse_event(&mut self, ev: MouseEvent) {

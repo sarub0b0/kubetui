@@ -44,8 +44,7 @@ struct ConfigMapData(BTreeMap<String, String>);
 
 impl ConfigMapData {
     fn to_vec_string_with_color(&self) -> Vec<String> {
-        let ret = self
-            .0
+        self.0
             .iter()
             .scan(Color::new(), |color, (key, value)| {
                 let color = color.next_color();
@@ -72,8 +71,6 @@ impl ConfigMapData {
                 }
             })
             .flatten()
-            .collect();
-
-        ret
+            .collect()
     }
 }
