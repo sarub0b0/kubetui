@@ -140,11 +140,7 @@ fn backend_service_names(ing: &Ingress) -> Option<Vec<String>> {
                 })
                 .collect();
 
-            if !a.is_empty() {
-                Some(a)
-            } else {
-                None
-            }
+            if !a.is_empty() { Some(a) } else { None }
         })
     });
 

@@ -21,7 +21,12 @@ impl k8s_openapi::Resource for HTTPRoute {
 }
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug, Default)]
-#[kube(group = "gateway.networking.k8s.io", version = "v1beta1", kind = "HTTPRoute", plural = "httproutes")]
+#[kube(
+    group = "gateway.networking.k8s.io",
+    version = "v1beta1",
+    kind = "HTTPRoute",
+    plural = "httproutes"
+)]
 #[kube(namespaced)]
 #[kube(status = "HTTPRouteStatus")]
 #[kube(derive = "Default")]
@@ -29,7 +34,11 @@ impl k8s_openapi::Resource for HTTPRoute {
 pub struct HTTPRouteSpec {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hostnames: Option<Vec<String>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "parentRefs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "parentRefs"
+    )]
     pub parent_refs: Option<Vec<HTTPRouteParentRefs>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rules: Option<Vec<HTTPRouteRules>>,
@@ -46,13 +55,21 @@ pub struct HTTPRouteParentRefs {
     pub namespace: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "sectionName")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "sectionName"
+    )]
     pub section_name: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct HTTPRouteRules {
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "backendRefs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "backendRefs"
+    )]
     pub backend_refs: Option<Vec<HTTPRouteRulesBackendRefs>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub filters: Option<Vec<HTTPRouteRulesFilters>>,
@@ -81,19 +98,43 @@ pub struct HTTPRouteRulesBackendRefs {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct HTTPRouteRulesBackendRefsFilters {
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "extensionRef")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "extensionRef"
+    )]
     pub extension_ref: Option<HTTPRouteRulesBackendRefsFiltersExtensionRef>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "requestHeaderModifier")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "requestHeaderModifier"
+    )]
     pub request_header_modifier: Option<HTTPRouteRulesBackendRefsFiltersRequestHeaderModifier>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "requestMirror")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "requestMirror"
+    )]
     pub request_mirror: Option<HTTPRouteRulesBackendRefsFiltersRequestMirror>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "requestRedirect")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "requestRedirect"
+    )]
     pub request_redirect: Option<HTTPRouteRulesBackendRefsFiltersRequestRedirect>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "responseHeaderModifier")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "responseHeaderModifier"
+    )]
     pub response_header_modifier: Option<HTTPRouteRulesBackendRefsFiltersResponseHeaderModifier>,
     #[serde(rename = "type")]
     pub r#type: HTTPRouteRulesBackendRefsFiltersType,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "urlRewrite")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "urlRewrite"
+    )]
     pub url_rewrite: Option<HTTPRouteRulesBackendRefsFiltersUrlRewrite>,
 }
 
@@ -155,15 +196,27 @@ pub struct HTTPRouteRulesBackendRefsFiltersRequestRedirect {
     pub port: Option<i32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scheme: Option<HTTPRouteRulesBackendRefsFiltersRequestRedirectScheme>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "statusCode")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "statusCode"
+    )]
     pub status_code: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct HTTPRouteRulesBackendRefsFiltersRequestRedirectPath {
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "replaceFullPath")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "replaceFullPath"
+    )]
     pub replace_full_path: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "replacePrefixMatch")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "replacePrefixMatch"
+    )]
     pub replace_prefix_match: Option<String>,
     #[serde(rename = "type")]
     pub r#type: HTTPRouteRulesBackendRefsFiltersRequestRedirectPathType,
@@ -234,9 +287,17 @@ pub struct HTTPRouteRulesBackendRefsFiltersUrlRewrite {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct HTTPRouteRulesBackendRefsFiltersUrlRewritePath {
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "replaceFullPath")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "replaceFullPath"
+    )]
     pub replace_full_path: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "replacePrefixMatch")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "replacePrefixMatch"
+    )]
     pub replace_prefix_match: Option<String>,
     #[serde(rename = "type")]
     pub r#type: HTTPRouteRulesBackendRefsFiltersUrlRewritePathType,
@@ -250,19 +311,43 @@ pub enum HTTPRouteRulesBackendRefsFiltersUrlRewritePathType {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct HTTPRouteRulesFilters {
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "extensionRef")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "extensionRef"
+    )]
     pub extension_ref: Option<HTTPRouteRulesFiltersExtensionRef>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "requestHeaderModifier")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "requestHeaderModifier"
+    )]
     pub request_header_modifier: Option<HTTPRouteRulesFiltersRequestHeaderModifier>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "requestMirror")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "requestMirror"
+    )]
     pub request_mirror: Option<HTTPRouteRulesFiltersRequestMirror>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "requestRedirect")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "requestRedirect"
+    )]
     pub request_redirect: Option<HTTPRouteRulesFiltersRequestRedirect>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "responseHeaderModifier")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "responseHeaderModifier"
+    )]
     pub response_header_modifier: Option<HTTPRouteRulesFiltersResponseHeaderModifier>,
     #[serde(rename = "type")]
     pub r#type: HTTPRouteRulesFiltersType,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "urlRewrite")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "urlRewrite"
+    )]
     pub url_rewrite: Option<HTTPRouteRulesFiltersUrlRewrite>,
 }
 
@@ -324,15 +409,27 @@ pub struct HTTPRouteRulesFiltersRequestRedirect {
     pub port: Option<i32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scheme: Option<HTTPRouteRulesFiltersRequestRedirectScheme>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "statusCode")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "statusCode"
+    )]
     pub status_code: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct HTTPRouteRulesFiltersRequestRedirectPath {
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "replaceFullPath")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "replaceFullPath"
+    )]
     pub replace_full_path: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "replacePrefixMatch")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "replacePrefixMatch"
+    )]
     pub replace_prefix_match: Option<String>,
     #[serde(rename = "type")]
     pub r#type: HTTPRouteRulesFiltersRequestRedirectPathType,
@@ -403,9 +500,17 @@ pub struct HTTPRouteRulesFiltersUrlRewrite {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct HTTPRouteRulesFiltersUrlRewritePath {
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "replaceFullPath")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "replaceFullPath"
+    )]
     pub replace_full_path: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "replacePrefixMatch")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "replacePrefixMatch"
+    )]
     pub replace_prefix_match: Option<String>,
     #[serde(rename = "type")]
     pub r#type: HTTPRouteRulesFiltersUrlRewritePathType,
@@ -425,7 +530,11 @@ pub struct HTTPRouteRulesMatches {
     pub method: Option<HTTPRouteRulesMatchesMethod>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub path: Option<HTTPRouteRulesMatchesPath>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "queryParams")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "queryParams"
+    )]
     pub query_params: Option<Vec<HTTPRouteRulesMatchesQueryParams>>,
 }
 
@@ -496,7 +605,11 @@ pub enum HTTPRouteRulesMatchesQueryParamsType {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct HTTPRouteRulesTimeouts {
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "backendRequest")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "backendRequest"
+    )]
     pub backend_request: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub request: Option<String>,
@@ -528,7 +641,10 @@ pub struct HTTPRouteStatusParentsParentRef {
     pub namespace: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "sectionName")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "sectionName"
+    )]
     pub section_name: Option<String>,
 }
-

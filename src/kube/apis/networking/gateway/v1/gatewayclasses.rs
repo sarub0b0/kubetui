@@ -7,7 +7,12 @@ use kube::CustomResource;
 use serde::{Deserialize, Serialize};
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]
-#[kube(group = "gateway.networking.k8s.io", version = "v1", kind = "GatewayClass", plural = "gatewayclasses")]
+#[kube(
+    group = "gateway.networking.k8s.io",
+    version = "v1",
+    kind = "GatewayClass",
+    plural = "gatewayclasses"
+)]
 #[kube(status = "GatewayClassStatus")]
 #[kube(schema = "disabled")]
 pub struct GatewayClassSpec {
@@ -15,7 +20,11 @@ pub struct GatewayClassSpec {
     pub controller_name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "parametersRef")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "parametersRef"
+    )]
     pub parameters_ref: Option<GatewayClassParametersRef>,
 }
 
@@ -32,7 +41,10 @@ pub struct GatewayClassParametersRef {
 pub struct GatewayClassStatus {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub conditions: Option<Vec<Condition>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "supportedFeatures")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "supportedFeatures"
+    )]
     pub supported_features: Option<Vec<String>>,
 }
-

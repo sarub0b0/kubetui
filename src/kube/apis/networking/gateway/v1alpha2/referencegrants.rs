@@ -6,7 +6,12 @@ use kube::CustomResource;
 use serde::{Deserialize, Serialize};
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]
-#[kube(group = "gateway.networking.k8s.io", version = "v1alpha2", kind = "ReferenceGrant", plural = "referencegrants")]
+#[kube(
+    group = "gateway.networking.k8s.io",
+    version = "v1alpha2",
+    kind = "ReferenceGrant",
+    plural = "referencegrants"
+)]
 #[kube(namespaced)]
 #[kube(schema = "disabled")]
 pub struct ReferenceGrantSpec {
@@ -28,4 +33,3 @@ pub struct ReferenceGrantTo {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 }
-

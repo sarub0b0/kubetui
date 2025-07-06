@@ -7,12 +7,21 @@ use kube::CustomResource;
 use serde::{Deserialize, Serialize};
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]
-#[kube(group = "gateway.networking.k8s.io", version = "v1alpha2", kind = "TCPRoute", plural = "tcproutes")]
+#[kube(
+    group = "gateway.networking.k8s.io",
+    version = "v1alpha2",
+    kind = "TCPRoute",
+    plural = "tcproutes"
+)]
 #[kube(namespaced)]
 #[kube(status = "TCPRouteStatus")]
 #[kube(schema = "disabled")]
 pub struct TCPRouteSpec {
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "parentRefs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "parentRefs"
+    )]
     pub parent_refs: Option<Vec<TCPRouteParentRefs>>,
     pub rules: Vec<TCPRouteRules>,
 }
@@ -28,13 +37,21 @@ pub struct TCPRouteParentRefs {
     pub namespace: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "sectionName")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "sectionName"
+    )]
     pub section_name: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TCPRouteRules {
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "backendRefs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "backendRefs"
+    )]
     pub backend_refs: Option<Vec<TCPRouteRulesBackendRefs>>,
 }
 
@@ -79,7 +96,10 @@ pub struct TCPRouteStatusParentsParentRef {
     pub namespace: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "sectionName")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "sectionName"
+    )]
     pub section_name: Option<String>,
 }
-

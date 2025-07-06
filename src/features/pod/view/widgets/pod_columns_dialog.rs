@@ -111,8 +111,8 @@ mod tests {
         use pretty_assertions::assert_eq;
 
         #[test]
-        fn ユーザーが指定したカラムをチェック済みで最初に配置して残りのカラムを未チェック状態で追加する(
-        ) {
+        fn ユーザーが指定したカラムをチェック済みで最初に配置して残りのカラムを未チェック状態で追加する()
+         {
             let pod_columns =
                 PodColumns::new([PodColumn::Name, PodColumn::Ready, PodColumn::Status]);
             let columns = build_check_list_items_from_existing(pod_columns);

@@ -26,14 +26,14 @@ fn quoted<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, Cow<'a, str>, E> {
     #[inline]
-    fn multispace<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
-    ) -> impl Parser<&'a str, Output = Cow<'a, str>, Error = E> {
+    fn multispace<'a, E: ParseError<&'a str> + ContextError<&'a str>>()
+    -> impl Parser<&'a str, Output = Cow<'a, str>, Error = E> {
         map(multispace1, Cow::Borrowed)
     }
 
     #[inline]
-    fn escaped_char<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
-    ) -> impl Parser<&'a str, Output = Cow<'a, str>, Error = E> {
+    fn escaped_char<'a, E: ParseError<&'a str> + ContextError<&'a str>>()
+    -> impl Parser<&'a str, Output = Cow<'a, str>, Error = E> {
         preceded(
             char('\\'),
             alt((

@@ -62,11 +62,7 @@ impl KubeTable {
 
 #[allow(dead_code)]
 pub fn insert_namespace_index(index: usize, len: usize) -> Option<usize> {
-    if len != 1 {
-        Some(index)
-    } else {
-        None
-    }
+    if len != 1 { Some(index) } else { None }
 }
 
 pub fn insert_ns(namespaces: &[String]) -> bool {

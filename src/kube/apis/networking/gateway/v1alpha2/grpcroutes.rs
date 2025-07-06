@@ -7,14 +7,23 @@ use kube::CustomResource;
 use serde::{Deserialize, Serialize};
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]
-#[kube(group = "gateway.networking.k8s.io", version = "v1alpha2", kind = "GRPCRoute", plural = "grpcroutes")]
+#[kube(
+    group = "gateway.networking.k8s.io",
+    version = "v1alpha2",
+    kind = "GRPCRoute",
+    plural = "grpcroutes"
+)]
 #[kube(namespaced)]
 #[kube(status = "GRPCRouteStatus")]
 #[kube(schema = "disabled")]
 pub struct GRPCRouteSpec {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hostnames: Option<Vec<String>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "parentRefs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "parentRefs"
+    )]
     pub parent_refs: Option<Vec<GRPCRouteParentRefs>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rules: Option<Vec<GRPCRouteRules>>,
@@ -31,13 +40,21 @@ pub struct GRPCRouteParentRefs {
     pub namespace: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "sectionName")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "sectionName"
+    )]
     pub section_name: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct GRPCRouteRules {
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "backendRefs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "backendRefs"
+    )]
     pub backend_refs: Option<Vec<GRPCRouteRulesBackendRefs>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub filters: Option<Vec<GRPCRouteRulesFilters>>,
@@ -64,13 +81,29 @@ pub struct GRPCRouteRulesBackendRefs {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct GRPCRouteRulesBackendRefsFilters {
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "extensionRef")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "extensionRef"
+    )]
     pub extension_ref: Option<GRPCRouteRulesBackendRefsFiltersExtensionRef>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "requestHeaderModifier")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "requestHeaderModifier"
+    )]
     pub request_header_modifier: Option<GRPCRouteRulesBackendRefsFiltersRequestHeaderModifier>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "requestMirror")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "requestMirror"
+    )]
     pub request_mirror: Option<GRPCRouteRulesBackendRefsFiltersRequestMirror>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "responseHeaderModifier")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "responseHeaderModifier"
+    )]
     pub response_header_modifier: Option<GRPCRouteRulesBackendRefsFiltersResponseHeaderModifier>,
     #[serde(rename = "type")]
     pub r#type: GRPCRouteRulesBackendRefsFiltersType,
@@ -156,13 +189,29 @@ pub enum GRPCRouteRulesBackendRefsFiltersType {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct GRPCRouteRulesFilters {
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "extensionRef")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "extensionRef"
+    )]
     pub extension_ref: Option<GRPCRouteRulesFiltersExtensionRef>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "requestHeaderModifier")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "requestHeaderModifier"
+    )]
     pub request_header_modifier: Option<GRPCRouteRulesFiltersRequestHeaderModifier>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "requestMirror")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "requestMirror"
+    )]
     pub request_mirror: Option<GRPCRouteRulesFiltersRequestMirror>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "responseHeaderModifier")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "responseHeaderModifier"
+    )]
     pub response_header_modifier: Option<GRPCRouteRulesFiltersResponseHeaderModifier>,
     #[serde(rename = "type")]
     pub r#type: GRPCRouteRulesFiltersType,
@@ -310,7 +359,10 @@ pub struct GRPCRouteStatusParentsParentRef {
     pub namespace: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "sectionName")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "sectionName"
+    )]
     pub section_name: Option<String>,
 }
-

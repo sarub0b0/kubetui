@@ -7,14 +7,23 @@ use kube::CustomResource;
 use serde::{Deserialize, Serialize};
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]
-#[kube(group = "gateway.networking.k8s.io", version = "v1alpha2", kind = "TLSRoute", plural = "tlsroutes")]
+#[kube(
+    group = "gateway.networking.k8s.io",
+    version = "v1alpha2",
+    kind = "TLSRoute",
+    plural = "tlsroutes"
+)]
 #[kube(namespaced)]
 #[kube(status = "TLSRouteStatus")]
 #[kube(schema = "disabled")]
 pub struct TLSRouteSpec {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hostnames: Option<Vec<String>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "parentRefs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "parentRefs"
+    )]
     pub parent_refs: Option<Vec<TLSRouteParentRefs>>,
     pub rules: Vec<TLSRouteRules>,
 }
@@ -30,13 +39,21 @@ pub struct TLSRouteParentRefs {
     pub namespace: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "sectionName")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "sectionName"
+    )]
     pub section_name: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TLSRouteRules {
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "backendRefs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "backendRefs"
+    )]
     pub backend_refs: Option<Vec<TLSRouteRulesBackendRefs>>,
 }
 
@@ -81,7 +98,10 @@ pub struct TLSRouteStatusParentsParentRef {
     pub namespace: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "sectionName")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "sectionName"
+    )]
     pub section_name: Option<String>,
 }
-

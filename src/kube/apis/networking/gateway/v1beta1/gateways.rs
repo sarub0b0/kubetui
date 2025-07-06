@@ -22,7 +22,12 @@ impl k8s_openapi::Resource for Gateway {
 }
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug, Default)]
-#[kube(group = "gateway.networking.k8s.io", version = "v1beta1", kind = "Gateway", plural = "gateways")]
+#[kube(
+    group = "gateway.networking.k8s.io",
+    version = "v1beta1",
+    kind = "Gateway",
+    plural = "gateways"
+)]
 #[kube(namespaced)]
 #[kube(derive = "Default")]
 #[kube(status = "GatewayStatus")]
@@ -50,7 +55,11 @@ pub struct GatewayInfrastructure {
     pub annotations: Option<BTreeMap<String, String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub labels: Option<BTreeMap<String, String>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "parametersRef")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "parametersRef"
+    )]
     pub parameters_ref: Option<GatewayInfrastructureParametersRef>,
 }
 
@@ -63,7 +72,11 @@ pub struct GatewayInfrastructureParametersRef {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct GatewayListeners {
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "allowedRoutes")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "allowedRoutes"
+    )]
     pub allowed_routes: Option<GatewayListenersAllowedRoutes>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hostname: Option<String>,
@@ -106,9 +119,18 @@ pub enum GatewayListenersAllowedRoutesNamespacesFrom {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GatewayListenersAllowedRoutesNamespacesSelector {
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "matchExpressions")]
-    pub match_expressions: Option<Vec<GatewayListenersAllowedRoutesNamespacesSelectorMatchExpressions>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "matchLabels")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "matchExpressions"
+    )]
+    pub match_expressions:
+        Option<Vec<GatewayListenersAllowedRoutesNamespacesSelectorMatchExpressions>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "matchLabels"
+    )]
     pub match_labels: Option<BTreeMap<String, String>>,
 }
 
@@ -122,7 +144,11 @@ pub struct GatewayListenersAllowedRoutesNamespacesSelectorMatchExpressions {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct GatewayListenersTls {
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "certificateRefs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "certificateRefs"
+    )]
     pub certificate_refs: Option<Vec<GatewayListenersTlsCertificateRefs>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mode: Option<GatewayListenersTlsMode>,
@@ -180,4 +206,3 @@ pub struct GatewayStatusListenersSupportedKinds {
     pub group: Option<String>,
     pub kind: String,
 }
-

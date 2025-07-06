@@ -113,9 +113,9 @@ mod tests {
         let result = parse_pod_columns(input);
         assert!(result.is_err());
         assert_eq!(
-                result.unwrap_err().to_string(),
-                "Invalid column name: invalid_column. Valid options are: name, ready, status, restarts, age, ip, node, nominatednode, readinessgates"
-            );
+            result.unwrap_err().to_string(),
+            "Invalid column name: invalid_column. Valid options are: name, ready, status, restarts, age, ip, node, nominatednode, readinessgates"
+        );
     }
 
     #[test]

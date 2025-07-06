@@ -152,11 +152,16 @@ fn build_pod_columns(
 
     if let Some(preset) = cmd_pod_columns_preset {
         let Some(presets) = column_presets else {
-            anyhow::bail!("No pod column presets defined in config file, but '--pod-columns-preset' flag was used");
+            anyhow::bail!(
+                "No pod column presets defined in config file, but '--pod-columns-preset' flag was used"
+            );
         };
 
         let Some(columns) = presets.get(&preset) else {
-            anyhow::bail!("Pod column preset '{}' was specified via '--pod-columns-preset' but is not defined in config file", preset);
+            anyhow::bail!(
+                "Pod column preset '{}' was specified via '--pod-columns-preset' but is not defined in config file",
+                preset
+            );
         };
 
         return Ok(Some(convert_columns(columns)));

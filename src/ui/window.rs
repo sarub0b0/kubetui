@@ -321,11 +321,7 @@ impl<'a> Window<'a> {
         self.callbacks.iter().find_map(|(cb_ev, cb)| {
             logger!(debug, "match_callback {:?} <=> {:?}", ev, cb_ev);
 
-            if *cb_ev == ev {
-                Some(cb.clone())
-            } else {
-                None
-            }
+            if *cb_ev == ev { Some(cb.clone()) } else { None }
         })
     }
 
