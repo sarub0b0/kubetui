@@ -9,7 +9,15 @@ pub enum ContextMessage {
 #[derive(Debug)]
 pub enum ContextRequest {
     Get,
-    Set(String),
+
+    /// 指定したコンテキストに切り替える
+    Set {
+        /// コンテキスト名
+        name: String,
+
+        /// 名前空間を維持するかどうか
+        keep_namespace: bool,
+    },
 }
 
 #[derive(Debug)]

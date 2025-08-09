@@ -53,7 +53,7 @@ impl UserInput {
             if let Ok(true) = poll(Duration::from_secs(1)) {
                 let ev = read()?;
 
-                logger!(debug, "{:?}", ev);
+                logger!(error, "{:?}", ev);
 
                 match ev {
                     CEvent::Key(ev) => {

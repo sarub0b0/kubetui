@@ -8,13 +8,16 @@ use ratatui::{
 
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 
-use crate::ui::{
-    event::EventResult,
-    widget::{
-        list::{OnSelectCallback, RenderBlockInjection},
-        styled_graphemes::StyledGraphemes,
-        Item, List, ListTheme, LiteralItem, RenderTrait, SelectedItem, WidgetBase, WidgetTheme,
-        WidgetTrait,
+use crate::{
+    message::UserEvent,
+    ui::{
+        event::{Callback, EventResult},
+        widget::{
+            list::{OnSelectCallback, RenderBlockInjection},
+            styled_graphemes::StyledGraphemes,
+            Item, List, ListTheme, LiteralItem, RenderTrait, SelectedItem, WidgetBase, WidgetTheme,
+            WidgetTrait,
+        },
     },
 };
 
@@ -27,6 +30,7 @@ pub struct SelectFormTheme {
 #[derive(Debug, Default)]
 pub struct SelectFormBuilder {
     theme: SelectFormTheme,
+    actions: Vec<(UserEvent, Callback)>,
     on_select: Option<OnSelectCallback>,
     block_injection: Option<RenderBlockInjection>,
 }
@@ -35,6 +39,15 @@ pub struct SelectFormBuilder {
 impl SelectFormBuilder {
     pub fn theme(mut self, theme: SelectFormTheme) -> Self {
         self.theme = theme;
+        self
+    }
+
+    pub fn action<F, E>(mut self, ev: E, cb: F) -> Self
+    where
+        E: Into<UserEvent>,
+        F: Into<Callback>,
+    {
+        self.actions.push((ev.into(), cb.into()));
         self
     }
 
@@ -57,6 +70,10 @@ impl SelectFormBuilder {
 
         if let Some(block_injection) = self.block_injection {
             builder = builder.block_injection(block_injection);
+        }
+
+        for action in self.actions {
+            builder = builder.action(action.0, action.1);
         }
 
         let widget_base = WidgetBase::builder()
