@@ -61,14 +61,17 @@ where
         let networkpolicy: NetworkPolicy = self.client.request(&url).await?;
         let networkpolicy = networkpolicy.extract();
 
-        let related_pods: Option<List<Pod>> =
-            if let Some(NetworkPolicySpec { pod_selector, .. }) = &networkpolicy.spec {
-                RelatedClient::new(self.client, &self.namespace)
-                    .related_resources::<Pod, LabelSelectorWrapper>(&pod_selector.clone().into())
-                    .await?
-            } else {
-                None
-            };
+        let related_pods: Option<List<Pod>> = if let Some(NetworkPolicySpec {
+            pod_selector: Some(pod_selector),
+            ..
+        }) = &networkpolicy.spec
+        {
+            RelatedClient::new(self.client, &self.namespace)
+                .related_resources::<Pod, LabelSelectorWrapper>(&pod_selector.clone().into())
+                .await?
+        } else {
+            None
+        };
 
         let mut related_resources = Mapping::new();
 
