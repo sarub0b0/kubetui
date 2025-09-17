@@ -21,7 +21,8 @@
         "kube",
         "kube-runtime",
         "k8s-openapi"
-      ]
+      ],
+      "separateMajorMinor": false
     }
   ],
   "pin": {
