@@ -476,11 +476,14 @@ async fn get_table_namespaced_resource(
     api_resource: &ApiResource,
     namespaces: &[String],
 ) -> Result<Table> {
-    let jobs =
-        try_join_all(namespaces.iter().map(|ns| {
-            fetch_table_per_namespace(client, api_resource.api_url_with_namespace(ns), ns)
-        }))
-        .await?;
+    let jobs = try_join_all(namespaces.iter().map(|ns| {
+        fetch_table_per_namespace(
+            client,
+            format!("/{}", api_resource.api_url_with_namespace(ns)),
+            ns,
+        )
+    }))
+    .await?;
 
     let result: Vec<FetchData> = jobs.into_iter().collect();
 
@@ -521,7 +524,8 @@ impl<'a> FetchTargetApiResources<'a> {
                 get_table_namespaced_resource(self.client, api_resource, self.target_namespace)
                     .await
             } else {
-                get_table_cluster_resource(self.client, &api_resource.api_url()).await
+                get_table_cluster_resource(self.client, &format!("/{}", api_resource.api_url()))
+                    .await
             }?;
 
             let data = if table.rows.is_empty() {

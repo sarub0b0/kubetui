@@ -27,7 +27,7 @@ impl<'a, C: KubeClientRequest> FetchResourceListSingleNamespace<'a, C> {
 
     pub(super) async fn fetch(&self) -> Result<Vec<YamlResourceListItem>> {
         let path = format!(
-            "{}/namespaces/{}/{}",
+            "/{}/namespaces/{}/{}",
             self.api.group_version_url(),
             self.ns,
             self.kind

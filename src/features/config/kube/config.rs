@@ -15,6 +15,11 @@ use anyhow::Result;
 use async_trait::async_trait;
 use crossbeam::channel::Sender;
 use futures::future::try_join_all;
+use k8s_openapi::{
+    api::core::v1::{ConfigMap, Secret},
+    Resource as _,
+};
+use kube::Resource;
 
 #[derive(Clone)]
 pub struct ConfigPoller {
@@ -94,7 +99,7 @@ async fn fetch_configs_per_namespace(
     let jobs = try_join_all(namespaces.iter().map(|ns| {
         get_resource_per_namespace(
             client,
-            format!("api/v1/namespaces/{}/{}", ns, ty.kind()),
+            format!("/api/v1/namespaces/{}/{}", ns, ty.kind()),
             &["Name", r#"Data"#, "Age"],
             move |row: &TableRow, indexes: &[usize]| {
                 let mut row = vec![
