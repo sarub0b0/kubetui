@@ -229,11 +229,9 @@ async fn kubeclient(config: &Kubeconfig, context: &NamedContext) -> Result<KubeC
 
     let config = Config::from_custom_kubeconfig(config.clone(), &options).await?;
 
-    let cluster_url: String = config.cluster_url.to_string();
-
     let client = Client::try_from(config)?;
 
-    let kube_client = KubeClient::new(client, cluster_url);
+    let kube_client = KubeClient::new(client);
 
     Ok(kube_client)
 }

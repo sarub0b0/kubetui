@@ -4,6 +4,8 @@ use anyhow::Result;
 use async_trait::async_trait;
 use crossbeam::channel::Sender;
 use futures::future::try_join_all;
+use k8s_openapi::api::core::v1::Event;
+use kube::Resource as _;
 use ratatui::style::{Color, Style};
 
 use crate::{
@@ -88,7 +90,7 @@ impl Worker for EventPoller {
     }
 }
 
-struct Event {
+struct EventRow {
     last_seen: String,
     ty: String,
     object: String,
@@ -104,10 +106,10 @@ async fn get_event_per_namespace(
     client: &KubeClient,
     namespace: &str,
     insert_ns: bool,
-) -> Result<Vec<Event>> {
+) -> Result<Vec<EventRow>> {
     let tables = get_resource_per_namespace(
         client,
-        format!("api/v1/namespaces/{}/{}", namespace, "events"),
+        Event::url_path(&Default::default(), Some(namespace)),
         &TARGET,
         move |row: &TableRow, indexes: &[usize]| {
             let row: Vec<String> = indexes.iter().map(|i| row.cells[*i].to_string()).collect();
@@ -123,7 +125,7 @@ async fn get_event_per_namespace(
 
     let ret = tables
         .into_iter()
-        .map(|table| Event {
+        .map(|table| EventRow {
             last_seen: table.row[0].clone(),
             ty: table.row[1].clone(),
             object: table.row[2].clone(),
@@ -154,7 +156,7 @@ async fn get_event_table(
     )
     .await?;
 
-    let mut ok_only: Vec<Event> = jobs.into_iter().flatten().collect();
+    let mut ok_only: Vec<EventRow> = jobs.into_iter().flatten().collect();
 
     ok_only.sort_by_key(|ev| ev.last_seen.to_time());
 

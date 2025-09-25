@@ -54,7 +54,7 @@ where
     async fn fetch(&self) -> Result<FetchedData> {
         let url = format!(
             "{}/{}",
-            Service::url_path(&(), Some(&self.namespace)),
+            Service::url_path(&Default::default(), Some(&self.namespace)),
             self.name
         );
 

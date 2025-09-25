@@ -11,16 +11,15 @@ use super::List;
 pub(super) struct FetchResourceListNotNamespaced<'a, C: KubeClientRequest> {
     client: &'a C,
     api: &'a ApiResource,
-    kind: &'a str,
 }
 
 impl<'a, C: KubeClientRequest> FetchResourceListNotNamespaced<'a, C> {
-    pub(super) fn new(client: &'a C, api: &'a ApiResource, kind: &'a str) -> Self {
-        Self { client, api, kind }
+    pub(super) fn new(client: &'a C, api: &'a ApiResource) -> Self {
+        Self { client, api }
     }
 
     pub(super) async fn fetch(&self) -> Result<Vec<YamlResourceListItem>> {
-        let path = format!("{}/{}", self.api.group_version_url(), self.kind);
+        let path = self.api.api_url();
         logger!(info, "Fetching resource [{}]", path);
 
         let res: List = self.client.request(&path).await?;

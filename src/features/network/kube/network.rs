@@ -11,6 +11,7 @@ use k8s_openapi::{
     },
     Resource,
 };
+use kube::Resource as _;
 
 use crate::{
     features::{
@@ -150,23 +151,26 @@ impl TargetResource {
     }
 
     async fn fetch_table(&self, client: &KubeClient, ns: &str) -> Result<Table> {
-        match self {
-            Self::Ingress => client.table_namespaced::<Ingress>(ns).await,
-            Self::Service => client.table_namespaced::<Service>(ns).await,
-            Self::Pod => client.table_namespaced::<Pod>(ns).await,
-            Self::NetworkPolicy => client.table_namespaced::<NetworkPolicy>(ns).await,
-            Self::Gateway(GatewayVersion::V1) => client.table_namespaced::<v1::Gateway>(ns).await,
+        let path = match self {
+            Self::Ingress => Ingress::url_path(&Default::default(), Some(ns)),
+            Self::Service => Service::url_path(&Default::default(), Some(ns)),
+            Self::Pod => Pod::url_path(&Default::default(), Some(ns)),
+            Self::NetworkPolicy => NetworkPolicy::url_path(&Default::default(), Some(ns)),
+            Self::Gateway(GatewayVersion::V1) => {
+                v1::Gateway::url_path(&Default::default(), Some(ns))
+            }
             Self::Gateway(GatewayVersion::V1Beta1) => {
-                client.table_namespaced::<v1beta1::Gateway>(ns).await
+                v1beta1::Gateway::url_path(&Default::default(), Some(ns))
             }
             Self::HTTPRoute(HTTPRouteVersion::V1) => {
-                client.table_namespaced::<v1::HTTPRoute>(ns).await
+                v1::HTTPRoute::url_path(&Default::default(), Some(ns))
             }
             Self::HTTPRoute(HTTPRouteVersion::V1Beta1) => {
-                client.table_namespaced::<v1beta1::HTTPRoute>(ns).await
+                v1beta1::HTTPRoute::url_path(&Default::default(), Some(ns))
             }
-        }
-        .with_context(|| {
+        };
+
+        client.request_table(&path).await.with_context(|| {
             format!(
                 "Failed to fetch table: kind={} ({}) namespace={}",
                 self.as_str(),
