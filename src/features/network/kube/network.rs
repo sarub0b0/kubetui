@@ -183,7 +183,7 @@ impl TargetResource {
             ),
         };
 
-        client.table_request(&path).await.with_context(|| {
+        client.request_table(&path).await.with_context(|| {
             format!(
                 "Failed to fetch table: kind={} ({}) namespace={}",
                 self.as_str(),

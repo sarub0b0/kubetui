@@ -57,7 +57,7 @@ impl KubeClient {
 
 #[async_trait]
 pub trait KubeClientRequest: Send + Sync {
-    async fn table_request<T: DeserializeOwned + 'static>(&self, url_path: &str) -> Result<T>;
+    async fn request_table<T: DeserializeOwned + 'static>(&self, url_path: &str) -> Result<T>;
 
     async fn request<T: DeserializeOwned + 'static>(&self, url_path: &str) -> Result<T>;
 
@@ -68,7 +68,7 @@ pub trait KubeClientRequest: Send + Sync {
 
 #[async_trait]
 impl KubeClientRequest for KubeClient {
-    async fn table_request<T: DeserializeOwned + 'static>(&self, url_path: &str) -> Result<T> {
+    async fn request_table<T: DeserializeOwned + 'static>(&self, url_path: &str) -> Result<T> {
         logger!(debug, "Requesting table from path: {}", url_path);
 
         let request = http::Request::get(url_path)
@@ -139,7 +139,7 @@ pub mod mock {
 
         #[async_trait::async_trait]
         impl KubeClientRequest for TestKubeClient {
-            async fn table_request<T: DeserializeOwned + 'static>(&self, url_path: &str) -> Result<T>;
+            async fn request_table<T: DeserializeOwned + 'static>(&self, url_path: &str) -> Result<T>;
             async fn request<T: DeserializeOwned + 'static>(&self, url_path: &str) -> Result<T>;
             async fn request_text(&self, url_path: &str) -> Result<String>;
             fn client(&self) -> &kube::Client;
@@ -153,9 +153,9 @@ pub mod mock {
                 $client.expect_request::<$ty>().with($with).returning(|_| $ret);
             )*
         };
-        ($client:ident, table_request, [$(($ty:ty, $with:expr, $ret:expr)),*]) => {
+        ($client:ident, request_table, [$(($ty:ty, $with:expr, $ret:expr)),*]) => {
             $(
-                $client.expect_table_request::<$ty>().with($with).returning(|_| $ret);
+                $client.expect_request_table::<$ty>().with($with).returning(|_| $ret);
             )*
         };
         ($client:ident, request_text, [$(($with:expr, $ret:expr)),*]) => {
@@ -167,8 +167,8 @@ pub mod mock {
         ($client:ident, request, $ty:ty, $with:expr, $ret:expr) => {
             $client.expect_request::<$ty>().with($with).returning(|_| $ret);
         };
-        ($client:ident, table_request, $ty:ty, $with:expr, $ret:expr) => {
-            $client.expect_table_request::<$ty>().with($with).returning(|_| $ret);
+        ($client:ident, request_table, $ty:ty, $with:expr, $ret:expr) => {
+            $client.expect_request_table::<$ty>().with($with).returning(|_| $ret);
         };
         ($client:ident, request_text, $with:expr, $ret:expr) => {
             $client.expect_request_text().with($with).returning(|_| $ret);
