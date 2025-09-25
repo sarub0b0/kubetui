@@ -52,7 +52,7 @@ where
     async fn fetch(&self) -> Result<FetchedData> {
         let url = format!(
             "{}/{}",
-            Ingress::url_path(&(), Some(&self.namespace)),
+            Ingress::url_path(&Default::default(), Some(&self.namespace)),
             self.name
         );
 

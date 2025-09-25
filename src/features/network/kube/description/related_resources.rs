@@ -344,7 +344,7 @@ mod fetch {
             K: Resource<DynamicType = ()> + ListableResource,
             K: DeserializeOwned + 'static,
         {
-            let url = K::url_path(&(), Some(self.namespace));
+            let url = K::url_path(&Default::default(), Some(self.namespace));
 
             self.client.request(&url).await
         }

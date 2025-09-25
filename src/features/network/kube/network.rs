@@ -152,35 +152,22 @@ impl TargetResource {
 
     async fn fetch_table(&self, client: &KubeClient, ns: &str) -> Result<Table> {
         let path = match self {
-            Self::Ingress => Ingress::url_path(
-                &<Ingress as kube::Resource>::DynamicType::default(),
-                Some(ns),
-            ),
-            Self::Service => Service::url_path(
-                &<Service as kube::Resource>::DynamicType::default(),
-                Some(ns),
-            ),
-            Self::Pod => Pod::url_path(&<Pod as kube::Resource>::DynamicType::default(), Some(ns)),
-            Self::NetworkPolicy => NetworkPolicy::url_path(
-                &<NetworkPolicy as kube::Resource>::DynamicType::default(),
-                Some(ns),
-            ),
-            Self::Gateway(GatewayVersion::V1) => v1::Gateway::url_path(
-                &<v1::Gateway as kube::Resource>::DynamicType::default(),
-                Some(ns),
-            ),
-            Self::Gateway(GatewayVersion::V1Beta1) => v1beta1::Gateway::url_path(
-                &<v1beta1::Gateway as kube::Resource>::DynamicType::default(),
-                Some(ns),
-            ),
-            Self::HTTPRoute(HTTPRouteVersion::V1) => v1::HTTPRoute::url_path(
-                &<v1::HTTPRoute as kube::Resource>::DynamicType::default(),
-                Some(ns),
-            ),
-            Self::HTTPRoute(HTTPRouteVersion::V1Beta1) => v1beta1::HTTPRoute::url_path(
-                &<v1beta1::HTTPRoute as kube::Resource>::DynamicType::default(),
-                Some(ns),
-            ),
+            Self::Ingress => Ingress::url_path(&Default::default(), Some(ns)),
+            Self::Service => Service::url_path(&Default::default(), Some(ns)),
+            Self::Pod => Pod::url_path(&Default::default(), Some(ns)),
+            Self::NetworkPolicy => NetworkPolicy::url_path(&Default::default(), Some(ns)),
+            Self::Gateway(GatewayVersion::V1) => {
+                v1::Gateway::url_path(&Default::default(), Some(ns))
+            }
+            Self::Gateway(GatewayVersion::V1Beta1) => {
+                v1beta1::Gateway::url_path(&Default::default(), Some(ns))
+            }
+            Self::HTTPRoute(HTTPRouteVersion::V1) => {
+                v1::HTTPRoute::url_path(&Default::default(), Some(ns))
+            }
+            Self::HTTPRoute(HTTPRouteVersion::V1Beta1) => {
+                v1beta1::HTTPRoute::url_path(&Default::default(), Some(ns))
+            }
         };
 
         client.request_table(&path).await.with_context(|| {
