@@ -15,10 +15,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use crossbeam::channel::Sender;
 use futures::future::try_join_all;
-use k8s_openapi::{
-    api::core::v1::{ConfigMap, Secret},
-    Resource as _,
-};
+use k8s_openapi::api::core::v1::{ConfigMap, Secret};
 use kube::Resource;
 
 #[derive(Clone)]
@@ -75,17 +72,17 @@ enum Configs {
 }
 
 impl Configs {
-    fn kind(&self) -> &'static str {
-        match self {
-            Self::ConfigMap => "configmaps",
-            Self::Secret => "secrets",
-        }
-    }
-
     fn resource(&self) -> &'static str {
         match self {
             Self::ConfigMap => "ConfigMap",
             Self::Secret => "Secret",
+        }
+    }
+
+    fn url_path(&self, namespace: &str) -> String {
+        match self {
+            Self::ConfigMap => ConfigMap::url_path(&Default::default(), Some(namespace)),
+            Self::Secret => Secret::url_path(&Default::default(), Some(namespace)),
         }
     }
 }
@@ -99,7 +96,7 @@ async fn fetch_configs_per_namespace(
     let jobs = try_join_all(namespaces.iter().map(|ns| {
         get_resource_per_namespace(
             client,
-            format!("/api/v1/namespaces/{}/{}", ns, ty.kind()),
+            ty.url_path(ns),
             &["Name", r#"Data"#, "Age"],
             move |row: &TableRow, indexes: &[usize]| {
                 let mut row = vec![
