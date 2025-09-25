@@ -109,7 +109,7 @@ async fn get_event_per_namespace(
 ) -> Result<Vec<EventRow>> {
     let tables = get_resource_per_namespace(
         client,
-        format!("/api/v1/namespaces/{}/{}", namespace, "events"),
+        Event::url_path(&Default::default(), Some(namespace)),
         &TARGET,
         move |row: &TableRow, indexes: &[usize]| {
             let row: Vec<String> = indexes.iter().map(|i| row.cells[*i].to_string()).collect();

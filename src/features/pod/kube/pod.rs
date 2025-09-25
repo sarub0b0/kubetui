@@ -154,7 +154,7 @@ impl PodPoller {
         try_join_all(namespaces.iter().map(|ns| {
             get_resource_per_namespace(
                 &self.kube_client,
-                format!("/api/v1/namespaces/{}/{}", ns, "pods"),
+                Pod::url_path(&Default::default(), Some(ns)),
                 &columns,
                 move |row: &TableRow, indexes: &[usize]| {
                     let mut row: Vec<String> =

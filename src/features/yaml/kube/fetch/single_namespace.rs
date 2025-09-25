@@ -12,26 +12,15 @@ pub(super) struct FetchResourceListSingleNamespace<'a, C: KubeClientRequest> {
     client: &'a C,
     ns: &'a str,
     api: &'a ApiResource,
-    kind: &'a str,
 }
 
 impl<'a, C: KubeClientRequest> FetchResourceListSingleNamespace<'a, C> {
-    pub(super) fn new(client: &'a C, ns: &'a str, api: &'a ApiResource, kind: &'a str) -> Self {
-        Self {
-            client,
-            ns,
-            api,
-            kind,
-        }
+    pub(super) fn new(client: &'a C, ns: &'a str, api: &'a ApiResource) -> Self {
+        Self { client, ns, api }
     }
 
     pub(super) async fn fetch(&self) -> Result<Vec<YamlResourceListItem>> {
-        let path = format!(
-            "/{}/namespaces/{}/{}",
-            self.api.group_version_url(),
-            self.ns,
-            self.kind
-        );
+        let path = self.api.api_url_with_namespace(self.ns);
 
         logger!(info, "Fetching resource [{}]", path);
 

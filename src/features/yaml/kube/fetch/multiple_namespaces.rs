@@ -13,27 +13,20 @@ pub(super) struct FetchResourceListMultipleNamespaces<'a, C: KubeClientRequest> 
     client: &'a C,
     namespaces: &'a [String],
     api: &'a ApiResource,
-    kind: &'a str,
 }
 
 impl<'a, C: KubeClientRequest> FetchResourceListMultipleNamespaces<'a, C> {
-    pub(super) fn new(
-        client: &'a C,
-        namespaces: &'a [String],
-        api: &'a ApiResource,
-        kind: &'a str,
-    ) -> Self {
+    pub(super) fn new(client: &'a C, namespaces: &'a [String], api: &'a ApiResource) -> Self {
         Self {
             client,
             namespaces,
             api,
-            kind,
         }
     }
 
     pub(super) async fn fetch(&self) -> Result<Vec<YamlResourceListItem>> {
         let jobs = try_join_all(self.namespaces.iter().map(|ns| async move {
-            FetchResourceListSingleNamespace::new(self.client, ns, self.api, self.kind)
+            FetchResourceListSingleNamespace::new(self.client, ns, self.api)
                 .fetch()
                 .await
         }))
