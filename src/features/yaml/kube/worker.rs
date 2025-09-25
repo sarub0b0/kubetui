@@ -103,14 +103,14 @@ async fn fetch_resource_yaml<C: KubeClientRequest>(
     let kind = api.name();
     let path = if api.is_namespaced() {
         format!(
-            "{}/namespaces/{}/{}/{}",
+            "/{}/namespaces/{}/{}/{}",
             api.group_version_url(),
             ns,
             kind,
             name
         )
     } else {
-        format!("{}/{}/{}", api.group_version_url(), kind, name)
+        format!("/{}/{}/{}", api.group_version_url(), kind, name)
     };
 
     logger!(info, "Fetching resource [{}]", path);

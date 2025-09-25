@@ -20,7 +20,7 @@ impl<'a, C: KubeClientRequest> FetchResourceListNotNamespaced<'a, C> {
     }
 
     pub(super) async fn fetch(&self) -> Result<Vec<YamlResourceListItem>> {
-        let path = format!("{}/{}", self.api.group_version_url(), self.kind);
+        let path = format!("/{}/{}", self.api.group_version_url(), self.kind);
         logger!(info, "Fetching resource [{}]", path);
 
         let res: List = self.client.request(&path).await?;

@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use crossbeam::channel::Sender;
 use futures::future::try_join_all;
 use k8s_openapi::{api::core::v1::Pod, Resource as _};
+use kube::Resource;
 use ratatui::style::{Color, Style};
 use regex::Regex;
 
@@ -153,7 +154,7 @@ impl PodPoller {
         try_join_all(namespaces.iter().map(|ns| {
             get_resource_per_namespace(
                 &self.kube_client,
-                format!("api/v1/namespaces/{}/{}", ns, "pods"),
+                format!("/api/v1/namespaces/{}/{}", ns, "pods"),
                 &columns,
                 move |row: &TableRow, indexes: &[usize]| {
                     let mut row: Vec<String> =

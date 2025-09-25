@@ -11,6 +11,7 @@ use k8s_openapi::{
     },
     Resource,
 };
+use kube::Resource as _;
 
 use crate::{
     features::{
@@ -150,23 +151,39 @@ impl TargetResource {
     }
 
     async fn fetch_table(&self, client: &KubeClient, ns: &str) -> Result<Table> {
-        match self {
-            Self::Ingress => client.table_namespaced::<Ingress>(ns).await,
-            Self::Service => client.table_namespaced::<Service>(ns).await,
-            Self::Pod => client.table_namespaced::<Pod>(ns).await,
-            Self::NetworkPolicy => client.table_namespaced::<NetworkPolicy>(ns).await,
-            Self::Gateway(GatewayVersion::V1) => client.table_namespaced::<v1::Gateway>(ns).await,
-            Self::Gateway(GatewayVersion::V1Beta1) => {
-                client.table_namespaced::<v1beta1::Gateway>(ns).await
-            }
-            Self::HTTPRoute(HTTPRouteVersion::V1) => {
-                client.table_namespaced::<v1::HTTPRoute>(ns).await
-            }
-            Self::HTTPRoute(HTTPRouteVersion::V1Beta1) => {
-                client.table_namespaced::<v1beta1::HTTPRoute>(ns).await
-            }
-        }
-        .with_context(|| {
+        let path = match self {
+            Self::Ingress => Ingress::url_path(
+                &<Ingress as kube::Resource>::DynamicType::default(),
+                Some(ns),
+            ),
+            Self::Service => Service::url_path(
+                &<Service as kube::Resource>::DynamicType::default(),
+                Some(ns),
+            ),
+            Self::Pod => Pod::url_path(&<Pod as kube::Resource>::DynamicType::default(), Some(ns)),
+            Self::NetworkPolicy => NetworkPolicy::url_path(
+                &<NetworkPolicy as kube::Resource>::DynamicType::default(),
+                Some(ns),
+            ),
+            Self::Gateway(GatewayVersion::V1) => v1::Gateway::url_path(
+                &<v1::Gateway as kube::Resource>::DynamicType::default(),
+                Some(ns),
+            ),
+            Self::Gateway(GatewayVersion::V1Beta1) => v1beta1::Gateway::url_path(
+                &<v1beta1::Gateway as kube::Resource>::DynamicType::default(),
+                Some(ns),
+            ),
+            Self::HTTPRoute(HTTPRouteVersion::V1) => v1::HTTPRoute::url_path(
+                &<v1::HTTPRoute as kube::Resource>::DynamicType::default(),
+                Some(ns),
+            ),
+            Self::HTTPRoute(HTTPRouteVersion::V1Beta1) => v1beta1::HTTPRoute::url_path(
+                &<v1beta1::HTTPRoute as kube::Resource>::DynamicType::default(),
+                Some(ns),
+            ),
+        };
+
+        client.table_request(&path).await.with_context(|| {
             format!(
                 "Failed to fetch table: kind={} ({}) namespace={}",
                 self.as_str(),
