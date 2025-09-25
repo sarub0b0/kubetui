@@ -94,12 +94,11 @@ impl KubeStore {
 
             let config = Config::from_custom_kubeconfig(config.clone(), &options).await?;
 
-            let cluster_url: String = config.cluster_url.to_string();
             let target_namespace = config.default_namespace.to_string();
 
             let client = Client::try_from(config)?;
 
-            let kube_client = KubeClient::new(client, cluster_url);
+            let kube_client = KubeClient::new(client);
 
             anyhow::Ok((
                 context.name.to_string(),
@@ -144,7 +143,6 @@ mod tests {
         fn eq(&self, rhs: &Self) -> bool {
             self.target_namespaces == rhs.target_namespaces
                 && self.target_api_resources == rhs.target_api_resources
-                && self.client.as_server_url() == rhs.client.as_server_url()
         }
     }
 
@@ -209,7 +207,7 @@ mod tests {
             (
                 "cluster-1".to_string(),
                 KubeState {
-                    client: KubeClient::new(client.clone(), "https://192.168.0.1/"),
+                    client: KubeClient::new(client.clone()),
                     target_namespaces: vec!["ns-1".to_string()],
                     target_api_resources: Default::default(),
                 },
@@ -217,7 +215,7 @@ mod tests {
             (
                 "cluster-2".to_string(),
                 KubeState {
-                    client: KubeClient::new(client.clone(), "https://192.168.0.2/"),
+                    client: KubeClient::new(client.clone()),
                     target_namespaces: vec!["ns-2".to_string()],
                     target_api_resources: Default::default(),
                 },
@@ -225,7 +223,7 @@ mod tests {
             (
                 "cluster-3".to_string(),
                 KubeState {
-                    client: KubeClient::new(client, "https://192.168.0.3/"),
+                    client: KubeClient::new(client),
                     target_namespaces: vec!["default".to_string()],
                     target_api_resources: Default::default(),
                 },
