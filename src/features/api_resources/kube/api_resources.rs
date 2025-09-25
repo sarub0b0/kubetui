@@ -435,19 +435,19 @@ fn merge_tables(fetch_data: Vec<FetchData>, insert_ns: bool) -> Table {
 }
 
 async fn try_fetch_table(client: &KubeClient, path: &str) -> Result<Table> {
-    let table = client.table_request::<Table>(path).await;
+    let table = client.request_table::<Table>(path).await;
 
     if let Ok(t) = table {
         return Ok(t);
     }
 
-    let table = client.table_request::<NodeMetricsList>(path).await;
+    let table = client.request_table::<NodeMetricsList>(path).await;
 
     if let Ok(t) = table {
         return Ok(t.into());
     }
 
-    let table = client.table_request::<PodMetricsList>(path).await?;
+    let table = client.request_table::<PodMetricsList>(path).await?;
 
     Ok(table.into())
 }
