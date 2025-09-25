@@ -1,27 +1,12 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use http::header::{HeaderValue, ACCEPT};
-use k8s_openapi::NamespaceResourceScope;
-use kube::{
-    api::{GetParams, Request},
-    core::request::Error as KubeRequestError,
-    Api, Client, Resource,
-};
+use http::header::ACCEPT;
+use kube::{core::request::Error as KubeRequestError, Client};
 use serde::de::DeserializeOwned;
 
 use crate::logger;
 
-use super::apis::v1_table::Table;
-
 const TABLE_REQUEST_HEADER: &str = "application/json;as=Table;v=v1;g=meta.k8s.io,application/json;as=Table;v=v1beta1;g=meta.k8s.io,application/json";
-
-fn remove_slash(path: &str) -> &str {
-    if let Some(path) = path.strip_prefix('/') {
-        path
-    } else {
-        path
-    }
-}
 
 #[derive(Clone)]
 pub struct KubeClient {
