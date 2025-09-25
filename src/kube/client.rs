@@ -11,18 +11,11 @@ const TABLE_REQUEST_HEADER: &str = "application/json;as=Table;v=v1;g=meta.k8s.io
 #[derive(Clone)]
 pub struct KubeClient {
     client: Client,
-    server_url: String,
 }
 
 impl KubeClient {
-    pub fn new(client: Client, server_url: impl Into<String>) -> Self {
-        let url: String = server_url.into();
-        let server_url = if let Some(url) = url.strip_suffix('/') {
-            url.to_string()
-        } else {
-            url
-        };
-        Self { client, server_url }
+    pub fn new(client: Client) -> Self {
+        Self { client }
     }
 
     #[allow(dead_code)]
@@ -32,11 +25,6 @@ impl KubeClient {
 
     pub fn to_client(&self) -> Client {
         self.client.clone()
-    }
-
-    #[allow(dead_code)]
-    pub fn as_server_url(&self) -> &String {
-        &self.server_url
     }
 }
 
