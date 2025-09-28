@@ -135,7 +135,7 @@ impl WidgetBase {
         WidgetBaseBuilder::default()
     }
 
-    pub fn block(&self) -> &Block {
+    pub fn block(&self) -> &Block<'_> {
         &self.block
     }
 

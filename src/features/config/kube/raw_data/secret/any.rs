@@ -29,7 +29,7 @@ impl Any {
             .collect()
     }
 
-    fn iter(&self) -> Iter {
+    fn iter(&self) -> Iter<'_> {
         Iter {
             iter: self.data.iter(),
             color: Color::new(),

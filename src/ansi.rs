@@ -57,19 +57,19 @@ impl<'a> Text<'a> {
 }
 
 pub trait TextParser {
-    fn ansi_parse(&self) -> TextIterator;
+    fn ansi_parse(&self) -> TextIterator<'_>;
 }
 
 pub struct TextIterator<'a>(&'a str);
 
 impl TextParser for str {
-    fn ansi_parse(&self) -> TextIterator {
+    fn ansi_parse(&self) -> TextIterator<'_> {
         TextIterator(self)
     }
 }
 
 impl TextParser for String {
-    fn ansi_parse(&self) -> TextIterator {
+    fn ansi_parse(&self) -> TextIterator<'_> {
         TextIterator(self)
     }
 }

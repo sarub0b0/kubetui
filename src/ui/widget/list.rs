@@ -39,7 +39,7 @@ mod inner_item {
         }
 
         #[allow(dead_code)]
-        pub fn list_item(&self) -> &Vec<ListItem> {
+        pub fn list_item(&self) -> &Vec<ListItem<'_>> {
             &self.list_item
         }
 

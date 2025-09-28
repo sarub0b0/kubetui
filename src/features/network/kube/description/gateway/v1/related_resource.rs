@@ -30,14 +30,6 @@ struct GatewayRelatedResourceItems {
     pods: Option<RelatedPods>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct RelatedResource {
-    name: String,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    namespace: Option<String>,
-}
-
 pub async fn discover_releated_resources(
     client: Client,
     gateway_name: &str,
