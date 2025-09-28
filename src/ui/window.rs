@@ -286,7 +286,7 @@ impl<'a> Window<'a> {
         self.layout.split(self.chunk)
     }
 
-    pub fn widget(&self) -> Tabs {
+    pub fn widget(&self) -> Tabs<'_> {
         let titles: Vec<Line> = self
             .tabs
             .iter()

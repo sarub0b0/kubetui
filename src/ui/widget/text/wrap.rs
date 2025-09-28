@@ -16,11 +16,11 @@ pub struct Wrap<'a> {
 }
 
 pub trait WrapTrait {
-    fn wrap(&self, wrap_width: Option<usize>) -> Wrap;
+    fn wrap(&self, wrap_width: Option<usize>) -> Wrap<'_>;
 }
 
 impl WrapTrait for Vec<StyledGrapheme> {
-    fn wrap(&self, wrap_width: Option<usize>) -> Wrap {
+    fn wrap(&self, wrap_width: Option<usize>) -> Wrap<'_> {
         Wrap {
             line: &self[..],
             wrap_width,
@@ -76,7 +76,7 @@ struct WrapResult<'a> {
     remaining: &'a [StyledGrapheme],
 }
 
-fn wrap(line: &[StyledGrapheme], wrap_width: usize) -> WrapResult {
+fn wrap(line: &[StyledGrapheme], wrap_width: usize) -> WrapResult<'_> {
     let mut result = WrapResult {
         wrapped: line,
         remaining: &[],

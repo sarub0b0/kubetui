@@ -90,7 +90,7 @@ impl InnerItem<'_> {
         self.filtered_items.is_empty()
     }
 
-    pub fn header(&self) -> &Header {
+    pub fn header(&self) -> &Header<'_> {
         &self.header
     }
 
@@ -98,11 +98,11 @@ impl InnerItem<'_> {
         &self.filtered_items
     }
 
-    pub fn rendered_items(&self) -> &[InnerRow] {
+    pub fn rendered_items(&self) -> &[InnerRow<'_>] {
         &self.rendered_items
     }
 
-    pub fn to_rendered_rows(&self) -> Vec<Row> {
+    pub fn to_rendered_rows(&self) -> Vec<Row<'_>> {
         self.rendered_items.iter().cloned().map(|i| i.row).collect()
     }
 
@@ -261,7 +261,7 @@ impl Header<'_> {
         &self.original
     }
 
-    pub fn rendered(&self) -> Row {
+    pub fn rendered(&self) -> Row<'_> {
         self.rendered.clone()
     }
 
