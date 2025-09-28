@@ -19,7 +19,7 @@ impl Filter<BTreeMap<String, String>> for List<Pod> {
                 item.metadata
                     .labels
                     .as_ref()
-                    .map_or(false, |pod_labels| pod_labels.contains_key_values(arg))
+                    .is_some_and(|pod_labels| pod_labels.contains_key_values(arg))
             })
             .cloned()
             .collect();
@@ -43,7 +43,7 @@ impl Filter<Vec<BTreeMap<String, String>>> for List<Pod> {
             .items
             .iter()
             .filter(|item| {
-                item.metadata.labels.as_ref().map_or(false, |pod_labels| {
+                item.metadata.labels.as_ref().is_some_and(|pod_labels| {
                     arg.iter().any(|arg| pod_labels.contains_key_values(arg))
                 })
             })
@@ -71,7 +71,7 @@ impl Filter<LabelSelectorWrapper> for List<Pod> {
                 item.metadata
                     .labels
                     .as_ref()
-                    .map_or(false, |pod_labels| arg.expression(pod_labels))
+                    .is_some_and(|pod_labels| arg.expression(pod_labels))
             })
             .cloned()
             .collect();

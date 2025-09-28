@@ -15,8 +15,8 @@ impl Filter<BTreeMap<String, String>> for List<NetworkPolicy> {
             .items
             .iter()
             .filter(|item| {
-                item.spec.as_ref().map_or(false, |spec| {
-                    spec.pod_selector.as_ref().map_or(false, |selector| {
+                item.spec.as_ref().is_some_and(|spec| {
+                    spec.pod_selector.as_ref().is_some_and(|selector| {
                         let wrapper: LabelSelectorWrapper = selector.clone().into();
                         wrapper.expression(arg)
                     })
@@ -44,8 +44,8 @@ impl Filter<Vec<BTreeMap<String, String>>> for List<NetworkPolicy> {
             .items
             .iter()
             .filter(|item| {
-                item.spec.as_ref().map_or(false, |spec| {
-                    spec.pod_selector.as_ref().map_or(false, |selector| {
+                item.spec.as_ref().is_some_and(|spec| {
+                    spec.pod_selector.as_ref().is_some_and(|selector| {
                         let wrapper: LabelSelectorWrapper = selector.clone().into();
                         arg.iter().any(|arg| wrapper.expression(arg))
                     })

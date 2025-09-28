@@ -109,7 +109,7 @@ pub mod label_selector {
                 .all(|requirement| match requirement.operator.as_str() {
                     // A In [B, ..]
                     // Aの値が[B, ..]のいずれか1つ以上と一致する場合にtrue
-                    "In" => requirement.values.as_ref().map_or(false, |values| {
+                    "In" => requirement.values.as_ref().is_some_and(|values| {
                         values.iter().any(|value| {
                             let r = BTreeMap::from([(requirement.key.clone(), value.clone())]);
 
@@ -118,7 +118,7 @@ pub mod label_selector {
                     }),
                     // A NotIn [B, ..]
                     // Aの値が[B, ..]のいずれとも一致しない場合にtrue
-                    "NotIn" => requirement.values.as_ref().map_or(false, |values| {
+                    "NotIn" => requirement.values.as_ref().is_some_and(|values| {
                         values.iter().all(|value| {
                             let r = BTreeMap::from([(requirement.key.clone(), value.clone())]);
 
