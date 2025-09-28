@@ -279,10 +279,8 @@ mod btree_map_contains_key_values {
         V: PartialEq,
     {
         fn contains_key_values(&self, arg: &BTreeMap<K, V>) -> bool {
-            arg.iter().all(|(arg_key, arg_value)| {
-                self.get(arg_key)
-                    .map_or(false, |self_value| self_value == arg_value)
-            })
+            arg.iter()
+                .all(|(arg_key, arg_value)| self.get(arg_key) == Some(arg_value))
         }
     }
 
