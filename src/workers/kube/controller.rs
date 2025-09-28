@@ -243,19 +243,20 @@ impl KubeController {
                 .map(|ctx| ctx.name.to_string())
                 .collect();
 
-            let event_controller_handle = EventController::new(
-                shared_target_namespaces.clone(),
-                client.clone(),
-                tx.clone(),
-                rx.clone(),
+            let event_controller_args = EventControllerArgs {
+                shared_target_namespaces: shared_target_namespaces.clone(),
+                kube_client: client.clone(),
+                tx: tx.clone(),
+                rx: rx.clone(),
                 contexts,
-                shared_target_api_resources.clone(),
-                shared_api_resources.clone(),
-                shared_pod_columns.clone(),
-                apis_config.clone(),
-                yaml_config.clone(),
-            )
-            .spawn();
+                shared_target_api_resources: shared_target_api_resources.clone(),
+                shared_api_resources: shared_api_resources.clone(),
+                shared_pod_columns: shared_pod_columns.clone(),
+                apis_config: apis_config.clone(),
+                yaml_config: yaml_config.clone(),
+            };
+
+            let event_controller_handle = EventController::new(event_controller_args).spawn();
 
             let pod_handle = PodPoller::new(
                 tx.clone(),
@@ -346,6 +347,19 @@ impl KubeController {
     }
 }
 
+struct EventControllerArgs {
+    shared_target_namespaces: SharedTargetNamespaces,
+    kube_client: KubeClient,
+    tx: Sender<Message>,
+    rx: Receiver<Message>,
+    contexts: Vec<String>,
+    shared_target_api_resources: SharedTargetApiResources,
+    shared_api_resources: SharedApiResources,
+    shared_pod_columns: SharedPodColumns,
+    apis_config: ApisConfig,
+    yaml_config: YamlConfig,
+}
+
 #[derive(Clone)]
 struct EventController {
     shared_target_namespaces: SharedTargetNamespaces,
@@ -361,29 +375,18 @@ struct EventController {
 }
 
 impl EventController {
-    fn new(
-        shared_target_namespaces: SharedTargetNamespaces,
-        kube_client: KubeClient,
-        tx: Sender<Message>,
-        rx: Receiver<Message>,
-        contexts: Vec<String>,
-        shared_target_api_resources: SharedTargetApiResources,
-        shared_api_resources: SharedApiResources,
-        shared_pod_columns: SharedPodColumns,
-        apis_config: ApisConfig,
-        yaml_config: YamlConfig,
-    ) -> Self {
+    fn new(args: EventControllerArgs) -> Self {
         Self {
-            shared_target_namespaces,
-            kube_client,
-            tx,
-            rx,
-            contexts,
-            shared_target_api_resources,
-            shared_api_resources,
-            shared_pod_columns,
-            apis_config,
-            yaml_config,
+            shared_target_namespaces: args.shared_target_namespaces,
+            kube_client: args.kube_client,
+            tx: args.tx,
+            rx: args.rx,
+            contexts: args.contexts,
+            shared_target_api_resources: args.shared_target_api_resources,
+            shared_api_resources: args.shared_api_resources,
+            shared_pod_columns: args.shared_pod_columns,
+            apis_config: args.apis_config,
+            yaml_config: args.yaml_config,
         }
     }
 }
