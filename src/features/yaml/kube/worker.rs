@@ -100,17 +100,10 @@ async fn fetch_resource_yaml<C: KubeClientRequest>(
         .find(|api| *api == kind)
         .ok_or_else(|| anyhow!("Can't get {} from API resource", kind))?;
     // json string data
-    let kind = api.name();
     let path = if api.is_namespaced() {
-        format!(
-            "{}/namespaces/{}/{}/{}",
-            api.group_version_url(),
-            ns,
-            kind,
-            name
-        )
+        format!("{}/{}", api.api_url_with_namespace(&ns), name)
     } else {
-        format!("{}/{}/{}", api.group_version_url(), kind, name)
+        format!("{}/{}", api.api_url(), name)
     };
 
     logger!(info, "Fetching resource [{}]", path);

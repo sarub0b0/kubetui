@@ -72,29 +72,18 @@ impl<'a, C: KubeClientRequest> FetchResourceList<'a, C> {
             .find(|api| *api == kind)
             .ok_or_else(|| anyhow!("Can't get {} from API resource", kind))?;
 
-        let kind = &api.name();
         let list = if api.is_namespaced() {
             if self.target_namespaces.len() == 1 {
-                FetchResourceListSingleNamespace::new(
-                    self.client,
-                    &self.target_namespaces[0],
-                    api,
-                    kind,
-                )
-                .fetch()
-                .await?
+                FetchResourceListSingleNamespace::new(self.client, &self.target_namespaces[0], api)
+                    .fetch()
+                    .await?
             } else {
-                FetchResourceListMultipleNamespaces::new(
-                    self.client,
-                    self.target_namespaces,
-                    api,
-                    kind,
-                )
-                .fetch()
-                .await?
+                FetchResourceListMultipleNamespaces::new(self.client, self.target_namespaces, api)
+                    .fetch()
+                    .await?
             }
         } else {
-            FetchResourceListNotNamespaced::new(self.client, api, kind)
+            FetchResourceListNotNamespaced::new(self.client, api)
                 .fetch()
                 .await?
         };

@@ -48,7 +48,7 @@ impl<'a, C: KubeClientRequest> Fetch<'a, C> for PodDescriptionWorker<'a, C> {
     async fn fetch(&self) -> Result<FetchedData> {
         let url = format!(
             "{}/{}",
-            Pod::url_path(&(), Some(&self.namespace)),
+            Pod::url_path(&Default::default(), Some(&self.namespace)),
             self.name
         );
 
