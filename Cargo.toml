@@ -1,6 +1,6 @@
 [package]
 name = "kubetui"
-version = "1.9.0"
+version = "1.9.1"
 authors = ["kosay <ekr59uv25@gmail.com>"]
 edition = "2021"
 license = "MIT"
