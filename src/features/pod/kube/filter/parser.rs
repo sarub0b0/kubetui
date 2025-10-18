@@ -108,6 +108,12 @@ fn selector<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     alt((quoted, unquoted)).parse(s)
 }
 
+fn jq_expr<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&'a str, Cow<'a, str>, E> {
+    alt((quoted, unquoted)).parse(s)
+}
+
 fn resource_name<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, &'a str, E> {
@@ -200,6 +206,13 @@ fn field_selector<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     let (remaining, (_, value)) =
         separated_pair(alt((tag("fields"), tag("field"))), char(':'), selector).parse(s)?;
     Ok((remaining, FilterAttribute::FieldSelector(value)))
+}
+
+fn jq<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&'a str, FilterAttribute<'a>, E> {
+    let (remaining, (_, value)) = separated_pair(tag("jq"), char(':'), jq_expr).parse(s)?;
+    Ok((remaining, FilterAttribute::Jq(value)))
 }
 
 fn specified_daemonset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
@@ -322,6 +335,7 @@ fn attribute<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         exclude_container,
         include_log,
         exclude_log,
+        jq,
     ))
     .parse(s)?;
 
@@ -656,6 +670,16 @@ mod tests {
         assert_eq!(remaining, "");
     }
 
+    #[rstest]
+    #[case("jq:.message", ".message")]
+    #[case("jq:map('.level')", "map('.level')")]
+    fn jq(#[case] query: &str, #[case] expected: &str) {
+        let (remaining, actual) = super::jq::<Error<_>>(query).unwrap();
+
+        assert_eq!(actual, FilterAttribute::Jq(expected.into()));
+        assert_eq!(remaining, "");
+    }
+
     #[rustfmt::skip]
     #[rstest]
     #[case("pod:hoge", FilterAttribute::Pod("hoge".into()))]
@@ -673,6 +697,7 @@ mod tests {
     #[case("replicaset/app", FilterAttribute::Resource(SpecifiedResource::ReplicaSet("app")))]
     #[case("service/app", FilterAttribute::Resource(SpecifiedResource::Service("app")))]
     #[case("statefulset/app", FilterAttribute::Resource(SpecifiedResource::StatefulSet("app")))]
+    #[case("jq:.message", FilterAttribute::Jq(".message".into()))]
     fn attribute(#[case] query: &str, #[case] expected: FilterAttribute) {
         let (remaining, actual) = super::attribute::<Error<_>>(query).unwrap();
 
@@ -699,6 +724,7 @@ mod tests {
             "replicaset/app",
             "service/app",
             "statefulset/app",
+            "jq:.message",
             "     ",
         ]
         .join("  ");
@@ -721,6 +747,7 @@ mod tests {
             FilterAttribute::Resource(SpecifiedResource::ReplicaSet("app")),
             FilterAttribute::Resource(SpecifiedResource::Service("app")),
             FilterAttribute::Resource(SpecifiedResource::StatefulSet("app")),
+            FilterAttribute::Jq(".message".into()),
         ];
 
         assert_eq!(actual, expected);
