@@ -280,6 +280,10 @@ The Log Query feature empowers you to retrieve logs from multiple Pods and their
 pod:app container:nginx log:401
 ```
 
+```
+pod:api log:error jq:.message
+```
+
 When entering `?` or `help` in the log query form, the help dialog will be displayed.
 
 ### Supported Queries
@@ -294,6 +298,7 @@ When entering `?` or `help` in the log query form, the help dialog will be displ
 | !log:\<regex>       | !logs, !lo, !l       | Exclude logs that match the regular expression. Can be defined multiple times.                                 |
 | label:\<selector>   | labels               | Include Pods with labels matching the selector in log retrieval target. Cannot be specified with resource.     |
 | field:\<selector>   | fields               | Include Pods with fields matching the selector in log retrieval target.                                        |
+| jq:\<expr>          |                      | Apply jq filter to JSON logs. Extract fields or restructure output (e.g., `jq:.message`, `jq:{ts:.time}`).    |
 | \<resource>/\<name> |                      | Include Pods belonging to the specified resource in log retrieval target. Cannot be specified with label.      |
 
 Supported resources:
@@ -339,6 +344,7 @@ QUERY = POD
         | EXCLUDE_LOG
         | LABEL
         | FIELD
+        | JQ
         | SPECIFIED_RESOURCE
 
 POD = ( "pods" | "pod" | "po" | "p" ) ":" REGEX
@@ -356,6 +362,10 @@ LABEL = ( "labels" | "label" ) ":" SELECTOR
 FIELD = ( "fields" | "field" ) ":" SELECTOR
 
 SELECTOR = QUOTED_STRING | UNQUOTED_STRING
+
+JQ = "jq" ":" EXPR
+
+EXPR = QUOTED_STRING | UNQUOTED_STRING
 
 SPECIFIED_RESOURCE = RESOURCE "/" NAME
 
