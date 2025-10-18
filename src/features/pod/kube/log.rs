@@ -132,6 +132,7 @@ impl LogWorker {
             self.tx.clone(),
             log_buffer.clone(),
             self.config.json_pretty_print,
+            filter.json_filter,
         )
         .spawn();
 
@@ -162,8 +163,8 @@ impl AbortWorker for LogWorker {
 
                 let msg = indoc::formatdoc! {r#"
                        {err}
-                       Invalid query.
-                       You can display the help dialog by entering "?" or "help" in the log query form.
+
+                       Tip: Enter "?" or "help" in the log query form for syntax guidance.
                    "#,
                    err = err
                 };

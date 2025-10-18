@@ -34,6 +34,7 @@ fn content() -> Vec<String> {
            !log:<regex>          (alias: !logs, !lo, !l)
            label:<selector>      (alias: labels)
            field:<selector>      (alias: fields)
+           jq:<expr>
            <resource>/<name>
 
         Resources:
