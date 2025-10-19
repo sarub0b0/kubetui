@@ -8,6 +8,7 @@ use jaq_core::{
     Native,
 };
 use jaq_json::Val;
+use jmespath::JmespathError;
 use regex::Regex;
 
 use self::parser::parse_attributes;
@@ -39,14 +40,25 @@ impl std::fmt::Debug for JqProgram {
     }
 }
 
+/// JMESPathプログラムをコンパイル済みフィルターとして保持する構造体
+///
+/// JMESPathプログラムは一度だけコンパイルされ、各ログ行に対して再利用されます。
+/// これにより、パフォーマンスを向上させることができます。
+#[derive(Debug, Clone)]
+pub struct JMESPathProgram {
+    /// コンパイル済みのJMESPathプログラム
+    pub program: jmespath::Expression<'static>,
+}
+
 /// JSONログに対するフィルター
 ///
-/// 現在はjqのみサポートしていますが、将来的にJMESPathなど
-/// 他のフィルター形式を追加する予定です。
+/// jqまたはJMESPath式を使用してJSONログをフィルタリングします。
 #[derive(Debug, Clone)]
 pub enum JsonFilter {
     /// jq式によるフィルター
     Jq(JqProgram),
+    /// JMESPath式によるフィルター
+    JMESPath(JMESPathProgram),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -61,6 +73,9 @@ pub enum FilterError {
     /// jqフィルターのコンパイルエラー
     #[error("jq compilation failed:\n{0}")]
     JqCompile(String),
+    /// JMESPathフィルターのコンパイルエラー
+    #[error("jmespath compilation failed:\n{0}")]
+    JMESPathCompile(JmespathError),
 }
 
 #[derive(Debug, Default, Clone)]
@@ -211,6 +226,15 @@ impl Filter {
                         program: compiled,
                         code: jq.to_string(),
                     });
+
+                    filter.json_filter = Some(json_filter);
+                }
+
+                FilterAttribute::JMESPath(jmespath) => {
+                    let compiled =
+                        jmespath::compile(&jmespath).map_err(FilterError::JMESPathCompile)?;
+
+                    let json_filter = JsonFilter::JMESPath(JMESPathProgram { program: compiled });
 
                     filter.json_filter = Some(json_filter);
                 }
@@ -368,6 +392,9 @@ impl std::fmt::Display for Filter {
         if let Some(jq) = &self.json_filter {
             match jq {
                 JsonFilter::Jq(jq) => buf.push(format!("jq={}", jq)),
+                JsonFilter::JMESPath(jmespath) => {
+                    buf.push(format!("jmespath={}", jmespath.program))
+                }
             }
         }
 
@@ -448,6 +475,7 @@ pub enum FilterAttribute<'a> {
     IncludeLog(Cow<'a, str>),
     ExcludeLog(Cow<'a, str>),
     Jq(Cow<'a, str>),
+    JMESPath(Cow<'a, str>),
 }
 
 struct FilterAttributes;
@@ -556,5 +584,79 @@ mod tests {
         let filter = Filter::parse("pod:test jq:.message").unwrap();
         let display = format!("{}", filter);
         assert!(display.contains("jq=.message"));
+    }
+
+    #[test]
+    fn test_jmespath_filter_compilation_valid() {
+        // 有効なJMESPath式のコンパイル
+        let filter = Filter::parse("jmespath:message").unwrap();
+        assert!(filter.json_filter.is_some());
+    }
+
+    #[test]
+    fn test_jmespath_filter_compilation_complex() {
+        // 複雑なJMESPath式のコンパイル
+        let filter = Filter::parse("jmespath:items[*].name").unwrap();
+        assert!(filter.json_filter.is_some());
+    }
+
+    #[test]
+    fn test_jmespath_filter_compilation_invalid_syntax() {
+        // 無効なJMESPath式のコンパイル失敗
+        let result = Filter::parse("jmespath:[[[");
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("jmespath compilation failed"));
+    }
+
+    #[test]
+    fn test_jmespath_with_other_filters() {
+        // JMESPathと他のフィルターの組み合わせ
+        let filter = Filter::parse("pod:api log:error jmespath:message").unwrap();
+        assert!(filter.pod.is_some());
+        assert!(filter.include_log.is_some());
+        assert!(filter.json_filter.is_some());
+    }
+
+    #[test]
+    fn test_jmespath_with_container_and_exclude_filters() {
+        // JMESPathとコンテナ・除外フィルターの組み合わせ
+        let filter = Filter::parse("container:app !log:debug jmespath:level").unwrap();
+        assert!(filter.container.is_some());
+        assert!(filter.exclude_log.is_some());
+        assert!(filter.json_filter.is_some());
+    }
+
+    #[test]
+    fn test_multiple_jmespath_filters_last_wins() {
+        // 複数のJMESPathフィルター指定時は最後のものが有効
+        let filter = Filter::parse("jmespath:message jmes:level jm:data").unwrap();
+        assert!(filter.json_filter.is_some());
+
+        // Displayで最後のものが表示されることを確認
+        let display = format!("{}", filter);
+        assert!(display.contains("jmespath=data"));
+    }
+
+    #[test]
+    fn test_jmespath_filter_display() {
+        // Displayトレイトのテスト
+        let filter = Filter::parse("pod:test jmespath:message").unwrap();
+        let display = format!("{}", filter);
+        assert!(display.contains("jmespath=message"));
+    }
+
+    #[test]
+    fn test_jq_and_jmespath_last_wins() {
+        // jqとjmespathの両方を指定した場合、最後のものが有効
+        let filter1 = Filter::parse("jq:.message jmespath:level").unwrap();
+        let display1 = format!("{}", filter1);
+        assert!(display1.contains("jmespath=level"));
+        assert!(!display1.contains("jq="));
+
+        let filter2 = Filter::parse("jmespath:level jq:.message").unwrap();
+        let display2 = format!("{}", filter2);
+        assert!(display2.contains("jq=.message"));
+        assert!(!display2.contains("jmespath="));
     }
 }

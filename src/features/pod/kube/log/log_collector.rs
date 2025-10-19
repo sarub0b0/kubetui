@@ -50,26 +50,47 @@ impl LogCollector {
         let prefix = content.prefix.clone();
         let original_content = content.content.clone();
 
-        if let Some(JsonFilter::Jq(jq)) = &self.json_filter {
-            let inputs = RcIter::new(core::iter::empty());
+        match &self.json_filter {
+            Some(JsonFilter::Jq(jq)) => {
+                let inputs = RcIter::new(core::iter::empty());
 
-            jq.program
-                .run((Ctx::new([], &inputs), Val::from(json)))
-                .flat_map(|v| match v {
-                    Ok(v) => {
-                        let json_value: serde_json::Value = v.into();
-                        self.print_json(&prefix, &json_value)
-                    }
+                jq.program
+                    .run((Ctx::new([], &inputs), Val::from(json)))
+                    .flat_map(|v| match v {
+                        Ok(v) => {
+                            let json_value: serde_json::Value = v.into();
+                            self.print_json(&prefix, &json_value)
+                        }
 
+                        Err(e) => vec![
+                            print_content(&prefix, format!("jq evaluation error: {}", e)),
+                            print_content(&prefix, "(showing original log below)"),
+                            print_content(&prefix, &original_content),
+                        ],
+                    })
+                    .collect::<Vec<_>>()
+            }
+
+            Some(JsonFilter::JMESPath(jmespath)) => match jmespath.program.search(&json) {
+                Ok(result) => match serde_json::to_value(result.as_ref()) {
+                    Ok(json_value) => self.print_json(&prefix, &json_value),
                     Err(e) => vec![
-                        print_content(&prefix, format!("jq evaluation error: {}", e)),
+                        print_content(
+                            &prefix,
+                            format!("jmespath result serialization error: {}", e),
+                        ),
                         print_content(&prefix, "(showing original log below)"),
                         print_content(&prefix, &original_content),
                     ],
-                })
-                .collect::<Vec<_>>()
-        } else {
-            self.print_json(&prefix, &json)
+                },
+                Err(e) => vec![
+                    print_content(&prefix, format!("jmespath evaluation error: {}", e)),
+                    print_content(&prefix, "(showing original log below)"),
+                    print_content(&prefix, &original_content),
+                ],
+            },
+
+            None => self.print_json(&prefix, &json),
         }
     }
 
@@ -303,5 +324,130 @@ mod tests {
         assert!(result[0].contains("jq evaluation error"));
         assert_eq!(result[1], "[test]  (showing original log below)");
         assert_eq!(result[2], r#"[test]  {"level":"error","message":"test"}"#);
+    }
+
+    #[test]
+    fn test_render_content_with_jmespath_filter_field_extraction() {
+        // JMESPathフィルターでフィールド抽出
+        let (tx, _rx) = channel::unbounded();
+        let buffer = Arc::new(Mutex::new(Vec::new()));
+
+        let filter = Filter::parse("jmespath:message").unwrap();
+        let collector = LogCollector::new(tx, buffer, false, filter.json_filter);
+
+        let content = LogContent {
+            prefix: "[pod]".to_string(),
+            content: r#"{"level":"error","message":"test error"}"#.to_string(),
+        };
+
+        let result = collector.render_content(content);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], r#"[pod]  "test error""#);
+    }
+
+    #[test]
+    fn test_render_content_with_jmespath_filter_restructure() {
+        // JMESPathフィルターでデータ構造の再構築
+        let (tx, _rx) = channel::unbounded();
+        let buffer = Arc::new(Mutex::new(Vec::new()));
+
+        let filter = Filter::parse("jmespath:{lvl:level,msg:message}").unwrap();
+        let collector = LogCollector::new(tx, buffer, false, filter.json_filter);
+
+        let content = LogContent {
+            prefix: "[test]".to_string(),
+            content: r#"{"level":"info","message":"hello","timestamp":"2024-01-01"}"#.to_string(),
+        };
+
+        let result = collector.render_content(content);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], r#"[test]  {"lvl":"info","msg":"hello"}"#);
+    }
+
+    #[test]
+    fn test_render_content_non_json_with_jmespath_filter() {
+        // 非JSON入力の場合は生ログを返す
+        let (tx, _rx) = channel::unbounded();
+        let buffer = Arc::new(Mutex::new(Vec::new()));
+
+        let filter = Filter::parse("jmespath:message").unwrap();
+        let collector = LogCollector::new(tx, buffer, false, filter.json_filter);
+
+        let content = LogContent {
+            prefix: "[pod]".to_string(),
+            content: "plain text log".to_string(),
+        };
+
+        let result = collector.render_content(content);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], "[pod]  plain text log");
+    }
+
+    #[test]
+    fn test_render_content_with_pretty_print_and_jmespath() {
+        // pretty printとJMESPathフィルターの組み合わせ
+        let (tx, _rx) = channel::unbounded();
+        let buffer = Arc::new(Mutex::new(Vec::new()));
+
+        let filter = Filter::parse("jmespath:{level:level,message:message}").unwrap();
+        let collector = LogCollector::new(tx, buffer, true, filter.json_filter);
+
+        let content = LogContent {
+            prefix: "[test]".to_string(),
+            content: r#"{"level":"warn","message":"warning message","extra":"data"}"#.to_string(),
+        };
+
+        let result = collector.render_content(content);
+
+        let expected = indoc::indoc! {r#"
+            [test]  {
+            [test]    "level": "warn",
+            [test]    "message": "warning message"
+            [test]  }
+        "#}
+        .trim();
+
+        assert_eq!(result.join("\n"), expected);
+    }
+
+    #[test]
+    fn test_render_content_jmespath_error_shows_original_log() {
+        // JMESPathエラー時は元のログを表示
+        let (tx, _rx) = channel::unbounded();
+        let buffer = Arc::new(Mutex::new(Vec::new()));
+
+        // 存在しないフィールドにアクセス
+        let filter = Filter::parse("jmespath:nonexistent.field").unwrap();
+        let collector = LogCollector::new(tx, buffer, false, filter.json_filter);
+
+        let content = LogContent {
+            prefix: "[test]".to_string(),
+            content: r#"{"level":"error","message":"test"}"#.to_string(),
+        };
+
+        let result = collector.render_content(content);
+
+        // 結果はnullになるはずなので、1行のみ
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], "[test]  null");
+    }
+
+    #[test]
+    fn test_render_content_jmespath_array_projection() {
+        // JMESPathの配列プロジェクション
+        let (tx, _rx) = channel::unbounded();
+        let buffer = Arc::new(Mutex::new(Vec::new()));
+
+        let filter = Filter::parse("jmespath:items[*].name").unwrap();
+        let collector = LogCollector::new(tx, buffer, false, filter.json_filter);
+
+        let content = LogContent {
+            prefix: "[test]".to_string(),
+            content: r#"{"items":[{"name":"a","id":1},{"name":"b","id":2}]}"#.to_string(),
+        };
+
+        let result = collector.render_content(content);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], r#"[test]  ["a","b"]"#);
     }
 }
