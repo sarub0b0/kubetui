@@ -1,4 +1,9 @@
-use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
+use std::cmp::Reverse;
+
+use nucleo_matcher::{
+    pattern::{CaseMatching, Normalization, Pattern},
+    Config, Matcher, Utf32String,
+};
 
 use ratatui::{
     crossterm::event::{KeyEvent, MouseButton, MouseEvent, MouseEventKind},
@@ -128,12 +133,13 @@ impl SelectFormBuilder {
             chunk: Rect::default(),
             active_form_index: 0,
             mouse_over_widget_index: None,
-            matcher: SkimMatcherV2::default(),
+            matcher: Matcher::new(Config::DEFAULT),
             direction: Direction::Vertical,
         }
     }
 }
 
+#[derive(Debug)]
 pub struct SelectForm<'a> {
     items: SelectItems,
     filter: String,
@@ -143,23 +149,7 @@ pub struct SelectForm<'a> {
     active_form_index: usize,
     mouse_over_widget_index: Option<usize>,
     direction: Direction,
-    matcher: SkimMatcherV2,
-}
-
-impl std::fmt::Debug for SelectForm<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SelectForm")
-            .field("items", &self.items)
-            .field("filter", &self.filter)
-            .field("selected_widget", &self.selected_widget)
-            .field("unselected_widget", &self.unselected_widget)
-            .field("chunk", &self.chunk)
-            .field("active_form_index", &self.active_form_index)
-            .field("mouse_over_widget_index", &self.mouse_over_widget_index)
-            .field("direction", &self.direction)
-            .field("matcher", &"SkimMatcherV2")
-            .finish()
-    }
+    matcher: Matcher,
 }
 
 impl Default for SelectForm<'_> {
@@ -278,15 +268,27 @@ impl<'a> SelectForm<'a> {
 
     fn filter_items(&self, items: &[LiteralItem]) -> Vec<LiteralItem> {
         struct MatchedItem {
-            score: i64,
+            score: u32,
             item: LiteralItem,
         }
+
+        // Empty filter means show all items
+        if self.filter.is_empty() {
+            return items.to_vec();
+        }
+
+        let pattern = Pattern::parse(&self.filter, CaseMatching::Ignore, Normalization::Smart);
+
+        let mut matcher = self.matcher.clone();
 
         let mut ret: Vec<MatchedItem> = items
             .iter()
             .filter_map(|item| {
-                self.matcher
-                    .fuzzy_match(&item.item.styled_graphemes_symbols().concat(), &self.filter)
+                let text = item.item.styled_graphemes_symbols().concat();
+                let haystack = Utf32String::from(text.as_str());
+
+                pattern
+                    .score(haystack.slice(..), &mut matcher)
                     .map(|score| MatchedItem {
                         score,
                         item: item.clone(),
@@ -294,7 +296,7 @@ impl<'a> SelectForm<'a> {
             })
             .collect();
 
-        ret.sort_by(|a, b| b.score.cmp(&a.score));
+        ret.sort_by_key(|item| Reverse(item.score));
 
         ret.into_iter().map(|i| i.item).collect()
     }
