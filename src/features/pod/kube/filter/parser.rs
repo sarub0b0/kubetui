@@ -215,6 +215,26 @@ fn jq<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     Ok((remaining, FilterAttribute::Jq(value)))
 }
 
+/// JMESPath expression parser - accepts quoted or unquoted strings
+fn jmespath_expr<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&'a str, Cow<'a, str>, E> {
+    alt((quoted, unquoted)).parse(s)
+}
+
+/// Parser for `jmespath:<expression>`, `jmes:<expression>`, or `jm:<expression>` syntax
+fn jmespath<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&'a str, FilterAttribute<'a>, E> {
+    let (remaining, (_, value)) = separated_pair(
+        alt((tag("jmespath"), tag("jmes"), tag("jm"))),
+        char(':'),
+        jmespath_expr,
+    )
+    .parse(s)?;
+    Ok((remaining, FilterAttribute::JMESPath(value)))
+}
+
 fn specified_daemonset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute<'a>, E> {
@@ -335,6 +355,7 @@ fn attribute<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         exclude_container,
         include_log,
         exclude_log,
+        jmespath,
         jq,
     ))
     .parse(s)?;
@@ -680,6 +701,19 @@ mod tests {
         assert_eq!(remaining, "");
     }
 
+    #[rstest]
+    #[case("jmespath:message", "message")]
+    #[case("jmes:level", "level")]
+    #[case("jm:data.userId", "data.userId")]
+    #[case("jmespath:[0]", "[0]")]
+    #[case("jmes:items[*].name", "items[*].name")]
+    fn jmespath(#[case] query: &str, #[case] expected: &str) {
+        let (remaining, actual) = super::jmespath::<Error<_>>(query).unwrap();
+
+        assert_eq!(actual, FilterAttribute::JMESPath(expected.into()));
+        assert_eq!(remaining, "");
+    }
+
     #[rustfmt::skip]
     #[rstest]
     #[case("pod:hoge", FilterAttribute::Pod("hoge".into()))]
@@ -698,6 +732,9 @@ mod tests {
     #[case("service/app", FilterAttribute::Resource(SpecifiedResource::Service("app")))]
     #[case("statefulset/app", FilterAttribute::Resource(SpecifiedResource::StatefulSet("app")))]
     #[case("jq:.message", FilterAttribute::Jq(".message".into()))]
+    #[case("jmespath:message", FilterAttribute::JMESPath("message".into()))]
+    #[case("jmes:level", FilterAttribute::JMESPath("level".into()))]
+    #[case("jm:data.id", FilterAttribute::JMESPath("data.id".into()))]
     fn attribute(#[case] query: &str, #[case] expected: FilterAttribute) {
         let (remaining, actual) = super::attribute::<Error<_>>(query).unwrap();
 
@@ -725,6 +762,7 @@ mod tests {
             "service/app",
             "statefulset/app",
             "jq:.message",
+            "jmespath:data.id",
             "     ",
         ]
         .join("  ");
@@ -748,6 +786,7 @@ mod tests {
             FilterAttribute::Resource(SpecifiedResource::Service("app")),
             FilterAttribute::Resource(SpecifiedResource::StatefulSet("app")),
             FilterAttribute::Jq(".message".into()),
+            FilterAttribute::JMESPath("data.id".into()),
         ];
 
         assert_eq!(actual, expected);
