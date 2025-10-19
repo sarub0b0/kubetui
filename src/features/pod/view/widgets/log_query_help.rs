@@ -35,6 +35,7 @@ fn content() -> Vec<String> {
            label:<selector>      (alias: labels)
            field:<selector>      (alias: fields)
            jq:<expr>
+           jmespath:<expr>       (alias: jmes, jm)
            <resource>/<name>
 
         Resources:
