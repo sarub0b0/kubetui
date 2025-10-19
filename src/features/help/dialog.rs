@@ -58,6 +58,19 @@ const LEFT_HELP_TEXT: &[HelpBlock] = &[
         ],
     },
     HelpBlock {
+        title: "Context Dialog",
+        bindings: &[
+            KeyBindings {
+                keys: &["Enter"],
+                desc: "switch context (use cached namespaces)",
+            },
+            KeyBindings {
+                keys: &["Ctrl-Space"],
+                desc: "switch context (preserve current namespaces)",
+            },
+        ],
+    },
+    HelpBlock {
         title: "View Control",
         bindings: &[
             KeyBindings {

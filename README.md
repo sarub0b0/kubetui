@@ -469,6 +469,13 @@ ESCAPED_CHAR = "\\" | "\"" | "\'"
 | <kbd>Enter</kbd>                                                 | Select an item and trigger an event                                 |
 | <kbd>ESC</kbd>                                                   | Close the window or terminate the app (when the dialog is not open) |
 
+#### Context Dialog
+
+| Key                   | Description                                                    |
+| --------------------- | -------------------------------------------------------------- |
+| <kbd>Enter</kbd>      | Switch context and use previously cached namespaces            |
+| <kbd>Ctrl+Space</kbd> | Switch context and preserve current namespaces (if available)  |
+
 ### Input Form
 
 | Key                               | Description                                      |

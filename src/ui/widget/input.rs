@@ -485,7 +485,7 @@ impl InputForm {
                 self.back_cursor();
             }
 
-            KeyCode::Char(c) => {
+            KeyCode::Char(c) if key.modifiers == KeyModifiers::NONE => {
                 self.insert_char(c);
             }
             _ => {

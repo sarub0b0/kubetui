@@ -12,6 +12,7 @@ use super::{base::WidgetBase, Item, LiteralItem, RenderTrait, SelectedItem, Widg
 
 use crate::{
     define_callback,
+    message::UserEvent,
     ui::{
         event::{Callback, EventResult},
         key_event_to_code,
@@ -95,6 +96,7 @@ pub struct List<'a> {
     chunk: Rect,
     inner_chunk: Rect,
     theme: ListTheme,
+    actions: Vec<(UserEvent, Callback)>,
     on_select: Option<OnSelectCallback>,
     block_injection: Option<RenderBlockInjection>,
 }
@@ -106,6 +108,7 @@ pub struct ListBuilder {
     items: Vec<LiteralItem>,
     state: ListState,
     theme: ListTheme,
+    actions: Vec<(UserEvent, Callback)>,
     on_select: Option<OnSelectCallback>,
     block_injection: Option<RenderBlockInjection>,
 }
@@ -135,6 +138,15 @@ impl ListBuilder {
         self
     }
 
+    pub fn action<F, E>(mut self, ev: E, cb: F) -> Self
+    where
+        E: Into<UserEvent>,
+        F: Into<Callback>,
+    {
+        self.actions.push((ev.into(), cb.into()));
+        self
+    }
+
     pub fn on_select<F>(mut self, cb: F) -> Self
     where
         F: Into<OnSelectCallback>,
@@ -158,6 +170,7 @@ impl ListBuilder {
             theme: self.theme,
             on_select: self.on_select,
             state: self.state,
+            actions: self.actions,
             block_injection: self.block_injection,
             ..Default::default()
         };
@@ -234,6 +247,12 @@ impl<'a> List<'a> {
         if shown_item_len < self.showable_height() {
             *self.state.offset_mut() = self.max_offset();
         }
+    }
+
+    fn match_action(&self, ev: UserEvent) -> Option<&Callback> {
+        self.actions
+            .iter()
+            .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb) } else { None })
     }
 }
 
@@ -374,6 +393,7 @@ impl WidgetTrait for List<'_> {
             KeyCode::Char('G') | KeyCode::End => {
                 self.select_last();
             }
+
             KeyCode::Char('g') | KeyCode::Home => {
                 self.select_first();
             }
@@ -385,10 +405,12 @@ impl WidgetTrait for List<'_> {
 
                 return EventResult::Ignore;
             }
-            KeyCode::Char(_) => {
-                return EventResult::Ignore;
-            }
+
             _ => {
+                if let Some(cb) = self.match_action(UserEvent::Key(ev)) {
+                    return EventResult::Callback(cb.clone());
+                }
+
                 return EventResult::Ignore;
             }
         }

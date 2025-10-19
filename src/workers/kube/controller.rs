@@ -126,7 +126,13 @@ async fn fetch_all_namespaces(client: KubeClient) -> Result<Vec<String>> {
 
 #[derive(Clone)]
 pub enum WorkerResult {
-    ChangedContext(String),
+    ChangedContext {
+        /// 切り替え後のコンテキスト
+        target_context: String,
+
+        /// 切り替え後のターゲットネームスペース
+        target_namespaces: Option<TargetNamespaces>,
+    },
 }
 
 pub struct KubeController {
@@ -210,28 +216,55 @@ impl KubeController {
             yaml_config,
         } = self;
 
+        let mut override_namespaces: Option<Vec<String>> = None;
+
         loop {
             let KubeState {
                 client,
-                target_namespaces,
-                target_api_resources,
+                target_namespaces: mut stored_target_namespaces,
+                target_api_resources: stored_target_api_resources,
             } = store.get(&context)?.clone();
+
+            if let Some(mut override_namespaces) = override_namespaces.take() {
+                let fetched_namespaces = fetch_all_namespaces(client.clone()).await?;
+
+                let found_namespaces: Vec<_> = override_namespaces
+                    .extract_if(.., |ns| fetched_namespaces.contains(ns))
+                    .collect();
+
+                let not_found_namespaces: Vec<_> = override_namespaces;
+
+                if found_namespaces.is_empty() {
+                    // まったく存在しない場合：ストアにフォールバック
+                    crate::logger!(warn, "No namespaces found: {not_found_namespaces:?}. Falling back to stored namespaces: {stored_target_namespaces:?}");
+                    // stored_target_namespaces はそのまま（ストアの値を使用）
+                } else {
+                    // 一部またはすべて存在する場合：存在するもののみを使用
+                    if !not_found_namespaces.is_empty() {
+                        crate::logger!(warn, "Some namespaces not found: {not_found_namespaces:?}. Using available namespaces: {found_namespaces:?}");
+                    } else {
+                        crate::logger!(info, "Using namespaces: {found_namespaces:?}");
+                    }
+                    stored_target_namespaces = found_namespaces;
+                }
+            }
 
             tx.send(Message::Kube(Kube::RestoreContext {
                 context: context.to_string(),
-                namespaces: target_namespaces.to_vec(),
+                namespaces: stored_target_namespaces.to_vec(),
             }))?;
 
             tx.send(Message::Kube(Kube::RestoreAPIs(
                 styled_target_api_resources(
-                    &target_api_resources,
+                    &stored_target_api_resources,
                     apis_config.preferred_version_or_latest,
                     apis_config.other_version,
                 ),
             )))?;
 
-            let shared_target_namespaces = Arc::new(RwLock::new(target_namespaces.to_vec()));
-            let shared_target_api_resources = Arc::new(RwLock::new(target_api_resources.to_vec()));
+            let shared_target_namespaces = Arc::new(RwLock::new(stored_target_namespaces.to_vec()));
+            let shared_target_api_resources =
+                Arc::new(RwLock::new(stored_target_api_resources.to_vec()));
             let shared_api_resources = ApiResources::shared();
             let shared_pod_columns = Arc::new(RwLock::new(
                 pod_config.default_columns.clone().unwrap_or_default(),
@@ -313,22 +346,29 @@ impl KubeController {
 
                 match result {
                     Ok(ret) => match ret {
-                        WorkerResult::ChangedContext(ctx) => {
+                        WorkerResult::ChangedContext {
+                            target_context,
+                            target_namespaces,
+                        } => {
                             Self::abort(&handles);
 
-                            let target_namespaces = shared_target_namespaces.read().await;
-                            let target_api_resources = shared_target_api_resources.read().await;
+                            let shared_target_namespaces = shared_target_namespaces.read().await;
+                            let shared_api_resources = shared_target_api_resources.read().await;
 
                             store.insert(
                                 context.to_string(),
                                 KubeState::new(
                                     client.clone(),
-                                    target_namespaces.to_vec(),
-                                    target_api_resources.to_vec(),
+                                    shared_target_namespaces.to_vec(),
+                                    shared_api_resources.to_vec(),
                                 ),
                             );
 
-                            context = ctx;
+                            context = target_context;
+
+                            if let Some(ns) = target_namespaces {
+                                override_namespaces = Some(ns);
+                            }
                         }
                     },
                     Err(e) => {
@@ -552,7 +592,10 @@ impl Worker for EventController {
                         ContextRequest::Get => tx
                             .send(ContextResponse::Get(contexts.to_vec()).into())
                             .expect("Failed to send ContextResponse::Get"),
-                        ContextRequest::Set(req) => {
+                        ContextRequest::Set {
+                            name,
+                            keep_namespace,
+                        } => {
                             if let Some(h) = log_handler {
                                 h.abort();
                             }
@@ -573,7 +616,16 @@ impl Worker for EventController {
                                 h.abort();
                             }
 
-                            return WorkerResult::ChangedContext(req);
+                            let target_namespaces = if keep_namespace {
+                                Some(shared_target_namespaces.read().await.to_vec())
+                            } else {
+                                None
+                            };
+
+                            return WorkerResult::ChangedContext {
+                                target_context: name.clone(),
+                                target_namespaces,
+                            };
                         }
                     },
 
