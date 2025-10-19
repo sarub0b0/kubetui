@@ -350,6 +350,7 @@ QUERY = POD
         | LABEL
         | FIELD
         | JQ
+        | JMESPATH
         | SPECIFIED_RESOURCE
 
 POD = ( "pods" | "pod" | "po" | "p" ) ":" REGEX
@@ -369,6 +370,8 @@ FIELD = ( "fields" | "field" ) ":" SELECTOR
 SELECTOR = QUOTED_STRING | UNQUOTED_STRING
 
 JQ = "jq" ":" EXPR
+
+JMESPATH = ( "jmespath" | "jmes" | "jm" ) ":" EXPR
 
 EXPR = QUOTED_STRING | UNQUOTED_STRING
 
