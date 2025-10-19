@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use ratatui::{
-    crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind},
+    crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind},
     layout::Rect,
     style::{Modifier, Style},
     widgets::{self, Block, ListState, Scrollbar, ScrollbarOrientation, ScrollbarState},
