@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::{cmp::Reverse, collections::BTreeSet};
 
 use ratatui::{
     crossterm::event::{KeyEvent, MouseEvent},
@@ -6,7 +6,10 @@ use ratatui::{
     Frame,
 };
 
-use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
+use nucleo_matcher::{
+    pattern::{CaseMatching, Normalization, Pattern},
+    Config, Matcher, Utf32String,
+};
 
 use crate::{
     message::UserEvent,
@@ -91,29 +94,18 @@ impl SelectFormBuilder {
             list_widget,
             filter: "".to_string(),
             chunk: Rect::default(),
-            matcher: SkimMatcherV2::default(),
+            matcher: Matcher::new(Config::DEFAULT),
         }
     }
 }
 
+#[derive(Debug)]
 pub struct SelectForm<'a> {
     list_items: BTreeSet<LiteralItem>,
     list_widget: List<'a>,
     filter: String,
     chunk: Rect,
-    matcher: SkimMatcherV2,
-}
-
-impl std::fmt::Debug for SelectForm<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SelectForm")
-            .field("list_items", &self.list_items)
-            .field("list_widget", &self.list_widget)
-            .field("filter", &self.filter)
-            .field("chunk", &self.chunk)
-            .field("matcher", &"SkimMatcherV2")
-            .finish()
-    }
+    matcher: Matcher,
 }
 
 impl Default for SelectForm<'_> {
@@ -133,15 +125,27 @@ impl SelectForm<'_> {
 
     fn filter_items(&self, items: &BTreeSet<LiteralItem>) -> Vec<LiteralItem> {
         struct MatchedItem {
-            score: i64,
+            score: u32,
             item: LiteralItem,
         }
+
+        // Empty filter means show all items
+        if self.filter.is_empty() {
+            return items.iter().cloned().collect();
+        }
+
+        let pattern = Pattern::parse(&self.filter, CaseMatching::Ignore, Normalization::Smart);
+
+        let mut matcher = self.matcher.clone();
 
         let mut ret: Vec<MatchedItem> = items
             .iter()
             .filter_map(|item| {
-                self.matcher
-                    .fuzzy_match(&item.item.styled_graphemes_symbols().concat(), &self.filter)
+                let text = item.item.styled_graphemes_symbols().concat();
+                let haystack = Utf32String::from(text.as_str());
+
+                pattern
+                    .score(haystack.slice(..), &mut matcher)
                     .map(|score| MatchedItem {
                         score,
                         item: item.clone(),
@@ -149,7 +153,7 @@ impl SelectForm<'_> {
             })
             .collect();
 
-        ret.sort_by(|a, b| b.score.cmp(&a.score));
+        ret.sort_by_key(|item| Reverse(item.score));
 
         ret.into_iter().map(|i| i.item).collect()
     }
@@ -231,7 +235,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn filter() {
+    fn filter_basic_partial_match() {
         let mut select_form = SelectForm::default();
 
         select_form.update_widget_item(Item::Array(vec![
@@ -250,5 +254,272 @@ mod tests {
         ];
 
         assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn filter_empty_returns_all_items() {
+        let mut select_form = SelectForm::default();
+
+        let items = vec![
+            "pod-1".to_string().into(),
+            "pod-2".to_string().into(),
+            "deployment-1".to_string().into(),
+        ];
+
+        select_form.update_widget_item(Item::Array(items.clone()));
+        select_form.update_filter("");
+
+        let res = select_form.list_widget.items().clone();
+
+        // All items should be present (order may differ due to BTreeSet)
+        assert_eq!(res.len(), items.len());
+        for item in &items {
+            assert!(res.contains(item));
+        }
+    }
+
+    #[test]
+    fn filter_no_match_returns_empty() {
+        let mut select_form = SelectForm::default();
+
+        select_form.update_widget_item(Item::Array(vec![
+            "pod-1".to_string().into(),
+            "pod-2".to_string().into(),
+            "deployment-1".to_string().into(),
+        ]));
+
+        select_form.update_filter("xyz");
+
+        let res = select_form.list_widget.items().clone();
+        let expected: Vec<LiteralItem> = vec![];
+
+        assert_eq!(res, expected);
+    }
+
+    #[test]
+    fn filter_exact_match() {
+        let mut select_form = SelectForm::default();
+
+        select_form.update_widget_item(Item::Array(vec![
+            "pod".to_string().into(),
+            "pod-1".to_string().into(),
+            "my-pod".to_string().into(),
+        ]));
+
+        select_form.update_filter("pod");
+
+        let res = select_form.list_widget.items().clone();
+
+        // All items should match, but exact match should score higher
+        assert_eq!(res.len(), 3);
+        // "pod" should be first due to exact match
+        assert_eq!(res[0], "pod".to_string().into());
+    }
+
+    #[test]
+    fn filter_fuzzy_match_sequential() {
+        let mut select_form = SelectForm::default();
+
+        select_form.update_widget_item(Item::Array(vec![
+            "kubernetes".to_string().into(),
+            "kube-system".to_string().into(),
+            "test".to_string().into(),
+        ]));
+
+        select_form.update_filter("kube");
+
+        let res = select_form.list_widget.items().clone();
+
+        // Both "kubernetes" and "kube-system" should match
+        assert_eq!(res.len(), 2);
+        assert!(res.contains(&"kubernetes".to_string().into()));
+        assert!(res.contains(&"kube-system".to_string().into()));
+    }
+
+    #[test]
+    fn filter_fuzzy_match_non_sequential() {
+        let mut select_form = SelectForm::default();
+
+        select_form.update_widget_item(Item::Array(vec![
+            "kubernetes".to_string().into(),
+            "kube-system".to_string().into(),
+            "test".to_string().into(),
+        ]));
+
+        // Characters in order but not consecutive
+        select_form.update_filter("kbs");
+
+        let res = select_form.list_widget.items().clone();
+
+        // "kube-system" should match (k, b, s)
+        assert!(res.contains(&"kube-system".to_string().into()));
+    }
+
+    #[test]
+    fn filter_case_insensitive() {
+        let mut select_form = SelectForm::default();
+
+        select_form.update_widget_item(Item::Array(vec![
+            "Pod".to_string().into(),
+            "pod".to_string().into(),
+            "POD".to_string().into(),
+            "deployment".to_string().into(),
+        ]));
+
+        select_form.update_filter("pod");
+
+        let res = select_form.list_widget.items().clone();
+
+        // All three "pod" variations should match
+        assert_eq!(res.len(), 3);
+        assert!(res.contains(&"Pod".to_string().into()));
+        assert!(res.contains(&"pod".to_string().into()));
+        assert!(res.contains(&"POD".to_string().into()));
+    }
+
+    #[test]
+    fn filter_kubernetes_resource_names_with_hyphens() {
+        let mut select_form = SelectForm::default();
+
+        select_form.update_widget_item(Item::Array(vec![
+            "my-app-deployment".to_string().into(),
+            "my-app-service".to_string().into(),
+            "other-deployment".to_string().into(),
+            "application".to_string().into(),
+        ]));
+
+        select_form.update_filter("my-app");
+
+        let res = select_form.list_widget.items().clone();
+
+        // Both "my-app-deployment" and "my-app-service" should match
+        assert_eq!(res.len(), 2);
+        assert!(res.contains(&"my-app-deployment".to_string().into()));
+        assert!(res.contains(&"my-app-service".to_string().into()));
+    }
+
+    #[test]
+    fn filter_kubernetes_resource_names_with_numbers() {
+        let mut select_form = SelectForm::default();
+
+        select_form.update_widget_item(Item::Array(vec![
+            "app1".to_string().into(),
+            "app123".to_string().into(),
+            "app2".to_string().into(),
+            "application".to_string().into(),
+        ]));
+
+        select_form.update_filter("app1");
+
+        let res = select_form.list_widget.items().clone();
+
+        // "app1" and "app123" should match
+        assert_eq!(res.len(), 2);
+        assert!(res.contains(&"app1".to_string().into()));
+        assert!(res.contains(&"app123".to_string().into()));
+    }
+
+    #[test]
+    fn filter_namespace_patterns() {
+        let mut select_form = SelectForm::default();
+
+        select_form.update_widget_item(Item::Array(vec![
+            "default".to_string().into(),
+            "kube-system".to_string().into(),
+            "kube-public".to_string().into(),
+            "my-namespace".to_string().into(),
+        ]));
+
+        select_form.update_filter("kube");
+
+        let res = select_form.list_widget.items().clone();
+
+        // "kube-system" and "kube-public" should match
+        assert_eq!(res.len(), 2);
+        assert!(res.contains(&"kube-system".to_string().into()));
+        assert!(res.contains(&"kube-public".to_string().into()));
+    }
+
+    #[test]
+    fn filter_empty_item_list() {
+        let mut select_form = SelectForm::default();
+
+        select_form.update_widget_item(Item::Array(vec![]));
+        select_form.update_filter("test");
+
+        let res = select_form.list_widget.items().clone();
+        let expected: Vec<LiteralItem> = vec![];
+
+        assert_eq!(res, expected);
+    }
+
+    #[test]
+    fn filter_single_item_match() {
+        let mut select_form = SelectForm::default();
+
+        select_form.update_widget_item(Item::Array(vec!["kubernetes".to_string().into()]));
+        select_form.update_filter("kube");
+
+        let res = select_form.list_widget.items().clone();
+
+        assert_eq!(res.len(), 1);
+        assert_eq!(res[0], "kubernetes".to_string().into());
+    }
+
+    #[test]
+    fn filter_single_item_no_match() {
+        let mut select_form = SelectForm::default();
+
+        select_form.update_widget_item(Item::Array(vec!["kubernetes".to_string().into()]));
+        select_form.update_filter("xyz");
+
+        let res = select_form.list_widget.items().clone();
+        let expected: Vec<LiteralItem> = vec![];
+
+        assert_eq!(res, expected);
+    }
+
+    #[test]
+    fn filter_score_ordering_prefix_match_wins() {
+        let mut select_form = SelectForm::default();
+
+        select_form.update_widget_item(Item::Array(vec![
+            "test-deployment".to_string().into(),
+            "my-test".to_string().into(),
+            "testing".to_string().into(),
+        ]));
+
+        select_form.update_filter("test");
+
+        let res = select_form.list_widget.items().clone();
+
+        // All should match, but items starting with "test" should rank higher
+        assert_eq!(res.len(), 3);
+        // "test-deployment" or "testing" should be first (both start with "test")
+        let first_item = &res[0];
+        assert!(
+            first_item == &"test-deployment".to_string().into()
+                || first_item == &"testing".to_string().into()
+        );
+    }
+
+    #[test]
+    fn filter_with_ansi_escape_sequences() {
+        let mut select_form = SelectForm::default();
+
+        // Test that ANSI escape sequences are handled correctly
+        select_form.update_widget_item(Item::Array(vec![
+            "\x1b[90mtest-pod\x1b[39m".to_string().into(),
+            "test-deployment".to_string().into(),
+            "other".to_string().into(),
+        ]));
+
+        select_form.update_filter("test");
+
+        let res = select_form.list_widget.items().clone();
+
+        assert_eq!(res.len(), 2);
+        assert!(res.contains(&"\x1b[90mtest-pod\x1b[39m".to_string().into()));
+        assert!(res.contains(&"test-deployment".to_string().into()));
     }
 }
