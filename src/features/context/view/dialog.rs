@@ -1,4 +1,5 @@
 use crossbeam::channel::Sender;
+use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::{
     config::theme::ThemeConfig,
@@ -18,7 +19,8 @@ use crate::{
             single_select::{
                 FilterForm, FilterFormTheme, SelectForm, SelectFormTheme, SingleSelectTheme,
             },
-            LiteralItem, SingleSelect, Widget, WidgetBase, WidgetTheme,
+            LiteralItem, SelectedItem, SingleSelect, Widget, WidgetBase, WidgetTheme,
+            WidgetTrait as _,
         },
         Window,
     },
@@ -43,9 +45,63 @@ fn widget(tx: Sender<Message>, theme: ThemeConfig) -> Widget<'static> {
     let single_select_theme =
         SingleSelectTheme::default().status_style(theme.component.list.status);
 
+    let cloned_tx = tx.clone();
     let filter_form = FilterForm::builder().theme(filter_theme).build();
     let select_form = SelectForm::builder()
         .theme(select_theme)
+        .action(
+            KeyEvent::new(KeyCode::Char(' '), KeyModifiers::CONTROL),
+            move |w: &mut Window| {
+                crate::logger!(error, "ContextDialog: Ctrl+Space pressed");
+
+                let widget = w.find_widget(CONTEXT_DIALOG_ID).as_single_select();
+
+                let Some(selected_item) = widget.widget_item() else {
+                    crate::logger!(error, "ContextDialog: No item selected");
+                    return EventResult::Nop;
+                };
+
+                let SelectedItem::Literal { item, .. } = selected_item else {
+                    crate::logger!(error, "ContextDialog: Selected item is not a LiteralItem");
+                    return EventResult::Nop;
+                };
+
+                cloned_tx
+                    .send(
+                        ContextRequest::Set {
+                            name: item,
+                            keep_namespace: true,
+                        }
+                        .into(),
+                    )
+                    .expect("Failed to send ContextRequest::SetWithNamespace");
+
+                w.close_dialog();
+
+                w.widget_clear(POD_WIDGET_ID);
+                w.widget_clear(POD_LOG_WIDGET_ID);
+                w.widget_clear(POD_LOG_QUERY_WIDGET_ID);
+                w.widget_clear(CONFIG_WIDGET_ID);
+                w.widget_clear(CONFIG_RAW_DATA_WIDGET_ID);
+                w.widget_clear(NETWORK_WIDGET_ID);
+                w.widget_clear(NETWORK_DESCRIPTION_WIDGET_ID);
+                w.widget_clear(EVENT_WIDGET_ID);
+                w.widget_clear(API_WIDGET_ID);
+                w.widget_clear(YAML_WIDGET_ID);
+
+                let widget = w
+                    .find_widget_mut(MULTIPLE_NAMESPACES_DIALOG_ID)
+                    .as_mut_multiple_select();
+
+                widget.unselect_all();
+
+                let widget = w.find_widget_mut(API_DIALOG_ID).as_mut_multiple_select();
+
+                widget.unselect_all();
+
+                EventResult::Nop
+            },
+        )
         .on_select(on_select(tx))
         .build();
 
@@ -68,8 +124,14 @@ fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &LiteralItem) -> Event
     move |w, v| {
         let item = v.item.to_string();
 
-        tx.send(ContextRequest::Set(item).into())
-            .expect("Failed to send ContextRequest::Set");
+        tx.send(
+            ContextRequest::Set {
+                name: item,
+                keep_namespace: false,
+            }
+            .into(),
+        )
+        .expect("Failed to send ContextRequest::Set");
 
         w.close_dialog();
 
