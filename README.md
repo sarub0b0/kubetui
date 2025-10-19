@@ -284,6 +284,10 @@ pod:app container:nginx log:401
 pod:api log:error jq:.message
 ```
 
+```
+pod:api log:error jmespath:message
+```
+
 When entering `?` or `help` in the log query form, the help dialog will be displayed.
 
 ### Supported Queries
@@ -299,6 +303,7 @@ When entering `?` or `help` in the log query form, the help dialog will be displ
 | label:\<selector>   | labels               | Include Pods with labels matching the selector in log retrieval target. Cannot be specified with resource.     |
 | field:\<selector>   | fields               | Include Pods with fields matching the selector in log retrieval target.                                        |
 | jq:\<expr>          |                      | Apply jq filter to JSON logs. Extract fields or restructure output (e.g., `jq:.message`, `jq:{ts:.time}`).    |
+| jmespath:\<expr>    | jmes, jm             | Apply JMESPath filter to JSON logs. Simpler syntax for common queries (e.g., `jmespath:message`, `jm:data.id`). |
 | \<resource>/\<name> |                      | Include Pods belonging to the specified resource in log retrieval target. Cannot be specified with label.      |
 
 Supported resources:
