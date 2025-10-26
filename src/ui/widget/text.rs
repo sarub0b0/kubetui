@@ -29,7 +29,7 @@ use super::{
 };
 
 use self::{
-    highlight_content::{HighlightArea, HighlightContent, Point},
+    highlight_content::{HighlightArea, Point},
     item::TextItem,
     render::{Render, Scroll},
 };
@@ -104,15 +104,6 @@ mod highlight_content {
             }
         }
     }
-
-    #[derive(Default, Debug, Clone)]
-    pub struct HighlightContent {
-        /// 範囲選択されている座標
-        pub area: HighlightArea,
-
-        /// D&Dの間followをとめるためにTextItemに設定されているfollowを保存する
-        pub follow: bool,
-    }
 }
 
 #[derive(Debug)]
@@ -123,6 +114,20 @@ enum Mode {
     SearchInput,
     /// 検索ワード確定後（検索フォーム表示）
     SearchConfirm,
+}
+
+#[derive(Debug)]
+enum InteractionState {
+    /// アイドル状態
+    Idle,
+    /// マウスで範囲選択中
+    Selecting { area: HighlightArea },
+}
+
+impl Default for InteractionState {
+    fn default() -> Self {
+        Self::Idle
+    }
 }
 
 impl Default for Mode {
@@ -272,7 +277,7 @@ pub struct Text {
     search_form: SearchForm,
     /// 検索中、検索ワード入力中、オフの3つのモード
     mode: Mode,
-    highlight_content: Option<HighlightContent>,
+    interaction_state: InteractionState,
     theme: TextTheme,
     block_injection: Option<RenderBlockInjection>,
     actions: Vec<(UserEvent, Callback)>,
@@ -282,6 +287,11 @@ pub struct Text {
 impl Text {
     pub fn builder() -> TextBuilder {
         Default::default()
+    }
+
+    /// followが有効で、かつユーザーがインタラクション中でない場合にtrueを返す
+    fn should_follow(&self) -> bool {
+        self.follow && matches!(self.interaction_state, InteractionState::Idle)
     }
 }
 
@@ -542,7 +552,7 @@ impl WidgetTrait for Text {
             }
         }
 
-        if self.follow && is_bottom {
+        if self.should_follow() && is_bottom {
             self.select_last()
         }
     }
@@ -553,7 +563,7 @@ impl WidgetTrait for Text {
         let item = item.array();
         self.item.update(item);
 
-        if self.follow && is_bottom {
+        if self.should_follow() && is_bottom {
             self.select_last()
         }
 
@@ -580,25 +590,20 @@ impl WidgetTrait for Text {
 
                 let area = HighlightArea::new().start(x, y).end(x, y);
 
-                self.highlight_content = Some(HighlightContent {
-                    area,
-                    follow: self.follow,
-                });
-
-                self.follow = false;
+                self.interaction_state = InteractionState::Selecting { area };
             }
 
             MouseEventKind::Drag(MouseButton::Left) => {
-                if let Some(highlight_content) = &mut self.highlight_content {
+                if let InteractionState::Selecting { area } = &mut self.interaction_state {
                     let (x, y) = (pos.x + self.scroll.x, pos.y + self.scroll.y);
-                    highlight_content.area = highlight_content.area.end(x, y);
+                    *area = area.end(x, y);
                 }
             }
 
             // ハイライトの削除とクリップボードに保存
             MouseEventKind::Up(MouseButton::Left) => {
-                if let Some(highlight_content) = &mut self.highlight_content {
-                    let area = highlight_content.area.area();
+                if let InteractionState::Selecting { area } = &self.interaction_state {
+                    let area = area.area();
 
                     let lines = &self.item.wrapped_lines();
 
@@ -674,11 +679,9 @@ impl WidgetTrait for Text {
                             logger!(error, "Clipboard Error '{}'", e);
                         }
                     }
-
-                    self.follow = highlight_content.follow;
                 }
 
-                self.highlight_content = None;
+                self.interaction_state = InteractionState::Idle;
             }
             MouseEventKind::ScrollDown => {
                 self.select_next(5);
@@ -793,7 +796,7 @@ impl WidgetTrait for Text {
             search_height,
         ));
 
-        if self.follow && is_bottom {
+        if self.should_follow() && is_bottom {
             self.select_last()
         }
 
@@ -813,6 +816,8 @@ impl WidgetTrait for Text {
 
         self.item = TextItem::new(vec![], wrap_width, self.theme.search.clone());
         self.search_cancel();
+
+        self.interaction_state = InteractionState::Idle;
 
         *(self.widget_base.append_title_mut()) = None;
     }
@@ -835,8 +840,8 @@ impl RenderTrait for Text {
             .highlight_style(self.theme.selecton)
             .scroll(self.scroll);
 
-        if let Some(highlight_content) = &self.highlight_content {
-            builder = builder.highlight_area(Some(highlight_content.area));
+        if let InteractionState::Selecting { area } = &self.interaction_state {
+            builder = builder.highlight_area(Some(*area));
         }
 
         let r = builder.build();
