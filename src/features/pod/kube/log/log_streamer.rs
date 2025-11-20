@@ -162,6 +162,8 @@ impl LogStreamer {
                     continue;
                 }
 
+                let content = content.strip_prefix(' ').unwrap_or(content);
+
                 if self.is_exclude(content) || !self.is_include(content) {
                     continue;
                 }
