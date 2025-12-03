@@ -23,6 +23,7 @@ pub struct Tab<'a> {
     active_widget_index: usize,
     activatable_widget_indices: Vec<usize>,
     mouse_over_widget_index: Option<usize>,
+    dragging_widget_index: Option<usize>,
 }
 
 #[allow(dead_code)]
@@ -51,6 +52,7 @@ impl<'a> Tab<'a> {
             activatable_widget_indices,
             active_widget_index: 0,
             mouse_over_widget_index: None,
+            dragging_widget_index: None,
         }
     }
 
@@ -144,12 +146,30 @@ impl<'a> Tab<'a> {
 
         match ev.kind {
             MouseEventKind::Down(MouseButton::Left) => {
+                self.dragging_widget_index = Some(index);
+
                 if id != active_widget_id {
                     self.activate_widget_by_id(&id);
                 }
             }
             MouseEventKind::Moved => {
                 self.mouse_over_widget_index = Some(index);
+            }
+
+            MouseEventKind::Drag(MouseButton::Left) => {
+                if let Some(dragging_index) = self.dragging_widget_index {
+                    return self.widgets[dragging_index].on_mouse_event(ev);
+                }
+            }
+            MouseEventKind::Up(MouseButton::Left) => {
+                let result = if let Some(dragging_index) = self.dragging_widget_index {
+                    self.widgets[dragging_index].on_mouse_event(ev)
+                } else {
+                    EventResult::Ignore
+                };
+
+                self.dragging_widget_index = None;
+                return result;
             }
             _ => {}
         }

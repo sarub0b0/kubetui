@@ -594,9 +594,36 @@ impl WidgetTrait for Text {
             }
 
             MouseEventKind::Drag(MouseButton::Left) => {
-                if let InteractionState::Selecting { area } = &mut self.interaction_state {
-                    let (x, y) = (pos.x + self.scroll.x, pos.y + self.scroll.y);
-                    *area = area.end(x, y);
+                if let InteractionState::Selecting { .. } = self.interaction_state {
+                    let inner_chunk = self.inner_chunk();
+
+                    // 縦方向の境界チェックとスクロール
+                    // 1行目以下（1行目も枠外も含む）
+                    if ev.row <= inner_chunk.top() {
+                        self.select_prev(1);
+                    }
+                    // 最終行以上（最終行も枠外も含む）
+                    else if ev.row >= inner_chunk.bottom().saturating_sub(1) {
+                        self.select_next(1);
+                    }
+
+                    // 横方向の境界チェックとスクロール（wrap無効時のみ）
+                    if !self.wrap {
+                        // 1列目以下（1列目も枠外も含む）
+                        if ev.column <= inner_chunk.left() {
+                            self.scroll_left(1);
+                        }
+                        // 最終列以上（最終列も枠外も含む）
+                        else if ev.column >= inner_chunk.right().saturating_sub(1) {
+                            self.scroll_right(1);
+                        }
+                    }
+
+                    // スクロール後の座標で選択範囲を更新
+                    if let InteractionState::Selecting { area } = &mut self.interaction_state {
+                        let (x, y) = (pos.x + self.scroll.x, pos.y + self.scroll.y);
+                        *area = area.end(x, y);
+                    }
                 }
             }
 
