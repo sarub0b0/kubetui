@@ -466,6 +466,14 @@ impl<'a> Window<'a> {
             }
         }
     }
+
+    pub fn on_tick(&mut self) {
+        // アクティブなタブのアクティブなウィジェットにだけon_tickを呼び出す
+        let active_widget = self.active_tab_mut().active_widget_mut();
+        if let Widget::Text(text_widget) = active_widget {
+            text_widget.on_tick();
+        }
+    }
 }
 
 // Render
