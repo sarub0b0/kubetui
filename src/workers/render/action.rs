@@ -86,7 +86,9 @@ pub fn window_action(window: &mut Window, rx: &Receiver<Message>) -> WindowActio
             }
         },
 
-        Message::Tick => {}
+        Message::Tick => {
+            window.on_tick();
+        }
         Message::Kube(k) => return WindowAction::UpdateContents(k),
         Message::Error(err) => {
             logger!(error, "Error: {:?}", err);

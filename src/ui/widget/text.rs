@@ -116,12 +116,28 @@ enum Mode {
     SearchConfirm,
 }
 
+#[derive(Debug, Default, Clone, Copy)]
+enum AutoScrollDirection {
+    #[default]
+    None,
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
 #[derive(Debug)]
 enum InteractionState {
     /// アイドル状態
     Idle,
     /// マウスで範囲選択中
-    Selecting { area: HighlightArea },
+    Selecting {
+        area: HighlightArea,
+        /// 自動スクロールの方向（縦、横）
+        auto_scroll: (AutoScrollDirection, AutoScrollDirection),
+        /// 最後のマウス位置（相対座標）
+        last_mouse_pos: Point,
+    },
 }
 
 impl Default for InteractionState {
@@ -439,6 +455,55 @@ impl Text {
             .saturating_sub(self.inner_chunk().height as usize)
     }
 
+    /// Tick イベント時に呼ばれ、ドラッグ中の自動スクロールを実行する
+    pub fn on_tick(&mut self) {
+        // auto_scrollとlast_mouse_posの値をコピーして借用チェッカーのエラーを回避
+        let (auto_scroll, last_mouse_pos) =
+            if let InteractionState::Selecting {
+                auto_scroll,
+                last_mouse_pos,
+                ..
+            } = &self.interaction_state
+            {
+                (*auto_scroll, *last_mouse_pos)
+            } else {
+                return;
+            };
+
+        // 縦方向の自動スクロール
+        match auto_scroll.0 {
+            AutoScrollDirection::Up => {
+                self.select_prev(1);
+            }
+            AutoScrollDirection::Down => {
+                self.select_next(1);
+            }
+            _ => {}
+        }
+
+        // 横方向の自動スクロール
+        if !self.wrap {
+            match auto_scroll.1 {
+                AutoScrollDirection::Left => {
+                    self.scroll_left(1);
+                }
+                AutoScrollDirection::Right => {
+                    self.scroll_right(1);
+                }
+                _ => {}
+            }
+        }
+
+        // スクロール後の座標で選択範囲を更新
+        if let InteractionState::Selecting { area, .. } = &mut self.interaction_state {
+            let (x, y) = (
+                last_mouse_pos.x + self.scroll.x,
+                last_mouse_pos.y + self.scroll.y,
+            );
+            *area = area.end(x, y);
+        }
+    }
+
     pub fn chunk(&self) -> Rect {
         let Rect {
             x,
@@ -590,19 +655,65 @@ impl WidgetTrait for Text {
 
                 let area = HighlightArea::new().start(x, y).end(x, y);
 
-                self.interaction_state = InteractionState::Selecting { area };
+                self.interaction_state = InteractionState::Selecting {
+                    area,
+                    auto_scroll: Default::default(),
+                    last_mouse_pos: pos,
+                };
             }
 
             MouseEventKind::Drag(MouseButton::Left) => {
-                if let InteractionState::Selecting { area } = &mut self.interaction_state {
-                    let (x, y) = (pos.x + self.scroll.x, pos.y + self.scroll.y);
-                    *area = area.end(x, y);
+                if let InteractionState::Selecting { .. } = self.interaction_state {
+                    let inner_chunk = self.inner_chunk();
+
+                    // スクロール方向を判定
+                    let vertical_scroll = if ev.row <= inner_chunk.top() {
+                        // 1行目以下（1行目も枠外も含む）
+                        self.select_prev(1);
+                        AutoScrollDirection::Up
+                    } else if ev.row >= inner_chunk.bottom().saturating_sub(1) {
+                        // 最終行以上（最終行も枠外も含む）
+                        self.select_next(1);
+                        AutoScrollDirection::Down
+                    } else {
+                        AutoScrollDirection::None
+                    };
+
+                    // 横方向の境界チェックとスクロール（wrap無効時のみ）
+                    let horizontal_scroll = if !self.wrap {
+                        if ev.column <= inner_chunk.left() {
+                            // 1列目以下（1列目も枠外も含む）
+                            self.scroll_left(1);
+                            AutoScrollDirection::Left
+                        } else if ev.column >= inner_chunk.right().saturating_sub(1) {
+                            // 最終列以上（最終列も枠外も含む）
+                            self.scroll_right(1);
+                            AutoScrollDirection::Right
+                        } else {
+                            AutoScrollDirection::None
+                        }
+                    } else {
+                        AutoScrollDirection::None
+                    };
+
+                    // スクロール後の座標で選択範囲を更新し、スクロール方向とマウス位置を記録
+                    if let InteractionState::Selecting {
+                        area,
+                        auto_scroll,
+                        last_mouse_pos,
+                    } = &mut self.interaction_state
+                    {
+                        let (x, y) = (pos.x + self.scroll.x, pos.y + self.scroll.y);
+                        *area = area.end(x, y);
+                        *auto_scroll = (vertical_scroll, horizontal_scroll);
+                        *last_mouse_pos = pos;
+                    }
                 }
             }
 
             // ハイライトの削除とクリップボードに保存
             MouseEventKind::Up(MouseButton::Left) => {
-                if let InteractionState::Selecting { area } = &self.interaction_state {
+                if let InteractionState::Selecting { area, .. } = &self.interaction_state {
                     let area = area.area();
 
                     let lines = &self.item.wrapped_lines();
@@ -840,7 +951,7 @@ impl RenderTrait for Text {
             .highlight_style(self.theme.selecton)
             .scroll(self.scroll);
 
-        if let InteractionState::Selecting { area } = &self.interaction_state {
+        if let InteractionState::Selecting { area, .. } = &self.interaction_state {
             builder = builder.highlight_area(Some(*area));
         }
 
