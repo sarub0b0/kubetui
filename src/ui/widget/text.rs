@@ -106,9 +106,10 @@ mod highlight_content {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 enum Mode {
     /// 通常 （検索フォーム非表示）
+    #[default]
     Normal,
     /// 検索ワード入力中（検索フォーム表示）
     SearchInput,
@@ -126,9 +127,10 @@ enum AutoScrollDirection {
     Right,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 enum InteractionState {
     /// アイドル状態
+    #[default]
     Idle,
     /// マウスで範囲選択中
     Selecting {
@@ -138,18 +140,6 @@ enum InteractionState {
         /// 最後のマウス位置（相対座標）
         last_mouse_pos: Point,
     },
-}
-
-impl Default for InteractionState {
-    fn default() -> Self {
-        Self::Idle
-    }
-}
-
-impl Default for Mode {
-    fn default() -> Self {
-        Self::Normal
-    }
 }
 
 impl Mode {
@@ -458,17 +448,16 @@ impl Text {
     /// Tick イベント時に呼ばれ、ドラッグ中の自動スクロールを実行する
     pub fn on_tick(&mut self) {
         // auto_scrollとlast_mouse_posの値をコピーして借用チェッカーのエラーを回避
-        let (auto_scroll, last_mouse_pos) =
-            if let InteractionState::Selecting {
-                auto_scroll,
-                last_mouse_pos,
-                ..
-            } = &self.interaction_state
-            {
-                (*auto_scroll, *last_mouse_pos)
-            } else {
-                return;
-            };
+        let (auto_scroll, last_mouse_pos) = if let InteractionState::Selecting {
+            auto_scroll,
+            last_mouse_pos,
+            ..
+        } = &self.interaction_state
+        {
+            (*auto_scroll, *last_mouse_pos)
+        } else {
+            return;
+        };
 
         // 縦方向の自動スクロール
         match auto_scroll.0 {

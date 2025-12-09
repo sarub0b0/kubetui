@@ -177,20 +177,15 @@ impl TableBuilder {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 enum Mode {
     /// 通常（検索フォーム非表示）
+    #[default]
     Normal,
     /// フィルターワード入力中（検索フォーム表示）
     FilterInput,
     /// フィルターワード確定後（検索フォーム表示）
     FilterConfirm,
-}
-
-impl Default for Mode {
-    fn default() -> Self {
-        Self::Normal
-    }
 }
 
 impl Mode {

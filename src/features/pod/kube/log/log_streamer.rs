@@ -24,17 +24,12 @@ use crate::{
 
 use super::{log_collector::LogBuffer, log_content::LogContent};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub enum LogPrefixType {
     OnlyContainer,
+    #[default]
     PodAndContainer,
     All,
-}
-
-impl Default for LogPrefixType {
-    fn default() -> Self {
-        Self::PodAndContainer
-    }
 }
 
 #[derive(Clone, Copy)]
