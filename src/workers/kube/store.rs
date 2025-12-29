@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, fmt::Debug};
 use anyhow::{anyhow, Result};
 use futures::future::try_join_all;
 use kube::{
-    config::{KubeConfigOptions, Kubeconfig},
+    config::{KubeConfigOptions, Kubeconfig, NamedContext},
     Client, Config,
 };
 
@@ -57,15 +57,24 @@ impl std::fmt::Debug for KubeState {
 }
 
 impl KubeStore {
-    pub async fn try_from_kubeconfig(config: Kubeconfig) -> Result<Self> {
-        let Kubeconfig {
-            clusters,
-            contexts,
-            auth_infos,
-            ..
-        } = &config;
+    fn find_context<'a>(
+        kubeconfig: &'a Kubeconfig,
+        context_name: &str,
+    ) -> Result<&'a NamedContext> {
+        kubeconfig
+            .contexts
+            .iter()
+            .find(|ctx| ctx.name == context_name)
+            .ok_or_else(|| anyhow!(format!("Cannot find context {}", context_name)))
+    }
 
-        let jobs: Vec<(Context, KubeState)> = try_join_all(contexts.iter().map(|context| async {
+    async fn build_state(config: &Kubeconfig, context: &NamedContext) -> Result<KubeState> {
+            let Kubeconfig {
+                clusters,
+                auth_infos,
+                ..
+            } = config;
+
             let cluster = clusters.iter().find_map(|cluster| {
                 if cluster.name == context.name {
                     Some(cluster.name.to_string())
@@ -100,20 +109,55 @@ impl KubeStore {
 
             let kube_client = KubeClient::new(client);
 
-            anyhow::Ok((
-                context.name.to_string(),
-                KubeState {
-                    client: kube_client,
-                    target_namespaces: vec![target_namespace],
-                    target_api_resources: vec![],
-                },
-            ))
-        }))
-        .await?;
+            Ok(KubeState {
+                client: kube_client,
+                target_namespaces: vec![target_namespace],
+                target_api_resources: vec![],
+            })
+    }
+
+    pub async fn try_from_kubeconfig(config: Kubeconfig) -> Result<Self> {
+        let jobs: Vec<(Context, KubeState)> =
+            try_join_all(config.contexts.iter().map(|context| async {
+                let state = Self::build_state(&config, context).await?;
+
+                anyhow::Ok((context.name.to_string(), state))
+            }))
+            .await?;
 
         let inner: BTreeMap<Context, KubeState> = jobs.into_iter().collect();
 
         Ok(inner.into())
+    }
+
+    pub async fn try_from_kubeconfig_with_context(
+        config: Kubeconfig,
+        context_name: &str,
+    ) -> Result<Self> {
+        let context = Self::find_context(&config, context_name)?;
+
+        let state = Self::build_state(&config, context).await?;
+
+        let inner = BTreeMap::from([(context.name.to_string(), state)]);
+
+        Ok(inner.into())
+    }
+
+    pub async fn ensure_context(
+        &mut self,
+        kubeconfig: &Kubeconfig,
+        context_name: &str,
+    ) -> Result<()> {
+        if self.inner.contains_key(context_name) {
+            return Ok(());
+        }
+
+        let context = Self::find_context(kubeconfig, context_name)?;
+        let state = Self::build_state(kubeconfig, context).await?;
+
+        self.inner.insert(context.name.to_string(), state);
+
+        Ok(())
     }
 
     pub fn get(&self, context: &str) -> Result<&KubeState> {
