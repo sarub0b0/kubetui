@@ -170,7 +170,9 @@ impl KubeController {
 
         let context = Context::try_from(&kubeconfig, context)?;
 
-        let mut store = KubeStore::try_from_kubeconfig(kubeconfig.clone()).await?;
+        let mut store =
+            KubeStore::try_from_kubeconfig_with_context(kubeconfig.clone(), context.as_str())
+                .await?;
 
         let KubeState {
             client: state_client,
@@ -219,6 +221,8 @@ impl KubeController {
         let mut override_namespaces: Option<Vec<String>> = None;
 
         loop {
+            store.ensure_context(&kubeconfig, &context).await?;
+
             let KubeState {
                 client,
                 target_namespaces: mut stored_target_namespaces,

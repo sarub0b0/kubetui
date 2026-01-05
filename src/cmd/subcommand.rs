@@ -195,36 +195,9 @@ fn complete_namespace(args: Vec<String>) -> Result<()> {
 }
 
 async fn kubeclient(config: &Kubeconfig, context: &NamedContext) -> Result<KubeClient> {
-    let Kubeconfig {
-        clusters,
-        auth_infos,
-        ..
-    } = &config;
-
-    let cluster = clusters.iter().find_map(|cluster| {
-        if cluster.name == context.name {
-            Some(cluster.name.to_string())
-        } else {
-            None
-        }
-    });
-
-    let user = auth_infos.iter().find_map(|auth_info| {
-        let kube::config::Context { user, .. } = context.context.as_ref()?;
-
-        let user = user.as_ref()?;
-
-        if &auth_info.name == user {
-            Some(auth_info.name.to_string())
-        } else {
-            None
-        }
-    });
-
     let options = KubeConfigOptions {
         context: Some(context.name.to_string()),
-        cluster,
-        user,
+        ..Default::default()
     };
 
     let config = Config::from_custom_kubeconfig(config.clone(), &options).await?;
