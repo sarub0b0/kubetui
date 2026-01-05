@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use crate::{config::ConfigLoadOption, features::pod::PodColumns, workers::kube::KubeWorkerConfig};
 
 use super::{
-    args::{parse_pod_columns, AllNamespaces, SplitDirection},
+    args::{parse_pod_columns, AllNamespaces, ClipboardMode, SplitDirection},
     SubCommand,
 };
 
@@ -84,6 +84,17 @@ pub struct Command {
     /// Preset name for pod columns (e.g. "default", "full"). If both are specified, `--pod-columns` overrides this.
     #[arg(long, display_order = 1000)]
     pub pod_columns_preset: Option<String>,
+
+    /// Clipboard mode (auto, system, or osc52)
+    #[arg(
+        long,
+        value_name = "auto|system|osc52",
+        default_value = "auto",
+        env = "KUBETUI_CLIPBOARD",
+        value_enum,
+        display_order = 1000
+    )]
+    pub clipboard: ClipboardMode,
 
     #[command(subcommand)]
     pub subcommand: Option<SubCommand>,

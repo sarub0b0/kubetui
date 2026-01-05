@@ -72,6 +72,7 @@ impl App {
             split_direction,
             default_pod_columns,
             config.theme.clone(),
+            cmd.clipboard,
         );
 
         logger!(info, "app start");

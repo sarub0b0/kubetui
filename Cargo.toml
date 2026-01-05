@@ -14,7 +14,7 @@ exclude = ["/.github", "/test", "/script", "/screenshots", "/assets", ".gitignor
 
 [dependencies]
 crossbeam = "0.8.4"
-clap = { version = "4.5.4", features = ["wrap_help", "derive", "cargo"] }
+clap = { version = "4.5.4", features = ["wrap_help", "derive", "cargo", "env"] }
 nom = { version = "8.0.0", features = ["alloc"] }
 
 # clipboard

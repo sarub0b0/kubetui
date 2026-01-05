@@ -17,6 +17,7 @@ use ratatui::{
 
 use crate::{
     clipboard::Clipboard,
+    cmd::ClipboardMode,
     config::theme::ThemeConfig,
     features::{
         api_resources::view::ApiTab,
@@ -64,6 +65,7 @@ pub struct WindowInit {
     namespaces: Rc<RefCell<Namespace>>,
     default_pod_columns: Option<PodColumns>,
     theme: ThemeConfig,
+    clipboard_mode: ClipboardMode,
 }
 
 impl WindowInit {
@@ -74,6 +76,7 @@ impl WindowInit {
         namespaces: Rc<RefCell<Namespace>>,
         default_pod_columns: Option<PodColumns>,
         theme: ThemeConfig,
+        clipboard_mode: ClipboardMode,
     ) -> Self {
         Self {
             split_mode,
@@ -82,6 +85,7 @@ impl WindowInit {
             namespaces,
             default_pod_columns,
             theme,
+            clipboard_mode,
         }
     }
 
@@ -183,12 +187,8 @@ impl WindowInit {
     }
 
     fn tabs_dialogs(&self) -> (Vec<Tab<'static>>, Vec<Dialog<'static>>) {
-        let clipboard = arboard::Clipboard::new()
-            .inspect_err(|err| {
-                logger!(error, "Failed to create clipboard. {}", err);
-            })
-            .ok()
-            .map(|clipboard| Rc::new(RefCell::new(Clipboard::new(clipboard))));
+        let clipboard = Clipboard::new(self.clipboard_mode)
+            .map(|clipboard| Rc::new(RefCell::new(clipboard)));
 
         let PodTab {
             tab: pod_tab,
