@@ -12,6 +12,7 @@ use crossbeam::channel::{Receiver, Sender};
 use ratatui::{backend::CrosstermBackend, layout::Direction, Terminal, TerminalOptions, Viewport};
 
 use crate::{
+    cmd::ClipboardMode,
     config::theme::ThemeConfig,
     features::pod::PodColumns,
     kube::context::{Context, Namespace},
@@ -33,6 +34,7 @@ pub struct Render {
     direction: Direction,
     default_pod_columns: Option<PodColumns>,
     theme: ThemeConfig,
+    clipboard_mode: ClipboardMode,
 }
 
 impl Render {
@@ -43,6 +45,7 @@ impl Render {
         direction: Direction,
         default_pod_columns: Option<PodColumns>,
         theme: ThemeConfig,
+        clipboard_mode: ClipboardMode,
     ) -> Self {
         Self {
             direction,
@@ -51,6 +54,7 @@ impl Render {
             tx_shutdown,
             default_pod_columns,
             theme,
+            clipboard_mode,
         }
     }
 
@@ -91,6 +95,7 @@ impl Render {
             namespace.clone(),
             self.default_pod_columns.clone(),
             self.theme.clone(),
+            self.clipboard_mode,
         )
         .build();
 
