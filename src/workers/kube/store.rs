@@ -78,7 +78,9 @@ impl KubeStore {
     async fn build_state(config: &Kubeconfig, context: &NamedContext) -> Result<KubeState> {
         let options = Self::kubeconfig_options(context);
 
-        let config = Config::from_custom_kubeconfig(config.clone(), &options).await?;
+        let mut config = Config::from_custom_kubeconfig(config.clone(), &options).await?;
+
+        crate::kube::proxy::clear_proxy_if_no_proxy_matches(&mut config);
 
         let target_namespace = config.default_namespace.to_string();
 

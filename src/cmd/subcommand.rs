@@ -200,7 +200,9 @@ async fn kubeclient(config: &Kubeconfig, context: &NamedContext) -> Result<KubeC
         ..Default::default()
     };
 
-    let config = Config::from_custom_kubeconfig(config.clone(), &options).await?;
+    let mut config = Config::from_custom_kubeconfig(config.clone(), &options).await?;
+
+    crate::kube::proxy::clear_proxy_if_no_proxy_matches(&mut config);
 
     let client = Client::try_from(config)?;
 
