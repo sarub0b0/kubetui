@@ -9,7 +9,7 @@ use std::{
 
 use anyhow::Result;
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use futures::{AsyncBufReadExt, TryStreamExt};
 use k8s_openapi::api::core::v1::Pod;
 use kube::{api::LogParams, Api};
@@ -93,7 +93,7 @@ impl AbortWorker for LogStreamer {
     async fn run(&self) {
         let mut interval = tokio::time::interval(time::Duration::from_secs(3));
 
-        let mut last_timestamp: Option<DateTime<Utc>> = None;
+        let mut last_timestamp: Option<Timestamp> = None;
 
         let prefix = self.log_prefix();
 
@@ -140,7 +140,7 @@ impl LogStreamer {
         self
     }
 
-    async fn fetch(&self, prefix: &str, last_timestamp: &mut Option<DateTime<Utc>>) -> Result<()> {
+    async fn fetch(&self, prefix: &str, last_timestamp: &mut Option<Timestamp>) -> Result<()> {
         let log_params = self.log_params(last_timestamp);
 
         let api: Api<Pod> = Api::namespaced(self.client.to_client(), self.namespace());
@@ -150,35 +150,34 @@ impl LogStreamer {
         while let Some(line) = logs.try_next().await? {
             let mut buf = self.log_buffer.lock().await;
 
-            if let Ok((dt, content)) = chrono::DateTime::parse_and_remainder(&line, "%+") {
-                let dt: DateTime<Utc> = dt.into();
+            if let Some((ts_str, content)) = line.split_once(' ') {
+                if let Ok(ts) = ts_str.parse::<Timestamp>() {
+                    if last_timestamp.is_some_and(|lts| ts <= lts) {
+                        continue;
+                    }
 
-                if last_timestamp.is_some_and(|lts| dt <= lts) {
+                    if self.is_exclude(content) || !self.is_include(content) {
+                        continue;
+                    }
+
+                    buf.push(LogContent {
+                        prefix: prefix.to_string(),
+                        content: content.to_string(),
+                    });
+
+                    *last_timestamp = Some(ts);
                     continue;
                 }
-
-                let content = content.strip_prefix(' ').unwrap_or(content);
-
-                if self.is_exclude(content) || !self.is_include(content) {
-                    continue;
-                }
-
-                buf.push(LogContent {
-                    prefix: prefix.to_string(),
-                    content: content.to_string(),
-                });
-
-                *last_timestamp = Some(dt);
-            } else {
-                if self.is_exclude(&line) || !self.is_include(&line) {
-                    continue;
-                }
-
-                buf.push(LogContent {
-                    prefix: prefix.to_string(),
-                    content: line.to_string(),
-                });
             }
+
+            if self.is_exclude(&line) || !self.is_include(&line) {
+                continue;
+            }
+
+            buf.push(LogContent {
+                prefix: prefix.to_string(),
+                content: line.to_string(),
+            });
         }
 
         Ok(())
@@ -302,7 +301,7 @@ impl LogStreamer {
         PREFIX_COLOR_LIST[index % PREFIX_COLOR_LIST.len()]
     }
 
-    fn log_params(&self, last_timestamp: &Option<DateTime<Utc>>) -> LogParams {
+    fn log_params(&self, last_timestamp: &Option<Timestamp>) -> LogParams {
         LogParams {
             follow: true,
             container: Some(self.container_name().to_string()),

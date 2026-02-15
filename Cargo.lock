@@ -257,9 +257,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fac4744fb15ae8337dc853fee7fb3f4e48c0fbaa23d0afe49c447b4fab126118"
 dependencies = [
  "iana-time-zone",
- "js-sys",
  "num-traits",
- "wasm-bindgen",
  "windows-link",
 ]
 
@@ -1425,7 +1423,6 @@ dependencies = [
  "base64",
  "bitflags 2.11.0",
  "bytes",
- "chrono",
  "clap",
  "crossbeam",
  "ctrlc",
@@ -1440,6 +1437,7 @@ dependencies = [
  "jaq-core",
  "jaq-json",
  "jaq-std",
+ "jiff",
  "jmespath",
  "k8s-openapi",
  "kube",
