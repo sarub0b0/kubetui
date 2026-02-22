@@ -12,15 +12,10 @@ use search::Search;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Highlight {
     /// Graphemesのインデックス
-    ///
-    /// ハイライトを戻すときに使う
     line_index: usize,
 
     /// ハイライト箇所の範囲
     range: Range<usize>,
-
-    /// ハイライト前のスタイル
-    styles: Vec<Style>,
 
     /// スクロールに使う
     line_number: usize,
@@ -124,9 +119,6 @@ pub struct TextItem {
     last_trimmed_wrapped_count: usize,
 }
 
-type Graphemes = Vec<StyledGrapheme>;
-type Wrappers<'a> = Vec<*const [StyledGrapheme]>;
-
 impl TextItem {
     pub fn new(
         literal_item: Vec<LiteralItem>,
@@ -134,8 +126,6 @@ impl TextItem {
         highlight_style: SearchHighlightStyle,
     ) -> Self {
         let (lines, wrapped_lines) = Self::new_or_extend(literal_item, wrap_width, 0, 0);
-
-        let wrapped_lines: Vec<_> = wrapped_lines.into_iter().flatten().collect();
 
         let max_chars = wrapped_lines
             .iter()
@@ -176,58 +166,7 @@ impl TextItem {
     }
 
     pub fn push(&mut self, item: LiteralItem) {
-        let graphemes = item.item.styled_graphemes();
-
-        let line_number = self.wrapped_lines.len();
-
-        #[allow(clippy::needless_collect)]
-        let wrappers: Wrappers = graphemes
-            .wrap(self.wrap_width)
-            .map(|w| w as *const [StyledGrapheme])
-            .collect();
-
-        let line_index = self.lines.len();
-
-        let wrapped_lines: Vec<WrappedLine> = wrappers
-            .into_iter()
-            .map(|w| WrappedLine {
-                line_index,
-                slice_ptr: w,
-            })
-            .collect();
-
-        self.max_chars = wrapped_lines
-            .iter()
-            .map(|l| l.line().len())
-            .max()
-            .unwrap_or_default()
-            .max(self.max_chars);
-
-        let line = Line {
-            line_index,
-            line_number,
-            literal_item: item,
-            graphemes,
-            wrapped_lines: line_number..(line_number + wrapped_lines.len()),
-        };
-
-        self.lines.push_back(line);
-        self.wrapped_lines.extend(wrapped_lines);
-
-        if let Some(highlights) = &mut self.highlights {
-            let pushed_line_index = self.lines.len() - 1;
-            let line = &mut self.lines[pushed_line_index];
-
-            if let Some(hls) = line.highlight_word(
-                &highlights.word,
-                &self.wrapped_lines[line.wrapped_lines.clone()],
-                *self.highlight_style.matches,
-            ) {
-                highlights.item.extend(hls);
-            }
-        }
-
-        self.trim_to_limit();
+        self.extend(vec![item]);
     }
 
     pub fn extend(&mut self, item: Vec<LiteralItem>) {
@@ -242,15 +181,13 @@ impl TextItem {
 
         self.max_chars = wrapped_lines
             .iter()
-            .flatten()
             .map(|l| l.line().len())
             .max()
             .unwrap_or_default()
             .max(self.max_chars);
 
         self.lines.extend(lines);
-        self.wrapped_lines
-            .extend(wrapped_lines.into_iter().flatten());
+        self.wrapped_lines.extend(wrapped_lines);
 
         if let Some(highlights) = &mut self.highlights {
             let lines_len = self.lines.len();
@@ -285,59 +222,38 @@ impl TextItem {
         wrap_width: Option<usize>,
         start_line_number: usize,
         lines_len: usize,
-    ) -> (Vec<Line>, Vec<Vec<WrappedLine>>) {
-        let graphemes_list: Vec<Graphemes> = literal_item
-            .iter()
-            .map(|item| item.item.styled_graphemes())
-            .collect();
-
-        #[allow(clippy::needless_collect)]
-        let wrappers_list: Vec<Wrappers> = graphemes_list
-            .iter()
-            .map(|g| {
-                g.wrap(wrap_width)
-                    .map(|w| w as *const [StyledGrapheme])
-                    .collect()
-            })
-            .collect();
-
+    ) -> (Vec<Line>, Vec<WrappedLine>) {
         let item_len = literal_item.len();
 
         let mut lines = Vec::with_capacity(item_len);
-        let mut wrapped_lines = Vec::with_capacity(item_len);
+        let mut wrapped_lines = Vec::new();
 
         let mut line_number = start_line_number;
 
-        graphemes_list
-            .into_iter()
-            .zip(wrappers_list)
-            .zip(literal_item)
-            .enumerate()
-            .for_each(|(i, ((graphemes, wrapped), literal_item))| {
-                let wrapped_len = wrapped.len();
-                let line_index = lines_len + i;
+        for (i, literal_item) in literal_item.into_iter().enumerate() {
+            let graphemes = literal_item.item.styled_graphemes();
+            let line_index = lines_len + i;
 
-                let new_wrapped_lines: Vec<WrappedLine> = wrapped
-                    .into_iter()
-                    .map(|w| WrappedLine {
-                        line_index,
-                        slice_ptr: w,
-                    })
-                    .collect();
+            // Lineを先に作成し、graphemesのヒープ割り当てを確定させる
+            let mut line = Line {
+                line_index,
+                line_number,
+                literal_item,
+                graphemes,
+                wrapped_lines: 0..0, // 仮の値
+            };
 
-                let line = Line {
-                    line_index,
-                    line_number,
-                    literal_item,
-                    graphemes,
-                    wrapped_lines: line_number..(line_number + wrapped_len),
-                };
+            // graphemesが確定した位置にあるのでポインタを安全に取得できる
+            let new_wrapped = line.create_wrapped_lines(wrap_width);
+            let wrapped_len = new_wrapped.len();
 
-                lines.push(line);
-                wrapped_lines.push(new_wrapped_lines);
+            line.wrapped_lines = line_number..(line_number + wrapped_len);
 
-                line_number += wrapped_len;
-            });
+            lines.push(line);
+            wrapped_lines.extend(new_wrapped);
+
+            line_number += wrapped_len;
+        }
 
         (lines, wrapped_lines)
     }
@@ -369,30 +285,30 @@ impl TextItem {
             return;
         }
 
-        // トリム前にハイライトの検索ワードと選択位置を保存し、
-        // インデックスが有効なうちにスタイルを復元する
         let lines_to_remove = self.lines.len() - max_lines;
-        let search_state = self.highlights.as_ref().map(|h| {
-            // selected_index より前にある、削除対象行上のハイライト数
+
+        // トリム前にハイライトの選択状態を記録する
+        let focus_state = self.highlights.as_ref().map(|h| {
             let removed_before_selected = h
                 .item
                 .iter()
                 .take(h.selected_index)
                 .filter(|hl| hl.line_index < lines_to_remove)
                 .count();
-            // selected_index 自体が削除対象行上にあるか
             let selected_removed = h
                 .item
                 .get(h.selected_index)
                 .map_or(false, |hl| hl.line_index < lines_to_remove);
-            (h.word.clone(), h.selected_index, removed_before_selected, selected_removed)
+            (h.selected_index, removed_before_selected, selected_removed)
         });
-        if self.highlights.is_some() {
-            self.clear_highlight();
-        }
 
+        self.remove_front_lines(max_lines);
+        self.update_highlights_after_trim(lines_to_remove, focus_state);
+    }
+
+    /// 先頭の行を削除し、残りの行のインデックスを再計算する
+    fn remove_front_lines(&mut self, max_lines: usize) {
         let mut total_wrapped_removed = 0;
-
         while self.lines.len() > max_lines {
             if let Some(removed_line) = self.lines.pop_front() {
                 let wrapped_count =
@@ -422,20 +338,56 @@ impl TextItem {
 
             self.last_trimmed_wrapped_count = total_wrapped_removed;
         }
+    }
 
-        // トリム後にハイライトを再適用し、選択位置を復元する
-        if let Some((word, old_selected, removed_before, selected_removed)) = search_state {
-            self.highlight(&word);
+    /// トリム後にハイライトのメタデータを更新する
+    fn update_highlights_after_trim(
+        &mut self,
+        lines_to_remove: usize,
+        focus_state: Option<(usize, usize, bool)>,
+    ) {
+        let Some(highlights) = &mut self.highlights else {
+            return;
+        };
 
-            if let Some(highlights) = &self.highlights {
-                let new_index = if selected_removed {
-                    // 選択中のハイライトが削除された場合、同じ位置に繰り上がった要素を選択
-                    (old_selected - removed_before).min(highlights.item.len().saturating_sub(1))
-                } else {
-                    old_selected - removed_before
-                };
-                self.highlight_focus(new_index);
+        // 削除対象行のハイライトを除去し、残りのインデックスを調整
+        highlights
+            .item
+            .retain(|hl| hl.line_index >= lines_to_remove);
+
+        if highlights.item.is_empty() {
+            self.highlights = None;
+            return;
+        }
+
+        for hl in &mut highlights.item {
+            hl.line_index -= lines_to_remove;
+            let line = &self.lines[hl.line_index];
+            hl.line_number = highlight_line_number(
+                hl.range.start,
+                &self.wrapped_lines[line.wrapped_lines.clone()],
+                line.line_number,
+            );
+        }
+
+        // selected_index を復元
+        if let Some((old_selected, removed_before, selected_removed)) = focus_state {
+            let new_selected = if selected_removed {
+                (old_selected - removed_before)
+                    .min(highlights.item.len().saturating_sub(1))
+            } else {
+                old_selected - removed_before
+            };
+
+            // 選択中のハイライトが削除された場合、新しい選択にフォーカススタイルを適用
+            if selected_removed {
+                let hl = &highlights.item[new_selected];
+                self.lines[hl.line_index].graphemes[hl.range.clone()]
+                    .iter_mut()
+                    .for_each(|g| *g.style_mut() = *self.highlight_style.focus);
             }
+
+            highlights.selected_index = new_selected;
         }
     }
 }
@@ -469,102 +421,84 @@ impl TextItem {
     }
 
     pub fn clear_highlight(&mut self) {
-        if let Some(highlights) = &mut self.highlights {
-            highlights.item.iter().for_each(|hl| {
-                let line = &mut self.lines[hl.line_index];
-                line.clear_highlight(hl.range.clone(), &hl.styles);
-            });
+        if let Some(highlights) = &self.highlights {
+            for hl in &highlights.item {
+                self.lines[hl.line_index].restore_original_styles();
+            }
         }
 
         self.highlights = None;
     }
 
-    fn highlight_matches(&mut self, index: usize) {
-        if let Some(highlights) = &mut self.highlights {
+    /// 指定インデックスのハイライトにスタイルを適用する
+    fn apply_highlight_style(&mut self, index: usize, style: Style) {
+        if let Some(highlights) = &self.highlights {
             let hl = &highlights.item[index];
-
-            let line = &mut self.lines[hl.line_index];
-            let graphemes = &mut line.graphemes[hl.range.clone()];
-
-            graphemes
+            self.lines[hl.line_index].graphemes[hl.range.clone()]
                 .iter_mut()
-                .for_each(|gs| *gs.style_mut() = *self.highlight_style.matches);
+                .for_each(|gs| *gs.style_mut() = style);
         }
     }
 
+    fn highlight_matches(&mut self, index: usize) {
+        self.apply_highlight_style(index, *self.highlight_style.matches);
+    }
+
     fn highlight_focus(&mut self, index: usize) -> Option<usize> {
+        self.apply_highlight_style(index, *self.highlight_style.focus);
+
         if let Some(highlights) = &mut self.highlights {
-            let hl = &highlights.item[index];
-
-            let line = &mut self.lines[hl.line_index];
-            let graphemes = &mut line.graphemes[hl.range.clone()];
-
-            graphemes
-                .iter_mut()
-                .for_each(|gs| *gs.style_mut() = *self.highlight_style.focus);
-
             highlights.selected_index = index;
+            Some(highlights.item[index].line_number)
+        } else {
+            None
+        }
+    }
 
-            Some(hl.line_number)
+    /// 現在のフォーカスを解除し、compute_nextで計算した新しいインデックスにフォーカスを移動する
+    fn move_highlight_focus(
+        &mut self,
+        compute_next: impl FnOnce(&Highlights) -> usize,
+    ) -> Option<usize> {
+        if let Some(highlights) = &self.highlights {
+            let old_index = highlights.selected_index;
+            let new_index = compute_next(highlights);
+
+            self.highlight_matches(old_index);
+            self.highlight_focus(new_index)
         } else {
             None
         }
     }
 
     pub fn select_nearest_highlight(&mut self, scroll_index: usize) -> Option<usize> {
-        if let Some(highlights) = &mut self.highlights {
-            let index = highlights.selected_index;
-
-            let nearest_index = highlights
+        self.move_highlight_focus(|highlights| {
+            highlights
                 .item
                 .iter()
                 .enumerate()
                 .min_by_key(|(_, hl)| hl.line_number.abs_diff(scroll_index))
                 .map(|(i, _)| i)
-                .unwrap_or(0);
-
-            self.highlight_matches(index);
-
-            self.highlight_focus(nearest_index)
-        } else {
-            None
-        }
+                .unwrap_or(0)
+        })
     }
 
     pub fn select_next_highlight(&mut self) -> Option<usize> {
-        if let Some(highlights) = &mut self.highlights {
-            let index = highlights.selected_index;
-
-            let item_len = highlights.item.len();
-
-            self.highlight_matches(index);
-
-            let index = (index + 1) % item_len;
-
-            self.highlight_focus(index)
-        } else {
-            None
-        }
+        self.move_highlight_focus(|highlights| {
+            (highlights.selected_index + 1) % highlights.item.len()
+        })
     }
 
     pub fn select_prev_highlight(&mut self) -> Option<usize> {
-        if let Some(highlights) = &mut self.highlights {
+        self.move_highlight_focus(|highlights| {
             let index = highlights.selected_index;
-
             let item_len = highlights.item.len();
-
-            self.highlight_matches(index);
-
-            let index = if index == 0 {
+            if index == 0 {
                 item_len.saturating_sub(1)
             } else {
                 index.saturating_sub(1)
-            };
-
-            self.highlight_focus(index)
-        } else {
-            None
-        }
+            }
+        })
     }
 
     pub fn highlight_status(&self) -> (usize, usize) {
@@ -590,44 +524,21 @@ impl TextItem {
     pub fn rewrap(&mut self, wrap_width: usize) {
         self.wrap_width = Some(wrap_width);
 
-        #[allow(clippy::needless_collect)]
-        let wrappers_list: Vec<Wrappers> = self
-            .lines
-            .iter()
-            .map(|line| {
-                line.graphemes
-                    .wrap(self.wrap_width)
-                    .map(|w| w as *const [StyledGrapheme])
-                    .collect()
-            })
-            .collect();
-
-        let mut wrapped_lines = Vec::with_capacity(wrappers_list.len());
+        let mut all_wrapped_lines = Vec::new();
         let mut line_number = 0;
-        self.lines
-            .iter_mut()
-            .zip(wrappers_list)
-            .enumerate()
-            .for_each(|(i, (line, wrapped))| {
-                let wrapped_len = wrapped.len();
 
-                line.line_number = line_number;
-                line.wrapped_lines = line_number..(line_number + wrapped_len);
+        for line in self.lines.iter_mut() {
+            let new_wrapped = line.create_wrapped_lines(self.wrap_width);
+            let wrapped_len = new_wrapped.len();
 
-                let new_wrapped_lines: Vec<WrappedLine> = wrapped
-                    .into_iter()
-                    .map(|w| WrappedLine {
-                        line_index: i,
-                        slice_ptr: w,
-                    })
-                    .collect();
+            line.line_number = line_number;
+            line.wrapped_lines = line_number..(line_number + wrapped_len);
 
-                wrapped_lines.push(new_wrapped_lines);
+            all_wrapped_lines.extend(new_wrapped);
+            line_number += wrapped_len;
+        }
 
-                line_number += wrapped_len;
-            });
-
-        self.wrapped_lines = wrapped_lines.into_iter().flatten().collect();
+        self.wrapped_lines = all_wrapped_lines;
 
         if let Some(highlights) = &mut self.highlights {
             highlights.item.iter_mut().for_each(|hl| {
@@ -643,7 +554,7 @@ impl TextItem {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct Line {
     line_index: usize,
     /// 折り返しを考慮した１行目となる行番号
@@ -651,8 +562,7 @@ struct Line {
 
     /// ベースとなる１行分の文字列データ
     ///
-    /// この文字列のポインターを駆使していく
-    #[allow(dead_code)]
+    /// graphemesのポインター元。restore_original_styles()でスタイル復元に使用。
     literal_item: LiteralItem,
 
     /// 目でみたときの１文字ずつに分割した配列
@@ -663,19 +573,6 @@ struct Line {
     /// ワード検索でスクロール位置を割り出すのに使う
     /// TextItem.wrappedのポインターをもつ
     wrapped_lines: Range<usize>,
-}
-
-#[allow(clippy::derivable_impls)]
-impl Default for Line {
-    fn default() -> Self {
-        Self {
-            line_number: 0,
-            literal_item: Default::default(),
-            graphemes: Default::default(),
-            wrapped_lines: Default::default(),
-            line_index: 0,
-        }
-    }
 }
 
 impl Line {
@@ -692,14 +589,9 @@ impl Line {
                 .iter()
                 .cloned()
                 .map(|range| {
-                    let styles = self.graphemes[range.clone()]
+                    self.graphemes[range.clone()]
                         .iter_mut()
-                        .map(|i| {
-                            let ret = *i.style();
-                            *i.style_mut() = highlight_style;
-                            ret
-                        })
-                        .collect();
+                        .for_each(|i| *i.style_mut() = highlight_style);
 
                     let line_number =
                         highlight_line_number(range.start, wrapped_lines, self.line_number);
@@ -707,7 +599,6 @@ impl Line {
                     Highlight {
                         line_index: self.line_index,
                         range,
-                        styles,
                         line_number,
                     }
                 })
@@ -719,12 +610,23 @@ impl Line {
         }
     }
 
-    pub fn clear_highlight(&mut self, range: Range<usize>, styles: &[Style]) {
-        let i = &mut self.graphemes[range];
+    /// graphemesをwrap_widthで折り返し、WrappedLineのリストを生成する
+    fn create_wrapped_lines(&self, wrap_width: Option<usize>) -> Vec<WrappedLine> {
+        self.graphemes
+            .wrap(wrap_width)
+            .map(|w| WrappedLine {
+                line_index: self.line_index,
+                slice_ptr: w as *const [StyledGrapheme],
+            })
+            .collect()
+    }
 
-        i.iter_mut().zip(styles.iter()).for_each(|(l, r)| {
-            *l.style_mut() = *r;
-        });
+    /// literal_itemからオリジナルのスタイルを再導出して復元する
+    fn restore_original_styles(&mut self) {
+        let original = self.literal_item.item.styled_graphemes();
+        for (g, orig) in self.graphemes.iter_mut().zip(original.iter()) {
+            *g.style_mut() = *orig.style();
+        }
     }
 }
 
@@ -1081,7 +983,7 @@ mod tests {
         use super::*;
 
         #[test]
-        fn 指定された文字列にマッチするときその文字列を退避してハイライトする() {
+        fn 指定された文字列にマッチするときハイライトする() {
             let item = LiteralItem {
                 item: "hello world".to_string(),
                 ..Default::default()
@@ -1117,13 +1019,6 @@ mod tests {
                 vec![Highlight {
                     line_index: 0,
                     range: 0..5,
-                    styles: vec![
-                        Style::default(),
-                        Style::default(),
-                        Style::default(),
-                        Style::default(),
-                        Style::default(),
-                    ],
                     line_number: 0,
                 }]
             );
@@ -1225,7 +1120,7 @@ mod tests {
                 wrapped_lines: 0..1,
             };
 
-            let highlight = line
+            let _highlight = line
                 .highlight_word(
                     "hello",
                     &wrapped_lines,
@@ -1233,7 +1128,7 @@ mod tests {
                 )
                 .unwrap();
 
-            line.clear_highlight(highlight[0].range.clone(), &highlight[0].styles);
+            line.restore_original_styles();
 
             let actual: Vec<Style> = line.graphemes.into_iter().map(|i| i.style).collect();
 
@@ -1391,11 +1286,7 @@ mod search {
                 }
             }
 
-            if !match_list.is_empty() {
-                Some(match_list)
-            } else {
-                None
-            }
+            (!match_list.is_empty()).then_some(match_list)
         }
     }
 
@@ -1419,11 +1310,7 @@ mod search {
                 }
             }
 
-            if !match_list.is_empty() {
-                Some(match_list)
-            } else {
-                None
-            }
+            (!match_list.is_empty()).then_some(match_list)
         }
     }
 
