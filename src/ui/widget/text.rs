@@ -189,6 +189,7 @@ pub struct TextBuilder {
     block_injection: Option<RenderBlockInjection>,
     actions: Vec<(UserEvent, Callback)>,
     clipboard: Option<Rc<RefCell<Clipboard>>>,
+    max_lines: Option<usize>,
 }
 
 impl TextBuilder {
@@ -253,12 +254,19 @@ impl TextBuilder {
         self
     }
 
+    pub fn max_lines(mut self, max_lines: Option<usize>) -> Self {
+        self.max_lines = max_lines;
+        self
+    }
+
     pub fn build(self) -> Text {
+        let mut item = TextItem::new(self.item, None, self.theme.search.clone());
+        item.set_max_lines(self.max_lines);
         Text {
             id: self.id,
             widget_base: self.widget_base,
             search_form: self.search_form,
-            item: TextItem::new(self.item, None, self.theme.search.clone()),
+            item,
             wrap: self.wrap,
             follow: self.follow,
             theme: self.theme,
@@ -297,6 +305,10 @@ impl Text {
     /// followが有効で、かつユーザーがインタラクション中でない場合にtrueを返す
     fn should_follow(&self) -> bool {
         self.follow && matches!(self.interaction_state, InteractionState::Idle)
+    }
+
+    pub fn set_max_lines(&mut self, max_lines: Option<usize>) {
+        self.item.set_max_lines(max_lines);
     }
 }
 
@@ -603,6 +615,12 @@ impl WidgetTrait for Text {
             _ => {
                 unreachable!()
             }
+        }
+
+        // トリムされた行数分スクロール位置を調整
+        let trimmed = self.item.take_trimmed_wrapped_count();
+        if trimmed > 0 {
+            self.scroll.y = self.scroll.y.saturating_sub(trimmed);
         }
 
         if self.should_follow() && is_bottom {
