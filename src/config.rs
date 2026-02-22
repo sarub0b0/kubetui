@@ -27,6 +27,7 @@ pub struct LoggingConfig {
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct Config {
     pub theme: ThemeConfig,
+    #[serde(default)]
     pub logging: LoggingConfig,
 }
 
