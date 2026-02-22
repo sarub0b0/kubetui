@@ -295,6 +295,8 @@ pub struct Text {
     block_injection: Option<RenderBlockInjection>,
     actions: Vec<(UserEvent, Callback)>,
     clipboard: Option<Rc<RefCell<Clipboard>>>,
+    /// マウスドラッグ中に受け取ったアイテムを一時的に保持するバッファ
+    pending_items: Vec<Item>,
 }
 
 impl Text {
@@ -309,6 +311,14 @@ impl Text {
 
     pub fn set_max_lines(&mut self, max_lines: Option<usize>) {
         self.item.set_max_lines(max_lines);
+    }
+
+    /// ドラッグ中にバッファリングされたアイテムを反映する
+    fn flush_pending_items(&mut self) {
+        let items = std::mem::take(&mut self.pending_items);
+        for item in items {
+            self.append_widget_item(item);
+        }
     }
 }
 
@@ -607,6 +617,12 @@ impl WidgetTrait for Text {
     }
 
     fn append_widget_item(&mut self, item: Item) {
+        // マウスドラッグ中はコンテンツの追加をバッファリングする
+        if matches!(self.interaction_state, InteractionState::Selecting { .. }) {
+            self.pending_items.push(item);
+            return;
+        }
+
         let is_bottom = self.is_bottom();
 
         match item {
@@ -778,6 +794,7 @@ impl WidgetTrait for Text {
                 }
 
                 self.interaction_state = InteractionState::Idle;
+                self.flush_pending_items();
             }
             MouseEventKind::ScrollDown => {
                 self.select_next(5);
