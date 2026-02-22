@@ -189,35 +189,25 @@ struct LineIterator<'a> {
     sum_width_offset: usize,
 }
 
-const RENDER_LEFT_PADDING_SYMBOL: &str = "<";
-const RENDER_RIGHT_PADDING_SYMBOL: &str = ">";
+const PADDING_STYLE: Style = Style {
+    fg: None,
+    bg: None,
+    underline_color: None,
+    #[cfg(not(test))]
+    add_modifier: Modifier::DIM,
+    #[cfg(test)]
+    add_modifier: Modifier::empty(),
+    sub_modifier: Modifier::empty(),
+};
 
 const RENDER_LEFT_PADDING: StyledGrapheme = StyledGrapheme {
-    symbol_ptr: RENDER_LEFT_PADDING_SYMBOL,
-    style: Style {
-        fg: None,
-        bg: None,
-        underline_color: None,
-        #[cfg(not(test))]
-        add_modifier: Modifier::DIM,
-        #[cfg(test)]
-        add_modifier: Modifier::empty(),
-        sub_modifier: Modifier::empty(),
-    },
+    symbol_ptr: "<",
+    style: PADDING_STYLE,
 };
 
 const RENDER_RIGHT_PADDING: StyledGrapheme = StyledGrapheme {
-    symbol_ptr: RENDER_RIGHT_PADDING_SYMBOL,
-    style: Style {
-        fg: None,
-        bg: None,
-        underline_color: None,
-        #[cfg(not(test))]
-        add_modifier: Modifier::DIM,
-        #[cfg(test)]
-        add_modifier: Modifier::empty(),
-        sub_modifier: Modifier::empty(),
-    },
+    symbol_ptr: ">",
+    style: PADDING_STYLE,
 };
 
 impl<'a> LineIterator<'a> {
