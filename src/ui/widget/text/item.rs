@@ -171,58 +171,7 @@ impl TextItem {
     }
 
     pub fn push(&mut self, item: LiteralItem) {
-        let graphemes = item.item.styled_graphemes();
-
-        let line_number = self.wrapped_lines.len();
-
-        #[allow(clippy::needless_collect)]
-        let wrappers: Wrappers = graphemes
-            .wrap(self.wrap_width)
-            .map(|w| w as *const [StyledGrapheme])
-            .collect();
-
-        let line_index = self.lines.len();
-
-        let wrapped_lines: Vec<WrappedLine> = wrappers
-            .into_iter()
-            .map(|w| WrappedLine {
-                line_index,
-                slice_ptr: w,
-            })
-            .collect();
-
-        self.max_chars = wrapped_lines
-            .iter()
-            .map(|l| l.line().len())
-            .max()
-            .unwrap_or_default()
-            .max(self.max_chars);
-
-        let line = Line {
-            line_index,
-            line_number,
-            literal_item: item,
-            graphemes,
-            wrapped_lines: line_number..(line_number + wrapped_lines.len()),
-        };
-
-        self.lines.push_back(line);
-        self.wrapped_lines.extend(wrapped_lines);
-
-        if let Some(highlights) = &mut self.highlights {
-            let pushed_line_index = self.lines.len() - 1;
-            let line = &mut self.lines[pushed_line_index];
-
-            if let Some(hls) = line.highlight_word(
-                &highlights.word,
-                &self.wrapped_lines[line.wrapped_lines.clone()],
-                *self.highlight_style.matches,
-            ) {
-                highlights.item.extend(hls);
-            }
-        }
-
-        self.trim_to_limit();
+        self.extend(vec![item]);
     }
 
     pub fn extend(&mut self, item: Vec<LiteralItem>) {
@@ -666,8 +615,7 @@ struct Line {
 
     /// ベースとなる１行分の文字列データ
     ///
-    /// この文字列のポインターを駆使していく
-    #[allow(dead_code)]
+    /// graphemesのポインター元。restore_original_styles()でスタイル復元に使用。
     literal_item: LiteralItem,
 
     /// 目でみたときの１文字ずつに分割した配列
