@@ -12,15 +12,10 @@ use search::Search;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Highlight {
     /// Graphemesのインデックス
-    ///
-    /// ハイライトを戻すときに使う
     line_index: usize,
 
     /// ハイライト箇所の範囲
     range: Range<usize>,
-
-    /// ハイライト前のスタイル
-    styles: Vec<Style>,
 
     /// スクロールに使う
     line_number: usize,
@@ -369,30 +364,25 @@ impl TextItem {
             return;
         }
 
-        // トリム前にハイライトの検索ワードと選択位置を保存し、
-        // インデックスが有効なうちにスタイルを復元する
         let lines_to_remove = self.lines.len() - max_lines;
-        let search_state = self.highlights.as_ref().map(|h| {
-            // selected_index より前にある、削除対象行上のハイライト数
+
+        // トリム前にハイライトの選択状態を記録する
+        let focus_state = self.highlights.as_ref().map(|h| {
             let removed_before_selected = h
                 .item
                 .iter()
                 .take(h.selected_index)
                 .filter(|hl| hl.line_index < lines_to_remove)
                 .count();
-            // selected_index 自体が削除対象行上にあるか
             let selected_removed = h
                 .item
                 .get(h.selected_index)
                 .map_or(false, |hl| hl.line_index < lines_to_remove);
-            (h.word.clone(), h.selected_index, removed_before_selected, selected_removed)
+            (h.selected_index, removed_before_selected, selected_removed)
         });
-        if self.highlights.is_some() {
-            self.clear_highlight();
-        }
 
+        // 先頭の行を削除
         let mut total_wrapped_removed = 0;
-
         while self.lines.len() > max_lines {
             if let Some(removed_line) = self.lines.pop_front() {
                 let wrapped_count =
@@ -423,18 +413,44 @@ impl TextItem {
             self.last_trimmed_wrapped_count = total_wrapped_removed;
         }
 
-        // トリム後にハイライトを再適用し、選択位置を復元する
-        if let Some((word, old_selected, removed_before, selected_removed)) = search_state {
-            self.highlight(&word);
+        // ハイライトのメタデータを更新（スタイルの再適用は不要）
+        if let Some(highlights) = &mut self.highlights {
+            // 削除対象行のハイライトを除去し、残りのインデックスを調整
+            highlights.item.retain(|hl| hl.line_index >= lines_to_remove);
 
-            if let Some(highlights) = &self.highlights {
-                let new_index = if selected_removed {
-                    // 選択中のハイライトが削除された場合、同じ位置に繰り上がった要素を選択
-                    (old_selected - removed_before).min(highlights.item.len().saturating_sub(1))
+            if highlights.item.is_empty() {
+                self.highlights = None;
+                return;
+            }
+
+            for hl in &mut highlights.item {
+                hl.line_index -= lines_to_remove;
+                let line = &self.lines[hl.line_index];
+                hl.line_number = highlight_line_number(
+                    hl.range.start,
+                    &self.wrapped_lines[line.wrapped_lines.clone()],
+                    line.line_number,
+                );
+            }
+
+            // selected_index を復元
+            if let Some((old_selected, removed_before, selected_removed)) = focus_state {
+                let new_selected = if selected_removed {
+                    (old_selected - removed_before)
+                        .min(highlights.item.len().saturating_sub(1))
                 } else {
                     old_selected - removed_before
                 };
-                self.highlight_focus(new_index);
+
+                // 選択中のハイライトが削除された場合、新しい選択にフォーカススタイルを適用
+                if selected_removed {
+                    let hl = &highlights.item[new_selected];
+                    self.lines[hl.line_index].graphemes[hl.range.clone()]
+                        .iter_mut()
+                        .for_each(|g| *g.style_mut() = *self.highlight_style.focus);
+                }
+
+                highlights.selected_index = new_selected;
             }
         }
     }
@@ -469,11 +485,10 @@ impl TextItem {
     }
 
     pub fn clear_highlight(&mut self) {
-        if let Some(highlights) = &mut self.highlights {
-            highlights.item.iter().for_each(|hl| {
-                let line = &mut self.lines[hl.line_index];
-                line.clear_highlight(hl.range.clone(), &hl.styles);
-            });
+        if let Some(highlights) = &self.highlights {
+            for hl in &highlights.item {
+                self.lines[hl.line_index].restore_original_styles();
+            }
         }
 
         self.highlights = None;
@@ -692,14 +707,9 @@ impl Line {
                 .iter()
                 .cloned()
                 .map(|range| {
-                    let styles = self.graphemes[range.clone()]
+                    self.graphemes[range.clone()]
                         .iter_mut()
-                        .map(|i| {
-                            let ret = *i.style();
-                            *i.style_mut() = highlight_style;
-                            ret
-                        })
-                        .collect();
+                        .for_each(|i| *i.style_mut() = highlight_style);
 
                     let line_number =
                         highlight_line_number(range.start, wrapped_lines, self.line_number);
@@ -707,7 +717,6 @@ impl Line {
                     Highlight {
                         line_index: self.line_index,
                         range,
-                        styles,
                         line_number,
                     }
                 })
@@ -719,12 +728,12 @@ impl Line {
         }
     }
 
-    pub fn clear_highlight(&mut self, range: Range<usize>, styles: &[Style]) {
-        let i = &mut self.graphemes[range];
-
-        i.iter_mut().zip(styles.iter()).for_each(|(l, r)| {
-            *l.style_mut() = *r;
-        });
+    /// literal_itemからオリジナルのスタイルを再導出して復元する
+    fn restore_original_styles(&mut self) {
+        let original = self.literal_item.item.styled_graphemes();
+        for (g, orig) in self.graphemes.iter_mut().zip(original.iter()) {
+            *g.style_mut() = *orig.style();
+        }
     }
 }
 
@@ -1081,7 +1090,7 @@ mod tests {
         use super::*;
 
         #[test]
-        fn 指定された文字列にマッチするときその文字列を退避してハイライトする() {
+        fn 指定された文字列にマッチするときハイライトする() {
             let item = LiteralItem {
                 item: "hello world".to_string(),
                 ..Default::default()
@@ -1117,13 +1126,6 @@ mod tests {
                 vec![Highlight {
                     line_index: 0,
                     range: 0..5,
-                    styles: vec![
-                        Style::default(),
-                        Style::default(),
-                        Style::default(),
-                        Style::default(),
-                        Style::default(),
-                    ],
                     line_number: 0,
                 }]
             );
@@ -1225,7 +1227,7 @@ mod tests {
                 wrapped_lines: 0..1,
             };
 
-            let highlight = line
+            let _highlight = line
                 .highlight_word(
                     "hello",
                     &wrapped_lines,
@@ -1233,7 +1235,7 @@ mod tests {
                 )
                 .unwrap();
 
-            line.clear_highlight(highlight[0].range.clone(), &highlight[0].styles);
+            line.restore_original_styles();
 
             let actual: Vec<Style> = line.graphemes.into_iter().map(|i| i.style).collect();
 
