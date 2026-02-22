@@ -214,6 +214,11 @@ pub fn update_contents(
             }
         }
 
+        Kube::Log(LogMessage::SetMaxLines(max_lines)) => {
+            let widget = window.find_widget_mut(POD_LOG_WIDGET_ID);
+            widget.as_mut_text().set_max_lines(max_lines);
+        }
+
         Kube::Config(ConfigMessage::Response(res)) => {
             use crate::features::config::message::ConfigResponse::*;
 
