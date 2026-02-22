@@ -127,8 +127,6 @@ impl TextItem {
     ) -> Self {
         let (lines, wrapped_lines) = Self::new_or_extend(literal_item, wrap_width, 0, 0);
 
-        let wrapped_lines: Vec<_> = wrapped_lines.into_iter().flatten().collect();
-
         let max_chars = wrapped_lines
             .iter()
             .map(|l| l.line().len())
@@ -183,15 +181,13 @@ impl TextItem {
 
         self.max_chars = wrapped_lines
             .iter()
-            .flatten()
             .map(|l| l.line().len())
             .max()
             .unwrap_or_default()
             .max(self.max_chars);
 
         self.lines.extend(lines);
-        self.wrapped_lines
-            .extend(wrapped_lines.into_iter().flatten());
+        self.wrapped_lines.extend(wrapped_lines);
 
         if let Some(highlights) = &mut self.highlights {
             let lines_len = self.lines.len();
@@ -226,11 +222,11 @@ impl TextItem {
         wrap_width: Option<usize>,
         start_line_number: usize,
         lines_len: usize,
-    ) -> (Vec<Line>, Vec<Vec<WrappedLine>>) {
+    ) -> (Vec<Line>, Vec<WrappedLine>) {
         let item_len = literal_item.len();
 
         let mut lines = Vec::with_capacity(item_len);
-        let mut wrapped_lines = Vec::with_capacity(item_len);
+        let mut wrapped_lines = Vec::new();
 
         let mut line_number = start_line_number;
 
@@ -254,7 +250,7 @@ impl TextItem {
             line.wrapped_lines = line_number..(line_number + wrapped_len);
 
             lines.push(line);
-            wrapped_lines.push(new_wrapped);
+            wrapped_lines.extend(new_wrapped);
 
             line_number += wrapped_len;
         }
@@ -306,7 +302,12 @@ impl TextItem {
             (h.selected_index, removed_before_selected, selected_removed)
         });
 
-        // 先頭の行を削除
+        self.remove_front_lines(max_lines);
+        self.update_highlights_after_trim(lines_to_remove, focus_state);
+    }
+
+    /// 先頭の行を削除し、残りの行のインデックスを再計算する
+    fn remove_front_lines(&mut self, max_lines: usize) {
         let mut total_wrapped_removed = 0;
         while self.lines.len() > max_lines {
             if let Some(removed_line) = self.lines.pop_front() {
@@ -337,46 +338,56 @@ impl TextItem {
 
             self.last_trimmed_wrapped_count = total_wrapped_removed;
         }
+    }
 
-        // ハイライトのメタデータを更新（スタイルの再適用は不要）
-        if let Some(highlights) = &mut self.highlights {
-            // 削除対象行のハイライトを除去し、残りのインデックスを調整
-            highlights.item.retain(|hl| hl.line_index >= lines_to_remove);
+    /// トリム後にハイライトのメタデータを更新する
+    fn update_highlights_after_trim(
+        &mut self,
+        lines_to_remove: usize,
+        focus_state: Option<(usize, usize, bool)>,
+    ) {
+        let Some(highlights) = &mut self.highlights else {
+            return;
+        };
 
-            if highlights.item.is_empty() {
-                self.highlights = None;
-                return;
+        // 削除対象行のハイライトを除去し、残りのインデックスを調整
+        highlights
+            .item
+            .retain(|hl| hl.line_index >= lines_to_remove);
+
+        if highlights.item.is_empty() {
+            self.highlights = None;
+            return;
+        }
+
+        for hl in &mut highlights.item {
+            hl.line_index -= lines_to_remove;
+            let line = &self.lines[hl.line_index];
+            hl.line_number = highlight_line_number(
+                hl.range.start,
+                &self.wrapped_lines[line.wrapped_lines.clone()],
+                line.line_number,
+            );
+        }
+
+        // selected_index を復元
+        if let Some((old_selected, removed_before, selected_removed)) = focus_state {
+            let new_selected = if selected_removed {
+                (old_selected - removed_before)
+                    .min(highlights.item.len().saturating_sub(1))
+            } else {
+                old_selected - removed_before
+            };
+
+            // 選択中のハイライトが削除された場合、新しい選択にフォーカススタイルを適用
+            if selected_removed {
+                let hl = &highlights.item[new_selected];
+                self.lines[hl.line_index].graphemes[hl.range.clone()]
+                    .iter_mut()
+                    .for_each(|g| *g.style_mut() = *self.highlight_style.focus);
             }
 
-            for hl in &mut highlights.item {
-                hl.line_index -= lines_to_remove;
-                let line = &self.lines[hl.line_index];
-                hl.line_number = highlight_line_number(
-                    hl.range.start,
-                    &self.wrapped_lines[line.wrapped_lines.clone()],
-                    line.line_number,
-                );
-            }
-
-            // selected_index を復元
-            if let Some((old_selected, removed_before, selected_removed)) = focus_state {
-                let new_selected = if selected_removed {
-                    (old_selected - removed_before)
-                        .min(highlights.item.len().saturating_sub(1))
-                } else {
-                    old_selected - removed_before
-                };
-
-                // 選択中のハイライトが削除された場合、新しい選択にフォーカススタイルを適用
-                if selected_removed {
-                    let hl = &highlights.item[new_selected];
-                    self.lines[hl.line_index].graphemes[hl.range.clone()]
-                        .iter_mut()
-                        .for_each(|g| *g.style_mut() = *self.highlight_style.focus);
-                }
-
-                highlights.selected_index = new_selected;
-            }
+            highlights.selected_index = new_selected;
         }
     }
 }
@@ -419,33 +430,26 @@ impl TextItem {
         self.highlights = None;
     }
 
-    fn highlight_matches(&mut self, index: usize) {
-        if let Some(highlights) = &mut self.highlights {
+    /// 指定インデックスのハイライトにスタイルを適用する
+    fn apply_highlight_style(&mut self, index: usize, style: Style) {
+        if let Some(highlights) = &self.highlights {
             let hl = &highlights.item[index];
-
-            let line = &mut self.lines[hl.line_index];
-            let graphemes = &mut line.graphemes[hl.range.clone()];
-
-            graphemes
+            self.lines[hl.line_index].graphemes[hl.range.clone()]
                 .iter_mut()
-                .for_each(|gs| *gs.style_mut() = *self.highlight_style.matches);
+                .for_each(|gs| *gs.style_mut() = style);
         }
     }
 
+    fn highlight_matches(&mut self, index: usize) {
+        self.apply_highlight_style(index, *self.highlight_style.matches);
+    }
+
     fn highlight_focus(&mut self, index: usize) -> Option<usize> {
+        self.apply_highlight_style(index, *self.highlight_style.focus);
+
         if let Some(highlights) = &mut self.highlights {
-            let hl = &highlights.item[index];
-
-            let line = &mut self.lines[hl.line_index];
-            let graphemes = &mut line.graphemes[hl.range.clone()];
-
-            graphemes
-                .iter_mut()
-                .for_each(|gs| *gs.style_mut() = *self.highlight_style.focus);
-
             highlights.selected_index = index;
-
-            Some(hl.line_number)
+            Some(highlights.item[index].line_number)
         } else {
             None
         }
@@ -1282,11 +1286,7 @@ mod search {
                 }
             }
 
-            if !match_list.is_empty() {
-                Some(match_list)
-            } else {
-                None
-            }
+            (!match_list.is_empty()).then_some(match_list)
         }
     }
 
@@ -1310,11 +1310,7 @@ mod search {
                 }
             }
 
-            if !match_list.is_empty() {
-                Some(match_list)
-            } else {
-                None
-            }
+            (!match_list.is_empty()).then_some(match_list)
         }
     }
 
