@@ -20,8 +20,14 @@ pub enum ConfigLoadOption {
 }
 
 #[derive(Default, Debug, Deserialize, Serialize)]
+pub struct LoggingConfig {
+    pub max_lines: Option<usize>,
+}
+
+#[derive(Default, Debug, Deserialize, Serialize)]
 pub struct Config {
     pub theme: ThemeConfig,
+    pub logging: LoggingConfig,
 }
 
 impl Config {
