@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use nom::{
     branch::alt,
     bytes::complete::{is_not, tag},
-    character::complete::{alphanumeric1, anychar, char, multispace0, multispace1},
+    character::complete::{alphanumeric1, anychar, char, digit1, multispace0, multispace1},
     combinator::{all_consuming, map, recognize, value, verify},
     error::{ContextError, ParseError},
     multi::{fold_many0, many1_count, separated_list1},
@@ -235,6 +235,28 @@ fn jmespath<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     Ok((remaining, FilterAttribute::JMESPath(value)))
 }
 
+fn positive_integer<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&'a str, usize, E> {
+    let (remaining, digits) = digit1(s)?;
+    let n = digits
+        .parse::<usize>()
+        .map_err(|_| nom::Err::Error(E::from_error_kind(s, nom::error::ErrorKind::Digit)))?;
+    Ok((remaining, n))
+}
+
+fn limit<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&'a str, FilterAttribute<'a>, E> {
+    let (remaining, (_, value)) = separated_pair(
+        alt((tag("limit"), tag("lim"))),
+        char(':'),
+        positive_integer,
+    )
+    .parse(s)?;
+    Ok((remaining, FilterAttribute::Limit(value)))
+}
+
 fn specified_daemonset<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute<'a>, E> {
@@ -349,6 +371,7 @@ fn attribute<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         specified_statefulset,
         field_selector,
         label_selector,
+        limit,
         pod,
         exclude_pod,
         container,
@@ -714,6 +737,18 @@ mod tests {
         assert_eq!(remaining, "");
     }
 
+    #[rstest]
+    #[case("limit:5000", 5000)]
+    #[case("lim:5000", 5000)]
+    #[case("limit:1", 1)]
+    #[case("limit:100000", 100000)]
+    fn limit(#[case] query: &str, #[case] expected: usize) {
+        let (remaining, actual) = super::limit::<Error<_>>(query).unwrap();
+
+        assert_eq!(actual, FilterAttribute::Limit(expected));
+        assert_eq!(remaining, "");
+    }
+
     #[rustfmt::skip]
     #[rstest]
     #[case("pod:hoge", FilterAttribute::Pod("hoge".into()))]
@@ -735,6 +770,8 @@ mod tests {
     #[case("jmespath:message", FilterAttribute::JMESPath("message".into()))]
     #[case("jmes:level", FilterAttribute::JMESPath("level".into()))]
     #[case("jm:data.id", FilterAttribute::JMESPath("data.id".into()))]
+    #[case("limit:5000", FilterAttribute::Limit(5000))]
+    #[case("lim:1000", FilterAttribute::Limit(1000))]
     fn attribute(#[case] query: &str, #[case] expected: FilterAttribute) {
         let (remaining, actual) = super::attribute::<Error<_>>(query).unwrap();
 
@@ -763,6 +800,7 @@ mod tests {
             "statefulset/app",
             "jq:.message",
             "jmespath:data.id",
+            "limit:5000",
             "     ",
         ]
         .join("  ");
@@ -787,6 +825,7 @@ mod tests {
             FilterAttribute::Resource(SpecifiedResource::StatefulSet("app")),
             FilterAttribute::Jq(".message".into()),
             FilterAttribute::JMESPath("data.id".into()),
+            FilterAttribute::Limit(5000),
         ];
 
         assert_eq!(actual, expected);
