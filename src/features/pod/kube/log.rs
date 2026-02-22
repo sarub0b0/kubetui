@@ -18,6 +18,7 @@ use kube::Api;
 use tokio::task::{JoinError, JoinHandle};
 
 use crate::{
+    features::pod::message::LogMessage,
     kube::{context::Namespace, KubeClient},
     logger,
     message::Message,
@@ -148,6 +149,13 @@ impl AbortWorker for LogWorker {
     async fn run(&self) {
         match Filter::parse(&self.config.query) {
             Ok(filter) => {
+                // Send SetMaxLines message if limit is specified in the query
+                if filter.limit.is_some() {
+                    self.tx
+                        .send(LogMessage::SetMaxLines(filter.limit).into())
+                        .expect("Failed to send LogMessage::SetMaxLines");
+                }
+
                 match self.spawn_tasks(filter).await {
                     Ok(mut handles) => {
                         handles.join().await;

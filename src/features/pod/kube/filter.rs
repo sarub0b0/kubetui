@@ -90,6 +90,8 @@ pub struct Filter {
     pub exclude_log: Option<Vec<Regex>>,
     /// JSONログに適用するフィルター（jq、JMESPathなど）
     pub json_filter: Option<JsonFilter>,
+    /// ログバッファの最大行数
+    pub limit: Option<usize>,
 }
 
 impl Filter {
@@ -238,6 +240,10 @@ impl Filter {
 
                     filter.json_filter = Some(json_filter);
                 }
+
+                FilterAttribute::Limit(n) => {
+                    filter.limit = Some(n);
+                }
             }
         }
 
@@ -251,6 +257,7 @@ impl Filter {
                 .fold((false, false), |(ls, rl), filter| match filter {
                     FilterAttribute::Resource(_) => (ls, true),
                     FilterAttribute::LabelSelector(_) => (true, rl),
+                    FilterAttribute::Limit(_) => (ls, rl),
                     _ => (ls, rl),
                 });
 
@@ -398,6 +405,10 @@ impl std::fmt::Display for Filter {
             }
         }
 
+        if let Some(limit) = self.limit {
+            buf.push(format!("limit={}", limit));
+        }
+
         write!(f, "{}", buf.join(" "))
     }
 }
@@ -476,6 +487,7 @@ pub enum FilterAttribute<'a> {
     ExcludeLog(Cow<'a, str>),
     Jq(Cow<'a, str>),
     JMESPath(Cow<'a, str>),
+    Limit(usize),
 }
 
 struct FilterAttributes;
@@ -658,5 +670,31 @@ mod tests {
         let display2 = format!("{}", filter2);
         assert!(display2.contains("jq=.message"));
         assert!(!display2.contains("jmespath="));
+    }
+
+    #[test]
+    fn test_parse_with_limit() {
+        let filter = Filter::parse("limit:5000").unwrap();
+        assert_eq!(filter.limit, Some(5000));
+    }
+
+    #[test]
+    fn test_parse_with_limit_and_other_filters() {
+        let filter = Filter::parse("pod:api limit:5000 log:error").unwrap();
+        assert_eq!(filter.limit, Some(5000));
+        assert!(filter.pod.is_some());
+        assert!(filter.include_log.is_some());
+    }
+
+    #[test]
+    fn test_parse_without_limit() {
+        let filter = Filter::parse("pod:api").unwrap();
+        assert_eq!(filter.limit, None);
+    }
+
+    #[test]
+    fn test_parse_with_lim_alias() {
+        let filter = Filter::parse("lim:10000").unwrap();
+        assert_eq!(filter.limit, Some(10000));
     }
 }

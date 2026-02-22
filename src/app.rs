@@ -73,6 +73,7 @@ impl App {
             default_pod_columns,
             config.theme.clone(),
             cmd.clipboard,
+            config.logging.max_lines,
         );
 
         logger!(info, "app start");

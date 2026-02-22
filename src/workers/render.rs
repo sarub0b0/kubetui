@@ -35,6 +35,7 @@ pub struct Render {
     default_pod_columns: Option<PodColumns>,
     theme: ThemeConfig,
     clipboard_mode: ClipboardMode,
+    log_max_lines: Option<usize>,
 }
 
 impl Render {
@@ -46,6 +47,7 @@ impl Render {
         default_pod_columns: Option<PodColumns>,
         theme: ThemeConfig,
         clipboard_mode: ClipboardMode,
+        log_max_lines: Option<usize>,
     ) -> Self {
         Self {
             direction,
@@ -55,6 +57,7 @@ impl Render {
             default_pod_columns,
             theme,
             clipboard_mode,
+            log_max_lines,
         }
     }
 
@@ -96,6 +99,7 @@ impl Render {
             self.default_pod_columns.clone(),
             self.theme.clone(),
             self.clipboard_mode,
+            self.log_max_lines,
         )
         .build();
 

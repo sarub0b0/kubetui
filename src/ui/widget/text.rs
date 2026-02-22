@@ -189,6 +189,7 @@ pub struct TextBuilder {
     block_injection: Option<RenderBlockInjection>,
     actions: Vec<(UserEvent, Callback)>,
     clipboard: Option<Rc<RefCell<Clipboard>>>,
+    max_lines: Option<usize>,
 }
 
 impl TextBuilder {
@@ -253,12 +254,19 @@ impl TextBuilder {
         self
     }
 
+    pub fn max_lines(mut self, max_lines: Option<usize>) -> Self {
+        self.max_lines = max_lines;
+        self
+    }
+
     pub fn build(self) -> Text {
+        let mut item = TextItem::new(self.item, None, self.theme.search.clone());
+        item.set_max_lines(self.max_lines);
         Text {
             id: self.id,
             widget_base: self.widget_base,
             search_form: self.search_form,
-            item: TextItem::new(self.item, None, self.theme.search.clone()),
+            item,
             wrap: self.wrap,
             follow: self.follow,
             theme: self.theme,
@@ -287,6 +295,8 @@ pub struct Text {
     block_injection: Option<RenderBlockInjection>,
     actions: Vec<(UserEvent, Callback)>,
     clipboard: Option<Rc<RefCell<Clipboard>>>,
+    /// マウスドラッグ中に受け取ったアイテムを一時的に保持するバッファ
+    pending_items: Vec<Item>,
 }
 
 impl Text {
@@ -297,6 +307,18 @@ impl Text {
     /// followが有効で、かつユーザーがインタラクション中でない場合にtrueを返す
     fn should_follow(&self) -> bool {
         self.follow && matches!(self.interaction_state, InteractionState::Idle)
+    }
+
+    pub fn set_max_lines(&mut self, max_lines: Option<usize>) {
+        self.item.set_max_lines(max_lines);
+    }
+
+    /// ドラッグ中にバッファリングされたアイテムを反映する
+    fn flush_pending_items(&mut self) {
+        let items = std::mem::take(&mut self.pending_items);
+        for item in items {
+            self.append_widget_item(item);
+        }
     }
 }
 
@@ -595,6 +617,12 @@ impl WidgetTrait for Text {
     }
 
     fn append_widget_item(&mut self, item: Item) {
+        // マウスドラッグ中はコンテンツの追加をバッファリングする
+        if matches!(self.interaction_state, InteractionState::Selecting { .. }) {
+            self.pending_items.push(item);
+            return;
+        }
+
         let is_bottom = self.is_bottom();
 
         match item {
@@ -603,6 +631,12 @@ impl WidgetTrait for Text {
             _ => {
                 unreachable!()
             }
+        }
+
+        // トリムされた行数分スクロール位置を調整
+        let trimmed = self.item.take_trimmed_wrapped_count();
+        if trimmed > 0 {
+            self.scroll.y = self.scroll.y.saturating_sub(trimmed);
         }
 
         if self.should_follow() && is_bottom {
@@ -760,6 +794,7 @@ impl WidgetTrait for Text {
                 }
 
                 self.interaction_state = InteractionState::Idle;
+                self.flush_pending_items();
             }
             MouseEventKind::ScrollDown => {
                 self.select_next(5);

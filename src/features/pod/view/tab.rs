@@ -38,11 +38,12 @@ impl PodTab {
         namespaces: Rc<RefCell<Namespace>>,
         default_columns: Option<PodColumns>,
         theme: WidgetThemeConfig,
+        log_max_lines: Option<usize>,
     ) -> Self {
         let pod_widget = pod_widget(tx, theme.clone());
         let log_query_widget = log_query_widget(tx, namespaces, theme.clone());
         let pod_columns_dialog = pod_columns_dialog(tx, default_columns, theme.clone());
-        let log_widget = log_widget(tx, clipboard, theme);
+        let log_widget = log_widget(tx, clipboard, theme, log_max_lines);
         let log_query_help_widget = log_query_help_widget();
 
         let layout = TabLayout::new(layout, split_direction);

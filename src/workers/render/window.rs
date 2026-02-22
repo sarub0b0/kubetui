@@ -66,6 +66,7 @@ pub struct WindowInit {
     default_pod_columns: Option<PodColumns>,
     theme: ThemeConfig,
     clipboard_mode: ClipboardMode,
+    log_max_lines: Option<usize>,
 }
 
 impl WindowInit {
@@ -77,6 +78,7 @@ impl WindowInit {
         default_pod_columns: Option<PodColumns>,
         theme: ThemeConfig,
         clipboard_mode: ClipboardMode,
+        log_max_lines: Option<usize>,
     ) -> Self {
         Self {
             split_mode,
@@ -86,6 +88,7 @@ impl WindowInit {
             default_pod_columns,
             theme,
             clipboard_mode,
+            log_max_lines,
         }
     }
 
@@ -202,6 +205,7 @@ impl WindowInit {
             self.namespaces.clone(),
             self.default_pod_columns.clone(),
             self.theme.component.clone(),
+            self.log_max_lines,
         );
 
         let ConfigTab { tab: config_tab } = ConfigTab::new(

@@ -22,6 +22,7 @@ pub fn log_widget(
     tx: &Sender<Message>,
     clipboard: &Option<Rc<RefCell<Clipboard>>>,
     theme: WidgetThemeConfig,
+    max_lines: Option<usize>,
 ) -> Widget<'static> {
     let widget_theme = WidgetTheme::from(theme.clone());
 
@@ -36,7 +37,7 @@ pub fn log_widget(
 
     let text_theme = TextTheme::from(theme);
 
-    let builder = Text::builder()
+    let mut builder = Text::builder()
         .id(POD_LOG_WIDGET_ID)
         .widget_base(widget_base)
         .search_form(search_form)
@@ -53,6 +54,10 @@ pub fn log_widget(
             UserEvent::from(KeyCode::Char('p')),
             toggle_json_pretty_print(tx.clone()),
         );
+
+    if let Some(max) = max_lines {
+        builder = builder.max_lines(Some(max));
+    }
 
     if let Some(cb) = clipboard {
         builder.clipboard(cb.clone())
