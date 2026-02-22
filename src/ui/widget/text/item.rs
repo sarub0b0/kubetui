@@ -119,9 +119,6 @@ pub struct TextItem {
     last_trimmed_wrapped_count: usize,
 }
 
-type Graphemes = Vec<StyledGrapheme>;
-type Wrappers<'a> = Vec<*const [StyledGrapheme]>;
-
 impl TextItem {
     pub fn new(
         literal_item: Vec<LiteralItem>,
@@ -230,21 +227,6 @@ impl TextItem {
         start_line_number: usize,
         lines_len: usize,
     ) -> (Vec<Line>, Vec<Vec<WrappedLine>>) {
-        let graphemes_list: Vec<Graphemes> = literal_item
-            .iter()
-            .map(|item| item.item.styled_graphemes())
-            .collect();
-
-        #[allow(clippy::needless_collect)]
-        let wrappers_list: Vec<Wrappers> = graphemes_list
-            .iter()
-            .map(|g| {
-                g.wrap(wrap_width)
-                    .map(|w| w as *const [StyledGrapheme])
-                    .collect()
-            })
-            .collect();
-
         let item_len = literal_item.len();
 
         let mut lines = Vec::with_capacity(item_len);
@@ -252,36 +234,30 @@ impl TextItem {
 
         let mut line_number = start_line_number;
 
-        graphemes_list
-            .into_iter()
-            .zip(wrappers_list)
-            .zip(literal_item)
-            .enumerate()
-            .for_each(|(i, ((graphemes, wrapped), literal_item))| {
-                let wrapped_len = wrapped.len();
-                let line_index = lines_len + i;
+        for (i, literal_item) in literal_item.into_iter().enumerate() {
+            let graphemes = literal_item.item.styled_graphemes();
+            let line_index = lines_len + i;
 
-                let new_wrapped_lines: Vec<WrappedLine> = wrapped
-                    .into_iter()
-                    .map(|w| WrappedLine {
-                        line_index,
-                        slice_ptr: w,
-                    })
-                    .collect();
+            // Lineを先に作成し、graphemesのヒープ割り当てを確定させる
+            let mut line = Line {
+                line_index,
+                line_number,
+                literal_item,
+                graphemes,
+                wrapped_lines: 0..0, // 仮の値
+            };
 
-                let line = Line {
-                    line_index,
-                    line_number,
-                    literal_item,
-                    graphemes,
-                    wrapped_lines: line_number..(line_number + wrapped_len),
-                };
+            // graphemesが確定した位置にあるのでポインタを安全に取得できる
+            let new_wrapped = line.create_wrapped_lines(wrap_width);
+            let wrapped_len = new_wrapped.len();
 
-                lines.push(line);
-                wrapped_lines.push(new_wrapped_lines);
+            line.wrapped_lines = line_number..(line_number + wrapped_len);
 
-                line_number += wrapped_len;
-            });
+            lines.push(line);
+            wrapped_lines.push(new_wrapped);
+
+            line_number += wrapped_len;
+        }
 
         (lines, wrapped_lines)
     }
@@ -475,60 +451,50 @@ impl TextItem {
         }
     }
 
-    pub fn select_nearest_highlight(&mut self, scroll_index: usize) -> Option<usize> {
-        if let Some(highlights) = &mut self.highlights {
-            let index = highlights.selected_index;
+    /// 現在のフォーカスを解除し、compute_nextで計算した新しいインデックスにフォーカスを移動する
+    fn move_highlight_focus(
+        &mut self,
+        compute_next: impl FnOnce(&Highlights) -> usize,
+    ) -> Option<usize> {
+        if let Some(highlights) = &self.highlights {
+            let old_index = highlights.selected_index;
+            let new_index = compute_next(highlights);
 
-            let nearest_index = highlights
+            self.highlight_matches(old_index);
+            self.highlight_focus(new_index)
+        } else {
+            None
+        }
+    }
+
+    pub fn select_nearest_highlight(&mut self, scroll_index: usize) -> Option<usize> {
+        self.move_highlight_focus(|highlights| {
+            highlights
                 .item
                 .iter()
                 .enumerate()
                 .min_by_key(|(_, hl)| hl.line_number.abs_diff(scroll_index))
                 .map(|(i, _)| i)
-                .unwrap_or(0);
-
-            self.highlight_matches(index);
-
-            self.highlight_focus(nearest_index)
-        } else {
-            None
-        }
+                .unwrap_or(0)
+        })
     }
 
     pub fn select_next_highlight(&mut self) -> Option<usize> {
-        if let Some(highlights) = &mut self.highlights {
-            let index = highlights.selected_index;
-
-            let item_len = highlights.item.len();
-
-            self.highlight_matches(index);
-
-            let index = (index + 1) % item_len;
-
-            self.highlight_focus(index)
-        } else {
-            None
-        }
+        self.move_highlight_focus(|highlights| {
+            (highlights.selected_index + 1) % highlights.item.len()
+        })
     }
 
     pub fn select_prev_highlight(&mut self) -> Option<usize> {
-        if let Some(highlights) = &mut self.highlights {
+        self.move_highlight_focus(|highlights| {
             let index = highlights.selected_index;
-
             let item_len = highlights.item.len();
-
-            self.highlight_matches(index);
-
-            let index = if index == 0 {
+            if index == 0 {
                 item_len.saturating_sub(1)
             } else {
                 index.saturating_sub(1)
-            };
-
-            self.highlight_focus(index)
-        } else {
-            None
-        }
+            }
+        })
     }
 
     pub fn highlight_status(&self) -> (usize, usize) {
@@ -554,44 +520,21 @@ impl TextItem {
     pub fn rewrap(&mut self, wrap_width: usize) {
         self.wrap_width = Some(wrap_width);
 
-        #[allow(clippy::needless_collect)]
-        let wrappers_list: Vec<Wrappers> = self
-            .lines
-            .iter()
-            .map(|line| {
-                line.graphemes
-                    .wrap(self.wrap_width)
-                    .map(|w| w as *const [StyledGrapheme])
-                    .collect()
-            })
-            .collect();
-
-        let mut wrapped_lines = Vec::with_capacity(wrappers_list.len());
+        let mut all_wrapped_lines = Vec::new();
         let mut line_number = 0;
-        self.lines
-            .iter_mut()
-            .zip(wrappers_list)
-            .enumerate()
-            .for_each(|(i, (line, wrapped))| {
-                let wrapped_len = wrapped.len();
 
-                line.line_number = line_number;
-                line.wrapped_lines = line_number..(line_number + wrapped_len);
+        for line in self.lines.iter_mut() {
+            let new_wrapped = line.create_wrapped_lines(self.wrap_width);
+            let wrapped_len = new_wrapped.len();
 
-                let new_wrapped_lines: Vec<WrappedLine> = wrapped
-                    .into_iter()
-                    .map(|w| WrappedLine {
-                        line_index: i,
-                        slice_ptr: w,
-                    })
-                    .collect();
+            line.line_number = line_number;
+            line.wrapped_lines = line_number..(line_number + wrapped_len);
 
-                wrapped_lines.push(new_wrapped_lines);
+            all_wrapped_lines.extend(new_wrapped);
+            line_number += wrapped_len;
+        }
 
-                line_number += wrapped_len;
-            });
-
-        self.wrapped_lines = wrapped_lines.into_iter().flatten().collect();
+        self.wrapped_lines = all_wrapped_lines;
 
         if let Some(highlights) = &mut self.highlights {
             highlights.item.iter_mut().for_each(|hl| {
@@ -607,7 +550,7 @@ impl TextItem {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct Line {
     line_index: usize,
     /// 折り返しを考慮した１行目となる行番号
@@ -626,19 +569,6 @@ struct Line {
     /// ワード検索でスクロール位置を割り出すのに使う
     /// TextItem.wrappedのポインターをもつ
     wrapped_lines: Range<usize>,
-}
-
-#[allow(clippy::derivable_impls)]
-impl Default for Line {
-    fn default() -> Self {
-        Self {
-            line_number: 0,
-            literal_item: Default::default(),
-            graphemes: Default::default(),
-            wrapped_lines: Default::default(),
-            line_index: 0,
-        }
-    }
 }
 
 impl Line {
@@ -674,6 +604,17 @@ impl Line {
         } else {
             None
         }
+    }
+
+    /// graphemesをwrap_widthで折り返し、WrappedLineのリストを生成する
+    fn create_wrapped_lines(&self, wrap_width: Option<usize>) -> Vec<WrappedLine> {
+        self.graphemes
+            .wrap(wrap_width)
+            .map(|w| WrappedLine {
+                line_index: self.line_index,
+                slice_ptr: w as *const [StyledGrapheme],
+            })
+            .collect()
     }
 
     /// literal_itemからオリジナルのスタイルを再導出して復元する
