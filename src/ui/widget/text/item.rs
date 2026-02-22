@@ -4,6 +4,7 @@ use crate::ui::widget::{
     LiteralItem,
 };
 use ratatui::style::{Color, Modifier, Style};
+use std::collections::VecDeque;
 use std::ops::{Deref, Range};
 
 use search::Search;
@@ -96,7 +97,7 @@ impl Deref for SearchHighlightFocusStyle {
 #[derive(Debug, Default)]
 pub struct TextItem {
     /// 1行分のgraphemesに分割した文字列リスト
-    lines: Vec<Line>,
+    lines: VecDeque<Line>,
 
     /// 折り返しを考慮した描画のためのデータリスト
     /// item設定時に生成される
@@ -115,6 +116,12 @@ pub struct TextItem {
 
     /// ハイライトスタイル
     highlight_style: SearchHighlightStyle,
+
+    /// ログバッファの最大行数（Noneは制限なし）
+    max_lines: Option<usize>,
+
+    /// 直前のtrim_to_limitで削除されたwrapped_linesの数
+    last_trimmed_wrapped_count: usize,
 }
 
 type Graphemes = Vec<StyledGrapheme>;
@@ -137,12 +144,14 @@ impl TextItem {
             .unwrap_or_default();
 
         Self {
-            lines,
+            lines: lines.into(),
             wrapped_lines,
             highlights: None,
             wrap_width,
             max_chars,
             highlight_style,
+            max_lines: None,
+            last_trimmed_wrapped_count: 0,
         }
     }
 
@@ -150,8 +159,10 @@ impl TextItem {
         let wrap_width = self.wrap_width;
         let highlights = self.highlights.clone();
         let highlight_style = self.highlight_style.clone();
+        let max_lines = self.max_lines;
 
         let mut new = Self::new(item, wrap_width, highlight_style);
+        new.max_lines = max_lines;
 
         if let Some(highlights) = highlights {
             let prev_line_number = highlights.item[highlights.selected_index].line_number;
@@ -200,7 +211,7 @@ impl TextItem {
             wrapped_lines: line_number..(line_number + wrapped_lines.len()),
         };
 
-        self.lines.push(line);
+        self.lines.push_back(line);
         self.wrapped_lines.extend(wrapped_lines);
 
         if let Some(highlights) = &mut self.highlights {
@@ -215,6 +226,8 @@ impl TextItem {
                 highlights.item.extend(hls);
             }
         }
+
+        self.trim_to_limit();
     }
 
     pub fn extend(&mut self, item: Vec<LiteralItem>) {
@@ -241,9 +254,10 @@ impl TextItem {
 
         if let Some(highlights) = &mut self.highlights {
             let lines_len = self.lines.len();
-            let lines = &mut self.lines[(lines_len - extend_len)..];
+            let start = lines_len - extend_len;
+            let lines = self.lines.make_contiguous();
 
-            let hls: Vec<Highlight> = lines
+            let hls: Vec<Highlight> = lines[start..]
                 .iter_mut()
                 .filter_map(|line| {
                     line.highlight_word(
@@ -257,6 +271,8 @@ impl TextItem {
 
             highlights.item.extend(hls);
         }
+
+        self.trim_to_limit();
     }
 
     /// Vec<LiteralItem>からLine, WrappedLineを生成する
@@ -332,6 +348,95 @@ impl TextItem {
 
     pub fn max_chars(&self) -> usize {
         self.max_chars
+    }
+
+    pub fn set_max_lines(&mut self, max_lines: Option<usize>) {
+        self.max_lines = max_lines;
+    }
+
+    /// 直前のtrim_to_limitで削除されたwrapped_linesの数を取得してリセットする
+    pub fn take_trimmed_wrapped_count(&mut self) -> usize {
+        std::mem::take(&mut self.last_trimmed_wrapped_count)
+    }
+
+    /// max_linesを超過している場合、先頭の行を削除する
+    fn trim_to_limit(&mut self) {
+        let Some(max_lines) = self.max_lines else {
+            return;
+        };
+
+        if self.lines.len() <= max_lines {
+            return;
+        }
+
+        // トリム前にハイライトの検索ワードと選択位置を保存し、
+        // インデックスが有効なうちにスタイルを復元する
+        let lines_to_remove = self.lines.len() - max_lines;
+        let search_state = self.highlights.as_ref().map(|h| {
+            // selected_index より前にある、削除対象行上のハイライト数
+            let removed_before_selected = h
+                .item
+                .iter()
+                .take(h.selected_index)
+                .filter(|hl| hl.line_index < lines_to_remove)
+                .count();
+            // selected_index 自体が削除対象行上にあるか
+            let selected_removed = h
+                .item
+                .get(h.selected_index)
+                .map_or(false, |hl| hl.line_index < lines_to_remove);
+            (h.word.clone(), h.selected_index, removed_before_selected, selected_removed)
+        });
+        if self.highlights.is_some() {
+            self.clear_highlight();
+        }
+
+        let mut total_wrapped_removed = 0;
+
+        while self.lines.len() > max_lines {
+            if let Some(removed_line) = self.lines.pop_front() {
+                let wrapped_count =
+                    removed_line.wrapped_lines.end - removed_line.wrapped_lines.start;
+                self.wrapped_lines.drain(..wrapped_count);
+                total_wrapped_removed += wrapped_count;
+            }
+        }
+
+        if total_wrapped_removed > 0 {
+            // line_index, line_number, wrapped_lines Range を再計算
+            let mut wrapped_offset = 0;
+            for (i, line) in self.lines.iter_mut().enumerate() {
+                let wrapped_len = line.wrapped_lines.end - line.wrapped_lines.start;
+                line.line_index = i;
+                line.line_number = wrapped_offset;
+                line.wrapped_lines = wrapped_offset..(wrapped_offset + wrapped_len);
+                wrapped_offset += wrapped_len;
+            }
+
+            // WrappedLine の line_index を更新
+            for line in self.lines.iter() {
+                for wl in &mut self.wrapped_lines[line.wrapped_lines.clone()] {
+                    wl.line_index = line.line_index;
+                }
+            }
+
+            self.last_trimmed_wrapped_count = total_wrapped_removed;
+        }
+
+        // トリム後にハイライトを再適用し、選択位置を復元する
+        if let Some((word, old_selected, removed_before, selected_removed)) = search_state {
+            self.highlight(&word);
+
+            if let Some(highlights) = &self.highlights {
+                let new_index = if selected_removed {
+                    // 選択中のハイライトが削除された場合、同じ位置に繰り上がった要素を選択
+                    (old_selected - removed_before).min(highlights.item.len().saturating_sub(1))
+                } else {
+                    old_selected - removed_before
+                };
+                self.highlight_focus(new_index);
+            }
+        }
     }
 }
 
@@ -1148,6 +1253,115 @@ mod tests {
                     Style::default(),
                 ],
             );
+        }
+    }
+
+    mod max_lines_limit {
+        use pretty_assertions::assert_eq;
+
+        use super::*;
+
+        #[test]
+        fn push_within_limit() {
+            let mut item = TextItem::new(vec![], None, SearchHighlightStyle::default());
+            item.set_max_lines(Some(3));
+
+            item.push(LiteralItem::new("line1", None));
+            item.push(LiteralItem::new("line2", None));
+            item.push(LiteralItem::new("line3", None));
+
+            assert_eq!(item.lines.len(), 3);
+        }
+
+        #[test]
+        fn push_exceeds_limit() {
+            let mut item = TextItem::new(vec![], None, SearchHighlightStyle::default());
+            item.set_max_lines(Some(2));
+
+            item.push(LiteralItem::new("line1", None));
+            item.push(LiteralItem::new("line2", None));
+            item.push(LiteralItem::new("line3", None));
+
+            assert_eq!(item.lines.len(), 2);
+            assert_eq!(item.lines[0].literal_item.item, "line2".to_string());
+            assert_eq!(item.lines[1].literal_item.item, "line3".to_string());
+        }
+
+        #[test]
+        fn no_limit_by_default() {
+            let mut item = TextItem::new(vec![], None, SearchHighlightStyle::default());
+
+            for i in 0..100 {
+                item.push(LiteralItem::new(format!("line{}", i), None));
+            }
+
+            assert_eq!(item.lines.len(), 100);
+        }
+
+        #[test]
+        fn wrapped_lines_trimmed_correctly() {
+            let mut item = TextItem::new(vec![], Some(5), SearchHighlightStyle::default());
+            item.set_max_lines(Some(2));
+
+            // 10文字 → wrap_width=5 で 2 wrapped_lines
+            item.push(LiteralItem::new("0123456789", None));
+            item.push(LiteralItem::new("abcdefghij", None));
+            item.push(LiteralItem::new("ABCDEFGHIJ", None));
+
+            assert_eq!(item.lines.len(), 2);
+            assert_eq!(item.wrapped_lines.len(), 4);
+        }
+
+        #[test]
+        fn line_index_recalculated_after_trim() {
+            let mut item = TextItem::new(vec![], None, SearchHighlightStyle::default());
+            item.set_max_lines(Some(2));
+
+            item.push(LiteralItem::new("line1", None));
+            item.push(LiteralItem::new("line2", None));
+            item.push(LiteralItem::new("line3", None));
+
+            assert_eq!(item.lines[0].line_index, 0);
+            assert_eq!(item.lines[1].line_index, 1);
+            assert_eq!(item.lines[0].line_number, 0);
+            assert_eq!(item.lines[1].line_number, 1);
+        }
+
+        #[test]
+        fn trimmed_wrapped_count_reported() {
+            let mut item = TextItem::new(vec![], Some(5), SearchHighlightStyle::default());
+            item.set_max_lines(Some(2));
+
+            item.push(LiteralItem::new("0123456789", None)); // 2 wrapped
+            item.push(LiteralItem::new("abcdefghij", None)); // 2 wrapped
+            // まだ上限内なので trimmed = 0
+            assert_eq!(item.take_trimmed_wrapped_count(), 0);
+
+            item.push(LiteralItem::new("ABCDEFGHIJ", None)); // 2 wrapped, triggers trim
+            // "0123456789" の 2 wrapped lines が削除された
+            assert_eq!(item.take_trimmed_wrapped_count(), 2);
+
+            // 2回目の呼出しでは0に戻る
+            assert_eq!(item.take_trimmed_wrapped_count(), 0);
+        }
+
+        #[test]
+        fn extend_exceeds_limit() {
+            let mut item = TextItem::new(vec![], None, SearchHighlightStyle::default());
+            item.set_max_lines(Some(3));
+
+            item.extend(vec![
+                LiteralItem::new("line1", None),
+                LiteralItem::new("line2", None),
+                LiteralItem::new("line3", None),
+                LiteralItem::new("line4", None),
+                LiteralItem::new("line5", None),
+            ]);
+
+            assert_eq!(item.lines.len(), 3);
+            assert_eq!(item.lines[0].literal_item.item, "line3".to_string());
+            assert_eq!(item.lines[1].literal_item.item, "line4".to_string());
+            assert_eq!(item.lines[2].literal_item.item, "line5".to_string());
         }
     }
 }
