@@ -174,7 +174,7 @@ pub struct TextTheme {
     pub search: SearchHighlightStyle,
 
     /// マウスで範囲選択中のスタイル
-    pub selecton: SelectionStyle,
+    pub selection: SelectionStyle,
 }
 
 #[derive(Debug, Default)]
@@ -202,7 +202,6 @@ impl TextBuilder {
         self
     }
 
-    #[allow(dead_code)]
     pub fn search_form(mut self, search_form: SearchForm) -> Self {
         self.search_form = search_form;
         self
@@ -715,53 +714,32 @@ impl WidgetTrait for Text {
                         y: area.end.y.min(lines.len().saturating_sub(1)),
                     };
 
+                    let collect_symbols = |graphemes: &[StyledGrapheme]| -> String {
+                        graphemes.iter().map(StyledGrapheme::symbol).collect()
+                    };
+
                     for i in start.y..=end.y {
                         let line = &lines[i];
-                        let len = line.line().len().saturating_sub(1);
+                        let graphemes = line.line();
+                        let len = graphemes.len().saturating_sub(1);
 
-                        match i {
+                        let slice = match i {
                             i if start.y == i && end.y == i => {
-                                let start = start.x.min(len);
-                                let end = end.x.min(len);
-
-                                if let Some(content) = line.line().get(start..=end) {
-                                    contents += &content
-                                        .iter()
-                                        .map(StyledGrapheme::symbol)
-                                        .collect::<String>();
-                                }
+                                graphemes.get(start.x.min(len)..=end.x.min(len))
                             }
                             i if start.y == i => {
-                                let start = start.x;
-
-                                if len < start {
-                                    continue;
-                                }
-
-                                if let Some(content) = line.line().get(start..) {
-                                    contents += &content
-                                        .iter()
-                                        .map(StyledGrapheme::symbol)
-                                        .collect::<String>();
+                                if len < start.x {
+                                    None
+                                } else {
+                                    graphemes.get(start.x..)
                                 }
                             }
-                            i if end.y == i => {
-                                let end = end.x.min(len);
+                            i if end.y == i => graphemes.get(..=end.x.min(len)),
+                            _ => Some(graphemes),
+                        };
 
-                                if let Some(content) = line.line().get(..=end) {
-                                    contents += &content
-                                        .iter()
-                                        .map(StyledGrapheme::symbol)
-                                        .collect::<String>();
-                                }
-                            }
-                            _ => {
-                                contents += &line
-                                    .line()
-                                    .iter()
-                                    .map(StyledGrapheme::symbol)
-                                    .collect::<String>();
-                            }
+                        if let Some(slice) = slice {
+                            contents += &collect_symbols(slice);
                         }
 
                         if i != end.y {
@@ -937,7 +915,7 @@ impl RenderTrait for Text {
         let mut builder = Render::builder()
             .block(block)
             .lines(wrapped_lines)
-            .highlight_style(self.theme.selecton)
+            .highlight_style(self.theme.selection)
             .scroll(self.scroll);
 
         if let InteractionState::Selecting { area, .. } = &self.interaction_state {

@@ -55,45 +55,17 @@ pub trait StyledGraphemes {
     fn styled_graphemes_width(&self) -> usize;
 }
 
-impl StyledGraphemes for String {
+impl<T: AsRef<str>> StyledGraphemes for T {
     fn styled_graphemes(&self) -> Vec<StyledGrapheme> {
-        styled_graphemes(self)
+        styled_graphemes(self.as_ref())
     }
 
     fn styled_graphemes_symbols(&self) -> Vec<&str> {
-        styled_graphemes_symbols(self)
+        styled_graphemes_symbols(self.as_ref())
     }
 
     fn styled_graphemes_width(&self) -> usize {
-        styled_graphemes_symbols(self).concat().width()
-    }
-}
-
-impl StyledGraphemes for &String {
-    fn styled_graphemes(&self) -> Vec<StyledGrapheme> {
-        styled_graphemes(self)
-    }
-
-    fn styled_graphemes_symbols(&self) -> Vec<&str> {
-        styled_graphemes_symbols(self)
-    }
-
-    fn styled_graphemes_width(&self) -> usize {
-        styled_graphemes_symbols(self).concat().width()
-    }
-}
-
-impl StyledGraphemes for &str {
-    fn styled_graphemes(&self) -> Vec<StyledGrapheme> {
-        styled_graphemes(self)
-    }
-
-    fn styled_graphemes_symbols(&self) -> Vec<&str> {
-        styled_graphemes_symbols(self)
-    }
-
-    fn styled_graphemes_width(&self) -> usize {
-        styled_graphemes_symbols(self).concat().width()
+        styled_graphemes_symbols(self.as_ref()).concat().width()
     }
 }
 

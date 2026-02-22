@@ -113,7 +113,7 @@ impl From<WidgetThemeConfig> for TextTheme {
     fn from(theme: WidgetThemeConfig) -> Self {
         Self {
             search: theme.text.search.highlight.into(),
-            selecton: theme.text.selection.into(),
+            selection: theme.text.selection.into(),
         }
     }
 }
