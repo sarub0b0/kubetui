@@ -9,6 +9,7 @@ pub enum LogMessage {
     Request(LogConfig),
     Response(Result<Vec<String>>),
     ToggleJsonPrettyPrint,
+    SetMaxLines(Option<usize>),
 }
 
 impl From<LogMessage> for Message {
