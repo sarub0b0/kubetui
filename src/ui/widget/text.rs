@@ -273,6 +273,7 @@ impl TextBuilder {
             actions: self.actions,
             block_injection: self.block_injection,
             clipboard: self.clipboard,
+            default_max_lines: self.max_lines,
             ..Default::default()
         }
     }
@@ -297,6 +298,8 @@ pub struct Text {
     clipboard: Option<Rc<RefCell<Clipboard>>>,
     /// マウスドラッグ中に受け取ったアイテムを一時的に保持するバッファ
     pending_items: Vec<Item>,
+    /// 設定ファイルから読み込んだデフォルトのmax_lines（clear時に復元する）
+    default_max_lines: Option<usize>,
 }
 
 impl Text {
@@ -928,6 +931,7 @@ impl WidgetTrait for Text {
         };
 
         self.item = TextItem::new(vec![], wrap_width, self.theme.search.clone());
+        self.item.set_max_lines(self.default_max_lines);
         self.search_cancel();
 
         self.interaction_state = InteractionState::Idle;
