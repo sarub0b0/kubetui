@@ -23,6 +23,15 @@
         "k8s-openapi"
       ],
       "separateMajorMinor": false
+    },
+    {
+      "groupName": "jaq (jaq-core, jaq-std, jaq-json)",
+      "matchPackageNames": [
+        "jaq-core",
+        "jaq-std",
+        "jaq-json"
+      ],
+      "separateMajorMinor": false
     }
   ],
   "pin": {
