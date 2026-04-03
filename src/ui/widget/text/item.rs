@@ -298,7 +298,7 @@ impl TextItem {
             let selected_removed = h
                 .item
                 .get(h.selected_index)
-                .map_or(false, |hl| hl.line_index < lines_to_remove);
+                .is_some_and(|hl| hl.line_index < lines_to_remove);
             (h.selected_index, removed_before_selected, selected_removed)
         });
 
