@@ -50,3 +50,47 @@ impl Config {
         Ok(config)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use indoc::indoc;
+
+    #[test]
+    fn fallback_namespaces_が設定されている場合() {
+        let yaml = indoc! {"
+            fallback_namespaces:
+              - production
+              - staging
+              - dev
+        "};
+        let config: Config = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(
+            config.fallback_namespaces,
+            Some(vec![
+                "production".to_string(),
+                "staging".to_string(),
+                "dev".to_string(),
+            ])
+        );
+    }
+
+    #[test]
+    fn fallback_namespaces_が未設定の場合() {
+        let yaml = indoc! {"
+            logging:
+              max_lines: 1000
+        "};
+        let config: Config = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(config.fallback_namespaces, None);
+    }
+
+    #[test]
+    fn fallback_namespaces_が空配列の場合() {
+        let yaml = indoc! {"
+            fallback_namespaces: []
+        "};
+        let config: Config = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(config.fallback_namespaces, Some(vec![]));
+    }
+}
