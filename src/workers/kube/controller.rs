@@ -157,6 +157,7 @@ impl KubeController {
             target_namespaces,
             context,
             all_namespaces,
+            fallback_namespaces: _fallback_namespaces,
             pod_config,
             event_config,
             api_config,
