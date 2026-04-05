@@ -39,8 +39,10 @@ macro_rules! send_response {
     ($tx:expr, $msg:expr) => {
         use $crate::features::pod::message::LogMessage;
 
-        $tx.send(LogMessage::Response($msg).into())
-            .expect("Failed to send LogMessage::Response");
+        if let Err(e) = $tx.send(LogMessage::Response($msg).into()) {
+            $crate::logger!(error, "Failed to send LogMessage::Response: {}", e);
+            return;
+        }
     };
 }
 
@@ -151,9 +153,10 @@ impl AbortWorker for LogWorker {
             Ok(filter) => {
                 // Send SetMaxLines message if limit is specified in the query
                 if filter.limit.is_some() {
-                    self.tx
-                        .send(LogMessage::SetMaxLines(filter.limit).into())
-                        .expect("Failed to send LogMessage::SetMaxLines");
+                    if let Err(e) = self.tx.send(LogMessage::SetMaxLines(filter.limit).into()) {
+                        logger!(error, "Failed to send LogMessage::SetMaxLines: {}", e);
+                        return;
+                    }
                 }
 
                 match self.spawn_tasks(filter).await {

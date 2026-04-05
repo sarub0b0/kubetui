@@ -92,6 +92,9 @@ impl Worker for PodPoller {
 
             let pod_info = self.get_pod_info().await;
 
+            // TODO: Worker trait の改善時に、チャンネル切断を graceful に処理する。
+            // 現状は Worker::run() が WorkerResult を返す設計で、チャンネル切断時の
+            // 適切な戻り値がないため、パニックで対応している。
             tx.send(PodMessage::Poll(pod_info).into())
                 .expect("Failed to Kube::Pod");
         }

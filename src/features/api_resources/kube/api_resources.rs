@@ -290,6 +290,9 @@ impl Worker for ApiPoller {
                 *api_resources = fetched;
             }
             Err(err) => {
+                // TODO: Worker trait の改善時に、チャンネル切断を graceful に処理する。
+                // 現状は Worker::run() が WorkerResult を返す設計で、チャンネル切断時の
+                // 適切な戻り値がないため、パニックで対応している。
                 tx.send(ApiResponse::Poll(Err(err)).into())
                     .expect("Failed to send ApiResponse::Poll");
             }
@@ -316,11 +319,17 @@ impl Worker for ApiPoller {
                         // Clear error
                         if is_error {
                             is_error = false;
+                            // TODO: Worker trait の改善時に、チャンネル切断を graceful に処理する。
+                            // 現状は Worker::run() が WorkerResult を返す設計で、チャンネル切断時の
+                            // 適切な戻り値がないため、パニックで対応している。
                             tx.send(ApiResponse::Poll(Ok(Default::default())).into())
                                 .expect("Failed to send ApiResponse::Poll");
                         }
                     }
                     Err(err) => {
+                        // TODO: Worker trait の改善時に、チャンネル切断を graceful に処理する。
+                        // 現状は Worker::run() が WorkerResult を返す設計で、チャンネル切断時の
+                        // 適切な戻り値がないため、パニックで対応している。
                         tx.send(ApiResponse::Poll(Err(err)).into())
                             .expect("Failed to send ApiResponse::Poll");
                         is_error = true;
@@ -345,6 +354,9 @@ impl Worker for ApiPoller {
             .fetch_table()
             .await;
 
+            // TODO: Worker trait の改善時に、チャンネル切断を graceful に処理する。
+            // 現状は Worker::run() が WorkerResult を返す設計で、チャンネル切断時の
+            // 適切な戻り値がないため、パニックで対応している。
             tx.send(ApiResponse::Poll(result).into())
                 .expect("Failed to send ApiResponse::Poll");
         }
