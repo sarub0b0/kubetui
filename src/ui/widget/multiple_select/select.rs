@@ -469,6 +469,10 @@ impl<'a> SelectForm<'a> {
     pub fn clear_mouse_over(&mut self) {
         self.mouse_over_widget_index = None;
     }
+
+    pub fn update_items_title(&mut self, title: impl Into<String>) {
+        *self.unselected_widget.widget_base_mut().title_mut() = title.into().into();
+    }
 }
 
 #[inline]

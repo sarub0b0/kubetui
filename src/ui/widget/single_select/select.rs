@@ -225,6 +225,10 @@ impl SelectForm<'_> {
     pub fn select_last(&mut self) {
         self.list_widget.select_last();
     }
+
+    pub fn update_items_title(&mut self, title: impl Into<String>) {
+        *self.list_widget.widget_base_mut().title_mut() = title.into().into();
+    }
 }
 
 #[cfg(test)]

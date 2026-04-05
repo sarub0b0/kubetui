@@ -206,6 +206,10 @@ impl MultipleSelect<'_> {
     pub fn clear_mouse_over(&mut self) {
         self.select_form.clear_mouse_over();
     }
+
+    pub fn update_items_title(&mut self, title: impl Into<String>) {
+        self.select_form.update_items_title(title);
+    }
 }
 
 impl WidgetTrait for MultipleSelect<'_> {
