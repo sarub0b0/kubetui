@@ -224,6 +224,10 @@ impl SingleSelect<'_> {
             .iter()
             .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb) } else { None })
     }
+
+    pub fn update_items_title(&mut self, title: impl Into<String>) {
+        self.select_form.update_items_title(title);
+    }
 }
 
 impl WidgetTrait for SingleSelect<'_> {
