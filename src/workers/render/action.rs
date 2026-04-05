@@ -245,10 +245,16 @@ pub fn update_contents(
                             namespaces.iter().cloned().map(LiteralItem::from).collect(),
                         ));
                     window
+                        .find_widget_mut(MULTIPLE_NAMESPACES_DIALOG_ID)
+                        .update_items_title("Items");
+                    window
                         .find_widget_mut(SINGLE_NAMESPACE_DIALOG_ID)
                         .update_widget_item(Item::Array(
                             namespaces.iter().cloned().map(LiteralItem::from).collect(),
                         ));
+                    window
+                        .find_widget_mut(SINGLE_NAMESPACE_DIALOG_ID)
+                        .update_items_title("Items");
                 }
                 Err(err) => {
                     let err = error_lines!(err);
@@ -261,6 +267,24 @@ pub fn update_contents(
                         .update_widget_item(Item::Array(err));
                 }
             },
+            NamespaceResponse::GetFallback(namespaces) => {
+                window
+                    .find_widget_mut(MULTIPLE_NAMESPACES_DIALOG_ID)
+                    .update_widget_item(Item::Array(
+                        namespaces.iter().cloned().map(LiteralItem::from).collect(),
+                    ));
+                window
+                    .find_widget_mut(MULTIPLE_NAMESPACES_DIALOG_ID)
+                    .update_items_title("Items (from config)");
+                window
+                    .find_widget_mut(SINGLE_NAMESPACE_DIALOG_ID)
+                    .update_widget_item(Item::Array(
+                        namespaces.iter().cloned().map(LiteralItem::from).collect(),
+                    ));
+                window
+                    .find_widget_mut(SINGLE_NAMESPACE_DIALOG_ID)
+                    .update_items_title("Items (from config)");
+            }
             NamespaceResponse::Set(res) => {
                 namespace.update(res);
             }

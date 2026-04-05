@@ -207,9 +207,6 @@ impl MultipleSelect<'_> {
         self.select_form.clear_mouse_over();
     }
 
-    pub fn update_items_title(&mut self, title: impl Into<String>) {
-        self.select_form.update_items_title(title);
-    }
 }
 
 impl WidgetTrait for MultipleSelect<'_> {
@@ -316,6 +313,10 @@ impl WidgetTrait for MultipleSelect<'_> {
         *(self.widget_base.append_title_mut()) = None;
 
         unimplemented!()
+    }
+
+    fn update_items_title(&mut self, title: &str) {
+        self.select_form.update_items_title(title);
     }
 
     fn widget_base(&self) -> &WidgetBase {
