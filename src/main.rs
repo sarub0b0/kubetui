@@ -6,6 +6,7 @@ mod config;
 mod features;
 mod kube;
 mod logging;
+mod error;
 mod message;
 mod ui;
 mod workers;
