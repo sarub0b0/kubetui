@@ -19,6 +19,7 @@
 
 *.mov
 .envrc
+/.worktrees/
 
 /assets/*
 !/assets/demo*.webp
