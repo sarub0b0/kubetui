@@ -378,9 +378,9 @@ impl KubeController {
                     },
                     Err(e) => {
                         Self::abort(&handles);
-                        tx.send(Message::Error(NotifyError::from_anyhow(
+                        tx.send(Message::Error(NotifyError::new(
                             ErrorSource::Worker,
-                            &anyhow::Error::from(e).context("KubeProcess Error"),
+                            format!("KubeProcess Error: {}", e),
                         )))?;
                     }
                 }
