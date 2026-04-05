@@ -34,18 +34,6 @@ use self::{
     pod_watcher::{PodWatcher, PodWatcherFilter, PodWatcherSelector},
 };
 
-#[macro_export]
-macro_rules! send_response {
-    ($tx:expr, $msg:expr) => {
-        use $crate::features::pod::message::LogMessage;
-
-        if let Err(e) = $tx.send(LogMessage::Response($msg).into()) {
-            $crate::logger!(error, "Failed to send LogMessage::Response: {}", e);
-            return;
-        }
-    };
-}
-
 #[derive(Debug, Clone)]
 pub struct LogConfig {
     pub namespaces: Namespace,
@@ -165,7 +153,9 @@ impl AbortWorker for LogWorker {
                     }
                     Err(err) => {
                         logger!(error, "{}", err);
-                        send_response!(self.tx, Err(anyhow!(err)));
+                        if let Err(e) = self.tx.send(LogMessage::Response(Err(anyhow!(err))).into()) {
+                            logger!(error, "Failed to send LogMessage::Response: {}", e);
+                        }
                     }
                 };
             }
@@ -180,7 +170,9 @@ impl AbortWorker for LogWorker {
                    err = err
                 };
 
-                send_response!(self.tx, Err(anyhow!(msg)));
+                if let Err(e) = self.tx.send(LogMessage::Response(Err(anyhow!(msg))).into()) {
+                    logger!(error, "Failed to send LogMessage::Response: {}", e);
+                }
             }
         }
     }

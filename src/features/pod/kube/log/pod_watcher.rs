@@ -18,10 +18,10 @@ use regex::Regex;
 use tokio::task::AbortHandle;
 
 use crate::{
+    features::pod::message::LogMessage,
     kube::KubeClient,
     logger,
     message::Message,
-    send_response,
     workers::kube::{AbortWorker, Worker},
 };
 
@@ -139,7 +139,10 @@ impl Worker for PodWatcher {
                     }
                     Bookmark(_) => {}
                     Error(err) => {
-                        send_response!(self.tx, Err(anyhow!(err)));
+                        if let Err(e) = self.tx.send(LogMessage::Response(Err(anyhow!(err))).into()) {
+                            logger!(error, "Failed to send LogMessage::Response: {}", e);
+                            return;
+                        }
                     }
                 }
             }
