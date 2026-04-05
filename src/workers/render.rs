@@ -14,6 +14,7 @@ use ratatui::{backend::CrosstermBackend, layout::Direction, Terminal, TerminalOp
 use crate::{
     cmd::ClipboardMode,
     config::theme::ThemeConfig,
+    error::NotifyError,
     features::pod::PodColumns,
     kube::context::{Context, Namespace},
     logger,
@@ -88,6 +89,7 @@ impl Render {
     }
 
     fn render(&self) -> Result<()> {
+        let last_error: Rc<RefCell<Option<NotifyError>>> = Rc::new(RefCell::new(None));
         let namespace = Rc::new(RefCell::new(Namespace::new()));
         let context = Rc::new(RefCell::new(Context::new()));
 
@@ -117,7 +119,7 @@ impl Render {
                 window.render(f);
             })?;
 
-            match window_action(&mut window, &self.rx) {
+            match window_action(&mut window, &self.rx, &last_error) {
                 WindowAction::Continue => {}
                 WindowAction::CloseWindow => {
                     break;

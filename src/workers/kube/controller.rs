@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use async_trait::async_trait;
 use crossbeam::channel::{Receiver, Sender};
 use futures::future::select_all;
@@ -13,6 +13,7 @@ use tokio::{
 };
 
 use crate::{
+    error::{ErrorSource, NotifyError},
     features::{
         api_resources::{
             kube::{ApiConfig, ApiPoller, ApiResource, ApiResources, SharedApiResources},
@@ -377,7 +378,10 @@ impl KubeController {
                     },
                     Err(e) => {
                         Self::abort(&handles);
-                        tx.send(Message::Error(anyhow!("KubeProcess Error: {:?}", e)))?;
+                        tx.send(Message::Error(NotifyError::from_anyhow(
+                            ErrorSource::Worker,
+                            &anyhow::Error::from(e).context("KubeProcess Error"),
+                        )))?;
                     }
                 }
             }

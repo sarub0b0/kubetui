@@ -1,5 +1,6 @@
 use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent};
 
+use crate::error::NotifyError;
 use crate::workers::kube::message::Kube;
 
 #[derive(Debug, PartialEq, Clone, Copy, Eq, Hash)]
@@ -39,7 +40,7 @@ pub enum Message {
     Kube(Kube),
     User(UserEvent),
     Tick,
-    Error(anyhow::Error),
+    Error(NotifyError),
 }
 
 #[macro_export]
