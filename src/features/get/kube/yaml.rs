@@ -120,16 +120,17 @@ impl AbortWorker for GetYamlWorker {
                 },
             };
 
-            self.tx
-                .send(
-                    GetResponse {
-                        yaml,
-                        kind: kind.to_string(),
-                        name: name.to_string(),
-                    }
-                    .into(),
-                )
-                .expect("Failed to send YamlResponse::Yaml");
+            if let Err(e) = self.tx.send(
+                GetResponse {
+                    yaml,
+                    kind: kind.to_string(),
+                    name: name.to_string(),
+                }
+                .into(),
+            ) {
+                logger!(error, "Failed to send GetResponse: {}", e);
+                return;
+            }
         }
     }
 }

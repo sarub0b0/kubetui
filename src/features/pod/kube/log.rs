@@ -34,16 +34,6 @@ use self::{
     pod_watcher::{PodWatcher, PodWatcherFilter, PodWatcherSelector},
 };
 
-#[macro_export]
-macro_rules! send_response {
-    ($tx:expr, $msg:expr) => {
-        use $crate::features::pod::message::LogMessage;
-
-        $tx.send(LogMessage::Response($msg).into())
-            .expect("Failed to send LogMessage::Response");
-    };
-}
-
 #[derive(Debug, Clone)]
 pub struct LogConfig {
     pub namespaces: Namespace,
@@ -151,9 +141,10 @@ impl AbortWorker for LogWorker {
             Ok(filter) => {
                 // Send SetMaxLines message if limit is specified in the query
                 if filter.limit.is_some() {
-                    self.tx
-                        .send(LogMessage::SetMaxLines(filter.limit).into())
-                        .expect("Failed to send LogMessage::SetMaxLines");
+                    if let Err(e) = self.tx.send(LogMessage::SetMaxLines(filter.limit).into()) {
+                        logger!(error, "Failed to send LogMessage::SetMaxLines: {}", e);
+                        return;
+                    }
                 }
 
                 match self.spawn_tasks(filter).await {
@@ -162,7 +153,9 @@ impl AbortWorker for LogWorker {
                     }
                     Err(err) => {
                         logger!(error, "{}", err);
-                        send_response!(self.tx, Err(anyhow!(err)));
+                        if let Err(e) = self.tx.send(LogMessage::Response(Err(anyhow!(err))).into()) {
+                            logger!(error, "Failed to send LogMessage::Response: {}", e);
+                        }
                     }
                 };
             }
@@ -177,7 +170,9 @@ impl AbortWorker for LogWorker {
                    err = err
                 };
 
-                send_response!(self.tx, Err(anyhow!(msg)));
+                if let Err(e) = self.tx.send(LogMessage::Response(Err(anyhow!(msg))).into()) {
+                    logger!(error, "Failed to send LogMessage::Response: {}", e);
+                }
             }
         }
     }

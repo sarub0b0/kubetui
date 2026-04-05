@@ -84,6 +84,9 @@ impl Worker for EventPoller {
 
             let event_list = get_event_table(config, kube_client, &target_namespaces).await;
 
+            // TODO: Worker trait の改善時に、チャンネル切断を graceful に処理する。
+            // 現状は Worker::run() が WorkerResult を返す設計で、チャンネル切断時の
+            // 適切な戻り値がないため、パニックで対応している。
             tx.send(Message::Kube(Kube::Event(event_list)))
                 .expect("Failed to send Kube::Event");
         }

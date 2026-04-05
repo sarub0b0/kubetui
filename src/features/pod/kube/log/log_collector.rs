@@ -7,7 +7,10 @@ use jaq_json::Val;
 use tokio::{sync::Mutex, time};
 
 use crate::{
-    features::pod::kube::filter::JsonFilter, message::Message, send_response, workers::kube::Worker,
+    features::pod::{kube::filter::JsonFilter, message::LogMessage},
+    logger,
+    message::Message,
+    workers::kube::Worker,
 };
 
 use super::log_content::LogContent;
@@ -141,7 +144,10 @@ impl Worker for LogCollector {
                 continue;
             }
 
-            send_response!(self.tx, Ok(logs));
+            if let Err(e) = self.tx.send(LogMessage::Response(Ok(logs)).into()) {
+                logger!(error, "Failed to send LogMessage::Response: {}", e);
+                return;
+            }
         }
     }
 }

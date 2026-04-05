@@ -72,9 +72,10 @@ impl<C: KubeClientRequest> AbortWorker for YamlWorker<C> {
             )
             .await;
 
-            self.tx
-                .send(YamlResponse::Yaml(fetched_data).into())
-                .expect("Failed to send YamlResponse::Yaml");
+            if let Err(e) = self.tx.send(YamlResponse::Yaml(fetched_data).into()) {
+                logger!(error, "Failed to send YamlResponse::Yaml: {}", e);
+                return;
+            }
         }
     }
 }
