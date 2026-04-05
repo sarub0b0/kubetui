@@ -1,0 +1,73 @@
+---
+# テスト用 namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test-ns-a
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test-ns-b
+---
+# namespace一覧の取得権限がないServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubetui-test-user
+  namespace: default
+---
+# Pod等の基本リソースへのアクセス権限（namespace内のみ）
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kubetui-test-role
+  namespace: test-ns-a
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "secrets", "events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kubetui-test-role
+  namespace: test-ns-b
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "secrets", "events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubetui-test-binding
+  namespace: test-ns-a
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kubetui-test-role
+subjects:
+  - kind: ServiceAccount
+    name: kubetui-test-user
+    namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubetui-test-binding
+  namespace: test-ns-b
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kubetui-test-role
+subjects:
+  - kind: ServiceAccount
+    name: kubetui-test-user
+    namespace: default
