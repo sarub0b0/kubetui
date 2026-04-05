@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
-use anyhow::Result;
+use anyhow::{Context as _, Result};
 use async_trait::async_trait;
 use crossbeam::channel::{Receiver, Sender};
 use futures::future::select_all;
@@ -222,7 +222,7 @@ impl KubeController {
         let mut override_namespaces: Option<Vec<String>> = None;
 
         loop {
-            store.ensure_context(&kubeconfig, &context).await?;
+            store.ensure_context(&kubeconfig, &context).await.context("Failed to initialize context")?;
 
             let KubeState {
                 client,
@@ -231,7 +231,7 @@ impl KubeController {
             } = store.get(&context)?.clone();
 
             if let Some(mut override_namespaces) = override_namespaces.take() {
-                let fetched_namespaces = fetch_all_namespaces(client.clone()).await?;
+                let fetched_namespaces = fetch_all_namespaces(client.clone()).await.context("Failed to fetch namespaces")?;
 
                 let found_namespaces: Vec<_> = override_namespaces
                     .extract_if(.., |ns| fetched_namespaces.contains(ns))
@@ -242,11 +242,19 @@ impl KubeController {
                 if found_namespaces.is_empty() {
                     // まったく存在しない場合：ストアにフォールバック
                     crate::logger!(warn, "No namespaces found: {not_found_namespaces:?}. Falling back to stored namespaces: {stored_target_namespaces:?}");
+                    let _ = tx.send(Message::Error(NotifyError::new(
+                        ErrorSource::Namespace,
+                        format!("Namespaces {:?} not found, using stored namespaces", not_found_namespaces),
+                    )));
                     // stored_target_namespaces はそのまま（ストアの値を使用）
                 } else {
                     // 一部またはすべて存在する場合：存在するもののみを使用
                     if !not_found_namespaces.is_empty() {
                         crate::logger!(warn, "Some namespaces not found: {not_found_namespaces:?}. Using available namespaces: {found_namespaces:?}");
+                        let _ = tx.send(Message::Error(NotifyError::new(
+                            ErrorSource::Namespace,
+                            format!("Some namespaces not found: {:?}, using: {:?}", not_found_namespaces, found_namespaces),
+                        )));
                     } else {
                         crate::logger!(info, "Using namespaces: {found_namespaces:?}");
                     }

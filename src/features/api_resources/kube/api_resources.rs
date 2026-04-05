@@ -1,6 +1,6 @@
 use std::{fmt::Display, hash::Hash, ops::Deref, sync::Arc, time};
 
-use anyhow::Result;
+use anyhow::{Context as _, Result};
 use async_trait::async_trait;
 use crossbeam::channel::Sender;
 use futures::future::try_join_all;
@@ -352,7 +352,7 @@ impl Worker for ApiPoller {
 }
 
 pub async fn fetch_api_resources(client: &KubeClient) -> Result<ApiResources> {
-    let discovery = Discovery::new(client.to_client()).run().await?;
+    let discovery = Discovery::new(client.to_client()).run().await.context("Failed to discover API resources")?;
 
     let ret = discovery
         .groups()
