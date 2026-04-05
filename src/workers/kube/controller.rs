@@ -139,6 +139,7 @@ pub struct KubeController {
     kubeconfig: Kubeconfig,
     context: String,
     store: KubeStore,
+    fallback_namespaces: Option<Vec<String>>,
     pod_config: PodConfig,
     event_config: EventConfig,
     api_config: ApiConfig,
@@ -157,7 +158,7 @@ impl KubeController {
             target_namespaces,
             context,
             all_namespaces,
-            fallback_namespaces: _fallback_namespaces,
+            fallback_namespaces,
             pod_config,
             event_config,
             api_config,
@@ -195,6 +196,7 @@ impl KubeController {
             kubeconfig,
             context: context.to_string(),
             store,
+            fallback_namespaces,
             pod_config,
             event_config,
             api_config,
@@ -210,6 +212,7 @@ impl KubeController {
             kubeconfig,
             mut context,
             mut store,
+            fallback_namespaces,
             pod_config,
             event_config,
             api_config,
@@ -298,6 +301,7 @@ impl KubeController {
                 shared_pod_columns: shared_pod_columns.clone(),
                 apis_config: apis_config.clone(),
                 yaml_config: yaml_config.clone(),
+                fallback_namespaces: fallback_namespaces.clone(),
             };
 
             let event_controller_handle = EventController::new(event_controller_args).spawn();
@@ -400,6 +404,7 @@ struct EventControllerArgs {
     shared_pod_columns: SharedPodColumns,
     apis_config: ApisConfig,
     yaml_config: YamlConfig,
+    fallback_namespaces: Option<Vec<String>>,
 }
 
 #[derive(Clone)]
@@ -414,6 +419,7 @@ struct EventController {
     shared_pod_columns: SharedPodColumns,
     apis_config: ApisConfig,
     yaml_config: YamlConfig,
+    fallback_namespaces: Option<Vec<String>>,
 }
 
 impl EventController {
@@ -429,6 +435,7 @@ impl EventController {
             shared_pod_columns: args.shared_pod_columns,
             apis_config: args.apis_config,
             yaml_config: args.yaml_config,
+            fallback_namespaces: args.fallback_namespaces,
         }
     }
 }
@@ -474,6 +481,7 @@ impl Worker for EventController {
             shared_pod_columns,
             apis_config,
             yaml_config,
+            fallback_namespaces,
         } = self;
 
         loop {
@@ -489,8 +497,24 @@ impl Worker for EventController {
                     Kube::Namespace(NamespaceMessage::Request(req)) => match req {
                         NamespaceRequest::Get => {
                             let ns = fetch_all_namespaces(kube_client.clone()).await;
-                            tx.send(NamespaceResponse::Get(ns).into())
-                                .expect("Failed to send NamespaceResponse::Get");
+                            match ns {
+                                Ok(namespaces) => {
+                                    tx.send(NamespaceResponse::Get(Ok(namespaces)).into())
+                                        .expect("Failed to send NamespaceResponse::Get");
+                                }
+                                Err(err) => {
+                                    match fallback_namespaces {
+                                        Some(fb) => {
+                                            tx.send(NamespaceResponse::GetFallback(fb.clone()).into())
+                                                .expect("Failed to send NamespaceResponse::GetFallback");
+                                        }
+                                        None => {
+                                            tx.send(NamespaceResponse::Get(Err(err)).into())
+                                                .expect("Failed to send NamespaceResponse::Get");
+                                        }
+                                    }
+                                }
+                            }
                         }
                         NamespaceRequest::Set(req) => {
                             {
