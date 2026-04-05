@@ -50,6 +50,20 @@ impl App {
         kube_worker_config.apis_config = ApisConfig::from(config.theme.clone());
         kube_worker_config.yaml_config = YamlConfig::from(config.theme.clone());
 
+        kube_worker_config.fallback_namespaces =
+            config.fallback_namespaces.and_then(|namespaces| {
+                let mut seen = std::collections::HashSet::new();
+                let deduped: Vec<String> = namespaces
+                    .into_iter()
+                    .filter(|ns| seen.insert(ns.clone()))
+                    .collect();
+                if deduped.is_empty() {
+                    None
+                } else {
+                    Some(deduped)
+                }
+            });
+
         let default_pod_columns = kube_worker_config.pod_config.default_columns.clone();
 
         let kube = KubeWorker::new(

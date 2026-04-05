@@ -229,6 +229,8 @@ pub trait WidgetTrait {
     fn update_chunk(&mut self, _: Rect);
     // コンテンツの初期化
     fn clear(&mut self);
+
+    fn update_items_title(&mut self, _title: &str) {}
 }
 
 #[enum_dispatch]

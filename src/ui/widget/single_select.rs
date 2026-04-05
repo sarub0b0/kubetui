@@ -224,6 +224,7 @@ impl SingleSelect<'_> {
             .iter()
             .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb) } else { None })
     }
+
 }
 
 impl WidgetTrait for SingleSelect<'_> {
@@ -321,6 +322,10 @@ impl WidgetTrait for SingleSelect<'_> {
     fn clear(&mut self) {
         *(self.widget_base.append_title_mut()) = None;
         unimplemented!()
+    }
+
+    fn update_items_title(&mut self, title: &str) {
+        self.select_form.update_items_title(title);
     }
 
     fn widget_base(&self) -> &WidgetBase {

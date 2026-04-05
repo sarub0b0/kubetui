@@ -19,6 +19,7 @@ pub enum NamespaceRequest {
 #[derive(Debug)]
 pub enum NamespaceResponse {
     Get(Result<TargetNamespaces>),
+    GetFallback(TargetNamespaces),
     Set(TargetNamespaces),
 }
 

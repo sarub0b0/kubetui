@@ -1,0 +1,3 @@
+fallback_namespaces:
+  - test-ns-a
+  - test-ns-b
