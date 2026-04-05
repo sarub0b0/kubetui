@@ -5,9 +5,9 @@
 # modifier: "none" | "bold" | "dim" | "italic" | "underlined" | "slow_blink" | "rapid_blink" | "reversed" | "hidden" | "crossed_out"
 # border.type: "plain" | "rounded" | "double" | "thick"
 
+# Namespaces to show when the Kubernetes API cannot list namespaces
+# (e.g. due to RBAC restrictions). Only used as a fallback.
 # fallback_namespaces:
-#   Namespaces to show when the Kubernetes API cannot list namespaces
-#   (e.g. due to RBAC restrictions). Only used as a fallback.
 #   - production
 #   - staging
 #   - dev

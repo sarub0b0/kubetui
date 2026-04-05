@@ -505,6 +505,7 @@ impl Worker for EventController {
                                 Err(err) => {
                                     match fallback_namespaces {
                                         Some(fb) => {
+                                            crate::logger!(info, "Namespace API fetch failed, using {} fallback namespaces from config: {:?}", fb.len(), err);
                                             tx.send(NamespaceResponse::GetFallback(fb.clone()).into())
                                                 .expect("Failed to send NamespaceResponse::GetFallback");
                                         }
