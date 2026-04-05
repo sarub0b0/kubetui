@@ -26,9 +26,12 @@ pub struct LoggingConfig {
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct Config {
+    #[serde(default)]
     pub theme: ThemeConfig,
     #[serde(default)]
     pub logging: LoggingConfig,
+    #[serde(default)]
+    pub fallback_namespaces: Option<Vec<String>>,
 }
 
 impl Config {
