@@ -378,9 +378,6 @@ impl KubeController {
                     }
                 }
                 Err(e) => {
-                    for h in &poller_handles {
-                        h.abort();
-                    }
                     tx.send(Message::Error(NotifyError::from_anyhow(
                         ErrorSource::Worker,
                         &anyhow::Error::from(e).context("KubeProcess Error"),
@@ -389,7 +386,6 @@ impl KubeController {
             }
         }
     }
-
 }
 
 struct EventControllerArgs {
