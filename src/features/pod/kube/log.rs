@@ -22,7 +22,7 @@ use crate::{
     kube::{context::Namespace, KubeClient},
     logger,
     message::Message,
-    workers::kube::{AbortWorker, Worker},
+    workers::kube::{InfiniteWorker, Worker},
 };
 
 pub use self::log_streamer::LogPrefixType;
@@ -135,7 +135,7 @@ impl LogWorker {
 }
 
 #[async_trait]
-impl AbortWorker for LogWorker {
+impl InfiniteWorker for LogWorker {
     async fn run(&self) {
         match Filter::parse(&self.config.query) {
             Ok(filter) => {

@@ -19,7 +19,7 @@ use tokio::time;
 use crate::{
     kube::KubeClient,
     logger,
-    workers::kube::{color::fg::Color, AbortWorker},
+    workers::kube::{color::fg::Color, InfiniteWorker},
 };
 
 use super::{log_collector::LogBuffer, log_content::LogContent};
@@ -89,7 +89,7 @@ pub struct LogStreamer {
 }
 
 #[async_trait]
-impl AbortWorker for LogStreamer {
+impl InfiniteWorker for LogStreamer {
     async fn run(&self) {
         let mut interval = tokio::time::interval(time::Duration::from_secs(3));
 

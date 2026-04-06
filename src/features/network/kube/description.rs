@@ -17,7 +17,7 @@ use crate::{
     kube::KubeClientRequest,
     logger,
     message::Message,
-    workers::kube::AbortWorker,
+    workers::kube::InfiniteWorker,
 };
 
 use self::{
@@ -77,7 +77,7 @@ where
 }
 
 #[async_trait]
-impl<C> AbortWorker for NetworkDescriptionWorker<C>
+impl<C> InfiniteWorker for NetworkDescriptionWorker<C>
 where
     C: KubeClientRequest,
 {

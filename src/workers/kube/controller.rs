@@ -52,7 +52,7 @@ use super::{
     config::{read_kubeconfig, Context, KubeWorkerConfig},
     store::{KubeState, KubeStore},
     worker::Worker,
-    AbortWorker as _,
+    InfiniteWorker as _,
 };
 
 pub type TargetNamespaces = Vec<String>;

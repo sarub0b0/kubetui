@@ -10,7 +10,7 @@ use crate::{
     kube::KubeClientRequest,
     logger,
     message::Message,
-    workers::kube::AbortWorker,
+    workers::kube::InfiniteWorker,
 };
 
 #[derive(Debug, Clone)]
@@ -48,7 +48,7 @@ impl<C: KubeClientRequest> YamlWorker<C> {
 }
 
 #[async_trait::async_trait]
-impl<C: KubeClientRequest> AbortWorker for YamlWorker<C> {
+impl<C: KubeClientRequest> InfiniteWorker for YamlWorker<C> {
     async fn run(&self) {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(3));
 
