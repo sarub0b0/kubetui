@@ -14,9 +14,10 @@ use crate::{
         table::{get_resource_per_namespace, insert_ns, KubeTableRow},
         KubeClient,
     },
+    logger,
     message::Message,
     ui::widget::ansi_color::style_to_ansi,
-    workers::kube::{message::Kube, SharedTargetNamespaces, Worker, WorkerResult},
+    workers::kube::{message::Kube, SharedTargetNamespaces, InfiniteWorker},
 };
 
 #[derive(Default, Debug, Clone)]
@@ -66,9 +67,8 @@ impl EventPoller {
 }
 
 #[async_trait]
-impl Worker for EventPoller {
-    type Output = WorkerResult;
-    async fn run(&self) -> Self::Output {
+impl InfiniteWorker for EventPoller {
+    async fn run(&self) {
         let Self {
             tx,
             shared_target_namespaces,
@@ -84,11 +84,10 @@ impl Worker for EventPoller {
 
             let event_list = get_event_table(config, kube_client, &target_namespaces).await;
 
-            // TODO: Worker trait の改善時に、チャンネル切断を graceful に処理する。
-            // 現状は Worker::run() が WorkerResult を返す設計で、チャンネル切断時の
-            // 適切な戻り値がないため、パニックで対応している。
-            tx.send(Message::Kube(Kube::Event(event_list)))
-                .expect("Failed to send Kube::Event");
+            if let Err(e) = tx.send(Message::Kube(Kube::Event(event_list))) {
+                logger!(error, "Failed to send Kube::Event: {}", e);
+                return;
+            }
         }
     }
 }

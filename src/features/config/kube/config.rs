@@ -7,8 +7,9 @@ use crate::{
         table::{get_resource_per_namespace, insert_ns, KubeTable, KubeTableRow},
         KubeClient,
     },
+    logger,
     message::Message,
-    workers::kube::{SharedTargetNamespaces, Worker, WorkerResult},
+    workers::kube::{SharedTargetNamespaces, InfiniteWorker},
 };
 
 use anyhow::Result;
@@ -40,10 +41,8 @@ impl ConfigPoller {
 }
 
 #[async_trait]
-impl Worker for ConfigPoller {
-    type Output = WorkerResult;
-
-    async fn run(&self) -> Self::Output {
+impl InfiniteWorker for ConfigPoller {
+    async fn run(&self) {
         let mut interval = tokio::time::interval(time::Duration::from_secs(1));
 
         let Self {
@@ -59,11 +58,10 @@ impl Worker for ConfigPoller {
 
             let table = fetch_configs(kube_client, &target_namespaces).await;
 
-            // TODO: Worker trait の改善時に、チャンネル切断を graceful に処理する。
-            // 現状は Worker::run() が WorkerResult を返す設計で、チャンネル切断時の
-            // 適切な戻り値がないため、パニックで対応している。
-            tx.send(ConfigResponse::Table(table).into())
-                .expect("Failed to send ConfigResponse::Table");
+            if let Err(e) = tx.send(ConfigResponse::Table(table).into()) {
+                logger!(error, "Failed to send ConfigResponse::Table: {}", e);
+                return;
+            }
         }
     }
 }

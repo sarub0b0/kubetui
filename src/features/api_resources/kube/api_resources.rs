@@ -23,11 +23,12 @@ use crate::{
         table::insert_ns,
         KubeClient, KubeClientRequest as _,
     },
+    logger,
     message::Message,
     ui::widget::ansi_color::style_to_ansi,
     workers::kube::{
         SharedTargetApiResources, SharedTargetNamespaces, TargetApiResources, TargetNamespaces,
-        Worker, WorkerResult,
+        InfiniteWorker,
     },
 };
 
@@ -271,10 +272,8 @@ impl ApiPoller {
 }
 
 #[async_trait]
-impl Worker for ApiPoller {
-    type Output = WorkerResult;
-
-    async fn run(&self) -> Self::Output {
+impl InfiniteWorker for ApiPoller {
+    async fn run(&self) {
         let Self {
             tx,
             shared_target_namespaces,
@@ -290,11 +289,10 @@ impl Worker for ApiPoller {
                 *api_resources = fetched;
             }
             Err(err) => {
-                // TODO: Worker trait の改善時に、チャンネル切断を graceful に処理する。
-                // 現状は Worker::run() が WorkerResult を返す設計で、チャンネル切断時の
-                // 適切な戻り値がないため、パニックで対応している。
-                tx.send(ApiResponse::Poll(Err(err)).into())
-                    .expect("Failed to send ApiResponse::Poll");
+                if let Err(e) = tx.send(ApiResponse::Poll(Err(err)).into()) {
+                    logger!(error, "Failed to send ApiResponse::Poll: {}", e);
+                    return;
+                }
             }
         }
 
@@ -316,22 +314,19 @@ impl Worker for ApiPoller {
                         let mut api_resources = shared_api_resources.write().await;
                         *api_resources = fetched;
 
-                        // Clear error
                         if is_error {
                             is_error = false;
-                            // TODO: Worker trait の改善時に、チャンネル切断を graceful に処理する。
-                            // 現状は Worker::run() が WorkerResult を返す設計で、チャンネル切断時の
-                            // 適切な戻り値がないため、パニックで対応している。
-                            tx.send(ApiResponse::Poll(Ok(Default::default())).into())
-                                .expect("Failed to send ApiResponse::Poll");
+                            if let Err(e) = tx.send(ApiResponse::Poll(Ok(Default::default())).into()) {
+                                logger!(error, "Failed to send ApiResponse::Poll: {}", e);
+                                return;
+                            }
                         }
                     }
                     Err(err) => {
-                        // TODO: Worker trait の改善時に、チャンネル切断を graceful に処理する。
-                        // 現状は Worker::run() が WorkerResult を返す設計で、チャンネル切断時の
-                        // 適切な戻り値がないため、パニックで対応している。
-                        tx.send(ApiResponse::Poll(Err(err)).into())
-                            .expect("Failed to send ApiResponse::Poll");
+                        if let Err(e) = tx.send(ApiResponse::Poll(Err(err)).into()) {
+                            logger!(error, "Failed to send ApiResponse::Poll: {}", e);
+                            return;
+                        }
                         is_error = true;
                         continue;
                     }
@@ -354,11 +349,10 @@ impl Worker for ApiPoller {
             .fetch_table()
             .await;
 
-            // TODO: Worker trait の改善時に、チャンネル切断を graceful に処理する。
-            // 現状は Worker::run() が WorkerResult を返す設計で、チャンネル切断時の
-            // 適切な戻り値がないため、パニックで対応している。
-            tx.send(ApiResponse::Poll(result).into())
-                .expect("Failed to send ApiResponse::Poll");
+            if let Err(e) = tx.send(ApiResponse::Poll(result).into()) {
+                logger!(error, "Failed to send ApiResponse::Poll: {}", e);
+                return;
+            }
         }
     }
 }
