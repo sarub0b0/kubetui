@@ -1,10 +1,9 @@
-use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
+use std::collections::BTreeMap;
 
 use anyhow::Result;
 use crossbeam::channel::Receiver;
 
 use crate::{
-    error::NotifyError,
     features::{
         api_resources::message::{ApiMessage, ApiResponse},
         component_id::{
@@ -67,11 +66,7 @@ fn exec_callback(cb: Callback, w: &mut Window) -> WindowAction {
     WindowAction::Continue
 }
 
-pub fn window_action(
-    window: &mut Window,
-    rx: &Receiver<Message>,
-    last_error: &Rc<RefCell<Option<NotifyError>>>,
-) -> WindowAction {
+pub fn window_action(window: &mut Window, rx: &Receiver<Message>) -> WindowAction {
     match rx.recv().expect("Failed to recv") {
         Message::User(ev) => match window.on_event(ev) {
             EventResult::Nop => {}
@@ -97,7 +92,6 @@ pub fn window_action(
         Message::Kube(k) => return WindowAction::UpdateContents(k),
         Message::Error(err) => {
             logger!(error, "Error: {:?}", err);
-            *last_error.borrow_mut() = Some(err);
         }
     }
     WindowAction::Continue
