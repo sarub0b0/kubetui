@@ -20,6 +20,11 @@
 *.mov
 .envrc
 /.worktrees/
+/worktree/
+
+# AI tools
+/.claude/
+/.serena/
 
 /assets/*
 !/assets/demo*.webp
