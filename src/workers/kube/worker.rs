@@ -18,7 +18,7 @@ pub trait Worker {
 }
 
 #[async_trait]
-pub trait AbortWorker {
+pub trait InfiniteWorker {
     async fn run(&self);
 
     fn spawn(&self) -> AbortHandle

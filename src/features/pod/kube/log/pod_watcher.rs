@@ -22,7 +22,7 @@ use crate::{
     kube::KubeClient,
     logger,
     message::Message,
-    workers::kube::{AbortWorker, Worker},
+    workers::kube::{InfiniteWorker, Worker},
 };
 
 use super::{

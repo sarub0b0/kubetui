@@ -9,7 +9,7 @@ use crate::{
     features::config::message::{ConfigData, ConfigRequest, ConfigResponse, RequestData},
     kube::KubeClient,
     message::Message,
-    workers::kube::AbortWorker,
+    workers::kube::InfiniteWorker,
 };
 
 use self::{configmap::ConfigMapDataWorker, secret::SecretDataWorker};
@@ -28,7 +28,7 @@ impl ConfigsDataWorker {
 }
 
 #[async_trait]
-impl AbortWorker for ConfigsDataWorker {
+impl InfiniteWorker for ConfigsDataWorker {
     async fn run(&self) {
         let ret = match &self.req {
             ConfigRequest::ConfigMap(_) => self.fetch_description::<ConfigMapDataWorker>().await,

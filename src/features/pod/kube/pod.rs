@@ -16,9 +16,10 @@ use crate::{
         table::{get_resource_per_namespace, insert_ns, KubeTable, KubeTableRow},
         KubeClient,
     },
+    logger,
     message::Message,
     ui::widget::ansi_color::style_to_ansi,
-    workers::kube::{SharedPodColumns, SharedTargetNamespaces, Worker, WorkerResult},
+    workers::kube::{SharedPodColumns, SharedTargetNamespaces, InfiniteWorker},
 };
 
 #[derive(Debug, Clone)]
@@ -79,10 +80,8 @@ impl PodPoller {
 }
 
 #[async_trait]
-impl Worker for PodPoller {
-    type Output = WorkerResult;
-
-    async fn run(&self) -> Self::Output {
+impl InfiniteWorker for PodPoller {
+    async fn run(&self) {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(1));
 
         let Self { tx, .. } = self;
@@ -92,11 +91,10 @@ impl Worker for PodPoller {
 
             let pod_info = self.get_pod_info().await;
 
-            // TODO: Worker trait の改善時に、チャンネル切断を graceful に処理する。
-            // 現状は Worker::run() が WorkerResult を返す設計で、チャンネル切断時の
-            // 適切な戻り値がないため、パニックで対応している。
-            tx.send(PodMessage::Poll(pod_info).into())
-                .expect("Failed to Kube::Pod");
+            if let Err(e) = tx.send(PodMessage::Poll(pod_info).into()) {
+                logger!(error, "Failed to send PodMessage::Poll: {}", e);
+                return;
+            }
         }
     }
 }

@@ -3,13 +3,12 @@ use std::{sync::Arc, time::Duration};
 use anyhow::{Context as _, Result};
 use async_trait::async_trait;
 use crossbeam::channel::{Receiver, Sender};
-use futures::future::select_all;
 use k8s_openapi::api::core::v1::Namespace;
 use kube::{api::ListParams, config::Kubeconfig, Api, ResourceExt as _};
 use ratatui::style::{Color, Style};
 use tokio::{
     sync::RwLock,
-    task::{self, AbortHandle, JoinHandle},
+    task::{self, AbortHandle},
 };
 
 use crate::{
@@ -52,7 +51,7 @@ use super::{
     config::{read_kubeconfig, Context, KubeWorkerConfig},
     store::{KubeState, KubeStore},
     worker::Worker,
-    AbortWorker as _,
+    InfiniteWorker as _,
 };
 
 pub type TargetNamespaces = Vec<String>;
@@ -126,14 +125,12 @@ async fn fetch_all_namespaces(client: KubeClient) -> Result<Vec<String>> {
 }
 
 #[derive(Clone)]
-pub enum WorkerResult {
-    ChangedContext {
-        /// 切り替え後のコンテキスト
-        target_context: String,
+pub struct ChangedContext {
+    /// 切り替え後のコンテキスト
+    pub target_context: String,
 
-        /// 切り替え後のターゲットネームスペース
-        target_namespaces: Option<TargetNamespaces>,
-    },
+    /// 切り替え後のターゲットネームスペース
+    pub target_namespaces: Option<TargetNamespaces>,
 }
 
 pub struct KubeController {
@@ -343,8 +340,7 @@ impl KubeController {
             )
             .spawn();
 
-            let mut handles = vec![
-                event_controller_handle,
+            let poller_handles = vec![
                 pod_handle,
                 config_handle,
                 network_handle,
@@ -352,53 +348,42 @@ impl KubeController {
                 api_handle,
             ];
 
-            while !handles.is_empty() {
-                let (result, _, vec) = select_all(handles).await;
+            let result = event_controller_handle.await;
 
-                handles = vec;
+            for h in &poller_handles {
+                h.abort();
+            }
 
-                match result {
-                    Ok(ret) => match ret {
-                        WorkerResult::ChangedContext {
-                            target_context,
-                            target_namespaces,
-                        } => {
-                            Self::abort(&handles);
+            match result {
+                Ok(ChangedContext {
+                    target_context,
+                    target_namespaces,
+                }) => {
+                    let shared_target_namespaces = shared_target_namespaces.read().await;
+                    let shared_api_resources = shared_target_api_resources.read().await;
 
-                            let shared_target_namespaces = shared_target_namespaces.read().await;
-                            let shared_api_resources = shared_target_api_resources.read().await;
+                    store.insert(
+                        context.to_string(),
+                        KubeState::new(
+                            client.clone(),
+                            shared_target_namespaces.to_vec(),
+                            shared_api_resources.to_vec(),
+                        ),
+                    );
 
-                            store.insert(
-                                context.to_string(),
-                                KubeState::new(
-                                    client.clone(),
-                                    shared_target_namespaces.to_vec(),
-                                    shared_api_resources.to_vec(),
-                                ),
-                            );
+                    context = target_context;
 
-                            context = target_context;
-
-                            if let Some(ns) = target_namespaces {
-                                override_namespaces = Some(ns);
-                            }
-                        }
-                    },
-                    Err(e) => {
-                        Self::abort(&handles);
-                        tx.send(Message::Error(NotifyError::from_anyhow(
-                            ErrorSource::Worker,
-                            &anyhow::Error::from(e).context("KubeProcess Error"),
-                        )))?;
+                    if let Some(ns) = target_namespaces {
+                        override_namespaces = Some(ns);
                     }
                 }
+                Err(e) => {
+                    tx.send(Message::Error(NotifyError::from_anyhow(
+                        ErrorSource::Worker,
+                        &anyhow::Error::from(e).context("KubeProcess Error"),
+                    )))?;
+                }
             }
-        }
-    }
-
-    fn abort<T>(handlers: &[JoinHandle<T>]) {
-        for h in handlers {
-            h.abort()
         }
     }
 }
@@ -468,7 +453,7 @@ impl LogHandle {
 
 #[async_trait]
 impl Worker for EventController {
-    type Output = WorkerResult;
+    type Output = ChangedContext;
 
     async fn run(&self) -> Self::Output {
         let mut log_handler: Option<LogHandle> = None;
@@ -638,7 +623,7 @@ impl Worker for EventController {
                                 None
                             };
 
-                            return WorkerResult::ChangedContext {
+                            return ChangedContext {
                                 target_context: name.clone(),
                                 target_namespaces,
                             };

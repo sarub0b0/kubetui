@@ -28,7 +28,7 @@ use crate::{
     },
     logger,
     message::Message,
-    workers::kube::{SharedTargetNamespaces, Worker, WorkerResult},
+    workers::kube::{SharedTargetNamespaces, InfiniteWorker},
 };
 
 #[derive(Debug, Default, Clone)]
@@ -265,10 +265,8 @@ fn target_resources(api_resources: &ApiResources) -> Vec<TargetResource> {
 }
 
 #[async_trait()]
-impl Worker for NetworkPoller {
-    type Output = WorkerResult;
-
-    async fn run(&self) -> Self::Output {
+impl InfiniteWorker for NetworkPoller {
+    async fn run(&self) {
         let mut interval = tokio::time::interval(time::Duration::from_secs(1));
 
         let tx = &self.tx;
@@ -283,11 +281,10 @@ impl Worker for NetworkPoller {
 
             let table = self.polling(&target_resources).await;
 
-            // TODO: Worker trait の改善時に、チャンネル切断を graceful に処理する。
-            // 現状は Worker::run() が WorkerResult を返す設計で、チャンネル切断時の
-            // 適切な戻り値がないため、パニックで対応している。
-            tx.send(NetworkResponse::List(table).into())
-                .expect("Failed to send NetworkResponse::List");
+            if let Err(e) = tx.send(NetworkResponse::List(table).into()) {
+                logger!(error, "Failed to send NetworkResponse::List: {}", e);
+                return;
+            }
         }
     }
 }

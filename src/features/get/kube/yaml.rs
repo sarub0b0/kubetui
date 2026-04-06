@@ -21,7 +21,7 @@ use crate::{
     },
     logger,
     message::Message,
-    workers::kube::AbortWorker,
+    workers::kube::InfiniteWorker,
 };
 
 #[derive(Debug, Clone)]
@@ -71,7 +71,7 @@ impl GetYamlWorker {
 }
 
 #[async_trait::async_trait]
-impl AbortWorker for GetYamlWorker {
+impl InfiniteWorker for GetYamlWorker {
     async fn run(&self) {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(3));
 
