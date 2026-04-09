@@ -15,6 +15,7 @@ pub struct KubeWorkerConfig {
     pub target_namespaces: Option<TargetNamespaces>,
     pub context: Option<String>,
     pub all_namespaces: bool,
+    pub fallback_namespaces: Option<Vec<String>>,
     pub pod_config: PodConfig,
     pub event_config: EventConfig,
     pub api_config: ApiConfig,
