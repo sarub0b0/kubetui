@@ -2,13 +2,14 @@ use ratatui::style::{Color, Modifier};
 use serde::{Deserialize, Serialize};
 
 use crate::ui::widget::{
-    multiple_select, single_select, table, CheckListTheme, InputFormTheme, ListTheme,
+    multiple_select, single_select, table, CheckListTheme, ErrorTheme, InputFormTheme, ListTheme,
     SearchFormTheme, TableTheme, TextTheme, WidgetTheme,
 };
 
 use super::{
-    BorderThemeConfig, CheckListThemeConfig, DialogThemeConfig, FilterFormThemeConfig,
-    InputFormThemeConfig, ListThemeConfig, TableThemeConfig, TextThemeConfig, ThemeStyleConfig,
+    BorderThemeConfig, CheckListThemeConfig, DialogThemeConfig, ErrorThemeConfig,
+    FilterFormThemeConfig, InputFormThemeConfig, ListThemeConfig, TableThemeConfig,
+    TextThemeConfig, ThemeStyleConfig,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -72,6 +73,9 @@ pub struct WidgetThemeConfig {
 
     #[serde(default)]
     pub dialog: DialogThemeConfig,
+
+    #[serde(default)]
+    pub error: ErrorThemeConfig,
 }
 
 impl From<WidgetThemeConfig> for WidgetTheme {
@@ -213,6 +217,12 @@ impl From<WidgetThemeConfig> for single_select::SelectFormTheme {
     }
 }
 
+impl From<WidgetThemeConfig> for ErrorTheme {
+    fn from(theme: WidgetThemeConfig) -> Self {
+        theme.error.into()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::config::theme::{
@@ -243,6 +253,7 @@ mod tests {
             check_list: CheckListThemeConfig::default(),
             input: InputFormThemeConfig::default(),
             dialog: DialogThemeConfig::default(),
+            error: ErrorThemeConfig::default(),
         };
 
         assert_eq!(actual, expected);
@@ -381,6 +392,7 @@ mod tests {
                     height: 85.0,
                 },
             },
+            error: ErrorThemeConfig::default(),
         };
 
         let actual = serde_yaml::to_string(&theme).unwrap();
@@ -478,6 +490,9 @@ mod tests {
               size:
                 width: 85.0
                 height: 85.0
+            error:
+              style:
+                fg_color: red
         "#};
 
         assert_eq!(actual, expected);
@@ -573,6 +588,9 @@ mod tests {
               size:
                 width: 85.0
                 height: 85.0
+            error:
+              style:
+                fg_color: red
         "#};
 
         let actual: WidgetThemeConfig = serde_yaml::from_str(data).unwrap();
@@ -733,6 +751,7 @@ mod tests {
                     height: 85.0,
                 },
             },
+            error: ErrorThemeConfig::default(),
         };
 
         assert_eq!(actual, expected);
