@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::{
@@ -24,6 +25,8 @@ pub struct Tab<'a> {
     activatable_widget_indices: Vec<usize>,
     mouse_over_widget_index: Option<usize>,
     dragging_widget_index: Option<usize>,
+    error_states: HashMap<String, Vec<String>>,
+    error_theme: ErrorTheme,
 }
 
 #[allow(dead_code)]
@@ -53,7 +56,30 @@ impl<'a> Tab<'a> {
             active_widget_index: 0,
             mouse_over_widget_index: None,
             dragging_widget_index: None,
+            error_states: HashMap::new(),
+            error_theme: ErrorTheme::default(),
         }
+    }
+
+    /// 指定ウィジェットのエラー状態を設定する。
+    pub fn set_widget_error(&mut self, widget_id: &str, lines: Vec<String>) {
+        self.error_states.insert(widget_id.to_string(), lines);
+    }
+
+    /// 指定ウィジェットのエラー状態をクリアする。
+    pub fn clear_widget_error(&mut self, widget_id: &str) {
+        self.error_states.remove(widget_id);
+    }
+
+    /// 指定ウィジェットがこのタブに含まれているかを返す。
+    pub fn contains_widget(&self, widget_id: &str) -> bool {
+        self.widgets.iter().any(|w| w.id() == widget_id)
+    }
+
+    /// エラーテーマを設定する（ビルダーパターン用）。
+    pub fn error_theme(mut self, theme: ErrorTheme) -> Self {
+        self.error_theme = theme;
+        self
     }
 
     pub fn id(&self) -> &str {
