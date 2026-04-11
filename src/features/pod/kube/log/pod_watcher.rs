@@ -8,7 +8,6 @@ use std::{
     },
 };
 
-use anyhow::anyhow;
 use async_trait::async_trait;
 use crossbeam::channel::Sender;
 use futures::{StreamExt, TryStreamExt};
@@ -139,8 +138,11 @@ impl Worker for PodWatcher {
                     }
                     Bookmark(_) => {}
                     Error(err) => {
-                        if let Err(e) = self.tx.send(LogMessage::Response(Err(anyhow!(err))).into()) {
-                            logger!(error, "Failed to send LogMessage::Response: {}", e);
+                        if let Err(e) = self
+                            .tx
+                            .send(LogMessage::StreamError(err.to_string()).into())
+                        {
+                            logger!(error, "Failed to send LogMessage::StreamError: {}", e);
                             return;
                         }
                     }
