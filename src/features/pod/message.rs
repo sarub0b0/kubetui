@@ -10,6 +10,7 @@ pub enum LogMessage {
     Response(Result<Vec<String>>),
     ToggleJsonPrettyPrint,
     SetMaxLines(Option<usize>),
+    StreamError(String),
 }
 
 impl From<LogMessage> for Message {
