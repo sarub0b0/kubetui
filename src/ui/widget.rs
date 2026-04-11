@@ -17,7 +17,7 @@ mod text;
 pub use base::*;
 pub use check_list::*;
 pub use clear::*;
-pub use error::ErrorTheme;
+pub use error::{render_widget_error, ErrorTheme};
 pub use input::*;
 pub use list::*;
 pub use multiple_select::MultipleSelect;
