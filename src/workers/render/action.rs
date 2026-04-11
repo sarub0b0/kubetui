@@ -259,6 +259,8 @@ pub fn update_contents(
                 }
             },
             NamespaceResponse::GetFallback(namespaces) => {
+                window.clear_widget_error(MULTIPLE_NAMESPACES_DIALOG_ID);
+                window.clear_widget_error(SINGLE_NAMESPACE_DIALOG_ID);
                 window
                     .find_widget_mut(MULTIPLE_NAMESPACES_DIALOG_ID)
                     .update_widget_item(Item::Array(
@@ -385,6 +387,7 @@ pub fn update_contents(
 
                 Resource(res) => match res {
                     Ok(list) => {
+                        window.clear_widget_error(YAML_NAME_DIALOG_ID);
                         if list.items.is_empty() {
                             window.open_dialog(YAML_NOT_FOUND_DIALOG_ID);
                         } else {
