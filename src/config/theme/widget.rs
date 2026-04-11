@@ -491,8 +491,7 @@ mod tests {
                 width: 85.0
                 height: 85.0
             error:
-              style:
-                fg_color: red
+              fg_color: red
         "#};
 
         assert_eq!(actual, expected);
@@ -589,8 +588,7 @@ mod tests {
                 width: 85.0
                 height: 85.0
             error:
-              style:
-                fg_color: red
+              fg_color: red
         "#};
 
         let actual: WidgetThemeConfig = serde_yaml::from_str(data).unwrap();

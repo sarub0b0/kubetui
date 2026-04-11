@@ -134,36 +134,28 @@ pub struct WidgetThemeConfig {
 }
 
 // src/config/theme/error.rs (新規)
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct ErrorThemeConfig {
-    #[serde(default = "default_error_style")]
-    pub style: ThemeStyleConfig,
-}
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct ErrorThemeConfig(pub ThemeStyleConfig);
 
 impl Default for ErrorThemeConfig {
     fn default() -> Self {
-        Self {
-            style: default_error_style(),
-        }
-    }
-}
-
-fn default_error_style() -> ThemeStyleConfig {
-    ThemeStyleConfig {
-        fg_color: Some(Color::Red),
-        ..Default::default()
+        Self(ThemeStyleConfig {
+            fg_color: Some(Color::Red),
+            ..Default::default()
+        })
     }
 }
 ```
+
+newtype パターンにより中間フィールドなしで YAML に直接スタイルを書ける（`InputFormThemeConfig` と同じパターン）。
 
 YAML 設定例:
 
 ```yaml
 component:
   error:
-    style:
-      fg_color: red
-      modifier: bold
+    fg_color: red
+    modifier: bold
 ```
 
 UI 層には `ErrorTheme` 型を定義し、`ErrorThemeConfig` から `From` 変換。Tab/Dialog 構築時に受け渡す。
