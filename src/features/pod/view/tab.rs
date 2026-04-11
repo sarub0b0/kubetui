@@ -40,6 +40,8 @@ impl PodTab {
         theme: WidgetThemeConfig,
         log_max_lines: Option<usize>,
     ) -> Self {
+        let error_theme = theme.error.clone().into();
+
         let pod_widget = pod_widget(tx, theme.clone());
         let log_query_widget = log_query_widget(tx, namespaces, theme.clone());
         let pod_columns_dialog = pod_columns_dialog(tx, default_columns, theme.clone());
@@ -53,7 +55,8 @@ impl PodTab {
             title,
             [pod_widget, log_query_widget, log_widget],
             layout,
-        );
+        )
+        .error_theme(error_theme);
 
         tab.activate_widget_by_id(POD_WIDGET_ID);
 

@@ -28,6 +28,8 @@ impl ConfigTab {
         split_direction: Direction,
         theme: WidgetThemeConfig,
     ) -> Self {
+        let error_theme = theme.error.clone().into();
+
         let config_widget = config_widget(tx, theme.clone());
         let raw_data_widget = raw_data_widget(clipboard, theme);
 
@@ -39,7 +41,8 @@ impl ConfigTab {
                 title,
                 [config_widget, raw_data_widget],
                 layout,
-            ),
+            )
+            .error_theme(error_theme),
         }
     }
 }

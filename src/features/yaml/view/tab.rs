@@ -34,6 +34,8 @@ impl YamlTab {
         clipboard: &Option<Rc<RefCell<Clipboard>>>,
         theme: WidgetThemeConfig,
     ) -> Self {
+        let error_theme = theme.error.clone().into();
+
         let yaml_widget = yaml_widget(tx, clipboard, theme.clone());
 
         let layout = TabLayout::new(
@@ -47,7 +49,7 @@ impl YamlTab {
         );
 
         YamlTab {
-            tab: Tab::new(YAML_TAB_ID, title, [yaml_widget], layout),
+            tab: Tab::new(YAML_TAB_ID, title, [yaml_widget], layout).error_theme(error_theme),
             kind_dialog: kind_dialog(tx, theme.clone()),
             name_dialog: name_dialog(tx, theme.clone()),
             not_found_dialog: not_found_dialog(theme),

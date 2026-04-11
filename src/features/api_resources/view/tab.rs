@@ -29,6 +29,8 @@ impl ApiTab {
         clipboard: &Option<Rc<RefCell<Clipboard>>>,
         theme: WidgetThemeConfig,
     ) -> Self {
+        let error_theme = theme.error.clone().into();
+
         let api_widget = api_widget(tx, clipboard, theme.clone());
 
         let layout = TabLayout::new(
@@ -42,7 +44,7 @@ impl ApiTab {
         );
 
         ApiTab {
-            tab: Tab::new(API_TAB_ID, title, [api_widget], layout),
+            tab: Tab::new(API_TAB_ID, title, [api_widget], layout).error_theme(error_theme),
             dialog: dialog_widget(tx, theme),
         }
     }

@@ -98,10 +98,12 @@ impl From<ThemeConfig> for HeaderTheme {
 impl From<ThemeConfig> for DialogTheme {
     fn from(config: ThemeConfig) -> Self {
         let base_style = config.component.dialog.base.unwrap_or_else(|| *config.base);
+        let error_theme = config.component.error.clone().into();
 
         DialogTheme::default()
             .base_style(base_style)
             .size(config.component.dialog.size)
+            .error_theme(error_theme)
     }
 }
 
