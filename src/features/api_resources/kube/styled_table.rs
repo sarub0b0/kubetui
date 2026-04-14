@@ -69,7 +69,8 @@ impl Display for StyledTable<'_> {
 
         let header_str = header
             .iter()
-            .map(|(i, hdr)| format!("{:<digit$}", hdr.to_uppercase(), digit = digits[*i]))
+            .zip(digits.iter())
+            .map(|((_, hdr), &width)| format!("{:<width$}", hdr.to_uppercase()))
             .collect::<Vec<String>>()
             .join(WIDTH_PADDING);
 
@@ -139,6 +140,66 @@ mod tests {
                 },
                 TableRow {
                     cells: ["Bob", "30"].into_iter().map(|s| s.into()).collect(),
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        };
+
+        let styled_table = StyledTable::new(
+            &table,
+            Style::default().fg(Color::DarkGray),
+            Style::default().fg(Color::White),
+        );
+
+        let expected = indoc! {"
+            \x1b[90mNAME    AGE\x1b[39m
+            \x1b[37mAlice   20 \x1b[39m
+            \x1b[37mBob     30 \x1b[39m
+        "};
+
+        assert_eq!(styled_table.to_string(), expected.trim_end());
+    }
+
+    // priorityが0でない列が間に混在していても、priority=0の列だけを表示する
+    #[test]
+    fn when_table_has_non_zero_priority_columns_then_display_only_priority_zero_columns() {
+        let table = Table {
+            column_definitions: vec![
+                TableColumnDefinition {
+                    name: "Name".into(),
+                    priority: 0,
+                    ..Default::default()
+                },
+                TableColumnDefinition {
+                    name: "Wide1".into(),
+                    priority: 1,
+                    ..Default::default()
+                },
+                TableColumnDefinition {
+                    name: "Wide2".into(),
+                    priority: 1,
+                    ..Default::default()
+                },
+                TableColumnDefinition {
+                    name: "Age".into(),
+                    priority: 0,
+                    ..Default::default()
+                },
+            ],
+            rows: vec![
+                TableRow {
+                    cells: ["Alice", "w1a", "w2a", "20"]
+                        .into_iter()
+                        .map(|s| s.into())
+                        .collect(),
+                    ..Default::default()
+                },
+                TableRow {
+                    cells: ["Bob", "w1b", "w2b", "30"]
+                        .into_iter()
+                        .map(|s| s.into())
+                        .collect(),
                     ..Default::default()
                 },
             ],
