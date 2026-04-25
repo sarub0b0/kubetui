@@ -4,7 +4,7 @@
 
 **Goal:** 各ビューのデータ取得失敗時のエラー表示を、ウィジェット内部データを汚さずに Tab/Dialog 層で管理する方式にリファクタリングし、正常データ受信時に自動復帰する仕組みを実現する。
 
-**Architecture:** Tab と Dialog にウィジェットごとのエラー状態（生のテキスト行）を保持するフィールドを追加。`Window::set_widget_error` / `clear_widget_error` メソッドで操作する。描画時、エラー状態があれば通常の widget.render() をスキップし、ウィジェットのブロック（タイトル・ボーダー）を維持しつつ中身をエラーテキスト描画で差し替える。スタイルは設定ファイル (`component.error.style`) から設定可能。ログは特殊で、ストリーム継続中の個別エラーは従来通りインライン追記するため `LogMessage::StreamError` バリアントを新設する。
+**Architecture:** Tab と Dialog にウィジェットごとのエラー状態（生のテキスト行）を保持するフィールドを追加。`Window::set_widget_error` / `clear_widget_error` メソッドで操作する。描画時、エラー状態があれば通常の widget.render() をスキップし、ウィジェットのブロック（タイトル・ボーダー）を維持しつつ中身をエラーテキスト描画で差し替える。スタイルは設定ファイル (`component.error`) から設定可能。ログは特殊で、ストリーム継続中の個別エラーは従来通りインライン追記するため `LogMessage::StreamError` バリアントを新設する。
 
 **Tech Stack:** Rust, ratatui 0.30, anyhow, serde, figment
 
@@ -1175,7 +1175,7 @@ Expected: ビルド成功
 1. 無効な kubeconfig または未接続のクラスタで kubetui を起動し、各タブで赤色のエラー表示が出ることを確認
 2. エラー中に接続が復旧すると、各タブが通常表示に自動復帰することを確認
 3. ログタブで不正な query を入力し、エラー表示に切り替わることを確認
-4. `component.error.style` を設定ファイルで変更（例: `fg_color: yellow`）し、色が変わることを確認
+4. `component.error` を設定ファイルで変更（例: `fg_color: yellow`）し、色が変わることを確認
 
 **Step 3: 確認完了後、最終コミット不要**
 

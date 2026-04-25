@@ -249,7 +249,7 @@ pub enum LogMessage {
 
 - 各ウィジェット種別（Table, Text, List, SingleSelect, MultipleSelect）でエラー表示 → 正常データ受信 → 元の表示に自動復帰することを確認
 - エラー表示中にウィジェットのタイトル・ボーダーが維持されることを確認
-- 設定ファイルから `component.error.style` を変更して描画スタイルが反映されることを確認
+- 設定ファイルから `component.error` を変更して描画スタイルが反映されることを確認
 - ログウィジェットで `StreamError` がインライン追記され、他の正常ログが隠れないことを確認
 - ログウィジェットで `Response(Err(_))` がエラー表示差し替えになることを確認
 
