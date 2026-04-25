@@ -204,7 +204,7 @@ pub fn update_contents(
             let widget = window.find_widget_mut(POD_LOG_WIDGET_ID);
             let item = LiteralItem {
                 metadata: None,
-                item: msg,
+                item: format!("\x1b[31m[kubetui] {}\x1b[39m", msg),
             };
             widget.append_widget_item(Item::Array(vec![item]));
         }
