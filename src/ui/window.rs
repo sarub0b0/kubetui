@@ -446,6 +446,37 @@ impl<'a> Window<'a> {
         self.find_widget_mut(id).clear();
     }
 
+    /// 指定ウィジェットにエラー状態を設定する。
+    /// anyhow::Error を debug format で行分割し、生テキストとして保存する。
+    pub fn set_widget_error(&mut self, id: &str, error: &anyhow::Error) {
+        let lines: Vec<String> = format!("{:?}", error)
+            .lines()
+            .map(String::from)
+            .collect();
+
+        // Dialog → Tab の順で検索
+        if let Some(dialog) = self.dialogs.iter_mut().find(|d| d.id() == id) {
+            dialog.set_widget_error(lines);
+            return;
+        }
+
+        if let Some(tab) = self.tabs.iter_mut().find(|t| t.contains_widget(id)) {
+            tab.set_widget_error(id, lines);
+        }
+    }
+
+    /// 指定ウィジェットのエラー状態をクリアする。
+    pub fn clear_widget_error(&mut self, id: &str) {
+        if let Some(dialog) = self.dialogs.iter_mut().find(|d| d.id() == id) {
+            dialog.clear_widget_error();
+            return;
+        }
+
+        if let Some(tab) = self.tabs.iter_mut().find(|t| t.contains_widget(id)) {
+            tab.clear_widget_error(id);
+        }
+    }
+
     pub fn activate_widget_by_id(&mut self, id: &str) {
         self.active_tab_mut().activate_widget_by_id(id)
     }

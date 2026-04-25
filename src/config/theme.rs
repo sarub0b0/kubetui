@@ -3,6 +3,7 @@ mod base;
 mod border;
 mod check_list;
 mod dialog;
+mod error;
 mod event;
 mod filter;
 mod header;
@@ -32,6 +33,7 @@ pub use base::BaseThemeConfig;
 pub use border::BorderThemeConfig;
 pub use check_list::*;
 pub use dialog::*;
+pub use error::ErrorThemeConfig;
 pub use event::EventThemeConfig;
 pub use filter::*;
 pub use help::HelpThemeConfig;
@@ -96,10 +98,12 @@ impl From<ThemeConfig> for HeaderTheme {
 impl From<ThemeConfig> for DialogTheme {
     fn from(config: ThemeConfig) -> Self {
         let base_style = config.component.dialog.base.unwrap_or_else(|| *config.base);
+        let error_theme = config.component.error.clone().into();
 
         DialogTheme::default()
             .base_style(base_style)
             .size(config.component.dialog.size)
+            .error_theme(error_theme)
     }
 }
 

@@ -29,6 +29,8 @@ impl NetworkTab {
         split_direction: Direction,
         theme: WidgetThemeConfig,
     ) -> Self {
+        let error_theme = theme.error.clone().into();
+
         let network_widget = network_widget(tx, theme.clone());
         let description_widget = description_widget(clipboard, theme);
 
@@ -40,7 +42,8 @@ impl NetworkTab {
                 title,
                 [network_widget, description_widget],
                 layout,
-            ),
+            )
+            .error_theme(error_theme),
         }
     }
 }

@@ -24,6 +24,8 @@ impl EventTab {
         clipboard: &Option<Rc<RefCell<Clipboard>>>,
         theme: WidgetThemeConfig,
     ) -> Self {
+        let error_theme = theme.error.clone().into();
+
         let event_widget = event_widget(clipboard, theme);
 
         let layout = TabLayout::new(
@@ -37,7 +39,7 @@ impl EventTab {
         );
 
         EventTab {
-            tab: Tab::new(EVENT_TAB_ID, title, [event_widget], layout),
+            tab: Tab::new(EVENT_TAB_ID, title, [event_widget], layout).error_theme(error_theme),
         }
     }
 }

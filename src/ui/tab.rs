@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::{
@@ -24,6 +25,8 @@ pub struct Tab<'a> {
     activatable_widget_indices: Vec<usize>,
     mouse_over_widget_index: Option<usize>,
     dragging_widget_index: Option<usize>,
+    error_states: HashMap<String, Vec<String>>,
+    error_theme: ErrorTheme,
 }
 
 #[allow(dead_code)]
@@ -53,7 +56,30 @@ impl<'a> Tab<'a> {
             active_widget_index: 0,
             mouse_over_widget_index: None,
             dragging_widget_index: None,
+            error_states: HashMap::new(),
+            error_theme: ErrorTheme::default(),
         }
+    }
+
+    /// 指定ウィジェットのエラー状態を設定する。
+    pub fn set_widget_error(&mut self, widget_id: &str, lines: Vec<String>) {
+        self.error_states.insert(widget_id.to_string(), lines);
+    }
+
+    /// 指定ウィジェットのエラー状態をクリアする。
+    pub fn clear_widget_error(&mut self, widget_id: &str) {
+        self.error_states.remove(widget_id);
+    }
+
+    /// 指定ウィジェットがこのタブに含まれているかを返す。
+    pub fn contains_widget(&self, widget_id: &str) -> bool {
+        self.widgets.iter().any(|w| w.id() == widget_id)
+    }
+
+    /// エラーテーマを設定する（ビルダーパターン用）。
+    pub fn error_theme(mut self, theme: ErrorTheme) -> Self {
+        self.error_theme = theme;
+        self
     }
 
     pub fn id(&self) -> &str {
@@ -185,12 +211,29 @@ impl<'a> Tab<'a> {
 
 impl Tab<'_> {
     pub fn render(&mut self, f: &mut Frame) {
+        let active_index = self.active_widget_index;
+        let mouse_over_index = self.mouse_over_widget_index;
+        let error_theme = &self.error_theme;
+        let error_states = &self.error_states;
+
         self.widgets.iter_mut().enumerate().for_each(|(i, w)| {
-            w.render(
-                f,
-                i == self.active_widget_index,
-                self.mouse_over_widget_index.is_some_and(|idx| idx == i),
-            )
+            let is_active = i == active_index;
+            let is_mouse_over = mouse_over_index.is_some_and(|idx| idx == i);
+
+            if let Some(error_lines) = error_states.get(w.id()) {
+                let block = w
+                    .widget_base()
+                    .render_block(w.can_activate() && is_active, is_mouse_over);
+                super::widget::render_widget_error(
+                    f,
+                    w.chunk(),
+                    block,
+                    error_lines,
+                    error_theme,
+                );
+            } else {
+                w.render(f, is_active, is_mouse_over);
+            }
         });
     }
 }
