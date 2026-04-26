@@ -12,6 +12,13 @@
 #   - staging
 #   - dev
 
+# Logging settings
+# logging:
+#   # Maximum number of lines retained in the log view buffer.
+#   # When the buffer exceeds this value, the oldest lines are dropped.
+#   # Can be overridden per-query with the `limit:<n>` log query keyword.
+#   max_lines: 5000
+
 theme:
   base:
     bg_color: "#000000"
@@ -160,6 +167,11 @@ theme:
         width: 85
         ## 0.0 ~ 100.0
         height: 85
+
+    ## Error display style (used when a widget shows an error message)
+    # error:
+    #   fg_color: red
+    #   modifier: bold
 
   ## Pod view
   pod:

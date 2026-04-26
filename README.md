@@ -268,7 +268,7 @@ The configuration file allows you to modify various aspects of the UI, including
 - **Colors**: Change the colors of text, backgrounds, and borders.
 - **Text Attributes**: Modify text attributes such as bold, italic, and underline.
 
-A sample configuration file is available at `examples/config.yaml` to help you get started with customizing the UI.
+A sample configuration file is available at `example/config.yaml` to help you get started with customizing the UI.
 
 ## Log Query
 
@@ -304,6 +304,7 @@ When entering `?` or `help` in the log query form, the help dialog will be displ
 | field:\<selector>   | fields               | Include Pods with fields matching the selector in log retrieval target.                                        |
 | jq:\<expr>          |                      | Apply jq filter to JSON logs. Extract fields or restructure output (e.g., `jq:.message`, `jq:{ts:.time}`).    |
 | jmespath:\<expr>    | jmes, jm             | Apply JMESPath filter to JSON logs. Simpler syntax for common queries (e.g., `jmespath:message`, `jm:data.id`). |
+| limit:\<number>     | lim                  | Override the log buffer size for this query (e.g., `limit:5000`). Takes precedence over `logging.max_lines`.   |
 | \<resource>/\<name> |                      | Include Pods belonging to the specified resource in log retrieval target. Cannot be specified with label.      |
 
 Supported resources:
@@ -351,6 +352,7 @@ QUERY = POD
         | FIELD
         | JQ
         | JMESPATH
+        | LIMIT
         | SPECIFIED_RESOURCE
 
 POD = ( "pods" | "pod" | "po" | "p" ) ":" REGEX
@@ -374,6 +376,10 @@ JQ = "jq" ":" EXPR
 JMESPATH = ( "jmespath" | "jmes" | "jm" ) ":" EXPR
 
 EXPR = QUOTED_STRING | UNQUOTED_STRING
+
+LIMIT = ( "limit" | "lim" ) ":" POSITIVE_INTEGER
+
+POSITIVE_INTEGER = [1-9] [0-9]*
 
 SPECIFIED_RESOURCE = RESOURCE "/" NAME
 
