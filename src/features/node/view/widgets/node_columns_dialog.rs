@@ -43,7 +43,9 @@ pub fn node_columns_dialog(
 
 fn on_change(tx: Sender<Message>) -> impl Fn(&mut Window, &CheckListItem) -> EventResult {
     move |w: &mut Window, _v| {
-        let widget = w.find_widget_mut(NODE_COLUMNS_DIALOG_ID).as_mut_check_list();
+        let widget = w
+            .find_widget_mut(NODE_COLUMNS_DIALOG_ID)
+            .as_mut_check_list();
 
         let items = widget
             .items()
