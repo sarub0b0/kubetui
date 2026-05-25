@@ -212,6 +212,32 @@ theme:
         message:
           fg_color: dark_gray
 
+  ## Node view
+  node:
+    ## Name of the column preset to use at startup
+    default_preset: default
+    ## Define multiple column presets which can be selected by name.
+    ## Available built-in columns: name, status, roles, age, version,
+    ## internalip, externalip, osimage, kernelversion, containerruntime
+    column_presets:
+      default:
+        - name
+        - status
+        - roles
+        - age
+        - version
+      wide:
+        - name
+        - status
+        - roles
+        - age
+        - version
+        - internalip
+        - externalip
+        - osimage
+        - kernelversion
+        - containerruntime
+
   ## API view
   api:
     table:

@@ -38,6 +38,7 @@
 - `src/workers/render/action.rs` — `Kube::Node(NodeMessage::Poll)` ハンドラ
 - `src/workers/render/window.rs` — `NodeTab` を Event の右隣に挿入、`WindowInit` に `default_node_columns`
 - `src/app.rs` — `build_node_columns`、`node_config` 設定、`default_node_columns` を `WindowInit` へ
+- `example/config.yaml` — `theme.node` の設定例（列プリセット）を追記
 
 ---
 
