@@ -33,6 +33,7 @@ component_id!(
     yaml_widget,
     // dialogs
     pod_columns_dialog,
+    node_columns_dialog,
     pod_log_query_help_dialog,
     context_dialog,
     single_namespace_dialog,
