@@ -73,6 +73,7 @@ impl App {
             });
 
         let default_pod_columns = kube_worker_config.pod_config.default_columns.clone();
+        let default_node_columns = kube_worker_config.node_config.default_columns.clone();
 
         let kube = KubeWorker::new(
             tx_kube.clone(),
@@ -93,6 +94,7 @@ impl App {
             tx_shutdown.clone(),
             split_direction,
             default_pod_columns,
+            default_node_columns,
             config.theme.clone(),
             cmd.clipboard,
             config.logging.max_lines,
