@@ -18,8 +18,10 @@ component_id!(
     api_tab,
     network_tab,
     yaml_tab,
+    node_tab,
     // widgets
     pod_widget,
+    node_widget,
     pod_log_widget,
     pod_log_query_widget,
     config_widget,

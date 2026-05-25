@@ -6,12 +6,13 @@ use crossbeam::channel::{bounded, Receiver, Sender};
 use crate::{
     cmd::Command,
     config::{
-        theme::{PodColumnConfig, PodHighlightConfig},
+        theme::{NodeColumnConfig, PodColumnConfig, PodHighlightConfig},
         Config,
     },
     features::{
         api_resources::kube::ApiConfig,
         event::kube::EventConfig,
+        node::NodeColumns,
         pod::{kube::PodHighlightRule, PodColumns},
     },
     logger,
@@ -43,6 +44,11 @@ impl App {
             cmd.pod_columns_preset,
             &config.theme.pod.default_preset,
             &config.theme.pod.column_presets,
+        )?;
+
+        kube_worker_config.node_config.default_columns = build_node_columns(
+            &config.theme.node.default_preset,
+            &config.theme.node.column_presets,
         )?;
 
         kube_worker_config.event_config = EventConfig::from(config.theme.clone());
@@ -204,4 +210,62 @@ fn convert_columns(columns: &[PodColumnConfig]) -> PodColumns {
     PodColumns::from(columns)
         .ensure_name_column()
         .dedup_columns()
+}
+
+fn build_node_columns(
+    default_preset: &Option<String>,
+    column_presets: &Option<HashMap<String, Vec<NodeColumnConfig>>>,
+) -> Result<Option<NodeColumns>> {
+    let Some(default_preset) = default_preset else {
+        return Ok(None);
+    };
+
+    let Some(presets) = column_presets else {
+        anyhow::bail!("No node column presets defined in config file, but 'default_preset' is set");
+    };
+
+    let Some(columns) = presets.get(default_preset) else {
+        anyhow::bail!(
+            "Default node columns preset '{}' is set in config file but not defined in column_presets",
+            default_preset
+        );
+    };
+
+    let node_columns = NodeColumns::new(columns.iter().map(|c| c.0))
+        .ensure_name_column()
+        .dedup_columns();
+
+    Ok(Some(node_columns))
+}
+
+#[cfg(test)]
+mod node_columns_tests {
+    use super::*;
+    use crate::features::node::NodeColumn;
+
+    #[test]
+    fn resolves_default_preset() {
+        let presets = HashMap::from([(
+            "default".to_string(),
+            vec![
+                NodeColumnConfig(NodeColumn::Name),
+                NodeColumnConfig(NodeColumn::Status),
+            ],
+        )]);
+        let actual = build_node_columns(&Some("default".to_string()), &Some(presets)).unwrap();
+        let cols: Vec<NodeColumn> = actual.unwrap().columns().to_vec();
+        assert_eq!(cols, vec![NodeColumn::Name, NodeColumn::Status]);
+    }
+
+    #[test]
+    fn none_when_no_preset() {
+        let actual = build_node_columns(&None, &None).unwrap();
+        assert!(actual.is_none());
+    }
+
+    #[test]
+    fn errors_when_default_preset_missing_from_presets() {
+        let actual = build_node_columns(&Some("gpu".to_string()), &Some(HashMap::new()));
+        assert!(actual.is_err());
+    }
 }

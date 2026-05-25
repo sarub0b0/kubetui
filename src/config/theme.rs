@@ -10,6 +10,7 @@ mod header;
 mod help;
 mod input;
 mod list;
+mod node;
 mod pod;
 mod style;
 mod tab;
@@ -39,6 +40,7 @@ pub use filter::*;
 pub use help::HelpThemeConfig;
 pub use input::*;
 pub use list::*;
+pub use node::*;
 pub use pod::*;
 pub use style::ThemeStyleConfig;
 pub use table::*;
@@ -62,6 +64,9 @@ pub struct ThemeConfig {
 
     #[serde(default)]
     pub pod: PodThemeConfig,
+
+    #[serde(default)]
+    pub node: NodeThemeConfig,
 
     #[serde(default)]
     pub event: EventThemeConfig,

@@ -30,6 +30,7 @@ use crate::{
             kube::{NetworkDescriptionWorker, NetworkPoller},
             message::NetworkMessage,
         },
+        node::kube::{NodeConfig, NodePoller},
         pod::{
             kube::{LogConfig, LogWorker, PodConfig, PodPoller},
             message::{LogMessage, PodMessage},
@@ -141,6 +142,7 @@ pub struct KubeController {
     store: KubeStore,
     fallback_namespaces: Option<Vec<String>>,
     pod_config: PodConfig,
+    node_config: NodeConfig,
     event_config: EventConfig,
     api_config: ApiConfig,
     apis_config: ApisConfig,
@@ -160,6 +162,7 @@ impl KubeController {
             all_namespaces,
             fallback_namespaces,
             pod_config,
+            node_config,
             event_config,
             api_config,
             apis_config,
@@ -198,6 +201,7 @@ impl KubeController {
             store,
             fallback_namespaces,
             pod_config,
+            node_config,
             event_config,
             api_config,
             apis_config,
@@ -214,6 +218,7 @@ impl KubeController {
             mut store,
             fallback_namespaces,
             pod_config,
+            node_config,
             event_config,
             api_config,
             apis_config,
@@ -295,6 +300,10 @@ impl KubeController {
                 pod_config.default_columns.clone().unwrap_or_default(),
             ));
 
+            let shared_node_columns = Arc::new(RwLock::new(
+                node_config.default_columns.clone().unwrap_or_default(),
+            ));
+
             let contexts = kubeconfig
                 .contexts
                 .iter()
@@ -325,6 +334,9 @@ impl KubeController {
                 pod_config.clone(),
             )
             .spawn();
+
+            let node_handle =
+                NodePoller::new(tx.clone(), shared_node_columns.clone(), client.clone()).spawn();
 
             let config_handle =
                 ConfigPoller::new(tx.clone(), shared_target_namespaces.clone(), client.clone())
@@ -358,6 +370,7 @@ impl KubeController {
 
             let poller_handles = vec![
                 pod_handle,
+                node_handle,
                 config_handle,
                 network_handle,
                 event_handle,
