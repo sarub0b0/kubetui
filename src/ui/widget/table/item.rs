@@ -306,32 +306,37 @@ impl Digits {
             }
         }
 
-        let sum_width = digits.iter().sum::<usize>()
-            + (COLUMN_SPACING as usize * digits.len().saturating_sub(1));
+        // Width available for cell content, i.e. excluding the spacing drawn
+        // between columns.
+        let spacing = COLUMN_SPACING as usize * digits.len().saturating_sub(1);
+        let content_budget = max_width.saturating_sub(spacing);
 
-        if max_width < sum_width {
-            let index_of_longest_digits = digits
+        // Shrink the widest column first, down to MIN_COLUMN_WIDTH if needed,
+        // before touching the next-widest. This truncates long values
+        // (typically the NAME column) first while keeping shorter columns at
+        // their natural width as long as possible. A column is never reduced to
+        // 0 (which would make it vanish), and the total always fits the budget
+        // (so ratatui does not clip a whole column off the right edge).
+        const MIN_COLUMN_WIDTH: usize = 1;
+
+        let mut overflow = digits.iter().sum::<usize>().saturating_sub(content_budget);
+        while overflow > 0 {
+            let Some(idx) = digits
                 .iter()
                 .enumerate()
-                .max_by_key(|(_, l)| *l)
-                .unwrap_or((0, &0))
-                .0;
+                .filter(|(_, &w)| w > MIN_COLUMN_WIDTH)
+                .max_by_key(|(_, &w)| w)
+                .map(|(i, _)| i)
+            else {
+                // Every column is already at the minimum width; the pane is too
+                // narrow to fit them all and nothing more can be shrunk.
+                break;
+            };
 
-            let sum_width: usize = digits
-                .iter()
-                .enumerate()
-                .filter_map(|(i, w)| {
-                    if i == index_of_longest_digits {
-                        None
-                    } else {
-                        Some(w)
-                    }
-                })
-                .sum();
-
-            digits[index_of_longest_digits] = max_width.saturating_sub(
-                (COLUMN_SPACING as usize * digits.len().saturating_sub(1)) + sum_width,
-            );
+            let reducible = digits[idx] - MIN_COLUMN_WIDTH;
+            let reduce = reducible.min(overflow);
+            digits[idx] -= reduce;
+            overflow -= reduce;
         }
 
         Self(digits)
@@ -386,6 +391,72 @@ mod tests {
             let actual = item.filtered_index();
 
             assert_eq!(actual, 0);
+        }
+    }
+
+    mod digits {
+        use super::*;
+        use pretty_assertions::assert_eq;
+
+        fn items(cells: &[&str]) -> Vec<TableItem> {
+            vec![TableItem::new(
+                cells.iter().map(ToString::to_string).collect::<Vec<_>>(),
+                None,
+            )]
+        }
+
+        fn header(cols: &[&str]) -> Vec<String> {
+            cols.iter().map(ToString::to_string).collect()
+        }
+
+        fn total(digits: &Digits) -> usize {
+            digits.iter().sum::<usize>() + COLUMN_SPACING as usize * digits.len().saturating_sub(1)
+        }
+
+        #[test]
+        fn 十分な幅では自然幅をそのまま使う() {
+            let h = header(&["NAME", "ZONE", "STATUS"]);
+            let it = items(&["node-abcdefgh", "", "Ready"]);
+
+            let digits = Digits::new(&it, &h, usize::MAX);
+
+            // NAME=13, ZONE=ヘッダ4, STATUS=ヘッダ6
+            assert_eq!(*digits, vec![13, 4, 6]);
+        }
+
+        #[test]
+        fn 狭い幅でもどの列も0に潰れずクリップされない() {
+            let h = header(&["NAME", "ZONE", "STATUS"]);
+            let it = items(&["gke-very-long-node-name-0123456789", "", "Ready"]);
+
+            let digits = Digits::new(&it, &h, 16);
+
+            assert!(
+                digits.iter().all(|&w| w >= 1),
+                "どの列も0幅にならないこと: {:?}",
+                *digits
+            );
+            assert!(
+                total(&digits) <= 16,
+                "合計が max_width に収まること: total={} digits={:?}",
+                total(&digits),
+                *digits
+            );
+        }
+
+        #[test]
+        fn 縮小は最長列から行い短い列は可能な限り残す() {
+            let h = header(&["NAME", "ZONE", "STATUS"]);
+            let it = items(&["gke-very-long-node-name-0123456789", "", "Ready"]);
+
+            let digits = Digits::new(&it, &h, 20);
+
+            // 最長の NAME 列が縮められ、自然幅(34)より小さくなる。
+            assert!(digits[0] < 34, "最長列が縮小されること: {:?}", *digits);
+            // 短い列(ZONE=4, STATUS=6)は最長列より先に削られない。
+            assert_eq!(digits[1], 4, "ZONE は保持: {:?}", *digits);
+            assert_eq!(digits[2], 6, "STATUS は保持: {:?}", *digits);
+            assert!(total(&digits) <= 20);
         }
     }
 }
