@@ -47,6 +47,8 @@ impl App {
         )?;
 
         kube_worker_config.node_config.default_columns = build_node_columns(
+            cmd.node_columns,
+            cmd.node_columns_preset,
             &config.theme.node.default_preset,
             &config.theme.node.column_presets,
         )?;
@@ -213,29 +215,51 @@ fn convert_columns(columns: &[PodColumnConfig]) -> PodColumns {
 }
 
 fn build_node_columns(
+    cmd_node_columns: Option<NodeColumns>,
+    cmd_node_columns_preset: Option<String>,
     default_preset: &Option<String>,
     column_presets: &Option<HashMap<String, Vec<NodeColumnConfig>>>,
 ) -> Result<Option<NodeColumns>> {
-    let Some(default_preset) = default_preset else {
-        return Ok(None);
-    };
+    if let Some(columns) = cmd_node_columns {
+        return Ok(Some(columns));
+    }
 
-    let Some(presets) = column_presets else {
-        anyhow::bail!("No node column presets defined in config file, but 'default_preset' is set");
-    };
+    if let Some(preset) = cmd_node_columns_preset {
+        let Some(presets) = column_presets else {
+            anyhow::bail!("No node column presets defined in config file, but '--node-columns-preset' flag was used");
+        };
 
-    let Some(columns) = presets.get(default_preset) else {
-        anyhow::bail!(
-            "Default node columns preset '{}' is set in config file but not defined in column_presets",
-            default_preset
-        );
-    };
+        let Some(columns) = presets.get(&preset) else {
+            anyhow::bail!("Node column preset '{}' was specified via '--node-columns-preset' but is not defined in config file", preset);
+        };
 
-    let node_columns = NodeColumns::new(columns.iter().map(|c| c.0))
+        return Ok(Some(convert_node_columns(columns)));
+    }
+
+    if let Some(default_preset) = default_preset {
+        let Some(presets) = column_presets else {
+            anyhow::bail!(
+                "No node column presets defined in config file, but 'default_preset' is set"
+            );
+        };
+
+        let Some(columns) = presets.get(default_preset) else {
+            anyhow::bail!(
+                "Default node columns preset '{}' is set in config file but not defined in column_presets",
+                default_preset
+            );
+        };
+
+        return Ok(Some(convert_node_columns(columns)));
+    }
+
+    Ok(None)
+}
+
+fn convert_node_columns(columns: &[NodeColumnConfig]) -> NodeColumns {
+    NodeColumns::new(columns.iter().map(|c| c.0))
         .ensure_name_column()
-        .dedup_columns();
-
-    Ok(Some(node_columns))
+        .dedup_columns()
 }
 
 #[cfg(test)]
@@ -243,29 +267,55 @@ mod node_columns_tests {
     use super::*;
     use crate::features::node::NodeColumn;
 
-    #[test]
-    fn resolves_default_preset() {
-        let presets = HashMap::from([(
+    fn presets() -> HashMap<String, Vec<NodeColumnConfig>> {
+        HashMap::from([(
             "default".to_string(),
             vec![
                 NodeColumnConfig(NodeColumn::Name),
                 NodeColumnConfig(NodeColumn::Status),
             ],
-        )]);
-        let actual = build_node_columns(&Some("default".to_string()), &Some(presets)).unwrap();
+        )])
+    }
+
+    #[test]
+    fn resolves_default_preset() {
+        let actual =
+            build_node_columns(None, None, &Some("default".to_string()), &Some(presets())).unwrap();
         let cols: Vec<NodeColumn> = actual.unwrap().columns().to_vec();
         assert_eq!(cols, vec![NodeColumn::Name, NodeColumn::Status]);
     }
 
     #[test]
     fn none_when_no_preset() {
-        let actual = build_node_columns(&None, &None).unwrap();
+        let actual = build_node_columns(None, None, &None, &None).unwrap();
         assert!(actual.is_none());
     }
 
     #[test]
     fn errors_when_default_preset_missing_from_presets() {
-        let actual = build_node_columns(&Some("gpu".to_string()), &Some(HashMap::new()));
+        let actual =
+            build_node_columns(None, None, &Some("gpu".to_string()), &Some(HashMap::new()));
         assert!(actual.is_err());
+    }
+
+    #[test]
+    fn cmd_columns_take_precedence() {
+        let actual = build_node_columns(
+            Some(NodeColumns::new([NodeColumn::Name, NodeColumn::Version])),
+            Some("default".to_string()),
+            &Some("default".to_string()),
+            &Some(presets()),
+        )
+        .unwrap();
+        let cols: Vec<NodeColumn> = actual.unwrap().columns().to_vec();
+        assert_eq!(cols, vec![NodeColumn::Name, NodeColumn::Version]);
+    }
+
+    #[test]
+    fn cmd_preset_flag_selects_preset() {
+        let actual =
+            build_node_columns(None, Some("default".to_string()), &None, &Some(presets())).unwrap();
+        let cols: Vec<NodeColumn> = actual.unwrap().columns().to_vec();
+        assert_eq!(cols, vec![NodeColumn::Name, NodeColumn::Status]);
     }
 }

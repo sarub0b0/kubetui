@@ -74,3 +74,4 @@ mockall = "0.14.0"
 mockall_double = "0.3.1"
 tokio = { version = "1.37.0", features = ["rt", "rt-multi-thread", "macros"] }
 rstest = "0.26.0"
+figment = { version = "0.10.19", features = ["yaml", "env", "test"] }

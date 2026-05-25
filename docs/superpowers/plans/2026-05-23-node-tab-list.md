@@ -1145,7 +1145,8 @@ git commit -m "chore(node): fmt and clippy for Node list tab"
 
 ## 後続プラン（このプランの完了後）
 
-- **Plan 2**: ランタイム列ダイアログ（`t`）＋ `NodeMessage::Request(NodeColumns)`。`EventController` のメッセージループで `shared_node_columns` を更新する箇所（Pod の `PodMessage::Request` 処理）を調査して踏襲。`--node-columns` / `--node-columns-preset` CLI も検討。
+- **Plan 2**: ランタイム列ダイアログ（`t`）＋ `NodeMessage::Request(NodeColumns)`。`EventController` のメッセージループで `shared_node_columns` を更新する箇所（Pod の `PodMessage::Request` 処理）を調査して踏襲。
+  - （`--node-columns` / `--node-columns-preset` CLI フラグと、環境変数 `KUBETUI_THEME__NODE__DEFAULT_PRESET` による切替は Plan 1 で実装済み。）
 - **Plan 3**: ラベル列（`label_columns` レジストリ＋ `NodeColumn::Label{key,name}`、`includeObject=Metadata` で `TableRow.object` → `metadata.labels[key]` を抽出、設定衝突/未定義参照の読込時バリデーション）。
 - **Plan 4**: 詳細ペイン（2 ペイン化、`NodeDetailWorker`：Node YAML〔managedFields 除去〕＋関連 Pod〔`fieldSelector=spec.nodeName`、全 namespace〕、3 秒更新、`on_select`）。
 - **Plan 5**: フィルタ（`node:`/`!node:`/`label:`、nom パーサ、`shared_node_filter`、`labelSelector`、フィルタ入力ウィジェット＋ヘルプダイアログ）。

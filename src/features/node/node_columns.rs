@@ -1,4 +1,4 @@
-use strum::EnumIter;
+use strum::{EnumIter, IntoEnumIterator};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NodeColumns {
@@ -18,6 +18,12 @@ impl NodeColumns {
     pub fn new(columns: impl IntoIterator<Item = NodeColumn>) -> Self {
         NodeColumns {
             columns: columns.into_iter().collect(),
+        }
+    }
+
+    pub fn full() -> Self {
+        NodeColumns {
+            columns: NodeColumn::iter().collect(),
         }
     }
 

@@ -3,10 +3,14 @@ use clap::Parser;
 use ratatui::layout::Direction;
 use std::path::PathBuf;
 
-use crate::{config::ConfigLoadOption, features::pod::PodColumns, workers::kube::KubeWorkerConfig};
+use crate::{
+    config::ConfigLoadOption,
+    features::{node::NodeColumns, pod::PodColumns},
+    workers::kube::KubeWorkerConfig,
+};
 
 use super::{
-    args::{parse_pod_columns, AllNamespaces, ClipboardMode, SplitDirection},
+    args::{parse_node_columns, parse_pod_columns, AllNamespaces, ClipboardMode, SplitDirection},
     SubCommand,
 };
 
@@ -84,6 +88,17 @@ pub struct Command {
     /// Preset name for pod columns (e.g. "default", "full"). If both are specified, `--pod-columns` overrides this.
     #[arg(long, display_order = 1000)]
     pub pod_columns_preset: Option<String>,
+
+    /// Comma-separated list of columns to show in node table (e.g. name,status,roles). Use "full" to show all available columns.
+    #[arg(
+        long,
+        value_parser = parse_node_columns,
+        display_order = 1000)]
+    pub node_columns: Option<NodeColumns>,
+
+    /// Preset name for node columns (e.g. "default", "wide"). If both are specified, `--node-columns` overrides this.
+    #[arg(long, display_order = 1000)]
+    pub node_columns_preset: Option<String>,
 
     /// Clipboard mode (auto, system, or osc52)
     #[arg(
