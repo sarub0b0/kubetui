@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{collections::BTreeMap, str::FromStr as _};
 
 use crossbeam::channel::Sender;
 use strum::IntoEnumIterator;
@@ -30,9 +30,21 @@ pub fn node_columns_dialog(
         .theme(widget_theme)
         .build();
 
-    // All candidate columns in checklist order: every builtin, then every
-    // defined label column.
-    let candidates: Vec<NodeColumnSpec> = NodeColumn::iter()
+    let items = build_check_list_items(default_columns, &label_registry);
+
+    CheckList::builder()
+        .id(NODE_COLUMNS_DIALOG_ID)
+        .widget_base(widget_base)
+        .theme(check_list_theme)
+        .items(items)
+        .on_change(on_change(tx.clone()))
+        .build()
+        .into()
+}
+
+/// All candidate columns: every builtin, then every defined label column.
+fn candidate_specs(label_registry: &[NodeLabelColumn]) -> Vec<NodeColumnSpec> {
+    NodeColumn::iter()
         .map(NodeColumnSpec::Builtin)
         .chain(label_registry.iter().map(|lc| {
             NodeColumnSpec::Label {
@@ -40,80 +52,103 @@ pub fn node_columns_dialog(
                 header: lc.header.clone(),
             }
         }))
-        .collect();
-
-    // Current column set (the order-preservation baseline).
-    let current = default_columns.unwrap_or_default();
-
-    let items: Vec<CheckListItem> = candidates
-        .iter()
-        .map(|spec| {
-            CheckListItem {
-                label: spec.header(),
-                checked: current.specs().contains(spec),
-                required: matches!(spec, NodeColumnSpec::Builtin(NodeColumn::Name)),
-                metadata: None,
-            }
-        })
-        .collect();
-
-    let state = Rc::new(RefCell::new(current));
-
-    CheckList::builder()
-        .id(NODE_COLUMNS_DIALOG_ID)
-        .widget_base(widget_base)
-        .theme(check_list_theme)
-        .items(items)
-        .on_change(on_change(tx.clone(), candidates, state))
-        .build()
-        .into()
+        .collect()
 }
 
-fn on_change(
-    tx: Sender<Message>,
-    candidates: Vec<NodeColumnSpec>,
-    state: Rc<RefCell<NodeColumns>>,
-) -> impl Fn(&mut Window, &CheckListItem) -> EventResult {
+/// Build the checklist items: the currently-active columns first (in their
+/// order, checked), then the remaining candidates (unchecked). Each item
+/// carries its `NodeColumnSpec` in `metadata` so the selection can be rebuilt
+/// from the items alone — independent of any reordering done in the dialog.
+fn build_check_list_items(
+    default_columns: Option<NodeColumns>,
+    label_registry: &[NodeLabelColumn],
+) -> Vec<CheckListItem> {
+    let candidates = candidate_specs(label_registry);
+    let current = default_columns.unwrap_or_default();
+
+    current
+        .specs()
+        .iter()
+        .map(|spec| make_item(spec, true))
+        .chain(
+            candidates
+                .iter()
+                .filter(|spec| !current.specs().contains(spec))
+                .map(|spec| make_item(spec, false)),
+        )
+        .collect()
+}
+
+fn make_item(spec: &NodeColumnSpec, checked: bool) -> CheckListItem {
+    CheckListItem {
+        label: spec.header(),
+        checked,
+        required: matches!(spec, NodeColumnSpec::Builtin(NodeColumn::Name)),
+        metadata: Some(metadata_for(spec)),
+    }
+}
+
+fn metadata_for(spec: &NodeColumnSpec) -> BTreeMap<String, String> {
+    match spec {
+        NodeColumnSpec::Builtin(c) => {
+            BTreeMap::from([
+                ("kind".to_string(), "builtin".to_string()),
+                ("id".to_string(), c.as_str().to_string()),
+            ])
+        }
+        NodeColumnSpec::Label { key, header } => {
+            BTreeMap::from([
+                ("kind".to_string(), "label".to_string()),
+                ("key".to_string(), key.clone()),
+                ("header".to_string(), header.clone()),
+            ])
+        }
+    }
+}
+
+fn spec_from_item(item: &CheckListItem) -> Option<NodeColumnSpec> {
+    let md = item.metadata.as_ref()?;
+    match md.get("kind").map(String::as_str) {
+        Some("builtin") => {
+            NodeColumn::from_str(md.get("id")?)
+                .ok()
+                .map(NodeColumnSpec::Builtin)
+        }
+        Some("label") => {
+            Some(NodeColumnSpec::Label {
+                key: md.get("key")?.clone(),
+                header: md.get("header")?.clone(),
+            })
+        }
+        _ => None,
+    }
+}
+
+/// Collect the selected columns from the checklist items, preserving the
+/// items' current display order (which the user can reorder in the dialog).
+fn collect_columns(items: &[CheckListItem]) -> NodeColumns {
+    let specs: Vec<NodeColumnSpec> = items
+        .iter()
+        .filter(|item| item.required || item.checked)
+        .filter_map(spec_from_item)
+        .collect();
+
+    NodeColumns::new(specs).ensure_name_column()
+}
+
+fn on_change(tx: Sender<Message>) -> impl Fn(&mut Window, &CheckListItem) -> EventResult {
     move |w: &mut Window, _v| {
         let widget = w
             .find_widget_mut(NODE_COLUMNS_DIALOG_ID)
             .as_mut_check_list();
 
-        let checked: Vec<NodeColumnSpec> = widget
-            .items()
-            .iter()
-            .enumerate()
-            .filter(|(_, item)| item.required || item.checked)
-            .map(|(idx, _)| candidates[idx].clone())
-            .collect();
+        let columns = collect_columns(widget.items());
 
-        let rebuilt = rebuild_columns(&state.borrow(), &checked);
-        *state.borrow_mut() = rebuilt.clone();
-
-        tx.send(NodeMessage::Request(rebuilt).into())
+        tx.send(NodeMessage::Request(columns).into())
             .expect("Failed to send NodeMessage::Request");
 
         EventResult::Nop
     }
-}
-
-/// Keep the current order for still-checked columns, drop unchecked ones, and
-/// append newly-checked columns at the end.
-fn rebuild_columns(current: &NodeColumns, checked: &[NodeColumnSpec]) -> NodeColumns {
-    let mut result: Vec<NodeColumnSpec> = current
-        .specs()
-        .iter()
-        .filter(|s| checked.contains(s))
-        .cloned()
-        .collect();
-
-    for s in checked {
-        if !result.contains(s) {
-            result.push(s.clone());
-        }
-    }
-
-    NodeColumns::new(result).ensure_name_column()
 }
 
 #[cfg(test)]
@@ -121,7 +156,7 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
 
-    fn label(key: &str, header: &str) -> NodeColumnSpec {
+    fn label_spec(key: &str, header: &str) -> NodeColumnSpec {
         NodeColumnSpec::Label {
             key: key.into(),
             header: header.into(),
@@ -129,36 +164,58 @@ mod tests {
     }
 
     #[test]
-    fn rebuild_preserves_order_and_appends_new() {
+    fn 選択列を先頭にその他候補を未チェックで並べる() {
+        let registry = vec![NodeLabelColumn {
+            name: "zone".into(),
+            key: "topology.kubernetes.io/zone".into(),
+            header: "ZONE".into(),
+        }];
         let current = NodeColumns::new([
             NodeColumnSpec::Builtin(NodeColumn::Name),
-            label("k", "MIG"),
-            NodeColumnSpec::Builtin(NodeColumn::Status),
+            label_spec("topology.kubernetes.io/zone", "ZONE"),
         ]);
-        let checked = vec![
-            NodeColumnSpec::Builtin(NodeColumn::Name),
-            label("k", "MIG"),
-            NodeColumnSpec::Builtin(NodeColumn::Roles),
-        ];
-        let rebuilt = rebuild_columns(&current, &checked);
+
+        let items = build_check_list_items(Some(current), &registry);
+
+        // 先頭2件は選択済み(NAME, ZONE)、以降は未チェック。
+        assert_eq!(items[0].label, "NAME");
+        assert!(items[0].checked);
+        assert_eq!(items[1].label, "ZONE");
+        assert!(items[1].checked);
+        assert!(items[2..].iter().all(|i| !i.checked));
+    }
+
+    #[test]
+    fn 並べ替え後も表示順どおりに列を収集する() {
+        // [NAME(必須), ZONE] が選択された状態で、ZONE を NAME より前へ移動。
+        let name = make_item(&NodeColumnSpec::Builtin(NodeColumn::Name), true);
+        let zone = make_item(&label_spec("topology.kubernetes.io/zone", "ZONE"), true);
+        let status = make_item(&NodeColumnSpec::Builtin(NodeColumn::Status), false);
+
+        // 移動後の表示順: ZONE, NAME, STATUS(未チェック)
+        let reordered = vec![zone, name, status];
+
+        let columns = collect_columns(&reordered);
+
+        // STATUS は混入せず、表示順(ZONE, NAME)どおりに収集される。
         assert_eq!(
-            rebuilt.specs(),
+            columns.specs(),
             &[
+                label_spec("topology.kubernetes.io/zone", "ZONE"),
                 NodeColumnSpec::Builtin(NodeColumn::Name),
-                label("k", "MIG"),
-                NodeColumnSpec::Builtin(NodeColumn::Roles),
             ]
         );
     }
 
     #[test]
-    fn rebuild_ensures_name_column() {
-        let current = NodeColumns::new([NodeColumnSpec::Builtin(NodeColumn::Status)]);
-        let checked = vec![NodeColumnSpec::Builtin(NodeColumn::Status)];
-        let rebuilt = rebuild_columns(&current, &checked);
+    fn メタデータからspecを復元できる() {
+        let builtin = make_item(&NodeColumnSpec::Builtin(NodeColumn::InternalIP), true);
+        let label = make_item(&label_spec("k", "MIG"), true);
+
         assert_eq!(
-            rebuilt.specs()[0],
-            NodeColumnSpec::Builtin(NodeColumn::Name)
+            spec_from_item(&builtin),
+            Some(NodeColumnSpec::Builtin(NodeColumn::InternalIP))
         );
+        assert_eq!(spec_from_item(&label), Some(label_spec("k", "MIG")));
     }
 }
