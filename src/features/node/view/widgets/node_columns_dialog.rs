@@ -1,4 +1,4 @@
-use std::str::FromStr as _;
+use std::{cell::RefCell, rc::Rc};
 
 use crossbeam::channel::Sender;
 use strum::IntoEnumIterator;
@@ -7,13 +7,7 @@ use crate::{
     config::theme::WidgetThemeConfig,
     features::{
         component_id::NODE_COLUMNS_DIALOG_ID,
-        node::{
-            message::NodeMessage,
-            NodeColumn,
-            NodeColumnSpec,
-            NodeColumns,
-            DEFAULT_NODE_COLUMNS,
-        },
+        node::{message::NodeMessage, NodeColumn, NodeColumnSpec, NodeColumns, NodeLabelColumn},
     },
     message::Message,
     ui::{
@@ -26,6 +20,7 @@ use crate::{
 pub fn node_columns_dialog(
     tx: &Sender<Message>,
     default_columns: Option<NodeColumns>,
+    label_registry: Vec<NodeLabelColumn>,
     theme: WidgetThemeConfig,
 ) -> Widget<'static> {
     let check_list_theme = CheckListTheme::from(theme.clone());
@@ -35,116 +30,135 @@ pub fn node_columns_dialog(
         .theme(widget_theme)
         .build();
 
-    let check_list_items = build_check_list_items(default_columns);
+    // All candidate columns in checklist order: every builtin, then every
+    // defined label column.
+    let candidates: Vec<NodeColumnSpec> = NodeColumn::iter()
+        .map(NodeColumnSpec::Builtin)
+        .chain(label_registry.iter().map(|lc| {
+            NodeColumnSpec::Label {
+                key: lc.key.clone(),
+                header: lc.header.clone(),
+            }
+        }))
+        .collect();
+
+    // Current column set (the order-preservation baseline).
+    let current = default_columns.unwrap_or_default();
+
+    let items: Vec<CheckListItem> = candidates
+        .iter()
+        .map(|spec| {
+            CheckListItem {
+                label: spec.header(),
+                checked: current.specs().contains(spec),
+                required: matches!(spec, NodeColumnSpec::Builtin(NodeColumn::Name)),
+                metadata: None,
+            }
+        })
+        .collect();
+
+    let state = Rc::new(RefCell::new(current));
 
     CheckList::builder()
         .id(NODE_COLUMNS_DIALOG_ID)
         .widget_base(widget_base)
         .theme(check_list_theme)
-        .items(check_list_items)
-        .on_change(on_change(tx.clone()))
+        .items(items)
+        .on_change(on_change(tx.clone(), candidates, state))
         .build()
         .into()
 }
 
-fn on_change(tx: Sender<Message>) -> impl Fn(&mut Window, &CheckListItem) -> EventResult {
+fn on_change(
+    tx: Sender<Message>,
+    candidates: Vec<NodeColumnSpec>,
+    state: Rc<RefCell<NodeColumns>>,
+) -> impl Fn(&mut Window, &CheckListItem) -> EventResult {
     move |w: &mut Window, _v| {
         let widget = w
             .find_widget_mut(NODE_COLUMNS_DIALOG_ID)
             .as_mut_check_list();
 
-        let items = widget
+        let checked: Vec<NodeColumnSpec> = widget
             .items()
             .iter()
-            .filter(|item| item.required || item.checked)
-            .filter_map(|i| NodeColumn::from_str(&i.label).ok())
-            .collect::<Vec<_>>();
+            .enumerate()
+            .filter(|(_, item)| item.required || item.checked)
+            .map(|(idx, _)| candidates[idx].clone())
+            .collect();
 
-        tx.send(NodeMessage::Request(NodeColumns::from_builtins(items)).into())
+        let rebuilt = rebuild_columns(&state.borrow(), &checked);
+        *state.borrow_mut() = rebuilt.clone();
+
+        tx.send(NodeMessage::Request(rebuilt).into())
             .expect("Failed to send NodeMessage::Request");
 
         EventResult::Nop
     }
 }
 
-fn build_check_list_items(default_columns: Option<NodeColumns>) -> Vec<CheckListItem> {
-    match default_columns {
-        Some(columns) => {
-            build_check_list_items_from_existing(columns.ensure_name_column().dedup_columns())
-        }
-        None => build_default_check_list_items(),
-    }
-}
-
-fn build_check_list_items_from_existing(node_columns: NodeColumns) -> Vec<CheckListItem> {
-    let existing: Vec<NodeColumn> = node_columns
+/// Keep the current order for still-checked columns, drop unchecked ones, and
+/// append newly-checked columns at the end.
+fn rebuild_columns(current: &NodeColumns, checked: &[NodeColumnSpec]) -> NodeColumns {
+    let mut result: Vec<NodeColumnSpec> = current
         .specs()
         .iter()
-        .filter_map(|s| {
-            match s {
-                NodeColumnSpec::Builtin(c) => Some(*c),
-                NodeColumnSpec::Label { .. } => None,
-            }
-        })
+        .filter(|s| checked.contains(s))
+        .cloned()
         .collect();
 
-    existing
-        .iter()
-        .map(|column| make_item(*column, true))
-        .chain(
-            NodeColumn::iter()
-                .filter(|c| !existing.contains(c))
-                .map(|column| make_item(column, false)),
-        )
-        .collect()
-}
-
-fn build_default_check_list_items() -> Vec<CheckListItem> {
-    NodeColumn::iter()
-        .map(|column| {
-            let checked = DEFAULT_NODE_COLUMNS.contains(&column);
-            make_item(column, checked)
-        })
-        .collect()
-}
-
-fn make_item(column: NodeColumn, checked: bool) -> CheckListItem {
-    CheckListItem {
-        label: column.display().to_string(),
-        checked,
-        required: column == NodeColumn::Name,
-        metadata: None,
+    for s in checked {
+        if !result.contains(s) {
+            result.push(s.clone());
+        }
     }
+
+    NodeColumns::new(result).ensure_name_column()
 }
 
 #[cfg(test)]
 mod tests {
-    #![allow(non_snake_case)]
     use super::*;
     use pretty_assertions::assert_eq;
 
-    #[test]
-    fn 既存カラムをチェック済みで先頭に_残りを未チェックで並べる() {
-        let node_columns = NodeColumns::from_builtins([NodeColumn::Name, NodeColumn::Status]);
-        let items = build_check_list_items_from_existing(node_columns);
-
-        assert_eq!(items[0].label, "NAME");
-        assert!(items[0].checked && items[0].required);
-        assert_eq!(items[1].label, "STATUS");
-        assert!(items[1].checked && !items[1].required);
-        assert_eq!(items.len(), NodeColumn::iter().count());
-        assert!(items[2..].iter().all(|i| !i.checked));
+    fn label(key: &str, header: &str) -> NodeColumnSpec {
+        NodeColumnSpec::Label {
+            key: key.into(),
+            header: header.into(),
+        }
     }
 
     #[test]
-    fn デフォルトカラムがチェック済みで構築される() {
-        let items = build_default_check_list_items();
-        let checked: Vec<&str> = items
-            .iter()
-            .filter(|i| i.checked)
-            .map(|i| i.label.as_str())
-            .collect();
-        assert_eq!(checked, vec!["NAME", "STATUS", "ROLES", "AGE", "VERSION"]);
-        assert!(items.iter().find(|i| i.label == "NAME").unwrap().required);
+    fn rebuild_preserves_order_and_appends_new() {
+        let current = NodeColumns::new([
+            NodeColumnSpec::Builtin(NodeColumn::Name),
+            label("k", "MIG"),
+            NodeColumnSpec::Builtin(NodeColumn::Status),
+        ]);
+        let checked = vec![
+            NodeColumnSpec::Builtin(NodeColumn::Name),
+            label("k", "MIG"),
+            NodeColumnSpec::Builtin(NodeColumn::Roles),
+        ];
+        let rebuilt = rebuild_columns(&current, &checked);
+        assert_eq!(
+            rebuilt.specs(),
+            &[
+                NodeColumnSpec::Builtin(NodeColumn::Name),
+                label("k", "MIG"),
+                NodeColumnSpec::Builtin(NodeColumn::Roles),
+            ]
+        );
+    }
+
+    #[test]
+    fn rebuild_ensures_name_column() {
+        let current = NodeColumns::new([NodeColumnSpec::Builtin(NodeColumn::Status)]);
+        let checked = vec![NodeColumnSpec::Builtin(NodeColumn::Status)];
+        let rebuilt = rebuild_columns(&current, &checked);
+        assert_eq!(
+            rebuilt.specs()[0],
+            NodeColumnSpec::Builtin(NodeColumn::Name)
+        );
     }
 }

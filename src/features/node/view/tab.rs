@@ -3,7 +3,10 @@ use ratatui::layout::{Constraint, Direction};
 
 use crate::{
     config::theme::WidgetThemeConfig,
-    features::{component_id::NODE_TAB_ID, node::NodeColumns},
+    features::{
+        component_id::NODE_TAB_ID,
+        node::{NodeColumns, NodeLabelColumn},
+    },
     message::Message,
     ui::{
         tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout, TabLayout},
@@ -24,10 +27,11 @@ impl NodeTab {
         title: &'static str,
         tx: &Sender<Message>,
         default_columns: Option<NodeColumns>,
+        label_registry: Vec<NodeLabelColumn>,
         theme: WidgetThemeConfig,
     ) -> Self {
         let node_widget = node_widget(theme.clone());
-        let node_columns_dialog = node_columns_dialog(tx, default_columns, theme);
+        let node_columns_dialog = node_columns_dialog(tx, default_columns, label_registry, theme);
 
         let tab = Tab::new(
             NODE_TAB_ID,
