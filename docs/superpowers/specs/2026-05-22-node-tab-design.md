@@ -71,7 +71,7 @@ tmux の小ペインやフローティングウィンドウでの利用を想定
 ```
 src/features/node/
 ├── message.rs              # NodeMessage(一覧) / NodeDetailMessage(YAML+関連Pod), From<…> for Message
-├── node_columns.rs         # NodeColumn enum（標準列・wide列・Label{key,name}）, NodeColumns
+├── node_columns.rs         # NodeColumn enum / NodeColumnSpec(Builtin|Label) / NodeLabelColumn / NodeColumns
 ├── filter.rs               # NodeFilter(AST) + 適用ロジック
 ├── filter/parser.rs        # nom ベースのフィルタパーサ
 ├── kube.rs                 # 再エクスポート
@@ -124,8 +124,11 @@ src/features/node/
 
 ビルトイン列の選択（プリセット）と、ラベル列の定義（レジストリ）を分ける。`column_presets` は **ビルトイン列名・ラベル列名のどちらも「文字列での参照」**になり、マップ混在やミニ構文を避けられる。
 
-- 内部表現 `NodeColumn`:
-  `Name, Status, Roles, Age, Version, InternalIP, ExternalIP, OSImage, KernelVersion, ContainerRuntime, Label { key, name }`
+- 内部表現:
+  - ビルトイン列 `NodeColumn`（`Copy` enum）:
+    `Name, Status, Roles, Age, Version, InternalIP, ExternalIP, OSImage, KernelVersion, ContainerRuntime`
+  - ランタイムの 1 列 = `NodeColumnSpec`（`Builtin(NodeColumn)` | `Label { key: String, header: String }`）。`NodeColumns = Vec<NodeColumnSpec>`。
+  - ラベルレジストリ `NodeLabelColumn { name, key, header }`（`label_columns` を解決したもの）を app.rs で構築し、CLI・プリセット・ダイアログで共有する。
 - 既定列: `Name, Status, Roles, Age, Version`。
 - 設定は `NodeThemeConfig`（`theme.node`、`PodThemeConfig` に倣う）に以下を持たせる:
   - `label_columns: Vec<LabelColumnConfig>` — **ラベル列の定義**。各要素は `{ name, label }`（`name` = 参照名兼ヘッダ、`label` = Kubernetes ラベルキー）。
@@ -133,13 +136,19 @@ src/features/node/
   - `default_preset: Option<String>`。
 - 表示と参照:
   - プリセットからの参照は**大小無視でマッチ**（ビルトイン列名のパースと同じ正規化）。
+  - ビルトイン列とラベル列は**任意順で混在（インターリーブ）**できる。プリセットは列名を並べた順がそのまま表示順になる。
+  - 特殊名 `full` は**全ビルトイン列**に展開する（単独指定時のみ）。
   - ヘッダは**大文字化して表示**する（`name: zone` → 表示 `ZONE`。ビルトイン列の `NAME`/`STATUS` と揃える）。
   - 参照名と異なるヘッダにしたい場合に備え、将来 `LabelColumnConfig` に任意の `header` フィールドを足せる（v1 は `{ name, label }` の2項目）。
+- CLI（`--node-columns` / `--node-columns-preset`）:
+  - `--node-columns` は**列名の配列**（ビルトイン名・**ラベル列名**・`full` を指定可）。
+  - 優先順位は `--node-columns` > `--node-columns-preset` > `default_preset`。
+  - 環境変数（`KUBETUI_THEME__NODE__DEFAULT_PRESET` 等）でも切り替え可。
 - **設定バリデーション（読み込み時にエラー）**:
   - ラベル列の `name` がビルトイン列名と衝突したらエラー。
   - プリセットがビルトイン名でも定義済みラベル列名でもない名前を参照したらエラー。
   - クラスタにそのラベルが存在しない場合は実行時にしか分からないため、エラーにせず空セル表示にする。
-- `t` キーの列選択ダイアログ（CheckList）では**ビルトイン列・wide 列をチェックボックスで選択**する（`Name` は常に含む）。
+- `t` キーの列選択ダイアログ（CheckList）では**全ビルトイン列＋定義済みラベル列**をチェックボックスでトグルする（`Name` は常に含む）。チェック済みの既存列は順序を保ち、新規チェック列は末尾に追加する。
 - ランタイムの列 = アクティブなプリセットが参照する「ビルトイン列＋ラベル列」。
 - 設定例:
 

@@ -214,11 +214,24 @@ theme:
 
   ## Node view
   node:
-    ## Name of the column preset to use at startup
+    ## Name of the column preset to use at startup.
     default_preset: default
+    ## Register node labels as columns. Each entry maps a short `name`
+    ## (used in presets, the `--node-columns` flag, and the column dialog)
+    ## to a label key. The header shown in the table is the upper-cased name.
+    ## The cell value is taken from the node's metadata.labels[<label>];
+    ## nodes without the label show an empty cell.
+    label_columns:
+      - name: zone
+        label: topology.kubernetes.io/zone
+      - name: instance
+        label: node.kubernetes.io/instance-type
     ## Define multiple column presets which can be selected by name.
+    ## A preset is an ordered list of column names; built-in and label
+    ## columns can be mixed freely (interleaved) in any order.
     ## Available built-in columns: name, status, roles, age, version,
-    ## internalip, externalip, osimage, kernelversion, containerruntime
+    ## internalip, externalip, osimage, kernelversion, containerruntime.
+    ## The special name `full` expands to all built-in columns.
     column_presets:
       default:
         - name
@@ -227,16 +240,13 @@ theme:
         - age
         - version
       wide:
+        - full
+      topology:
         - name
         - status
         - roles
-        - age
-        - version
-        - internalip
-        - externalip
-        - osimage
-        - kernelversion
-        - containerruntime
+        - zone
+        - instance
 
   ## API view
   api:
