@@ -24,11 +24,12 @@ use crate::{
             v1_table::Table,
         },
         table::{insert_ns, KubeTable, KubeTableRow},
-        KubeClient, KubeClientRequest,
+        KubeClient,
+        KubeClientRequest,
     },
     logger,
     message::Message,
-    workers::kube::{SharedTargetNamespaces, InfiniteWorker},
+    workers::kube::{InfiniteWorker, SharedTargetNamespaces},
 };
 
 #[derive(Debug, Default, Clone)]
@@ -126,14 +127,18 @@ impl TargetResource {
             Self::Service => Service::KIND,
             Self::Pod => Pod::KIND,
             Self::NetworkPolicy => NetworkPolicy::KIND,
-            Self::Gateway(version) => match version {
-                GatewayVersion::V1 => v1::Gateway::KIND,
-                GatewayVersion::V1Beta1 => v1beta1::Gateway::KIND,
-            },
-            Self::HTTPRoute(version) => match version {
-                HTTPRouteVersion::V1 => v1::HTTPRoute::KIND,
-                HTTPRouteVersion::V1Beta1 => v1beta1::HTTPRoute::KIND,
-            },
+            Self::Gateway(version) => {
+                match version {
+                    GatewayVersion::V1 => v1::Gateway::KIND,
+                    GatewayVersion::V1Beta1 => v1beta1::Gateway::KIND,
+                }
+            }
+            Self::HTTPRoute(version) => {
+                match version {
+                    HTTPRouteVersion::V1 => v1::HTTPRoute::KIND,
+                    HTTPRouteVersion::V1Beta1 => v1beta1::HTTPRoute::KIND,
+                }
+            }
         }
     }
 
@@ -349,12 +354,14 @@ async fn fetch_resource_per_namespace(
     let rows = table
         .rows
         .iter()
-        .map(|row| NetworkTableRow {
-            namespace: ns.to_string(),
-            kind: kind.to_string(),
-            version: kind.version().to_string(),
-            name: row.cells[indexes[0]].to_string(),
-            age: row.cells[indexes[1]].to_string(),
+        .map(|row| {
+            NetworkTableRow {
+                namespace: ns.to_string(),
+                kind: kind.to_string(),
+                version: kind.version().to_string(),
+                name: row.cells[indexes[0]].to_string(),
+                age: row.cells[indexes[1]].to_string(),
+            }
         })
         .collect();
 

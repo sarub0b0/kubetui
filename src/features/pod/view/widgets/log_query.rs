@@ -17,7 +17,12 @@ use crate::{
     ui::{
         event::EventResult,
         widget::{
-            InputFormBuilder, InputFormTheme, SelectedItem, Widget, WidgetBase, WidgetTrait as _,
+            InputFormBuilder,
+            InputFormTheme,
+            SelectedItem,
+            Widget,
+            WidgetBase,
+            WidgetTrait as _,
         },
         Window,
     },

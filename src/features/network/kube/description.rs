@@ -21,9 +21,12 @@ use crate::{
 };
 
 use self::{
-    gateway::GatewayDescriptionWorker, httproute::HTTPRouteDescriptionWorker,
-    ingress::IngressDescriptionWorker, network_policy::NetworkPolicyDescriptionWorker,
-    pod::PodDescriptionWorker, service::ServiceDescriptionWorker,
+    gateway::GatewayDescriptionWorker,
+    httproute::HTTPRouteDescriptionWorker,
+    ingress::IngressDescriptionWorker,
+    network_policy::NetworkPolicyDescriptionWorker,
+    pod::PodDescriptionWorker,
+    service::ServiceDescriptionWorker,
 };
 
 use anyhow::Result;

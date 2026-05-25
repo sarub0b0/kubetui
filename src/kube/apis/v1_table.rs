@@ -270,9 +270,11 @@ impl From<NodeMetricsList> for Table {
             rows: list
                 .names()
                 .into_iter()
-                .map(|name| TableRow {
-                    cells: vec![Value(JsonValue::String(name))],
-                    ..Default::default()
+                .map(|name| {
+                    TableRow {
+                        cells: vec![Value(JsonValue::String(name))],
+                        ..Default::default()
+                    }
                 })
                 .collect(),
             ..Default::default()
@@ -290,9 +292,11 @@ impl From<PodMetricsList> for Table {
             rows: list
                 .names()
                 .into_iter()
-                .map(|name| TableRow {
-                    cells: vec![Value(JsonValue::String(name))],
-                    ..Default::default()
+                .map(|name| {
+                    TableRow {
+                        cells: vec![Value(JsonValue::String(name))],
+                        ..Default::default()
+                    }
                 })
                 .collect(),
             ..Default::default()

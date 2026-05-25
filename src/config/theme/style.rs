@@ -72,8 +72,10 @@ mod serde_modifier {
 
         match uppercase_str.as_str() {
             DEFAULT_MODIFIER_NAME => Ok(Modifier::empty()),
-            _ => bitflags::parser::from_str::<Modifier>(&uppercase_str)
-                .map_err(serde::de::Error::custom),
+            _ => {
+                bitflags::parser::from_str::<Modifier>(&uppercase_str)
+                    .map_err(serde::de::Error::custom)
+            }
         }
     }
 }

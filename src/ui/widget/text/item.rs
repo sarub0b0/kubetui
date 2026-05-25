@@ -373,8 +373,7 @@ impl TextItem {
         // selected_index を復元
         if let Some((old_selected, removed_before, selected_removed)) = focus_state {
             let new_selected = if selected_removed {
-                (old_selected - removed_before)
-                    .min(highlights.item.len().saturating_sub(1))
+                (old_selected - removed_before).min(highlights.item.len().saturating_sub(1))
             } else {
                 old_selected - removed_before
             };
@@ -614,9 +613,11 @@ impl Line {
     fn create_wrapped_lines(&self, wrap_width: Option<usize>) -> Vec<WrappedLine> {
         self.graphemes
             .wrap(wrap_width)
-            .map(|w| WrappedLine {
-                line_index: self.line_index,
-                slice_ptr: w as *const [StyledGrapheme],
+            .map(|w| {
+                WrappedLine {
+                    line_index: self.line_index,
+                    slice_ptr: w as *const [StyledGrapheme],
+                }
             })
             .collect()
     }
@@ -992,9 +993,11 @@ mod tests {
             let graphemes = item.item.styled_graphemes();
             let wrapped_lines: Vec<WrappedLine> = graphemes
                 .wrap(None)
-                .map(|w| WrappedLine {
-                    line_index: 0,
-                    slice_ptr: w,
+                .map(|w| {
+                    WrappedLine {
+                        line_index: 0,
+                        slice_ptr: w,
+                    }
                 })
                 .collect();
 
@@ -1053,9 +1056,11 @@ mod tests {
             let graphemes = item.item.styled_graphemes();
             let wrapped_lines: Vec<WrappedLine> = graphemes
                 .wrap(None)
-                .map(|w| WrappedLine {
-                    line_index: 0,
-                    slice_ptr: w,
+                .map(|w| {
+                    WrappedLine {
+                        line_index: 0,
+                        slice_ptr: w,
+                    }
                 })
                 .collect();
 
@@ -1106,9 +1111,11 @@ mod tests {
             let graphemes = item.item.styled_graphemes();
             let wrapped_lines: Vec<WrappedLine> = graphemes
                 .wrap(None)
-                .map(|w| WrappedLine {
-                    line_index: 0,
-                    slice_ptr: w,
+                .map(|w| {
+                    WrappedLine {
+                        line_index: 0,
+                        slice_ptr: w,
+                    }
                 })
                 .collect();
 
@@ -1229,11 +1236,11 @@ mod tests {
 
             item.push(LiteralItem::new("0123456789", None)); // 2 wrapped
             item.push(LiteralItem::new("abcdefghij", None)); // 2 wrapped
-            // まだ上限内なので trimmed = 0
+                                                             // まだ上限内なので trimmed = 0
             assert_eq!(item.take_trimmed_wrapped_count(), 0);
 
             item.push(LiteralItem::new("ABCDEFGHIJ", None)); // 2 wrapped, triggers trim
-            // "0123456789" の 2 wrapped lines が削除された
+                                                             // "0123456789" の 2 wrapped lines が削除された
             assert_eq!(item.take_trimmed_wrapped_count(), 2);
 
             // 2回目の呼出しでは0に戻る

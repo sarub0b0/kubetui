@@ -168,7 +168,8 @@ mod tests {
 
         use crate::{
             features::network::kube::description::related_resources::RelatedClient,
-            kube::mock::MockTestKubeClient, mock_expect,
+            kube::mock::MockTestKubeClient,
+            mock_expect,
         };
 
         fn ingresses() -> List<Ingress> {

@@ -19,7 +19,7 @@ use crate::{
     logger,
     message::Message,
     ui::widget::ansi_color::style_to_ansi,
-    workers::kube::{SharedPodColumns, SharedTargetNamespaces, InfiniteWorker},
+    workers::kube::{InfiniteWorker, SharedPodColumns, SharedTargetNamespaces},
 };
 
 #[derive(Debug, Clone)]

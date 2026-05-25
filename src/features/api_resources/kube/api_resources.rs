@@ -21,14 +21,18 @@ use crate::{
             v1_table::{Table, TableColumnDefinition, Value},
         },
         table::insert_ns,
-        KubeClient, KubeClientRequest as _,
+        KubeClient,
+        KubeClientRequest as _,
     },
     logger,
     message::Message,
     ui::widget::ansi_color::style_to_ansi,
     workers::kube::{
-        SharedTargetApiResources, SharedTargetNamespaces, TargetApiResources, TargetNamespaces,
         InfiniteWorker,
+        SharedTargetApiResources,
+        SharedTargetNamespaces,
+        TargetApiResources,
+        TargetNamespaces,
     },
 };
 
@@ -316,7 +320,9 @@ impl InfiniteWorker for ApiPoller {
 
                         if is_error {
                             is_error = false;
-                            if let Err(e) = tx.send(ApiResponse::Poll(Ok(Default::default())).into()) {
+                            if let Err(e) =
+                                tx.send(ApiResponse::Poll(Ok(Default::default())).into())
+                            {
                                 logger!(error, "Failed to send ApiResponse::Poll: {}", e);
                                 return;
                             }
@@ -358,7 +364,10 @@ impl InfiniteWorker for ApiPoller {
 }
 
 pub async fn fetch_api_resources(client: &KubeClient) -> Result<ApiResources> {
-    let discovery = Discovery::new(client.to_client()).run().await.context("Failed to discover API resources")?;
+    let discovery = Discovery::new(client.to_client())
+        .run()
+        .await
+        .context("Failed to discover API resources")?;
 
     let ret = discovery
         .groups()

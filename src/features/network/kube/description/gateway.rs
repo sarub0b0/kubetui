@@ -6,7 +6,8 @@ use kube::{Api, Client};
 
 use crate::{
     features::{
-        api_resources::kube::SharedApiResources, network::message::NetworkRequestTargetParams,
+        api_resources::kube::SharedApiResources,
+        network::message::NetworkRequestTargetParams,
     },
     kube::{
         apis::networking::gateway::{self},

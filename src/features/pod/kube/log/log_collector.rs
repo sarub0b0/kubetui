@@ -59,39 +59,51 @@ impl LogCollector {
 
                 jq.program
                     .run((Ctx::new([], &inputs), Val::from(json)))
-                    .flat_map(|v| match v {
-                        Ok(v) => {
-                            let json_value: serde_json::Value = v.into();
-                            self.print_json(&prefix, &json_value)
-                        }
+                    .flat_map(|v| {
+                        match v {
+                            Ok(v) => {
+                                let json_value: serde_json::Value = v.into();
+                                self.print_json(&prefix, &json_value)
+                            }
 
-                        Err(e) => vec![
-                            print_content(&prefix, format!("jq evaluation error: {}", e)),
-                            print_content(&prefix, "(showing original log below)"),
-                            print_content(&prefix, &original_content),
-                        ],
+                            Err(e) => {
+                                vec![
+                                    print_content(&prefix, format!("jq evaluation error: {}", e)),
+                                    print_content(&prefix, "(showing original log below)"),
+                                    print_content(&prefix, &original_content),
+                                ]
+                            }
+                        }
                     })
                     .collect::<Vec<_>>()
             }
 
-            Some(JsonFilter::JMESPath(jmespath)) => match jmespath.program.search(&json) {
-                Ok(result) => match serde_json::to_value(result.as_ref()) {
-                    Ok(json_value) => self.print_json(&prefix, &json_value),
-                    Err(e) => vec![
-                        print_content(
-                            &prefix,
-                            format!("jmespath result serialization error: {}", e),
-                        ),
-                        print_content(&prefix, "(showing original log below)"),
-                        print_content(&prefix, &original_content),
-                    ],
-                },
-                Err(e) => vec![
-                    print_content(&prefix, format!("jmespath evaluation error: {}", e)),
-                    print_content(&prefix, "(showing original log below)"),
-                    print_content(&prefix, &original_content),
-                ],
-            },
+            Some(JsonFilter::JMESPath(jmespath)) => {
+                match jmespath.program.search(&json) {
+                    Ok(result) => {
+                        match serde_json::to_value(result.as_ref()) {
+                            Ok(json_value) => self.print_json(&prefix, &json_value),
+                            Err(e) => {
+                                vec![
+                                    print_content(
+                                        &prefix,
+                                        format!("jmespath result serialization error: {}", e),
+                                    ),
+                                    print_content(&prefix, "(showing original log below)"),
+                                    print_content(&prefix, &original_content),
+                                ]
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        vec![
+                            print_content(&prefix, format!("jmespath evaluation error: {}", e)),
+                            print_content(&prefix, "(showing original log below)"),
+                            print_content(&prefix, &original_content),
+                        ]
+                    }
+                }
+            }
 
             None => self.print_json(&prefix, &json),
         }

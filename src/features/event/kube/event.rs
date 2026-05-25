@@ -17,7 +17,7 @@ use crate::{
     logger,
     message::Message,
     ui::widget::ansi_color::style_to_ansi,
-    workers::kube::{message::Kube, SharedTargetNamespaces, InfiniteWorker},
+    workers::kube::{message::Kube, InfiniteWorker, SharedTargetNamespaces},
 };
 
 #[derive(Default, Debug, Clone)]
@@ -127,17 +127,19 @@ async fn get_event_per_namespace(
 
     let ret = tables
         .into_iter()
-        .map(|table| EventRow {
-            last_seen: table.row[0].clone(),
-            ty: table.row[1].clone(),
-            object: table.row[2].clone(),
-            reason: table.row[3].clone(),
-            message: table.row[4].clone(),
-            namespace: if insert_ns {
-                Some(namespace.to_string())
-            } else {
-                None
-            },
+        .map(|table| {
+            EventRow {
+                last_seen: table.row[0].clone(),
+                ty: table.row[1].clone(),
+                object: table.row[2].clone(),
+                reason: table.row[3].clone(),
+                message: table.row[4].clone(),
+                namespace: if insert_ns {
+                    Some(namespace.to_string())
+                } else {
+                    None
+                },
+            }
         })
         .collect();
 

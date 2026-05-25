@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     config::theme::ThemeStyleConfig,
     ui::widget::{
-        InputFormTheme, SearchHighlightFocusStyle, SearchHighlightMatchesStyle,
+        InputFormTheme,
+        SearchHighlightFocusStyle,
+        SearchHighlightMatchesStyle,
         SearchHighlightStyle,
     },
 };

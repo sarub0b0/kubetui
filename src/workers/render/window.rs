@@ -22,8 +22,14 @@ use crate::{
     features::{
         api_resources::view::ApiTab,
         component_id::{
-            CONFIG_WIDGET_ID, CONTEXT_DIALOG_ID, HELP_DIALOG_ID, MULTIPLE_NAMESPACES_DIALOG_ID,
-            NETWORK_WIDGET_ID, POD_WIDGET_ID, SINGLE_NAMESPACE_DIALOG_ID, YAML_DIALOG_ID,
+            CONFIG_WIDGET_ID,
+            CONTEXT_DIALOG_ID,
+            HELP_DIALOG_ID,
+            MULTIPLE_NAMESPACES_DIALOG_ID,
+            NETWORK_WIDGET_ID,
+            POD_WIDGET_ID,
+            SINGLE_NAMESPACE_DIALOG_ID,
+            YAML_DIALOG_ID,
         },
         config::view::ConfigTab,
         context::{message::ContextRequest, view::ContextDialog},
@@ -54,7 +60,12 @@ use crate::{
         dialog::{Dialog, DialogTheme},
         event::{CallbackFn, EventResult},
         widget::{SelectedItem, WidgetTrait},
-        Header, HeaderTheme, Tab, TabTheme, Window, WindowAction,
+        Header,
+        HeaderTheme,
+        Tab,
+        TabTheme,
+        Window,
+        WindowAction,
     },
 };
 
@@ -190,8 +201,8 @@ impl WindowInit {
     }
 
     fn tabs_dialogs(&self) -> (Vec<Tab<'static>>, Vec<Dialog<'static>>) {
-        let clipboard = Clipboard::new(self.clipboard_mode)
-            .map(|clipboard| Rc::new(RefCell::new(clipboard)));
+        let clipboard =
+            Clipboard::new(self.clipboard_mode).map(|clipboard| Rc::new(RefCell::new(clipboard)));
 
         let PodTab {
             tab: pod_tab,
@@ -335,16 +346,20 @@ fn open_yaml(tx: Sender<Message>) -> impl CallbackFn {
             Some(Ingress::KIND) => GetYamlKind::Ingress,
             Some(Service::KIND) => GetYamlKind::Service,
             Some(NetworkPolicy::KIND) => GetYamlKind::NetworkPolicy,
-            Some(Gateway::KIND) => match version.as_ref().map(|v| v.as_str()) {
-                Some("v1") => GetYamlKind::Gateway(GatewayVersion::V1),
-                Some("v1beta1") => GetYamlKind::Gateway(GatewayVersion::V1Beta1),
-                _ => unreachable!(),
-            },
-            Some(HTTPRoute::KIND) => match version.as_ref().map(|v| v.as_str()) {
-                Some("v1") => GetYamlKind::HTTPRoute(HTTPRouteVersion::V1),
-                Some("v1beta1") => GetYamlKind::HTTPRoute(HTTPRouteVersion::V1Beta1),
-                _ => unreachable!(),
-            },
+            Some(Gateway::KIND) => {
+                match version.as_ref().map(|v| v.as_str()) {
+                    Some("v1") => GetYamlKind::Gateway(GatewayVersion::V1),
+                    Some("v1beta1") => GetYamlKind::Gateway(GatewayVersion::V1Beta1),
+                    _ => unreachable!(),
+                }
+            }
+            Some(HTTPRoute::KIND) => {
+                match version.as_ref().map(|v| v.as_str()) {
+                    Some("v1") => GetYamlKind::HTTPRoute(HTTPRouteVersion::V1),
+                    Some("v1beta1") => GetYamlKind::HTTPRoute(HTTPRouteVersion::V1Beta1),
+                    _ => unreachable!(),
+                }
+            }
             _ => {
                 unreachable!();
             }

@@ -2,7 +2,9 @@ use std::cmp::Reverse;
 
 use nucleo_matcher::{
     pattern::{CaseMatching, Normalization, Pattern},
-    Config, Matcher, Utf32String,
+    Config,
+    Matcher,
+    Utf32String,
 };
 
 use ratatui::{
@@ -22,7 +24,13 @@ use crate::ui::{
     widget::{
         list::{OnSelectCallback, RenderBlockInjection},
         styled_graphemes::StyledGraphemes,
-        Item, List, ListTheme, LiteralItem, RenderTrait as _, WidgetBase, WidgetTheme,
+        Item,
+        List,
+        ListTheme,
+        LiteralItem,
+        RenderTrait as _,
+        WidgetBase,
+        WidgetTheme,
         WidgetTrait as _,
     },
 };
@@ -289,9 +297,11 @@ impl<'a> SelectForm<'a> {
 
                 pattern
                     .score(haystack.slice(..), &mut matcher)
-                    .map(|score| MatchedItem {
-                        score,
-                        item: item.clone(),
+                    .map(|score| {
+                        MatchedItem {
+                            score,
+                            item: item.clone(),
+                        }
                     })
             })
             .collect();

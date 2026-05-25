@@ -40,9 +40,11 @@ impl Config {
 
         let config = match option {
             ConfigLoadOption::Default => figment.merge(Serialized::defaults(Self::default())),
-            ConfigLoadOption::Path(path) => figment
-                .merge(Serialized::defaults(Self::default()))
-                .merge(Yaml::file(path)),
+            ConfigLoadOption::Path(path) => {
+                figment
+                    .merge(Serialized::defaults(Self::default()))
+                    .merge(Yaml::file(path))
+            }
         }
         .merge(Env::prefixed("KUBETUI_").split("__"))
         .extract_lossy()?;

@@ -223,7 +223,10 @@ impl KubeController {
         let mut override_namespaces: Option<Vec<String>> = None;
 
         loop {
-            store.ensure_context(&kubeconfig, &context).await.context("Failed to initialize context")?;
+            store
+                .ensure_context(&kubeconfig, &context)
+                .await
+                .context("Failed to initialize context")?;
 
             let KubeState {
                 client,
@@ -232,7 +235,9 @@ impl KubeController {
             } = store.get(&context)?.clone();
 
             if let Some(mut override_namespaces) = override_namespaces.take() {
-                let fetched_namespaces = fetch_all_namespaces(client.clone()).await.context("Failed to fetch namespaces")?;
+                let fetched_namespaces = fetch_all_namespaces(client.clone())
+                    .await
+                    .context("Failed to fetch namespaces")?;
 
                 let found_namespaces: Vec<_> = override_namespaces
                     .extract_if(.., |ns| fetched_namespaces.contains(ns))
@@ -245,7 +250,10 @@ impl KubeController {
                     crate::logger!(warn, "No namespaces found: {not_found_namespaces:?}. Falling back to stored namespaces: {stored_target_namespaces:?}");
                     let _ = tx.send(Message::Error(NotifyError::new(
                         ErrorSource::Namespace,
-                        format!("Namespaces {:?} not found, using stored namespaces", not_found_namespaces),
+                        format!(
+                            "Namespaces {:?} not found, using stored namespaces",
+                            not_found_namespaces
+                        ),
                     )));
                     // stored_target_namespaces はそのまま（ストアの値を使用）
                 } else {
@@ -254,7 +262,10 @@ impl KubeController {
                         crate::logger!(warn, "Some namespaces not found: {not_found_namespaces:?}. Using available namespaces: {found_namespaces:?}");
                         let _ = tx.send(Message::Error(NotifyError::new(
                             ErrorSource::Namespace,
-                            format!("Some namespaces not found: {:?}, using: {:?}", not_found_namespaces, found_namespaces),
+                            format!(
+                                "Some namespaces not found: {:?}, using: {:?}",
+                                not_found_namespaces, found_namespaces
+                            ),
                         )));
                     } else {
                         crate::logger!(info, "Using namespaces: {found_namespaces:?}");
@@ -493,252 +504,260 @@ impl Worker for EventController {
             let Ok(recv) = task.await else { continue };
 
             match recv {
-                Ok(Message::Kube(ev)) => match ev {
-                    Kube::Namespace(NamespaceMessage::Request(req)) => match req {
-                        NamespaceRequest::Get => {
-                            let ns = fetch_all_namespaces(kube_client.clone()).await;
-                            match ns {
-                                Ok(namespaces) => {
-                                    tx.send(NamespaceResponse::Get(Ok(namespaces)).into())
-                                        .expect("Failed to send NamespaceResponse::Get");
-                                }
-                                Err(err) => {
-                                    match fallback_namespaces {
-                                        Some(fb) => {
-                                            crate::logger!(info, "Namespace API fetch failed, using {} fallback namespaces from config: {:?}", fb.len(), err);
-                                            tx.send(NamespaceResponse::GetFallback(fb.clone()).into())
-                                                .expect("Failed to send NamespaceResponse::GetFallback");
-                                        }
-                                        None => {
-                                            tx.send(NamespaceResponse::Get(Err(err)).into())
+                Ok(Message::Kube(ev)) => {
+                    match ev {
+                        Kube::Namespace(NamespaceMessage::Request(req)) => {
+                            match req {
+                                NamespaceRequest::Get => {
+                                    let ns = fetch_all_namespaces(kube_client.clone()).await;
+                                    match ns {
+                                        Ok(namespaces) => {
+                                            tx.send(NamespaceResponse::Get(Ok(namespaces)).into())
                                                 .expect("Failed to send NamespaceResponse::Get");
+                                        }
+                                        Err(err) => {
+                                            match fallback_namespaces {
+                                                Some(fb) => {
+                                                    crate::logger!(info, "Namespace API fetch failed, using {} fallback namespaces from config: {:?}", fb.len(), err);
+                                                    tx.send(NamespaceResponse::GetFallback(fb.clone()).into())
+                                                .expect("Failed to send NamespaceResponse::GetFallback");
+                                                }
+                                                None => {
+                                                    tx.send(NamespaceResponse::Get(Err(err)).into())
+                                                .expect("Failed to send NamespaceResponse::Get");
+                                                }
+                                            }
                                         }
                                     }
                                 }
+                                NamespaceRequest::Set(req) => {
+                                    {
+                                        let mut target_namespaces =
+                                            shared_target_namespaces.write().await;
+                                        *target_namespaces = req.clone();
+                                    }
+
+                                    if let Some(handler) = log_handler {
+                                        handler.abort();
+                                        log_handler = None;
+                                    }
+
+                                    if let Some(handler) = config_handler {
+                                        handler.abort();
+                                        config_handler = None;
+                                    }
+
+                                    if let Some(handler) = network_handler {
+                                        handler.abort();
+                                        network_handler = None;
+                                    }
+
+                                    if let Some(handler) = yaml_handler {
+                                        handler.abort();
+                                        yaml_handler = None;
+                                    }
+
+                                    if let Some(handler) = get_handler {
+                                        handler.abort();
+                                        get_handler = None;
+                                    }
+
+                                    tx.send(NamespaceResponse::Set(req).into())
+                                        .expect("Failed to send NamespaceResponse:Set");
+                                }
                             }
                         }
-                        NamespaceRequest::Set(req) => {
-                            {
-                                let mut target_namespaces = shared_target_namespaces.write().await;
-                                *target_namespaces = req.clone();
-                            }
 
+                        Kube::Pod(PodMessage::Request(req)) => {
+                            let mut pod_columns = shared_pod_columns.write().await;
+                            *pod_columns = req;
+
+                            logger!(info, "Pod columns updated: {:#?}", pod_columns);
+                        }
+
+                        Kube::Log(LogMessage::Request(req)) => {
                             if let Some(handler) = log_handler {
                                 handler.abort();
-                                log_handler = None;
                             }
 
-                            if let Some(handler) = config_handler {
-                                handler.abort();
-                                config_handler = None;
-                            }
+                            let abort_handle =
+                                LogWorker::new(tx, kube_client.clone(), req.clone()).spawn();
 
-                            if let Some(handler) = network_handler {
-                                handler.abort();
-                                network_handler = None;
-                            }
+                            log_handler = Some(LogHandle {
+                                handler: abort_handle,
+                                config: req,
+                            });
 
-                            if let Some(handler) = yaml_handler {
-                                handler.abort();
-                                yaml_handler = None;
-                            }
-
-                            if let Some(handler) = get_handler {
-                                handler.abort();
-                                get_handler = None;
-                            }
-
-                            tx.send(NamespaceResponse::Set(req).into())
-                                .expect("Failed to send NamespaceResponse:Set");
-                        }
-                    },
-
-                    Kube::Pod(PodMessage::Request(req)) => {
-                        let mut pod_columns = shared_pod_columns.write().await;
-                        *pod_columns = req;
-
-                        logger!(info, "Pod columns updated: {:#?}", pod_columns);
-                    }
-
-                    Kube::Log(LogMessage::Request(req)) => {
-                        if let Some(handler) = log_handler {
-                            handler.abort();
-                        }
-
-                        let abort_handle =
-                            LogWorker::new(tx, kube_client.clone(), req.clone()).spawn();
-
-                        log_handler = Some(LogHandle {
-                            handler: abort_handle,
-                            config: req,
-                        });
-
-                        task::yield_now().await;
-                    }
-
-                    Kube::Log(LogMessage::ToggleJsonPrettyPrint) => {
-                        if let Some(ref mut handler) = log_handler {
-                            handler.toggle_json_pretty_print(tx.clone(), kube_client.clone());
                             task::yield_now().await;
                         }
-                    }
 
-                    Kube::Config(ConfigMessage::Request(req)) => {
-                        if let Some(handler) = config_handler {
-                            handler.abort();
-                        }
-
-                        config_handler =
-                            Some(ConfigsDataWorker::new(tx, kube_client.clone(), req).spawn());
-
-                        task::yield_now().await;
-                    }
-
-                    Kube::Api(ApiMessage::Request(req)) => {
-                        use ApiRequest::*;
-                        match req {
-                            Get => {
-                                let api_resources = shared_api_resources.read().await;
-                                let styled_api_resources = styled_target_api_resources(
-                                    &api_resources,
-                                    apis_config.preferred_version_or_latest,
-                                    apis_config.other_version,
-                                );
-                                tx.send(ApiResponse::Get(Ok(styled_api_resources)).into())
-                                    .expect("Failed to send ApiResponse::Get");
-                            }
-                            Set(req) => {
-                                let mut target_api_resources =
-                                    shared_target_api_resources.write().await;
-                                *target_api_resources = req.clone();
-                            }
-                        }
-                    }
-
-                    Kube::Context(ContextMessage::Request(req)) => match req {
-                        ContextRequest::Get => tx
-                            .send(ContextResponse::Get(contexts.to_vec()).into())
-                            .expect("Failed to send ContextResponse::Get"),
-                        ContextRequest::Set {
-                            name,
-                            keep_namespace,
-                        } => {
-                            if let Some(h) = log_handler {
-                                h.abort();
-                            }
-
-                            if let Some(h) = config_handler {
-                                h.abort();
-                            }
-
-                            if let Some(h) = network_handler {
-                                h.abort();
-                            }
-
-                            if let Some(h) = yaml_handler {
-                                h.abort();
-                            }
-
-                            if let Some(h) = get_handler {
-                                h.abort();
-                            }
-
-                            let target_namespaces = if keep_namespace {
-                                Some(shared_target_namespaces.read().await.to_vec())
-                            } else {
-                                None
-                            };
-
-                            return ChangedContext {
-                                target_context: name.clone(),
-                                target_namespaces,
-                            };
-                        }
-                    },
-
-                    Kube::Yaml(YamlMessage::Request(ev)) => {
-                        use YamlRequest::*;
-                        match ev {
-                            APIs => {
-                                let api_resources = shared_api_resources.read().await;
-
-                                let ret = styled_target_api_resources(
-                                    &api_resources,
-                                    yaml_config.preferred_version_or_latest,
-                                    yaml_config.other_version,
-                                );
-
-                                logger!(info, "APIs: {:#?}", ret);
-
-                                tx.send(YamlResponse::APIs(Ok(ret)).into())
-                                    .expect("Failed to send YamlResponse::Apis");
-                            }
-                            Resource(req) => {
-                                let api_resources = shared_api_resources.read().await;
-                                let target_namespaces = shared_target_namespaces.read().await;
-
-                                let fetched_data = FetchResourceList::new(
-                                    kube_client,
-                                    req,
-                                    &api_resources,
-                                    &target_namespaces,
-                                )
-                                .fetch()
-                                .await;
-
-                                tx.send(YamlResponse::Resource(fetched_data).into())
-                                    .expect("Failed to send YamlResponse::Resource");
-                            }
-                            Yaml(req) => {
-                                if let Some(handler) = yaml_handler {
-                                    handler.abort();
-                                }
-
-                                yaml_handler = Some(
-                                    YamlWorker::new(
-                                        tx,
-                                        kube_client.clone(),
-                                        shared_api_resources.clone(),
-                                        req,
-                                    )
-                                    .spawn(),
-                                );
-
+                        Kube::Log(LogMessage::ToggleJsonPrettyPrint) => {
+                            if let Some(ref mut handler) = log_handler {
+                                handler.toggle_json_pretty_print(tx.clone(), kube_client.clone());
                                 task::yield_now().await;
                             }
                         }
-                    }
 
-                    Kube::Get(GetMessage::Request(req)) => {
-                        if let Some(handler) = get_handler {
-                            handler.abort();
+                        Kube::Config(ConfigMessage::Request(req)) => {
+                            if let Some(handler) = config_handler {
+                                handler.abort();
+                            }
+
+                            config_handler =
+                                Some(ConfigsDataWorker::new(tx, kube_client.clone(), req).spawn());
+
+                            task::yield_now().await;
                         }
 
-                        get_handler =
-                            Some(GetYamlWorker::new(tx, kube_client.clone(), req).spawn());
-
-                        task::yield_now().await;
-                    }
-
-                    Kube::Network(NetworkMessage::Request(req)) => {
-                        if let Some(handler) = network_handler {
-                            handler.abort();
+                        Kube::Api(ApiMessage::Request(req)) => {
+                            use ApiRequest::*;
+                            match req {
+                                Get => {
+                                    let api_resources = shared_api_resources.read().await;
+                                    let styled_api_resources = styled_target_api_resources(
+                                        &api_resources,
+                                        apis_config.preferred_version_or_latest,
+                                        apis_config.other_version,
+                                    );
+                                    tx.send(ApiResponse::Get(Ok(styled_api_resources)).into())
+                                        .expect("Failed to send ApiResponse::Get");
+                                }
+                                Set(req) => {
+                                    let mut target_api_resources =
+                                        shared_target_api_resources.write().await;
+                                    *target_api_resources = req.clone();
+                                }
+                            }
                         }
 
-                        network_handler = Some(
-                            NetworkDescriptionWorker::new(
-                                tx,
-                                kube_client.clone(),
-                                req,
-                                shared_api_resources.clone(),
-                            )
-                            .spawn(),
-                        );
+                        Kube::Context(ContextMessage::Request(req)) => {
+                            match req {
+                                ContextRequest::Get => {
+                                    tx.send(ContextResponse::Get(contexts.to_vec()).into())
+                                        .expect("Failed to send ContextResponse::Get")
+                                }
+                                ContextRequest::Set {
+                                    name,
+                                    keep_namespace,
+                                } => {
+                                    if let Some(h) = log_handler {
+                                        h.abort();
+                                    }
 
-                        task::yield_now().await;
+                                    if let Some(h) = config_handler {
+                                        h.abort();
+                                    }
+
+                                    if let Some(h) = network_handler {
+                                        h.abort();
+                                    }
+
+                                    if let Some(h) = yaml_handler {
+                                        h.abort();
+                                    }
+
+                                    if let Some(h) = get_handler {
+                                        h.abort();
+                                    }
+
+                                    let target_namespaces = if keep_namespace {
+                                        Some(shared_target_namespaces.read().await.to_vec())
+                                    } else {
+                                        None
+                                    };
+
+                                    return ChangedContext {
+                                        target_context: name.clone(),
+                                        target_namespaces,
+                                    };
+                                }
+                            }
+                        }
+
+                        Kube::Yaml(YamlMessage::Request(ev)) => {
+                            use YamlRequest::*;
+                            match ev {
+                                APIs => {
+                                    let api_resources = shared_api_resources.read().await;
+
+                                    let ret = styled_target_api_resources(
+                                        &api_resources,
+                                        yaml_config.preferred_version_or_latest,
+                                        yaml_config.other_version,
+                                    );
+
+                                    logger!(info, "APIs: {:#?}", ret);
+
+                                    tx.send(YamlResponse::APIs(Ok(ret)).into())
+                                        .expect("Failed to send YamlResponse::Apis");
+                                }
+                                Resource(req) => {
+                                    let api_resources = shared_api_resources.read().await;
+                                    let target_namespaces = shared_target_namespaces.read().await;
+
+                                    let fetched_data = FetchResourceList::new(
+                                        kube_client,
+                                        req,
+                                        &api_resources,
+                                        &target_namespaces,
+                                    )
+                                    .fetch()
+                                    .await;
+
+                                    tx.send(YamlResponse::Resource(fetched_data).into())
+                                        .expect("Failed to send YamlResponse::Resource");
+                                }
+                                Yaml(req) => {
+                                    if let Some(handler) = yaml_handler {
+                                        handler.abort();
+                                    }
+
+                                    yaml_handler = Some(
+                                        YamlWorker::new(
+                                            tx,
+                                            kube_client.clone(),
+                                            shared_api_resources.clone(),
+                                            req,
+                                        )
+                                        .spawn(),
+                                    );
+
+                                    task::yield_now().await;
+                                }
+                            }
+                        }
+
+                        Kube::Get(GetMessage::Request(req)) => {
+                            if let Some(handler) = get_handler {
+                                handler.abort();
+                            }
+
+                            get_handler =
+                                Some(GetYamlWorker::new(tx, kube_client.clone(), req).spawn());
+
+                            task::yield_now().await;
+                        }
+
+                        Kube::Network(NetworkMessage::Request(req)) => {
+                            if let Some(handler) = network_handler {
+                                handler.abort();
+                            }
+
+                            network_handler = Some(
+                                NetworkDescriptionWorker::new(
+                                    tx,
+                                    kube_client.clone(),
+                                    req,
+                                    shared_api_resources.clone(),
+                                )
+                                .spawn(),
+                            );
+
+                            task::yield_now().await;
+                        }
+                        _ => unreachable!(),
                     }
-                    _ => unreachable!(),
-                },
+                }
                 Ok(_) => unreachable!(),
                 Err(_) => {}
             }

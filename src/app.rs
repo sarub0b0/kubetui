@@ -123,9 +123,11 @@ impl App {
 fn build_pod_highlight_rules(highlights: &[PodHighlightConfig]) -> Vec<PodHighlightRule> {
     highlights
         .iter()
-        .map(|hi| PodHighlightRule {
-            status_regex: hi.status.clone(),
-            style: hi.style.into(),
+        .map(|hi| {
+            PodHighlightRule {
+                status_regex: hi.status.clone(),
+                style: hi.style.into(),
+            }
         })
         .collect()
 }

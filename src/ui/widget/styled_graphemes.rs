@@ -74,13 +74,15 @@ pub fn styled_graphemes(s: &str) -> Vec<StyledGrapheme> {
     let mut style = Style::default();
 
     s.ansi_parse()
-        .filter_map(|p| match p.ty {
-            AnsiEscapeSequence::Chars => Some(StyledGrapheme::new(p.chars, style)),
-            AnsiEscapeSequence::SelectGraphicRendition(sgr) => {
-                style = Sgr::from(sgr).into();
-                None
+        .filter_map(|p| {
+            match p.ty {
+                AnsiEscapeSequence::Chars => Some(StyledGrapheme::new(p.chars, style)),
+                AnsiEscapeSequence::SelectGraphicRendition(sgr) => {
+                    style = Sgr::from(sgr).into();
+                    None
+                }
+                _ => None,
             }
-            _ => None,
         })
         .flat_map(|sg| {
             sg.symbol()
@@ -94,9 +96,11 @@ pub fn styled_graphemes(s: &str) -> Vec<StyledGrapheme> {
 
 fn styled_graphemes_symbols(s: &str) -> Vec<&'_ str> {
     s.ansi_parse()
-        .filter_map(|p| match p.ty {
-            AnsiEscapeSequence::Chars => Some(p.chars),
-            _ => None,
+        .filter_map(|p| {
+            match p.ty {
+                AnsiEscapeSequence::Chars => Some(p.chars),
+                _ => None,
+            }
         })
         .flat_map(|chars| {
             chars

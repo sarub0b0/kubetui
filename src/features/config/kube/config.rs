@@ -9,7 +9,7 @@ use crate::{
     },
     logger,
     message::Message,
-    workers::kube::{SharedTargetNamespaces, InfiniteWorker},
+    workers::kube::{InfiniteWorker, SharedTargetNamespaces},
 };
 
 use anyhow::Result;

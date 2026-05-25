@@ -163,10 +163,12 @@ impl Command {
 fn xdg_config_home() -> PathBuf {
     match std::env::var_os("XDG_CONFIG_HOME").map(|s| PathBuf::from(s).join("kubetui")) {
         Some(path) => path,
-        None => dirs::home_dir()
-            .expect("Failed to get home directory")
-            .join(".config")
-            .join("kubetui"),
+        None => {
+            dirs::home_dir()
+                .expect("Failed to get home directory")
+                .join(".config")
+                .join("kubetui")
+        }
     }
 }
 

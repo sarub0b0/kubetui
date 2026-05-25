@@ -114,10 +114,12 @@ impl From<ThemeConfig> for EventConfig {
                 .event
                 .highlights
                 .into_iter()
-                .map(|hi| EventHighlightRule {
-                    ty: hi.ty,
-                    summary: hi.summary.into(),
-                    message: hi.message.into(),
+                .map(|hi| {
+                    EventHighlightRule {
+                        ty: hi.ty,
+                        summary: hi.summary.into(),
+                        message: hi.message.into(),
+                    }
                 })
                 .collect(),
         }

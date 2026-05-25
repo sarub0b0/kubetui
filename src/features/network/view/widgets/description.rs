@@ -7,7 +7,13 @@ use crate::{
     config::theme::WidgetThemeConfig,
     features::component_id::NETWORK_DESCRIPTION_WIDGET_ID,
     ui::widget::{
-        SearchForm, SearchFormTheme, Text, TextTheme, Widget, WidgetBase, WidgetTheme,
+        SearchForm,
+        SearchFormTheme,
+        Text,
+        TextTheme,
+        Widget,
+        WidgetBase,
+        WidgetTheme,
         WidgetTrait as _,
     },
 };

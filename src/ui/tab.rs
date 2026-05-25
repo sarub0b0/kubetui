@@ -224,13 +224,7 @@ impl Tab<'_> {
                 let block = w
                     .widget_base()
                     .render_block(w.can_activate() && is_active, is_mouse_over);
-                super::widget::render_widget_error(
-                    f,
-                    w.chunk(),
-                    block,
-                    error_lines,
-                    error_theme,
-                );
+                super::widget::render_widget_error(f, w.chunk(), block, error_lines, error_theme);
             } else {
                 w.render(f, is_active, is_mouse_over);
             }
@@ -349,9 +343,13 @@ mod layout {
             chunks
                 .iter()
                 .zip(self.elements.iter_mut())
-                .for_each(|(chunk, layout_element)| match layout_element {
-                    LayoutElement::WidgetIndex(i) => widgets[*i].update_chunk(*chunk),
-                    LayoutElement::NestedElement(element) => element.update_chunk(*chunk, widgets),
+                .for_each(|(chunk, layout_element)| {
+                    match layout_element {
+                        LayoutElement::WidgetIndex(i) => widgets[*i].update_chunk(*chunk),
+                        LayoutElement::NestedElement(element) => {
+                            element.update_chunk(*chunk, widgets)
+                        }
+                    }
                 });
         }
     }

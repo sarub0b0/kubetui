@@ -153,7 +153,8 @@ impl InfiniteWorker for LogWorker {
                     }
                     Err(err) => {
                         logger!(error, "{}", err);
-                        if let Err(e) = self.tx.send(LogMessage::Response(Err(anyhow!(err))).into()) {
+                        if let Err(e) = self.tx.send(LogMessage::Response(Err(anyhow!(err))).into())
+                        {
                             logger!(error, "Failed to send LogMessage::Response: {}", e);
                         }
                     }

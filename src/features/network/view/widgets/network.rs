@@ -18,10 +18,18 @@ use crate::{
     ui::{
         event::EventResult,
         widget::{
-            FilterForm, FilterFormTheme, Table, TableItem, TableTheme, Widget, WidgetBase,
-            WidgetTheme, WidgetTrait as _,
+            FilterForm,
+            FilterFormTheme,
+            Table,
+            TableItem,
+            TableTheme,
+            Widget,
+            WidgetBase,
+            WidgetTheme,
+            WidgetTrait as _,
         },
-        Window, WindowAction,
+        Window,
+        WindowAction,
     },
 };
 

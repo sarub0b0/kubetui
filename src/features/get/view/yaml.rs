@@ -5,7 +5,14 @@ use crate::{
     config::theme::ThemeConfig,
     features::component_id::YAML_DIALOG_ID,
     ui::widget::{
-        SearchForm, SearchFormTheme, Text, TextTheme, Widget, WidgetBase, WidgetTheme, WidgetTrait,
+        SearchForm,
+        SearchFormTheme,
+        Text,
+        TextTheme,
+        Widget,
+        WidgetBase,
+        WidgetTheme,
+        WidgetTrait,
     },
 };
 

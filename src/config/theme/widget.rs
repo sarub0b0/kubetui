@@ -2,14 +2,30 @@ use ratatui::style::{Color, Modifier};
 use serde::{Deserialize, Serialize};
 
 use crate::ui::widget::{
-    multiple_select, single_select, table, CheckListTheme, ErrorTheme, InputFormTheme, ListTheme,
-    SearchFormTheme, TableTheme, TextTheme, WidgetTheme,
+    multiple_select,
+    single_select,
+    table,
+    CheckListTheme,
+    ErrorTheme,
+    InputFormTheme,
+    ListTheme,
+    SearchFormTheme,
+    TableTheme,
+    TextTheme,
+    WidgetTheme,
 };
 
 use super::{
-    BorderThemeConfig, CheckListThemeConfig, DialogThemeConfig, ErrorThemeConfig,
-    FilterFormThemeConfig, InputFormThemeConfig, ListThemeConfig, TableThemeConfig,
-    TextThemeConfig, ThemeStyleConfig,
+    BorderThemeConfig,
+    CheckListThemeConfig,
+    DialogThemeConfig,
+    ErrorThemeConfig,
+    FilterFormThemeConfig,
+    InputFormThemeConfig,
+    ListThemeConfig,
+    TableThemeConfig,
+    TextThemeConfig,
+    ThemeStyleConfig,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -226,8 +242,12 @@ impl From<WidgetThemeConfig> for ErrorTheme {
 #[cfg(test)]
 mod tests {
     use crate::config::theme::{
-        DialogSizeThemeConfig, FilterFormThemeConfig, SearchFormThemeConfig,
-        SearchHighlightThemeConfig, SearchThemeConfig, SelectionThemeConfig,
+        DialogSizeThemeConfig,
+        FilterFormThemeConfig,
+        SearchFormThemeConfig,
+        SearchHighlightThemeConfig,
+        SearchThemeConfig,
+        SelectionThemeConfig,
     };
 
     use super::*;
