@@ -8,7 +8,7 @@ use kube::Resource;
 use tokio::sync::RwLock;
 
 use crate::{
-    features::node::{message::NodeMessage, NodeColumn, NodeColumns},
+    features::node::{message::NodeMessage, NodeColumn, NodeColumnSpec, NodeColumns},
     kube::{
         apis::v1_table::Table,
         table::{KubeTable, KubeTableRow},
@@ -70,25 +70,47 @@ async fn get_node_table<C: KubeClientRequest>(
 ) -> Result<KubeTable> {
     let node_columns = shared_node_columns.read().await;
 
-    let targets: Vec<&str> = node_columns.columns().iter().map(|c| c.as_str()).collect();
+    let specs = node_columns.specs();
+
+    let builtin_targets: Vec<&str> = specs
+        .iter()
+        .filter_map(|s| {
+            match s {
+                NodeColumnSpec::Builtin(c) => Some(c.as_str()),
+                NodeColumnSpec::Label { .. } => None,
+            }
+        })
+        .collect();
 
     let path = Node::url_path(&(), None);
     let table: Table = client.request_table(&path).await?;
 
-    let indexes = table.find_indexes(&targets)?;
+    let builtin_indexes = table.find_indexes(&builtin_targets)?;
 
-    let name_index = node_columns
-        .columns()
+    let name_pos = specs
         .iter()
-        .position(|c| *c == NodeColumn::Name)
+        .position(|s| matches!(s, NodeColumnSpec::Builtin(NodeColumn::Name)))
         .expect("Name column must be present in node columns");
 
     let rows: Vec<KubeTableRow> = table
         .rows
         .iter()
         .map(|row| {
-            let cells: Vec<String> = indexes.iter().map(|i| row.cells[*i].to_string()).collect();
-            let name = cells[name_index].clone();
+            let mut builtin_iter = builtin_indexes.iter();
+            let cells: Vec<String> = specs
+                .iter()
+                .map(|spec| {
+                    match spec {
+                        NodeColumnSpec::Builtin(_) => {
+                            let i = builtin_iter.next().expect("builtin index available");
+                            row.cells[*i].to_string()
+                        }
+                        // Label values are filled in a later task; empty for now.
+                        NodeColumnSpec::Label { .. } => String::new(),
+                    }
+                })
+                .collect();
+            let name = cells[name_pos].clone();
             KubeTableRow {
                 namespace: String::new(),
                 name,
@@ -101,11 +123,7 @@ async fn get_node_table<C: KubeClientRequest>(
         })
         .collect();
 
-    let header: Vec<String> = node_columns
-        .columns()
-        .iter()
-        .map(|c| c.display().to_string())
-        .collect();
+    let header: Vec<String> = specs.iter().map(|s| s.header()).collect();
 
     let mut kube_table = KubeTable {
         header,

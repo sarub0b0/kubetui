@@ -7,7 +7,13 @@ use crate::{
     config::theme::WidgetThemeConfig,
     features::{
         component_id::NODE_COLUMNS_DIALOG_ID,
-        node::{message::NodeMessage, NodeColumn, NodeColumns, DEFAULT_NODE_COLUMNS},
+        node::{
+            message::NodeMessage,
+            NodeColumn,
+            NodeColumnSpec,
+            NodeColumns,
+            DEFAULT_NODE_COLUMNS,
+        },
     },
     message::Message,
     ui::{
@@ -54,7 +60,7 @@ fn on_change(tx: Sender<Message>) -> impl Fn(&mut Window, &CheckListItem) -> Eve
             .filter_map(|i| NodeColumn::from_str(&i.label).ok())
             .collect::<Vec<_>>();
 
-        tx.send(NodeMessage::Request(NodeColumns::new(items)).into())
+        tx.send(NodeMessage::Request(NodeColumns::from_builtins(items)).into())
             .expect("Failed to send NodeMessage::Request");
 
         EventResult::Nop
@@ -71,13 +77,23 @@ fn build_check_list_items(default_columns: Option<NodeColumns>) -> Vec<CheckList
 }
 
 fn build_check_list_items_from_existing(node_columns: NodeColumns) -> Vec<CheckListItem> {
-    node_columns
-        .columns()
+    let existing: Vec<NodeColumn> = node_columns
+        .specs()
+        .iter()
+        .filter_map(|s| {
+            match s {
+                NodeColumnSpec::Builtin(c) => Some(*c),
+                NodeColumnSpec::Label { .. } => None,
+            }
+        })
+        .collect();
+
+    existing
         .iter()
         .map(|column| make_item(*column, true))
         .chain(
             NodeColumn::iter()
-                .filter(|c| !node_columns.columns().contains(c))
+                .filter(|c| !existing.contains(c))
                 .map(|column| make_item(column, false)),
         )
         .collect()
@@ -109,7 +125,7 @@ mod tests {
 
     #[test]
     fn 既存カラムをチェック済みで先頭に_残りを未チェックで並べる() {
-        let node_columns = NodeColumns::new([NodeColumn::Name, NodeColumn::Status]);
+        let node_columns = NodeColumns::from_builtins([NodeColumn::Name, NodeColumn::Status]);
         let items = build_check_list_items_from_existing(node_columns);
 
         assert_eq!(items[0].label, "NAME");
