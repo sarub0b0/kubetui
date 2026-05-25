@@ -30,7 +30,10 @@ use crate::{
             kube::{NetworkDescriptionWorker, NetworkPoller},
             message::NetworkMessage,
         },
-        node::kube::{NodeConfig, NodePoller},
+        node::{
+            kube::{NodeConfig, NodePoller, SharedNodeColumns},
+            message::NodeMessage,
+        },
         pod::{
             kube::{LogConfig, LogWorker, PodConfig, PodPoller},
             message::{LogMessage, PodMessage},
@@ -319,6 +322,7 @@ impl KubeController {
                 shared_target_api_resources: shared_target_api_resources.clone(),
                 shared_api_resources: shared_api_resources.clone(),
                 shared_pod_columns: shared_pod_columns.clone(),
+                shared_node_columns: shared_node_columns.clone(),
                 apis_config: apis_config.clone(),
                 yaml_config: yaml_config.clone(),
                 fallback_namespaces: fallback_namespaces.clone(),
@@ -426,6 +430,7 @@ struct EventControllerArgs {
     shared_target_api_resources: SharedTargetApiResources,
     shared_api_resources: SharedApiResources,
     shared_pod_columns: SharedPodColumns,
+    shared_node_columns: SharedNodeColumns,
     apis_config: ApisConfig,
     yaml_config: YamlConfig,
     fallback_namespaces: Option<Vec<String>>,
@@ -441,6 +446,7 @@ struct EventController {
     shared_target_api_resources: SharedTargetApiResources,
     shared_api_resources: SharedApiResources,
     shared_pod_columns: SharedPodColumns,
+    shared_node_columns: SharedNodeColumns,
     apis_config: ApisConfig,
     yaml_config: YamlConfig,
     fallback_namespaces: Option<Vec<String>>,
@@ -457,6 +463,7 @@ impl EventController {
             shared_target_api_resources: args.shared_target_api_resources,
             shared_api_resources: args.shared_api_resources,
             shared_pod_columns: args.shared_pod_columns,
+            shared_node_columns: args.shared_node_columns,
             apis_config: args.apis_config,
             yaml_config: args.yaml_config,
             fallback_namespaces: args.fallback_namespaces,
@@ -503,6 +510,7 @@ impl Worker for EventController {
             shared_target_api_resources,
             shared_api_resources,
             shared_pod_columns,
+            shared_node_columns,
             apis_config,
             yaml_config,
             fallback_namespaces,
@@ -586,6 +594,13 @@ impl Worker for EventController {
                             *pod_columns = req;
 
                             logger!(info, "Pod columns updated: {:#?}", pod_columns);
+                        }
+
+                        Kube::Node(NodeMessage::Request(req)) => {
+                            let mut node_columns = shared_node_columns.write().await;
+                            *node_columns = req;
+
+                            logger!(info, "Node columns updated: {:#?}", node_columns);
                         }
 
                         Kube::Log(LogMessage::Request(req)) => {
