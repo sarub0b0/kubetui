@@ -28,6 +28,7 @@ component_id!(
     config_raw_data_widget,
     network_widget,
     network_description_widget,
+    node_detail_widget,
     event_widget,
     api_widget,
     yaml_widget,
