@@ -2,7 +2,6 @@ use anyhow::{Context, Result};
 use crossbeam::channel::Sender;
 use k8s_openapi::api::core::v1::{Node, Pod};
 use kube::{api::ListParams, core::ObjectList, Api};
-use serde::Serialize;
 
 use crate::{
     features::node::message::NodeDetailMessage,
@@ -56,12 +55,11 @@ where
             .await
             .with_context(|| format!("failed to list pods on node {}", name))?;
 
-        let related = build_related_pods_yaml(&pods)?;
-        if !related.is_empty() {
-            // Blank line between the main Node YAML and the relatedPods
-            // section, matching Network description's layout.
-            lines.push(String::new());
-            lines.extend(related);
+        let pod_lines = format_related_pods_table(&pods);
+        if !pod_lines.is_empty() {
+            lines.push("---".to_string());
+            lines.push(format!("# Related Pods (spec.nodeName={})", name));
+            lines.extend(pod_lines);
         }
 
         Ok(lines)
@@ -104,49 +102,59 @@ fn strip_and_serialize_node(mut node: Node) -> Result<Vec<String>> {
     Ok(yaml.lines().map(String::from).collect())
 }
 
-#[derive(Serialize)]
-struct RelatedPodRow {
-    namespace: String,
-    name: String,
-    status: String,
-}
-
-/// Build the YAML lines for the `relatedPods` section. Returns an empty `Vec`
-/// when the list is empty so the caller can skip the separator blank line.
-///
-/// Mirrors Network description's `relatedResources` shape so the entire
-/// detail pane is a single valid YAML document.
-fn build_related_pods_yaml(pods: &ObjectList<Pod>) -> Result<Vec<String>> {
+/// Format the related-Pods list as a `# `-prefixed table whose columns are
+/// padded so the header and rows line up. Returns an empty `Vec` when the
+/// list is empty so the caller can decide whether to render the section.
+fn format_related_pods_table(pods: &ObjectList<Pod>) -> Vec<String> {
     if pods.items.is_empty() {
-        return Ok(Vec::new());
+        return Vec::new();
     }
 
-    let rows: Vec<RelatedPodRow> = pods
+    const HEADERS: [&str; 3] = ["NAMESPACE", "NAME", "STATUS"];
+
+    let rows: Vec<[&str; 3]> = pods
         .items
         .iter()
         .map(|pod| {
-            RelatedPodRow {
-                namespace: pod.metadata.namespace.clone().unwrap_or_default(),
-                name: pod.metadata.name.clone().unwrap_or_default(),
-                status: pod
-                    .status
+            [
+                pod.metadata.namespace.as_deref().unwrap_or(""),
+                pod.metadata.name.as_deref().unwrap_or(""),
+                pod.status
                     .as_ref()
-                    .and_then(|s| s.phase.clone())
-                    .unwrap_or_default(),
-            }
+                    .and_then(|s| s.phase.as_deref())
+                    .unwrap_or(""),
+            ]
         })
         .collect();
 
-    let mut root = serde_yaml::Mapping::new();
-    root.insert(
-        serde_yaml::Value::String("relatedPods".to_string()),
-        serde_yaml::to_value(&rows).with_context(|| "failed to serialize related pods")?,
-    );
+    // Per-column max width across header + rows. Pod names and namespaces are
+    // ASCII (DNS-1123), so byte length equals display width.
+    let col_width = |i: usize| -> usize {
+        HEADERS[i]
+            .len()
+            .max(rows.iter().map(|r| r[i].len()).max().unwrap_or(0))
+    };
+    let w0 = col_width(0);
+    let w1 = col_width(1);
+    // The last column is right-most, so no trailing padding is needed.
 
-    let yaml =
-        serde_yaml::to_string(&root).with_context(|| "failed to serialize relatedPods section")?;
+    let format_row = |cols: &[&str; 3]| -> String {
+        format!(
+            "# {:<w0$}  {:<w1$}  {}",
+            cols[0],
+            cols[1],
+            cols[2],
+            w0 = w0,
+            w1 = w1
+        )
+    };
 
-    Ok(yaml.lines().map(String::from).collect())
+    let mut out = Vec::with_capacity(1 + rows.len());
+    out.push(format_row(&HEADERS));
+    for row in &rows {
+        out.push(format_row(row));
+    }
+    out
 }
 
 #[cfg(test)]
@@ -210,51 +218,44 @@ mod tests {
     }
 
     #[test]
-    fn build_related_pods_yaml_emits_valid_yaml_document() {
+    fn format_related_pods_table_aligns_header_and_rows() {
         let list = pod_list(vec![
             sample_pod("gpu", "gpu-train-0", "Running"),
-            sample_pod("kube-system", "kube-proxy-x9f2", "Running"),
+            sample_pod("gpu", "dcgm-exporter-x9f2", "Running"),
         ]);
 
-        let lines = build_related_pods_yaml(&list).unwrap();
-        let yaml = lines.join("\n");
+        let lines = format_related_pods_table(&list);
 
-        // 全体を YAML として roundtrip し、構造で検証する（インデントや改行の
-        // 細部に依存しない）。
-        let parsed: serde_yaml::Value = serde_yaml::from_str(&yaml).unwrap();
-        let related = parsed.get("relatedPods").unwrap().as_sequence().unwrap();
-        assert_eq!(related.len(), 2);
-
+        // NAMESPACE 列幅: max(NAMESPACE=9, gpu=3) = 9
+        // NAME 列幅:      max(NAME=4, gpu-train-0=11, dcgm-exporter-x9f2=18) = 18
+        // STATUS 列は末尾なのでパディングなし。
         assert_eq!(
-            related[0].get("namespace").and_then(|v| v.as_str()),
-            Some("gpu")
-        );
-        assert_eq!(
-            related[0].get("name").and_then(|v| v.as_str()),
-            Some("gpu-train-0")
-        );
-        assert_eq!(
-            related[0].get("status").and_then(|v| v.as_str()),
-            Some("Running")
-        );
-
-        assert_eq!(
-            related[1].get("namespace").and_then(|v| v.as_str()),
-            Some("kube-system")
-        );
-        assert_eq!(
-            related[1].get("name").and_then(|v| v.as_str()),
-            Some("kube-proxy-x9f2")
-        );
-        assert_eq!(
-            related[1].get("status").and_then(|v| v.as_str()),
-            Some("Running")
+            lines,
+            vec![
+                "# NAMESPACE  NAME                STATUS".to_string(),
+                "# gpu        gpu-train-0         Running".to_string(),
+                "# gpu        dcgm-exporter-x9f2  Running".to_string(),
+            ]
         );
     }
 
     #[test]
-    fn build_related_pods_yaml_empty_list_returns_empty() {
+    fn format_related_pods_table_empty_list_returns_empty() {
         let list = pod_list(vec![]);
-        assert!(build_related_pods_yaml(&list).unwrap().is_empty());
+        assert!(format_related_pods_table(&list).is_empty());
+    }
+
+    #[test]
+    fn format_related_pods_table_header_widens_with_short_data() {
+        // すべて NAMESPACE/NAME より短ければヘッダ幅が幅を決める。
+        let list = pod_list(vec![sample_pod("a", "b", "X")]);
+        let lines = format_related_pods_table(&list);
+        assert_eq!(
+            lines,
+            vec![
+                "# NAMESPACE  NAME  STATUS".to_string(),
+                "# a          b     X".to_string(),
+            ]
+        );
     }
 }

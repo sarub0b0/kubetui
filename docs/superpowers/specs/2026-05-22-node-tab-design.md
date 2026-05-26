@@ -54,14 +54,11 @@ tmux の小ペインやフローティングウィンドウでの利用を想定
 │   labels:                                               │
 │     nvidia.com/mig.config.state: success               │
 │ ...                                                     │
-│                                                          │
-│ relatedPods:                                            │
-│ - namespace: gpu                                        │
-│   name: gpu-train-0                                     │
-│   status: Running                                       │
-│ - namespace: gpu                                        │
-│   name: dcgm-exporter-x9f2                              │
-│   status: Running                                       │
+│ ---                                                     │
+│ # Related Pods (spec.nodeName=gke-prod-gpu-pool-...)    │
+│ # NAMESPACE  NAME                STATUS                 │
+│ # gpu        gpu-train-0         Running                │
+│ # gpu        dcgm-exporter-x9f2  Running                │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -117,9 +114,9 @@ src/features/node/
 
 - 一覧で Node を選択すると、詳細ペインをクリアし、対象ノードを指定した `NodeDetailMessage::Request { name }` を送る。
 - 詳細ワーカーは **request 駆動の `InfiniteWorker`** とし、対象ノードを取得して **3 秒間隔で自動更新**する。選択が変わると前のワーカーを abort し、新しい対象で起動し直す。この方式は Network の `NetworkDescriptionWorker`（`src/features/network/kube/description.rs`、`INTERVAL = 3`、選択ごとに対象を指定して起動する request 駆動の `InfiniteWorker`）に倣う。更新間隔 3 秒は `YamlWorker` / `NetworkDescriptionWorker` と揃える。
-  1. Node オブジェクトを取得（`kube::Api::<Node>::get`）し、`metadata.managedFields` を除去してから YAML 化、行配列にする。
-  2. 関連 Pod を `kube::Api::<Pod>::list(ListParams::default().fields("spec.nodeName=<node>"))`（**全 namespace**、クラスタスコープのリスト）で取得する。
-  3. 関連 Pod を `relatedPods:` キー配下の YAML（各要素 `{namespace, name, status}`）に整形し、Node YAML の後に空行＋追記する（Network description の `relatedResources:` と同型・全体が単一の valid YAML ドキュメント）。`NodeDetailMessage::Response(Result<Vec<String>>)` として送信する。
+  1. Node オブジェクトを取得（`request`）し、`metadata.managedFields` を除去してから YAML 化、行配列にする。
+  2. 関連 Pod を `GET /api/v1/pods?fieldSelector=spec.nodeName=<node>`（**全 namespace**、クラスタスコープのリスト）で取得し、テキスト整形する。
+  3. YAML 行 ＋ 区切り ＋ 関連 Pod セクションを結合し、`NodeDetailMessage::Response(Result<Vec<String>>)` として送信する。
 - render が詳細 Text ウィジェット（スクロール・検索対応）を更新する。
 - 関連 Pod が 0 件のときは関連 Pod セクションを出さない。
 
