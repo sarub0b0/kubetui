@@ -251,6 +251,8 @@ impl WindowInit {
         } = NodeTab::new(
             "Node",
             &self.tx,
+            &clipboard,
+            self.split_mode,
             self.default_node_columns.clone(),
             self.node_label_columns.clone(),
             self.theme.component.clone(),
