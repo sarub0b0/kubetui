@@ -13,7 +13,11 @@ use crate::{
 
 const INTERVAL: u64 = 3;
 
-pub struct NodeDetailWorker<C> {
+#[derive(Clone)]
+pub struct NodeDetailWorker<C>
+where
+    C: Clone,
+{
     tx: Sender<Message>,
     client: C,
     name: String,
@@ -21,7 +25,7 @@ pub struct NodeDetailWorker<C> {
 
 impl<C> NodeDetailWorker<C>
 where
-    C: KubeClientRequest + Send + Sync + 'static,
+    C: KubeClientRequest + Clone + Send + Sync + 'static,
 {
     pub fn new(tx: Sender<Message>, client: C, name: String) -> Self {
         Self { tx, client, name }
@@ -66,7 +70,7 @@ where
 #[async_trait::async_trait]
 impl<C> InfiniteWorker for NodeDetailWorker<C>
 where
-    C: KubeClientRequest + Send + Sync + 'static,
+    C: KubeClientRequest + Clone + Send + Sync + 'static,
 {
     async fn run(&self) {
         if let Err(e) = self.fetch_loop().await {
@@ -77,7 +81,7 @@ where
 
 impl<C> NodeDetailWorker<C>
 where
-    C: KubeClientRequest + Send + Sync + 'static,
+    C: KubeClientRequest + Clone + Send + Sync + 'static,
 {
     async fn fetch_loop(&self) -> Result<()> {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(INTERVAL));
