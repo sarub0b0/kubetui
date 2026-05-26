@@ -55,12 +55,11 @@ where
             .await
             .with_context(|| format!("failed to list pods on node {}", name))?;
 
-        let pod_rows = format_related_pods(&pods);
-        if !pod_rows.is_empty() {
+        let pod_lines = format_related_pods_table(&pods);
+        if !pod_lines.is_empty() {
             lines.push("---".to_string());
             lines.push(format!("# Related Pods (spec.nodeName={})", name));
-            lines.push("# NAMESPACE  NAME  STATUS".to_string());
-            lines.extend(pod_rows);
+            lines.extend(pod_lines);
         }
 
         Ok(lines)
@@ -103,21 +102,59 @@ fn strip_and_serialize_node(mut node: Node) -> Result<Vec<String>> {
     Ok(yaml.lines().map(String::from).collect())
 }
 
-/// Format the related-Pods list as `# <ns>  <name>  <phase>` rows.
-fn format_related_pods(pods: &ObjectList<Pod>) -> Vec<String> {
-    pods.items
+/// Format the related-Pods list as a `# `-prefixed table whose columns are
+/// padded so the header and rows line up. Returns an empty `Vec` when the
+/// list is empty so the caller can decide whether to render the section.
+fn format_related_pods_table(pods: &ObjectList<Pod>) -> Vec<String> {
+    if pods.items.is_empty() {
+        return Vec::new();
+    }
+
+    const HEADERS: [&str; 3] = ["NAMESPACE", "NAME", "STATUS"];
+
+    let rows: Vec<[&str; 3]> = pods
+        .items
         .iter()
         .map(|pod| {
-            let ns = pod.metadata.namespace.as_deref().unwrap_or("");
-            let name = pod.metadata.name.as_deref().unwrap_or("");
-            let phase = pod
-                .status
-                .as_ref()
-                .and_then(|s| s.phase.as_deref())
-                .unwrap_or("");
-            format!("# {}  {}  {}", ns, name, phase)
+            [
+                pod.metadata.namespace.as_deref().unwrap_or(""),
+                pod.metadata.name.as_deref().unwrap_or(""),
+                pod.status
+                    .as_ref()
+                    .and_then(|s| s.phase.as_deref())
+                    .unwrap_or(""),
+            ]
         })
-        .collect()
+        .collect();
+
+    // Per-column max width across header + rows. Pod names and namespaces are
+    // ASCII (DNS-1123), so byte length equals display width.
+    let col_width = |i: usize| -> usize {
+        HEADERS[i]
+            .len()
+            .max(rows.iter().map(|r| r[i].len()).max().unwrap_or(0))
+    };
+    let w0 = col_width(0);
+    let w1 = col_width(1);
+    // The last column is right-most, so no trailing padding is needed.
+
+    let format_row = |cols: &[&str; 3]| -> String {
+        format!(
+            "# {:<w0$}  {:<w1$}  {}",
+            cols[0],
+            cols[1],
+            cols[2],
+            w0 = w0,
+            w1 = w1
+        )
+    };
+
+    let mut out = Vec::with_capacity(1 + rows.len());
+    out.push(format_row(&HEADERS));
+    for row in &rows {
+        out.push(format_row(row));
+    }
+    out
 }
 
 #[cfg(test)]
@@ -181,26 +218,44 @@ mod tests {
     }
 
     #[test]
-    fn format_related_pods_yields_one_row_per_pod() {
+    fn format_related_pods_table_aligns_header_and_rows() {
         let list = pod_list(vec![
-            sample_pod("ns1", "pod-a", "Running"),
-            sample_pod("ns2", "pod-b", "Pending"),
+            sample_pod("gpu", "gpu-train-0", "Running"),
+            sample_pod("gpu", "dcgm-exporter-x9f2", "Running"),
         ]);
 
-        let rows = format_related_pods(&list);
+        let lines = format_related_pods_table(&list);
 
+        // NAMESPACE 列幅: max(NAMESPACE=9, gpu=3) = 9
+        // NAME 列幅:      max(NAME=4, gpu-train-0=11, dcgm-exporter-x9f2=18) = 18
+        // STATUS 列は末尾なのでパディングなし。
         assert_eq!(
-            rows,
+            lines,
             vec![
-                "# ns1  pod-a  Running".to_string(),
-                "# ns2  pod-b  Pending".to_string(),
+                "# NAMESPACE  NAME                STATUS".to_string(),
+                "# gpu        gpu-train-0         Running".to_string(),
+                "# gpu        dcgm-exporter-x9f2  Running".to_string(),
             ]
         );
     }
 
     #[test]
-    fn format_related_pods_empty_list_returns_empty() {
+    fn format_related_pods_table_empty_list_returns_empty() {
         let list = pod_list(vec![]);
-        assert!(format_related_pods(&list).is_empty());
+        assert!(format_related_pods_table(&list).is_empty());
+    }
+
+    #[test]
+    fn format_related_pods_table_header_widens_with_short_data() {
+        // すべて NAMESPACE/NAME より短ければヘッダ幅が幅を決める。
+        let list = pod_list(vec![sample_pod("a", "b", "X")]);
+        let lines = format_related_pods_table(&list);
+        assert_eq!(
+            lines,
+            vec![
+                "# NAMESPACE  NAME  STATUS".to_string(),
+                "# a          b     X".to_string(),
+            ]
+        );
     }
 }
