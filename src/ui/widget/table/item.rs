@@ -311,16 +311,18 @@ impl Digits {
         let spacing = COLUMN_SPACING as usize * digits.len().saturating_sub(1);
         let content_budget = max_width.saturating_sub(spacing);
 
-        // Shrink the widest column first, down to MIN_COLUMN_WIDTH if needed,
-        // before touching the next-widest. This truncates long values
-        // (typically the NAME column) first while keeping shorter columns at
-        // their natural width as long as possible. A column is never reduced to
-        // 0 (which would make it vanish), and the total always fits the budget
-        // (so ratatui does not clip a whole column off the right edge).
+        // Shrink the column that is currently the widest by one each step,
+        // until the total fits the budget. The widest column changes as we
+        // shrink, so once two columns are tied at the top they shrink together
+        // (water-fill / leveling). This truncates long values (typically NAME)
+        // first while keeping the column readable as long as possible, and
+        // only starts trimming shorter columns once the long one has caught
+        // down to their level. No column is reduced below MIN_COLUMN_WIDTH
+        // (it would vanish), and the total always fits the budget (so ratatui
+        // does not clip a whole column off the right edge).
         const MIN_COLUMN_WIDTH: usize = 1;
 
-        let mut overflow = digits.iter().sum::<usize>().saturating_sub(content_budget);
-        while overflow > 0 {
+        while digits.iter().sum::<usize>() > content_budget {
             let Some(idx) = digits
                 .iter()
                 .enumerate()
@@ -328,15 +330,12 @@ impl Digits {
                 .max_by_key(|(_, &w)| w)
                 .map(|(i, _)| i)
             else {
-                // Every column is already at the minimum width; the pane is too
-                // narrow to fit them all and nothing more can be shrunk.
+                // Every column is already at the minimum width; the pane is
+                // too narrow to fit them all and nothing more can be shrunk.
                 break;
             };
 
-            let reducible = digits[idx] - MIN_COLUMN_WIDTH;
-            let reduce = reducible.min(overflow);
-            digits[idx] -= reduce;
-            overflow -= reduce;
+            digits[idx] -= 1;
         }
 
         Self(digits)
@@ -445,17 +444,22 @@ mod tests {
         }
 
         #[test]
-        fn 縮小は最長列から行い短い列は可能な限り残す() {
+        fn 縮小は常に現在の最長列から行い最小列は他列が並ぶまで保たれる() {
             let h = header(&["NAME", "ZONE", "STATUS"]);
             let it = items(&["gke-very-long-node-name-0123456789", "", "Ready"]);
 
             let digits = Digits::new(&it, &h, 20);
 
             // 最長の NAME 列が縮められ、自然幅(34)より小さくなる。
-            assert!(digits[0] < 34, "最長列が縮小されること: {:?}", *digits);
-            // 短い列(ZONE=4, STATUS=6)は最長列より先に削られない。
-            assert_eq!(digits[1], 4, "ZONE は保持: {:?}", *digits);
-            assert_eq!(digits[2], 6, "STATUS は保持: {:?}", *digits);
+            assert!(digits[0] < 34, "NAME は縮小される: {:?}", *digits);
+            // ZONE(=4) は最も短いので、他列が ZONE と同等以下に下がるまで保たれる。
+            assert_eq!(
+                digits[1], 4,
+                "ZONE は他列が ZONE と並ぶまで保たれる: {:?}",
+                *digits
+            );
+            // STATUS は ZONE 以上の幅を保つ（他列が ZONE 以下になっていない）。
+            assert!(digits[2] >= digits[1], "STATUS >= ZONE: {:?}", *digits);
             assert!(total(&digits) <= 20);
         }
     }
