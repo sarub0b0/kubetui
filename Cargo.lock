@@ -1273,9 +1273,9 @@ dependencies = [
 
 [[package]]
 name = "jiff"
-version = "0.2.25"
+version = "0.2.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6835eea34fb6321b9b3aa7b685c2b433948c09447e389dc017fdf687d5d11e65"
+checksum = "30457d51cb0e68ee18184b30cd9eb8e1602a20837c321f6ea9706b94f1c681c3"
 dependencies = [
  "jiff-static",
  "log",
@@ -1286,9 +1286,9 @@ dependencies = [
 
 [[package]]
 name = "jiff-static"
-version = "0.2.25"
+version = "0.2.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c22e04db9c58f5136eb1757f3d5c49a7b187f49e52185228cbd2f5acdfcc08c"
+checksum = "05f86e4f0326c61ae6c00b04d9009aaeda644d0b5bdfbf6c67247f492f42b3f3"
 dependencies = [
  "proc-macro2",
  "quote",
