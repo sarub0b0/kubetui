@@ -327,10 +327,10 @@ git commit -m "feat(node): NodeDetailWorker fetch_for via kube::Api (typed get/l
 
 **Files:** `src/features/node/kube/detail.rs`, `src/workers/kube/controller.rs`
 
-- [ ] **Step 1: `InfiniteWorker` 実装**（`detail.rs` に追加）
+- [ ] **Step 1: `InfiniteWorker` 実装**（`detail.rs` に追加）。Network の `description.rs` と同じく、外側の `run` で最終エラーをログし、内側のループ helper で `?` を使う。
 
 ```rust
-use crate::workers::kube::InfiniteWorker;
+use crate::{logger, workers::kube::InfiniteWorker};
 
 #[async_trait::async_trait]
 impl<C> InfiniteWorker for NodeDetailWorker<C>
@@ -338,6 +338,17 @@ where
     C: KubeClientRequest + Send + Sync + 'static,
 {
     async fn run(&self) {
+        if let Err(e) = self.fetch_loop().await {
+            logger!(error, "node detail worker exited: {:?}", e);
+        }
+    }
+}
+
+impl<C> NodeDetailWorker<C>
+where
+    C: KubeClientRequest + Send + Sync + 'static,
+{
+    async fn fetch_loop(&self) -> Result<()> {
         let mut interval =
             tokio::time::interval(std::time::Duration::from_secs(INTERVAL));
 
@@ -346,21 +357,16 @@ where
 
             let result = Self::fetch_for(&self.name, &self.client).await;
 
-            if self
-                .tx
+            self.tx
                 .send(
                     crate::features::node::message::NodeDetailMessage::Response(result).into(),
-                )
-                .is_err()
-            {
-                break;
-            }
+                )?;
         }
     }
 }
 ```
 
-（Network の `description.rs` と同じ骨格。`InfiniteWorker` trait と `spawn()` は既存。）
+毎ティックの fetch エラーは `Response(Result<_>)` で送られるためループは継続。`tx.send` が失敗（受信側 drop）したときだけループを抜ける（Network と同型）。
 
 - [ ] **Step 2: controller wire**（`src/workers/kube/controller.rs`、Network ハンドラの隣）
 
@@ -392,34 +398,71 @@ git commit -m "feat(node): wire NodeDetailWorker spawn/abort in controller"
 
 ## Task 4: 詳細 Text ウィジェット＋ NodeTab を 2 ペイン化
 
-**Files:** `src/features/node/view/widgets/detail.rs`（新規）, `src/features/node/view/widgets.rs`, `src/features/node/view/tab.rs`
+**Files:** `src/features/node/view/widgets/detail.rs`（新規）, `src/features/node/view/widgets.rs`, `src/features/node/view/tab.rs`, `src/workers/render/window.rs`
 
-- [ ] **Step 1: Text ウィジェット**（`detail.rs`）。Network の description ウィジェットを参考に最小実装。
+- [ ] **Step 1: Text ウィジェット**（`detail.rs`）。`src/features/network/view/widgets/description.rs` と同じ構成（`Text` + `SearchForm` + `block_injection` でスクロール位置をタイトルに表示 + `clipboard` でコピー）。
 
 ```rust
+use std::{cell::RefCell, rc::Rc};
+
+use ratatui::widgets::Block;
+
 use crate::{
+    clipboard::Clipboard,
     config::theme::WidgetThemeConfig,
     features::component_id::NODE_DETAIL_WIDGET_ID,
-    ui::widget::{Text, Widget, WidgetBase, WidgetTheme},
+    ui::widget::{
+        SearchForm,
+        SearchFormTheme,
+        Text,
+        TextTheme,
+        Widget,
+        WidgetBase,
+        WidgetTheme,
+        WidgetTrait as _,
+    },
 };
 
-pub fn node_detail_widget(theme: WidgetThemeConfig) -> Widget<'static> {
+pub fn node_detail_widget(
+    clipboard: &Option<Rc<RefCell<Clipboard>>>,
+    theme: WidgetThemeConfig,
+) -> Widget<'static> {
     let widget_theme = WidgetTheme::from(theme.clone());
+    let search_theme = SearchFormTheme::from(theme.clone());
+    let text_theme = TextTheme::from(theme);
+
     let widget_base = WidgetBase::builder()
         .title("Node Detail")
         .theme(widget_theme)
         .build();
 
-    Text::builder()
+    let search_form = SearchForm::builder().theme(search_theme).build();
+
+    let builder = Text::builder()
         .id(NODE_DETAIL_WIDGET_ID)
         .widget_base(widget_base)
-        .theme(theme.into())  // Text 用 theme 変換が必要なら適宜
-        .build()
-        .into()
+        .search_form(search_form)
+        .theme(text_theme)
+        .block_injection(block_injection());
+
+    if let Some(cb) = clipboard {
+        builder.clipboard(cb.clone())
+    } else {
+        builder
+    }
+    .build()
+    .into()
+}
+
+fn block_injection() -> impl Fn(&Text, bool, bool) -> Block<'static> {
+    |text: &Text, is_active: bool, is_mouse_over: bool| {
+        let (index, size) = text.state();
+        let mut base = text.widget_base().clone();
+        *base.title_mut() = format!("Node Detail [{}/{}]", index, size).into();
+        base.render_block(text.can_activate() && is_active, is_mouse_over)
+    }
 }
 ```
-
-（実装時に Text ウィジェットの実際の builder API を `src/features/network/view/widgets/description.rs` で確認し、それに合わせる。）
 
 - [ ] **Step 2: re-export**（`widgets.rs`）。
 
@@ -429,19 +472,20 @@ mod detail;
 pub use detail::node_detail_widget;
 ```
 
-- [ ] **Step 3: NodeTab を 2 ペイン化**（`tab.rs`）。`split_direction` を受け取り、Network/Pod タブと同じく分割方向に追従できるようにする（spec の図は縦分割、ユーザーが `S` で切替可能）。
+- [ ] **Step 3: NodeTab を 2 ペイン化**（`tab.rs`）。`split_direction` と `clipboard` を受け取る（Pod/Network と同様）。`node_widget` には `tx` を渡せるよう拡張（次タスク）。
 
 ```rust
 pub fn new(
     title: &'static str,
     tx: &Sender<Message>,
+    clipboard: &Option<Rc<RefCell<Clipboard>>>,
     split_direction: Direction,
     default_columns: Option<NodeColumns>,
     label_registry: Vec<NodeLabelColumn>,
     theme: WidgetThemeConfig,
 ) -> Self {
-    let node_widget = node_widget(tx.clone(), theme.clone()); // tx を渡せるよう node_widget も拡張（次タスク）
-    let detail_widget = node_detail_widget(theme.clone());
+    let node_widget = node_widget(tx.clone(), theme.clone());
+    let detail_widget = node_detail_widget(clipboard, theme.clone());
     let node_columns_dialog = node_columns_dialog(tx, default_columns, label_registry, theme);
 
     let tab = Tab::new(
@@ -454,18 +498,13 @@ pub fn new(
 }
 
 fn layout(split_direction: Direction) -> NestedWidgetLayout {
-    NestedWidgetLayout::default()
-        .direction(split_direction)
-        .nested_widget_layout([
-            NestedLayoutElement(Constraint::Percentage(50), LayoutElement::WidgetIndex(0)),
-            NestedLayoutElement(Constraint::Percentage(50), LayoutElement::WidgetIndex(1)),
-        ])
+    // 既存の Pod/Network/Network description タブの layout 関数のうち
+    // 2 ペイン構成の実装（例: src/features/network/view/tab.rs 内）に倣う。
+    // 正確な NestedWidgetLayout の API は実装時に既存コードで確認する。
 }
 ```
 
-（既存の Pod/Network タブの `layout` 関数を参考に正確な API に合わせる。`NestedWidgetLayout` のメソッド名・引数を実装時に確認。）
-
-- [ ] **Step 4: `WindowInit::tabs_dialogs`** — `NodeTab::new` に `split_direction` を渡すよう更新（Pod/Network と同様）。
+- [ ] **Step 4: `WindowInit::tabs_dialogs`** — `NodeTab::new` に `&clipboard`、`self.split_mode` を渡すよう更新（Pod/Network 呼び出しの真似）。
 
 - [ ] **Step 5: テスト・ビルド** — `cargo test` → green、`cargo build` → green。
 
@@ -473,7 +512,7 @@ fn layout(split_direction: Direction) -> NestedWidgetLayout {
 
 ```bash
 git add -A
-git commit -m "feat(node): add detail widget and 2-pane NodeTab"
+git commit -m "feat(node): add detail Text widget (search/clipboard/scroll title) and 2-pane NodeTab"
 ```
 
 ---
@@ -482,28 +521,13 @@ git commit -m "feat(node): add detail widget and 2-pane NodeTab"
 
 **Files:** `src/features/node/view/widgets/node.rs`
 
-- [ ] **Step 1: 失敗テストを書く**（`node.rs` の `#[cfg(test)] mod tests`）。`on_select` コールバックを直接呼び出して `tx.recv()` で `Kube::NodeDetail(Request{name})` を検証。
+**前提（実装時に確認）:** `KubeTableRow` には `pub name: String` フィールドがあり、`src/workers/render/action.rs` がそれを `TableItem.metadata["name"]` として埋めている（Pod・Network 等で既に動いている既存の経路）。Plan 1 で実装した `get_node_table` も `KubeTableRow.name` を設定済みのため、**poller の変更は不要**（前バージョンのプランで「poller の metadata に name を追加」と書いていたが、これは action.rs が既に行っているので二重作業だった）。
+
+- [ ] **Step 1: 失敗テストを書く**（`node.rs` の `#[cfg(test)] mod tests`）。`on_select` クロージャは Window を要するため、**選択名から `NodeDetailMessage::Request` を作る純粋関数 `build_detail_request`** に切り出し、それを直接テストする（Plan 3 の `collect_columns` と同じ責務分離）。
 
 ```rust
 #[test]
-fn on_select_sends_node_detail_request() {
-    let (tx, rx) = crossbeam::channel::bounded(8);
-    // node_widget の構築（tx を渡す形に拡張済み前提）
-    let _widget = node_widget(tx, WidgetThemeConfig::default());
-    // 実際の on_select 発火は内部 API のためここでは「on_select 関数の戻り値クロージャに
-    // TableItem を渡したら Request が送られる」ことを検証する単体ユニットに切り出す。
-    // -> 実装側で `fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &TableItem) -> EventResult`
-    //    のような形に切り出し、それを直接 invoke するテストにする。
-}
-```
-
-実装の都合上、Window 引数が必要なので素直に呼ぶのは難しい。**実装で `on_select` ハンドラを純粋なヘルパ関数に切り出す**（`fn build_detail_request(item: &TableItem) -> NodeDetailMessage` のような）ことで純粋テストにする。
-
-簡略化したテスト案:
-
-```rust
-#[test]
-fn build_detail_request_from_table_item() {
+fn build_detail_request_from_table_item_name_metadata() {
     use crate::ui::widget::TableItem;
     let item = TableItem {
         item: vec!["node-a".to_string()],
@@ -511,17 +535,25 @@ fn build_detail_request_from_table_item() {
             ("name".to_string(), "node-a".to_string()),
         ])),
     };
-    let req = build_detail_request(&item).expect("name should be present");
+
+    let req = build_detail_request(&item).expect("name metadata should be present");
     match req {
         NodeDetailMessage::Request { name } => assert_eq!(name, "node-a"),
         _ => panic!("expected Request"),
     }
 }
+
+#[test]
+fn build_detail_request_returns_none_without_name() {
+    use crate::ui::widget::TableItem;
+    let item = TableItem { item: vec![], metadata: None };
+    assert!(build_detail_request(&item).is_none());
+}
 ```
 
-- [ ] **Step 2: 失敗確認** — `cargo test features::node::view::widgets::node` → コンパイルエラー。
+- [ ] **Step 2: 失敗確認** — `cargo test features::node::view::widgets::node` → コンパイルエラー（`build_detail_request` 未定義）。
 
-- [ ] **Step 3: 実装**（`node.rs`）。`node_widget` シグネチャに `tx: Sender<Message>` を追加し、Table builder に `on_select` を渡す。
+- [ ] **Step 3: 実装**（`node.rs`）。`node_widget` シグネチャに `tx: Sender<Message>` を追加し、Table builder に `on_select` を渡す。Network の on_select の慣習に倣い `widget_clear` ＋ `append_title_mut` も行う。
 
 ```rust
 pub fn node_widget(tx: Sender<Message>, theme: WidgetThemeConfig) -> Widget<'static> {
@@ -536,33 +568,35 @@ fn build_detail_request(item: &TableItem) -> Option<NodeDetailMessage> {
 }
 
 fn on_select(tx: Sender<Message>) -> impl Fn(&mut Window, &TableItem) -> EventResult {
-    move |_w, item| {
-        if let Some(req) = build_detail_request(item) {
-            let _ = tx.send(req.into());
+    move |w: &mut Window, item: &TableItem| {
+        // 選択変更時は前ノードの詳細をクリアして、再フェッチを待つ。
+        w.widget_clear(NODE_DETAIL_WIDGET_ID);
+
+        let Some(req) = build_detail_request(item) else {
+            return EventResult::Ignore;
+        };
+
+        // タイトルに選択中のノード名を表示（Network description と同じ慣習）。
+        if let NodeDetailMessage::Request { name } = &req {
+            *(w.find_widget_mut(NODE_DETAIL_WIDGET_ID)
+                .widget_base_mut()
+                .append_title_mut()) = Some((format!(" : {}", name)).into());
         }
+
+        tx.send(req.into())
+            .expect("Failed to send NodeDetailMessage::Request");
         EventResult::Nop
     }
 }
 ```
 
-注: `get_node_table` は既に `KubeTableRow.metadata` に `{"kind": "Node"}` のみを入れている。`name` も入れるよう poller 側を更新する（`name: row.cells[name_pos].clone()` を `metadata` にも追加）。これは Plan 4 の範囲内の小修正として `kube/node.rs` も合わせて変更する。
+- [ ] **Step 4: テスト・ビルド** — `cargo test features::node` → PASS、`cargo build` → green。
 
-- [ ] **Step 4: poller の metadata に name を追加**（`src/features/node/kube/node.rs`）。
-
-```rust
-metadata: Some(BTreeMap::from([
-    ("kind".to_string(), Node::KIND.to_string()),
-    ("name".to_string(), name.clone()),
-])),
-```
-
-- [ ] **Step 5: テスト・ビルド** — `cargo test features::node` → PASS。
-
-- [ ] **Step 6: コミット**
+- [ ] **Step 5: コミット**
 
 ```bash
 git add -A
-git commit -m "feat(node): send NodeDetailRequest on row selection"
+git commit -m "feat(node): request node detail on row selection (clear + title)"
 ```
 
 ---
