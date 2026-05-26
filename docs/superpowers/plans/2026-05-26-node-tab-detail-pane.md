@@ -124,165 +124,164 @@ mod node;
 pub use detail::NodeDetailWorker;
 ```
 
-- [ ] **Step 2: 失敗テストを書く**（`detail.rs` の `#[cfg(test)] mod tests`）。Network の `description.rs` テストを参考に `MockTestKubeClient` を使う。
+- [ ] **Step 2: 失敗テストを書く**（`detail.rs` の `#[cfg(test)] mod tests`）。Network の description impl テスト（例: `ingress.rs`, `pod.rs`）と同じく **k8s_openapi の型付きレスポンス**を mock に返させる。
 
 ```rust
-#[tokio::test]
-async fn fetches_node_yaml_with_managed_fields_stripped() {
-    use crate::kube::mock::MockTestKubeClient;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use k8s_openapi::{
+        api::core::v1::{Node, Pod, PodStatus},
+        apimachinery::pkg::apis::meta::v1::{ManagedFieldsEntry, ObjectMeta, Time},
+        chrono::Utc,
+        List,
+    };
     use mockall::predicate::eq;
+    use std::collections::BTreeMap;
 
-    let mut client = MockTestKubeClient::new();
-    let node_json = serde_json::json!({
-        "apiVersion": "v1",
-        "kind": "Node",
-        "metadata": {
-            "name": "node-a",
-            "managedFields": [{"manager": "kubelet"}],
-            "labels": {"role": "worker"},
-        },
-        "spec": {},
-        "status": {"phase": "Ready"},
-    });
-    let pods_json = serde_json::json!({
-        "items": [],
-    });
-
-    mock_expect!(
-        client,
-        request,
-        [
-            (eq("/api/v1/nodes/node-a".to_string()), Ok(node_json)),
-            (
-                eq("/api/v1/pods?fieldSelector=spec.nodeName%3Dnode-a".to_string()),
-                Ok(pods_json)
-            )
-        ]
-    );
-
-    let lines = NodeDetailWorker::fetch_for("node-a", &client).await.unwrap();
-    let joined = lines.join("\n");
-
-    assert!(joined.contains("name: node-a"));
-    assert!(joined.contains("role: worker"));
-    assert!(!joined.contains("managedFields"));
-    // 関連 Pod 0 件のときは Related Pods セクションを出さない（spec 通り）
-    assert!(!joined.contains("Related Pods"));
-}
-
-#[tokio::test]
-async fn fetches_related_pods_when_present() {
-    use crate::kube::mock::MockTestKubeClient;
-    use mockall::predicate::eq;
-
-    let mut client = MockTestKubeClient::new();
-    let node_json = serde_json::json!({
-        "apiVersion": "v1",
-        "kind": "Node",
-        "metadata": {"name": "node-a"},
-    });
-    let pods_json = serde_json::json!({
-        "items": [
-            {
-                "metadata": {"namespace": "ns1", "name": "pod-a"},
-                "status": {"phase": "Running"},
+    fn sample_node() -> Node {
+        Node {
+            metadata: ObjectMeta {
+                name: Some("node-a".to_string()),
+                labels: Some(BTreeMap::from([(
+                    "role".to_string(),
+                    "worker".to_string(),
+                )])),
+                managed_fields: Some(vec![ManagedFieldsEntry {
+                    manager: Some("kubelet".to_string()),
+                    time: Some(Time(Utc::now())),
+                    ..Default::default()
+                }]),
+                ..Default::default()
             },
-            {
-                "metadata": {"namespace": "ns2", "name": "pod-b"},
-                "status": {"phase": "Pending"},
-            }
-        ],
-    });
+            ..Default::default()
+        }
+    }
 
-    mock_expect!(
-        client,
-        request,
-        [
-            (eq("/api/v1/nodes/node-a".to_string()), Ok(node_json)),
-            (
-                eq("/api/v1/pods?fieldSelector=spec.nodeName%3Dnode-a".to_string()),
-                Ok(pods_json)
-            )
-        ]
-    );
+    fn sample_pod(ns: &str, name: &str, phase: &str) -> Pod {
+        Pod {
+            metadata: ObjectMeta {
+                namespace: Some(ns.to_string()),
+                name: Some(name.to_string()),
+                ..Default::default()
+            },
+            status: Some(PodStatus {
+                phase: Some(phase.to_string()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
+    }
 
-    let lines = NodeDetailWorker::fetch_for("node-a", &client).await.unwrap();
-    let joined = lines.join("\n");
+    #[tokio::test]
+    async fn strips_managed_fields_from_node_yaml() {
+        use crate::kube::mock::MockTestKubeClient;
+        let mut client = MockTestKubeClient::new();
+        let node = sample_node();
+        let empty_pods: List<Pod> = List { items: vec![], ..Default::default() };
 
-    assert!(joined.contains("# Related Pods"));
-    assert!(joined.contains("ns1") && joined.contains("pod-a") && joined.contains("Running"));
-    assert!(joined.contains("ns2") && joined.contains("pod-b") && joined.contains("Pending"));
+        mock_expect!(
+            client,
+            request,
+            [
+                (
+                    Node,
+                    eq("/api/v1/nodes/node-a".to_string()),
+                    Ok(node)
+                ),
+                (
+                    List<Pod>,
+                    eq("/api/v1/pods?fieldSelector=spec.nodeName=node-a".to_string()),
+                    Ok(empty_pods)
+                )
+            ]
+        );
+
+        let lines = NodeDetailWorker::fetch_for("node-a", &client).await.unwrap();
+        let joined = lines.join("\n");
+
+        assert!(joined.contains("name: node-a"));
+        assert!(joined.contains("role: worker"));
+        assert!(!joined.contains("managedFields"));
+        // 関連 Pod 0 件のときは Related Pods セクションを出さない（spec 通り）
+        assert!(!joined.contains("Related Pods"));
+    }
+
+    #[tokio::test]
+    async fn lists_related_pods_when_present() {
+        use crate::kube::mock::MockTestKubeClient;
+        let mut client = MockTestKubeClient::new();
+        let node = Node {
+            metadata: ObjectMeta { name: Some("node-a".to_string()), ..Default::default() },
+            ..Default::default()
+        };
+        let pods: List<Pod> = List {
+            items: vec![
+                sample_pod("ns1", "pod-a", "Running"),
+                sample_pod("ns2", "pod-b", "Pending"),
+            ],
+            ..Default::default()
+        };
+
+        mock_expect!(
+            client,
+            request,
+            [
+                (Node, eq("/api/v1/nodes/node-a".to_string()), Ok(node)),
+                (
+                    List<Pod>,
+                    eq("/api/v1/pods?fieldSelector=spec.nodeName=node-a".to_string()),
+                    Ok(pods)
+                )
+            ]
+        );
+
+        let lines = NodeDetailWorker::fetch_for("node-a", &client).await.unwrap();
+        let joined = lines.join("\n");
+
+        assert!(joined.contains("# Related Pods"));
+        assert!(joined.contains("ns1") && joined.contains("pod-a") && joined.contains("Running"));
+        assert!(joined.contains("ns2") && joined.contains("pod-b") && joined.contains("Pending"));
+    }
 }
 ```
 
-- [ ] **Step 3: 失敗確認** — `cargo test features::node::kube::detail` → コンパイルエラー。
+注: `mock_expect!` の正確な型付き呼び出し構文は実装時に既存テスト（例: `src/features/network/kube/description/` の各 fetch テスト、もしくは `src/features/network/kube/network.rs` の poller テスト）で確認し、それに合わせる。重要なのは **mock が型付き値（`Node` / `List<Pod>`）を返し、`fetch_for` がそれを直接受け取る**こと。
 
-- [ ] **Step 4: 実装**（`detail.rs`）。`InfiniteWorker` は次タスク（Task 3）で wire するので、ここでは `fetch_for` 関数（テスト可能な純粋ロジック）を先に実装する。
+- [ ] **Step 3: 失敗確認** — `cargo test features::node::kube::detail` → コンパイルエラー（`NodeDetailWorker` 未定義）。
+
+- [ ] **Step 4: 実装**（`detail.rs`）。**k8s_openapi 型付きで取得**し、typed フィールドアクセスで整形する。Network description impl（`ingress.rs` 等）と同じパターン。
 
 ```rust
 use anyhow::{Context, Result};
-use k8s_openapi::api::core::v1::{Node, Pod};
+use crossbeam::channel::Sender;
+use k8s_openapi::{api::core::v1::{Node, Pod}, List};
 use kube::Resource;
 
-use crate::kube::KubeClientRequest;
-#[cfg(test)]
-use mockall_double::double;
-#[cfg(test)]
-#[double]
-use crate::kube::client as kube_client;  // テスト用エイリアス（要なら）
+use crate::{kube::KubeClientRequest, message::Message};
+
+const INTERVAL: u64 = 3;
 
 pub struct NodeDetailWorker<C> {
-    tx: crossbeam::channel::Sender<crate::message::Message>,
+    tx: Sender<Message>,
     client: C,
     name: String,
 }
-
-const INTERVAL: u64 = 3;
 
 impl<C> NodeDetailWorker<C>
 where
     C: KubeClientRequest + Send + Sync + 'static,
 {
-    pub fn new(
-        tx: crossbeam::channel::Sender<crate::message::Message>,
-        client: C,
-        name: String,
-    ) -> Self {
+    pub fn new(tx: Sender<Message>, client: C, name: String) -> Self {
         Self { tx, client, name }
     }
 
-    /// Pure fetch+format（テスト容易）。Worker の run から繰り返し呼ぶ。
+    /// Pure fetch + format. Tested directly with a mocked client; the
+    /// InfiniteWorker `run` (Task 3) just calls this on every tick.
     pub async fn fetch_for(name: &str, client: &C) -> Result<Vec<String>> {
-        let node_path = format!("/api/v1/nodes/{}", name);
-        let mut node_value: serde_json::Value = client
-            .request(&node_path)
-            .await
-            .with_context(|| format!("failed to fetch node {}", name))?;
+        let mut lines = fetch_node_yaml(name, client).await?;
 
-        // metadata.managedFields を除去
-        if let Some(meta) = node_value
-            .get_mut("metadata")
-            .and_then(|m| m.as_object_mut())
-        {
-            meta.remove("managedFields");
-        }
-
-        let yaml = serde_yaml::to_string(&node_value)
-            .with_context(|| "failed to serialize node as YAML")?;
-
-        let mut lines: Vec<String> = yaml.lines().map(String::from).collect();
-
-        // 関連 Pod
-        let pods_path = format!(
-            "/api/v1/pods?fieldSelector=spec.nodeName%3D{}",
-            urlencoding::encode(name)
-        );
-        let pods_value: serde_json::Value = client
-            .request(&pods_path)
-            .await
-            .with_context(|| format!("failed to fetch pods for node {}", name))?;
-
-        let pod_rows = format_related_pods(&pods_value);
+        let pod_rows = fetch_related_pods(name, client).await?;
         if !pod_rows.is_empty() {
             lines.push("---".to_string());
             lines.push(format!("# Related Pods (spec.nodeName={})", name));
@@ -294,39 +293,67 @@ where
     }
 }
 
-/// `{items: [...]}` から `# <ns>  <name>  <status>` 形式の行を作る。
-fn format_related_pods(pods_value: &serde_json::Value) -> Vec<String> {
-    let Some(items) = pods_value.get("items").and_then(|v| v.as_array()) else {
-        return Vec::new();
-    };
-    items
+async fn fetch_node_yaml<C>(name: &str, client: &C) -> Result<Vec<String>>
+where
+    C: KubeClientRequest,
+{
+    // kube::Resource::url_path で `/api/v1/nodes` を取り、name を付ける。
+    let url = format!("{}/{}", Node::url_path(&(), None), name);
+    let mut node: Node = client
+        .request(&url)
+        .await
+        .with_context(|| format!("failed to fetch node {}", name))?;
+
+    // 型付きで managedFields を除去。
+    node.metadata.managed_fields = None;
+
+    let yaml = serde_yaml::to_string(&node)
+        .with_context(|| "failed to serialize node as YAML")?;
+
+    Ok(yaml.lines().map(String::from).collect())
+}
+
+async fn fetch_related_pods<C>(node_name: &str, client: &C) -> Result<Vec<String>>
+where
+    C: KubeClientRequest,
+{
+    // 全 namespace 横断のクラスタスコープリスト＋fieldSelector で絞り込み。
+    let url = format!(
+        "{}?fieldSelector=spec.nodeName={}",
+        Pod::url_path(&(), None),
+        node_name
+    );
+    let list: List<Pod> = client
+        .request(&url)
+        .await
+        .with_context(|| format!("failed to fetch pods for node {}", node_name))?;
+
+    Ok(list
+        .items
         .iter()
-        .filter_map(|item| {
-            let ns = item.pointer("/metadata/namespace")?.as_str()?;
-            let name = item.pointer("/metadata/name")?.as_str()?;
-            let status = item
-                .pointer("/status/phase")
-                .and_then(|v| v.as_str())
+        .map(|pod| {
+            let ns = pod.metadata.namespace.as_deref().unwrap_or("");
+            let name = pod.metadata.name.as_deref().unwrap_or("");
+            let status = pod
+                .status
+                .as_ref()
+                .and_then(|s| s.phase.as_deref())
                 .unwrap_or("");
-            Some(format!("# {}  {}  {}", ns, name, status))
+            format!("# {}  {}  {}", ns, name, status)
         })
-        .collect()
+        .collect())
 }
 ```
 
-注: `urlencoding` クレートが未導入なら、`%3D` をそのまま埋め込む簡易置換でも可（`name` がノード名＝DNS-1123 サブドメイン規約で URL 安全な文字のみだが、念のため明示）。クレート未導入の場合は `format!("/api/v1/pods?fieldSelector=spec.nodeName={}", name)` でも実用上問題なし。テストはどちらの形でも文字列一致で書くので、実装と一致させる。
+注: ノード名は DNS-1123 サブドメイン規則（小文字英数・`-`・`.`）で URL 安全な文字のみのため、`fieldSelector` 値の URL エンコードは不要（`format!("...nodeName={}", name)` で良い）。
 
-**判断:** 既存依存を増やさず `format!("...spec.nodeName={}", name)` で書く。テストの `eq("/api/v1/pods?fieldSelector=spec.nodeName=node-a".to_string())` も `%3D` なしで合わせる。
+- [ ] **Step 5: テスト・ビルド** — `cargo test features::node::kube::detail` → PASS、`cargo build` → green。
 
-- [ ] **Step 5: テスト合わせ** — `eq("/api/v1/pods?fieldSelector=spec.nodeName=node-a".to_string())` に書き換え。
-
-- [ ] **Step 6: テスト・ビルド** — `cargo test features::node::kube::detail` → PASS、`cargo build` → green。
-
-- [ ] **Step 7: コミット**
+- [ ] **Step 6: コミット**
 
 ```bash
 git add -A
-git commit -m "feat(node): NodeDetailWorker fetch_for (YAML + related pods)"
+git commit -m "feat(node): NodeDetailWorker fetch_for (typed YAML + related pods)"
 ```
 
 ---
