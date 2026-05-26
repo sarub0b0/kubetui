@@ -124,7 +124,9 @@ mod node;
 pub use detail::NodeDetailWorker;
 ```
 
-- [ ] **Step 2: 失敗テストを書く**（`detail.rs` の `#[cfg(test)] mod tests`）。Network の description impl テスト（例: `ingress.rs`, `pod.rs`）と同じく **k8s_openapi の型付きレスポンス**を mock に返させる。
+**実装方針:** kube-rs の `Api<K>` + `ListParams` を使う（既存の `src/features/pod/kube/log/log_streamer.rs`、`pod_watcher.rs`、`src/cmd/subcommand.rs` と同じパターン）。URL を手組みしない代わりに `KubeClientRequest` の mock では fetch 全体を検証できないため、**フォーマット関数を純粋関数として分離**してそこを単体テストする。`fetch_for` は薄いラッパで実機 Task 7 で確認する。
+
+- [ ] **Step 2: 失敗テストを書く**（`detail.rs` の `#[cfg(test)] mod tests`）。純粋関数 `strip_and_serialize_node` と `format_related_pods` を検証。
 
 ```rust
 #[cfg(test)]
@@ -134,12 +136,12 @@ mod tests {
         api::core::v1::{Node, Pod, PodStatus},
         apimachinery::pkg::apis::meta::v1::{ManagedFieldsEntry, ObjectMeta, Time},
         chrono::Utc,
-        List,
     };
-    use mockall::predicate::eq;
+    use kube::core::ObjectList;
+    use pretty_assertions::assert_eq;
     use std::collections::BTreeMap;
 
-    fn sample_node() -> Node {
+    fn sample_node_with_managed_fields() -> Node {
         Node {
             metadata: ObjectMeta {
                 name: Some("node-a".to_string()),
@@ -173,90 +175,63 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn strips_managed_fields_from_node_yaml() {
-        use crate::kube::mock::MockTestKubeClient;
-        let mut client = MockTestKubeClient::new();
-        let node = sample_node();
-        let empty_pods: List<Pod> = List { items: vec![], ..Default::default() };
+    fn pod_list(items: Vec<Pod>) -> ObjectList<Pod> {
+        ObjectList {
+            metadata: Default::default(),
+            items,
+            types: Default::default(),
+        }
+    }
 
-        mock_expect!(
-            client,
-            request,
-            [
-                (
-                    Node,
-                    eq("/api/v1/nodes/node-a".to_string()),
-                    Ok(node)
-                ),
-                (
-                    List<Pod>,
-                    eq("/api/v1/pods?fieldSelector=spec.nodeName=node-a".to_string()),
-                    Ok(empty_pods)
-                )
-            ]
-        );
-
-        let lines = NodeDetailWorker::fetch_for("node-a", &client).await.unwrap();
+    #[test]
+    fn strip_and_serialize_node_removes_managed_fields() {
+        let node = sample_node_with_managed_fields();
+        let lines = strip_and_serialize_node(node).unwrap();
         let joined = lines.join("\n");
 
         assert!(joined.contains("name: node-a"));
         assert!(joined.contains("role: worker"));
         assert!(!joined.contains("managedFields"));
-        // 関連 Pod 0 件のときは Related Pods セクションを出さない（spec 通り）
-        assert!(!joined.contains("Related Pods"));
+        assert!(!joined.contains("kubelet"));
     }
 
-    #[tokio::test]
-    async fn lists_related_pods_when_present() {
-        use crate::kube::mock::MockTestKubeClient;
-        let mut client = MockTestKubeClient::new();
-        let node = Node {
-            metadata: ObjectMeta { name: Some("node-a".to_string()), ..Default::default() },
-            ..Default::default()
-        };
-        let pods: List<Pod> = List {
-            items: vec![
-                sample_pod("ns1", "pod-a", "Running"),
-                sample_pod("ns2", "pod-b", "Pending"),
-            ],
-            ..Default::default()
-        };
+    #[test]
+    fn format_related_pods_yields_one_row_per_pod() {
+        let list = pod_list(vec![
+            sample_pod("ns1", "pod-a", "Running"),
+            sample_pod("ns2", "pod-b", "Pending"),
+        ]);
 
-        mock_expect!(
-            client,
-            request,
-            [
-                (Node, eq("/api/v1/nodes/node-a".to_string()), Ok(node)),
-                (
-                    List<Pod>,
-                    eq("/api/v1/pods?fieldSelector=spec.nodeName=node-a".to_string()),
-                    Ok(pods)
-                )
+        let rows = format_related_pods(&list);
+
+        assert_eq!(
+            rows,
+            vec![
+                "# ns1  pod-a  Running".to_string(),
+                "# ns2  pod-b  Pending".to_string(),
             ]
         );
+    }
 
-        let lines = NodeDetailWorker::fetch_for("node-a", &client).await.unwrap();
-        let joined = lines.join("\n");
-
-        assert!(joined.contains("# Related Pods"));
-        assert!(joined.contains("ns1") && joined.contains("pod-a") && joined.contains("Running"));
-        assert!(joined.contains("ns2") && joined.contains("pod-b") && joined.contains("Pending"));
+    #[test]
+    fn format_related_pods_empty_list_returns_empty() {
+        let list = pod_list(vec![]);
+        assert!(format_related_pods(&list).is_empty());
     }
 }
 ```
 
-注: `mock_expect!` の正確な型付き呼び出し構文は実装時に既存テスト（例: `src/features/network/kube/description/` の各 fetch テスト、もしくは `src/features/network/kube/network.rs` の poller テスト）で確認し、それに合わせる。重要なのは **mock が型付き値（`Node` / `List<Pod>`）を返し、`fetch_for` がそれを直接受け取る**こと。
+注: `kube::core::ObjectList` のフィールド構成は kube-rs のバージョンに依存する。実装時にコンパイラのエラーで確認して構築方法を合わせる（`types` フィールドが無い場合などは省略）。
 
-- [ ] **Step 3: 失敗確認** — `cargo test features::node::kube::detail` → コンパイルエラー（`NodeDetailWorker` 未定義）。
+- [ ] **Step 3: 失敗確認** — `cargo test features::node::kube::detail` → コンパイルエラー（関数未定義）。
 
-- [ ] **Step 4: 実装**（`detail.rs`）。**k8s_openapi 型付きで取得**し、typed フィールドアクセスで整形する。Network description impl（`ingress.rs` 等）と同じパターン。
+- [ ] **Step 4: 実装**（`detail.rs`）。kube-rs の `Api<K>` を使ってリソース取得、純粋関数で整形。
 
 ```rust
 use anyhow::{Context, Result};
 use crossbeam::channel::Sender;
-use k8s_openapi::{api::core::v1::{Node, Pod}, List};
-use kube::Resource;
+use k8s_openapi::api::core::v1::{Node, Pod};
+use kube::{api::ListParams, core::ObjectList, Api};
 
 use crate::{kube::KubeClientRequest, message::Message};
 
@@ -276,12 +251,30 @@ where
         Self { tx, client, name }
     }
 
-    /// Pure fetch + format. Tested directly with a mocked client; the
-    /// InfiniteWorker `run` (Task 3) just calls this on every tick.
+    /// Fetch Node + related Pods and combine into a single line array.
+    /// The fetch is a thin delegation to `kube::Api` (matches log_streamer /
+    /// pod_watcher in this codebase); the pure formatters below are what the
+    /// unit tests target.
     pub async fn fetch_for(name: &str, client: &C) -> Result<Vec<String>> {
-        let mut lines = fetch_node_yaml(name, client).await?;
+        let kube_client = client.client().clone();
 
-        let pod_rows = fetch_related_pods(name, client).await?;
+        // 1) Node: typed get via kube::Api.
+        let node_api: Api<Node> = Api::all(kube_client.clone());
+        let node = node_api
+            .get(name)
+            .await
+            .with_context(|| format!("failed to fetch node {}", name))?;
+        let mut lines = strip_and_serialize_node(node)?;
+
+        // 2) Related Pods: typed list across all namespaces with field selector.
+        let pod_api: Api<Pod> = Api::all(kube_client);
+        let lp = ListParams::default().fields(&format!("spec.nodeName={}", name));
+        let pods = pod_api
+            .list(&lp)
+            .await
+            .with_context(|| format!("failed to list pods on node {}", name))?;
+
+        let pod_rows = format_related_pods(&pods);
         if !pod_rows.is_empty() {
             lines.push("---".to_string());
             lines.push(format!("# Related Pods (spec.nodeName={})", name));
@@ -293,59 +286,31 @@ where
     }
 }
 
-async fn fetch_node_yaml<C>(name: &str, client: &C) -> Result<Vec<String>>
-where
-    C: KubeClientRequest,
-{
-    // kube::Resource::url_path で `/api/v1/nodes` を取り、name を付ける。
-    let url = format!("{}/{}", Node::url_path(&(), None), name);
-    let mut node: Node = client
-        .request(&url)
-        .await
-        .with_context(|| format!("failed to fetch node {}", name))?;
-
-    // 型付きで managedFields を除去。
+/// Strip `metadata.managedFields` and serialize the Node as YAML lines.
+fn strip_and_serialize_node(mut node: Node) -> Result<Vec<String>> {
     node.metadata.managed_fields = None;
-
     let yaml = serde_yaml::to_string(&node)
         .with_context(|| "failed to serialize node as YAML")?;
-
     Ok(yaml.lines().map(String::from).collect())
 }
 
-async fn fetch_related_pods<C>(node_name: &str, client: &C) -> Result<Vec<String>>
-where
-    C: KubeClientRequest,
-{
-    // 全 namespace 横断のクラスタスコープリスト＋fieldSelector で絞り込み。
-    let url = format!(
-        "{}?fieldSelector=spec.nodeName={}",
-        Pod::url_path(&(), None),
-        node_name
-    );
-    let list: List<Pod> = client
-        .request(&url)
-        .await
-        .with_context(|| format!("failed to fetch pods for node {}", node_name))?;
-
-    Ok(list
-        .items
+/// Format the related-Pods list as `# <ns>  <name>  <phase>` rows.
+fn format_related_pods(pods: &ObjectList<Pod>) -> Vec<String> {
+    pods.items
         .iter()
         .map(|pod| {
             let ns = pod.metadata.namespace.as_deref().unwrap_or("");
             let name = pod.metadata.name.as_deref().unwrap_or("");
-            let status = pod
+            let phase = pod
                 .status
                 .as_ref()
                 .and_then(|s| s.phase.as_deref())
                 .unwrap_or("");
-            format!("# {}  {}  {}", ns, name, status)
+            format!("# {}  {}  {}", ns, name, phase)
         })
-        .collect())
+        .collect()
 }
 ```
-
-注: ノード名は DNS-1123 サブドメイン規則（小文字英数・`-`・`.`）で URL 安全な文字のみのため、`fieldSelector` 値の URL エンコードは不要（`format!("...nodeName={}", name)` で良い）。
 
 - [ ] **Step 5: テスト・ビルド** — `cargo test features::node::kube::detail` → PASS、`cargo build` → green。
 
@@ -353,7 +318,7 @@ where
 
 ```bash
 git add -A
-git commit -m "feat(node): NodeDetailWorker fetch_for (typed YAML + related pods)"
+git commit -m "feat(node): NodeDetailWorker fetch_for via kube::Api (typed get/list)"
 ```
 
 ---
