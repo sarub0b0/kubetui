@@ -633,7 +633,24 @@ impl WidgetTrait for Table<'_> {
             Mode::FilterInput => {
                 match key_event_to_code(ev) {
                     KeyCode::Enter => {
+                        // EnterToConfirm 戦略では Enter で初めて parser を呼ぶ。
+                        // Live 戦略では既にタイプ中に state が更新されているが、parse を
+                        // 再走させてエラー状態を最終確定する。
+                        let parsed = self.run_parser_and_update_state();
+
+                        // パース失敗時は FilterInput モード継続（filter_error が立っている）
+                        if self.filter_error.is_some() {
+                            return EventResult::Nop;
+                        }
+
                         self.mode.filter_confirm();
+
+                        // 成功時は applicator の on_apply 副作用を Window 経由で呼ぶ。
+                        if let Some(predicate) = parsed {
+                            if let Some(cb) = self.on_filter_apply_callback(predicate) {
+                                return EventResult::Callback(cb);
+                            }
+                        }
                     }
 
                     KeyCode::Esc => {
@@ -708,6 +725,19 @@ impl Table<'_> {
             self.selected_item()
                 .map(|v| Callback::new(move |w| cb(w, &v)))
         })
+    }
+
+    /// 直近 parse 成功した predicate と applicator の on_apply を捕捉して、
+    /// Window 渡しの Callback に詰めて返す。
+    fn on_filter_apply_callback(
+        &self,
+        predicate: TableFilterPredicate,
+    ) -> Option<Callback> {
+        let on_apply = self.filter_applicator.as_ref()?.on_apply.clone()?;
+        Some(Callback::from(move |w: &mut Window| {
+            (on_apply.closure)(&predicate, w);
+            EventResult::Nop
+        }))
     }
 
     fn selected_item(&self) -> Option<Rc<TableItem>> {
