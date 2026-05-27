@@ -641,17 +641,22 @@ impl WidgetTrait for Table<'_> {
                     }
 
                     _ => {
-                        // Only reachable when filter_form is Some (FilterInput
-                        // is only entered via the gated `/` branch above).
-                        let ev = if let Some(filter_form) = self.filter_form.as_mut() {
+                        let result = if let Some(filter_form) = self.filter_form.as_mut() {
                             filter_form.on_key_event(ev)
                         } else {
                             EventResult::Ignore
                         };
 
+                        // Live strategy: 毎キーで parse → state/error を更新
+                        if let Some(applicator) = self.filter_applicator.as_ref() {
+                            if applicator.strategy == ApplyStrategy::Live {
+                                self.run_parser_and_update_state();
+                            }
+                        }
+
                         self.filter_items();
 
-                        return ev;
+                        return result;
                     }
                 }
             }
@@ -715,6 +720,32 @@ impl Table<'_> {
         self.actions
             .iter()
             .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb) } else { None })
+    }
+
+    /// 現在の filter_form 入力を parser に渡し、結果で filter_state / filter_error を
+    /// 更新する。
+    ///
+    /// 成功時は Some(predicate)、失敗時は None。
+    /// Live モードでは毎キー、EnterToConfirm モードでは Enter 時に呼ぶ。
+    fn run_parser_and_update_state(&mut self) -> Option<TableFilterPredicate> {
+        let applicator = self.filter_applicator.as_ref()?;
+        let input = self
+            .filter_form
+            .as_ref()
+            .map(|f| f.content())
+            .unwrap_or_default();
+
+        match (applicator.parser.closure)(&input) {
+            Ok(predicate) => {
+                self.filter_error = None;
+                self.filter_state = Some(predicate.clone());
+                Some(predicate)
+            }
+            Err(msg) => {
+                self.filter_error = Some(msg);
+                None
+            }
+        }
     }
 }
 
