@@ -8,4 +8,6 @@
 
 mod parser;
 
+// Consumed by the node_filter_applicator factory in Task 6 (this PR).
+#[allow(unused_imports)]
 pub use parser::parse_node_filter;

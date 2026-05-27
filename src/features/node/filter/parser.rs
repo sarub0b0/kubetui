@@ -9,6 +9,8 @@ use crate::{features::node::node_columns::NodeLabelColumn, ui::widget::TableFilt
 /// `label_registry` supplies the set of valid label-column headers (in
 /// addition to the builtin Node column headers). Unknown column names
 /// produce a parse error.
+// Consumed by the node_filter_applicator factory in Task 6 (this PR).
+#[allow(dead_code)]
 pub fn parse_node_filter(
     input: &str,
     label_registry: &[NodeLabelColumn],
@@ -18,8 +20,7 @@ pub fn parse_node_filter(
 
     let mut column_includes: HashMap<String, Vec<Regex>> = HashMap::new();
     if !trimmed.is_empty() {
-        let regexes: Result<Vec<Regex>, _> =
-            trimmed.split_whitespace().map(Regex::new).collect();
+        let regexes: Result<Vec<Regex>, _> = trimmed.split_whitespace().map(Regex::new).collect();
         let regexes = regexes.map_err(|e| format!("invalid regex: {}", e))?;
         column_includes.insert("name".to_string(), regexes);
     }
