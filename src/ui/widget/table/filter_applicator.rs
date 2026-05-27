@@ -166,6 +166,42 @@ impl TableFilterApplicator {
 #[allow(unused_imports)]
 use EventResult as _;
 
+/// 既存タブが使う「単一列の部分一致」フィルタを構成する。
+/// `column` は対象列名（大小区別なし、内部で小文字化）。
+///
+/// 挙動は既存の `filtered_key + split(' ').any(contains)` と等価:
+/// - 空入力 → フィルタなし（全行 pass）
+/// - スペース区切りの複数 pattern → OR
+/// - 各 pattern は `regex::escape` でリテラル化（ユーザーは regex を
+///   意識しなくていい、`.` `*` 等が混入しても安全）
+pub fn substring_applicator(column: &str) -> TableFilterApplicator {
+    let col = column.to_string().to_lowercase();
+    let parser: TableFilterParser = (move |input: &str| {
+        let raw = input.to_string();
+        let patterns: Result<Vec<Regex>, _> = input
+            .split_whitespace()
+            .map(regex::escape)
+            .map(|p| Regex::new(&p))
+            .collect();
+        let patterns = patterns.map_err(|e| e.to_string())?;
+
+        let mut column_includes = HashMap::new();
+        if !patterns.is_empty() {
+            column_includes.insert(col.clone(), patterns);
+        }
+
+        Ok(TableFilterPredicate {
+            column_includes,
+            column_excludes: HashMap::new(),
+            label_selector: None,
+            raw,
+        })
+    })
+    .into();
+
+    TableFilterApplicator::new(parser, ApplyStrategy::Live)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -350,5 +386,67 @@ mod tests {
             ..TableFilterPredicate::default()
         };
         assert!(!pred.is_empty());
+    }
+
+    fn invoke_parser(a: &TableFilterApplicator, input: &str) -> TableFilterPredicate {
+        (a.parser.closure)(input).expect("test input must parse")
+    }
+
+    #[test]
+    fn substring_applicator_empty_input_matches_everything() {
+        let a = substring_applicator("NAME");
+        let p = invoke_parser(&a, "");
+        let h = header(&["NAME"]);
+        assert!(p.matches(&make_item(&["nginx"]), &h));
+        assert!(p.matches(&make_item(&[""]), &h));
+        assert!(p.is_empty());
+    }
+
+    #[test]
+    fn substring_applicator_single_pattern_substring_match() {
+        let a = substring_applicator("NAME");
+        let p = invoke_parser(&a, "nginx");
+        let h = header(&["NAME"]);
+        assert!(p.matches(&make_item(&["abc-nginx-prod"]), &h));
+        assert!(!p.matches(&make_item(&["web-server"]), &h));
+    }
+
+    #[test]
+    fn substring_applicator_space_separated_is_or() {
+        // 既存挙動と等価: "nginx web" は NAME に nginx OR web
+        let a = substring_applicator("NAME");
+        let p = invoke_parser(&a, "nginx web");
+        let h = header(&["NAME"]);
+        assert!(p.matches(&make_item(&["nginx-x"]), &h));
+        assert!(p.matches(&make_item(&["web-y"]), &h));
+        assert!(!p.matches(&make_item(&["api-z"]), &h));
+    }
+
+    #[test]
+    fn substring_applicator_special_chars_are_escaped() {
+        // "a.b" がリテラルとして扱われる（regex の `.` ではない）
+        let a = substring_applicator("NAME");
+        let p = invoke_parser(&a, "a.b");
+        let h = header(&["NAME"]);
+        assert!(p.matches(&make_item(&["x-a.b-y"]), &h));
+        assert!(!p.matches(&make_item(&["x-a_b-y"]), &h)); // regex の . なら通るがリテラルなので落ちる
+    }
+
+    #[test]
+    fn substring_applicator_strategy_is_live() {
+        let a = substring_applicator("NAME");
+        assert_eq!(a.strategy, ApplyStrategy::Live);
+    }
+
+    #[test]
+    fn substring_applicator_help_dialog_id_is_none() {
+        let a = substring_applicator("NAME");
+        assert_eq!(a.help_dialog_id, None);
+    }
+
+    #[test]
+    fn substring_applicator_on_apply_is_none() {
+        let a = substring_applicator("NAME");
+        assert!(a.on_apply.is_none());
     }
 }
