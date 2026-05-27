@@ -31,7 +31,7 @@ use crate::{
             message::NetworkMessage,
         },
         node::{
-            kube::{NodeConfig, NodeDetailWorker, NodePoller, SharedNodeColumns},
+            kube::{NodeConfig, NodeDetailWorker, NodePoller, SharedNodeColumns, SharedNodeFilter},
             message::{NodeDetailMessage, NodeMessage},
         },
         pod::{
@@ -306,6 +306,7 @@ impl KubeController {
             let shared_node_columns = Arc::new(RwLock::new(
                 node_config.default_columns.clone().unwrap_or_default(),
             ));
+            let shared_node_filter: SharedNodeFilter = Arc::new(RwLock::new(None));
 
             let contexts = kubeconfig
                 .contexts
@@ -323,6 +324,7 @@ impl KubeController {
                 shared_api_resources: shared_api_resources.clone(),
                 shared_pod_columns: shared_pod_columns.clone(),
                 shared_node_columns: shared_node_columns.clone(),
+                shared_node_filter: shared_node_filter.clone(),
                 apis_config: apis_config.clone(),
                 yaml_config: yaml_config.clone(),
                 fallback_namespaces: fallback_namespaces.clone(),
@@ -339,8 +341,13 @@ impl KubeController {
             )
             .spawn();
 
-            let node_handle =
-                NodePoller::new(tx.clone(), shared_node_columns.clone(), client.clone()).spawn();
+            let node_handle = NodePoller::new(
+                tx.clone(),
+                shared_node_columns.clone(),
+                shared_node_filter.clone(),
+                client.clone(),
+            )
+            .spawn();
 
             let config_handle =
                 ConfigPoller::new(tx.clone(), shared_target_namespaces.clone(), client.clone())
@@ -431,6 +438,7 @@ struct EventControllerArgs {
     shared_api_resources: SharedApiResources,
     shared_pod_columns: SharedPodColumns,
     shared_node_columns: SharedNodeColumns,
+    shared_node_filter: SharedNodeFilter,
     apis_config: ApisConfig,
     yaml_config: YamlConfig,
     fallback_namespaces: Option<Vec<String>>,
@@ -447,6 +455,7 @@ struct EventController {
     shared_api_resources: SharedApiResources,
     shared_pod_columns: SharedPodColumns,
     shared_node_columns: SharedNodeColumns,
+    shared_node_filter: SharedNodeFilter,
     apis_config: ApisConfig,
     yaml_config: YamlConfig,
     fallback_namespaces: Option<Vec<String>>,
@@ -464,6 +473,7 @@ impl EventController {
             shared_api_resources: args.shared_api_resources,
             shared_pod_columns: args.shared_pod_columns,
             shared_node_columns: args.shared_node_columns,
+            shared_node_filter: args.shared_node_filter,
             apis_config: args.apis_config,
             yaml_config: args.yaml_config,
             fallback_namespaces: args.fallback_namespaces,
@@ -512,6 +522,7 @@ impl Worker for EventController {
             shared_api_resources,
             shared_pod_columns,
             shared_node_columns,
+            shared_node_filter,
             apis_config,
             yaml_config,
             fallback_namespaces,
@@ -607,6 +618,10 @@ impl Worker for EventController {
                             *node_columns = req;
 
                             logger!(info, "Node columns updated: {:#?}", node_columns);
+                        }
+
+                        Kube::Node(NodeMessage::Filter(sel)) => {
+                            *shared_node_filter.write().await = sel;
                         }
 
                         Kube::Log(LogMessage::Request(req)) => {
