@@ -16,6 +16,7 @@ use crate::{
             MULTIPLE_NAMESPACES_DIALOG_ID,
             NETWORK_DESCRIPTION_WIDGET_ID,
             NETWORK_WIDGET_ID,
+            NODE_WIDGET_ID,
             POD_LOG_WIDGET_ID,
             POD_WIDGET_ID,
             SINGLE_NAMESPACE_DIALOG_ID,
@@ -30,6 +31,7 @@ use crate::{
         get::message::{GetMessage, GetResponse},
         namespace::message::{NamespaceMessage, NamespaceResponse},
         network::message::{NetworkMessage, NetworkResponse},
+        node::message::NodeMessage,
         pod::message::{LogMessage, PodMessage},
         yaml::message::{YamlMessage, YamlResourceListItem, YamlResponse},
     },
@@ -189,6 +191,10 @@ pub fn update_contents(
     match ev {
         Kube::Pod(PodMessage::Poll(pods_table)) => {
             update_widget_item_for_table(window, POD_WIDGET_ID, pods_table);
+        }
+
+        Kube::Node(NodeMessage::Poll(nodes_table)) => {
+            update_widget_item_for_table(window, NODE_WIDGET_ID, nodes_table);
         }
 
         Kube::Log(LogMessage::Response(res)) => {

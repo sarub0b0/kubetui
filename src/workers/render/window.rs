@@ -47,6 +47,7 @@ use crate::{
             message::{GatewayVersion, HTTPRouteVersion},
             view::NetworkTab,
         },
+        node::view::NodeTab,
         pod::{view::PodTab, PodColumns},
         yaml::view::YamlTab,
     },
@@ -238,6 +239,8 @@ impl WindowInit {
         let EventTab { tab: event_tab } =
             EventTab::new("Event", &clipboard, self.theme.component.clone());
 
+        let NodeTab { tab: node_tab } = NodeTab::new("Node", self.theme.component.clone());
+
         let ApiTab {
             tab: api_tab,
             dialog: api_dialog,
@@ -276,6 +279,7 @@ impl WindowInit {
             config_tab,
             network_tab,
             event_tab,
+            node_tab,
             api_tab,
             yaml_tab,
         ];

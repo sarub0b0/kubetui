@@ -6,6 +6,7 @@ use kube::config::{Kubeconfig, KubeconfigError};
 use crate::features::{
     api_resources::kube::ApiConfig,
     event::kube::EventConfig,
+    node::kube::NodeConfig,
     pod::kube::PodConfig,
 };
 
@@ -19,6 +20,7 @@ pub struct KubeWorkerConfig {
     pub all_namespaces: bool,
     pub fallback_namespaces: Option<Vec<String>>,
     pub pod_config: PodConfig,
+    pub node_config: NodeConfig,
     pub event_config: EventConfig,
     pub api_config: ApiConfig,
     pub apis_config: ApisConfig,

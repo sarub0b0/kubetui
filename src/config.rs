@@ -95,4 +95,17 @@ mod tests {
         let config: Config = serde_yaml::from_str(yaml).unwrap();
         assert_eq!(config.fallback_namespaces, Some(vec![]));
     }
+
+    #[test]
+    fn 環境変数で_theme_node_default_preset_を上書きできる() {
+        figment::Jail::expect_with(|jail| {
+            jail.set_env("KUBETUI_THEME__NODE__DEFAULT_PRESET", "wide");
+
+            let config = Config::load(ConfigLoadOption::Default).unwrap();
+
+            assert_eq!(config.theme.node.default_preset.as_deref(), Some("wide"));
+
+            Ok(())
+        });
+    }
 }
