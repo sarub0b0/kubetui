@@ -124,11 +124,13 @@ async fn fetch_service(
     let api = Api::<Service>::namespaced(client, namespace);
 
     match api.get(&r.name).await {
-        Ok(service) => Some(RelatedService {
-            name: service.name_any(),
-            namespace: service.extract_namespace(),
-            resource: service,
-        }),
+        Ok(service) => {
+            Some(RelatedService {
+                name: service.name_any(),
+                namespace: service.extract_namespace(),
+                resource: service,
+            })
+        }
 
         Err(err) => {
             logger!(

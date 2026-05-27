@@ -6,7 +6,10 @@ use k8s_openapi::api::core::v1::Namespace;
 use kube::{
     api::ListParams,
     config::{KubeConfigOptions, Kubeconfig, KubeconfigError, NamedContext},
-    Api, Client, Config, ResourceExt as _,
+    Api,
+    Client,
+    Config,
+    ResourceExt as _,
 };
 
 use crate::kube::KubeClient;

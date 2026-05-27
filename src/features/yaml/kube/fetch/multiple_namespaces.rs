@@ -25,10 +25,12 @@ impl<'a, C: KubeClientRequest> FetchResourceListMultipleNamespaces<'a, C> {
     }
 
     pub(super) async fn fetch(&self) -> Result<Vec<YamlResourceListItem>> {
-        let jobs = try_join_all(self.namespaces.iter().map(|ns| async move {
-            FetchResourceListSingleNamespace::new(self.client, ns, self.api)
-                .fetch()
-                .await
+        let jobs = try_join_all(self.namespaces.iter().map(|ns| {
+            async move {
+                FetchResourceListSingleNamespace::new(self.client, ns, self.api)
+                    .fetch()
+                    .await
+            }
         }))
         .await?;
 

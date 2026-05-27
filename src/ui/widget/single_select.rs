@@ -224,7 +224,6 @@ impl SingleSelect<'_> {
             .iter()
             .find_map(|(cb_ev, cb)| if *cb_ev == ev { Some(cb) } else { None })
     }
-
 }
 
 impl WidgetTrait for SingleSelect<'_> {

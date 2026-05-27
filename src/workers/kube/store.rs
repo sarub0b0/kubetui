@@ -4,7 +4,8 @@ use anyhow::{anyhow, Result};
 use futures::future::try_join_all;
 use kube::{
     config::{KubeConfigOptions, Kubeconfig, NamedContext},
-    Client, Config,
+    Client,
+    Config,
 };
 
 use crate::kube::KubeClient;
@@ -96,13 +97,14 @@ impl KubeStore {
     }
 
     pub async fn try_from_kubeconfig(config: Kubeconfig) -> Result<Self> {
-        let jobs: Vec<(Context, KubeState)> =
-            try_join_all(config.contexts.iter().map(|context| async {
+        let jobs: Vec<(Context, KubeState)> = try_join_all(config.contexts.iter().map(|context| {
+            async {
                 let state = Self::build_state(&config, context).await?;
 
                 anyhow::Ok((context.name.to_string(), state))
-            }))
-            .await?;
+            }
+        }))
+        .await?;
 
         let inner: BTreeMap<Context, KubeState> = jobs.into_iter().collect();
 

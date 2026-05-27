@@ -7,7 +7,15 @@ use ratatui::{
 
 use super::{
     event::EventResult,
-    widget::{render_widget_error, ErrorTheme, RenderTrait, StyledClear, Text, Widget, WidgetTrait},
+    widget::{
+        render_widget_error,
+        ErrorTheme,
+        RenderTrait,
+        StyledClear,
+        Text,
+        Widget,
+        WidgetTrait,
+    },
 };
 
 #[derive(Debug, Default, Clone)]

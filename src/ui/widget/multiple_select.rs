@@ -206,7 +206,6 @@ impl MultipleSelect<'_> {
     pub fn clear_mouse_over(&mut self) {
         self.select_form.clear_mouse_over();
     }
-
 }
 
 impl WidgetTrait for MultipleSelect<'_> {
@@ -277,18 +276,20 @@ impl WidgetTrait for MultipleSelect<'_> {
 
     fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
         match self.filter_form.on_key_event(ev) {
-            EventResult::Ignore => match key_event_to_code(ev) {
-                KeyCode::Tab | KeyCode::BackTab => {
-                    self.select_form.toggle_active_form();
-                    EventResult::Nop
+            EventResult::Ignore => {
+                match key_event_to_code(ev) {
+                    KeyCode::Tab | KeyCode::BackTab => {
+                        self.select_form.toggle_active_form();
+                        EventResult::Nop
+                    }
+                    KeyCode::Enter => {
+                        let ret = self.select_form.on_key_event(KeyCode::Enter.into());
+                        self.toggle_select_unselect();
+                        ret
+                    }
+                    _ => self.select_form.on_key_event(ev),
                 }
-                KeyCode::Enter => {
-                    let ret = self.select_form.on_key_event(KeyCode::Enter.into());
-                    self.toggle_select_unselect();
-                    ret
-                }
-                _ => self.select_form.on_key_event(ev),
-            },
+            }
             _ => {
                 self.select_form.activate_form_by_index(0);
                 self.select_form.update_filter(self.filter_form.content());

@@ -11,7 +11,8 @@ use serde_yaml::Mapping;
 
 use crate::{
     features::{
-        api_resources::kube::SharedApiResources, network::message::NetworkRequestTargetParams,
+        api_resources::kube::SharedApiResources,
+        network::message::NetworkRequestTargetParams,
     },
     kube::KubeClientRequest,
 };
@@ -20,7 +21,8 @@ use self::to_value::ToValue;
 
 use super::{
     related_resources::{to_list_value::ToListValue, RelatedClient},
-    Fetch, FetchedData,
+    Fetch,
+    FetchedData,
 };
 
 use extract::Extract;
@@ -131,7 +133,8 @@ mod tests {
 
     use crate::{
         features::{
-            api_resources::kube::ApiResources, network::message::NetworkRequestTargetParams,
+            api_resources::kube::ApiResources,
+            network::message::NetworkRequestTargetParams,
         },
         kube::mock::MockTestKubeClient,
         mock_expect,

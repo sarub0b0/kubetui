@@ -4,7 +4,9 @@ use std::ops::Deref;
 use crate::{
     logger,
     ui::widget::{
-        line::convert_lines_to_styled_lines, styled_graphemes::StyledGraphemes, wrap::wrap_line,
+        line::convert_lines_to_styled_lines,
+        styled_graphemes::StyledGraphemes,
+        wrap::wrap_line,
         TableItem,
     },
 };
@@ -204,9 +206,11 @@ impl InnerItem<'_> {
                 .rendered_items
                 .iter()
                 .cloned()
-                .map(|r| InnerRow {
-                    row: r.row.bottom_margin(ITEM_BOTTOM_MARGIN),
-                    ..r
+                .map(|r| {
+                    InnerRow {
+                        row: r.row.bottom_margin(ITEM_BOTTOM_MARGIN),
+                        ..r
+                    }
                 })
                 .collect();
 

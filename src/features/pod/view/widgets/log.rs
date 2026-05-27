@@ -11,7 +11,14 @@ use crate::{
     ui::{
         event::EventResult,
         widget::{
-            Item, SearchForm, SearchFormTheme, Text, TextTheme, Widget, WidgetBase, WidgetTheme,
+            Item,
+            SearchForm,
+            SearchFormTheme,
+            Text,
+            TextTheme,
+            Widget,
+            WidgetBase,
+            WidgetTheme,
             WidgetTrait as _,
         },
         Window,

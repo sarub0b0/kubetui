@@ -72,15 +72,19 @@ async fn fetch_pods(
     let api = Api::<Pod>::namespaced(client.clone(), &svc_namespace);
 
     match api.list(&lp).await {
-        Ok(pods) => Some(
-            pods.into_iter()
-                .map(|pod| RelatedPod {
-                    name: pod.name_any(),
-                    namespace: pod.extract_namespace(),
-                    service: svc_name.clone(),
-                })
-                .collect::<Vec<_>>(),
-        ),
+        Ok(pods) => {
+            Some(
+                pods.into_iter()
+                    .map(|pod| {
+                        RelatedPod {
+                            name: pod.name_any(),
+                            namespace: pod.extract_namespace(),
+                            service: svc_name.clone(),
+                        }
+                    })
+                    .collect::<Vec<_>>(),
+            )
+        }
         Err(_) => None,
     }
 }

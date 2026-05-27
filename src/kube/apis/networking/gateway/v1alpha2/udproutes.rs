@@ -2,17 +2,26 @@
 // kopium command: kopium --api-version=v1alpha2 --schema=disabled -f -
 // kopium version: 0.17.2
 
-use kube::CustomResource;
-use serde::{Serialize, Deserialize};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;
+use kube::CustomResource;
+use serde::{Deserialize, Serialize};
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]
-#[kube(group = "gateway.networking.k8s.io", version = "v1alpha2", kind = "UDPRoute", plural = "udproutes")]
+#[kube(
+    group = "gateway.networking.k8s.io",
+    version = "v1alpha2",
+    kind = "UDPRoute",
+    plural = "udproutes"
+)]
 #[kube(namespaced)]
 #[kube(status = "UDPRouteStatus")]
 #[kube(schema = "disabled")]
 pub struct UDPRouteSpec {
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "parentRefs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "parentRefs"
+    )]
     pub parent_refs: Option<Vec<UDPRouteParentRefs>>,
     pub rules: Vec<UDPRouteRules>,
 }
@@ -28,13 +37,21 @@ pub struct UDPRouteParentRefs {
     pub namespace: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "sectionName")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "sectionName"
+    )]
     pub section_name: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UDPRouteRules {
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "backendRefs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "backendRefs"
+    )]
     pub backend_refs: Option<Vec<UDPRouteRulesBackendRefs>>,
 }
 
@@ -79,7 +96,10 @@ pub struct UDPRouteStatusParentsParentRef {
     pub namespace: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "sectionName")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "sectionName"
+    )]
     pub section_name: Option<String>,
 }
-

@@ -134,48 +134,50 @@ impl Filter {
                     }
                 }
 
-                FilterAttribute::Resource(resource) => match resource {
-                    SpecifiedResource::Pod(name) => {
-                        let regex = Regex::new(&format!("^{}$", name))?;
-                        filter.pod = Some(regex);
-                    }
+                FilterAttribute::Resource(resource) => {
+                    match resource {
+                        SpecifiedResource::Pod(name) => {
+                            let regex = Regex::new(&format!("^{}$", name))?;
+                            filter.pod = Some(regex);
+                        }
 
-                    SpecifiedResource::DaemonSet(name) => {
-                        filter.label_selector = Some(LabelSelector::Resource(
-                            RetrievableResource::DaemonSet(name.to_string()),
-                        ));
-                    }
+                        SpecifiedResource::DaemonSet(name) => {
+                            filter.label_selector = Some(LabelSelector::Resource(
+                                RetrievableResource::DaemonSet(name.to_string()),
+                            ));
+                        }
 
-                    SpecifiedResource::Deployment(name) => {
-                        filter.label_selector = Some(LabelSelector::Resource(
-                            RetrievableResource::Deployment(name.to_string()),
-                        ));
-                    }
+                        SpecifiedResource::Deployment(name) => {
+                            filter.label_selector = Some(LabelSelector::Resource(
+                                RetrievableResource::Deployment(name.to_string()),
+                            ));
+                        }
 
-                    SpecifiedResource::Job(name) => {
-                        filter.label_selector = Some(LabelSelector::Resource(
-                            RetrievableResource::Job(name.to_string()),
-                        ));
-                    }
+                        SpecifiedResource::Job(name) => {
+                            filter.label_selector = Some(LabelSelector::Resource(
+                                RetrievableResource::Job(name.to_string()),
+                            ));
+                        }
 
-                    SpecifiedResource::ReplicaSet(name) => {
-                        filter.label_selector = Some(LabelSelector::Resource(
-                            RetrievableResource::ReplicaSet(name.to_string()),
-                        ));
-                    }
+                        SpecifiedResource::ReplicaSet(name) => {
+                            filter.label_selector = Some(LabelSelector::Resource(
+                                RetrievableResource::ReplicaSet(name.to_string()),
+                            ));
+                        }
 
-                    SpecifiedResource::Service(name) => {
-                        filter.label_selector = Some(LabelSelector::Resource(
-                            RetrievableResource::Service(name.to_string()),
-                        ));
-                    }
+                        SpecifiedResource::Service(name) => {
+                            filter.label_selector = Some(LabelSelector::Resource(
+                                RetrievableResource::Service(name.to_string()),
+                            ));
+                        }
 
-                    SpecifiedResource::StatefulSet(name) => {
-                        filter.label_selector = Some(LabelSelector::Resource(
-                            RetrievableResource::StatefulSet(name.to_string()),
-                        ));
+                        SpecifiedResource::StatefulSet(name) => {
+                            filter.label_selector = Some(LabelSelector::Resource(
+                                RetrievableResource::StatefulSet(name.to_string()),
+                            ));
+                        }
                     }
-                },
+                }
 
                 FilterAttribute::LabelSelector(selector) => {
                     filter.label_selector = Some(LabelSelector::String(selector.to_string()));
@@ -252,14 +254,14 @@ impl Filter {
 
     fn validate_attrs(attrs: Vec<FilterAttribute<'_>>) -> Result<Vec<FilterAttribute<'_>>> {
         let (has_label_selector, has_retrieve_labels) =
-            attrs
-                .iter()
-                .fold((false, false), |(ls, rl), filter| match filter {
+            attrs.iter().fold((false, false), |(ls, rl), filter| {
+                match filter {
                     FilterAttribute::Resource(_) => (ls, true),
                     FilterAttribute::LabelSelector(_) => (true, rl),
                     FilterAttribute::Limit(_) => (ls, rl),
                     _ => (ls, rl),
-                });
+                }
+            });
 
         if has_label_selector && has_retrieve_labels {
             bail!(FilterError::Syntax("Label selectors and resource/name queries cannot be used together. Please choose one filtering option.".into()));

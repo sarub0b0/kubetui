@@ -32,11 +32,13 @@ impl<'a, C: KubeClientRequest> FetchResourceListSingleNamespace<'a, C> {
             .items
             .into_iter()
             .filter_map(|item| {
-                item.metadata.name.map(|name| YamlResourceListItem {
-                    namespace: self.ns.to_string(),
-                    name: name.to_string(),
-                    kind: self.api.clone(),
-                    value: name,
+                item.metadata.name.map(|name| {
+                    YamlResourceListItem {
+                        namespace: self.ns.to_string(),
+                        name: name.to_string(),
+                        kind: self.api.clone(),
+                        value: name,
+                    }
                 })
             })
             .collect())

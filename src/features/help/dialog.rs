@@ -6,8 +6,14 @@ use crate::{
     config::theme::ThemeConfig,
     features::component_id::HELP_DIALOG_ID,
     ui::widget::{
-        ansi_color::style_to_ansi, SearchForm, SearchFormTheme, Text, TextTheme, Widget,
-        WidgetBase, WidgetTheme,
+        ansi_color::style_to_ansi,
+        SearchForm,
+        SearchFormTheme,
+        Text,
+        TextTheme,
+        Widget,
+        WidgetBase,
+        WidgetTheme,
     },
 };
 
@@ -355,9 +361,11 @@ fn generate(theme: HelpItemTheme) -> Vec<String> {
         .zip(right)
         .map(|(l, r)| {
             // 制御文字のascii文字を計算して調整
-            let escape_len = l.ansi_parse().fold(0, |len, p| match p.ty {
-                AnsiEscapeSequence::Chars => len,
-                _ => len + p.chars.len(),
+            let escape_len = l.ansi_parse().fold(0, |len, p| {
+                match p.ty {
+                    AnsiEscapeSequence::Chars => len,
+                    _ => len + p.chars.len(),
+                }
             });
 
             let pad = view_padding + escape_len;

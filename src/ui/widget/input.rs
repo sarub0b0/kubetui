@@ -485,7 +485,11 @@ impl InputForm {
                 self.back_cursor();
             }
 
-            KeyCode::Char(c) if !key.modifiers.intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) => {
+            KeyCode::Char(c)
+                if !key
+                    .modifiers
+                    .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
+            {
                 self.insert_char(c);
             }
             _ => {

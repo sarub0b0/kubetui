@@ -252,17 +252,19 @@ impl Display for Title {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Title::Raw(title) => write!(f, "{}", title),
-            Title::Line(title) => write!(
-                f,
-                "{}",
-                title
-                    .spans
-                    .iter()
-                    .cloned()
-                    .map(|span| span.content)
-                    .collect::<Vec<Cow<str>>>()
-                    .concat()
-            ),
+            Title::Line(title) => {
+                write!(
+                    f,
+                    "{}",
+                    title
+                        .spans
+                        .iter()
+                        .cloned()
+                        .map(|span| span.content)
+                        .collect::<Vec<Cow<str>>>()
+                        .concat()
+                )
+            }
             Title::Span(title) => write!(f, "{}", title.content),
         }
     }

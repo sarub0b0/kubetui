@@ -7,11 +7,23 @@ use crate::{
     features::{
         api_resources::message::{ApiMessage, ApiResponse},
         component_id::{
-            API_DIALOG_ID, API_WIDGET_ID, CONFIG_RAW_DATA_WIDGET_ID, CONFIG_WIDGET_ID,
-            CONTEXT_DIALOG_ID, EVENT_WIDGET_ID, MULTIPLE_NAMESPACES_DIALOG_ID,
-            NETWORK_DESCRIPTION_WIDGET_ID, NETWORK_WIDGET_ID, POD_LOG_WIDGET_ID, POD_WIDGET_ID,
-            SINGLE_NAMESPACE_DIALOG_ID, YAML_DIALOG_ID, YAML_KIND_DIALOG_ID, YAML_NAME_DIALOG_ID,
-            YAML_NOT_FOUND_DIALOG_ID, YAML_WIDGET_ID,
+            API_DIALOG_ID,
+            API_WIDGET_ID,
+            CONFIG_RAW_DATA_WIDGET_ID,
+            CONFIG_WIDGET_ID,
+            CONTEXT_DIALOG_ID,
+            EVENT_WIDGET_ID,
+            MULTIPLE_NAMESPACES_DIALOG_ID,
+            NETWORK_DESCRIPTION_WIDGET_ID,
+            NETWORK_WIDGET_ID,
+            POD_LOG_WIDGET_ID,
+            POD_WIDGET_ID,
+            SINGLE_NAMESPACE_DIALOG_ID,
+            YAML_DIALOG_ID,
+            YAML_KIND_DIALOG_ID,
+            YAML_NAME_DIALOG_ID,
+            YAML_NOT_FOUND_DIALOG_ID,
+            YAML_WIDGET_ID,
         },
         config::message::ConfigMessage,
         context::message::{ContextMessage, ContextResponse},
@@ -31,7 +43,8 @@ use crate::{
         event::{Callback, EventResult},
         util::chars::convert_tabs_to_spaces,
         widget::{Item, LiteralItem, TableItem, WidgetTrait},
-        Window, WindowAction,
+        Window,
+        WindowAction,
     },
     workers::kube::message::Kube,
 };
@@ -50,23 +63,25 @@ fn exec_callback(cb: Callback, w: &mut Window) -> WindowAction {
 
 pub fn window_action(window: &mut Window, rx: &Receiver<Message>) -> WindowAction {
     match rx.recv().expect("Failed to recv") {
-        Message::User(ev) => match window.on_event(ev) {
-            EventResult::Nop => {}
+        Message::User(ev) => {
+            match window.on_event(ev) {
+                EventResult::Nop => {}
 
-            EventResult::Ignore => {
-                if let Some(cb) = window.match_callback(ev) {
-                    if let EventResult::WindowAction(action) = (cb)(window) {
-                        return action;
+                EventResult::Ignore => {
+                    if let Some(cb) = window.match_callback(ev) {
+                        if let EventResult::WindowAction(action) = (cb)(window) {
+                            return action;
+                        }
                     }
                 }
+                EventResult::Callback(cb) => {
+                    return exec_callback(cb, window);
+                }
+                EventResult::WindowAction(action) => {
+                    return action;
+                }
             }
-            EventResult::Callback(cb) => {
-                return exec_callback(cb, window);
-            }
-            EventResult::WindowAction(action) => {
-                return action;
-            }
-        },
+        }
 
         Message::Tick => {
             window.on_tick();
@@ -157,9 +172,7 @@ fn update_widget_item_for_vec(window: &mut Window, id: &str, vec: Result<Vec<Str
         Ok(i) => {
             window.clear_widget_error(id);
             let widget = window.find_widget_mut(id);
-            widget.update_widget_item(Item::Array(
-                i.into_iter().map(LiteralItem::from).collect(),
-            ));
+            widget.update_widget_item(Item::Array(i.into_iter().map(LiteralItem::from).collect()));
         }
         Err(e) => {
             window.set_widget_error(id, &e);
@@ -185,9 +198,11 @@ pub fn update_contents(
                     let widget = window.find_widget_mut(POD_LOG_WIDGET_ID);
                     let array = i
                         .into_iter()
-                        .map(|i| LiteralItem {
-                            metadata: None,
-                            item: convert_tabs_to_spaces(i),
+                        .map(|i| {
+                            LiteralItem {
+                                metadata: None,
+                                item: convert_tabs_to_spaces(i),
+                            }
                         })
                         .collect();
 
@@ -231,9 +246,37 @@ pub fn update_contents(
             update_widget_item_for_vec(window, EVENT_WIDGET_ID, ev);
         }
 
-        Kube::Namespace(NamespaceMessage::Response(res)) => match res {
-            NamespaceResponse::Get(res) => match res {
-                Ok(namespaces) => {
+        Kube::Namespace(NamespaceMessage::Response(res)) => {
+            match res {
+                NamespaceResponse::Get(res) => {
+                    match res {
+                        Ok(namespaces) => {
+                            window.clear_widget_error(MULTIPLE_NAMESPACES_DIALOG_ID);
+                            window.clear_widget_error(SINGLE_NAMESPACE_DIALOG_ID);
+                            window
+                                .find_widget_mut(MULTIPLE_NAMESPACES_DIALOG_ID)
+                                .update_widget_item(Item::Array(
+                                    namespaces.iter().cloned().map(LiteralItem::from).collect(),
+                                ));
+                            window
+                                .find_widget_mut(MULTIPLE_NAMESPACES_DIALOG_ID)
+                                .update_items_title("Items");
+                            window
+                                .find_widget_mut(SINGLE_NAMESPACE_DIALOG_ID)
+                                .update_widget_item(Item::Array(
+                                    namespaces.iter().cloned().map(LiteralItem::from).collect(),
+                                ));
+                            window
+                                .find_widget_mut(SINGLE_NAMESPACE_DIALOG_ID)
+                                .update_items_title("Items");
+                        }
+                        Err(err) => {
+                            window.set_widget_error(MULTIPLE_NAMESPACES_DIALOG_ID, &err);
+                            window.set_widget_error(SINGLE_NAMESPACE_DIALOG_ID, &err);
+                        }
+                    }
+                }
+                NamespaceResponse::GetFallback(namespaces) => {
                     window.clear_widget_error(MULTIPLE_NAMESPACES_DIALOG_ID);
                     window.clear_widget_error(SINGLE_NAMESPACE_DIALOG_ID);
                     window
@@ -243,7 +286,7 @@ pub fn update_contents(
                         ));
                     window
                         .find_widget_mut(MULTIPLE_NAMESPACES_DIALOG_ID)
-                        .update_items_title("Items");
+                        .update_items_title("Items (from config)");
                     window
                         .find_widget_mut(SINGLE_NAMESPACE_DIALOG_ID)
                         .update_widget_item(Item::Array(
@@ -251,43 +294,21 @@ pub fn update_contents(
                         ));
                     window
                         .find_widget_mut(SINGLE_NAMESPACE_DIALOG_ID)
-                        .update_items_title("Items");
+                        .update_items_title("Items (from config)");
                 }
-                Err(err) => {
-                    window.set_widget_error(MULTIPLE_NAMESPACES_DIALOG_ID, &err);
-                    window.set_widget_error(SINGLE_NAMESPACE_DIALOG_ID, &err);
+                NamespaceResponse::Set(res) => {
+                    namespace.update(res);
                 }
-            },
-            NamespaceResponse::GetFallback(namespaces) => {
-                window.clear_widget_error(MULTIPLE_NAMESPACES_DIALOG_ID);
-                window.clear_widget_error(SINGLE_NAMESPACE_DIALOG_ID);
-                window
-                    .find_widget_mut(MULTIPLE_NAMESPACES_DIALOG_ID)
-                    .update_widget_item(Item::Array(
-                        namespaces.iter().cloned().map(LiteralItem::from).collect(),
-                    ));
-                window
-                    .find_widget_mut(MULTIPLE_NAMESPACES_DIALOG_ID)
-                    .update_items_title("Items (from config)");
-                window
-                    .find_widget_mut(SINGLE_NAMESPACE_DIALOG_ID)
-                    .update_widget_item(Item::Array(
-                        namespaces.iter().cloned().map(LiteralItem::from).collect(),
-                    ));
-                window
-                    .find_widget_mut(SINGLE_NAMESPACE_DIALOG_ID)
-                    .update_items_title("Items (from config)");
             }
-            NamespaceResponse::Set(res) => {
-                namespace.update(res);
-            }
-        },
+        }
 
-        Kube::Context(ContextMessage::Response(res)) => match res {
-            ContextResponse::Get(res) => {
-                update_widget_item_for_vec(window, CONTEXT_DIALOG_ID, Ok(res));
+        Kube::Context(ContextMessage::Response(res)) => {
+            match res {
+                ContextResponse::Get(res) => {
+                    update_widget_item_for_vec(window, CONTEXT_DIALOG_ID, Ok(res));
+                }
             }
-        },
+        }
 
         Kube::RestoreContext {
             context: ctx,
@@ -328,29 +349,31 @@ pub fn update_contents(
         Kube::Api(ApiMessage::Response(res)) => {
             use ApiResponse::*;
             match res {
-                Get(apis) => match apis {
-                    Ok(i) => {
-                        window.clear_widget_error(API_DIALOG_ID);
-                        let widget = window.find_widget_mut(API_DIALOG_ID);
-                        let items = i
-                            .into_iter()
-                            .map(|api_resource| {
-                                let Ok(json) = serde_json::to_string(&api_resource.resource)
-                                else {
-                                    unreachable!()
-                                };
-                                let metadata = BTreeMap::from([("key".into(), json)]);
+                Get(apis) => {
+                    match apis {
+                        Ok(i) => {
+                            window.clear_widget_error(API_DIALOG_ID);
+                            let widget = window.find_widget_mut(API_DIALOG_ID);
+                            let items = i
+                                .into_iter()
+                                .map(|api_resource| {
+                                    let Ok(json) = serde_json::to_string(&api_resource.resource)
+                                    else {
+                                        unreachable!()
+                                    };
+                                    let metadata = BTreeMap::from([("key".into(), json)]);
 
-                                LiteralItem::new(api_resource.to_string(), Some(metadata))
-                            })
-                            .collect();
+                                    LiteralItem::new(api_resource.to_string(), Some(metadata))
+                                })
+                                .collect();
 
-                        widget.update_widget_item(Item::Array(items));
+                            widget.update_widget_item(Item::Array(items));
+                        }
+                        Err(e) => {
+                            window.set_widget_error(API_DIALOG_ID, &e);
+                        }
                     }
-                    Err(e) => {
-                        window.set_widget_error(API_DIALOG_ID, &e);
-                    }
-                },
+                }
                 Poll(apis) => {
                     update_widget_item_for_vec(window, API_WIDGET_ID, apis);
                 }
@@ -360,76 +383,80 @@ pub fn update_contents(
         Kube::Yaml(YamlMessage::Response(ev)) => {
             use YamlResponse::*;
             match ev {
-                APIs(res) => match res {
-                    Ok(vec) => {
-                        window.clear_widget_error(YAML_KIND_DIALOG_ID);
-                        let widget = window.find_widget_mut(YAML_KIND_DIALOG_ID);
-                        let items = vec
-                            .into_iter()
-                            .map(|api_resource| {
-                                let Ok(json) = serde_json::to_string(&api_resource.resource)
-                                else {
-                                    unreachable!()
-                                };
-
-                                let metadata = BTreeMap::from([("key".into(), json)]);
-
-                                LiteralItem::new(api_resource.to_string(), Some(metadata))
-                            })
-                            .collect();
-
-                        widget.update_widget_item(Item::Array(items));
-                    }
-                    Err(e) => {
-                        window.set_widget_error(YAML_KIND_DIALOG_ID, &e);
-                    }
-                },
-
-                Resource(res) => match res {
-                    Ok(list) => {
-                        window.clear_widget_error(YAML_NAME_DIALOG_ID);
-                        if list.items.is_empty() {
-                            window.open_dialog(YAML_NOT_FOUND_DIALOG_ID);
-                        } else {
-                            window.open_dialog(YAML_NAME_DIALOG_ID);
-
-                            let widget = window.find_widget_mut(YAML_NAME_DIALOG_ID);
-
-                            let items = list
-                                .items
+                APIs(res) => {
+                    match res {
+                        Ok(vec) => {
+                            window.clear_widget_error(YAML_KIND_DIALOG_ID);
+                            let widget = window.find_widget_mut(YAML_KIND_DIALOG_ID);
+                            let items = vec
                                 .into_iter()
-                                .map(
-                                    |YamlResourceListItem {
-                                         namespace,
-                                         name,
-                                         kind,
-                                         value,
-                                     }| {
-                                        let Ok(json) = serde_json::to_string(&kind) else {
-                                            unreachable!()
-                                        };
+                                .map(|api_resource| {
+                                    let Ok(json) = serde_json::to_string(&api_resource.resource)
+                                    else {
+                                        unreachable!()
+                                    };
 
-                                        let metadata = BTreeMap::from([
-                                            ("namespace".to_string(), namespace),
-                                            ("name".to_string(), name),
-                                            ("key".into(), json),
-                                        ]);
+                                    let metadata = BTreeMap::from([("key".into(), json)]);
 
-                                        LiteralItem {
-                                            metadata: Some(metadata),
-                                            item: value,
-                                        }
-                                    },
-                                )
+                                    LiteralItem::new(api_resource.to_string(), Some(metadata))
+                                })
                                 .collect();
 
                             widget.update_widget_item(Item::Array(items));
                         }
+                        Err(e) => {
+                            window.set_widget_error(YAML_KIND_DIALOG_ID, &e);
+                        }
                     }
-                    Err(e) => {
-                        window.set_widget_error(YAML_NAME_DIALOG_ID, &e);
+                }
+
+                Resource(res) => {
+                    match res {
+                        Ok(list) => {
+                            window.clear_widget_error(YAML_NAME_DIALOG_ID);
+                            if list.items.is_empty() {
+                                window.open_dialog(YAML_NOT_FOUND_DIALOG_ID);
+                            } else {
+                                window.open_dialog(YAML_NAME_DIALOG_ID);
+
+                                let widget = window.find_widget_mut(YAML_NAME_DIALOG_ID);
+
+                                let items = list
+                                    .items
+                                    .into_iter()
+                                    .map(
+                                        |YamlResourceListItem {
+                                             namespace,
+                                             name,
+                                             kind,
+                                             value,
+                                         }| {
+                                            let Ok(json) = serde_json::to_string(&kind) else {
+                                                unreachable!()
+                                            };
+
+                                            let metadata = BTreeMap::from([
+                                                ("namespace".to_string(), namespace),
+                                                ("name".to_string(), name),
+                                                ("key".into(), json),
+                                            ]);
+
+                                            LiteralItem {
+                                                metadata: Some(metadata),
+                                                item: value,
+                                            }
+                                        },
+                                    )
+                                    .collect();
+
+                                widget.update_widget_item(Item::Array(items));
+                            }
+                        }
+                        Err(e) => {
+                            window.set_widget_error(YAML_NAME_DIALOG_ID, &e);
+                        }
                     }
-                },
+                }
                 Yaml(res) => {
                     update_widget_item_for_vec(window, YAML_WIDGET_ID, res);
                 }

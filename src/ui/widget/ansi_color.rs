@@ -122,43 +122,51 @@ pub fn ansi_to_style(codes: Vec<u8>) -> Style {
         // ESC[ 48;2;⟨r⟩;⟨g⟩;⟨b⟩ m Select RGB background color
         style = match code {
             // foreground
-            38 => match iter.next() {
-                Some(n) => match n {
-                    2 => {
-                        let (r, g, b) = (
-                            iter.next().unwrap_or_default(),
-                            iter.next().unwrap_or_default(),
-                            iter.next().unwrap_or_default(),
-                        );
-                        style.fg(Color::Rgb(r, g, b))
+            38 => {
+                match iter.next() {
+                    Some(n) => {
+                        match n {
+                            2 => {
+                                let (r, g, b) = (
+                                    iter.next().unwrap_or_default(),
+                                    iter.next().unwrap_or_default(),
+                                    iter.next().unwrap_or_default(),
+                                );
+                                style.fg(Color::Rgb(r, g, b))
+                            }
+                            5 => {
+                                let n = iter.next().unwrap_or_default();
+                                style.fg(Color::Indexed(n))
+                            }
+                            _ => style,
+                        }
                     }
-                    5 => {
-                        let n = iter.next().unwrap_or_default();
-                        style.fg(Color::Indexed(n))
-                    }
-                    _ => style,
-                },
-                None => style,
-            },
+                    None => style,
+                }
+            }
             // background
-            48 => match iter.next() {
-                Some(n) => match n {
-                    2 => {
-                        let (r, g, b) = (
-                            iter.next().unwrap_or_default(),
-                            iter.next().unwrap_or_default(),
-                            iter.next().unwrap_or_default(),
-                        );
-                        style.bg(Color::Rgb(r, g, b))
+            48 => {
+                match iter.next() {
+                    Some(n) => {
+                        match n {
+                            2 => {
+                                let (r, g, b) = (
+                                    iter.next().unwrap_or_default(),
+                                    iter.next().unwrap_or_default(),
+                                    iter.next().unwrap_or_default(),
+                                );
+                                style.bg(Color::Rgb(r, g, b))
+                            }
+                            5 => {
+                                let n = iter.next().unwrap_or_default();
+                                style.bg(Color::Indexed(n))
+                            }
+                            _ => style,
+                        }
                     }
-                    5 => {
-                        let n = iter.next().unwrap_or_default();
-                        style.bg(Color::Indexed(n))
-                    }
-                    _ => style,
-                },
-                None => style,
-            },
+                    None => style,
+                }
+            }
 
             //////////////////////////////
             // 3bit, 4bit

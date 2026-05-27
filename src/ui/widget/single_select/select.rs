@@ -8,7 +8,9 @@ use ratatui::{
 
 use nucleo_matcher::{
     pattern::{CaseMatching, Normalization, Pattern},
-    Config, Matcher, Utf32String,
+    Config,
+    Matcher,
+    Utf32String,
 };
 
 use crate::{
@@ -18,7 +20,14 @@ use crate::{
         widget::{
             list::{OnSelectCallback, RenderBlockInjection},
             styled_graphemes::StyledGraphemes,
-            Item, List, ListTheme, LiteralItem, RenderTrait, SelectedItem, WidgetBase, WidgetTheme,
+            Item,
+            List,
+            ListTheme,
+            LiteralItem,
+            RenderTrait,
+            SelectedItem,
+            WidgetBase,
+            WidgetTheme,
             WidgetTrait,
         },
     },
@@ -146,9 +155,11 @@ impl SelectForm<'_> {
 
                 pattern
                     .score(haystack.slice(..), &mut matcher)
-                    .map(|score| MatchedItem {
-                        score,
-                        item: item.clone(),
+                    .map(|score| {
+                        MatchedItem {
+                            score,
+                            item: item.clone(),
+                        }
                     })
             })
             .collect();

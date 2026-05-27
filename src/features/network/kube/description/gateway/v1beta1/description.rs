@@ -3,7 +3,10 @@ use kube::ResourceExt;
 use serde::{Deserialize, Serialize};
 
 use crate::kube::apis::networking::gateway::v1beta1::{
-    Gateway, GatewaySpec, GatewayStatusAddresses, GatewayStatusListeners,
+    Gateway,
+    GatewaySpec,
+    GatewayStatusAddresses,
+    GatewayStatusListeners,
     GatewayStatusListenersSupportedKinds,
 };
 
@@ -45,14 +48,16 @@ impl DescriptionGateway {
             status,
         } = gateway;
 
-        let status_wrapper = status.map(|status| GatewayStatusWrapper {
-            addresses: status.addresses,
-            listeners: status.listeners.map(|listeners| {
-                listeners
-                    .into_iter()
-                    .map(ListenerStatusWrapper::new)
-                    .collect()
-            }),
+        let status_wrapper = status.map(|status| {
+            GatewayStatusWrapper {
+                addresses: status.addresses,
+                listeners: status.listeners.map(|listeners| {
+                    listeners
+                        .into_iter()
+                        .map(ListenerStatusWrapper::new)
+                        .collect()
+                }),
+            }
         });
 
         Self {

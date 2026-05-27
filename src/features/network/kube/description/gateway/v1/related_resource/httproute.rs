@@ -3,7 +3,9 @@ use std::collections::BTreeSet;
 use anyhow::{Context, Result};
 use futures::future::{join_all, try_join_all};
 use k8s_openapi::{
-    api::core::v1::Namespace, apimachinery::pkg::apis::meta::v1::LabelSelector, Resource as _,
+    api::core::v1::Namespace,
+    apimachinery::pkg::apis::meta::v1::LabelSelector,
+    Resource as _,
 };
 use kube::{api::ListParams, Api, Client, ResourceExt as _};
 use serde::{Deserialize, Serialize};
@@ -11,8 +13,12 @@ use serde::{Deserialize, Serialize};
 use crate::{
     features::network::kube::description::utils::{label_selector_to_query, ExtractNamespace as _},
     kube::apis::networking::gateway::v1::{
-        Gateway, GatewayListenersAllowedRoutes, GatewayListenersAllowedRoutesNamespaces,
-        GatewayListenersAllowedRoutesNamespacesFrom, HTTPRoute, HTTPRouteParentRefs,
+        Gateway,
+        GatewayListenersAllowedRoutes,
+        GatewayListenersAllowedRoutesNamespaces,
+        GatewayListenersAllowedRoutesNamespacesFrom,
+        HTTPRoute,
+        HTTPRouteParentRefs,
     },
     logger,
 };
@@ -233,17 +239,19 @@ async fn discover_httproute_for_selector(
 
     let namespaces = api.list(&lp).await?;
 
-    let httproutes = try_join_all(namespaces.iter().map(|ns| async {
-        let api = Api::<HTTPRoute>::namespaced(client.clone(), &ns.name_any());
+    let httproutes = try_join_all(namespaces.iter().map(|ns| {
+        async {
+            let api = Api::<HTTPRoute>::namespaced(client.clone(), &ns.name_any());
 
-        let httproutes = api.list(&ListParams::default()).await?;
+            let httproutes = api.list(&ListParams::default()).await?;
 
-        let result: Vec<_> = httproutes
-            .into_iter()
-            .filter(|httproute| check_httproute(httproute, gateway_name, gateway_namespace))
-            .collect();
+            let result: Vec<_> = httproutes
+                .into_iter()
+                .filter(|httproute| check_httproute(httproute, gateway_name, gateway_namespace))
+                .collect();
 
-        anyhow::Ok(result)
+            anyhow::Ok(result)
+        }
     }))
     .await?;
 

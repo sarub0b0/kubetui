@@ -4,7 +4,8 @@ use nom::{
     character::complete::{char, digit0, multispace0},
     multi::separated_list0,
     sequence::delimited,
-    IResult, Parser as _,
+    IResult,
+    Parser as _,
 };
 
 use super::AnsiEscapeSequence::{self, *};

@@ -29,20 +29,22 @@ fn extract_parent_refs(httproute: &HTTPRoute, httproute_namespace: &str) -> Opti
     httproute.spec.parent_refs.as_ref().map(|parent_refs| {
         parent_refs
             .iter()
-            .map(|parent_ref| ParentRef {
-                group: parent_ref
-                    .group
-                    .as_ref()
-                    .map_or_else(|| Gateway::GROUP.to_string(), String::to_string),
-                kind: parent_ref
-                    .kind
-                    .as_ref()
-                    .map_or_else(|| Gateway::KIND.to_string(), String::to_string),
-                name: parent_ref.name.clone(),
-                namespace: parent_ref
-                    .namespace
-                    .as_ref()
-                    .map_or_else(|| httproute_namespace.to_string(), String::to_string),
+            .map(|parent_ref| {
+                ParentRef {
+                    group: parent_ref
+                        .group
+                        .as_ref()
+                        .map_or_else(|| Gateway::GROUP.to_string(), String::to_string),
+                    kind: parent_ref
+                        .kind
+                        .as_ref()
+                        .map_or_else(|| Gateway::KIND.to_string(), String::to_string),
+                    name: parent_ref.name.clone(),
+                    namespace: parent_ref
+                        .namespace
+                        .as_ref()
+                        .map_or_else(|| httproute_namespace.to_string(), String::to_string),
+                }
             })
             .collect()
     })

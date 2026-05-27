@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     features::network::kube::description::utils::ExtractNamespace as _,
-    kube::apis::networking::gateway::v1beta1::HTTPRouteRulesBackendRefs, logger,
+    kube::apis::networking::gateway::v1beta1::HTTPRouteRulesBackendRefs,
+    logger,
 };
 
 use super::httproute::RelatedHTTPRoute;
@@ -143,12 +144,14 @@ async fn fetch_service(
     let api = Api::<Service>::namespaced(client, namespace);
 
     match api.get(&r.name).await {
-        Ok(service) => Some(RelatedService {
-            name: service.name_any(),
-            namespace: service.extract_namespace(),
-            httproute: httproute_name.to_string(),
-            resource: service,
-        }),
+        Ok(service) => {
+            Some(RelatedService {
+                name: service.name_any(),
+                namespace: service.extract_namespace(),
+                httproute: httproute_name.to_string(),
+                resource: service,
+            })
+        }
 
         Err(err) => {
             logger!(

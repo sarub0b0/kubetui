@@ -12,12 +12,15 @@ use self::{extract::Extract, to_value::ToValue};
 
 use super::{
     related_resources::{to_list_value::ToListValue, RelatedClient},
-    Fetch, FetchedData, Result,
+    Fetch,
+    FetchedData,
+    Result,
 };
 
 use crate::{
     features::{
-        api_resources::kube::SharedApiResources, network::message::NetworkRequestTargetParams,
+        api_resources::kube::SharedApiResources,
+        network::message::NetworkRequestTargetParams,
     },
     kube::KubeClientRequest,
 };
@@ -126,7 +129,9 @@ mod tests {
     use super::*;
 
     use crate::{
-        features::api_resources::kube::ApiResources, kube::mock::MockTestKubeClient, mock_expect,
+        features::api_resources::kube::ApiResources,
+        kube::mock::MockTestKubeClient,
+        mock_expect,
     };
     use indoc::indoc;
     use k8s_openapi::{
@@ -622,42 +627,45 @@ mod extract {
                 ..Default::default()
             };
 
-            let spec = self.spec.as_ref().map(|spec| PodSpec {
-                containers: spec.containers.iter().map(|c| c.extract()).collect(),
-                dns_config: spec.dns_config.clone(),
-                dns_policy: spec.dns_policy.clone(),
-                enable_service_links: spec.enable_service_links,
-                ephemeral_containers: spec.ephemeral_containers.as_ref().map(
-                    |ephemeral_containers| {
-                        ephemeral_containers.iter().map(|c| c.extract()).collect()
-                    },
-                ),
-                host_aliases: spec.host_aliases.clone(),
-                host_ipc: spec.host_ipc,
-                host_network: spec.host_network,
-                host_pid: spec.host_pid,
-                hostname: spec.hostname.clone(),
-                init_containers: spec
-                    .init_containers
-                    .as_ref()
-                    .map(|init_containers| init_containers.iter().map(|c| c.extract()).collect()),
-                node_name: spec.node_name.clone(),
-                node_selector: spec.node_selector.clone(),
-                readiness_gates: spec.readiness_gates.clone(),
-                security_context: spec.security_context.clone(),
-                service_account: spec.service_account.clone(),
-                service_account_name: spec.service_account_name.clone(),
-                set_hostname_as_fqdn: spec.set_hostname_as_fqdn,
-                subdomain: spec.subdomain.clone(),
-                ..Default::default()
+            let spec = self.spec.as_ref().map(|spec| {
+                PodSpec {
+                    containers: spec.containers.iter().map(|c| c.extract()).collect(),
+                    dns_config: spec.dns_config.clone(),
+                    dns_policy: spec.dns_policy.clone(),
+                    enable_service_links: spec.enable_service_links,
+                    ephemeral_containers: spec.ephemeral_containers.as_ref().map(
+                        |ephemeral_containers| {
+                            ephemeral_containers.iter().map(|c| c.extract()).collect()
+                        },
+                    ),
+                    host_aliases: spec.host_aliases.clone(),
+                    host_ipc: spec.host_ipc,
+                    host_network: spec.host_network,
+                    host_pid: spec.host_pid,
+                    hostname: spec.hostname.clone(),
+                    init_containers: spec.init_containers.as_ref().map(|init_containers| {
+                        init_containers.iter().map(|c| c.extract()).collect()
+                    }),
+                    node_name: spec.node_name.clone(),
+                    node_selector: spec.node_selector.clone(),
+                    readiness_gates: spec.readiness_gates.clone(),
+                    security_context: spec.security_context.clone(),
+                    service_account: spec.service_account.clone(),
+                    service_account_name: spec.service_account_name.clone(),
+                    set_hostname_as_fqdn: spec.set_hostname_as_fqdn,
+                    subdomain: spec.subdomain.clone(),
+                    ..Default::default()
+                }
             });
 
-            let status = self.status.as_ref().map(|status| PodStatus {
-                host_ip: status.host_ip.clone(),
-                phase: status.phase.clone(),
-                pod_ip: status.pod_ip.clone(),
-                pod_ips: status.pod_ips.clone(),
-                ..Default::default()
+            let status = self.status.as_ref().map(|status| {
+                PodStatus {
+                    host_ip: status.host_ip.clone(),
+                    phase: status.phase.clone(),
+                    pod_ip: status.pod_ip.clone(),
+                    pod_ips: status.pod_ips.clone(),
+                    ..Default::default()
+                }
             });
 
             Pod {

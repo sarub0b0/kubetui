@@ -8,7 +8,8 @@ use nom::{
     error::{ContextError, ParseError},
     multi::{fold_many0, many1_count, separated_list1},
     sequence::{delimited, preceded, separated_pair},
-    IResult, Parser,
+    IResult,
+    Parser,
 };
 
 use super::{FilterAttribute, SpecifiedResource};
@@ -248,12 +249,8 @@ fn positive_integer<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 fn limit<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, FilterAttribute<'a>, E> {
-    let (remaining, (_, value)) = separated_pair(
-        alt((tag("limit"), tag("lim"))),
-        char(':'),
-        positive_integer,
-    )
-    .parse(s)?;
+    let (remaining, (_, value)) =
+        separated_pair(alt((tag("limit"), tag("lim"))), char(':'), positive_integer).parse(s)?;
     Ok((remaining, FilterAttribute::Limit(value)))
 }
 

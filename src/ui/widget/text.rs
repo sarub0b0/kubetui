@@ -14,7 +14,8 @@ use ratatui::{
 
 use crate::{
     clipboard::Clipboard,
-    define_callback, logger,
+    define_callback,
+    logger,
     message::UserEvent,
     ui::{
         event::{Callback, EventResult},
@@ -24,7 +25,12 @@ use crate::{
 };
 
 use super::{
-    styled_graphemes::StyledGrapheme, Item, LiteralItem, RenderTrait, SelectedItem, WidgetBase,
+    styled_graphemes::StyledGrapheme,
+    Item,
+    LiteralItem,
+    RenderTrait,
+    SelectedItem,
+    WidgetBase,
     WidgetTrait,
 };
 
@@ -815,80 +821,84 @@ impl WidgetTrait for Text {
         use KeyCode::*;
 
         match self.mode {
-            Mode::Normal | Mode::SearchConfirm => match key_event_to_code(ev) {
-                Char('j') | Down => {
-                    self.select_next(1);
-                }
-
-                Char('k') | Up => {
-                    self.select_prev(1);
-                }
-
-                PageDown => {
-                    self.select_next(self.chunk.height as usize);
-                }
-
-                PageUp => {
-                    self.select_prev(self.chunk.height as usize);
-                }
-
-                Char('G') | End => {
-                    self.select_last();
-                }
-
-                Char('g') | Home => {
-                    self.select_first();
-                }
-
-                Left => {
-                    self.scroll_left(1);
-                }
-
-                Right => {
-                    self.scroll_right(1);
-                }
-
-                Char('/') => {
-                    self.search();
-                }
-
-                Char('q') | Esc if self.mode.is_search_confirm() => {
-                    self.search_cancel();
-                }
-
-                Char('n') if !self.mode.is_normal() => {
-                    self.search_next();
-                }
-
-                Char('N') if !self.mode.is_normal() => {
-                    self.search_prev();
-                }
-
-                _ => {
-                    if let Some(cb) = self.match_action(UserEvent::Key(ev)) {
-                        return EventResult::Callback(cb.clone());
+            Mode::Normal | Mode::SearchConfirm => {
+                match key_event_to_code(ev) {
+                    Char('j') | Down => {
+                        self.select_next(1);
                     }
-                    return EventResult::Ignore;
+
+                    Char('k') | Up => {
+                        self.select_prev(1);
+                    }
+
+                    PageDown => {
+                        self.select_next(self.chunk.height as usize);
+                    }
+
+                    PageUp => {
+                        self.select_prev(self.chunk.height as usize);
+                    }
+
+                    Char('G') | End => {
+                        self.select_last();
+                    }
+
+                    Char('g') | Home => {
+                        self.select_first();
+                    }
+
+                    Left => {
+                        self.scroll_left(1);
+                    }
+
+                    Right => {
+                        self.scroll_right(1);
+                    }
+
+                    Char('/') => {
+                        self.search();
+                    }
+
+                    Char('q') | Esc if self.mode.is_search_confirm() => {
+                        self.search_cancel();
+                    }
+
+                    Char('n') if !self.mode.is_normal() => {
+                        self.search_next();
+                    }
+
+                    Char('N') if !self.mode.is_normal() => {
+                        self.search_prev();
+                    }
+
+                    _ => {
+                        if let Some(cb) = self.match_action(UserEvent::Key(ev)) {
+                            return EventResult::Callback(cb.clone());
+                        }
+                        return EventResult::Ignore;
+                    }
                 }
-            },
+            }
 
-            Mode::SearchInput => match key_event_to_code(ev) {
-                Enter => {
-                    self.mode.search_confirm();
+            Mode::SearchInput => {
+                match key_event_to_code(ev) {
+                    Enter => {
+                        self.mode.search_confirm();
+                    }
+
+                    Esc => {
+                        self.search_cancel();
+                    }
+
+                    _ => {
+                        let ev = self.search_form.on_key_event(ev);
+
+                        self.search();
+
+                        return ev;
+                    }
                 }
-
-                Esc => {
-                    self.search_cancel();
-                }
-
-                _ => {
-                    let ev = self.search_form.on_key_event(ev);
-
-                    self.search();
-
-                    return ev;
-                }
-            },
+            }
         }
 
         EventResult::Nop

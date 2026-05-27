@@ -3,7 +3,10 @@ use kube::ResourceExt;
 use serde::{Deserialize, Serialize};
 
 use crate::kube::apis::networking::gateway::v1beta1::{
-    HTTPRoute, HTTPRouteSpec, HTTPRouteStatus, HTTPRouteStatusParents,
+    HTTPRoute,
+    HTTPRouteSpec,
+    HTTPRouteStatus,
+    HTTPRouteStatusParents,
     HTTPRouteStatusParentsParentRef,
 };
 

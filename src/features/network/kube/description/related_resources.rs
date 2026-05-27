@@ -104,27 +104,30 @@ pub mod label_selector {
                 ret
             };
 
-            requirements
-                .iter()
-                .all(|requirement| match requirement.operator.as_str() {
+            requirements.iter().all(|requirement| {
+                match requirement.operator.as_str() {
                     // A In [B, ..]
                     // Aの値が[B, ..]のいずれか1つ以上と一致する場合にtrue
-                    "In" => requirement.values.as_ref().is_some_and(|values| {
-                        values.iter().any(|value| {
-                            let r = BTreeMap::from([(requirement.key.clone(), value.clone())]);
+                    "In" => {
+                        requirement.values.as_ref().is_some_and(|values| {
+                            values.iter().any(|value| {
+                                let r = BTreeMap::from([(requirement.key.clone(), value.clone())]);
 
-                            labels.contains_key_values(&r)
+                                labels.contains_key_values(&r)
+                            })
                         })
-                    }),
+                    }
                     // A NotIn [B, ..]
                     // Aの値が[B, ..]のいずれとも一致しない場合にtrue
-                    "NotIn" => requirement.values.as_ref().is_some_and(|values| {
-                        values.iter().all(|value| {
-                            let r = BTreeMap::from([(requirement.key.clone(), value.clone())]);
+                    "NotIn" => {
+                        requirement.values.as_ref().is_some_and(|values| {
+                            values.iter().all(|value| {
+                                let r = BTreeMap::from([(requirement.key.clone(), value.clone())]);
 
-                            !labels.contains_key_values(&r)
+                                !labels.contains_key_values(&r)
+                            })
                         })
-                    }),
+                    }
                     // A Exists []
                     // Aが存在する場合にtrue
                     "Exists" => labels.contains_key(&requirement.key),
@@ -134,7 +137,8 @@ pub mod label_selector {
                     _ => {
                         unreachable!()
                     }
-                })
+                }
+            })
         }
     }
 

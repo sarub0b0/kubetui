@@ -9,13 +9,19 @@ use ratatui::{
     layout::{Constraint, Rect},
     style::{Color, Modifier, Style, Stylize},
     widgets::{
-        Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Table as TuiTable, TableState,
+        Paragraph,
+        Scrollbar,
+        ScrollbarOrientation,
+        ScrollbarState,
+        Table as TuiTable,
+        TableState,
     },
     Frame,
 };
 
 use crate::{
-    define_callback, logger,
+    define_callback,
+    logger,
     message::UserEvent,
     ui::{
         event::{Callback, EventResult},
@@ -26,7 +32,13 @@ use crate::{
 };
 
 use super::{
-    base::WidgetBase, styled_graphemes, Item, RenderTrait, SelectedItem, TableItem, WidgetTrait,
+    base::WidgetBase,
+    styled_graphemes,
+    Item,
+    RenderTrait,
+    SelectedItem,
+    TableItem,
+    WidgetTrait,
 };
 
 pub use filter::{FilterForm, FilterFormTheme};
@@ -530,65 +542,69 @@ impl WidgetTrait for Table<'_> {
 
     fn on_key_event(&mut self, ev: KeyEvent) -> EventResult {
         match self.mode {
-            Mode::Normal | Mode::FilterConfirm => match key_event_to_code(ev) {
-                KeyCode::Char('j') | KeyCode::Down | KeyCode::PageDown => {
-                    self.select_next(1);
-                }
-
-                KeyCode::Char('k') | KeyCode::Up | KeyCode::PageUp => {
-                    self.select_prev(1);
-                }
-
-                KeyCode::Char('G') | KeyCode::End => {
-                    self.select_last();
-                }
-
-                KeyCode::Char('g') | KeyCode::Home => {
-                    self.select_first();
-                }
-
-                KeyCode::Char('/') => {
-                    self.mode.filter_input();
-                }
-
-                KeyCode::Char('q') | KeyCode::Esc if self.mode.is_filter_confirm() => {
-                    self.filter_cancel();
-                }
-
-                KeyCode::Enter => {
-                    if let Some(cb) = self.on_select_callback() {
-                        return EventResult::Callback(cb);
+            Mode::Normal | Mode::FilterConfirm => {
+                match key_event_to_code(ev) {
+                    KeyCode::Char('j') | KeyCode::Down | KeyCode::PageDown => {
+                        self.select_next(1);
                     }
 
-                    return EventResult::Ignore;
-                }
-
-                _ => {
-                    if let Some(cb) = self.match_action(UserEvent::Key(ev)) {
-                        return EventResult::Callback(cb.clone());
+                    KeyCode::Char('k') | KeyCode::Up | KeyCode::PageUp => {
+                        self.select_prev(1);
                     }
 
-                    return EventResult::Ignore;
+                    KeyCode::Char('G') | KeyCode::End => {
+                        self.select_last();
+                    }
+
+                    KeyCode::Char('g') | KeyCode::Home => {
+                        self.select_first();
+                    }
+
+                    KeyCode::Char('/') => {
+                        self.mode.filter_input();
+                    }
+
+                    KeyCode::Char('q') | KeyCode::Esc if self.mode.is_filter_confirm() => {
+                        self.filter_cancel();
+                    }
+
+                    KeyCode::Enter => {
+                        if let Some(cb) = self.on_select_callback() {
+                            return EventResult::Callback(cb);
+                        }
+
+                        return EventResult::Ignore;
+                    }
+
+                    _ => {
+                        if let Some(cb) = self.match_action(UserEvent::Key(ev)) {
+                            return EventResult::Callback(cb.clone());
+                        }
+
+                        return EventResult::Ignore;
+                    }
                 }
-            },
+            }
 
-            Mode::FilterInput => match key_event_to_code(ev) {
-                KeyCode::Enter => {
-                    self.mode.filter_confirm();
+            Mode::FilterInput => {
+                match key_event_to_code(ev) {
+                    KeyCode::Enter => {
+                        self.mode.filter_confirm();
+                    }
+
+                    KeyCode::Esc => {
+                        self.filter_cancel();
+                    }
+
+                    _ => {
+                        let ev = self.filter_form.on_key_event(ev);
+
+                        self.filter_items();
+
+                        return ev;
+                    }
                 }
-
-                KeyCode::Esc => {
-                    self.filter_cancel();
-                }
-
-                _ => {
-                    let ev = self.filter_form.on_key_event(ev);
-
-                    self.filter_items();
-
-                    return ev;
-                }
-            },
+            }
         }
 
         EventResult::Nop

@@ -4,7 +4,10 @@ use crate::{
     config::theme::WidgetThemeConfig,
     features::{
         component_id::{
-            POD_COLUMNS_DIALOG_ID, POD_LOG_QUERY_WIDGET_ID, POD_LOG_WIDGET_ID, POD_WIDGET_ID,
+            POD_COLUMNS_DIALOG_ID,
+            POD_LOG_QUERY_WIDGET_ID,
+            POD_LOG_WIDGET_ID,
+            POD_WIDGET_ID,
         },
         pod::{
             kube::{LogConfig, LogPrefixType},
@@ -16,10 +19,19 @@ use crate::{
     ui::{
         event::EventResult,
         widget::{
-            FilterForm, FilterFormTheme, Item, Table, TableItem, TableTheme, Widget, WidgetBase,
-            WidgetTheme, WidgetTrait as _,
+            FilterForm,
+            FilterFormTheme,
+            Item,
+            Table,
+            TableItem,
+            TableTheme,
+            Widget,
+            WidgetBase,
+            WidgetTheme,
+            WidgetTrait as _,
         },
-        Window, WindowAction,
+        Window,
+        WindowAction,
     },
 };
 

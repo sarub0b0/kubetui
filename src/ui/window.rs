@@ -449,10 +449,7 @@ impl<'a> Window<'a> {
     /// 指定ウィジェットにエラー状態を設定する。
     /// anyhow::Error を debug format で行分割し、生テキストとして保存する。
     pub fn set_widget_error(&mut self, id: &str, error: &anyhow::Error) {
-        let lines: Vec<String> = format!("{:?}", error)
-            .lines()
-            .map(String::from)
-            .collect();
+        let lines: Vec<String> = format!("{:?}", error).lines().map(String::from).collect();
 
         // Dialog → Tab の順で検索
         if let Some(dialog) = self.dialogs.iter_mut().find(|d| d.id() == id) {
@@ -604,24 +601,26 @@ impl Window<'_> {
         let active_tab = self.active_tab_mut().active_widget_mut();
 
         match active_tab.on_key_event(ev) {
-            EventResult::Ignore => match key_event_to_code(ev) {
-                KeyCode::Tab => {
-                    self.activate_next_widget();
-                }
+            EventResult::Ignore => {
+                match key_event_to_code(ev) {
+                    KeyCode::Tab => {
+                        self.activate_next_widget();
+                    }
 
-                KeyCode::BackTab => {
-                    self.activate_prev_widget();
-                }
+                    KeyCode::BackTab => {
+                        self.activate_prev_widget();
+                    }
 
-                KeyCode::Char(n @ '1'..='9') => {
-                    let index = n as usize - b'0' as usize;
-                    self.activate_tab_by_index(index - 1);
-                }
+                    KeyCode::Char(n @ '1'..='9') => {
+                        let index = n as usize - b'0' as usize;
+                        self.activate_tab_by_index(index - 1);
+                    }
 
-                _ => {
-                    return EventResult::Ignore;
+                    _ => {
+                        return EventResult::Ignore;
+                    }
                 }
-            },
+            }
             ev => {
                 return ev;
             }

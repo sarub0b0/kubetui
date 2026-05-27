@@ -20,7 +20,11 @@ use crate::{
 };
 
 use super::widgets::{
-    log_query_help_widget, log_query_widget, log_widget, pod_columns_dialog, pod_widget,
+    log_query_help_widget,
+    log_query_widget,
+    log_widget,
+    pod_columns_dialog,
+    pod_widget,
 };
 
 pub struct PodTab {

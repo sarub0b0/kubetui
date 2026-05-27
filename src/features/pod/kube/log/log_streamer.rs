@@ -9,8 +9,8 @@ use std::{
 
 use anyhow::Result;
 use async_trait::async_trait;
-use jiff::Timestamp;
 use futures::{AsyncBufReadExt, TryStreamExt};
+use jiff::Timestamp;
 use k8s_openapi::api::core::v1::Pod;
 use kube::{api::LogParams, Api};
 use regex::Regex;
