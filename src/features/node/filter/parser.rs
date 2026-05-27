@@ -13,9 +13,18 @@ enum Term {
     Include { column: String, value: String },
     /// `!<col>:<value>` exclude.
     Exclude { column: String, value: String },
+    /// `label:<selector>` → passed verbatim to the k8s API as labelSelector.
+    Label(String),
 }
 
 fn parse_term(token: &str) -> Term {
+    // `label:` is checked first so it is never mistaken for a generic column include.
+    if let Some(sel) = token.strip_prefix("label:") {
+        if !sel.is_empty() {
+            return Term::Label(sel.to_string());
+        }
+    }
+
     if let Some(stripped) = token.strip_prefix('!') {
         if let Some((col, val)) = stripped.split_once(':') {
             if !col.is_empty() && !val.is_empty() {
@@ -58,6 +67,7 @@ pub fn parse_node_filter(
     let trimmed = input.trim();
     let mut column_includes: HashMap<String, Vec<Regex>> = HashMap::new();
     let mut column_excludes: HashMap<String, Vec<Regex>> = HashMap::new();
+    let mut label_selector: Option<String> = None;
 
     for token in trimmed.split_whitespace() {
         match parse_term(token) {
@@ -78,13 +88,17 @@ pub fn parse_node_filter(
                     Regex::new(&value).map_err(|e| format!("invalid regex '{}': {}", value, e))?;
                 column_excludes.entry(column).or_default().push(rx);
             }
+            Term::Label(sel) => {
+                // Last label: term wins (k8s API accepts only one labelSelector value).
+                label_selector = Some(sel);
+            }
         }
     }
 
     Ok(TableFilterPredicate {
         column_includes,
         column_excludes,
-        label_selector: None,
+        label_selector,
         raw: trimmed.to_string(),
     })
 }
@@ -199,5 +213,42 @@ mod tests {
         assert_eq!(patterns.len(), 1);
         assert!(patterns[0].is_match("!worker"));
         assert!(p.column_excludes.is_empty());
+    }
+
+    #[test]
+    fn label_selector_is_captured_verbatim() {
+        let p = parse_node_filter("label:role=worker", &no_label_cols()).unwrap();
+        assert_eq!(p.label_selector.as_deref(), Some("role=worker"));
+        assert!(p.column_includes.is_empty());
+        assert!(p.column_excludes.is_empty());
+    }
+
+    #[test]
+    fn label_selector_supports_kubectl_comma_and() {
+        let p = parse_node_filter("label:role=worker,zone=us-west", &no_label_cols()).unwrap();
+        assert_eq!(
+            p.label_selector.as_deref(),
+            Some("role=worker,zone=us-west")
+        );
+    }
+
+    #[test]
+    fn multiple_label_terms_keep_the_last() {
+        // The k8s API accepts only one labelSelector value; spec requires
+        // last-wins to match the Pod log query convention.
+        let p = parse_node_filter("label:a=1 label:b=2", &no_label_cols()).unwrap();
+        assert_eq!(p.label_selector.as_deref(), Some("b=2"));
+    }
+
+    #[test]
+    fn label_and_column_terms_coexist() {
+        let p = parse_node_filter(
+            "status:Ready label:role=worker !ns:kube-system",
+            &no_label_cols(),
+        )
+        .unwrap();
+        assert_eq!(p.column_includes.len(), 1);
+        assert_eq!(p.column_excludes.len(), 1);
+        assert_eq!(p.label_selector.as_deref(), Some("role=worker"));
     }
 }
