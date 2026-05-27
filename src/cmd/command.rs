@@ -3,14 +3,10 @@ use clap::Parser;
 use ratatui::layout::Direction;
 use std::path::PathBuf;
 
-use crate::{
-    config::ConfigLoadOption,
-    features::{node::NodeColumns, pod::PodColumns},
-    workers::kube::KubeWorkerConfig,
-};
+use crate::{config::ConfigLoadOption, features::pod::PodColumns, workers::kube::KubeWorkerConfig};
 
 use super::{
-    args::{parse_node_columns, parse_pod_columns, AllNamespaces, ClipboardMode, SplitDirection},
+    args::{parse_pod_columns, AllNamespaces, ClipboardMode, SplitDirection},
     SubCommand,
 };
 
@@ -89,12 +85,9 @@ pub struct Command {
     #[arg(long, display_order = 1000)]
     pub pod_columns_preset: Option<String>,
 
-    /// Comma-separated list of columns to show in node table (e.g. name,status,roles). Use "full" to show all available columns.
-    #[arg(
-        long,
-        value_parser = parse_node_columns,
-        display_order = 1000)]
-    pub node_columns: Option<NodeColumns>,
+    /// Comma-separated columns for the node table: builtin names (e.g. name,status), defined label-column names, or "full" for all builtins.
+    #[arg(long, value_delimiter = ',', display_order = 1000)]
+    pub node_columns: Option<Vec<String>>,
 
     /// Preset name for node columns (e.g. "default", "wide"). If both are specified, `--node-columns` overrides this.
     #[arg(long, display_order = 1000)]
@@ -329,6 +322,38 @@ mod tests {
                     PodColumn::Ready,
                     PodColumn::Status
                 ]))
+            );
+        }
+    }
+
+    mod node_columns {
+        use pretty_assertions::assert_eq;
+
+        use super::*;
+
+        #[test]
+        fn デフォルトは指定なしを設定する() {
+            let cmd = Command::try_parse_from(["kubetui"]).unwrap();
+            assert_eq!(cmd.node_columns, None);
+        }
+
+        #[test]
+        fn 単一のカラムを指定できる() {
+            let cmd = Command::try_parse_from(["kubetui", "--node-columns=name"]).unwrap();
+            assert_eq!(cmd.node_columns, Some(vec!["name".to_string()]));
+        }
+
+        #[test]
+        fn カンマ区切りでカラムを指定できる() {
+            let cmd =
+                Command::try_parse_from(["kubetui", "--node-columns=name,status,zone"]).unwrap();
+            assert_eq!(
+                cmd.node_columns,
+                Some(vec![
+                    "name".to_string(),
+                    "status".to_string(),
+                    "zone".to_string()
+                ])
             );
         }
     }

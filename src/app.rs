@@ -1,4 +1,4 @@
-use std::{collections::HashMap, thread, time};
+use std::{collections::HashMap, str::FromStr as _, thread, time};
 
 use anyhow::Result;
 use crossbeam::channel::{bounded, Receiver, Sender};
@@ -6,13 +6,13 @@ use crossbeam::channel::{bounded, Receiver, Sender};
 use crate::{
     cmd::Command,
     config::{
-        theme::{NodeColumnConfig, PodColumnConfig, PodHighlightConfig},
+        theme::{LabelColumnConfig, PodColumnConfig, PodHighlightConfig},
         Config,
     },
     features::{
         api_resources::kube::ApiConfig,
         event::kube::EventConfig,
-        node::NodeColumns,
+        node::{NodeColumn, NodeColumnSpec, NodeColumns, NodeLabelColumn},
         pod::{kube::PodHighlightRule, PodColumns},
     },
     logger,
@@ -51,6 +51,7 @@ impl App {
             cmd.node_columns_preset,
             &config.theme.node.default_preset,
             &config.theme.node.column_presets,
+            &config.theme.node.label_columns,
         )?;
 
         kube_worker_config.event_config = EventConfig::from(config.theme.clone());
@@ -74,6 +75,7 @@ impl App {
 
         let default_pod_columns = kube_worker_config.pod_config.default_columns.clone();
         let default_node_columns = kube_worker_config.node_config.default_columns.clone();
+        let node_label_columns = build_node_label_registry(&config.theme.node.label_columns)?;
 
         let kube = KubeWorker::new(
             tx_kube.clone(),
@@ -95,6 +97,7 @@ impl App {
             split_direction,
             default_pod_columns,
             default_node_columns,
+            node_label_columns,
             config.theme.clone(),
             cmd.clipboard,
             config.logging.max_lines,
@@ -217,107 +220,197 @@ fn convert_columns(columns: &[PodColumnConfig]) -> PodColumns {
 }
 
 fn build_node_columns(
-    cmd_node_columns: Option<NodeColumns>,
+    cmd_node_columns: Option<Vec<String>>,
     cmd_node_columns_preset: Option<String>,
     default_preset: &Option<String>,
-    column_presets: &Option<HashMap<String, Vec<NodeColumnConfig>>>,
+    column_presets: &Option<HashMap<String, Vec<String>>>,
+    label_columns: &Option<Vec<LabelColumnConfig>>,
 ) -> Result<Option<NodeColumns>> {
-    if let Some(columns) = cmd_node_columns {
-        return Ok(Some(columns));
+    let registry = build_node_label_registry(label_columns)?;
+
+    if let Some(names) = cmd_node_columns {
+        return Ok(Some(resolve_columns(&names, &registry)?));
     }
 
-    if let Some(preset) = cmd_node_columns_preset {
-        let Some(presets) = column_presets else {
-            anyhow::bail!("No node column presets defined in config file, but '--node-columns-preset' flag was used");
-        };
+    let Some(preset_name) = cmd_node_columns_preset.as_ref().or(default_preset.as_ref()) else {
+        return Ok(None);
+    };
 
-        let Some(columns) = presets.get(&preset) else {
-            anyhow::bail!("Node column preset '{}' was specified via '--node-columns-preset' but is not defined in config file", preset);
-        };
+    let Some(presets) = column_presets else {
+        anyhow::bail!(
+            "No node column presets defined in config file, but preset '{}' was requested",
+            preset_name
+        );
+    };
+    let Some(entries) = presets.get(preset_name) else {
+        anyhow::bail!(
+            "Node column preset '{}' is not defined in column_presets",
+            preset_name
+        );
+    };
 
-        return Ok(Some(convert_node_columns(columns)));
-    }
-
-    if let Some(default_preset) = default_preset {
-        let Some(presets) = column_presets else {
-            anyhow::bail!(
-                "No node column presets defined in config file, but 'default_preset' is set"
-            );
-        };
-
-        let Some(columns) = presets.get(default_preset) else {
-            anyhow::bail!(
-                "Default node columns preset '{}' is set in config file but not defined in column_presets",
-                default_preset
-            );
-        };
-
-        return Ok(Some(convert_node_columns(columns)));
-    }
-
-    Ok(None)
+    Ok(Some(resolve_columns(entries, &registry)?))
 }
 
-fn convert_node_columns(columns: &[NodeColumnConfig]) -> NodeColumns {
-    NodeColumns::new(columns.iter().map(|c| c.0))
-        .ensure_name_column()
-        .dedup_columns()
+/// Build the label-column registry from config, erroring on builtin name collisions.
+fn build_node_label_registry(
+    label_columns: &Option<Vec<LabelColumnConfig>>,
+) -> Result<Vec<NodeLabelColumn>> {
+    let mut out = Vec::new();
+    if let Some(defs) = label_columns {
+        for def in defs {
+            let norm = NodeColumn::normalize_column(&def.name);
+            if NodeColumn::from_str(&norm).is_ok() {
+                anyhow::bail!(
+                    "label_columns name '{}' collides with a builtin column name",
+                    def.name
+                );
+            }
+            out.push(NodeLabelColumn {
+                name: def.name.clone(),
+                key: def.label.clone(),
+                header: def.name.to_uppercase(),
+            });
+        }
+    }
+    Ok(out)
+}
+
+/// Resolve column names (builtin or registry label, or "full") into NodeColumns.
+fn resolve_columns(names: &[String], registry: &[NodeLabelColumn]) -> Result<NodeColumns> {
+    if names.len() == 1 && NodeColumn::normalize_column(&names[0]) == "full" {
+        return Ok(NodeColumns::from_builtins(NodeColumn::all()));
+    }
+
+    let mut specs = Vec::new();
+    for name in names {
+        let norm = NodeColumn::normalize_column(name);
+        if let Ok(builtin) = NodeColumn::from_str(&norm) {
+            specs.push(NodeColumnSpec::Builtin(builtin));
+        } else if let Some(lc) = registry
+            .iter()
+            .find(|lc| NodeColumn::normalize_column(&lc.name) == norm)
+        {
+            specs.push(NodeColumnSpec::Label {
+                key: lc.key.clone(),
+                header: lc.header.clone(),
+            });
+        } else {
+            anyhow::bail!(
+                "Column '{}' is neither a builtin column nor a defined label column",
+                name
+            );
+        }
+    }
+
+    Ok(NodeColumns::new(specs).ensure_name_column().dedup_columns())
 }
 
 #[cfg(test)]
 mod node_columns_tests {
     use super::*;
-    use crate::features::node::NodeColumn;
+    use crate::features::node::{NodeColumn, NodeColumnSpec};
 
-    fn presets() -> HashMap<String, Vec<NodeColumnConfig>> {
+    fn presets() -> HashMap<String, Vec<String>> {
         HashMap::from([(
-            "default".to_string(),
-            vec![
-                NodeColumnConfig(NodeColumn::Name),
-                NodeColumnConfig(NodeColumn::Status),
-            ],
+            "gpu".to_string(),
+            vec!["name".to_string(), "mig".to_string(), "status".to_string()],
         )])
     }
 
+    fn labels() -> Vec<LabelColumnConfig> {
+        vec![LabelColumnConfig {
+            name: "mig".to_string(),
+            label: "nvidia.com/mig.config.state".to_string(),
+        }]
+    }
+
     #[test]
-    fn resolves_default_preset() {
-        let actual =
-            build_node_columns(None, None, &Some("default".to_string()), &Some(presets())).unwrap();
-        let cols: Vec<NodeColumn> = actual.unwrap().columns().to_vec();
-        assert_eq!(cols, vec![NodeColumn::Name, NodeColumn::Status]);
+    fn resolves_preset_with_builtin_and_label_interleaved() {
+        let cols = build_node_columns(
+            None,
+            None,
+            &Some("gpu".to_string()),
+            &Some(presets()),
+            &Some(labels()),
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(
+            cols.specs(),
+            &[
+                NodeColumnSpec::Builtin(NodeColumn::Name),
+                NodeColumnSpec::Label {
+                    key: "nvidia.com/mig.config.state".to_string(),
+                    header: "MIG".to_string()
+                },
+                NodeColumnSpec::Builtin(NodeColumn::Status),
+            ]
+        );
+    }
+
+    #[test]
+    fn cli_names_resolve_labels_and_take_precedence() {
+        let cols = build_node_columns(
+            Some(vec!["name".to_string(), "mig".to_string()]),
+            Some("gpu".to_string()),
+            &Some("gpu".to_string()),
+            &Some(presets()),
+            &Some(labels()),
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(
+            cols.specs(),
+            &[
+                NodeColumnSpec::Builtin(NodeColumn::Name),
+                NodeColumnSpec::Label {
+                    key: "nvidia.com/mig.config.state".to_string(),
+                    header: "MIG".to_string()
+                },
+            ]
+        );
     }
 
     #[test]
     fn none_when_no_preset() {
-        let actual = build_node_columns(None, None, &None, &None).unwrap();
+        let actual = build_node_columns(None, None, &None, &None, &None).unwrap();
         assert!(actual.is_none());
     }
 
     #[test]
-    fn errors_when_default_preset_missing_from_presets() {
-        let actual =
-            build_node_columns(None, None, &Some("gpu".to_string()), &Some(HashMap::new()));
-        assert!(actual.is_err());
+    fn error_on_unknown_name() {
+        let presets = HashMap::from([(
+            "p".to_string(),
+            vec!["name".to_string(), "bogus".to_string()],
+        )]);
+        assert!(
+            build_node_columns(None, None, &Some("p".to_string()), &Some(presets), &None).is_err()
+        );
     }
 
     #[test]
-    fn cmd_columns_take_precedence() {
-        let actual = build_node_columns(
-            Some(NodeColumns::new([NodeColumn::Name, NodeColumn::Version])),
-            Some("default".to_string()),
-            &Some("default".to_string()),
-            &Some(presets()),
+    fn error_on_label_name_colliding_with_builtin() {
+        let labels = vec![LabelColumnConfig {
+            name: "status".to_string(),
+            label: "x".to_string(),
+        }];
+        let presets = HashMap::from([("p".to_string(), vec!["name".to_string()])]);
+        assert!(build_node_columns(
+            None,
+            None,
+            &Some("p".to_string()),
+            &Some(presets),
+            &Some(labels)
         )
-        .unwrap();
-        let cols: Vec<NodeColumn> = actual.unwrap().columns().to_vec();
-        assert_eq!(cols, vec![NodeColumn::Name, NodeColumn::Version]);
+        .is_err());
     }
 
     #[test]
-    fn cmd_preset_flag_selects_preset() {
-        let actual =
-            build_node_columns(None, Some("default".to_string()), &None, &Some(presets())).unwrap();
-        let cols: Vec<NodeColumn> = actual.unwrap().columns().to_vec();
-        assert_eq!(cols, vec![NodeColumn::Name, NodeColumn::Status]);
+    fn full_returns_all_builtins() {
+        let cols = build_node_columns(Some(vec!["full".to_string()]), None, &None, &None, &None)
+            .unwrap()
+            .unwrap();
+        assert_eq!(cols.specs().len(), NodeColumn::all().count());
     }
 }

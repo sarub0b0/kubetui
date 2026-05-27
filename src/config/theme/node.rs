@@ -2,66 +2,44 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::features::node::NodeColumn;
-
 #[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize)]
 pub struct NodeThemeConfig {
     pub default_preset: Option<String>,
 
-    pub column_presets: Option<HashMap<String, Vec<NodeColumnConfig>>>,
+    /// Each preset is an ordered list of column names: builtin column names
+    /// and/or defined label-column names (resolved at load time).
+    pub column_presets: Option<HashMap<String, Vec<String>>>,
+
+    /// Registry of label columns: `name` (reference/header) -> `label` (key).
+    pub label_columns: Option<Vec<LabelColumnConfig>>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
-pub struct NodeColumnConfig(#[serde(with = "serde_node_column")] pub NodeColumn);
-
-mod serde_node_column {
-    use std::str::FromStr as _;
-
-    use serde::{de, Deserialize, Deserializer, Serializer};
-
-    use crate::features::node::NodeColumn;
-
-    pub fn serialize<S>(column: &NodeColumn, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(&NodeColumn::normalize_column(column.as_str()))
-    }
-
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<NodeColumn, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        NodeColumn::from_str(&s).map_err(de::Error::custom)
-    }
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct LabelColumnConfig {
+    pub name: String,
+    pub label: String,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::node::NodeColumn;
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn deserializes_column_presets() {
+    fn deserializes_presets_and_label_columns() {
         let json = r#"{
-            "default_preset": "default",
-            "column_presets": { "default": ["name", "status", "roles", "age", "version"] }
+            "default_preset": "gpu",
+            "column_presets": { "gpu": ["name", "mig", "status"] },
+            "label_columns": [{ "name": "mig", "label": "nvidia.com/mig.config.state" }]
         }"#;
         let cfg: NodeThemeConfig = serde_json::from_str(json).unwrap();
-        assert_eq!(cfg.default_preset.as_deref(), Some("default"));
-        let preset = cfg.column_presets.as_ref().unwrap().get("default").unwrap();
-        let cols: Vec<NodeColumn> = preset.iter().map(|c| c.0).collect();
+        assert_eq!(cfg.default_preset.as_deref(), Some("gpu"));
         assert_eq!(
-            cols,
-            vec![
-                NodeColumn::Name,
-                NodeColumn::Status,
-                NodeColumn::Roles,
-                NodeColumn::Age,
-                NodeColumn::Version
-            ]
+            cfg.column_presets.as_ref().unwrap().get("gpu").unwrap(),
+            &vec!["name".to_string(), "mig".to_string(), "status".to_string()]
         );
+        let labels = cfg.label_columns.as_ref().unwrap();
+        assert_eq!(labels[0].name, "mig");
+        assert_eq!(labels[0].label, "nvidia.com/mig.config.state");
     }
 }

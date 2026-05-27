@@ -1,49 +1,80 @@
 use strum::{EnumIter, IntoEnumIterator};
 
+/// A runtime column in the node table: a built-in column or a label column.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum NodeColumnSpec {
+    Builtin(NodeColumn),
+    Label { key: String, header: String },
+}
+
+impl NodeColumnSpec {
+    /// Display header (uppercase). Builtin uses display(), Label uses its header.
+    pub fn header(&self) -> String {
+        match self {
+            NodeColumnSpec::Builtin(c) => c.display().to_string(),
+            NodeColumnSpec::Label { header, .. } => header.clone(),
+        }
+    }
+}
+
+/// A resolved label-column definition (an entry of the label registry).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NodeLabelColumn {
+    pub name: String,
+    pub key: String,
+    pub header: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NodeColumns {
-    columns: Vec<NodeColumn>,
+    columns: Vec<NodeColumnSpec>,
 }
 
 impl Default for NodeColumns {
     fn default() -> Self {
         NodeColumns {
-            columns: DEFAULT_NODE_COLUMNS.to_vec(),
+            columns: DEFAULT_NODE_COLUMNS
+                .iter()
+                .map(|c| NodeColumnSpec::Builtin(*c))
+                .collect(),
         }
     }
 }
 
 #[allow(dead_code)]
 impl NodeColumns {
-    pub fn new(columns: impl IntoIterator<Item = NodeColumn>) -> Self {
+    pub fn new(columns: impl IntoIterator<Item = NodeColumnSpec>) -> Self {
         NodeColumns {
             columns: columns.into_iter().collect(),
         }
     }
 
-    pub fn full() -> Self {
+    pub fn from_builtins(columns: impl IntoIterator<Item = NodeColumn>) -> Self {
         NodeColumns {
-            columns: NodeColumn::iter().collect(),
+            columns: columns.into_iter().map(NodeColumnSpec::Builtin).collect(),
         }
     }
 
-    pub fn columns(&self) -> &[NodeColumn] {
+    pub fn specs(&self) -> &[NodeColumnSpec] {
         &self.columns
     }
 
     pub fn ensure_name_column(mut self) -> Self {
-        if self.columns.contains(&NodeColumn::Name) {
-            return self;
+        let has_name = self
+            .columns
+            .iter()
+            .any(|s| matches!(s, NodeColumnSpec::Builtin(NodeColumn::Name)));
+        if !has_name {
+            self.columns
+                .insert(0, NodeColumnSpec::Builtin(NodeColumn::Name));
         }
-        self.columns.insert(0, NodeColumn::Name);
         self
     }
 
     // Removes duplicates while preserving order.
     // Linear search is used because the number of columns is small.
-    #[allow(dead_code)]
     pub fn dedup_columns(self) -> Self {
-        let mut unique = Vec::new();
+        let mut unique: Vec<NodeColumnSpec> = Vec::new();
         for c in self.columns {
             if !unique.contains(&c) {
                 unique.push(c);
@@ -93,7 +124,6 @@ impl NodeColumn {
         }
     }
 
-    #[allow(dead_code)]
     pub const fn display(&self) -> &'static str {
         match self {
             NodeColumn::Name => "NAME",
@@ -111,6 +141,11 @@ impl NodeColumn {
 
     pub fn normalize_column(column: &str) -> String {
         column.to_lowercase().replace([' ', '_', '-'], "")
+    }
+
+    /// All builtin columns.
+    pub fn all() -> impl Iterator<Item = NodeColumn> {
+        NodeColumn::iter()
     }
 }
 
@@ -151,17 +186,38 @@ mod tests {
     use pretty_assertions::assert_eq;
     use std::str::FromStr as _;
 
+    fn builtins(cols: &[NodeColumn]) -> Vec<NodeColumnSpec> {
+        cols.iter().map(|c| NodeColumnSpec::Builtin(*c)).collect()
+    }
+
     #[test]
     fn default_columns_are_name_status_roles_age_version() {
         let actual = NodeColumns::default();
-        let expected = vec![
+        let expected = builtins(&[
             NodeColumn::Name,
             NodeColumn::Status,
             NodeColumn::Roles,
             NodeColumn::Age,
             NodeColumn::Version,
-        ];
-        assert_eq!(actual.columns(), expected.as_slice());
+        ]);
+        assert_eq!(actual.specs(), expected.as_slice());
+    }
+
+    #[test]
+    fn builtin_spec_header_is_uppercase_display() {
+        assert_eq!(
+            NodeColumnSpec::Builtin(NodeColumn::Status).header(),
+            "STATUS"
+        );
+    }
+
+    #[test]
+    fn label_spec_header_is_as_given() {
+        let s = NodeColumnSpec::Label {
+            key: "x".into(),
+            header: "MIG".into(),
+        };
+        assert_eq!(s.header(), "MIG");
     }
 
     #[test]
@@ -190,7 +246,10 @@ mod tests {
 
     #[test]
     fn ensure_name_column_prepends_name_when_missing() {
-        let cols = NodeColumns::new([NodeColumn::Status]).ensure_name_column();
-        assert_eq!(cols.columns(), &[NodeColumn::Name, NodeColumn::Status]);
+        let cols = NodeColumns::from_builtins([NodeColumn::Status]).ensure_name_column();
+        assert_eq!(
+            cols.specs(),
+            builtins(&[NodeColumn::Name, NodeColumn::Status]).as_slice()
+        );
     }
 }

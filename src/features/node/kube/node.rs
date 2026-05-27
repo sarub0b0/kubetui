@@ -8,7 +8,7 @@ use kube::Resource;
 use tokio::sync::RwLock;
 
 use crate::{
-    features::node::{message::NodeMessage, NodeColumn, NodeColumns},
+    features::node::{message::NodeMessage, NodeColumn, NodeColumnSpec, NodeColumns},
     kube::{
         apis::v1_table::Table,
         table::{KubeTable, KubeTableRow},
@@ -70,25 +70,55 @@ async fn get_node_table<C: KubeClientRequest>(
 ) -> Result<KubeTable> {
     let node_columns = shared_node_columns.read().await;
 
-    let targets: Vec<&str> = node_columns.columns().iter().map(|c| c.as_str()).collect();
+    let specs = node_columns.specs();
+
+    let builtin_targets: Vec<&str> = specs
+        .iter()
+        .filter_map(|s| {
+            match s {
+                NodeColumnSpec::Builtin(c) => Some(c.as_str()),
+                NodeColumnSpec::Label { .. } => None,
+            }
+        })
+        .collect();
 
     let path = Node::url_path(&(), None);
     let table: Table = client.request_table(&path).await?;
 
-    let indexes = table.find_indexes(&targets)?;
+    let builtin_indexes = table.find_indexes(&builtin_targets)?;
 
-    let name_index = node_columns
-        .columns()
+    let name_pos = specs
         .iter()
-        .position(|c| *c == NodeColumn::Name)
+        .position(|s| matches!(s, NodeColumnSpec::Builtin(NodeColumn::Name)))
         .expect("Name column must be present in node columns");
 
     let rows: Vec<KubeTableRow> = table
         .rows
         .iter()
         .map(|row| {
-            let cells: Vec<String> = indexes.iter().map(|i| row.cells[*i].to_string()).collect();
-            let name = cells[name_index].clone();
+            let mut builtin_iter = builtin_indexes.iter();
+            let cells: Vec<String> = specs
+                .iter()
+                .map(|spec| {
+                    match spec {
+                        NodeColumnSpec::Builtin(_) => {
+                            let i = builtin_iter.next().expect("builtin index available");
+                            row.cells[*i].to_string()
+                        }
+                        NodeColumnSpec::Label { key, .. } => {
+                            row.object
+                                .as_ref()
+                                .and_then(|o| o.0.get("metadata"))
+                                .and_then(|m| m.get("labels"))
+                                .and_then(|l| l.get(key))
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string()
+                        }
+                    }
+                })
+                .collect();
+            let name = cells[name_pos].clone();
             KubeTableRow {
                 namespace: String::new(),
                 name,
@@ -101,11 +131,7 @@ async fn get_node_table<C: KubeClientRequest>(
         })
         .collect();
 
-    let header: Vec<String> = node_columns
-        .columns()
-        .iter()
-        .map(|c| c.display().to_string())
-        .collect();
+    let header: Vec<String> = specs.iter().map(|s| s.header()).collect();
 
     let mut kube_table = KubeTable {
         header,
@@ -121,6 +147,7 @@ mod tests {
     use super::*;
     use crate::kube::apis::v1_table::{Table, TableColumnDefinition, TableRow, Value};
     use crate::mock_expect;
+    use k8s_openapi::apimachinery::pkg::runtime::RawExtension;
     use mockall::predicate::eq;
     use pretty_assertions::assert_eq;
     use serde_json::Value as JsonValue;
@@ -185,5 +212,54 @@ mod tests {
             table.rows[0].row,
             vec!["node-a", "Ready", "worker", "10d", "v1.29.0"]
         );
+    }
+
+    fn row_with_labels(cells: &[&str], labels: &[(&str, &str)]) -> TableRow {
+        let labels_json: serde_json::Map<String, JsonValue> = labels
+            .iter()
+            .map(|(k, v)| (k.to_string(), JsonValue::String(v.to_string())))
+            .collect();
+        let object = serde_json::json!({ "metadata": { "labels": labels_json } });
+        TableRow {
+            cells: cells
+                .iter()
+                .map(|c| Value(JsonValue::String(c.to_string())))
+                .collect(),
+            object: Some(RawExtension(object)),
+            ..Default::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn extracts_label_column_value_from_object() {
+        let mut client = crate::kube::mock::MockTestKubeClient::new();
+        mock_expect!(
+            client,
+            request_table,
+            Table,
+            eq("/api/v1/nodes"),
+            Ok(Table {
+                column_definitions: vec![coldef("Name"), coldef("Status")],
+                rows: vec![row_with_labels(
+                    &["node-a", "Ready"],
+                    &[("nvidia.com/mig", "success")]
+                )],
+                ..Default::default()
+            })
+        );
+
+        let specs = NodeColumns::new([
+            NodeColumnSpec::Builtin(NodeColumn::Name),
+            NodeColumnSpec::Label {
+                key: "nvidia.com/mig".to_string(),
+                header: "MIG".to_string(),
+            },
+        ]);
+        let shared = Arc::new(RwLock::new(specs));
+        let table = get_node_table(&client, &shared).await.unwrap();
+
+        assert_eq!(table.header, vec!["NAME", "MIG"]);
+        assert_eq!(table.rows[0].name, "node-a");
+        assert_eq!(table.rows[0].row, vec!["node-a", "success"]);
     }
 }
