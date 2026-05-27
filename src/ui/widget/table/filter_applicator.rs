@@ -82,6 +82,90 @@ fn cell_of(item: &TableItem, header: &[String], col_name: &str) -> Option<String
         .map(|c| c.styled_graphemes_symbols().concat())
 }
 
+// ---------------------------------------------------------------------------
+// Callback types and factory struct
+// ---------------------------------------------------------------------------
+
+use crate::{
+    define_callback,
+    ui::{event::EventResult, Window},
+};
+
+// TableFilterParser: parses a raw filter string into a TableFilterPredicate.
+// Returns Ok(predicate) on success, or Err(message) for display to the user.
+define_callback!(pub TableFilterParser, Fn(&str) -> Result<TableFilterPredicate, String>);
+
+// OnFilterApply: called after a filter has been applied (or cleared). Receives
+// the new predicate and a mutable Window reference for side effects (e.g.,
+// forwarding labelSelector to a poller via shared state).
+define_callback!(pub OnFilterApply, Fn(&TableFilterPredicate, &mut Window));
+
+/// Controls *when* the filter is actually applied to the table rows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ApplyStrategy {
+    /// Filter is applied on every keystroke (incremental / live search).
+    Live,
+    /// Filter is applied only when the user presses Enter.
+    EnterToConfirm,
+}
+
+/// Bundles everything a [`Table`] widget needs to support column filtering.
+///
+/// Construct via [`TableFilterApplicator::new`] and use the builder methods to
+/// attach optional components before passing to `Table::builder().filter_applicator()`.
+pub struct TableFilterApplicator {
+    /// Converts a raw filter string into a [`TableFilterPredicate`].
+    pub(crate) parser: TableFilterParser,
+    /// Controls when the predicate is applied to the visible rows.
+    pub(crate) strategy: ApplyStrategy,
+    /// Optional dialog-id of the help overlay (opened when user presses `?`
+    /// while the filter input is focused).
+    pub(crate) help_dialog_id: Option<String>,
+    /// Optional callback invoked after the filter changes.
+    pub(crate) on_apply: Option<OnFilterApply>,
+}
+
+impl std::fmt::Debug for TableFilterApplicator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TableFilterApplicator")
+            .field("strategy", &self.strategy)
+            .field("help_dialog_id", &self.help_dialog_id)
+            .field("parser", &"<TableFilterParser>")
+            .field("on_apply", &self.on_apply.as_ref().map(|_| "<OnFilterApply>"))
+            .finish()
+    }
+}
+
+impl TableFilterApplicator {
+    /// Create a new applicator with the given parser and apply strategy.
+    pub fn new(parser: TableFilterParser, strategy: ApplyStrategy) -> Self {
+        Self {
+            parser,
+            strategy,
+            help_dialog_id: None,
+            on_apply: None,
+        }
+    }
+
+    /// Attach a help-dialog id. When the filter input is focused and the user
+    /// presses `?`, the dialog with this id will be opened.
+    pub fn with_help_dialog(mut self, id: impl Into<String>) -> Self {
+        self.help_dialog_id = Some(id.into());
+        self
+    }
+
+    /// Attach a callback that is invoked after every filter change.
+    pub fn with_on_apply(mut self, cb: OnFilterApply) -> Self {
+        self.on_apply = Some(cb);
+        self
+    }
+}
+
+// Suppress unused-import warning: EventResult is referenced by the
+// define_callback! expansion indirectly; keep the use above for correctness.
+#[allow(unused_imports)]
+use EventResult as _;
+
 #[cfg(test)]
 mod tests {
     use super::*;
