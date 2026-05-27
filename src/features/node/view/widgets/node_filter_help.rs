@@ -35,6 +35,12 @@ fn content() -> Vec<String> {
                               server-side (e.g. role=worker,zone=us-west).
                               Last 'label:' wins if repeated.
 
+        Quoting (values with spaces):
+           "value with spaces"           Double-quoted value
+           'value with spaces'           Single-quoted value
+           \" \' \\                      Literal " ' \ inside quotes
+           \<other>                      Backslash preserved (regex \s etc.)
+
         Combining:
            Same column, multiple includes  ->  OR (in-list)
            Different columns, includes     ->  AND across columns
@@ -46,6 +52,8 @@ fn content() -> Vec<String> {
            NAME:gke STATUS:Ready           NAME~gke AND STATUS~Ready
            STATUS:Ready STATUS:Pending     STATUS in (Ready, Pending)
            !NAME:control label:zone=us     Server-side label filter + name exclude
+           OS-IMAGE:"Ubuntu 22.04 LTS"     Quoted value with whitespace
+           NAME:"foo bar"                  Quote bare value too
 
         Column names are case-insensitive. Unknown columns produce a
         parse error. Press Enter to apply, Esc to cancel. Type ? or

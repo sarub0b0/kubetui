@@ -1,5 +1,19 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+};
 
+use nom::{
+    branch::alt,
+    bytes::complete::is_not,
+    character::complete::{anychar, char, multispace0, multispace1},
+    combinator::{map, value, verify},
+    error::{ContextError, ParseError},
+    multi::{fold_many0, separated_list0},
+    sequence::{delimited, preceded},
+    IResult,
+    Parser,
+};
 use regex::Regex;
 use strum::IntoEnumIterator;
 
@@ -7,6 +21,110 @@ use crate::{
     features::node::node_columns::{NodeColumn, NodeLabelColumn},
     ui::widget::TableFilterPredicate,
 };
+
+// ---------------------------------------------------------------------------
+// Quoting helpers (copied from pod/kube/filter/parser.rs to avoid cross-feature dep)
+// ---------------------------------------------------------------------------
+
+/// Parse a quoted string (`"..."` or `'...'`), handling escape sequences.
+///
+/// Escape rules inside quotes:
+///   `\"` → `"`   `\'` → `'`   `\\` → `\`   `\<other>` → `\<other>` (verbatim)
+fn quoted<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&'a str, Cow<'a, str>, E> {
+    #[inline]
+    fn multispace<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    ) -> impl Parser<&'a str, Output = Cow<'a, str>, Error = E> {
+        map(multispace1, Cow::Borrowed)
+    }
+
+    #[inline]
+    fn escaped_char<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    ) -> impl Parser<&'a str, Output = Cow<'a, str>, Error = E> {
+        preceded(
+            char('\\'),
+            alt((
+                value(Cow::Borrowed("\""), char('"')),
+                value(Cow::Borrowed("'"), char('\'')),
+                value(Cow::Borrowed("\\"), char('\\')),
+                map(anychar, |c| Cow::Owned(format!(r"\{}", c))),
+            )),
+        )
+    }
+
+    #[inline]
+    fn not_quote_slash<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+        quote_slash: &'a str,
+    ) -> impl Parser<&'a str, Output = Cow<'a, str>, Error = E> {
+        map(
+            verify(is_not(quote_slash), |s: &str| !s.is_empty()),
+            Cow::Borrowed,
+        )
+    }
+
+    #[inline]
+    fn fold<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+        parser: impl Parser<&'a str, Output = Cow<'a, str>, Error = E>,
+    ) -> impl Parser<&'a str, Output = String, Error = E> {
+        fold_many0(parser, String::default, |mut s, parsed| {
+            s.push_str(&parsed);
+            s
+        })
+    }
+
+    let double_quoted = delimited(
+        char('"'),
+        fold(alt((
+            escaped_char(),
+            not_quote_slash(r#""\"#),
+            multispace(),
+        ))),
+        char('"'),
+    );
+
+    let single_quoted = delimited(
+        char('\''),
+        fold(alt((
+            escaped_char(),
+            not_quote_slash(r#"\'"#),
+            multispace(),
+        ))),
+        char('\''),
+    );
+
+    let (remaining, value) = alt((double_quoted, single_quoted)).parse(s)?;
+
+    Ok((remaining, Cow::Owned(value)))
+}
+
+/// Parse an unquoted value: any non-whitespace characters that do not start
+/// with a quote character. Mirrors `non_space` in the pod filter parser.
+fn unquoted<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&'a str, Cow<'a, str>, E> {
+    let (remaining, value) =
+        verify(is_not(" \t\r\n"), |s: &str| !s.starts_with(['"', '\''])).parse(s)?;
+    Ok((remaining, Cow::Borrowed(value)))
+}
+
+/// Parse a value that may be quoted or unquoted.
+fn value_string<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&'a str, String, E> {
+    map(alt((quoted, unquoted)), |c| c.into_owned()).parse(s)
+}
+
+/// Parse a column name token: non-empty, stops at whitespace, `:`, `!`, or quote chars.
+fn column_name<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&'a str, &'a str, E> {
+    verify(is_not(" \t\r\n:!\"'"), |s: &str| !s.is_empty()).parse(s)
+}
+
+// ---------------------------------------------------------------------------
+// Term types and token parser
+// ---------------------------------------------------------------------------
 
 /// One parsed term from the input.
 #[derive(Debug)]
@@ -21,39 +139,77 @@ enum Term {
     Label(String),
 }
 
-fn parse_term(token: &str) -> Term {
-    // `label:` is checked first so it is never mistaken for a generic column include.
-    if let Some(sel) = token.strip_prefix("label:") {
-        if !sel.is_empty() {
-            return Term::Label(sel.to_string());
-        }
+/// Parse one whitespace-delimited token into a `Term`.
+///
+/// Priority order:
+///   1. `label:<value>` → Label (special-cased before generic Include)
+///   2. `!<col>:<value>` → Exclude
+///   3. `<col>:<value>` → Include
+///   4. `<value>` → Bare
+///
+/// For (3)/(4) the value may be quoted (`"..."` / `'...'`) or unquoted.
+fn parse_token<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
+    s: &'a str,
+) -> IResult<&'a str, Term, E> {
+    // 1. label: (must be tried before the generic include path)
+    let label_result = preceded(nom::bytes::complete::tag("label:"), value_string::<E>).parse(s);
+    if let Ok((rem, sel)) = label_result {
+        return Ok((rem, Term::Label(sel)));
     }
 
-    if let Some(stripped) = token.strip_prefix('!') {
-        if let Some((col, val)) = stripped.split_once(':') {
-            if !col.is_empty() && !val.is_empty() {
-                return Term::Exclude {
+    // 2. !col:value  (exclude)
+    let exclude_result = preceded(char::<&'a str, E>('!'), |s: &'a str| {
+        // We need col:value after the `!`
+        let (s2, col) = column_name::<E>(s)?;
+        let (s3, _) = char::<&'a str, E>(':').parse(s2)?;
+        let (s4, val) = value_string::<E>(s3)?;
+        Ok((s4, (col.to_lowercase(), val)))
+    })
+    .parse(s);
+    if let Ok((rem, (col, val))) = exclude_result {
+        return Ok((
+            rem,
+            Term::Exclude {
+                column: col,
+                value: val,
+            },
+        ));
+    }
+
+    // 3. col:value  (include) — but only if input is NOT starting with a quote
+    //    (otherwise `"bare quoted"` would fail column_name and fall to Bare correctly)
+    if !s.starts_with(['"', '\'']) {
+        // Try to parse col:value.  If we successfully match `col:` followed by a
+        // quote character, we MUST parse it as a quoted value — do not fall through
+        // to Bare, which would silently read the whole token as unquoted.
+        let col_colon_result = (|s: &'a str| -> IResult<&'a str, (&'a str, &'a str), E> {
+            let (s2, col) = column_name::<E>(s)?;
+            let (s3, _) = char::<&'a str, E>(':').parse(s2)?;
+            Ok((s3, (s, col)))
+        })(s);
+
+        if let Ok((after_colon, (_orig, col))) = col_colon_result {
+            // We have `col:` consumed.  Now parse the value — this will fail hard
+            // if the value is an unclosed quote (nom Err::Error propagated).
+            let (rem, val) = value_string::<E>(after_colon)?;
+            return Ok((
+                rem,
+                Term::Include {
                     column: col.to_lowercase(),
-                    value: val.to_string(),
-                };
-            }
+                    value: val,
+                },
+            ));
         }
-        // Fall through: `!worker` without colon is a bare value.
     }
 
-    if let Some((col, val)) = token.split_once(':') {
-        // Empty column or empty value is treated as Bare so the user sees
-        // a regex error later (or no-op). Stricter validation happens in
-        // Task 5 (column-name validation).
-        if !col.is_empty() && !val.is_empty() {
-            return Term::Include {
-                column: col.to_lowercase(),
-                value: val.to_string(),
-            };
-        }
-    }
-    Term::Bare(token.to_string())
+    // 4. Bare value (quoted or unquoted)
+    let (rem, val) = value_string::<E>(s)?;
+    Ok((rem, Term::Bare(val)))
 }
+
+// ---------------------------------------------------------------------------
+// Column validation helpers
+// ---------------------------------------------------------------------------
 
 /// Build the set of valid column names from the builtin `NodeColumn` variants
 /// plus any headers registered in `label_registry`. All names are lowercased
@@ -68,11 +224,19 @@ fn valid_columns(label_registry: &[NodeLabelColumn]) -> HashSet<String> {
     set
 }
 
+// ---------------------------------------------------------------------------
+// Public entry point
+// ---------------------------------------------------------------------------
+
 /// Parse a Node-filter input string into a `TableFilterPredicate`.
 ///
 /// `label_registry` supplies the set of valid label-column headers (in
 /// addition to the builtin Node column headers). Unknown column names
 /// produce a parse error.
+///
+/// Values may be quoted (`"..."` / `'...'`) to include whitespace, with the
+/// same escape rules as the Pod log query parser:
+///   `\"` → `"`   `\'` → `'`   `\\` → `\`   `\<other>` → `\<other>`
 // Consumed by the node_filter_applicator factory in Task 6 (this PR).
 #[allow(dead_code)]
 pub fn parse_node_filter(
@@ -86,8 +250,32 @@ pub fn parse_node_filter(
     let mut column_excludes: HashMap<String, Vec<Regex>> = HashMap::new();
     let mut label_selector: Option<String> = None;
 
-    for token in trimmed.split_whitespace() {
-        match parse_term(token) {
+    if trimmed.is_empty() {
+        return Ok(TableFilterPredicate {
+            column_includes,
+            column_excludes,
+            label_selector,
+            raw: trimmed.to_string(),
+        });
+    }
+
+    // Parse the whole trimmed input as whitespace-separated tokens.
+    type E<'a> = nom::error::Error<&'a str>;
+    let parse_result = delimited(
+        multispace0,
+        separated_list0(multispace1, parse_token::<E>),
+        multispace0,
+    )
+    .parse(trimmed);
+
+    let (remaining, terms) = parse_result.map_err(|e| format!("parse error: {}", e))?;
+
+    if !remaining.is_empty() {
+        return Err(format!("unexpected input near: {:?}", remaining));
+    }
+
+    for term in terms {
+        match term {
             Term::Bare(v) => {
                 let rx = Regex::new(&v).map_err(|e| format!("invalid regex '{}': {}", v, e))?;
                 column_includes
@@ -321,5 +509,62 @@ mod tests {
         // 'label:role=worker' must NOT trigger unknown-column validation
         // (it's the special-cased k8s labelSelector path).
         assert!(parse_node_filter("label:role=worker", &no_label_cols()).is_ok());
+    }
+
+    // -----------------------------------------------------------------------
+    // New quoting / escape tests (Task 12)
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn double_quoted_value_with_spaces_is_kept_intact() {
+        let p = parse_node_filter(r#"os-image:"Ubuntu 22.04.3 LTS""#, &no_label_cols()).unwrap();
+        let patterns = p.column_includes.get("os-image").expect("os-image col");
+        assert_eq!(patterns.len(), 1);
+        assert!(patterns[0].is_match("Ubuntu 22.04.3 LTS"));
+    }
+
+    #[test]
+    fn single_quoted_value_with_spaces_is_kept_intact() {
+        let p = parse_node_filter(r#"os-image:'Ubuntu 22.04 LTS'"#, &no_label_cols()).unwrap();
+        let patterns = p.column_includes.get("os-image").unwrap();
+        assert!(patterns[0].is_match("Ubuntu 22.04 LTS"));
+    }
+
+    #[test]
+    fn quoted_value_with_escaped_quote() {
+        let p = parse_node_filter(r#"name:"foo\"bar""#, &no_label_cols()).unwrap();
+        let patterns = p.column_includes.get("name").unwrap();
+        // 値は `foo"bar` という regex
+        assert!(patterns[0].is_match(r#"foo"bar"#));
+    }
+
+    #[test]
+    fn quoted_value_preserves_regex_backslash_classes() {
+        // `\s` をリテラルに残して regex `\s`（空白）になる
+        let p = parse_node_filter(r#"name:"foo\sbar""#, &no_label_cols()).unwrap();
+        let patterns = p.column_includes.get("name").unwrap();
+        assert!(patterns[0].is_match("foo bar")); // regex \s が空白マッチ
+        assert!(!patterns[0].is_match("foobar"));
+    }
+
+    #[test]
+    fn bare_value_with_quoted_spaces() {
+        // bare の場合も quoted value をサポート: "node a" → NAME に regex "node a"
+        let p = parse_node_filter(r#""node a""#, &no_label_cols()).unwrap();
+        let patterns = p.column_includes.get("name").unwrap();
+        assert!(patterns[0].is_match("node a"));
+    }
+
+    #[test]
+    fn mixed_quoted_and_unquoted_tokens() {
+        let p =
+            parse_node_filter(r#"status:Ready os-image:"Ubuntu 22.04""#, &no_label_cols()).unwrap();
+        assert_eq!(p.column_includes.len(), 2);
+        assert!(p.column_includes.get("os-image").unwrap()[0].is_match("Ubuntu 22.04"));
+    }
+
+    #[test]
+    fn unclosed_quote_is_a_parse_error() {
+        assert!(parse_node_filter(r#"name:"unterminated"#, &no_label_cols()).is_err());
     }
 }
