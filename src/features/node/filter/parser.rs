@@ -11,9 +11,23 @@ enum Term {
     Bare(String),
     /// `<col>:<value>` include.
     Include { column: String, value: String },
+    /// `!<col>:<value>` exclude.
+    Exclude { column: String, value: String },
 }
 
 fn parse_term(token: &str) -> Term {
+    if let Some(stripped) = token.strip_prefix('!') {
+        if let Some((col, val)) = stripped.split_once(':') {
+            if !col.is_empty() && !val.is_empty() {
+                return Term::Exclude {
+                    column: col.to_lowercase(),
+                    value: val.to_string(),
+                };
+            }
+        }
+        // Fall through: `!worker` without colon is a bare value.
+    }
+
     if let Some((col, val)) = token.split_once(':') {
         // Empty column or empty value is treated as Bare so the user sees
         // a regex error later (or no-op). Stricter validation happens in
@@ -43,6 +57,7 @@ pub fn parse_node_filter(
 
     let trimmed = input.trim();
     let mut column_includes: HashMap<String, Vec<Regex>> = HashMap::new();
+    let mut column_excludes: HashMap<String, Vec<Regex>> = HashMap::new();
 
     for token in trimmed.split_whitespace() {
         match parse_term(token) {
@@ -58,12 +73,17 @@ pub fn parse_node_filter(
                     Regex::new(&value).map_err(|e| format!("invalid regex '{}': {}", value, e))?;
                 column_includes.entry(column).or_default().push(rx);
             }
+            Term::Exclude { column, value } => {
+                let rx =
+                    Regex::new(&value).map_err(|e| format!("invalid regex '{}': {}", value, e))?;
+                column_excludes.entry(column).or_default().push(rx);
+            }
         }
     }
 
     Ok(TableFilterPredicate {
         column_includes,
-        column_excludes: HashMap::new(),
+        column_excludes,
         label_selector: None,
         raw: trimmed.to_string(),
     })
@@ -152,5 +172,32 @@ mod tests {
         assert_eq!(p.column_includes.len(), 2);
         assert_eq!(p.column_includes.get("name").unwrap().len(), 1);
         assert_eq!(p.column_includes.get("status").unwrap().len(), 1);
+    }
+
+    #[test]
+    fn excludes_prefixed_with_bang_populate_column_excludes() {
+        let p = parse_node_filter("!ns:kube-system", &no_label_cols()).unwrap();
+        assert!(p.column_includes.is_empty());
+        let patterns = p.column_excludes.get("ns").expect("ns column");
+        assert_eq!(patterns.len(), 1);
+        assert!(patterns[0].is_match("kube-system"));
+    }
+
+    #[test]
+    fn includes_and_excludes_coexist() {
+        let p = parse_node_filter("status:Ready !ns:kube-system", &no_label_cols()).unwrap();
+        assert_eq!(p.column_includes.len(), 1);
+        assert_eq!(p.column_excludes.len(), 1);
+    }
+
+    #[test]
+    fn bang_without_colon_is_treated_as_bare_value() {
+        // `!worker` は `!name:worker` の省略形ではない。bang は明示的な column と組でのみ意味を持つ。
+        let p = parse_node_filter("!worker", &no_label_cols()).unwrap();
+        // 文字列 `!worker` がそのまま NAME 列の regex になる。regex crate は `!worker` をリテラル `!worker` のマッチとして受け入れる。
+        let patterns = p.column_includes.get("name").expect("name column");
+        assert_eq!(patterns.len(), 1);
+        assert!(patterns[0].is_match("!worker"));
+        assert!(p.column_excludes.is_empty());
     }
 }
