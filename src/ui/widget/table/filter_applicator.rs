@@ -27,15 +27,21 @@ pub struct TableFilterPredicate {
 
     /// Opaque label selector string (e.g. `"app=foo,env=prod"`).
     /// Stored for display / forwarding; NOT evaluated inside `matches()`.
+    /// Consumed by external callers (e.g. PR B Node tab on_apply hook).
+    #[allow(dead_code)]
     pub label_selector: Option<String>,
 
     /// Raw filter string stored for display / forwarding.
     /// NOT evaluated inside `matches()`.
+    /// Consumed by external callers (e.g. title display in PR B).
+    #[allow(dead_code)]
     pub raw: String,
 }
 
 impl TableFilterPredicate {
     /// Returns `true` when this predicate is entirely empty (no filtering).
+    /// Consumed by external callers (e.g. PR B Node tab title display).
+    #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
         self.column_includes.is_empty()
             && self.column_excludes.is_empty()
@@ -106,6 +112,8 @@ pub enum ApplyStrategy {
     /// Filter is applied on every keystroke (incremental / live search).
     Live,
     /// Filter is applied only when the user presses Enter.
+    /// Used by Node tab (PR B); no internal consumer in PR A.
+    #[allow(dead_code)]
     EnterToConfirm,
 }
 
@@ -131,7 +139,10 @@ impl std::fmt::Debug for TableFilterApplicator {
             .field("strategy", &self.strategy)
             .field("help_dialog_id", &self.help_dialog_id)
             .field("parser", &"<TableFilterParser>")
-            .field("on_apply", &self.on_apply.as_ref().map(|_| "<OnFilterApply>"))
+            .field(
+                "on_apply",
+                &self.on_apply.as_ref().map(|_| "<OnFilterApply>"),
+            )
             .finish()
     }
 }
@@ -149,12 +160,16 @@ impl TableFilterApplicator {
 
     /// Attach a help-dialog id. When the filter input is focused and the user
     /// presses `?`, the dialog with this id will be opened.
+    /// Consumed by external callers (PR B Node tab).
+    #[allow(dead_code)]
     pub fn with_help_dialog(mut self, id: impl Into<String>) -> Self {
         self.help_dialog_id = Some(id.into());
         self
     }
 
     /// Attach a callback that is invoked after every filter change.
+    /// Consumed by external callers (PR B Node tab on_apply for labelSelector).
+    #[allow(dead_code)]
     pub fn with_on_apply(mut self, cb: OnFilterApply) -> Self {
         self.on_apply = Some(cb);
         self
@@ -207,7 +222,10 @@ mod tests {
     use super::*;
 
     fn make_item(cells: &[&str]) -> TableItem {
-        TableItem::new(cells.iter().map(|s| s.to_string()).collect::<Vec<_>>(), None)
+        TableItem::new(
+            cells.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            None,
+        )
     }
 
     fn header(cols: &[&str]) -> Vec<String> {
@@ -264,10 +282,7 @@ mod tests {
         let mut pred = TableFilterPredicate::default();
         pred.column_excludes.insert(
             "STATUS".to_string(),
-            vec![
-                Regex::new("Failed").unwrap(),
-                Regex::new("Error").unwrap(),
-            ],
+            vec![Regex::new("Failed").unwrap(), Regex::new("Error").unwrap()],
         );
         let hdr = header(&["NAME", "STATUS"]);
 
@@ -325,8 +340,10 @@ mod tests {
     #[test]
     fn unknown_column_yields_empty_cell_so_fails_match() {
         let mut pred = TableFilterPredicate::default();
-        pred.column_includes
-            .insert("NONEXISTENT".to_string(), vec![Regex::new("anything").unwrap()]);
+        pred.column_includes.insert(
+            "NONEXISTENT".to_string(),
+            vec![Regex::new("anything").unwrap()],
+        );
         let hdr = header(&["NAME", "STATUS"]);
         // The cell for an unknown column is "", which can never match "anything"
         assert!(!pred.matches(&make_item(&["pod-a", "Running"]), &hdr));

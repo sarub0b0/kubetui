@@ -43,13 +43,17 @@ use super::{
 };
 
 pub use filter::{FilterForm, FilterFormTheme};
+// `OnFilterApply` and `TableFilterParser` are part of the public filter API
+// surface; their first internal consumer (Node tab) lands in PR B. The
+// `unused_imports` warning is therefore expected and silenced here.
+#[allow(unused_imports)]
 pub use filter_applicator::{
+    substring_applicator,
     ApplyStrategy,
     OnFilterApply,
     TableFilterApplicator,
     TableFilterParser,
     TableFilterPredicate,
-    substring_applicator,
 };
 
 use item::InnerItem;
@@ -295,7 +299,10 @@ impl Table<'_> {
         let header = self.items.header().original().to_vec();
         let state = self.filter_state.clone();
         self.items.apply_filter(|item| {
-            state.as_ref().map(|p| p.matches(item, &header)).unwrap_or(true)
+            state
+                .as_ref()
+                .map(|p| p.matches(item, &header))
+                .unwrap_or(true)
         });
 
         self.adjust_selected(old_len, self.items.len());
@@ -377,7 +384,10 @@ impl Table<'_> {
         let state = self.filter_state.clone();
 
         self.items.apply_filter(|item| {
-            state.as_ref().map(|p| p.matches(item, &header)).unwrap_or(true)
+            state
+                .as_ref()
+                .map(|p| p.matches(item, &header))
+                .unwrap_or(true)
         });
 
         self.adjust_selected(old_len, self.items.len());
@@ -701,9 +711,7 @@ impl WidgetTrait for Table<'_> {
     fn clear(&mut self) {
         self.state = TableState::default();
 
-        self.items = InnerItem::builder()
-            .max_width(self.max_width())
-            .build();
+        self.items = InnerItem::builder().max_width(self.max_width()).build();
 
         self.row_bounds = Vec::default();
 
@@ -729,10 +737,7 @@ impl Table<'_> {
 
     /// 直近 parse 成功した predicate と applicator の on_apply を捕捉して、
     /// Window 渡しの Callback に詰めて返す。
-    fn on_filter_apply_callback(
-        &self,
-        predicate: TableFilterPredicate,
-    ) -> Option<Callback> {
+    fn on_filter_apply_callback(&self, predicate: TableFilterPredicate) -> Option<Callback> {
         let on_apply = self.filter_applicator.as_ref()?.on_apply.clone()?;
         Some(Callback::from(move |w: &mut Window| {
             (on_apply.closure)(&predicate, w);
@@ -1015,9 +1020,7 @@ mod tests {
             table.filter_error = Some("invalid regex 'foo['".to_string());
             table.update_chunk(Rect::new(0, 0, 40, 6));
 
-            terminal
-                .draw(|f| table.render(f, true, false))
-                .unwrap();
+            terminal.draw(|f| table.render(f, true, false)).unwrap();
 
             let buffer = terminal.backend().buffer().clone();
             let mut dump = String::new();

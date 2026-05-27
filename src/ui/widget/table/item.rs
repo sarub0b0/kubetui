@@ -191,7 +191,6 @@ impl InnerItem<'_> {
             self.item_margin = 0;
         }
     }
-
 }
 
 #[derive(Debug, Default)]

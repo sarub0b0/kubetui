@@ -19,6 +19,7 @@ use crate::{
     ui::{
         event::EventResult,
         widget::{
+            substring_applicator,
             FilterForm,
             FilterFormTheme,
             Item,
@@ -29,7 +30,6 @@ use crate::{
             WidgetBase,
             WidgetTheme,
             WidgetTrait as _,
-            substring_applicator,
         },
         Window,
         WindowAction,
