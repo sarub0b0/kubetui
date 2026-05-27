@@ -428,6 +428,9 @@ impl Table<'_> {
             filter_form.clear();
         }
 
+        self.filter_state = None;
+        self.filter_error = None;
+
         self.filter_items();
     }
 }
@@ -1039,6 +1042,32 @@ mod tests {
                 !dump.contains("node-a"),
                 "rows should NOT be rendered when filter_error is set: {}",
                 dump
+            );
+        }
+
+        #[test]
+        fn filter_cancel_clears_filter_error_and_state() {
+            let mut table = Table::builder()
+                .header(["NAME".to_string(), "STATUS".to_string()])
+                .items([TableItem::new(
+                    vec!["node-a".to_string(), "Ready".to_string()],
+                    None,
+                )])
+                .filter_form(FilterForm::default())
+                .build();
+
+            table.filter_error = Some("invalid regex 'foo['".to_string());
+            table.filter_state = Some(TableFilterPredicate::default());
+
+            table.filter_cancel();
+
+            assert!(
+                table.filter_error.is_none(),
+                "filter_error must be cleared on cancel (so the error overlay does not linger after Esc)"
+            );
+            assert!(
+                table.filter_state.is_none(),
+                "filter_state must be cleared on cancel (so Esc fully discards any applied filter)"
             );
         }
     }
