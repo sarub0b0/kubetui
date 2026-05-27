@@ -43,6 +43,13 @@ use super::{
 };
 
 pub use filter::{FilterForm, FilterFormTheme};
+pub use filter_applicator::{
+    ApplyStrategy,
+    OnFilterApply,
+    TableFilterApplicator,
+    TableFilterParser,
+    TableFilterPredicate,
+};
 
 use item::InnerItem;
 
@@ -79,6 +86,7 @@ pub struct TableBuilder {
     id: String,
     widget_base: WidgetBase,
     filter_form: Option<FilterForm>,
+    filter_applicator: Option<TableFilterApplicator>,
     theme: TableTheme,
     header: Vec<String>,
     items: Vec<TableItem>,
@@ -107,6 +115,13 @@ impl TableBuilder {
     /// to user-defined actions registered via `.action('/', ...)`.
     pub fn filter_form(mut self, filter_form: FilterForm) -> Self {
         self.filter_form = Some(filter_form);
+        self
+    }
+
+    /// Enable rich filter parsing with the given applicator. Replaces the
+    /// default substring-only filter behavior with parser-driven filtering.
+    pub fn filter_applicator(mut self, applicator: TableFilterApplicator) -> Self {
+        self.filter_applicator = Some(applicator);
         self
     }
 
@@ -178,6 +193,9 @@ impl TableBuilder {
             highlight_injection: self.highlight_injection,
             filtered_key: self.filtered_key.clone(),
             filter_form: self.filter_form,
+            filter_applicator: self.filter_applicator,
+            filter_state: None,
+            filter_error: None,
             ..Default::default()
         };
 
@@ -241,6 +259,9 @@ pub struct Table<'a> {
     chunk: Rect,
     row_bounds: Vec<(usize, usize)>,
     filter_form: Option<FilterForm>,
+    filter_applicator: Option<TableFilterApplicator>,
+    filter_state: Option<TableFilterPredicate>,
+    filter_error: Option<String>,
     filtered_key: String,
     mode: Mode,
     on_select: Option<OnSelectCallback>,
