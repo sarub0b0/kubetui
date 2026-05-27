@@ -1,14 +1,11 @@
 use ratatui::widgets::{Cell, Row};
 use std::ops::Deref;
 
-use crate::{
-    logger,
-    ui::widget::{
-        line::convert_lines_to_styled_lines,
-        styled_graphemes::StyledGraphemes,
-        wrap::wrap_line,
-        TableItem,
-    },
+use crate::ui::widget::{
+    line::convert_lines_to_styled_lines,
+    styled_graphemes::StyledGraphemes,
+    wrap::wrap_line,
+    TableItem,
 };
 
 use super::COLUMN_SPACING;
@@ -21,7 +18,6 @@ pub struct InnerItemBuilder {
     header: Vec<String>,
     items: Vec<TableItem>,
     max_width: usize,
-    filtered_key: String,
 }
 
 impl InnerItemBuilder {
@@ -40,17 +36,11 @@ impl InnerItemBuilder {
         self
     }
 
-    pub fn filtered_key(mut self, key: impl Into<String>) -> Self {
-        self.filtered_key = key.into();
-        self
-    }
-
     pub fn build(self) -> InnerItem<'static> {
         let mut inner_item = InnerItem {
             header: Header::new(self.header),
             original_items: self.items.clone(),
             filtered_items: self.items,
-            filtered_key: self.filtered_key,
             ..Default::default()
         };
 
@@ -75,8 +65,6 @@ pub struct InnerItem<'a> {
     item_margin: u16,
     digits: Digits,
     max_width: usize,
-    filtered_key: String,
-    filtered_word: String,
 }
 
 impl InnerItem<'_> {
@@ -118,18 +106,12 @@ impl InnerItem<'_> {
 
     pub fn update_items(&mut self, item: Vec<TableItem>) {
         self.original_items = item;
-        self.inner_filter_items();
+        self.filtered_items = self.original_items.clone();
         self.inner_update_rendered_items();
     }
 
     pub fn update_max_width(&mut self, max_width: usize) {
         self.max_width = max_width;
-        self.inner_update_rendered_items();
-    }
-
-    pub fn update_filter(&mut self, word: impl Into<String>) {
-        self.filtered_word = word.into();
-        self.inner_filter_items();
         self.inner_update_rendered_items();
     }
 
@@ -150,31 +132,6 @@ impl InnerItem<'_> {
 }
 
 impl InnerItem<'_> {
-    fn inner_filter_items(&mut self) {
-        self.filtered_items = if self.filtered_word.is_empty() {
-            self.original_items.clone()
-        } else {
-            self.original_items
-                .iter()
-                .filter_map(|item| {
-                    let choice = item.item[self.filtered_index()]
-                        .styled_graphemes_symbols()
-                        .concat();
-
-                    if self
-                        .filtered_word
-                        .split(' ')
-                        .any(|pattern| choice.contains(pattern))
-                    {
-                        Some(item.clone())
-                    } else {
-                        None
-                    }
-                })
-                .collect()
-        }
-    }
-
     fn inner_update_rendered_items(&mut self) {
         self.digits = Digits::new(&self.filtered_items, &self.header.original, self.max_width);
 
@@ -235,23 +192,6 @@ impl InnerItem<'_> {
         }
     }
 
-    fn filtered_index(&self) -> usize {
-        let index = self
-            .header
-            .original
-            .iter()
-            .position(|header| header == &self.filtered_key)
-            .unwrap_or(0);
-
-        logger!(
-            debug,
-            "[table] header={:?} filtered_key={}",
-            self.header.original,
-            index
-        );
-
-        index
-    }
 }
 
 #[derive(Debug, Default)]
@@ -368,45 +308,6 @@ impl Deref for Digits {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    mod filtered_index {
-        use super::*;
-        use pretty_assertions::assert_eq;
-
-        #[test]
-        fn headerにfiltered_keyに一致する要素があるとき要素のインデックスを返す() {
-            let item = InnerItem::builder()
-                .header(
-                    ["FOO", "BAR", "BAZ"]
-                        .iter()
-                        .map(ToString::to_string)
-                        .collect::<Vec<_>>(),
-                )
-                .filtered_key("BAR")
-                .build();
-
-            let actual = item.filtered_index();
-
-            assert_eq!(actual, 1);
-        }
-
-        #[test]
-        fn headerにfiltered_keyに一致する要素がないとき0を返す() {
-            let item = InnerItem::builder()
-                .header(
-                    ["FOO", "BAR", "BAZ"]
-                        .iter()
-                        .map(ToString::to_string)
-                        .collect::<Vec<_>>(),
-                )
-                .filtered_key("HOGE")
-                .build();
-
-            let actual = item.filtered_index();
-
-            assert_eq!(actual, 0);
-        }
-    }
 
     mod digits {
         use super::*;

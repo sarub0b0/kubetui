@@ -92,7 +92,6 @@ pub struct TableBuilder {
     header: Vec<String>,
     items: Vec<TableItem>,
     state: TableState,
-    filtered_key: String,
     on_select: Option<OnSelectCallback>,
     actions: Vec<(UserEvent, Callback)>,
     block_injection: Option<RenderBlockInjection>,
@@ -144,11 +143,6 @@ impl TableBuilder {
         self
     }
 
-    pub fn filtered_key(mut self, key: impl Into<String>) -> Self {
-        self.filtered_key = key.into();
-        self
-    }
-
     pub fn on_select<F>(mut self, cb: F) -> Self
     where
         F: Into<OnSelectCallback>,
@@ -192,7 +186,6 @@ impl TableBuilder {
             state: self.state,
             block_injection: self.block_injection,
             highlight_injection: self.highlight_injection,
-            filtered_key: self.filtered_key.clone(),
             filter_form: self.filter_form,
             filter_applicator: self.filter_applicator,
             filter_state: None,
@@ -203,7 +196,6 @@ impl TableBuilder {
         table.items = InnerItem::builder()
             .header(self.header)
             .items(self.items)
-            .filtered_key(self.filtered_key)
             .build();
 
         table.update_row_bounds();
@@ -263,7 +255,6 @@ pub struct Table<'a> {
     filter_applicator: Option<TableFilterApplicator>,
     filter_state: Option<TableFilterPredicate>,
     filter_error: Option<String>,
-    filtered_key: String,
     mode: Mode,
     on_select: Option<OnSelectCallback>,
     actions: Vec<(UserEvent, Callback)>,
@@ -298,7 +289,6 @@ impl Table<'_> {
         self.items = InnerItem::builder()
             .header(header)
             .items(rows)
-            .filtered_key(self.filtered_key.clone())
             .max_width(self.max_width())
             .build();
 
@@ -510,6 +500,7 @@ impl WidgetTrait for Table<'_> {
         let old_len = self.items.len();
 
         self.items.update_items(items.table());
+        self.filter_items();
 
         self.adjust_selected(old_len, self.items.len());
 
@@ -712,7 +703,6 @@ impl WidgetTrait for Table<'_> {
 
         self.items = InnerItem::builder()
             .max_width(self.max_width())
-            .filtered_key(self.filtered_key.clone())
             .build();
 
         self.row_bounds = Vec::default();
