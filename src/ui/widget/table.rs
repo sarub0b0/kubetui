@@ -813,6 +813,29 @@ impl RenderTrait for Table<'_> {
 
         let chunk = self.chunk();
 
+        if let Some(err) = self.filter_error.clone() {
+            let lines = vec![err];
+            let error_theme = crate::ui::widget::error::ErrorTheme::default();
+            crate::ui::widget::error::render_widget_error(
+                f,
+                chunk,
+                block.clone(),
+                &lines,
+                &error_theme,
+            );
+
+            // filter_form は引き続き描画（ユーザーが入力を直せるよう）
+            match self.mode {
+                Mode::Normal => {}
+                Mode::FilterInput | Mode::FilterConfirm => {
+                    if let Some(filter_form) = self.filter_form.as_mut() {
+                        filter_form.render(f, self.mode.is_filter_input() && is_active, false);
+                    }
+                }
+            }
+            return;
+        }
+
         if self.items.is_empty() {
             let paragraph = Paragraph::new(" No data".dark_gray()).block(block);
             f.render_widget(paragraph, chunk);
@@ -944,6 +967,50 @@ mod tests {
             let _ = table.on_key_event(slash_event());
 
             assert!(matches!(table.mode, Mode::FilterInput));
+        }
+    }
+
+    mod filter_error_render {
+        use super::*;
+        use ratatui::{backend::TestBackend, Terminal};
+
+        #[test]
+        fn filter_error_replaces_table_body() {
+            let backend = TestBackend::new(40, 6);
+            let mut terminal = Terminal::new(backend).unwrap();
+
+            let mut table = Table::builder()
+                .header(["NAME".to_string(), "STATUS".to_string()])
+                .items([TableItem::new(
+                    vec!["node-a".to_string(), "Ready".to_string()],
+                    None,
+                )])
+                .build();
+            table.filter_error = Some("invalid regex 'foo['".to_string());
+            table.update_chunk(Rect::new(0, 0, 40, 6));
+
+            terminal
+                .draw(|f| table.render(f, true, false))
+                .unwrap();
+
+            let buffer = terminal.backend().buffer().clone();
+            let mut dump = String::new();
+            for y in 0..buffer.area.height {
+                for x in 0..buffer.area.width {
+                    dump.push_str(buffer[(x, y)].symbol());
+                }
+            }
+
+            assert!(
+                dump.contains("invalid regex"),
+                "error text should be rendered: {}",
+                dump
+            );
+            assert!(
+                !dump.contains("node-a"),
+                "rows should NOT be rendered when filter_error is set: {}",
+                dump
+            );
         }
     }
 
