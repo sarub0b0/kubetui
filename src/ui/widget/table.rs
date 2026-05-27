@@ -654,6 +654,19 @@ impl WidgetTrait for Table<'_> {
                     }
 
                     _ => {
+                        // `?` または `help` 入力でヘルプダイアログを開く（applicator が
+                        // help_dialog_id を持つ場合のみ）。Pod log query の慣習に合わせる。
+                        if let Some(help_id) = self.would_be_help_command(ev) {
+                            if let Some(filter_form) = self.filter_form.as_mut() {
+                                filter_form.clear();
+                            }
+                            self.mode.normal();
+                            return EventResult::Callback(Callback::from(move |w: &mut Window| {
+                                w.open_dialog(help_id.clone());
+                                EventResult::Nop
+                            }));
+                        }
+
                         let result = if let Some(filter_form) = self.filter_form.as_mut() {
                             filter_form.on_key_event(ev)
                         } else {
@@ -740,6 +753,28 @@ impl Table<'_> {
         self.state
             .selected()
             .and_then(|index| self.items().get(index).map(|item| Rc::new(item.clone())))
+    }
+
+    /// 現在の入力 + 押下キーがヘルプトリガーになるかを判定。
+    /// applicator が help_dialog_id を持ち、確定後の文字列が "?" または
+    /// "help" と完全一致する場合に Some(help_id) を返す。
+    fn would_be_help_command(&self, ev: KeyEvent) -> Option<String> {
+        let help_id = self.filter_applicator.as_ref()?.help_dialog_id.clone()?;
+        let current = self
+            .filter_form
+            .as_ref()
+            .map(|f| f.content())
+            .unwrap_or_default();
+        let typed = match key_event_to_code(ev) {
+            KeyCode::Char(c) => c,
+            _ => return None,
+        };
+        let pending = format!("{}{}", current, typed);
+        if pending == "?" || pending == "help" {
+            Some(help_id)
+        } else {
+            None
+        }
     }
 
     fn match_action(&self, ev: UserEvent) -> Option<&Callback> {
@@ -1362,6 +1397,61 @@ mod tests {
 
                 assert_eq!((table.state.selected(), table.state.offset()), (None, 0));
             }
+        }
+    }
+
+    mod help_dispatch {
+        use super::*;
+
+        fn dummy_applicator_with_help() -> TableFilterApplicator {
+            let parser: TableFilterParser =
+                (|_input: &str| Ok(TableFilterPredicate::default())).into();
+            TableFilterApplicator::new(parser, ApplyStrategy::EnterToConfirm)
+                .with_help_dialog("test-help-dialog")
+        }
+
+        #[test]
+        fn typing_question_mark_returns_help_callback() {
+            let mut table = Table::builder()
+                .filter_form(FilterForm::builder().build())
+                .filter_applicator(dummy_applicator_with_help())
+                .build();
+            // FilterInput モードへ
+            let _ = table.on_key_event(KeyEvent::from(KeyCode::Char('/')));
+            // `?` を打つ
+            let result = table.on_key_event(KeyEvent::from(KeyCode::Char('?')));
+
+            assert!(matches!(result, EventResult::Callback(_)));
+        }
+
+        #[test]
+        fn typing_normal_char_does_not_open_help() {
+            let mut table = Table::builder()
+                .filter_form(FilterForm::builder().build())
+                .filter_applicator(dummy_applicator_with_help())
+                .build();
+            let _ = table.on_key_event(KeyEvent::from(KeyCode::Char('/')));
+            let result = table.on_key_event(KeyEvent::from(KeyCode::Char('n')));
+
+            // n を打っても help_callback は返さない
+            assert!(!matches!(result, EventResult::Callback(_)));
+        }
+
+        #[test]
+        fn help_does_not_open_without_help_dialog_id() {
+            // help_dialog_id を持たない applicator
+            let parser: TableFilterParser =
+                (|_input: &str| Ok(TableFilterPredicate::default())).into();
+            let applicator = TableFilterApplicator::new(parser, ApplyStrategy::Live);
+
+            let mut table = Table::builder()
+                .filter_form(FilterForm::builder().build())
+                .filter_applicator(applicator)
+                .build();
+            let _ = table.on_key_event(KeyEvent::from(KeyCode::Char('/')));
+            let result = table.on_key_event(KeyEvent::from(KeyCode::Char('?')));
+
+            assert!(!matches!(result, EventResult::Callback(_)));
         }
     }
 }
