@@ -77,7 +77,7 @@ impl TableTheme {
 pub struct TableBuilder {
     id: String,
     widget_base: WidgetBase,
-    filter_form: FilterForm,
+    filter_form: Option<FilterForm>,
     theme: TableTheme,
     header: Vec<String>,
     items: Vec<TableItem>,
@@ -101,8 +101,11 @@ impl TableBuilder {
         self
     }
 
+    /// Enable the built-in substring filter (opened with `/`). Tables that
+    /// don't call this don't have the built-in filter, and `/` falls through
+    /// to user-defined actions registered via `.action('/', ...)`.
     pub fn filter_form(mut self, filter_form: FilterForm) -> Self {
-        self.filter_form = filter_form;
+        self.filter_form = Some(filter_form);
         self
     }
 
@@ -236,7 +239,7 @@ pub struct Table<'a> {
     state: TableState,
     chunk: Rect,
     row_bounds: Vec<(usize, usize)>,
-    filter_form: FilterForm,
+    filter_form: Option<FilterForm>,
     filtered_key: String,
     mode: Mode,
     on_select: Option<OnSelectCallback>,
@@ -276,11 +279,21 @@ impl Table<'_> {
             .max_width(self.max_width())
             .build();
 
-        self.items.update_filter(self.filter_form.content());
+        let word = self.filter_word();
+        self.items.update_filter(word);
 
         self.adjust_selected(old_len, self.items.len());
 
         self.update_row_bounds();
+    }
+
+    /// Current filter input string, or empty when this table has no built-in
+    /// filter.
+    fn filter_word(&self) -> String {
+        self.filter_form
+            .as_ref()
+            .map(|f| f.content())
+            .unwrap_or_default()
     }
 
     fn update_row_bounds(&mut self) {
@@ -329,7 +342,13 @@ impl Table<'_> {
             Mode::Normal => self.chunk,
 
             Mode::FilterInput | Mode::FilterConfirm => {
-                let filter_height = self.filter_form.form_height();
+                // Only reachable when filter_form is Some (the only path into
+                // FilterInput is `/` which is gated below). Map for safety.
+                let filter_height = self
+                    .filter_form
+                    .as_ref()
+                    .map(|f| f.form_height())
+                    .unwrap_or(0);
 
                 Rect::new(
                     x,
@@ -348,7 +367,8 @@ impl Table<'_> {
     fn filter_items(&mut self) {
         let old_len = self.items.len();
 
-        self.items.update_filter(self.filter_form.content());
+        let word = self.filter_word();
+        self.items.update_filter(word);
 
         self.adjust_selected(old_len, self.items.len());
 
@@ -385,7 +405,9 @@ impl Table<'_> {
     fn filter_cancel(&mut self) {
         self.mode.normal();
 
-        self.filter_form.clear();
+        if let Some(filter_form) = self.filter_form.as_mut() {
+            filter_form.clear();
+        }
 
         self.filter_items();
     }
@@ -560,7 +582,7 @@ impl WidgetTrait for Table<'_> {
                         self.select_first();
                     }
 
-                    KeyCode::Char('/') => {
+                    KeyCode::Char('/') if self.filter_form.is_some() => {
                         self.mode.filter_input();
                     }
 
@@ -597,7 +619,13 @@ impl WidgetTrait for Table<'_> {
                     }
 
                     _ => {
-                        let ev = self.filter_form.on_key_event(ev);
+                        // Only reachable when filter_form is Some (FilterInput
+                        // is only entered via the gated `/` branch above).
+                        let ev = if let Some(filter_form) = self.filter_form.as_mut() {
+                            filter_form.on_key_event(ev)
+                        } else {
+                            EventResult::Ignore
+                        };
 
                         self.filter_items();
 
@@ -619,10 +647,10 @@ impl WidgetTrait for Table<'_> {
 
         self.update_row_bounds();
 
-        let filter_height = self.filter_form.form_height();
-
-        self.filter_form
-            .update_chunk(Rect::new(chunk.x, chunk.y, chunk.width, filter_height));
+        if let Some(filter_form) = self.filter_form.as_mut() {
+            let filter_height = filter_form.form_height();
+            filter_form.update_chunk(Rect::new(chunk.x, chunk.y, chunk.width, filter_height));
+        }
     }
 
     fn clear(&mut self) {
@@ -735,8 +763,9 @@ impl RenderTrait for Table<'_> {
         match self.mode {
             Mode::Normal => {}
             Mode::FilterInput | Mode::FilterConfirm => {
-                self.filter_form
-                    .render(f, self.mode.is_filter_input() && is_active, false);
+                if let Some(filter_form) = self.filter_form.as_mut() {
+                    filter_form.render(f, self.mode.is_filter_input() && is_active, false);
+                }
             }
         }
 
@@ -790,6 +819,52 @@ mod tests {
                 .build();
 
             assert_eq!(item.digits(), vec![3, 3])
+        }
+    }
+
+    mod filter_form_option {
+        use super::*;
+
+        fn slash_event() -> KeyEvent {
+            KeyEvent::from(KeyCode::Char('/'))
+        }
+
+        #[test]
+        fn filter_form_未設定なら_スラッシュキーは_filter_input_に入らない() {
+            // filter_form を渡さない（None のまま）テーブル
+            let mut table = Table::builder().build();
+            assert!(matches!(table.mode, Mode::Normal));
+
+            let _ = table.on_key_event(slash_event());
+
+            // フィルタモードに入っていないこと
+            assert!(matches!(table.mode, Mode::Normal));
+        }
+
+        #[test]
+        fn filter_form_未設定で_スラッシュにユーザー_action_があれば_callback_を返す() {
+            // ユーザー定義の `/` action は filter_form がないときに発火する
+            let mut table = Table::builder()
+                .action('/', |_w: &mut Window| EventResult::Nop)
+                .build();
+
+            let result = table.on_key_event(slash_event());
+
+            assert!(matches!(result, EventResult::Callback(_)));
+            assert!(matches!(table.mode, Mode::Normal));
+        }
+
+        #[test]
+        fn filter_form_設定済みなら_スラッシュキーで_filter_input_に入る_既存挙動() {
+            // 既存挙動の回帰テスト: filter_form がある場合は `/` で FilterInput
+            let mut table = Table::builder()
+                .filter_form(FilterForm::builder().build())
+                .build();
+            assert!(matches!(table.mode, Mode::Normal));
+
+            let _ = table.on_key_event(slash_event());
+
+            assert!(matches!(table.mode, Mode::FilterInput));
         }
     }
 
