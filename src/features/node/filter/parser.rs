@@ -5,7 +5,7 @@ use std::{
 
 use nom::{
     branch::alt,
-    bytes::complete::is_not,
+    bytes::complete::{is_not, tag},
     character::complete::{anychar, char, multispace0, multispace1},
     combinator::{map, value, verify},
     error::{ContextError, ParseError},
@@ -152,7 +152,7 @@ fn parse_token<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
     s: &'a str,
 ) -> IResult<&'a str, Term, E> {
     // 1. label: (must be tried before the generic include path)
-    let label_result = preceded(nom::bytes::complete::tag("label:"), value_string::<E>).parse(s);
+    let label_result = preceded(tag("label:"), value_string::<E>).parse(s);
     if let Ok((rem, sel)) = label_result {
         return Ok((rem, Term::Label(sel)));
     }
