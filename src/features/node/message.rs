@@ -10,6 +10,9 @@ pub enum NodeMessage {
     Poll(Result<KubeTable>),
     /// Replace the active labelSelector value. `None` clears it (the
     /// poller stops sending ?labelSelector= in its request URL).
+    /// Constructed by the filter applicator's on_apply callback wired in
+    /// Task 8 (node.rs widget switchover); no internal sender in T7 yet.
+    #[allow(dead_code)]
     Filter(Option<String>),
 }
 
