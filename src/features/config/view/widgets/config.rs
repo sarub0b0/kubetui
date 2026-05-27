@@ -10,6 +10,7 @@ use crate::{
     ui::{
         event::EventResult,
         widget::{
+            substring_applicator,
             FilterForm,
             FilterFormTheme,
             Table,
@@ -44,7 +45,7 @@ pub fn config_widget(tx: &Sender<Message>, theme: WidgetThemeConfig) -> Widget<'
         .widget_base(widget_base)
         .filter_form(filter_form)
         .theme(table_theme)
-        .filtered_key("NAME")
+        .filter_applicator(substring_applicator("NAME"))
         .block_injection(block_injection())
         .on_select(on_select(tx))
         .build()
