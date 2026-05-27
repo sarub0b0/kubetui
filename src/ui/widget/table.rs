@@ -49,6 +49,7 @@ pub use filter_applicator::{
     TableFilterApplicator,
     TableFilterParser,
     TableFilterPredicate,
+    substring_applicator,
 };
 
 use item::InnerItem;

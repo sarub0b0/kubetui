@@ -29,6 +29,7 @@ use crate::{
             WidgetBase,
             WidgetTheme,
             WidgetTrait as _,
+            substring_applicator,
         },
         Window,
         WindowAction,
@@ -55,7 +56,7 @@ pub fn pod_widget(tx: &Sender<Message>, theme: WidgetThemeConfig) -> Widget<'sta
         .widget_base(widget_base)
         .filter_form(filter_form)
         .theme(table_theme)
-        .filtered_key("NAME")
+        .filter_applicator(substring_applicator("NAME"))
         .action('t', open_pod_columns_dialog())
         .block_injection(block_injection())
         .on_select(on_select(tx))

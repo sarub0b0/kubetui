@@ -27,6 +27,7 @@ use crate::{
             WidgetBase,
             WidgetTheme,
             WidgetTrait as _,
+            substring_applicator,
         },
         Window,
         WindowAction,
@@ -52,7 +53,7 @@ pub fn network_widget(tx: &Sender<Message>, theme: WidgetThemeConfig) -> Widget<
         .widget_base(widget_base)
         .filter_form(filter_form)
         .theme(table_theme)
-        .filtered_key("NAME")
+        .filter_applicator(substring_applicator("NAME"))
         .block_injection(block_injection())
         .on_select(on_select(tx))
         .build()
