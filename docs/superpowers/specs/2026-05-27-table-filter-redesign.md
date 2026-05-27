@@ -87,27 +87,52 @@ define_callback!(
     Fn(&TableFilterPredicate, &mut Window)
 );
 
-/// 全タブで共通のフィルタ判定 enum（static dispatch）。
-pub enum TableFilterPredicate {
-    /// 既存タブ用: 単一列に部分一致
-    Substring {
-        column: String,    // 正準形は小文字
-        pattern: String,
-    },
-    /// Node タブ用: 列ベース regex + ラベルセレクタ
-    Node(NodeFilterPredicate),
-    /// 「フィルタなし」相当（live モードで入力が空のとき）
-    Empty,
+/// 全タブで共通のフィルタ判定。意味論は「列内 OR、列間 AND、exclude は any match
+/// excludes」で統一されているため、既存タブ用と Node 用で構造を分ける必要はなく
+/// 単一 struct で表現できる。
+pub struct TableFilterPredicate {
+    /// 列ごとの include patterns（同一列内は OR、列間は AND）。
+    /// キーは小文字に正規化した列名。
+    pub column_includes: HashMap<String, Vec<Regex>>,
+    /// 列ごとの exclude patterns（いずれかにマッチすれば除外）。
+    pub column_excludes: HashMap<String, Vec<Regex>>,
+    /// k8s labelSelector（Node 系のみ、サーバ側で適用される。
+    /// matches() では参照されず、on_apply 経由で poller に渡る）。
+    pub label_selector: Option<String>,
+    /// 入力文字列（タイトル表示・デバッグ用）。
+    pub raw: String,
 }
 
 impl TableFilterPredicate {
     pub fn matches(&self, item: &TableItem, header: &[String]) -> bool {
-        match self {
-            Self::Empty => true,
-            Self::Substring { column, pattern } => { /* find column in header, substring match */ }
-            Self::Node(p) => p.matches(item, header),
+        // include: 各列で「いずれか」マッチ（列内 OR）、すべての列を通過（列間 AND）。
+        for (col, regexes) in &self.column_includes {
+            let cell = cell_of(item, header, col).unwrap_or("");
+            if !regexes.iter().any(|r| r.is_match(cell)) {
+                return false;
+            }
         }
+        // exclude: いずれかにマッチしたら除外。
+        for (col, regexes) in &self.column_excludes {
+            let cell = cell_of(item, header, col).unwrap_or("");
+            if regexes.iter().any(|r| r.is_match(cell)) {
+                return false;
+            }
+        }
+        true
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.column_includes.is_empty()
+            && self.column_excludes.is_empty()
+            && self.label_selector.is_none()
+    }
+}
+
+/// 列名（小文字、正準形）に対応するセル値を返すヘルパ。
+fn cell_of<'a>(item: &'a TableItem, header: &[String], col: &str) -> Option<&'a str> {
+    let idx = header.iter().position(|h| h.eq_ignore_ascii_case(col))?;
+    item.item.get(idx).map(|s| s.as_str())
 }
 ```
 
@@ -119,17 +144,18 @@ Task 0 #980 で `filter_form: Option<FilterForm>` 化済み。さらに以下を
 pub struct Table<'a> {
     // 既存:
     filter_form: Option<FilterForm>,
-    filtered_key: String,  // 旧パスでのみ使う、新パスでは無視
 
     // 新規:
     filter_applicator: Option<TableFilterApplicator>,
     filter_state: Option<TableFilterPredicate>,   // 最後に成功した parse 結果
-    filter_error: Option<String>,                 // 粘着エラー
+    filter_error: Option<String>,                 // 粘着エラー（Tab 階層の widget_error とは別管理）
     ...
 }
 ```
 
-`filtered_key` は移行期間中残すが、すべてのタブが SubstringFilterApplicator に乗り換え完了したら削除（不要になる）。
+**`filtered_key` と `filtered_word` は完全削除。** 全タブが SubstringFilterApplicator に乗り換える設計なので、移行期の if/else 分岐は持たない。一気に新パスへ統一する。
+
+Tab 階層の `widget_error`（既存）は touch しない。Table widget の render は filter_error だけ気にする。
 
 ### Table widget 内部のフロー
 
@@ -201,20 +227,20 @@ fn item_passes_filter(&self, item: &TableItem) -> bool {
 }
 ```
 
-`filtered_key` / `filtered_word` ベースの旧分岐は削除。すべての行絞り込みは `filter_state` を経由する。
+`filtered_key` / `filtered_word` ベースの旧分岐は完全削除。すべての行絞り込みは `filter_state` を経由する。
 
 #### Render
 
 ```rust
-// 既存:
-if let Some(e) = &self.filter_error.as_ref().or(self.widget_error.as_ref()) {
-    // テーブル本体置換でエラー表示（filter_error を widget_error より優先）
+if let Some(e) = self.filter_error.as_ref() {
+    // テーブル本体置換でエラー表示（行は描画しない）
+    render_widget_error(f, chunk, block, e, theme);
 } else {
-    // 通常 render
+    // 通常 render: filter_state があれば item_passes_filter で絞り込まれた行を描画
 }
 ```
 
-`filter_error` と `widget_error` は別フィールド・別ライフサイクル。`filter_error` は parse 失敗で立ち、parse 成功 / フィルタクリアで降りる。`widget_error` は既存通り API 失敗で立ち、API 成功で降りる。
+注: Tab 階層の `widget_error` は Tab.render が widget を呼び出す前にチェックする（既存）。つまり widget_error が立っているときはこの Table::render すら呼ばれない。よって優先順位は技術的に `widget_error > filter_error`。
 
 ## 既存タブの移行
 
@@ -238,17 +264,26 @@ Table::builder()
 
 ```rust
 pub fn substring_applicator(column: &str) -> TableFilterApplicator {
-    let col = column.to_string();
+    let col = column.to_string().to_lowercase();
     TableFilterApplicator {
         parser: (move |input: &str| {
-            if input.is_empty() {
-                Ok(TableFilterPredicate::Empty)
-            } else {
-                Ok(TableFilterPredicate::Substring {
-                    column: col.clone(),
-                    pattern: input.to_string(),
-                })
+            let patterns: Vec<Regex> = input
+                .split_whitespace()
+                .map(|p| Regex::new(&regex::escape(p)))
+                .collect::<Result<_, _>>()
+                .map_err(|e| e.to_string())?;
+
+            let mut column_includes = HashMap::new();
+            if !patterns.is_empty() {
+                column_includes.insert(col.clone(), patterns);
             }
+
+            Ok(TableFilterPredicate {
+                column_includes,
+                column_excludes: HashMap::new(),
+                label_selector: None,
+                raw: input.to_string(),
+            })
         }).into(),
         strategy: ApplyStrategy::Live,
         help_dialog_id: None,
@@ -257,10 +292,13 @@ pub fn substring_applicator(column: &str) -> TableFilterApplicator {
 }
 ```
 
-挙動は完全に等価:
-- live で毎キー絞り込み
-- 単一列（NAME）に部分一致
-- 空入力で「フィルタなし」
+挙動は既存と等価:
+- live で毎キー絞り込み（ApplyStrategy::Live）
+- 単一列（NAME）に対し、スペース区切り **OR** で部分一致
+  - 既存実装 `split(' ').any(|p| contains(p))` と同じ意味論（OR）。
+  - 新統一意味論（列内 OR、列間 AND）と整合: 列が NAME 1 つだけなので「列内 OR」がそのまま既存挙動になる。
+- 空入力で「フィルタなし」（column_includes が空 → 全行 pass）
+- patterns は `regex::escape` でリテラル化（既存 substring と等価動作。ユーザーは regex を意識しなくていい）
 
 対象タブ: Pod / Config / Network / Event / API / Yaml / Context / Namespace の各 Table 生成箇所。
 
@@ -269,41 +307,37 @@ pub fn substring_applicator(column: &str) -> TableFilterApplicator {
 ### 構文
 
 ```
-nginx                            → NAME に nginx を含む（regex）
-NAME:gke.*worker                → NAME に regex
-STATUS:Ready                    → STATUS が Ready (regex)
-STATUS:^Ready$                  → STATUS が完全に Ready
-!NS:kube-system                 → NAME に kube-system を含まない
-label:role=worker               → k8s labelSelector (server-side)
-label:role=worker,zone=us-west  → カンマ AND の k8s labelSelector
-NAME:gke STATUS:Ready label:role=worker
-                                → 上記すべての AND
+foo                              → NAME に foo を含む（regex）
+foo bar                          → NAME に foo OR bar（列内 OR）
+NAME:gke.*worker                 → NAME に regex
+STATUS:Ready                     → STATUS に Ready
+STATUS:Ready STATUS:Pending      → STATUS が Ready OR Pending（列内 OR、in 句相当）
+STATUS:Ready NAME:nginx          → STATUS が Ready AND NAME が nginx（列間 AND）
+foo bar STATUS:a STATUS:b        → (NAME に foo OR bar) AND (STATUS に a OR b)
+!NS:kube-system                  → NAMESPACE に kube-system を含む行を除外
+!STATUS:Pending !STATUS:Failed   → STATUS が Pending OR Failed を含む行を除外（not in 相当）
+label:role=worker                → k8s labelSelector (server-side)
+label:role=worker,zone=us-west   → カンマ AND の k8s labelSelector（k8s 構文そのまま）
 ```
+
+**意味論:**
+
+| 区分 | 結合 | 備考 |
+|---|---|---|
+| 同一列の include 複数 | **OR** | `in (a, b)` 相当 |
+| 異なる列の include 混在 | **AND** | 「列ごとに条件を重ねる」 |
+| 同一列の exclude 複数 | **いずれかにマッチすれば除外** | `not in (a, b)` 相当 |
+| 異なる列の exclude 混在 | 同上（いずれかマッチすれば除外） | 全 exclude を pass する必要 |
+| ベア値 | NAME 列 include の暗黙形 | `foo bar` = `NAME:foo NAME:bar` = NAME に foo OR bar |
+| `label:` | 最後勝ち | k8s API は labelSelector 1 つしか取らない |
 
 - 列名は大小区別しない、正準形は小文字（CLI / Pod log query と同型）
-- 同一列の include 複数 → AND（両方マッチ）
-- 同一列内の OR は regex の `|` で
-- `label:` は最後勝ち（k8s API は labelSelector 1 つ）
-
-### NodeFilterPredicate
-
-```rust
-pub struct NodeFilterPredicate {
-    column_includes: HashMap<String, Vec<Regex>>,
-    column_excludes: HashMap<String, Vec<Regex>>,
-    label_selector: Option<String>,
-    raw: String,
-}
-
-impl NodeFilterPredicate {
-    pub fn matches(&self, item: &TableItem, header: &[String]) -> bool {
-        // 各列について: include は全マッチ、exclude は1つもマッチしない
-        // label_selector はサーバ側で適用済みなので matches では無視
-    }
-}
-```
+- 単一列内の AND が欲しい場合（稀）は regex lookahead で `NAME:(?=.*foo)(?=.*bar)`
+- 値は常に regex として解釈（plain text は実質的に部分一致として動作）
 
 ### NodeFilterApplicator
+
+Node 用の TableFilterApplicator ファクトリ。前述の `TableFilterPredicate` をそのまま返す（Node 専用の predicate type は持たない）。
 
 ```rust
 pub fn node_filter_applicator(
@@ -320,14 +354,15 @@ pub fn node_filter_applicator(
 
 fn build_on_apply(tx: Sender<Message>) -> OnFilterApply {
     (move |predicate: &TableFilterPredicate, _w: &mut Window| {
-        if let TableFilterPredicate::Node(node_pred) = predicate {
-            // labelSelector を SharedNodeFilter 経由で poller に
-            tx.send(NodeFilterMessage::Apply(Some(node_pred.clone())).into())
-                .expect("Failed to send NodeFilterMessage::Apply");
-        }
+        // labelSelector を SharedNodeFilter 経由で poller に
+        // （labelSelector が None でも Apply で「クリア」として送る）
+        tx.send(NodeFilterMessage::Apply(predicate.label_selector.clone()).into())
+            .expect("Failed to send NodeFilterMessage::Apply");
     }).into()
 }
 ```
+
+`NodeFilterMessage` のペイロードは `Option<String>`（label_selector のみ）に縮められる。クライアント側 filter（regex マッチ）は `TableFilterPredicate.matches` が担うので、controller / poller は labelSelector だけ知っていれば十分。
 
 ### サーバ側フィルタリング
 
@@ -337,23 +372,37 @@ fn build_on_apply(tx: Sender<Message>) -> OnFilterApply {
 
 ## エラーハンドリング
 
+エラー状態は 2 つあり、**管理階層も優先順位も異なる**ことに注意:
+
+| 状態 | 管理階層 | セット | クリア | レンダリング箇所 |
+|---|---|---|---|---|
+| `widget_error` | **Tab**（`Tab.error_states: HashMap<widget_id, Vec<String>>`、既存）| action.rs の `update_widget_item_for_table` が Err 受信時 | 同関数が Ok 受信時に自動 | `Tab.render()` が widget の代わりに `render_widget_error` を呼ぶ（widget 自身は呼ばれない）|
+| `filter_error` | **Table widget**（新規フィールド）| Table 内部で `parser(input)` が Err のとき | `parser` 成功時 / フィルタクリア時 / filter_form が空に戻ったとき | Table の render 内で行の代わりに描画 |
+
+### 優先順位: `widget_error > filter_error`
+
+これは「優先したい」というより**技術的にそうなる**。Tab.render が widget_error を見て表示するときは、Table widget の render 自体が呼ばれない（Tab が代替描画する）→ filter_error はチェックされない。
+
+UX 的にも妥当:
+- `widget_error` = API そのものが失敗（基礎データなし）→ 最優先メッセージ
+- `filter_error` = データはあるがフィルタが壊れている → API 復旧次第顔を出す
+
 ### parse エラー（クライアント側）
 
 - `filter_form` の Enter（または live モードの毎キー）で `parser(input)` が `Err(msg)` を返す
 - Table の `filter_error = Some(msg)` をセット
-- render 時、`filter_error` を `widget_error` より優先してテーブル本体置換で表示
-- 行は描画されない（壊れたフィルタで誤解しないため）
+- render 時、`filter_error` が Some なら**既存 `render_widget_error` と同じ関数**でテーブル本体を置換表示（行は描画されない）
 - ポーリングは触らない（粘着）
 
 ### サーバ側エラー（labelSelector が無効など）
 
 - 既存通り `NodeMessage::Poll(Err(e))` → action.rs の `update_widget_item_for_table` で `set_widget_error(NODE_WIDGET_ID, &e)`
-- 既存 `widget_error` 経路で表示、ポーリングが失敗し続ければ表示維持
-- 成功すれば自動的に消える（既存挙動）
+- Tab レベルの widget_error 経路で表示、ポーリングが失敗し続ければ表示維持、成功すれば自動的に消える（既存挙動）
+- このとき Table widget の render は呼ばれないので、`filter_error` が立っていても見えない（widget_error が優先）
 
-### 表示の優先順位
+### 両方立つケース
 
-`filter_error > widget_error`。ユーザーが直接アクションできる（フィルタを書き直す）方が上位。両方 Some のときは filter_error を表示。
+例: フィルタ parse エラー中にサーバ側もエラーになった → Tab レベルの widget_error が表示される。サーバ復旧したら widget_error が clear され、filter_error が見える。自然な振る舞い。
 
 ## ヘルプ
 
@@ -429,7 +478,7 @@ src/features/node/
 
 ### Node タブ実装
 - `src/features/node/filter.rs` — NodeFilterPredicate を列ベースに再定義
-- `src/features/node/filter/parser.rs` — `<col>:<val>` 構文に拡張、`TableFilterPredicate::Node(...)` を返す
+- `src/features/node/filter/parser.rs` — `<col>:<val>` 構文に拡張、`TableFilterPredicate` を返す（ベア値は NAME 列 OR、列明示は AND across columns）
 - `src/features/node/view/widgets/node.rs` — filter_form 復活、node_filter_applicator() 設定
 - `src/features/node/view/widgets/node_filter.rs` — 削除
 - `src/features/node/view/widgets/node_filter_help.rs` — 保持、起動経路は applicator の help_dialog_id 経由
@@ -440,7 +489,7 @@ src/features/node/
 
 ## テスト
 
-- `TableFilterPredicate::matches`: Substring / Node の各ケースを単体テスト
+- `TableFilterPredicate::matches`: 列内 OR・列間 AND・exclude (any-match-excludes) の各組み合わせを単体テスト
 - `substring_applicator`: parser → Predicate のラウンドトリップ、空入力で Empty
 - `node_filter_applicator` parser: `<col>:<val>` / `!<col>:<val>` / `label:` の各パターン、エラー、列名大小区別なし
 - Table widget の filter_state ベース行絞り込み（既存の Pod 行テストが等価結果になるか）
@@ -464,8 +513,10 @@ src/features/node/
 
 ## 主要な設計判断の記録
 
-- **既存タブも parser ベースに統一する**: Table widget 内部に `if let Some(predicate)` と `if let Some(filtered_word)` の 2 系統を残すと負債になるので、一気に統一する。既存タブは SubstringFilterApplicator（live + 単一列 substring）で挙動を完全に保つ。
+- **既存タブも parser ベースに統一する**: Table widget 内部に `if let Some(predicate)` と `if let Some(filtered_word)` の 2 系統を残すと負債になるので、一気に統一する。既存タブは SubstringFilterApplicator（live + 単一列 substring、OR 維持）で挙動を完全に保つ。
 - **適用タイミングは applicator ごとに宣言**: Live と EnterToConfirm を実装に依存させず、parser とセットで applicator が自分の適切な戦略を持つ。
-- **エラーは 2 種別を別フィールドで管理**: ライフサイクルが違う（API は自動 clear、parse は粘着）ので、widget_error と filter_error を別に持つ。render で優先順位だけ決める。
+- **意味論は「列内 OR、列間 AND、exclude は any-match excludes」**: SQL / kubectl labelSelector / spreadsheet など主要な「列ベースフィルタ」慣習と一致。既存 Pod の `/foo bar` (OR) も同じ枠組みに自然に収まる（NAME 単一列の OR 形）。単一列 AND が必要なレアケースは regex lookahead `NAME:(?=.*foo)(?=.*bar)` で対応。
+- **エラーは管理階層が違う**: `widget_error` は Tab レベル（既存・既存タブの API エラー UI を変えない）、`filter_error` は Table widget レベル（新規・粘着）。優先順位は技術的に `widget_error > filter_error`（widget_error 表示時は Table.render が呼ばれない）。UX 的にも妥当: API 失敗は最優先メッセージ、parse エラーは API 復旧次第顔を出す。
+- **TableFilterPredicate は単一 struct**: 新意味論では Substring と Node が同じ「列内 OR、列間 AND」で表現できるため、enum 分岐は不要。将来別種マッチが必要になった時点で enum 化すれば良い（YAGNI）。
 - **API 形は applicator 構造体で束ねる**: builder のメソッドを増やすより、parser/strategy/help/on_apply を 1 ショットの applicator として渡す方が、タブ側コードがシンプルで設定漏れも起きない。
-- **dyn は既存パターン (`define_callback!` = `Rc<dyn Fn>`) を踏襲**: コールバック層では既に dyn を多用しているので一貫性。ホットパス（matches）だけは enum で static dispatch。
+- **dyn は既存パターン (`define_callback!` = `Rc<dyn Fn>`) を踏襲**: コールバック層では既に dyn を多用しているので一貫性。ホットパス（matches）は単一 struct のメソッドなので static dispatch。
