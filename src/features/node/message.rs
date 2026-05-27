@@ -2,8 +2,11 @@ use anyhow::Result;
 
 use crate::{kube::table::KubeTable, message::Message, workers::kube::message::Kube};
 
+use super::NodeColumns;
+
 #[derive(Debug)]
 pub enum NodeMessage {
+    Request(NodeColumns),
     Poll(Result<KubeTable>),
 }
 

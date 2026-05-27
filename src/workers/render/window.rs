@@ -47,7 +47,7 @@ use crate::{
             message::{GatewayVersion, HTTPRouteVersion},
             view::NetworkTab,
         },
-        node::view::NodeTab,
+        node::{view::NodeTab, NodeColumns},
         pod::{view::PodTab, PodColumns},
         yaml::view::YamlTab,
     },
@@ -76,6 +76,7 @@ pub struct WindowInit {
     context: Rc<RefCell<Context>>,
     namespaces: Rc<RefCell<Namespace>>,
     default_pod_columns: Option<PodColumns>,
+    default_node_columns: Option<NodeColumns>,
     theme: ThemeConfig,
     clipboard_mode: ClipboardMode,
     log_max_lines: Option<usize>,
@@ -88,6 +89,7 @@ impl WindowInit {
         context: Rc<RefCell<Context>>,
         namespaces: Rc<RefCell<Namespace>>,
         default_pod_columns: Option<PodColumns>,
+        default_node_columns: Option<NodeColumns>,
         theme: ThemeConfig,
         clipboard_mode: ClipboardMode,
         log_max_lines: Option<usize>,
@@ -98,6 +100,7 @@ impl WindowInit {
             context,
             namespaces,
             default_pod_columns,
+            default_node_columns,
             theme,
             clipboard_mode,
             log_max_lines,
@@ -239,7 +242,15 @@ impl WindowInit {
         let EventTab { tab: event_tab } =
             EventTab::new("Event", &clipboard, self.theme.component.clone());
 
-        let NodeTab { tab: node_tab } = NodeTab::new("Node", self.theme.component.clone());
+        let NodeTab {
+            tab: node_tab,
+            node_columns_dialog,
+        } = NodeTab::new(
+            "Node",
+            &self.tx,
+            self.default_node_columns.clone(),
+            self.theme.component.clone(),
+        );
 
         let ApiTab {
             tab: api_tab,
@@ -297,6 +308,7 @@ impl WindowInit {
             help_dialog,
             log_query_help_dialog,
             pod_columns_dialog,
+            node_columns_dialog,
             yaml_dialog,
         ];
 
