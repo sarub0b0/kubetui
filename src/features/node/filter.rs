@@ -4,15 +4,18 @@
 //! predicate type). The factory wires the parser into the Table widget's
 //! filter framework with `ApplyStrategy::EnterToConfirm`. Server-side
 //! `labelSelector` forwarding is handled via the `on_apply` callback that
-//! sends `NodeMessage::Filter` to the poller. The help-dialog dispatch is
-//! wired in a later task (T10).
+//! sends `NodeMessage::Filter` to the poller. Typing `?` or `help` in the
+//! filter input opens the `NODE_FILTER_HELP_DIALOG_ID` dialog.
 
 mod parser;
 
 use crossbeam::channel::Sender;
 
 use crate::{
-    features::node::{message::NodeMessage, node_columns::NodeLabelColumn},
+    features::{
+        component_id::NODE_FILTER_HELP_DIALOG_ID,
+        node::{message::NodeMessage, node_columns::NodeLabelColumn},
+    },
     message::Message,
     ui::{
         widget::{ApplyStrategy, OnFilterApply, TableFilterApplicator, TableFilterParser},
@@ -45,7 +48,9 @@ pub fn node_filter_applicator(
     })
     .into();
 
-    TableFilterApplicator::new(parser, ApplyStrategy::EnterToConfirm).with_on_apply(on_apply)
+    TableFilterApplicator::new(parser, ApplyStrategy::EnterToConfirm)
+        .with_help_dialog(NODE_FILTER_HELP_DIALOG_ID)
+        .with_on_apply(on_apply)
 }
 
 #[cfg(test)]

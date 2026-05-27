@@ -248,6 +248,7 @@ impl WindowInit {
         let NodeTab {
             tab: node_tab,
             node_columns_dialog,
+            node_filter_help_dialog,
         } = NodeTab::new(
             "Node",
             &self.tx,
@@ -315,6 +316,7 @@ impl WindowInit {
             log_query_help_dialog,
             pod_columns_dialog,
             node_columns_dialog,
+            node_filter_help_dialog,
             yaml_dialog,
         ];
 
