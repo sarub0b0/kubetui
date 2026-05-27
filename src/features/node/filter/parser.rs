@@ -1,8 +1,12 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use regex::Regex;
+use strum::IntoEnumIterator;
 
-use crate::{features::node::node_columns::NodeLabelColumn, ui::widget::TableFilterPredicate};
+use crate::{
+    features::node::node_columns::{NodeColumn, NodeLabelColumn},
+    ui::widget::TableFilterPredicate,
+};
 
 /// One parsed term from the input.
 #[derive(Debug)]
@@ -51,6 +55,19 @@ fn parse_term(token: &str) -> Term {
     Term::Bare(token.to_string())
 }
 
+/// Build the set of valid column names from the builtin `NodeColumn` variants
+/// plus any headers registered in `label_registry`. All names are lowercased
+/// so matching is case-insensitive.
+fn valid_columns(label_registry: &[NodeLabelColumn]) -> HashSet<String> {
+    let mut set: HashSet<String> = NodeColumn::iter()
+        .map(|c| c.display().to_lowercase())
+        .collect();
+    for lc in label_registry {
+        set.insert(lc.header.to_lowercase());
+    }
+    set
+}
+
 /// Parse a Node-filter input string into a `TableFilterPredicate`.
 ///
 /// `label_registry` supplies the set of valid label-column headers (in
@@ -62,7 +79,7 @@ pub fn parse_node_filter(
     input: &str,
     label_registry: &[NodeLabelColumn],
 ) -> Result<TableFilterPredicate, String> {
-    let _ = label_registry; // consumed in Task 5
+    let valid = valid_columns(label_registry);
 
     let trimmed = input.trim();
     let mut column_includes: HashMap<String, Vec<Regex>> = HashMap::new();
@@ -79,11 +96,17 @@ pub fn parse_node_filter(
                     .push(rx);
             }
             Term::Include { column, value } => {
+                if !valid.contains(&column) {
+                    return Err(format!("unknown column '{}'", column));
+                }
                 let rx =
                     Regex::new(&value).map_err(|e| format!("invalid regex '{}': {}", value, e))?;
                 column_includes.entry(column).or_default().push(rx);
             }
             Term::Exclude { column, value } => {
+                if !valid.contains(&column) {
+                    return Err(format!("unknown column '{}'", column));
+                }
                 let rx =
                     Regex::new(&value).map_err(|e| format!("invalid regex '{}': {}", value, e))?;
                 column_excludes.entry(column).or_default().push(rx);
@@ -190,16 +213,16 @@ mod tests {
 
     #[test]
     fn excludes_prefixed_with_bang_populate_column_excludes() {
-        let p = parse_node_filter("!ns:kube-system", &no_label_cols()).unwrap();
+        let p = parse_node_filter("!name:kube-system", &no_label_cols()).unwrap();
         assert!(p.column_includes.is_empty());
-        let patterns = p.column_excludes.get("ns").expect("ns column");
+        let patterns = p.column_excludes.get("name").expect("name column");
         assert_eq!(patterns.len(), 1);
         assert!(patterns[0].is_match("kube-system"));
     }
 
     #[test]
     fn includes_and_excludes_coexist() {
-        let p = parse_node_filter("status:Ready !ns:kube-system", &no_label_cols()).unwrap();
+        let p = parse_node_filter("status:Ready !name:kube-system", &no_label_cols()).unwrap();
         assert_eq!(p.column_includes.len(), 1);
         assert_eq!(p.column_excludes.len(), 1);
     }
@@ -243,12 +266,60 @@ mod tests {
     #[test]
     fn label_and_column_terms_coexist() {
         let p = parse_node_filter(
-            "status:Ready label:role=worker !ns:kube-system",
+            "status:Ready label:role=worker !name:kube-system",
             &no_label_cols(),
         )
         .unwrap();
         assert_eq!(p.column_includes.len(), 1);
         assert_eq!(p.column_excludes.len(), 1);
         assert_eq!(p.label_selector.as_deref(), Some("role=worker"));
+    }
+
+    fn registry_with(name: &str, header: &str) -> Vec<NodeLabelColumn> {
+        vec![NodeLabelColumn {
+            name: name.to_string(),
+            key: "irrelevant.example.com/key".to_string(),
+            header: header.to_string(),
+        }]
+    }
+
+    #[test]
+    fn unknown_column_produces_parse_error() {
+        let err = parse_node_filter("statusu:Ready", &no_label_cols()).unwrap_err();
+        assert!(
+            err.contains("unknown column") && err.contains("statusu"),
+            "error should mention the bad column: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn unknown_column_in_exclude_also_errors() {
+        let err = parse_node_filter("!agee:1h", &no_label_cols()).unwrap_err();
+        assert!(
+            err.contains("unknown column") && err.contains("agee"),
+            "error should mention the bad column: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn builtin_columns_are_accepted() {
+        // `name` and `status` are builtin headers — must not error.
+        assert!(parse_node_filter("name:n status:s", &no_label_cols()).is_ok());
+    }
+
+    #[test]
+    fn registered_label_column_header_is_accepted() {
+        let regs = registry_with("zone", "ZONE");
+        let p = parse_node_filter("zone:us-west", &regs).unwrap();
+        assert!(p.column_includes.contains_key("zone"));
+    }
+
+    #[test]
+    fn label_keyword_is_not_treated_as_a_column_lookup() {
+        // 'label:role=worker' must NOT trigger unknown-column validation
+        // (it's the special-cased k8s labelSelector path).
+        assert!(parse_node_filter("label:role=worker", &no_label_cols()).is_ok());
     }
 }
