@@ -31,8 +31,8 @@ use crate::{
             message::NetworkMessage,
         },
         node::{
-            kube::{NodeConfig, NodePoller, SharedNodeColumns},
-            message::NodeMessage,
+            kube::{NodeConfig, NodeDetailWorker, NodePoller, SharedNodeColumns},
+            message::{NodeDetailMessage, NodeMessage},
         },
         pod::{
             kube::{LogConfig, LogWorker, PodConfig, PodPoller},
@@ -498,6 +498,7 @@ impl Worker for EventController {
         let mut log_handler: Option<LogHandle> = None;
         let mut config_handler: Option<AbortHandle> = None;
         let mut network_handler: Option<AbortHandle> = None;
+        let mut node_detail_handler: Option<AbortHandle> = None;
         let mut yaml_handler: Option<AbortHandle> = None;
         let mut get_handler: Option<AbortHandle> = None;
 
@@ -571,6 +572,11 @@ impl Worker for EventController {
                                     if let Some(handler) = network_handler {
                                         handler.abort();
                                         network_handler = None;
+                                    }
+
+                                    if let Some(handler) = node_detail_handler {
+                                        handler.abort();
+                                        node_detail_handler = None;
                                     }
 
                                     if let Some(handler) = yaml_handler {
@@ -680,6 +686,10 @@ impl Worker for EventController {
                                         h.abort();
                                     }
 
+                                    if let Some(h) = node_detail_handler {
+                                        h.abort();
+                                    }
+
                                     if let Some(h) = yaml_handler {
                                         h.abort();
                                     }
@@ -779,6 +789,19 @@ impl Worker for EventController {
                                     shared_api_resources.clone(),
                                 )
                                 .spawn(),
+                            );
+
+                            task::yield_now().await;
+                        }
+
+                        Kube::NodeDetail(NodeDetailMessage::Request { name }) => {
+                            if let Some(handler) = node_detail_handler {
+                                handler.abort();
+                            }
+
+                            node_detail_handler = Some(
+                                NodeDetailWorker::new(tx.clone(), kube_client.clone(), name)
+                                    .spawn(),
                             );
 
                             task::yield_now().await;
