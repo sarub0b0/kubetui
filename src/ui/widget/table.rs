@@ -301,21 +301,15 @@ impl Table<'_> {
             .max_width(self.max_width())
             .build();
 
-        let word = self.filter_word();
-        self.items.update_filter(word);
+        let header = self.items.header().original().to_vec();
+        let state = self.filter_state.clone();
+        self.items.apply_filter(|item| {
+            state.as_ref().map(|p| p.matches(item, &header)).unwrap_or(true)
+        });
 
         self.adjust_selected(old_len, self.items.len());
 
         self.update_row_bounds();
-    }
-
-    /// Current filter input string, or empty when this table has no built-in
-    /// filter.
-    fn filter_word(&self) -> String {
-        self.filter_form
-            .as_ref()
-            .map(|f| f.content())
-            .unwrap_or_default()
     }
 
     fn update_row_bounds(&mut self) {
@@ -388,12 +382,14 @@ impl Table<'_> {
 
     fn filter_items(&mut self) {
         let old_len = self.items.len();
+        let header = self.items.header().original().to_vec();
+        let state = self.filter_state.clone();
 
-        let word = self.filter_word();
-        self.items.update_filter(word);
+        self.items.apply_filter(|item| {
+            state.as_ref().map(|p| p.matches(item, &header)).unwrap_or(true)
+        });
 
         self.adjust_selected(old_len, self.items.len());
-
         self.update_row_bounds();
     }
 

@@ -132,6 +132,21 @@ impl InnerItem<'_> {
         self.inner_filter_items();
         self.inner_update_rendered_items();
     }
+
+    /// 外部から渡された predicate で original_items を filtered_items に
+    /// 絞り込む。filter_state ベースの新パスで使う。
+    pub fn apply_filter<F>(&mut self, mut predicate: F)
+    where
+        F: FnMut(&TableItem) -> bool,
+    {
+        self.filtered_items = self
+            .original_items
+            .iter()
+            .filter(|i| predicate(i))
+            .cloned()
+            .collect();
+        self.inner_update_rendered_items();
+    }
 }
 
 impl InnerItem<'_> {
