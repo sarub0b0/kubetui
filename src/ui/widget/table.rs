@@ -1,5 +1,6 @@
 // mod filter_form;
 mod filter;
+mod filter_applicator;
 mod item;
 
 use std::rc::Rc;
