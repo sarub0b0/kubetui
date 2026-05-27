@@ -18,7 +18,13 @@ use crate::{
     },
     message::Message,
     ui::{
-        widget::{ApplyStrategy, OnFilterApply, TableFilterApplicator, TableFilterParser},
+        widget::{
+            ApplyStrategy,
+            OnFilterApply,
+            OnFilterCancel,
+            TableFilterApplicator,
+            TableFilterParser,
+        },
         Window,
     },
 };
@@ -41,16 +47,28 @@ pub fn node_filter_applicator(
     let parser: TableFilterParser =
         (move |input: &str| parse_node_filter(input, &label_registry)).into();
 
+    let tx_apply = tx.clone();
+    let tx_cancel = tx;
+
     let on_apply: OnFilterApply = (move |predicate: &crate::ui::widget::TableFilterPredicate,
                                          _window: &mut Window| {
-        tx.send(NodeMessage::Filter(predicate.label_selector.clone()).into())
+        tx_apply
+            .send(NodeMessage::Filter(predicate.label_selector.clone()).into())
             .expect("Failed to send NodeMessage::Filter");
+    })
+    .into();
+
+    let on_cancel: OnFilterCancel = (move |_window: &mut Window| {
+        tx_cancel
+            .send(NodeMessage::Filter(None).into())
+            .expect("Failed to send NodeMessage::Filter(None) on cancel");
     })
     .into();
 
     TableFilterApplicator::new(parser, ApplyStrategy::EnterToConfirm)
         .with_help_dialog(NODE_FILTER_HELP_DIALOG_ID)
         .with_on_apply(on_apply)
+        .with_on_cancel(on_cancel)
 }
 
 #[cfg(test)]

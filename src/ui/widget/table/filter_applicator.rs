@@ -106,6 +106,12 @@ define_callback!(pub TableFilterParser, Fn(&str) -> Result<TableFilterPredicate,
 // forwarding labelSelector to a poller via shared state).
 define_callback!(pub OnFilterApply, Fn(&TableFilterPredicate, &mut Window));
 
+// OnFilterCancel: called when the user cancels the filter (Esc out of
+// FilterInput or FilterConfirm). Receives only &mut Window — the predicate is
+// irrelevant at cancel time. Used by applicators that maintain server-side or
+// otherwise external state which must be cleared on cancel.
+define_callback!(pub OnFilterCancel, Fn(&mut Window));
+
 /// Controls *when* the filter is actually applied to the table rows.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ApplyStrategy {
@@ -131,6 +137,8 @@ pub struct TableFilterApplicator {
     pub(crate) help_dialog_id: Option<String>,
     /// Optional callback invoked after the filter changes.
     pub(crate) on_apply: Option<OnFilterApply>,
+    /// Optional callback invoked when the user cancels the filter (Esc).
+    pub(crate) on_cancel: Option<OnFilterCancel>,
 }
 
 impl std::fmt::Debug for TableFilterApplicator {
@@ -142,6 +150,10 @@ impl std::fmt::Debug for TableFilterApplicator {
             .field(
                 "on_apply",
                 &self.on_apply.as_ref().map(|_| "<OnFilterApply>"),
+            )
+            .field(
+                "on_cancel",
+                &self.on_cancel.as_ref().map(|_| "<OnFilterCancel>"),
             )
             .finish()
     }
@@ -155,6 +167,7 @@ impl TableFilterApplicator {
             strategy,
             help_dialog_id: None,
             on_apply: None,
+            on_cancel: None,
         }
     }
 
@@ -172,6 +185,17 @@ impl TableFilterApplicator {
     #[allow(dead_code)]
     pub fn with_on_apply(mut self, cb: OnFilterApply) -> Self {
         self.on_apply = Some(cb);
+        self
+    }
+
+    /// Attach a callback invoked when the user cancels the filter (Esc out of
+    /// FilterInput or FilterConfirm). Used by applicators that have server-side
+    /// or otherwise external state which needs to be cleared on cancel. The
+    /// callback receives `&mut Window` so it can interact with other widgets or
+    /// dialogs as needed.
+    #[allow(dead_code)]
+    pub fn with_on_cancel(mut self, cb: OnFilterCancel) -> Self {
+        self.on_cancel = Some(cb);
         self
     }
 }
@@ -465,5 +489,11 @@ mod tests {
     fn substring_applicator_on_apply_is_none() {
         let a = substring_applicator("NAME");
         assert!(a.on_apply.is_none());
+    }
+
+    #[test]
+    fn substring_applicator_on_cancel_is_none() {
+        let a = substring_applicator("NAME");
+        assert!(a.on_cancel.is_none());
     }
 }
