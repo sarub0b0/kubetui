@@ -280,6 +280,22 @@ impl Table<'_> {
         &self.state
     }
 
+    /// Title suffix showing the cursor position over the visible row count,
+    /// e.g. ` [3/12]`. When a filter hides some rows the pre-filter total is
+    /// appended in parens: ` [3/12 (50)]`. Shared by every list tab's
+    /// `block_injection` so the indicator stays consistent.
+    pub fn count_indicator(&self) -> String {
+        let index = self.state.selected().map(|i| i + 1).unwrap_or(0);
+        let visible = self.items.len();
+        let total = self.items.original_len();
+
+        if visible == total {
+            format!(" [{}/{}]", index, visible)
+        } else {
+            format!(" [{}/{} ({})]", index, visible, total)
+        }
+    }
+
     pub fn equal_header(&self, header: &[String]) -> bool {
         self.items.header().original() == header
     }
@@ -1130,6 +1146,74 @@ mod tests {
 
             let cb = table.filter_cancel();
             assert!(cb.is_none(), "no applicator → filter_cancel returns None");
+        }
+    }
+
+    mod count_indicator {
+        use std::collections::HashMap;
+
+        use regex::Regex;
+
+        use super::*;
+
+        fn table_with_three() -> Table<'static> {
+            Table::builder()
+                .header(["NAME".to_string()])
+                .items([
+                    TableItem::new(vec!["aaa".to_string()], None),
+                    TableItem::new(vec!["bbb".to_string()], None),
+                    TableItem::new(vec!["aab".to_string()], None),
+                ])
+                .build()
+        }
+
+        #[test]
+        fn unfiltered_shows_selected_over_total_without_parens() {
+            let table = table_with_three();
+            // builder selects the first row when items are non-empty.
+            assert_eq!(table.count_indicator(), " [1/3]");
+        }
+
+        #[test]
+        fn no_selection_shows_zero_numerator() {
+            let mut table = table_with_three();
+            table.state = TableState::default();
+            assert_eq!(table.count_indicator(), " [0/3]");
+        }
+
+        #[test]
+        fn filtered_appends_pre_filter_total_in_parens() {
+            let mut table = table_with_three();
+
+            let mut column_includes = HashMap::new();
+            column_includes.insert("name".to_string(), vec![Regex::new("aa").unwrap()]);
+            table.filter_state = Some(TableFilterPredicate {
+                column_includes,
+                column_excludes: HashMap::new(),
+                label_selector: None,
+                raw: "aa".to_string(),
+            });
+            table.filter_items();
+
+            // aaa, aab match → 2 visible of 3 total.
+            assert_eq!(table.count_indicator(), " [1/2 (3)]");
+        }
+
+        #[test]
+        fn zero_matches_shows_zero_over_zero_with_total() {
+            let mut table = table_with_three();
+
+            let mut column_includes = HashMap::new();
+            column_includes.insert("name".to_string(), vec![Regex::new("zzz").unwrap()]);
+            table.filter_state = Some(TableFilterPredicate {
+                column_includes,
+                column_excludes: HashMap::new(),
+                label_selector: None,
+                raw: "zzz".to_string(),
+            });
+            table.filter_items();
+
+            assert_eq!(table.count_indicator(), " [0/0 (3)]");
         }
     }
 
