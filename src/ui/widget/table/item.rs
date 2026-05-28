@@ -76,6 +76,12 @@ impl InnerItem<'_> {
         self.filtered_items.len()
     }
 
+    /// Number of items before any filter is applied. `len()` returns the
+    /// post-filter (visible) count; this returns the pre-filter total.
+    pub fn original_len(&self) -> usize {
+        self.original_items.len()
+    }
+
     pub fn is_empty(&self) -> bool {
         self.filtered_items.is_empty()
     }

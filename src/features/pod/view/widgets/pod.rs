@@ -74,15 +74,9 @@ fn open_pod_columns_dialog() -> impl Fn(&mut Window) -> EventResult {
 
 fn block_injection() -> impl Fn(&Table) -> WidgetBase {
     |table: &Table| {
-        let index = if let Some(index) = table.state().selected() {
-            index + 1
-        } else {
-            0
-        };
-
         let mut base = table.widget_base().clone();
 
-        *base.append_title_mut() = Some(format!(" [{}/{}]", index, table.items().len()).into());
+        *base.append_title_mut() = Some(table.count_indicator().into());
 
         base
     }
