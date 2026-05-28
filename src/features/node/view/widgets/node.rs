@@ -51,9 +51,30 @@ pub fn node_widget(
         .filter_applicator(node_filter_applicator(label_registry, tx.clone()))
         .theme(table_theme)
         .action('t', open_node_columns_dialog())
+        .block_injection(block_injection())
         .on_select(on_select(tx))
         .build()
         .into()
+}
+
+/// Append a `[selected/visible]` indicator to the Node title, matching the
+/// Pod / Config / Network tabs. When a filter is active the visible count
+/// (denominator) shrinks, which is the same implicit filter feedback the
+/// other tabs provide.
+fn block_injection() -> impl Fn(&Table) -> WidgetBase {
+    |table: &Table| {
+        let index = if let Some(index) = table.state().selected() {
+            index + 1
+        } else {
+            0
+        };
+
+        let mut base = table.widget_base().clone();
+
+        *base.append_title_mut() = Some(format!(" [{}/{}]", index, table.items().len()).into());
+
+        base
+    }
 }
 
 fn open_node_columns_dialog() -> impl Fn(&mut Window) -> EventResult {
