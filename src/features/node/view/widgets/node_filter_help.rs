@@ -7,23 +7,27 @@ use crate::{
     message::UserEvent,
     ui::{
         event::EventResult,
-        widget::{Text, TextTheme, Widget, WidgetBase, WidgetTheme},
+        widget::{SearchForm, SearchFormTheme, Text, TextTheme, Widget, WidgetBase, WidgetTheme},
         Window,
     },
 };
 
 pub fn node_filter_help_widget(theme: WidgetThemeConfig) -> Widget<'static> {
     let widget_theme = WidgetTheme::from(theme.clone());
-    let text_theme = TextTheme::from(theme);
+    let text_theme = TextTheme::from(theme.clone());
+    let search_theme = SearchFormTheme::from(theme);
 
     let widget_base = WidgetBase::builder()
         .title("Node Filter Help")
         .theme(widget_theme)
         .build();
 
+    let search_form = SearchForm::builder().theme(search_theme).build();
+
     Text::builder()
         .id(NODE_FILTER_HELP_DIALOG_ID)
         .widget_base(widget_base)
+        .search_form(search_form)
         .theme(text_theme)
         .items(content())
         .action(UserEvent::from(KeyCode::Enter), close_dialog())
