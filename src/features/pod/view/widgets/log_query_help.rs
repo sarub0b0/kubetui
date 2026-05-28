@@ -2,19 +2,33 @@ use indoc::indoc;
 use ratatui::crossterm::event::KeyCode;
 
 use crate::{
+    config::theme::WidgetThemeConfig,
     features::component_id::POD_LOG_QUERY_HELP_DIALOG_ID,
     message::UserEvent,
     ui::{
         event::EventResult,
-        widget::{Text, Widget, WidgetBase},
+        widget::{SearchForm, SearchFormTheme, Text, TextTheme, Widget, WidgetBase, WidgetTheme},
         Window,
     },
 };
 
-pub fn log_query_help_widget() -> Widget<'static> {
+pub fn log_query_help_widget(theme: WidgetThemeConfig) -> Widget<'static> {
+    let widget_theme = WidgetTheme::from(theme.clone());
+    let text_theme = TextTheme::from(theme.clone());
+    let search_theme = SearchFormTheme::from(theme);
+
+    let widget_base = WidgetBase::builder()
+        .title("Log Query Help")
+        .theme(widget_theme)
+        .build();
+
+    let search_form = SearchForm::builder().theme(search_theme).build();
+
     Text::builder()
         .id(POD_LOG_QUERY_HELP_DIALOG_ID)
-        .widget_base(WidgetBase::builder().title("Log Query Help").build())
+        .widget_base(widget_base)
+        .search_form(search_form)
+        .theme(text_theme)
         .items(content())
         .action(UserEvent::from(KeyCode::Enter), close_dialog())
         .build()
