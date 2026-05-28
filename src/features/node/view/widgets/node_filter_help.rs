@@ -69,9 +69,11 @@ fn content() -> Vec<String> {
            OS-IMAGE:"Ubuntu 22.04 LTS"     Quoted value with whitespace
            NAME:"foo bar"                  Quote bare value too
 
-        Column names are case-insensitive. Unknown columns produce a
-        parse error. Press Enter to apply, Esc to cancel. Type ? or
-        help in the filter input to open this help.
+        Filterable columns are the ones currently shown in the table.
+        Column names ignore case, spaces, '-' and '_'. A column not in
+        the current view produces an error (add it via the columns
+        dialog). Press Enter to apply, Esc to cancel. Type ? or help in
+        the filter input to open this help.
     "# }
     .lines()
     .map(ToString::to_string)

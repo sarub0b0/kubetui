@@ -41,7 +41,7 @@ impl NodeTab {
         label_registry: Vec<NodeLabelColumn>,
         theme: WidgetThemeConfig,
     ) -> Self {
-        let node_widget = node_widget(tx.clone(), label_registry.clone(), theme.clone());
+        let node_widget = node_widget(tx.clone(), theme.clone());
         let detail_widget = node_detail_widget(clipboard, theme.clone());
         let node_columns_dialog =
             node_columns_dialog(tx, default_columns, label_registry, theme.clone());

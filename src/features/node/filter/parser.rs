@@ -15,12 +15,8 @@ use nom::{
     Parser,
 };
 use regex::Regex;
-use strum::IntoEnumIterator;
 
-use crate::{
-    features::node::node_columns::{NodeColumn, NodeLabelColumn},
-    ui::widget::TableFilterPredicate,
-};
+use crate::ui::widget::{normalize_column_name, TableFilterPredicate};
 
 // ---------------------------------------------------------------------------
 // Quoting helpers (copied from pod/kube/filter/parser.rs to avoid cross-feature dep)
@@ -211,17 +207,10 @@ fn parse_token<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
 // Column validation helpers
 // ---------------------------------------------------------------------------
 
-/// Build the set of valid column names from the builtin `NodeColumn` variants
-/// plus any headers registered in `label_registry`. All names are lowercased
-/// so matching is case-insensitive.
-fn valid_columns(label_registry: &[NodeLabelColumn]) -> HashSet<String> {
-    let mut set: HashSet<String> = NodeColumn::iter()
-        .map(|c| c.display().to_lowercase())
-        .collect();
-    for lc in label_registry {
-        set.insert(lc.header.to_lowercase());
-    }
-    set
+/// Build the set of valid column names from the current table header,
+/// normalized so matching is case/format-insensitive.
+fn valid_columns(header: &[String]) -> HashSet<String> {
+    header.iter().map(|h| normalize_column_name(h)).collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -230,20 +219,16 @@ fn valid_columns(label_registry: &[NodeLabelColumn]) -> HashSet<String> {
 
 /// Parse a Node-filter input string into a `TableFilterPredicate`.
 ///
-/// `label_registry` supplies the set of valid label-column headers (in
-/// addition to the builtin Node column headers). Unknown column names
-/// produce a parse error.
+/// `header` is the table's current display header. Column references are
+/// validated (case/format-insensitive) against it; a column not in the current
+/// view produces a parse error. When `header` is empty (e.g. before the first
+/// poll populates the table) column validation is skipped.
 ///
-/// Values may be quoted (`"..."` / `'...'`) to include whitespace, with the
-/// same escape rules as the Pod log query parser:
-///   `\"` → `"`   `\'` → `'`   `\\` → `\`   `\<other>` → `\<other>`
-// Consumed by the node_filter_applicator factory in Task 6 (this PR).
-#[allow(dead_code)]
-pub fn parse_node_filter(
-    input: &str,
-    label_registry: &[NodeLabelColumn],
-) -> Result<TableFilterPredicate, String> {
-    let valid = valid_columns(label_registry);
+/// Values may be quoted (`"..."` / `'...'`) with the same escape rules as the
+/// Pod log query parser: `\"` → `"`  `\'` → `'`  `\\` → `\`  `\<other>` verbatim.
+pub fn parse_node_filter(input: &str, header: &[String]) -> Result<TableFilterPredicate, String> {
+    let valid = valid_columns(header);
+    let validate = !header.is_empty();
 
     let trimmed = input.trim();
     let mut column_includes: HashMap<String, Vec<Regex>> = HashMap::new();
@@ -284,20 +269,22 @@ pub fn parse_node_filter(
                     .push(rx);
             }
             Term::Include { column, value } => {
-                if !valid.contains(&column) {
-                    return Err(format!("unknown column '{}'", column));
+                let col = normalize_column_name(&column);
+                if validate && !valid.contains(&col) {
+                    return Err(format!("column '{}' is not in the current view", column));
                 }
                 let rx =
                     Regex::new(&value).map_err(|e| format!("invalid regex '{}': {}", value, e))?;
-                column_includes.entry(column).or_default().push(rx);
+                column_includes.entry(col).or_default().push(rx);
             }
             Term::Exclude { column, value } => {
-                if !valid.contains(&column) {
-                    return Err(format!("unknown column '{}'", column));
+                let col = normalize_column_name(&column);
+                if validate && !valid.contains(&col) {
+                    return Err(format!("column '{}' is not in the current view", column));
                 }
                 let rx =
                     Regex::new(&value).map_err(|e| format!("invalid regex '{}': {}", value, e))?;
-                column_excludes.entry(column).or_default().push(rx);
+                column_excludes.entry(col).or_default().push(rx);
             }
             Term::Label(sel) => {
                 // Last label: term wins (k8s API accepts only one labelSelector value).
@@ -319,13 +306,27 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
 
-    fn no_label_cols() -> Vec<NodeLabelColumn> {
-        Vec::new()
+    fn header() -> Vec<String> {
+        [
+            "NAME",
+            "STATUS",
+            "ROLES",
+            "AGE",
+            "VERSION",
+            "INTERNAL-IP",
+            "EXTERNAL-IP",
+            "OS-IMAGE",
+            "KERNEL-VERSION",
+            "CONTAINER-RUNTIME",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
     }
 
     #[test]
     fn empty_input_yields_empty_predicate() {
-        let p = parse_node_filter("", &no_label_cols()).unwrap();
+        let p = parse_node_filter("", &header()).unwrap();
         assert!(p.column_includes.is_empty());
         assert!(p.column_excludes.is_empty());
         assert_eq!(p.label_selector, None);
@@ -334,14 +335,14 @@ mod tests {
 
     #[test]
     fn whitespace_only_input_yields_empty_predicate() {
-        let p = parse_node_filter("   \t  ", &no_label_cols()).unwrap();
+        let p = parse_node_filter("   \t  ", &header()).unwrap();
         assert!(p.column_includes.is_empty());
         assert_eq!(p.raw, "");
     }
 
     #[test]
     fn single_bare_value_becomes_name_include() {
-        let p = parse_node_filter("worker", &no_label_cols()).unwrap();
+        let p = parse_node_filter("worker", &header()).unwrap();
         assert_eq!(p.column_includes.len(), 1);
         let patterns = p.column_includes.get("name").expect("name column");
         assert_eq!(patterns.len(), 1);
@@ -352,7 +353,7 @@ mod tests {
 
     #[test]
     fn multiple_bare_values_become_name_or() {
-        let p = parse_node_filter("foo bar", &no_label_cols()).unwrap();
+        let p = parse_node_filter("foo bar", &header()).unwrap();
         let patterns = p.column_includes.get("name").expect("name column");
         assert_eq!(patterns.len(), 2);
         assert_eq!(p.raw, "foo bar");
@@ -360,7 +361,7 @@ mod tests {
 
     #[test]
     fn explicit_column_include_creates_column_entry() {
-        let p = parse_node_filter("status:Ready", &no_label_cols()).unwrap();
+        let p = parse_node_filter("status:Ready", &header()).unwrap();
         assert_eq!(p.column_includes.len(), 1);
         let patterns = p.column_includes.get("status").expect("status column");
         assert_eq!(patterns.len(), 1);
@@ -370,14 +371,14 @@ mod tests {
 
     #[test]
     fn column_names_are_case_insensitive_canonicalized_lowercase() {
-        let p = parse_node_filter("STATUS:Ready Name:worker", &no_label_cols()).unwrap();
+        let p = parse_node_filter("STATUS:Ready Name:worker", &header()).unwrap();
         assert!(p.column_includes.contains_key("status"));
         assert!(p.column_includes.contains_key("name"));
     }
 
     #[test]
     fn same_column_includes_accumulate_in_order() {
-        let p = parse_node_filter("status:Ready status:Pending", &no_label_cols()).unwrap();
+        let p = parse_node_filter("status:Ready status:Pending", &header()).unwrap();
         let patterns = p.column_includes.get("status").expect("status column");
         assert_eq!(patterns.len(), 2);
         assert!(patterns[0].is_match("Ready"));
@@ -386,14 +387,14 @@ mod tests {
 
     #[test]
     fn different_columns_coexist_in_predicate() {
-        let p = parse_node_filter("status:Ready name:worker", &no_label_cols()).unwrap();
+        let p = parse_node_filter("status:Ready name:worker", &header()).unwrap();
         assert_eq!(p.column_includes.len(), 2);
     }
 
     #[test]
     fn bare_and_column_includes_mix() {
         // `foo status:Ready` → NAME has `foo`, STATUS has `Ready`
-        let p = parse_node_filter("foo status:Ready", &no_label_cols()).unwrap();
+        let p = parse_node_filter("foo status:Ready", &header()).unwrap();
         assert_eq!(p.column_includes.len(), 2);
         assert_eq!(p.column_includes.get("name").unwrap().len(), 1);
         assert_eq!(p.column_includes.get("status").unwrap().len(), 1);
@@ -401,7 +402,7 @@ mod tests {
 
     #[test]
     fn excludes_prefixed_with_bang_populate_column_excludes() {
-        let p = parse_node_filter("!name:kube-system", &no_label_cols()).unwrap();
+        let p = parse_node_filter("!name:kube-system", &header()).unwrap();
         assert!(p.column_includes.is_empty());
         let patterns = p.column_excludes.get("name").expect("name column");
         assert_eq!(patterns.len(), 1);
@@ -410,7 +411,7 @@ mod tests {
 
     #[test]
     fn includes_and_excludes_coexist() {
-        let p = parse_node_filter("status:Ready !name:kube-system", &no_label_cols()).unwrap();
+        let p = parse_node_filter("status:Ready !name:kube-system", &header()).unwrap();
         assert_eq!(p.column_includes.len(), 1);
         assert_eq!(p.column_excludes.len(), 1);
     }
@@ -418,7 +419,7 @@ mod tests {
     #[test]
     fn bang_without_colon_is_treated_as_bare_value() {
         // `!worker` は `!name:worker` の省略形ではない。bang は明示的な column と組でのみ意味を持つ。
-        let p = parse_node_filter("!worker", &no_label_cols()).unwrap();
+        let p = parse_node_filter("!worker", &header()).unwrap();
         // 文字列 `!worker` がそのまま NAME 列の regex になる。regex crate は `!worker` をリテラル `!worker` のマッチとして受け入れる。
         let patterns = p.column_includes.get("name").expect("name column");
         assert_eq!(patterns.len(), 1);
@@ -428,7 +429,7 @@ mod tests {
 
     #[test]
     fn label_selector_is_captured_verbatim() {
-        let p = parse_node_filter("label:role=worker", &no_label_cols()).unwrap();
+        let p = parse_node_filter("label:role=worker", &header()).unwrap();
         assert_eq!(p.label_selector.as_deref(), Some("role=worker"));
         assert!(p.column_includes.is_empty());
         assert!(p.column_excludes.is_empty());
@@ -436,7 +437,7 @@ mod tests {
 
     #[test]
     fn label_selector_supports_kubectl_comma_and() {
-        let p = parse_node_filter("label:role=worker,zone=us-west", &no_label_cols()).unwrap();
+        let p = parse_node_filter("label:role=worker,zone=us-west", &header()).unwrap();
         assert_eq!(
             p.label_selector.as_deref(),
             Some("role=worker,zone=us-west")
@@ -447,7 +448,7 @@ mod tests {
     fn multiple_label_terms_keep_the_last() {
         // The k8s API accepts only one labelSelector value; spec requires
         // last-wins to match the Pod log query convention.
-        let p = parse_node_filter("label:a=1 label:b=2", &no_label_cols()).unwrap();
+        let p = parse_node_filter("label:a=1 label:b=2", &header()).unwrap();
         assert_eq!(p.label_selector.as_deref(), Some("b=2"));
     }
 
@@ -455,7 +456,7 @@ mod tests {
     fn label_and_column_terms_coexist() {
         let p = parse_node_filter(
             "status:Ready label:role=worker !name:kube-system",
-            &no_label_cols(),
+            &header(),
         )
         .unwrap();
         assert_eq!(p.column_includes.len(), 1);
@@ -463,30 +464,22 @@ mod tests {
         assert_eq!(p.label_selector.as_deref(), Some("role=worker"));
     }
 
-    fn registry_with(name: &str, header: &str) -> Vec<NodeLabelColumn> {
-        vec![NodeLabelColumn {
-            name: name.to_string(),
-            key: "irrelevant.example.com/key".to_string(),
-            header: header.to_string(),
-        }]
-    }
-
     #[test]
     fn unknown_column_produces_parse_error() {
-        let err = parse_node_filter("statusu:Ready", &no_label_cols()).unwrap_err();
+        let err = parse_node_filter("statusu:Ready", &header()).unwrap_err();
         assert!(
-            err.contains("unknown column") && err.contains("statusu"),
-            "error should mention the bad column: {}",
+            err.contains("not in the current view") && err.contains("statusu"),
+            "error should explain the column is not shown: {}",
             err
         );
     }
 
     #[test]
     fn unknown_column_in_exclude_also_errors() {
-        let err = parse_node_filter("!agee:1h", &no_label_cols()).unwrap_err();
+        let err = parse_node_filter("!agee:1h", &header()).unwrap_err();
         assert!(
-            err.contains("unknown column") && err.contains("agee"),
-            "error should mention the bad column: {}",
+            err.contains("not in the current view") && err.contains("agee"),
+            "error should explain the column is not shown: {}",
             err
         );
     }
@@ -494,13 +487,14 @@ mod tests {
     #[test]
     fn builtin_columns_are_accepted() {
         // `name` and `status` are builtin headers — must not error.
-        assert!(parse_node_filter("name:n status:s", &no_label_cols()).is_ok());
+        assert!(parse_node_filter("name:n status:s", &header()).is_ok());
     }
 
     #[test]
-    fn registered_label_column_header_is_accepted() {
-        let regs = registry_with("zone", "ZONE");
-        let p = parse_node_filter("zone:us-west", &regs).unwrap();
+    fn header_column_is_accepted() {
+        let mut h = header();
+        h.push("ZONE".to_string());
+        let p = parse_node_filter("zone:us-west", &h).unwrap();
         assert!(p.column_includes.contains_key("zone"));
     }
 
@@ -508,7 +502,36 @@ mod tests {
     fn label_keyword_is_not_treated_as_a_column_lookup() {
         // 'label:role=worker' must NOT trigger unknown-column validation
         // (it's the special-cased k8s labelSelector path).
-        assert!(parse_node_filter("label:role=worker", &no_label_cols()).is_ok());
+        assert!(parse_node_filter("label:role=worker", &header()).is_ok());
+    }
+
+    #[test]
+    fn multiword_column_with_space_is_filterable_via_compact_token() {
+        // 課題 I: a header column with a space (e.g. NOMINATED NODE) is
+        // addressable via a compact token, stored under its normalized key.
+        let h = vec!["NAME".to_string(), "NOMINATED NODE".to_string()];
+        let p = parse_node_filter("nominatednode:foo", &h).unwrap();
+        assert!(p.column_includes.contains_key("nominatednode"));
+    }
+
+    #[test]
+    fn column_not_in_header_produces_not_in_view_error() {
+        // 課題 II: VERSION is a real builtin name, but with a header that omits
+        // it, filtering on it must error rather than hide all rows.
+        let h = vec!["NAME".to_string(), "STATUS".to_string()];
+        let err = parse_node_filter("version:1.2", &h).unwrap_err();
+        assert!(
+            err.contains("not in the current view") && err.contains("version"),
+            "error should explain the column is not shown: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn empty_header_skips_column_validation() {
+        // Before the first poll the header may be empty; don't reject valid input.
+        let p = parse_node_filter("status:Ready", &[]).unwrap();
+        assert!(p.column_includes.contains_key("status"));
     }
 
     // -----------------------------------------------------------------------
@@ -517,22 +540,22 @@ mod tests {
 
     #[test]
     fn double_quoted_value_with_spaces_is_kept_intact() {
-        let p = parse_node_filter(r#"os-image:"Ubuntu 22.04.3 LTS""#, &no_label_cols()).unwrap();
-        let patterns = p.column_includes.get("os-image").expect("os-image col");
+        let p = parse_node_filter(r#"os-image:"Ubuntu 22.04.3 LTS""#, &header()).unwrap();
+        let patterns = p.column_includes.get("osimage").expect("osimage col");
         assert_eq!(patterns.len(), 1);
         assert!(patterns[0].is_match("Ubuntu 22.04.3 LTS"));
     }
 
     #[test]
     fn single_quoted_value_with_spaces_is_kept_intact() {
-        let p = parse_node_filter(r#"os-image:'Ubuntu 22.04 LTS'"#, &no_label_cols()).unwrap();
-        let patterns = p.column_includes.get("os-image").unwrap();
+        let p = parse_node_filter(r#"os-image:'Ubuntu 22.04 LTS'"#, &header()).unwrap();
+        let patterns = p.column_includes.get("osimage").unwrap();
         assert!(patterns[0].is_match("Ubuntu 22.04 LTS"));
     }
 
     #[test]
     fn quoted_value_with_escaped_quote() {
-        let p = parse_node_filter(r#"name:"foo\"bar""#, &no_label_cols()).unwrap();
+        let p = parse_node_filter(r#"name:"foo\"bar""#, &header()).unwrap();
         let patterns = p.column_includes.get("name").unwrap();
         // 値は `foo"bar` という regex
         assert!(patterns[0].is_match(r#"foo"bar"#));
@@ -541,7 +564,7 @@ mod tests {
     #[test]
     fn quoted_value_preserves_regex_backslash_classes() {
         // `\s` をリテラルに残して regex `\s`（空白）になる
-        let p = parse_node_filter(r#"name:"foo\sbar""#, &no_label_cols()).unwrap();
+        let p = parse_node_filter(r#"name:"foo\sbar""#, &header()).unwrap();
         let patterns = p.column_includes.get("name").unwrap();
         assert!(patterns[0].is_match("foo bar")); // regex \s が空白マッチ
         assert!(!patterns[0].is_match("foobar"));
@@ -550,21 +573,20 @@ mod tests {
     #[test]
     fn bare_value_with_quoted_spaces() {
         // bare の場合も quoted value をサポート: "node a" → NAME に regex "node a"
-        let p = parse_node_filter(r#""node a""#, &no_label_cols()).unwrap();
+        let p = parse_node_filter(r#""node a""#, &header()).unwrap();
         let patterns = p.column_includes.get("name").unwrap();
         assert!(patterns[0].is_match("node a"));
     }
 
     #[test]
     fn mixed_quoted_and_unquoted_tokens() {
-        let p =
-            parse_node_filter(r#"status:Ready os-image:"Ubuntu 22.04""#, &no_label_cols()).unwrap();
+        let p = parse_node_filter(r#"status:Ready os-image:"Ubuntu 22.04""#, &header()).unwrap();
         assert_eq!(p.column_includes.len(), 2);
-        assert!(p.column_includes.get("os-image").unwrap()[0].is_match("Ubuntu 22.04"));
+        assert!(p.column_includes.get("osimage").unwrap()[0].is_match("Ubuntu 22.04"));
     }
 
     #[test]
     fn unclosed_quote_is_a_parse_error() {
-        assert!(parse_node_filter(r#"name:"unterminated"#, &no_label_cols()).is_err());
+        assert!(parse_node_filter(r#"name:"unterminated"#, &header()).is_err());
     }
 }

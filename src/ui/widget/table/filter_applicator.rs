@@ -71,17 +71,26 @@ impl TableFilterPredicate {
     }
 }
 
+/// Normalize a column name for case/format-insensitive comparison: lowercase,
+/// with spaces, hyphens, and underscores removed. This lets `nominatednode`,
+/// `nominated-node`, and `Nominated_Node` all match the `NOMINATED NODE`
+/// header, and keeps hyphenated headers (e.g. `INTERNAL-IP`) matchable from a
+/// single whitespace-delimited token.
+pub fn normalize_column_name(s: &str) -> String {
+    s.to_lowercase().replace([' ', '-', '_'], "")
+}
+
 /// Returns the ANSI-stripped text of the column named `col_name` in `item`,
-/// or `None` if the column name is not found in `header`.
+/// or `None` if no header column normalizes to the same key.
 // TODO(perf): cell_of() is called per column × per row × per render. Each
 // invocation re-lowercases the entire header. If profiling shows this in the
 // hot path once Table widget wiring lands (Tasks 5/7), pre-compute a
 // column-name → index map at filter_state set time.
 fn cell_of(item: &TableItem, header: &[String], col_name: &str) -> Option<String> {
-    let col_name_lower = col_name.to_lowercase();
+    let key = normalize_column_name(col_name);
     let idx = header
         .iter()
-        .position(|h| h.to_lowercase() == col_name_lower)?;
+        .position(|h| normalize_column_name(h) == key)?;
 
     item.item
         .get(idx)
@@ -99,7 +108,7 @@ use crate::{
 
 // TableFilterParser: parses a raw filter string into a TableFilterPredicate.
 // Returns Ok(predicate) on success, or Err(message) for display to the user.
-define_callback!(pub TableFilterParser, Fn(&str) -> Result<TableFilterPredicate, String>);
+define_callback!(pub TableFilterParser, Fn(&str, &[String]) -> Result<TableFilterPredicate, String>);
 
 // OnFilterApply: called after a filter has been applied (or cleared). Receives
 // the new predicate and a mutable Window reference for side effects (e.g.,
@@ -215,7 +224,7 @@ use EventResult as _;
 ///   意識しなくていい、`.` `*` 等が混入しても安全）
 pub fn substring_applicator(column: &str) -> TableFilterApplicator {
     let col = column.to_string().to_lowercase();
-    let parser: TableFilterParser = (move |input: &str| {
+    let parser: TableFilterParser = (move |input: &str, _header: &[String]| {
         let raw = input.to_string();
         let patterns: Result<Vec<Regex>, _> = input
             .split_whitespace()
@@ -430,7 +439,7 @@ mod tests {
     }
 
     fn invoke_parser(a: &TableFilterApplicator, input: &str) -> TableFilterPredicate {
-        (a.parser.closure)(input).expect("test input must parse")
+        (a.parser.closure)(input, &[]).expect("test input must parse")
     }
 
     #[test]
@@ -495,5 +504,49 @@ mod tests {
     fn substring_applicator_on_cancel_is_none() {
         let a = substring_applicator("NAME");
         assert!(a.on_cancel.is_none());
+    }
+
+    #[test]
+    fn normalize_column_name_strips_space_hyphen_underscore_and_lowercases() {
+        assert_eq!(normalize_column_name("NOMINATED NODE"), "nominatednode");
+        assert_eq!(normalize_column_name("Internal-IP"), "internalip");
+        assert_eq!(normalize_column_name("Readiness_Gates"), "readinessgates");
+        assert_eq!(normalize_column_name("name"), "name");
+    }
+
+    #[test]
+    fn matches_resolves_multiword_column_via_normalized_key() {
+        let header = vec!["NAME".to_string(), "NOMINATED NODE".to_string()];
+        let item = make_item(&["pod-a", "node-x"]);
+
+        let mut includes = HashMap::new();
+        includes.insert(
+            "nominatednode".to_string(),
+            vec![Regex::new("node-x").unwrap()],
+        );
+        let pred = TableFilterPredicate {
+            column_includes: includes,
+            ..Default::default()
+        };
+
+        assert!(pred.matches(&item, &header));
+    }
+
+    #[test]
+    fn matches_resolves_hyphenated_header_from_compact_key() {
+        let header = vec!["NAME".to_string(), "INTERNAL-IP".to_string()];
+        let item = make_item(&["pod-a", "10.0.0.1"]);
+
+        let mut includes = HashMap::new();
+        includes.insert(
+            "internalip".to_string(),
+            vec![Regex::new(r"10\.0").unwrap()],
+        );
+        let pred = TableFilterPredicate {
+            column_includes: includes,
+            ..Default::default()
+        };
+
+        assert!(pred.matches(&item, &header));
     }
 }
