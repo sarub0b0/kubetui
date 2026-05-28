@@ -281,18 +281,25 @@ impl Table<'_> {
     }
 
     /// Title suffix showing the cursor position over the visible row count,
-    /// e.g. ` [3/12]`. When a filter hides some rows the pre-filter total is
-    /// appended in parens: ` [3/12 (50)]`. Shared by every list tab's
-    /// `block_injection` so the indicator stays consistent.
+    /// e.g. ` [3/12]`. While a filter is active the pre-filter total is
+    /// appended in parens: ` [3/12 (50)]`. The parens are driven by filter
+    /// state (not by `visible != total`), so a filter that happens to match
+    /// every row still signals that the list is filtered. Shared by every
+    /// list tab's `block_injection` so the indicator stays consistent.
     pub fn count_indicator(&self) -> String {
         let index = self.state.selected().map(|i| i + 1).unwrap_or(0);
         let visible = self.items.len();
         let total = self.items.original_len();
 
-        if visible == total {
-            format!(" [{}/{}]", index, visible)
-        } else {
+        let filter_active = self
+            .filter_state
+            .as_ref()
+            .is_some_and(|predicate| !predicate.raw.is_empty());
+
+        if filter_active {
             format!(" [{}/{} ({})]", index, visible, total)
+        } else {
+            format!(" [{}/{}]", index, visible)
         }
     }
 
@@ -1197,6 +1204,26 @@ mod tests {
 
             // aaa, aab match → 2 visible of 3 total.
             assert_eq!(table.count_indicator(), " [1/2 (3)]");
+        }
+
+        #[test]
+        fn active_filter_matching_every_row_still_shows_total() {
+            let mut table = table_with_three();
+
+            // A predicate whose regex matches all three names. The filter is
+            // active (non-empty raw), so the total must still be shown even
+            // though visible == total.
+            let mut column_includes = HashMap::new();
+            column_includes.insert("name".to_string(), vec![Regex::new("a|b").unwrap()]);
+            table.filter_state = Some(TableFilterPredicate {
+                column_includes,
+                column_excludes: HashMap::new(),
+                label_selector: None,
+                raw: "a|b".to_string(),
+            });
+            table.filter_items();
+
+            assert_eq!(table.count_indicator(), " [1/3 (3)]");
         }
 
         #[test]
