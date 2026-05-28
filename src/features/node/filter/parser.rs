@@ -226,10 +226,7 @@ fn valid_columns(header: &[String]) -> HashSet<String> {
 ///
 /// Values may be quoted (`"..."` / `'...'`) with the same escape rules as the
 /// Pod log query parser: `\"` → `"`  `\'` → `'`  `\\` → `\`  `\<other>` verbatim.
-pub fn parse_node_filter(
-    input: &str,
-    header: &[String],
-) -> Result<TableFilterPredicate, String> {
+pub fn parse_node_filter(input: &str, header: &[String]) -> Result<TableFilterPredicate, String> {
     let valid = valid_columns(header);
     let validate = !header.is_empty();
 
@@ -583,8 +580,7 @@ mod tests {
 
     #[test]
     fn mixed_quoted_and_unquoted_tokens() {
-        let p =
-            parse_node_filter(r#"status:Ready os-image:"Ubuntu 22.04""#, &header()).unwrap();
+        let p = parse_node_filter(r#"status:Ready os-image:"Ubuntu 22.04""#, &header()).unwrap();
         assert_eq!(p.column_includes.len(), 2);
         assert!(p.column_includes.get("osimage").unwrap()[0].is_match("Ubuntu 22.04"));
     }

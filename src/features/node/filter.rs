@@ -12,10 +12,7 @@ mod parser;
 use crossbeam::channel::Sender;
 
 use crate::{
-    features::{
-        component_id::NODE_FILTER_HELP_DIALOG_ID,
-        node::message::NodeMessage,
-    },
+    features::{component_id::NODE_FILTER_HELP_DIALOG_ID, node::message::NodeMessage},
     message::Message,
     ui::{
         widget::{
