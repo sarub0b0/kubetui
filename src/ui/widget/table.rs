@@ -829,6 +829,7 @@ impl Table<'_> {
     /// 成功時は Some(predicate)、失敗時は None。
     /// Live モードでは毎キー、EnterToConfirm モードでは Enter 時に呼ぶ。
     fn run_parser_and_update_state(&mut self) -> Option<TableFilterPredicate> {
+        let header = self.items.header().original().to_vec();
         let applicator = self.filter_applicator.as_ref()?;
         let input = self
             .filter_form
@@ -836,7 +837,7 @@ impl Table<'_> {
             .map(|f| f.content())
             .unwrap_or_default();
 
-        match (applicator.parser.closure)(&input) {
+        match (applicator.parser.closure)(&input, &header) {
             Ok(predicate) => {
                 self.filter_error = None;
                 self.filter_state = Some(predicate.clone());
@@ -1117,7 +1118,7 @@ mod tests {
             use crate::ui::widget::{ApplyStrategy, TableFilterApplicator, TableFilterParser};
 
             let applicator = TableFilterApplicator::new(
-                TableFilterParser::from(move |_: &str| {
+                TableFilterParser::from(move |_: &str, _: &[String]| {
                     Ok(crate::ui::widget::TableFilterPredicate::default())
                 }),
                 ApplyStrategy::Live,
@@ -1600,7 +1601,7 @@ mod tests {
 
         fn dummy_applicator_with_help() -> TableFilterApplicator {
             let parser: TableFilterParser =
-                (|_input: &str| Ok(TableFilterPredicate::default())).into();
+                (|_input: &str, _header: &[String]| Ok(TableFilterPredicate::default())).into();
             TableFilterApplicator::new(parser, ApplyStrategy::EnterToConfirm)
                 .with_help_dialog("test-help-dialog")
         }
@@ -1657,7 +1658,7 @@ mod tests {
         fn help_does_not_open_without_help_dialog_id() {
             // help_dialog_id を持たない applicator
             let parser: TableFilterParser =
-                (|_input: &str| Ok(TableFilterPredicate::default())).into();
+                (|_input: &str, _header: &[String]| Ok(TableFilterPredicate::default())).into();
             let applicator = TableFilterApplicator::new(parser, ApplyStrategy::Live);
 
             let mut table = Table::builder()

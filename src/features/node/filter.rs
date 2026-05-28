@@ -45,7 +45,7 @@ pub fn node_filter_applicator(
     tx: Sender<Message>,
 ) -> TableFilterApplicator {
     let parser: TableFilterParser =
-        (move |input: &str| parse_node_filter(input, &label_registry)).into();
+        (move |input: &str, _header: &[String]| parse_node_filter(input, &label_registry)).into();
 
     let tx_apply = tx.clone();
     let tx_cancel = tx;
