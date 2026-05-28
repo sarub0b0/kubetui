@@ -48,6 +48,7 @@ pub use filter::{FilterForm, FilterFormTheme};
 // PR B. The `unused_imports` warning is therefore expected and silenced here.
 #[allow(unused_imports)]
 pub use filter_applicator::{
+    normalize_column_name,
     substring_applicator,
     ApplyStrategy,
     OnFilterApply,
