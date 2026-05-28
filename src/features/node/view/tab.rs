@@ -43,8 +43,9 @@ impl NodeTab {
     ) -> Self {
         let node_widget = node_widget(tx.clone(), label_registry.clone(), theme.clone());
         let detail_widget = node_detail_widget(clipboard, theme.clone());
-        let node_columns_dialog = node_columns_dialog(tx, default_columns, label_registry, theme);
-        let node_filter_help_dialog = node_filter_help_widget();
+        let node_columns_dialog =
+            node_columns_dialog(tx, default_columns, label_registry, theme.clone());
+        let node_filter_help_dialog = node_filter_help_widget(theme);
 
         let tab = Tab::new(
             NODE_TAB_ID,

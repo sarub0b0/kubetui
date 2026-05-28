@@ -2,19 +2,29 @@ use indoc::indoc;
 use ratatui::crossterm::event::KeyCode;
 
 use crate::{
+    config::theme::WidgetThemeConfig,
     features::component_id::NODE_FILTER_HELP_DIALOG_ID,
     message::UserEvent,
     ui::{
         event::EventResult,
-        widget::{Text, Widget, WidgetBase},
+        widget::{Text, TextTheme, Widget, WidgetBase, WidgetTheme},
         Window,
     },
 };
 
-pub fn node_filter_help_widget() -> Widget<'static> {
+pub fn node_filter_help_widget(theme: WidgetThemeConfig) -> Widget<'static> {
+    let widget_theme = WidgetTheme::from(theme.clone());
+    let text_theme = TextTheme::from(theme);
+
+    let widget_base = WidgetBase::builder()
+        .title("Node Filter Help")
+        .theme(widget_theme)
+        .build();
+
     Text::builder()
         .id(NODE_FILTER_HELP_DIALOG_ID)
-        .widget_base(WidgetBase::builder().title("Node Filter Help").build())
+        .widget_base(widget_base)
+        .theme(text_theme)
         .items(content())
         .action(UserEvent::from(KeyCode::Enter), close_dialog())
         .build()
