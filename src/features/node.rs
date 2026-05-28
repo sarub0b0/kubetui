@@ -1,3 +1,4 @@
+pub mod filter;
 pub mod kube;
 pub mod message;
 mod node_columns;

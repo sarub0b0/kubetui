@@ -43,14 +43,15 @@ use super::{
 };
 
 pub use filter::{FilterForm, FilterFormTheme};
-// `OnFilterApply` and `TableFilterParser` are part of the public filter API
-// surface; their first internal consumer (Node tab) lands in PR B. The
-// `unused_imports` warning is therefore expected and silenced here.
+// `OnFilterApply`, `OnFilterCancel`, and `TableFilterParser` are part of the
+// public filter API surface; their first internal consumers (Node tab) land in
+// PR B. The `unused_imports` warning is therefore expected and silenced here.
 #[allow(unused_imports)]
 pub use filter_applicator::{
     substring_applicator,
     ApplyStrategy,
     OnFilterApply,
+    OnFilterCancel,
     TableFilterApplicator,
     TableFilterParser,
     TableFilterPredicate,
@@ -421,7 +422,7 @@ impl Table<'_> {
         }
     }
 
-    fn filter_cancel(&mut self) {
+    fn filter_cancel(&mut self) -> Option<Callback> {
         self.mode.normal();
 
         if let Some(filter_form) = self.filter_form.as_mut() {
@@ -432,6 +433,8 @@ impl Table<'_> {
         self.filter_error = None;
 
         self.filter_items();
+
+        self.on_filter_cancel_callback()
     }
 }
 
@@ -610,7 +613,9 @@ impl WidgetTrait for Table<'_> {
                     }
 
                     KeyCode::Char('q') | KeyCode::Esc if self.mode.is_filter_confirm() => {
-                        self.filter_cancel();
+                        if let Some(cb) = self.filter_cancel() {
+                            return EventResult::Callback(cb);
+                        }
                     }
 
                     KeyCode::Enter => {
@@ -655,17 +660,21 @@ impl WidgetTrait for Table<'_> {
                     }
 
                     KeyCode::Esc => {
-                        self.filter_cancel();
+                        if let Some(cb) = self.filter_cancel() {
+                            return EventResult::Callback(cb);
+                        }
                     }
 
                     _ => {
                         // `?` または `help` 入力でヘルプダイアログを開く（applicator が
                         // help_dialog_id を持つ場合のみ）。Pod log query の慣習に合わせる。
+                        // 入力欄の `?`/`help` 文字列だけクリアし、FilterInput モードは
+                        // 維持する。ヘルプは構文確認のためのコンテキストヘルプなので、
+                        // 閉じた後は空の入力欄に戻って続きを書ける方がメンタルモデルに沿う。
                         if let Some(help_id) = self.would_be_help_command(ev) {
                             if let Some(filter_form) = self.filter_form.as_mut() {
                                 filter_form.clear();
                             }
-                            self.mode.normal();
                             return EventResult::Callback(Callback::from(move |w: &mut Window| {
                                 w.open_dialog(help_id.clone());
                                 EventResult::Nop
@@ -744,6 +753,15 @@ impl Table<'_> {
         let on_apply = self.filter_applicator.as_ref()?.on_apply.clone()?;
         Some(Callback::from(move |w: &mut Window| {
             (on_apply.closure)(&predicate, w);
+            EventResult::Nop
+        }))
+    }
+
+    /// applicator の on_cancel callback を Window 渡しの Callback に詰めて返す。
+    fn on_filter_cancel_callback(&self) -> Option<Callback> {
+        let on_cancel = self.filter_applicator.as_ref()?.on_cancel.clone()?;
+        Some(Callback::from(move |w: &mut Window| {
+            (on_cancel.closure)(w);
             EventResult::Nop
         }))
     }
@@ -1059,7 +1077,7 @@ mod tests {
             table.filter_error = Some("invalid regex 'foo['".to_string());
             table.filter_state = Some(TableFilterPredicate::default());
 
-            table.filter_cancel();
+            let _ = table.filter_cancel();
 
             assert!(
                 table.filter_error.is_none(),
@@ -1069,6 +1087,49 @@ mod tests {
                 table.filter_state.is_none(),
                 "filter_state must be cleared on cancel (so Esc fully discards any applied filter)"
             );
+        }
+
+        #[test]
+        fn filter_cancel_returns_some_callback_when_applicator_has_on_cancel() {
+            use crate::ui::widget::{ApplyStrategy, TableFilterApplicator, TableFilterParser};
+
+            let applicator = TableFilterApplicator::new(
+                TableFilterParser::from(move |_: &str| {
+                    Ok(crate::ui::widget::TableFilterPredicate::default())
+                }),
+                ApplyStrategy::Live,
+            )
+            .with_on_cancel(crate::ui::widget::OnFilterCancel::from(
+                move |_w: &mut crate::ui::Window| {},
+            ));
+
+            let mut table = Table::builder()
+                .header(["NAME".to_string()])
+                .items([TableItem::new(vec!["a".to_string()], None)])
+                .filter_form(FilterForm::default())
+                .filter_applicator(applicator)
+                .build();
+
+            let cb = table.filter_cancel();
+            assert!(
+                cb.is_some(),
+                "filter_cancel should return on_cancel callback when applicator has one"
+            );
+            // State must still be cleared even when a callback is returned.
+            assert!(table.filter_state.is_none());
+            assert!(table.filter_error.is_none());
+        }
+
+        #[test]
+        fn filter_cancel_returns_none_when_no_applicator() {
+            let mut table = Table::builder()
+                .header(["NAME".to_string()])
+                .items([TableItem::new(vec!["a".to_string()], None)])
+                .filter_form(FilterForm::default())
+                .build();
+
+            let cb = table.filter_cancel();
+            assert!(cb.is_none(), "no applicator → filter_cancel returns None");
         }
     }
 
@@ -1445,6 +1506,27 @@ mod tests {
             let result = table.on_key_event(KeyEvent::from(KeyCode::Char('?')));
 
             assert!(matches!(result, EventResult::Callback(_)));
+        }
+
+        #[test]
+        fn opening_help_keeps_filter_input_mode_with_cleared_form() {
+            let mut table = Table::builder()
+                .filter_form(FilterForm::builder().build())
+                .filter_applicator(dummy_applicator_with_help())
+                .build();
+            let _ = table.on_key_event(KeyEvent::from(KeyCode::Char('/')));
+            let _ = table.on_key_event(KeyEvent::from(KeyCode::Char('?')));
+
+            // ヘルプを開いても FilterInput を維持する（閉じた後すぐ続きを書ける）。
+            assert!(
+                table.mode.is_filter_input(),
+                "filter input mode must persist after opening help"
+            );
+            // `?` 文字は入力欄から消えている。
+            assert_eq!(
+                table.filter_form.as_ref().map(|f| f.content()),
+                Some(String::new())
+            );
         }
 
         #[test]

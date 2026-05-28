@@ -21,6 +21,7 @@ use crate::{
 };
 
 pub type SharedNodeColumns = Arc<RwLock<NodeColumns>>;
+pub type SharedNodeFilter = Arc<RwLock<Option<String>>>;
 
 #[derive(Debug, Clone, Default)]
 pub struct NodeConfig {
@@ -31,6 +32,7 @@ pub struct NodeConfig {
 pub struct NodePoller {
     tx: Sender<Message>,
     shared_node_columns: SharedNodeColumns,
+    shared_node_filter: SharedNodeFilter,
     kube_client: KubeClient,
 }
 
@@ -38,11 +40,13 @@ impl NodePoller {
     pub fn new(
         tx: Sender<Message>,
         shared_node_columns: SharedNodeColumns,
+        shared_node_filter: SharedNodeFilter,
         kube_client: KubeClient,
     ) -> Self {
         Self {
             tx,
             shared_node_columns,
+            shared_node_filter,
             kube_client,
         }
     }
@@ -55,7 +59,12 @@ impl InfiniteWorker for NodePoller {
         let Self { tx, .. } = self;
         loop {
             interval.tick().await;
-            let node_info = get_node_table(&self.kube_client, &self.shared_node_columns).await;
+            let node_info = get_node_table(
+                &self.kube_client,
+                &self.shared_node_columns,
+                &self.shared_node_filter,
+            )
+            .await;
             if let Err(e) = tx.send(NodeMessage::Poll(node_info).into()) {
                 logger!(error, "Failed to send NodeMessage::Poll: {}", e);
                 return;
@@ -67,6 +76,7 @@ impl InfiniteWorker for NodePoller {
 async fn get_node_table<C: KubeClientRequest>(
     client: &C,
     shared_node_columns: &SharedNodeColumns,
+    shared_node_filter: &SharedNodeFilter,
 ) -> Result<KubeTable> {
     let node_columns = shared_node_columns.read().await;
 
@@ -82,7 +92,14 @@ async fn get_node_table<C: KubeClientRequest>(
         })
         .collect();
 
-    let path = Node::url_path(&(), None);
+    let base_path = Node::url_path(&(), None);
+    let path = {
+        let filter = shared_node_filter.read().await;
+        match filter.as_deref().filter(|s| !s.is_empty()) {
+            Some(sel) => format!("{}?labelSelector={}", base_path, sel),
+            None => base_path,
+        }
+    };
     let table: Table = client.request_table(&path).await?;
 
     let builtin_indexes = table.find_indexes(&builtin_targets)?;
@@ -200,7 +217,10 @@ mod tests {
         );
 
         let shared = Arc::new(RwLock::new(NodeColumns::default()));
-        let table = get_node_table(&client, &shared).await.unwrap();
+        let shared_filter = Arc::new(RwLock::new(None));
+        let table = get_node_table(&client, &shared, &shared_filter)
+            .await
+            .unwrap();
 
         assert_eq!(
             table.header,
@@ -256,10 +276,51 @@ mod tests {
             },
         ]);
         let shared = Arc::new(RwLock::new(specs));
-        let table = get_node_table(&client, &shared).await.unwrap();
+        let shared_filter = Arc::new(RwLock::new(None));
+        let table = get_node_table(&client, &shared, &shared_filter)
+            .await
+            .unwrap();
 
         assert_eq!(table.header, vec!["NAME", "MIG"]);
         assert_eq!(table.rows[0].name, "node-a");
         assert_eq!(table.rows[0].row, vec!["node-a", "success"]);
+    }
+
+    #[tokio::test]
+    async fn url_includes_label_selector_when_set() {
+        let mut client = crate::kube::mock::MockTestKubeClient::new();
+        mock_expect!(
+            client,
+            request_table,
+            Table,
+            eq("/api/v1/nodes?labelSelector=env%3Dprod"),
+            Ok(node_table_fixture())
+        );
+
+        let shared = Arc::new(RwLock::new(NodeColumns::default()));
+        let shared_filter = Arc::new(RwLock::new(Some("env%3Dprod".to_string())));
+        let table = get_node_table(&client, &shared, &shared_filter)
+            .await
+            .unwrap();
+        assert_eq!(table.rows.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn url_omits_label_selector_when_empty() {
+        let mut client = crate::kube::mock::MockTestKubeClient::new();
+        mock_expect!(
+            client,
+            request_table,
+            Table,
+            eq("/api/v1/nodes"),
+            Ok(node_table_fixture())
+        );
+
+        let shared = Arc::new(RwLock::new(NodeColumns::default()));
+        let shared_filter = Arc::new(RwLock::new(Some(String::new())));
+        let table = get_node_table(&client, &shared, &shared_filter)
+            .await
+            .unwrap();
+        assert_eq!(table.rows.len(), 2);
     }
 }

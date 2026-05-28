@@ -18,11 +18,17 @@ use crate::{
     },
 };
 
-use super::widgets::{node_columns_dialog, node_detail_widget, node_widget};
+use super::widgets::{
+    node_columns_dialog,
+    node_detail_widget,
+    node_filter_help_widget,
+    node_widget,
+};
 
 pub struct NodeTab {
     pub tab: Tab<'static>,
     pub node_columns_dialog: Widget<'static>,
+    pub node_filter_help_dialog: Widget<'static>,
 }
 
 impl NodeTab {
@@ -35,9 +41,11 @@ impl NodeTab {
         label_registry: Vec<NodeLabelColumn>,
         theme: WidgetThemeConfig,
     ) -> Self {
-        let node_widget = node_widget(tx.clone(), theme.clone());
+        let node_widget = node_widget(tx.clone(), label_registry.clone(), theme.clone());
         let detail_widget = node_detail_widget(clipboard, theme.clone());
-        let node_columns_dialog = node_columns_dialog(tx, default_columns, label_registry, theme);
+        let node_columns_dialog =
+            node_columns_dialog(tx, default_columns, label_registry, theme.clone());
+        let node_filter_help_dialog = node_filter_help_widget(theme);
 
         let tab = Tab::new(
             NODE_TAB_ID,
@@ -49,6 +57,7 @@ impl NodeTab {
         Self {
             tab,
             node_columns_dialog,
+            node_filter_help_dialog,
         }
     }
 }

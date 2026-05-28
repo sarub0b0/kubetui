@@ -8,6 +8,9 @@ use super::NodeColumns;
 pub enum NodeMessage {
     Request(NodeColumns),
     Poll(Result<KubeTable>),
+    /// Replace the active labelSelector value. `None` clears it (the
+    /// poller stops sending ?labelSelector= in its request URL).
+    Filter(Option<String>),
 }
 
 impl From<NodeMessage> for Message {
