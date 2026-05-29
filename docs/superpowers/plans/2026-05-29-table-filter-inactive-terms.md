@@ -606,16 +606,19 @@ Expected: `count_indicator_appends_inactive_badge_for_hidden_filtered_column` „Å
             .iter()
             .map(|h| normalize_column_name(h))
             .collect();
-        let mut cols: Vec<String> = state
+        // Collect into a BTreeSet so the result is unique + sorted (a stable
+        // title) in one step ‚Äî avoids the manual sort-then-dedup and its
+        // "dedup only removes consecutive duplicates" footgun. A column can be
+        // in both includes and excludes, so de-duplication is required.
+        state
             .column_includes
             .keys()
             .chain(state.column_excludes.keys())
             .filter(|c| !visible_column_keys.contains(c))
             .cloned()
-            .collect();
-        cols.sort();
-        cols.dedup();
-        cols
+            .collect::<std::collections::BTreeSet<String>>()
+            .into_iter()
+            .collect()
     }
 ```
 
