@@ -69,11 +69,13 @@ fn content() -> Vec<String> {
            OS-IMAGE:"Ubuntu 22.04 LTS"     Quoted value with whitespace
            NAME:"foo bar"                  Quote bare value too
 
-        Filterable columns are the ones currently shown in the table.
-        Column names ignore case, spaces, '-' and '_'. A column not in
-        the current view produces an error (add it via the columns
-        dialog). Press Enter to apply, Esc to cancel. Type ? or help in
-        the filter input to open this help.
+        Columns must be builtin or defined label columns; unknown
+        columns produce an error. A term on a column that is not
+        currently shown becomes inactive (kept, but not applied) until
+        that column is shown again; the title shows (inactive: ...).
+        Column names ignore case, spaces, '-' and '_'. Press Enter to
+        apply, Esc to cancel. Type ? or help in the filter input to
+        open this help.
     "# }
     .lines()
     .map(ToString::to_string)
