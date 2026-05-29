@@ -122,7 +122,7 @@ use crate::{
 
 // TableFilterParser: parses a raw filter string into a TableFilterPredicate.
 // Returns Ok(predicate) on success, or Err(message) for display to the user.
-define_callback!(pub TableFilterParser, Fn(&str, &[String]) -> Result<TableFilterPredicate, String>);
+define_callback!(pub TableFilterParser, Fn(&str) -> Result<TableFilterPredicate, String>);
 
 // OnFilterApply: called after a filter has been applied (or cleared). Receives
 // the new predicate and a mutable Window reference for side effects (e.g.,
@@ -238,7 +238,7 @@ use EventResult as _;
 ///   意識しなくていい、`.` `*` 等が混入しても安全）
 pub fn substring_applicator(column: &str) -> TableFilterApplicator {
     let col = column.to_string().to_lowercase();
-    let parser: TableFilterParser = (move |input: &str, _header: &[String]| {
+    let parser: TableFilterParser = (move |input: &str| {
         let raw = input.to_string();
         let patterns: Result<Vec<Regex>, _> = input
             .split_whitespace()
@@ -504,7 +504,7 @@ mod tests {
     }
 
     fn invoke_parser(a: &TableFilterApplicator, input: &str) -> TableFilterPredicate {
-        (a.parser.closure)(input, &[]).expect("test input must parse")
+        (a.parser.closure)(input).expect("test input must parse")
     }
 
     #[test]

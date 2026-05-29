@@ -4,7 +4,7 @@ use crate::{
     config::theme::WidgetThemeConfig,
     features::{
         component_id::{NODE_COLUMNS_DIALOG_ID, NODE_DETAIL_WIDGET_ID, NODE_WIDGET_ID},
-        node::{filter::node_filter_applicator, message::NodeDetailMessage},
+        node::{filter::node_filter_applicator, message::NodeDetailMessage, node_columns::NodeLabelColumn},
     },
     message::Message,
     ui::{
@@ -24,7 +24,7 @@ use crate::{
     },
 };
 
-pub fn node_widget(tx: Sender<Message>, theme: WidgetThemeConfig) -> Widget<'static> {
+pub fn node_widget(tx: Sender<Message>, label_registry: Vec<NodeLabelColumn>, theme: WidgetThemeConfig) -> Widget<'static> {
     let widget_theme = WidgetTheme::from(theme.clone());
     let table_theme = TableTheme::from(theme.clone());
 
@@ -40,7 +40,7 @@ pub fn node_widget(tx: Sender<Message>, theme: WidgetThemeConfig) -> Widget<'sta
         .id(NODE_WIDGET_ID)
         .widget_base(widget_base)
         .filter_form(filter_form)
-        .filter_applicator(node_filter_applicator(tx.clone()))
+        .filter_applicator(node_filter_applicator(label_registry, tx.clone()))
         .theme(table_theme)
         .action('t', open_node_columns_dialog())
         .block_injection(block_injection())
