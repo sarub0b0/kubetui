@@ -58,7 +58,6 @@ pub use filter_applicator::{
     TableFilterParser,
     TableFilterPredicate,
 };
-#[allow(unused_imports)]
 pub use filter_parser::parse_table_filter;
 
 use item::InnerItem;

@@ -4,11 +4,6 @@
 //! column-aware tab filter (Node now; Pod/Config/Network later). The only
 //! tab-specific part is the `validate_column` closure passed by the caller.
 
-// The private helpers (quoted, unquoted, value_string, column_name, Term,
-// parse_token) are only reachable via parse_table_filter, which is re-exported
-// but not yet consumed outside of tests (Task 2 wires actual callers).
-#![allow(dead_code)]
-
 use std::borrow::Cow;
 use std::collections::HashMap;
 
@@ -187,13 +182,13 @@ fn parse_token<'a, E: ParseError<&'a str> + ContextError<&'a str>>(
         // Try to parse col:value.  If we successfully match `col:` followed by a
         // quote character, we MUST parse it as a quoted value — do not fall through
         // to Bare, which would silently read the whole token as unquoted.
-        let col_colon_result = (|s: &'a str| -> IResult<&'a str, (&'a str, &'a str), E> {
+        let col_colon_result = (|s: &'a str| -> IResult<&'a str, &'a str, E> {
             let (s2, col) = column_name::<E>(s)?;
             let (s3, _) = char::<&'a str, E>(':').parse(s2)?;
-            Ok((s3, (s, col)))
+            Ok((s3, col))
         })(s);
 
-        if let Ok((after_colon, (_orig, col))) = col_colon_result {
+        if let Ok((after_colon, col)) = col_colon_result {
             // We have `col:` consumed.  Now parse the value — this will fail hard
             // if the value is an unclosed quote (nom Err::Error propagated).
             let (rem, val) = value_string::<E>(after_colon)?;
