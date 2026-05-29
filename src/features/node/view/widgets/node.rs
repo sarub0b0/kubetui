@@ -4,7 +4,11 @@ use crate::{
     config::theme::WidgetThemeConfig,
     features::{
         component_id::{NODE_COLUMNS_DIALOG_ID, NODE_DETAIL_WIDGET_ID, NODE_WIDGET_ID},
-        node::{filter::node_filter_applicator, message::NodeDetailMessage, node_columns::NodeLabelColumn},
+        node::{
+            filter::node_filter_applicator,
+            message::NodeDetailMessage,
+            node_columns::NodeLabelColumn,
+        },
     },
     message::Message,
     ui::{
@@ -24,7 +28,11 @@ use crate::{
     },
 };
 
-pub fn node_widget(tx: Sender<Message>, label_registry: Vec<NodeLabelColumn>, theme: WidgetThemeConfig) -> Widget<'static> {
+pub fn node_widget(
+    tx: Sender<Message>,
+    label_registry: Vec<NodeLabelColumn>,
+    theme: WidgetThemeConfig,
+) -> Widget<'static> {
     let widget_theme = WidgetTheme::from(theme.clone());
     let table_theme = TableTheme::from(theme.clone());
 

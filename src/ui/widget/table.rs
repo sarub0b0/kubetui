@@ -1284,7 +1284,10 @@ mod tests {
         fn count_indicator_appends_inactive_badge_for_hidden_filtered_column() {
             let mut table = Table::builder()
                 .header(["NAME".to_string(), "STATUS".to_string()])
-                .items([TableItem::new(vec!["a".to_string(), "Ready".to_string()], None)])
+                .items([TableItem::new(
+                    vec!["a".to_string(), "Ready".to_string()],
+                    None,
+                )])
                 .build();
 
             let mut includes = HashMap::new();
@@ -1308,7 +1311,10 @@ mod tests {
         fn count_indicator_has_no_inactive_badge_when_all_columns_visible() {
             let mut table = Table::builder()
                 .header(["NAME".to_string(), "STATUS".to_string()])
-                .items([TableItem::new(vec!["a".to_string(), "Ready".to_string()], None)])
+                .items([TableItem::new(
+                    vec!["a".to_string(), "Ready".to_string()],
+                    None,
+                )])
                 .build();
 
             let mut includes = HashMap::new();
