@@ -12,7 +12,10 @@ mod parser;
 use crossbeam::channel::Sender;
 
 use crate::{
-    features::{component_id::NODE_FILTER_HELP_DIALOG_ID, node::message::NodeMessage},
+    features::{
+        component_id::NODE_FILTER_HELP_DIALOG_ID,
+        node::{message::NodeMessage, node_columns::NodeLabelColumn},
+    },
     message::Message,
     ui::{
         widget::{
@@ -35,10 +38,13 @@ pub use parser::parse_node_filter;
 ///
 /// The applicator uses `EnterToConfirm` strategy so that the parser only
 /// runs on Enter (avoids spamming the kube API mid-typing). Column
-/// validation is performed against the live header passed by the framework.
-pub fn node_filter_applicator(tx: Sender<Message>) -> TableFilterApplicator {
+/// validation is performed against the known columns (builtin + label_registry).
+pub fn node_filter_applicator(
+    label_registry: Vec<NodeLabelColumn>,
+    tx: Sender<Message>,
+) -> TableFilterApplicator {
     let parser: TableFilterParser =
-        (move |input: &str, header: &[String]| parse_node_filter(input, header)).into();
+        (move |input: &str| parse_node_filter(input, &label_registry)).into();
 
     let tx_apply = tx.clone();
     let tx_cancel = tx;
@@ -71,6 +77,6 @@ mod tests {
     #[test]
     fn applicator_constructs_without_panic() {
         let (tx, _rx) = crossbeam::channel::bounded(1);
-        let _ = node_filter_applicator(tx);
+        let _ = node_filter_applicator(Vec::new(), tx);
     }
 }

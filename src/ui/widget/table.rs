@@ -297,11 +297,47 @@ impl Table<'_> {
             .as_ref()
             .is_some_and(|predicate| !predicate.raw.is_empty());
 
-        if filter_active {
+        let mut indicator = if filter_active {
             format!(" [{}/{} ({})]", index, visible, total)
         } else {
             format!(" [{}/{}]", index, visible)
+        };
+
+        let inactive = self.inactive_columns();
+        if !inactive.is_empty() {
+            indicator.push_str(&format!(" (inactive: {})", inactive.join(", ")));
         }
+
+        indicator
+    }
+
+    /// Names of filtered columns that are not currently displayed in the header
+    /// (their constraints are inactive). Sorted and de-duplicated for a stable
+    /// title. Empty when no filter is active or every filtered column is shown.
+    fn inactive_columns(&self) -> Vec<String> {
+        let Some(state) = self.filter_state.as_ref() else {
+            return Vec::new();
+        };
+        let visible_column_keys: Vec<String> = self
+            .items
+            .header()
+            .original()
+            .iter()
+            .map(|h| normalize_column_name(h))
+            .collect();
+        // Collect into a BTreeSet so the result is unique + sorted (a stable
+        // title) in one step — avoids the manual sort-then-dedup and its
+        // "dedup only removes consecutive duplicates" footgun. A column can be
+        // in both includes and excludes, so de-duplication is required.
+        state
+            .column_includes
+            .keys()
+            .chain(state.column_excludes.keys())
+            .filter(|c| !visible_column_keys.contains(c))
+            .cloned()
+            .collect::<std::collections::BTreeSet<String>>()
+            .into_iter()
+            .collect()
     }
 
     pub fn equal_header(&self, header: &[String]) -> bool {
@@ -830,7 +866,6 @@ impl Table<'_> {
     /// 成功時は Some(predicate)、失敗時は None。
     /// Live モードでは毎キー、EnterToConfirm モードでは Enter 時に呼ぶ。
     fn run_parser_and_update_state(&mut self) -> Option<TableFilterPredicate> {
-        let header = self.items.header().original().to_vec();
         let applicator = self.filter_applicator.as_ref()?;
         let input = self
             .filter_form
@@ -838,7 +873,7 @@ impl Table<'_> {
             .map(|f| f.content())
             .unwrap_or_default();
 
-        match (applicator.parser.closure)(&input, &header) {
+        match (applicator.parser.closure)(&input) {
             Ok(predicate) => {
                 self.filter_error = None;
                 self.filter_state = Some(predicate.clone());
@@ -1119,7 +1154,7 @@ mod tests {
             use crate::ui::widget::{ApplyStrategy, TableFilterApplicator, TableFilterParser};
 
             let applicator = TableFilterApplicator::new(
-                TableFilterParser::from(move |_: &str, _: &[String]| {
+                TableFilterParser::from(move |_: &str| {
                     Ok(crate::ui::widget::TableFilterPredicate::default())
                 }),
                 ApplyStrategy::Live,
@@ -1243,6 +1278,54 @@ mod tests {
             table.filter_items();
 
             assert_eq!(table.count_indicator(), " [0/0 (3)]");
+        }
+
+        #[test]
+        fn count_indicator_appends_inactive_badge_for_hidden_filtered_column() {
+            let mut table = Table::builder()
+                .header(["NAME".to_string(), "STATUS".to_string()])
+                .items([TableItem::new(vec!["a".to_string(), "Ready".to_string()], None)])
+                .build();
+
+            let mut includes = HashMap::new();
+            includes.insert("version".to_string(), vec![Regex::new("1.30").unwrap()]);
+            table.filter_state = Some(TableFilterPredicate {
+                column_includes: includes,
+                column_excludes: HashMap::new(),
+                label_selector: None,
+                raw: "version:1.30".to_string(),
+            });
+
+            let ind = table.count_indicator();
+            assert!(
+                ind.contains("(inactive: version)"),
+                "indicator should flag the hidden filtered column: {}",
+                ind
+            );
+        }
+
+        #[test]
+        fn count_indicator_has_no_inactive_badge_when_all_columns_visible() {
+            let mut table = Table::builder()
+                .header(["NAME".to_string(), "STATUS".to_string()])
+                .items([TableItem::new(vec!["a".to_string(), "Ready".to_string()], None)])
+                .build();
+
+            let mut includes = HashMap::new();
+            includes.insert("status".to_string(), vec![Regex::new("Ready").unwrap()]);
+            table.filter_state = Some(TableFilterPredicate {
+                column_includes: includes,
+                column_excludes: HashMap::new(),
+                label_selector: None,
+                raw: "status:Ready".to_string(),
+            });
+
+            let ind = table.count_indicator();
+            assert!(
+                !ind.contains("inactive"),
+                "no badge when all filtered columns are visible: {}",
+                ind
+            );
         }
     }
 
@@ -1602,7 +1685,7 @@ mod tests {
 
         fn dummy_applicator_with_help() -> TableFilterApplicator {
             let parser: TableFilterParser =
-                (|_input: &str, _header: &[String]| Ok(TableFilterPredicate::default())).into();
+                (|_input: &str| Ok(TableFilterPredicate::default())).into();
             TableFilterApplicator::new(parser, ApplyStrategy::EnterToConfirm)
                 .with_help_dialog("test-help-dialog")
         }
@@ -1659,7 +1742,7 @@ mod tests {
         fn help_does_not_open_without_help_dialog_id() {
             // help_dialog_id を持たない applicator
             let parser: TableFilterParser =
-                (|_input: &str, _header: &[String]| Ok(TableFilterPredicate::default())).into();
+                (|_input: &str| Ok(TableFilterPredicate::default())).into();
             let applicator = TableFilterApplicator::new(parser, ApplyStrategy::Live);
 
             let mut table = Table::builder()

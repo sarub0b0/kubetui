@@ -50,18 +50,29 @@ impl TableFilterPredicate {
     }
 
     /// Returns `true` when `item` passes all active filters.
-    pub fn matches(&self, item: &TableItem, header: &[String]) -> bool {
+    ///
+    /// A constraint whose column is not present in `visible_columns` (e.g. the
+    /// column was hidden via the column dialog) is **inactive**: it is skipped
+    /// rather than failing the row, so the remaining visible-column constraints
+    /// still apply and rows stay visible.
+    pub fn matches(&self, item: &TableItem, visible_columns: &[String]) -> bool {
         // --- column_includes (AND across columns, OR within) ---
-        for (col, patterns) in &self.column_includes {
-            let cell = cell_of(item, header, col).unwrap_or_default();
+        for (column, patterns) in &self.column_includes {
+            let Some(idx) = column_index(visible_columns, column) else {
+                continue; // inactive: column not among the visible columns
+            };
+            let cell = cell_text(item, idx);
             if !patterns.iter().any(|r| r.is_match(&cell)) {
                 return false;
             }
         }
 
         // --- column_excludes (AND across columns, OR within → exclude) ---
-        for (col, patterns) in &self.column_excludes {
-            let cell = cell_of(item, header, col).unwrap_or_default();
+        for (column, patterns) in &self.column_excludes {
+            let Some(idx) = column_index(visible_columns, column) else {
+                continue; // inactive: column not among the visible columns
+            };
+            let cell = cell_text(item, idx);
             if patterns.iter().any(|r| r.is_match(&cell)) {
                 return false;
             }
@@ -80,21 +91,24 @@ pub fn normalize_column_name(s: &str) -> String {
     s.to_lowercase().replace([' ', '-', '_'], "")
 }
 
-/// Returns the ANSI-stripped text of the column named `col_name` in `item`,
-/// or `None` if no header column normalizes to the same key.
-// TODO(perf): cell_of() is called per column × per row × per render. Each
-// invocation re-lowercases the entire header. If profiling shows this in the
-// hot path once Table widget wiring lands (Tasks 5/7), pre-compute a
-// column-name → index map at filter_state set time.
-fn cell_of(item: &TableItem, header: &[String], col_name: &str) -> Option<String> {
-    let key = normalize_column_name(col_name);
-    let idx = header
+/// Index of the visible column whose normalized name equals `column_name`'s,
+/// or `None` if no such column is currently displayed (the constraint is inactive).
+// TODO(perf): column_index() is called per column × per row × per render. Each
+// invocation re-normalizes the column names. If profiling shows this in the
+// hot path, pre-compute a column-name → index map at filter_state set time.
+fn column_index(visible_columns: &[String], column_name: &str) -> Option<usize> {
+    let key = normalize_column_name(column_name);
+    visible_columns
         .iter()
-        .position(|h| normalize_column_name(h) == key)?;
+        .position(|h| normalize_column_name(h) == key)
+}
 
+/// ANSI-stripped text of the cell at `idx` in `item` (empty string if missing).
+fn cell_text(item: &TableItem, idx: usize) -> String {
     item.item
         .get(idx)
         .map(|c| c.styled_graphemes_symbols().concat())
+        .unwrap_or_default()
 }
 
 // ---------------------------------------------------------------------------
@@ -108,7 +122,7 @@ use crate::{
 
 // TableFilterParser: parses a raw filter string into a TableFilterPredicate.
 // Returns Ok(predicate) on success, or Err(message) for display to the user.
-define_callback!(pub TableFilterParser, Fn(&str, &[String]) -> Result<TableFilterPredicate, String>);
+define_callback!(pub TableFilterParser, Fn(&str) -> Result<TableFilterPredicate, String>);
 
 // OnFilterApply: called after a filter has been applied (or cleared). Receives
 // the new predicate and a mutable Window reference for side effects (e.g.,
@@ -224,7 +238,7 @@ use EventResult as _;
 ///   意識しなくていい、`.` `*` 等が混入しても安全）
 pub fn substring_applicator(column: &str) -> TableFilterApplicator {
     let col = column.to_string().to_lowercase();
-    let parser: TableFilterParser = (move |input: &str, _header: &[String]| {
+    let parser: TableFilterParser = (move |input: &str| {
         let raw = input.to_string();
         let patterns: Result<Vec<Regex>, _> = input
             .split_whitespace()
@@ -371,15 +385,66 @@ mod tests {
     }
 
     #[test]
-    fn unknown_column_yields_empty_cell_so_fails_match() {
+    fn unknown_column_is_inactive_so_row_passes() {
         let mut pred = TableFilterPredicate::default();
         pred.column_includes.insert(
             "NONEXISTENT".to_string(),
             vec![Regex::new("anything").unwrap()],
         );
         let hdr = header(&["NAME", "STATUS"]);
-        // The cell for an unknown column is "", which can never match "anything"
-        assert!(!pred.matches(&make_item(&["pod-a", "Running"]), &hdr));
+        // A constraint whose column is absent from the header is inactive (skipped),
+        // so the row is not rejected.
+        assert!(pred.matches(&make_item(&["pod-a", "Running"]), &hdr));
+    }
+
+    #[test]
+    fn matches_skips_include_when_column_absent_from_visible_columns() {
+        // version 列が表示列に無い → version の include はスキップされ行は残る
+        let visible_columns = vec!["NAME".to_string(), "STATUS".to_string()];
+        let item = make_item(&["gke-a", "Ready"]);
+
+        let mut includes = HashMap::new();
+        includes.insert("version".to_string(), vec![Regex::new("1.30").unwrap()]);
+        let pred = TableFilterPredicate {
+            column_includes: includes,
+            ..Default::default()
+        };
+
+        assert!(pred.matches(&item, &visible_columns));
+    }
+
+    #[test]
+    fn matches_skips_exclude_when_column_absent_from_visible_columns() {
+        let visible_columns = vec!["NAME".to_string(), "STATUS".to_string()];
+        let item = make_item(&["gke-a", "Ready"]);
+
+        let mut excludes = HashMap::new();
+        excludes.insert("version".to_string(), vec![Regex::new("1.30").unwrap()]);
+        let pred = TableFilterPredicate {
+            column_excludes: excludes,
+            ..Default::default()
+        };
+
+        assert!(pred.matches(&item, &visible_columns));
+    }
+
+    #[test]
+    fn matches_still_applies_present_columns() {
+        // status が表示列にある → 通常どおり効く
+        let visible_columns = vec!["NAME".to_string(), "STATUS".to_string()];
+        let ready = make_item(&["gke-a", "Ready"]);
+        let not_ready = make_item(&["gke-b", "NotReady"]);
+
+        let mut includes = HashMap::new();
+        // Use anchored pattern so "NotReady" does not match "^Ready$"
+        includes.insert("status".to_string(), vec![Regex::new("^Ready$").unwrap()]);
+        let pred = TableFilterPredicate {
+            column_includes: includes,
+            ..Default::default()
+        };
+
+        assert!(pred.matches(&ready, &visible_columns));
+        assert!(!pred.matches(&not_ready, &visible_columns));
     }
 
     #[test]
@@ -439,7 +504,7 @@ mod tests {
     }
 
     fn invoke_parser(a: &TableFilterApplicator, input: &str) -> TableFilterPredicate {
-        (a.parser.closure)(input, &[]).expect("test input must parse")
+        (a.parser.closure)(input).expect("test input must parse")
     }
 
     #[test]
