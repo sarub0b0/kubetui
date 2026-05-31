@@ -40,7 +40,8 @@ pub fn pod_filter_applicator(tx: Sender<Message>) -> TableFilterApplicator {
     let tx_apply = tx.clone();
     let tx_cancel = tx;
 
-    let on_apply: OnFilterApply = (move |predicate: &crate::ui::widget::TableFilterPredicate, _window: &mut Window| {
+    let on_apply: OnFilterApply = (move |predicate: &crate::ui::widget::TableFilterPredicate,
+                                         _window: &mut Window| {
         tx_apply
             .send(PodMessage::Filter(predicate.label_selector.clone()).into())
             .expect("Failed to send PodMessage::Filter");
