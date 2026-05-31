@@ -4,13 +4,15 @@ use crate::{
     config::theme::WidgetThemeConfig,
     features::{
         component_id::{CONFIG_RAW_DATA_WIDGET_ID, CONFIG_WIDGET_ID},
-        config::message::{ConfigRequest, RequestData},
+        config::{
+            config_filter_applicator,
+            message::{ConfigRequest, RequestData},
+        },
     },
     message::Message,
     ui::{
         event::EventResult,
         widget::{
-            substring_applicator,
             FilterForm,
             FilterFormTheme,
             Table,
@@ -45,7 +47,7 @@ pub fn config_widget(tx: &Sender<Message>, theme: WidgetThemeConfig) -> Widget<'
         .widget_base(widget_base)
         .filter_form(filter_form)
         .theme(table_theme)
-        .filter_applicator(substring_applicator("NAME"))
+        .filter_applicator(config_filter_applicator(tx.clone()))
         .block_injection(block_injection())
         .on_select(on_select(tx))
         .build()

@@ -14,10 +14,13 @@ use crate::{
     },
 };
 
-use super::widgets::{config_widget, raw_data_widget};
+use crate::ui::widget::Widget;
+
+use super::widgets::{config_filter_help_widget, config_widget, raw_data_widget};
 
 pub struct ConfigTab {
     pub tab: Tab<'static>,
+    pub config_filter_help_dialog: Widget<'static>,
 }
 
 impl ConfigTab {
@@ -31,7 +34,8 @@ impl ConfigTab {
         let error_theme = theme.error.clone().into();
 
         let config_widget = config_widget(tx, theme.clone());
-        let raw_data_widget = raw_data_widget(clipboard, theme);
+        let raw_data_widget = raw_data_widget(clipboard, theme.clone());
+        let config_filter_help_dialog = config_filter_help_widget(theme);
 
         let layout = TabLayout::new(layout, split_direction);
 
@@ -43,6 +47,7 @@ impl ConfigTab {
                 layout,
             )
             .error_theme(error_theme),
+            config_filter_help_dialog,
         }
     }
 }
