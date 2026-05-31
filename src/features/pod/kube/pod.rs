@@ -19,7 +19,7 @@ use crate::{
     logger,
     message::Message,
     ui::widget::ansi_color::style_to_ansi,
-    workers::kube::{InfiniteWorker, SharedPodColumns, SharedTargetNamespaces},
+    workers::kube::{InfiniteWorker, SharedPodColumns, SharedPodFilter, SharedTargetNamespaces},
 };
 
 #[derive(Debug, Clone)]
@@ -57,6 +57,7 @@ pub struct PodPoller {
     tx: Sender<Message>,
     shared_target_namespaces: SharedTargetNamespaces,
     shared_pod_columns: SharedPodColumns,
+    shared_pod_filter: SharedPodFilter,
     kube_client: KubeClient,
     config: PodConfig,
 }
@@ -66,6 +67,7 @@ impl PodPoller {
         tx: Sender<Message>,
         shared_target_namespaces: SharedTargetNamespaces,
         shared_pod_columns: SharedPodColumns,
+        shared_pod_filter: SharedPodFilter,
         kube_client: KubeClient,
         config: PodConfig,
     ) -> Self {
@@ -73,6 +75,7 @@ impl PodPoller {
             tx,
             shared_target_namespaces,
             shared_pod_columns,
+            shared_pod_filter,
             kube_client,
             config,
         }
@@ -103,8 +106,11 @@ impl PodPoller {
     async fn get_pod_info(&self) -> Result<KubeTable> {
         let namespaces = self.shared_target_namespaces.read().await;
         let pod_columns = self.shared_pod_columns.read().await;
+        let label_selector = self.shared_pod_filter.read().await.clone();
 
-        let jobs = self.get_pods_per_namespace(&namespaces, &pod_columns).await;
+        let jobs = self
+            .get_pods_per_namespace(&namespaces, &pod_columns, label_selector.as_deref())
+            .await;
 
         let ok_only: Vec<KubeTableRow> = jobs?.into_iter().flatten().collect();
 
@@ -132,6 +138,7 @@ impl PodPoller {
         &self,
         namespaces: &[String],
         pod_columns: &PodColumns,
+        label_selector: Option<&str>,
     ) -> Result<Vec<Vec<KubeTableRow>>> {
         let insert_ns = insert_ns(namespaces);
 
@@ -152,10 +159,17 @@ impl PodPoller {
             .map(|col| col.as_str())
             .collect::<Vec<_>>();
 
+        let label_selector = label_selector.map(|s| s.to_string());
+
         try_join_all(namespaces.iter().map(|ns| {
+            let base_path = Pod::url_path(&Default::default(), Some(ns));
+            let path = match label_selector.as_deref().filter(|s| !s.is_empty()) {
+                Some(sel) => format!("{}?labelSelector={}", base_path, sel),
+                None => base_path,
+            };
             get_resource_per_namespace(
                 &self.kube_client,
-                Pod::url_path(&Default::default(), Some(ns)),
+                path,
                 &columns,
                 move |row: &TableRow, indexes: &[usize]| {
                     let mut row: Vec<String> =
