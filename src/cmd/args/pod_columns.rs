@@ -3,7 +3,7 @@ use std::str::FromStr as _;
 use anyhow::Result;
 use strum::IntoEnumIterator;
 
-use crate::features::pod::{PodColumn, PodColumnSpec, PodColumns};
+use crate::features::pod::{PodColumn, PodColumns};
 
 fn valid_columns() -> String {
     PodColumn::iter()
@@ -62,6 +62,7 @@ pub fn parse_pod_columns(input: &str) -> Result<PodColumns> {
 mod tests {
     use super::*;
 
+    use crate::features::pod::PodColumnSpec;
     use pretty_assertions::assert_eq;
 
     fn builtins(cols: &[PodColumn]) -> Vec<PodColumnSpec> {

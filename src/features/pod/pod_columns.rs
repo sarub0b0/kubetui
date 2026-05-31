@@ -283,6 +283,27 @@ mod tests {
         }
     }
 
+    mod pod_column_spec {
+        use super::*;
+
+        #[test]
+        fn builtin_spec_header_is_uppercase_display() {
+            assert_eq!(
+                PodColumnSpec::Builtin(PodColumn::Status).header(),
+                "STATUS"
+            );
+        }
+
+        #[test]
+        fn label_spec_header_is_as_given() {
+            let s = PodColumnSpec::Label {
+                key: "app.kubernetes.io/version".to_string(),
+                header: "VERSION".to_string(),
+            };
+            assert_eq!(s.header(), "VERSION");
+        }
+    }
+
     mod pod_column {
         use super::*;
 
