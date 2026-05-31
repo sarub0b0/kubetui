@@ -40,6 +40,7 @@ impl App {
             build_pod_highlight_rules(&config.theme.pod.highlights);
 
         let pod_label_registry = build_pod_label_registry(&config.theme.pod.label_columns)?;
+        let node_label_registry = build_node_label_registry(&config.theme.node.label_columns)?;
 
         kube_worker_config.pod_config.default_columns = build_pod_columns(
             cmd.pod_columns,
@@ -54,7 +55,7 @@ impl App {
             cmd.node_columns_preset,
             &config.theme.node.default_preset,
             &config.theme.node.column_presets,
-            &config.theme.node.label_columns,
+            &node_label_registry,
         )?;
 
         kube_worker_config.event_config = EventConfig::from(config.theme.clone());
@@ -78,7 +79,6 @@ impl App {
 
         let default_pod_columns = kube_worker_config.pod_config.default_columns.clone();
         let default_node_columns = kube_worker_config.node_config.default_columns.clone();
-        let node_label_columns = build_node_label_registry(&config.theme.node.label_columns)?;
 
         let kube = KubeWorker::new(
             tx_kube.clone(),
@@ -101,7 +101,7 @@ impl App {
             default_pod_columns,
             default_node_columns,
             pod_label_registry,
-            node_label_columns,
+            node_label_registry,
             config.theme.clone(),
             cmd.clipboard,
             config.logging.max_lines,
@@ -225,12 +225,10 @@ fn build_node_columns(
     cmd_node_columns_preset: Option<String>,
     default_preset: &Option<String>,
     column_presets: &Option<HashMap<String, Vec<String>>>,
-    label_columns: &Option<Vec<LabelColumnConfig>>,
+    node_label_registry: &[NodeLabelColumn],
 ) -> Result<Option<NodeColumns>> {
-    let registry = build_node_label_registry(label_columns)?;
-
     if let Some(names) = cmd_node_columns {
-        return Ok(Some(resolve_columns(&names, &registry)?));
+        return Ok(Some(resolve_columns(&names, node_label_registry)?));
     }
 
     let Some(preset_name) = cmd_node_columns_preset.as_ref().or(default_preset.as_ref()) else {
@@ -250,7 +248,7 @@ fn build_node_columns(
         );
     };
 
-    Ok(Some(resolve_columns(entries, &registry)?))
+    Ok(Some(resolve_columns(entries, node_label_registry)?))
 }
 
 /// Build the label-column registry for Pod from config, erroring on builtin
@@ -406,6 +404,14 @@ mod node_columns_tests {
         }]
     }
 
+    fn registry() -> Vec<NodeLabelColumn> {
+        build_node_label_registry(&Some(labels())).unwrap()
+    }
+
+    fn empty_registry() -> Vec<NodeLabelColumn> {
+        Vec::new()
+    }
+
     #[test]
     fn resolves_preset_with_builtin_and_label_interleaved() {
         let cols = build_node_columns(
@@ -413,7 +419,7 @@ mod node_columns_tests {
             None,
             &Some("gpu".to_string()),
             &Some(presets()),
-            &Some(labels()),
+            &registry(),
         )
         .unwrap()
         .unwrap();
@@ -437,7 +443,7 @@ mod node_columns_tests {
             Some("gpu".to_string()),
             &Some("gpu".to_string()),
             &Some(presets()),
-            &Some(labels()),
+            &registry(),
         )
         .unwrap()
         .unwrap();
@@ -455,7 +461,7 @@ mod node_columns_tests {
 
     #[test]
     fn none_when_no_preset() {
-        let actual = build_node_columns(None, None, &None, &None, &None).unwrap();
+        let actual = build_node_columns(None, None, &None, &None, &empty_registry()).unwrap();
         assert!(actual.is_none());
     }
 
@@ -465,26 +471,25 @@ mod node_columns_tests {
             "p".to_string(),
             vec!["name".to_string(), "bogus".to_string()],
         )]);
-        assert!(
-            build_node_columns(None, None, &Some("p".to_string()), &Some(presets), &None).is_err()
-        );
-    }
-
-    #[test]
-    fn error_on_label_name_colliding_with_builtin() {
-        let labels = vec![LabelColumnConfig {
-            name: "status".to_string(),
-            label: "x".to_string(),
-        }];
-        let presets = HashMap::from([("p".to_string(), vec!["name".to_string()])]);
         assert!(build_node_columns(
             None,
             None,
             &Some("p".to_string()),
             &Some(presets),
-            &Some(labels)
+            &empty_registry()
         )
         .is_err());
+    }
+
+    #[test]
+    fn error_on_label_name_colliding_with_builtin() {
+        // build_node_columns はもう registry 構築をしない。collision の検出は
+        // build_node_label_registry の責務に移った。
+        let labels = vec![LabelColumnConfig {
+            name: "status".to_string(),
+            label: "x".to_string(),
+        }];
+        assert!(build_node_label_registry(&Some(labels)).is_err());
     }
 
     #[test]
@@ -505,9 +510,15 @@ mod node_columns_tests {
 
     #[test]
     fn full_returns_all_builtins() {
-        let cols = build_node_columns(Some(vec!["full".to_string()]), None, &None, &None, &None)
-            .unwrap()
-            .unwrap();
+        let cols = build_node_columns(
+            Some(vec!["full".to_string()]),
+            None,
+            &None,
+            &None,
+            &empty_registry(),
+        )
+        .unwrap()
+        .unwrap();
         assert_eq!(cols.specs().len(), NodeColumn::all().count());
     }
 }
