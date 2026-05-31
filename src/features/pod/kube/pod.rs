@@ -382,4 +382,36 @@ mod tests {
         let cells = build_row_cells(&specs, &row, &[0, 1]);
         assert_eq!(cells, vec!["web-pod", "prod", "Running", "platform"]);
     }
+
+    #[test]
+    fn label_before_builtin_preserves_cell_and_index_alignment() {
+        // ユーザが dialog で label 列を Name より前に reorder したケース。
+        // builtin_iter は builtin_indexes を順に消費するだけなので、spec の
+        // 並びが変わっても各 Builtin arm は正しい builtin セルを取り出す。
+        // 呼び出し側の name_index/status_index も specs.position(...) で
+        // 再計算されるため、row_cells[name_index] が常に NAME 値を返す。
+        let specs = vec![
+            PodColumnSpec::Label {
+                key: "app".to_string(),
+                header: "APP".to_string(),
+            },
+            PodColumnSpec::Builtin(PodColumn::Name),
+            PodColumnSpec::Builtin(PodColumn::Status),
+        ];
+        // API table returns Name and Status cells only.
+        // builtin_indexes: Name→cell[0], Status→cell[1].
+        let row = make_row_with_labels(&["web-pod", "Running"], &[("app", "frontend")]);
+
+        let cells = build_row_cells(&specs, &row, &[0, 1]);
+        assert_eq!(cells, vec!["frontend", "web-pod", "Running"]);
+
+        // 呼び出し側がやる name_index 計算と同じことを直接確認:
+        // label が先頭にあっても NAME の位置は 1 で、cells[1] = "web-pod"。
+        let name_index = specs
+            .iter()
+            .position(|s| matches!(s, PodColumnSpec::Builtin(PodColumn::Name)))
+            .expect("Name column must be present");
+        assert_eq!(name_index, 1);
+        assert_eq!(cells[name_index], "web-pod");
+    }
 }
