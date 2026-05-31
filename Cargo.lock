@@ -1478,6 +1478,7 @@ dependencies = [
  "nucleo-matcher",
  "once_cell",
  "paste",
+ "percent-encoding",
  "pretty_assertions",
  "ratatui",
  "rayon",

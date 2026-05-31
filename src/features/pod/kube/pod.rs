@@ -6,6 +6,7 @@ use crossbeam::channel::Sender;
 use futures::future::try_join_all;
 use k8s_openapi::{api::core::v1::Pod, Resource as _};
 use kube::Resource;
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use ratatui::style::{Color, Style};
 use regex::Regex;
 
@@ -202,7 +203,13 @@ impl PodPoller {
             let pod_columns_specs = pod_columns_specs.clone();
             let base_path = Pod::url_path(&Default::default(), Some(ns));
             let path = match label_selector.as_deref().filter(|s| !s.is_empty()) {
-                Some(sel) => format!("{}?labelSelector={}", base_path, sel),
+                Some(sel) => {
+                    format!(
+                        "{}?labelSelector={}",
+                        base_path,
+                        utf8_percent_encode(sel, NON_ALPHANUMERIC)
+                    )
+                }
                 None => base_path,
             };
             get_resource_per_namespace(

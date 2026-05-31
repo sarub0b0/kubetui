@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use crossbeam::channel::Sender;
 use k8s_openapi::{api::core::v1::Node, Resource as _};
 use kube::Resource;
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use tokio::sync::RwLock;
 
 use crate::{
@@ -96,7 +97,13 @@ async fn get_node_table<C: KubeClientRequest>(
     let path = {
         let filter = shared_node_filter.read().await;
         match filter.as_deref().filter(|s| !s.is_empty()) {
-            Some(sel) => format!("{}?labelSelector={}", base_path, sel),
+            Some(sel) => {
+                format!(
+                    "{}?labelSelector={}",
+                    base_path,
+                    utf8_percent_encode(sel, NON_ALPHANUMERIC)
+                )
+            }
             None => base_path,
         }
     };
@@ -287,8 +294,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn url_includes_label_selector_when_set() {
+    async fn url_encodes_label_selector_equality_expression() {
         let mut client = crate::kube::mock::MockTestKubeClient::new();
+        // `env=prod` の `=` は URL の sub-delim だが、percent-encoding でも
+        // k8s API server は decode して labelSelector 文法として解釈する。
         mock_expect!(
             client,
             request_table,
@@ -298,7 +307,50 @@ mod tests {
         );
 
         let shared = Arc::new(RwLock::new(NodeColumns::default()));
-        let shared_filter = Arc::new(RwLock::new(Some("env%3Dprod".to_string())));
+        let shared_filter = Arc::new(RwLock::new(Some("env=prod".to_string())));
+        let table = get_node_table(&client, &shared, &shared_filter)
+            .await
+            .unwrap();
+        assert_eq!(table.rows.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn url_encodes_comma_separated_and_expression() {
+        // k8s labelSelector の AND 区切りはカンマ。`,` も `=` も URL の sub-delim
+        // だが、percent-encoding でも k8s API server は decode して文法どおり
+        // 解釈するので往復性が保たれる。
+        let mut client = crate::kube::mock::MockTestKubeClient::new();
+        mock_expect!(
+            client,
+            request_table,
+            Table,
+            eq("/api/v1/nodes?labelSelector=env%3Dprod%2Ctier%3Dfrontend"),
+            Ok(node_table_fixture())
+        );
+
+        let shared = Arc::new(RwLock::new(NodeColumns::default()));
+        let shared_filter = Arc::new(RwLock::new(Some("env=prod,tier=frontend".to_string())));
+        let table = get_node_table(&client, &shared, &shared_filter)
+            .await
+            .unwrap();
+        assert_eq!(table.rows.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn url_encodes_space_in_set_based_expression() {
+        // `key in (a, b)` は labelSelector の set-based 構文。
+        // 空白 / カンマ / カッコは全て URL-encode される。
+        let mut client = crate::kube::mock::MockTestKubeClient::new();
+        mock_expect!(
+            client,
+            request_table,
+            Table,
+            eq("/api/v1/nodes?labelSelector=env%20in%20%28prod%2Cdev%29"),
+            Ok(node_table_fixture())
+        );
+
+        let shared = Arc::new(RwLock::new(NodeColumns::default()));
+        let shared_filter = Arc::new(RwLock::new(Some("env in (prod,dev)".to_string())));
         let table = get_node_table(&client, &shared, &shared_filter)
             .await
             .unwrap();
