@@ -12,6 +12,7 @@ use crate::{
         pod::{
             kube::{LogConfig, LogPrefixType},
             message::LogMessage,
+            pod_filter_applicator,
         },
     },
     kube::context::Namespace,
@@ -19,7 +20,6 @@ use crate::{
     ui::{
         event::EventResult,
         widget::{
-            substring_applicator,
             FilterForm,
             FilterFormTheme,
             Item,
@@ -56,7 +56,7 @@ pub fn pod_widget(tx: &Sender<Message>, theme: WidgetThemeConfig) -> Widget<'sta
         .widget_base(widget_base)
         .filter_form(filter_form)
         .theme(table_theme)
-        .filter_applicator(substring_applicator("NAME"))
+        .filter_applicator(pod_filter_applicator(tx.clone()))
         .action('t', open_pod_columns_dialog())
         .block_injection(block_injection())
         .on_select(on_select(tx))
