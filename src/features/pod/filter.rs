@@ -11,7 +11,10 @@ mod parser;
 use crossbeam::channel::Sender;
 
 use crate::{
-    features::{component_id::POD_FILTER_HELP_DIALOG_ID, pod::message::PodMessage},
+    features::{
+        component_id::POD_FILTER_HELP_DIALOG_ID,
+        pod::{message::PodMessage, pod_columns::PodLabelColumn},
+    },
     message::Message,
     ui::{
         widget::{
@@ -34,8 +37,12 @@ pub use parser::parse_pod_filter;
 ///
 /// The applicator uses `EnterToConfirm` so the parser only runs on Enter
 /// (avoids server-side roundtrips mid-typing).
-pub fn pod_filter_applicator(tx: Sender<Message>) -> TableFilterApplicator {
-    let parser: TableFilterParser = (move |input: &str| parse_pod_filter(input)).into();
+pub fn pod_filter_applicator(
+    label_registry: Vec<PodLabelColumn>,
+    tx: Sender<Message>,
+) -> TableFilterApplicator {
+    let parser: TableFilterParser =
+        (move |input: &str| parse_pod_filter(input, &label_registry)).into();
 
     let tx_apply = tx.clone();
     let tx_cancel = tx;
@@ -68,6 +75,6 @@ mod tests {
     #[test]
     fn applicator_constructs_without_panic() {
         let (tx, _rx) = crossbeam::channel::bounded(1);
-        let _ = pod_filter_applicator(tx);
+        let _ = pod_filter_applicator(Vec::new(), tx);
     }
 }

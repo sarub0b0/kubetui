@@ -4,29 +4,47 @@
 //! `parse_table_filter`. The Pod-specific part is the column validator:
 //! `namespace:` returns a guidance message (namespace is a scope, not a
 //! column-level filter — use the namespace selector); other unknown columns
-//! return `unknown column '<x>'`; builtin `PodColumn`s are accepted. Label
-//! columns are not supported for Pod yet (future work).
+//! return `unknown column '<x>'`; builtin `PodColumn`s and registered label
+//! columns (whose header appears in `label_registry`) are accepted.
 
 use std::collections::HashSet;
 
 use strum::IntoEnumIterator;
 
 use crate::{
-    features::pod::pod_columns::PodColumn,
+    features::pod::pod_columns::{PodColumn, PodLabelColumn},
     ui::widget::{normalize_column_name, parse_table_filter, TableFilterPredicate},
 };
+
+// ---------------------------------------------------------------------------
+// Column validation helpers
+// ---------------------------------------------------------------------------
+
+/// Build the set of valid (known) column names: builtin Pod columns plus any
+/// defined label columns, normalized so matching is case/format-insensitive.
+fn valid_columns(label_registry: &[PodLabelColumn]) -> HashSet<String> {
+    let mut set: HashSet<String> = PodColumn::iter()
+        .map(|c| normalize_column_name(c.display()))
+        .collect();
+    for lc in label_registry {
+        set.insert(normalize_column_name(&lc.header));
+    }
+    set
+}
 
 /// Parse a Pod-filter input string into a `TableFilterPredicate`.
 ///
 /// `namespace:` is rejected with a guidance message that points users to the
-/// namespace selector (namespace is a scope, not a row attribute). Other
-/// columns are validated against the builtin `PodColumn` set; a column not in
-/// that set produces `unknown column '<x>'`. Label columns are not supported
-/// for Pod yet (future work).
-pub fn parse_pod_filter(input: &str) -> Result<TableFilterPredicate, String> {
-    let valid: HashSet<String> = PodColumn::iter()
-        .map(|c| normalize_column_name(c.display()))
-        .collect();
+/// namespace selector (namespace is a scope, not a row attribute). This check
+/// fires *before* the registry/builtin lookup, so the guidance is preserved
+/// even when a label column is registered. Other columns are validated against
+/// the builtin `PodColumn` set plus any defined label columns in
+/// `label_registry`; a column not in that set produces `unknown column '<x>'`.
+pub fn parse_pod_filter(
+    input: &str,
+    label_registry: &[PodLabelColumn],
+) -> Result<TableFilterPredicate, String> {
+    let valid = valid_columns(label_registry);
     parse_table_filter(input, |column| {
         let normalized = normalize_column_name(column);
         if normalized == "namespace" {
@@ -47,9 +65,21 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
 
+    fn no_label_cols() -> Vec<PodLabelColumn> {
+        Vec::new()
+    }
+
+    fn registry_with(name: &str, header: &str) -> Vec<PodLabelColumn> {
+        vec![PodLabelColumn {
+            name: name.to_string(),
+            key: "irrelevant.example.com/key".to_string(),
+            header: header.to_string(),
+        }]
+    }
+
     #[test]
     fn empty_input_yields_empty_predicate() {
-        let p = parse_pod_filter("").unwrap();
+        let p = parse_pod_filter("", &no_label_cols()).unwrap();
         assert!(p.column_includes.is_empty());
         assert!(p.column_excludes.is_empty());
         assert_eq!(p.label_selector, None);
@@ -57,14 +87,14 @@ mod tests {
 
     #[test]
     fn bare_value_becomes_name_include() {
-        let p = parse_pod_filter("nginx").unwrap();
+        let p = parse_pod_filter("nginx", &no_label_cols()).unwrap();
         let patterns = p.column_includes.get("name").expect("name column");
         assert!(patterns[0].is_match("nginx-abc"));
     }
 
     #[test]
     fn builtin_columns_are_accepted() {
-        let p = parse_pod_filter("status:Running !ready:0/1").unwrap();
+        let p = parse_pod_filter("status:Running !ready:0/1", &no_label_cols()).unwrap();
         assert!(p.column_includes.contains_key("status"));
         assert!(p.column_excludes.contains_key("ready"));
     }
@@ -73,20 +103,20 @@ mod tests {
     fn multiword_builtin_via_normalization() {
         // NOMINATED NODE / READINESS GATES are builtin Pod columns.
         // nominatednode, nominated-node, readinessgates all accepted via normalization.
-        assert!(parse_pod_filter("nominatednode:foo").is_ok());
-        assert!(parse_pod_filter("nominated-node:foo").is_ok());
-        assert!(parse_pod_filter("readinessgates:bar").is_ok());
+        assert!(parse_pod_filter("nominatednode:foo", &no_label_cols()).is_ok());
+        assert!(parse_pod_filter("nominated-node:foo", &no_label_cols()).is_ok());
+        assert!(parse_pod_filter("readinessgates:bar", &no_label_cols()).is_ok());
     }
 
     #[test]
     fn label_selector_is_captured() {
-        let p = parse_pod_filter("label:app=nginx").unwrap();
+        let p = parse_pod_filter("label:app=nginx", &no_label_cols()).unwrap();
         assert_eq!(p.label_selector.as_deref(), Some("app=nginx"));
     }
 
     #[test]
     fn unknown_column_produces_parse_error() {
-        let err = parse_pod_filter("staus:Running").unwrap_err();
+        let err = parse_pod_filter("staus:Running", &no_label_cols()).unwrap_err();
         assert!(
             err.contains("unknown column") && err.contains("staus"),
             "got: {}",
@@ -96,13 +126,13 @@ mod tests {
 
     #[test]
     fn namespace_returns_guidance_message_not_unknown_column() {
-        let err = parse_pod_filter("namespace:default").unwrap_err();
+        let err = parse_pod_filter("namespace:default", &no_label_cols()).unwrap_err();
         assert_eq!(
             err,
             "namespace is selected via the namespace selector, not the filter"
         );
         // Case / format-insensitive variants also hit the guidance.
-        let err2 = parse_pod_filter("NAMESPACE:default").unwrap_err();
+        let err2 = parse_pod_filter("NAMESPACE:default", &no_label_cols()).unwrap_err();
         assert_eq!(
             err2,
             "namespace is selected via the namespace selector, not the filter"
@@ -111,8 +141,33 @@ mod tests {
 
     #[test]
     fn quoted_value_with_whitespace() {
-        let p = parse_pod_filter(r#"status:"CreateContainerConfigError""#).unwrap();
+        let p = parse_pod_filter(r#"status:"CreateContainerConfigError""#, &no_label_cols())
+            .unwrap();
         let patterns = p.column_includes.get("status").unwrap();
         assert!(patterns[0].is_match("CreateContainerConfigError"));
+    }
+
+    #[test]
+    fn registered_label_column_header_is_accepted() {
+        let regs = registry_with("version", "VERSION");
+        let p = parse_pod_filter("version:1.2", &regs).unwrap();
+        assert!(p.column_includes.contains_key("version"));
+    }
+
+    #[test]
+    fn label_keyword_is_not_treated_as_a_column_lookup() {
+        // 'label:app=nginx' must NOT trigger unknown-column validation.
+        assert!(parse_pod_filter("label:app=nginx", &no_label_cols()).is_ok());
+    }
+
+    #[test]
+    fn namespace_guidance_still_fires_with_registry_present() {
+        // namespace guidance precedes registry/builtin check, even with registry.
+        let regs = registry_with("version", "VERSION");
+        let err = parse_pod_filter("namespace:default", &regs).unwrap_err();
+        assert_eq!(
+            err,
+            "namespace is selected via the namespace selector, not the filter"
+        );
     }
 }

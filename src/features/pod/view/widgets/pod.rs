@@ -42,7 +42,6 @@ pub fn pod_widget(
     label_registry: Vec<PodLabelColumn>,
     theme: WidgetThemeConfig,
 ) -> Widget<'static> {
-    let _ = &label_registry;
     let tx = tx.clone();
 
     let widget_theme = WidgetTheme::from(theme.clone());
@@ -62,7 +61,7 @@ pub fn pod_widget(
         .widget_base(widget_base)
         .filter_form(filter_form)
         .theme(table_theme)
-        .filter_applicator(pod_filter_applicator(tx.clone()))
+        .filter_applicator(pod_filter_applicator(label_registry, tx.clone()))
         .action('t', open_pod_columns_dialog())
         .block_injection(block_injection())
         .on_select(on_select(tx))
