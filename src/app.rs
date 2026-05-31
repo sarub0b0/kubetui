@@ -6,14 +6,14 @@ use crossbeam::channel::{bounded, Receiver, Sender};
 use crate::{
     cmd::Command,
     config::{
-        theme::{LabelColumnConfig, PodColumnConfig, PodHighlightConfig},
+        theme::{LabelColumnConfig, PodHighlightConfig},
         Config,
     },
     features::{
         api_resources::kube::ApiConfig,
         event::kube::EventConfig,
         node::{NodeColumn, NodeColumnSpec, NodeColumns, NodeLabelColumn},
-        pod::{kube::PodHighlightRule, PodColumns},
+        pod::{kube::PodHighlightRule, PodColumn, PodColumns},
     },
     logger,
     message::Message,
@@ -175,7 +175,7 @@ fn build_pod_columns(
     cmd_pod_columns: Option<PodColumns>,
     cmd_pod_columns_preset: Option<String>,
     default_preset: &Option<String>,
-    column_presets: &Option<HashMap<String, Vec<PodColumnConfig>>>,
+    column_presets: &Option<HashMap<String, Vec<String>>>,
 ) -> Result<Option<PodColumns>> {
     if let Some(columns) = cmd_pod_columns {
         return Ok(Some(columns));
@@ -186,11 +186,24 @@ fn build_pod_columns(
             anyhow::bail!("No pod column presets defined in config file, but '--pod-columns-preset' flag was used");
         };
 
-        let Some(columns) = presets.get(&preset) else {
+        let Some(entries) = presets.get(&preset) else {
             anyhow::bail!("Pod column preset '{}' was specified via '--pod-columns-preset' but is not defined in config file", preset);
         };
 
-        return Ok(Some(convert_columns(columns)));
+        let columns = PodColumns::from_builtins(
+            entries
+                .iter()
+                .map(|s| PodColumn::from_str(s))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| {
+                    anyhow::anyhow!(
+                        "Pod column preset '{}' contains an unknown column: {}",
+                        preset,
+                        e
+                    )
+                })?,
+        );
+        return Ok(Some(columns.ensure_name_column().dedup_columns()));
     }
 
     if let Some(default_preset) = default_preset {
@@ -200,23 +213,30 @@ fn build_pod_columns(
             );
         };
 
-        let Some(columns) = presets.get(default_preset) else {
+        let Some(entries) = presets.get(default_preset) else {
             anyhow::bail!(
                 "Default pod columns preset '{}' is set in config file but not defined in column_presets",
                 default_preset
             );
         };
 
-        return Ok(Some(convert_columns(columns)));
+        let columns = PodColumns::from_builtins(
+            entries
+                .iter()
+                .map(|s| PodColumn::from_str(s))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| {
+                    anyhow::anyhow!(
+                        "Pod column preset '{}' contains an unknown column: {}",
+                        default_preset,
+                        e
+                    )
+                })?,
+        );
+        return Ok(Some(columns.ensure_name_column().dedup_columns()));
     }
 
     Ok(None)
-}
-
-fn convert_columns(columns: &[PodColumnConfig]) -> PodColumns {
-    PodColumns::from(columns)
-        .ensure_name_column()
-        .dedup_columns()
 }
 
 fn build_node_columns(

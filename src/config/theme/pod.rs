@@ -4,9 +4,7 @@ use ratatui::style::Color;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::features::pod::{PodColumn, PodColumns};
-
-use super::ThemeStyleConfig;
+use super::{node::LabelColumnConfig, ThemeStyleConfig};
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PodThemeConfig {
@@ -15,7 +13,9 @@ pub struct PodThemeConfig {
 
     pub default_preset: Option<String>,
 
-    pub column_presets: Option<HashMap<String, Vec<PodColumnConfig>>>,
+    pub column_presets: Option<HashMap<String, Vec<String>>>,
+
+    pub label_columns: Option<Vec<LabelColumnConfig>>,
 }
 
 impl Default for PodThemeConfig {
@@ -24,6 +24,7 @@ impl Default for PodThemeConfig {
             highlights: default_highlights(),
             default_preset: None,
             column_presets: None,
+            label_columns: None,
         }
     }
 }
@@ -81,32 +82,25 @@ impl PartialEq for PodHighlightConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
-pub struct PodColumnConfig(#[serde(with = "serde_pod_column")] pub PodColumn);
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
 
-mod serde_pod_column {
-    use std::str::FromStr as _;
-
-    use serde::{de, Deserialize, Deserializer, Serializer};
-
-    pub fn serialize<S>(column: &super::PodColumn, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(column.normalize())
-    }
-
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<super::PodColumn, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        super::PodColumn::from_str(&s).map_err(de::Error::custom)
-    }
-}
-
-impl<T: AsRef<[PodColumnConfig]>> From<T> for PodColumns {
-    fn from(value: T) -> Self {
-        PodColumns::from_builtins(value.as_ref().iter().map(|c| c.0))
+    #[test]
+    fn deserializes_label_columns_and_string_presets() {
+        let json = r#"{
+            "column_presets": { "wide": ["name", "status", "version"] },
+            "label_columns": [{ "name": "version", "label": "app.kubernetes.io/version" }]
+        }"#;
+        let cfg: PodThemeConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            cfg.column_presets.as_ref().unwrap().get("wide").unwrap(),
+            &vec!["name".to_string(), "status".to_string(), "version".to_string()]
+        );
+        let labels = cfg.label_columns.as_ref().unwrap();
+        assert_eq!(labels.len(), 1);
+        assert_eq!(labels[0].name, "version");
+        assert_eq!(labels[0].label, "app.kubernetes.io/version");
     }
 }
