@@ -13,7 +13,7 @@ use crate::{
         api_resources::kube::ApiConfig,
         event::kube::EventConfig,
         node::{NodeColumn, NodeColumnSpec, NodeColumns, NodeLabelColumn},
-        pod::{kube::PodHighlightRule, PodColumn, PodColumns},
+        pod::{kube::PodHighlightRule, PodColumn, PodColumnSpec, PodColumns, PodLabelColumn},
     },
     logger,
     message::Message,
@@ -39,11 +39,15 @@ impl App {
         kube_worker_config.pod_config.pod_highlight_rules =
             build_pod_highlight_rules(&config.theme.pod.highlights);
 
+        let pod_label_registry =
+            build_pod_label_registry(&config.theme.pod.label_columns)?;
+
         kube_worker_config.pod_config.default_columns = build_pod_columns(
             cmd.pod_columns,
             cmd.pod_columns_preset,
             &config.theme.pod.default_preset,
             &config.theme.pod.column_presets,
+            &pod_label_registry,
         )?;
 
         kube_worker_config.node_config.default_columns = build_node_columns(
@@ -97,6 +101,7 @@ impl App {
             split_direction,
             default_pod_columns,
             default_node_columns,
+            pod_label_registry,
             node_label_columns,
             config.theme.clone(),
             cmd.clipboard,
@@ -176,6 +181,7 @@ fn build_pod_columns(
     cmd_pod_columns_preset: Option<String>,
     default_preset: &Option<String>,
     column_presets: &Option<HashMap<String, Vec<String>>>,
+    pod_label_registry: &[PodLabelColumn],
 ) -> Result<Option<PodColumns>> {
     if let Some(columns) = cmd_pod_columns {
         return Ok(Some(columns));
@@ -190,20 +196,8 @@ fn build_pod_columns(
             anyhow::bail!("Pod column preset '{}' was specified via '--pod-columns-preset' but is not defined in config file", preset);
         };
 
-        let columns = PodColumns::from_builtins(
-            entries
-                .iter()
-                .map(|s| PodColumn::from_str(s))
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|e| {
-                    anyhow::anyhow!(
-                        "Pod column preset '{}' contains an unknown column: {}",
-                        preset,
-                        e
-                    )
-                })?,
-        );
-        return Ok(Some(columns.ensure_name_column().dedup_columns()));
+        let columns = resolve_pod_columns(entries, pod_label_registry)?;
+        return Ok(Some(columns));
     }
 
     if let Some(default_preset) = default_preset {
@@ -220,20 +214,8 @@ fn build_pod_columns(
             );
         };
 
-        let columns = PodColumns::from_builtins(
-            entries
-                .iter()
-                .map(|s| PodColumn::from_str(s))
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|e| {
-                    anyhow::anyhow!(
-                        "Pod column preset '{}' contains an unknown column: {}",
-                        default_preset,
-                        e
-                    )
-                })?,
-        );
-        return Ok(Some(columns.ensure_name_column().dedup_columns()));
+        let columns = resolve_pod_columns(entries, pod_label_registry)?;
+        return Ok(Some(columns));
     }
 
     Ok(None)
@@ -270,6 +252,64 @@ fn build_node_columns(
     };
 
     Ok(Some(resolve_columns(entries, &registry)?))
+}
+
+/// Build the label-column registry for Pod from config, erroring on builtin
+/// name collisions.
+fn build_pod_label_registry(
+    label_columns: &Option<Vec<LabelColumnConfig>>,
+) -> Result<Vec<PodLabelColumn>> {
+    let mut out = Vec::new();
+    if let Some(defs) = label_columns {
+        for def in defs {
+            let norm = PodColumn::normalize_column(&def.name);
+            if PodColumn::from_str(&norm).is_ok() {
+                anyhow::bail!(
+                    "label_columns name '{}' collides with a builtin column name",
+                    def.name
+                );
+            }
+            out.push(PodLabelColumn {
+                name: def.name.clone(),
+                key: def.label.clone(),
+                header: def.name.to_uppercase(),
+            });
+        }
+    }
+    Ok(out)
+}
+
+/// Resolve column names (builtin or registry label, or "full") into PodColumns.
+fn resolve_pod_columns(
+    names: &[String],
+    registry: &[PodLabelColumn],
+) -> Result<PodColumns> {
+    if names.len() == 1 && PodColumn::normalize_column(&names[0]) == "full" {
+        return Ok(PodColumns::full());
+    }
+
+    let mut specs = Vec::new();
+    for name in names {
+        let norm = PodColumn::normalize_column(name);
+        if let Ok(builtin) = PodColumn::from_str(&norm) {
+            specs.push(PodColumnSpec::Builtin(builtin));
+        } else if let Some(lc) = registry
+            .iter()
+            .find(|lc| PodColumn::normalize_column(&lc.name) == norm)
+        {
+            specs.push(PodColumnSpec::Label {
+                key: lc.key.clone(),
+                header: lc.header.clone(),
+            });
+        } else {
+            anyhow::bail!(
+                "Pod column '{}' is neither a builtin column nor a defined label column",
+                name
+            );
+        }
+    }
+
+    Ok(PodColumns::new(specs).ensure_name_column().dedup_columns())
 }
 
 /// Build the label-column registry from config, erroring on builtin name collisions.
@@ -432,5 +472,161 @@ mod node_columns_tests {
             .unwrap()
             .unwrap();
         assert_eq!(cols.specs().len(), NodeColumn::all().count());
+    }
+}
+
+#[cfg(test)]
+mod pod_columns_tests {
+    use super::*;
+    use crate::features::pod::{PodColumn, PodColumnSpec};
+
+    fn labels() -> Vec<LabelColumnConfig> {
+        vec![LabelColumnConfig {
+            name: "version".to_string(),
+            label: "app.kubernetes.io/version".to_string(),
+        }]
+    }
+
+    // build_pod_label_registry tests
+
+    #[test]
+    fn registry_empty_for_none() {
+        let result = build_pod_label_registry(&None).unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn registry_empty_for_empty_vec() {
+        let result = build_pod_label_registry(&Some(vec![])).unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn registry_builds_entry_with_uppercase_header() {
+        let result = build_pod_label_registry(&Some(labels())).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].name, "version");
+        assert_eq!(result[0].key, "app.kubernetes.io/version");
+        assert_eq!(result[0].header, "VERSION");
+    }
+
+    #[test]
+    fn registry_errors_on_builtin_name_collision() {
+        let colliding = vec![LabelColumnConfig {
+            name: "status".to_string(),
+            label: "x".to_string(),
+        }];
+        assert!(build_pod_label_registry(&Some(colliding)).is_err());
+    }
+
+    #[test]
+    fn registry_errors_on_builtin_name_collision_ip() {
+        let colliding = vec![LabelColumnConfig {
+            name: "ip".to_string(),
+            label: "y".to_string(),
+        }];
+        assert!(build_pod_label_registry(&Some(colliding)).is_err());
+    }
+
+    // resolve_pod_columns tests
+
+    #[test]
+    fn resolve_builtin_only_names() {
+        let registry = build_pod_label_registry(&None).unwrap();
+        let cols =
+            resolve_pod_columns(&["name".to_string(), "status".to_string()], &registry).unwrap();
+        assert_eq!(
+            cols.specs(),
+            &[
+                PodColumnSpec::Builtin(PodColumn::Name),
+                PodColumnSpec::Builtin(PodColumn::Status),
+            ]
+        );
+    }
+
+    #[test]
+    fn resolve_label_name_from_registry() {
+        let registry = build_pod_label_registry(&Some(labels())).unwrap();
+        let cols =
+            resolve_pod_columns(&["name".to_string(), "version".to_string()], &registry).unwrap();
+        assert_eq!(
+            cols.specs(),
+            &[
+                PodColumnSpec::Builtin(PodColumn::Name),
+                PodColumnSpec::Label {
+                    key: "app.kubernetes.io/version".to_string(),
+                    header: "VERSION".to_string(),
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn resolve_mixed_builtin_and_label() {
+        let registry = build_pod_label_registry(&Some(labels())).unwrap();
+        let cols = resolve_pod_columns(
+            &[
+                "status".to_string(),
+                "version".to_string(),
+                "ready".to_string(),
+            ],
+            &registry,
+        )
+        .unwrap();
+        assert_eq!(
+            cols.specs(),
+            &[
+                PodColumnSpec::Builtin(PodColumn::Name),
+                PodColumnSpec::Builtin(PodColumn::Status),
+                PodColumnSpec::Label {
+                    key: "app.kubernetes.io/version".to_string(),
+                    header: "VERSION".to_string(),
+                },
+                PodColumnSpec::Builtin(PodColumn::Ready),
+            ]
+        );
+    }
+
+    #[test]
+    fn resolve_full_returns_all_builtins() {
+        let registry = build_pod_label_registry(&None).unwrap();
+        let cols = resolve_pod_columns(&["full".to_string()], &registry).unwrap();
+        // PodColumns::full() uses PodColumn::iter() which yields all builtin variants
+        assert!(!cols.specs().is_empty());
+        assert!(cols
+            .specs()
+            .iter()
+            .all(|s| matches!(s, PodColumnSpec::Builtin(_))));
+    }
+
+    #[test]
+    fn resolve_errors_on_unknown_name() {
+        let registry = build_pod_label_registry(&None).unwrap();
+        assert!(resolve_pod_columns(&["bogus".to_string()], &registry).is_err());
+    }
+
+    #[test]
+    fn resolve_ensure_name_column_adds_name_at_front() {
+        // Specify status without name — ensure_name_column should prepend NAME
+        let registry = build_pod_label_registry(&None).unwrap();
+        let cols = resolve_pod_columns(&["status".to_string()], &registry).unwrap();
+        assert_eq!(cols.specs()[0], PodColumnSpec::Builtin(PodColumn::Name));
+    }
+
+    #[test]
+    fn resolve_dedup_columns_removes_duplicates() {
+        let registry = build_pod_label_registry(&None).unwrap();
+        let cols = resolve_pod_columns(
+            &["name".to_string(), "status".to_string(), "status".to_string()],
+            &registry,
+        )
+        .unwrap();
+        // STATUS should appear only once
+        let status_count = cols
+            .specs()
+            .iter()
+            .filter(|s| **s == PodColumnSpec::Builtin(PodColumn::Status))
+            .count();
+        assert_eq!(status_count, 1);
     }
 }

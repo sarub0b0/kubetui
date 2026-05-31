@@ -8,8 +8,12 @@ use crate::{
     features::{
         component_id::POD_COLUMNS_DIALOG_ID,
         pod::{
-            message::PodMessage, pod_columns::DEFAULT_POD_COLUMNS, PodColumn, PodColumnSpec,
+            message::PodMessage,
+            pod_columns::DEFAULT_POD_COLUMNS,
+            PodColumn,
+            PodColumnSpec,
             PodColumns,
+            PodLabelColumn,
         },
     },
     message::Message,
@@ -23,8 +27,10 @@ use crate::{
 pub fn pod_columns_dialog(
     tx: &Sender<Message>,
     default_columns: Option<PodColumns>,
+    label_registry: Vec<PodLabelColumn>,
     theme: WidgetThemeConfig,
 ) -> Widget<'static> {
+    let _ = &label_registry;
     let check_list_theme = CheckListTheme::from(theme.clone());
     let widget_theme = WidgetTheme::from(theme.clone());
     let widget_base = WidgetBase::builder()

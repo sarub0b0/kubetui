@@ -13,6 +13,7 @@ use crate::{
             kube::{LogConfig, LogPrefixType},
             message::LogMessage,
             pod_filter_applicator,
+            PodLabelColumn,
         },
     },
     kube::context::Namespace,
@@ -36,7 +37,12 @@ use crate::{
     },
 };
 
-pub fn pod_widget(tx: &Sender<Message>, theme: WidgetThemeConfig) -> Widget<'static> {
+pub fn pod_widget(
+    tx: &Sender<Message>,
+    label_registry: Vec<PodLabelColumn>,
+    theme: WidgetThemeConfig,
+) -> Widget<'static> {
+    let _ = &label_registry;
     let tx = tx.clone();
 
     let widget_theme = WidgetTheme::from(theme.clone());
