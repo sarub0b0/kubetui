@@ -1,4 +1,4 @@
-use std::str::FromStr as _;
+use std::{collections::BTreeMap, str::FromStr as _};
 
 use crossbeam::channel::Sender;
 use strum::IntoEnumIterator;
@@ -8,12 +8,7 @@ use crate::{
     features::{
         component_id::POD_COLUMNS_DIALOG_ID,
         pod::{
-            message::PodMessage,
-            pod_columns::DEFAULT_POD_COLUMNS,
-            PodColumn,
-            PodColumnSpec,
-            PodColumns,
-            PodLabelColumn,
+            message::PodMessage, PodColumn, PodColumnSpec, PodColumns, PodLabelColumn,
         },
     },
     message::Message,
@@ -30,7 +25,6 @@ pub fn pod_columns_dialog(
     label_registry: Vec<PodLabelColumn>,
     theme: WidgetThemeConfig,
 ) -> Widget<'static> {
-    let _ = &label_registry;
     let check_list_theme = CheckListTheme::from(theme.clone());
     let widget_theme = WidgetTheme::from(theme.clone());
     let widget_base = WidgetBase::builder()
@@ -38,7 +32,7 @@ pub fn pod_columns_dialog(
         .theme(widget_theme)
         .build();
 
-    let check_list_items = build_check_list_items(default_columns);
+    let check_list_items = build_check_list_items(default_columns, &label_registry);
 
     CheckList::builder()
         .id(POD_COLUMNS_DIALOG_ID)
@@ -50,216 +44,177 @@ pub fn pod_columns_dialog(
         .into()
 }
 
+/// All candidate columns: every builtin, then every defined label column.
+fn candidate_specs(label_registry: &[PodLabelColumn]) -> Vec<PodColumnSpec> {
+    PodColumn::iter()
+        .map(PodColumnSpec::Builtin)
+        .chain(label_registry.iter().map(|lc| {
+            PodColumnSpec::Label {
+                key: lc.key.clone(),
+                header: lc.header.clone(),
+            }
+        }))
+        .collect()
+}
+
+/// Build the checklist items: the currently-active columns first (in their
+/// order, checked), then the remaining candidates (unchecked). Each item
+/// carries its `PodColumnSpec` in `metadata` so the selection can be rebuilt
+/// from the items alone — independent of any reordering done in the dialog.
+fn build_check_list_items(
+    default_columns: Option<PodColumns>,
+    label_registry: &[PodLabelColumn],
+) -> Vec<CheckListItem> {
+    let candidates = candidate_specs(label_registry);
+    let current = default_columns.unwrap_or_default();
+
+    current
+        .specs()
+        .iter()
+        .map(|spec| make_item(spec, true))
+        .chain(
+            candidates
+                .iter()
+                .filter(|spec| !current.specs().contains(spec))
+                .map(|spec| make_item(spec, false)),
+        )
+        .collect()
+}
+
+fn make_item(spec: &PodColumnSpec, checked: bool) -> CheckListItem {
+    CheckListItem {
+        label: spec.header(),
+        checked,
+        required: matches!(spec, PodColumnSpec::Builtin(PodColumn::Name)),
+        metadata: Some(metadata_for(spec)),
+    }
+}
+
+fn metadata_for(spec: &PodColumnSpec) -> BTreeMap<String, String> {
+    match spec {
+        PodColumnSpec::Builtin(c) => {
+            BTreeMap::from([
+                ("kind".to_string(), "builtin".to_string()),
+                ("id".to_string(), c.as_str().to_string()),
+            ])
+        }
+        PodColumnSpec::Label { key, header } => {
+            BTreeMap::from([
+                ("kind".to_string(), "label".to_string()),
+                ("key".to_string(), key.clone()),
+                ("header".to_string(), header.clone()),
+            ])
+        }
+    }
+}
+
+fn spec_from_item(item: &CheckListItem) -> Option<PodColumnSpec> {
+    let md = item.metadata.as_ref()?;
+    match md.get("kind").map(String::as_str) {
+        Some("builtin") => {
+            PodColumn::from_str(md.get("id")?)
+                .ok()
+                .map(PodColumnSpec::Builtin)
+        }
+        Some("label") => {
+            Some(PodColumnSpec::Label {
+                key: md.get("key")?.clone(),
+                header: md.get("header")?.clone(),
+            })
+        }
+        _ => None,
+    }
+}
+
+/// Collect the selected columns from the checklist items, preserving the
+/// items' current display order (which the user can reorder in the dialog).
+fn collect_columns(items: &[CheckListItem]) -> PodColumns {
+    let specs: Vec<PodColumnSpec> = items
+        .iter()
+        .filter(|item| item.required || item.checked)
+        .filter_map(spec_from_item)
+        .collect();
+
+    PodColumns::new(specs).ensure_name_column()
+}
+
 fn on_change(tx: Sender<Message>) -> impl Fn(&mut Window, &CheckListItem) -> EventResult {
     move |w: &mut Window, _v| {
         let widget = w.find_widget_mut(POD_COLUMNS_DIALOG_ID).as_mut_check_list();
 
-        let items = widget
-            .items()
-            .iter()
-            .filter(|item| item.required || item.checked)
-            .filter_map(|i| PodColumn::from_str(&i.label).ok())
-            .collect::<Vec<_>>();
+        let columns = collect_columns(widget.items());
 
-        tx.send(PodMessage::Request(PodColumns::from_builtins(items)).into())
+        tx.send(PodMessage::Request(columns).into())
             .expect("Failed to send PodColumnsRequest::Set");
 
         EventResult::Nop
     }
 }
 
-fn build_check_list_items(default_columns: Option<PodColumns>) -> Vec<CheckListItem> {
-    match default_columns {
-        Some(columns) => {
-            build_check_list_items_from_existing(columns.ensure_name_column().dedup_columns())
-        }
-        None => build_default_check_list_items(),
-    }
-}
-
-fn build_check_list_items_from_existing(pod_columns: PodColumns) -> Vec<CheckListItem> {
-    let checked_builtins: Vec<PodColumn> = pod_columns
-        .specs()
-        .iter()
-        .filter_map(|s| match s {
-            PodColumnSpec::Builtin(c) => Some(*c),
-            PodColumnSpec::Label { .. } => None,
-        })
-        .collect();
-
-    checked_builtins
-        .iter()
-        .map(|column| make_item(*column, true))
-        .chain(
-            PodColumn::iter()
-                .filter(|c| !checked_builtins.contains(c))
-                .map(|column| make_item(column, false)),
-        )
-        .collect()
-}
-
-fn build_default_check_list_items() -> Vec<CheckListItem> {
-    PodColumn::iter()
-        .map(|column| {
-            let checked = DEFAULT_POD_COLUMNS.contains(&column);
-
-            make_item(column, checked)
-        })
-        .collect()
-}
-
-fn make_item(column: PodColumn, checked: bool) -> CheckListItem {
-    CheckListItem {
-        label: column.display().to_string(),
-        checked,
-        required: column == PodColumn::Name,
-        metadata: None,
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    #![allow(non_snake_case)]
-
     use super::*;
+    use pretty_assertions::assert_eq;
 
-    mod build_check_list_items_from_existing {
-        use super::*;
-        use pretty_assertions::assert_eq;
-
-        #[test]
-        fn ユーザーが指定したカラムをチェック済みで最初に配置して残りのカラムを未チェック状態で追加する(
-        ) {
-            let pod_columns =
-                PodColumns::from_builtins([PodColumn::Name, PodColumn::Ready, PodColumn::Status]);
-            let columns = build_check_list_items_from_existing(pod_columns);
-
-            let expected: Vec<CheckListItem> = vec![
-                CheckListItem {
-                    label: "NAME".to_string(),
-                    checked: true,
-                    required: true,
-                    metadata: None,
-                },
-                CheckListItem {
-                    label: "READY".to_string(),
-                    checked: true,
-                    required: false,
-                    metadata: None,
-                },
-                CheckListItem {
-                    label: "STATUS".to_string(),
-                    checked: true,
-                    required: false,
-                    metadata: None,
-                },
-                CheckListItem {
-                    label: "RESTARTS".to_string(),
-                    checked: false,
-                    required: false,
-                    metadata: None,
-                },
-                CheckListItem {
-                    label: "AGE".to_string(),
-                    checked: false,
-                    required: false,
-                    metadata: None,
-                },
-                CheckListItem {
-                    label: "IP".to_string(),
-                    checked: false,
-                    required: false,
-                    metadata: None,
-                },
-                CheckListItem {
-                    label: "NODE".to_string(),
-                    checked: false,
-                    required: false,
-                    metadata: None,
-                },
-                CheckListItem {
-                    label: "NOMINATED NODE".to_string(),
-                    checked: false,
-                    required: false,
-                    metadata: None,
-                },
-                CheckListItem {
-                    label: "READINESS GATES".to_string(),
-                    checked: false,
-                    required: false,
-                    metadata: None,
-                },
-            ];
-
-            assert_eq!(columns, expected);
+    fn label_spec(key: &str, header: &str) -> PodColumnSpec {
+        PodColumnSpec::Label {
+            key: key.into(),
+            header: header.into(),
         }
     }
 
-    mod build_default_check_list_items {
-        use super::*;
-        use pretty_assertions::assert_eq;
+    #[test]
+    fn 選択列を先頭にその他候補を未チェックで並べる() {
+        let registry = vec![PodLabelColumn {
+            name: "version".into(),
+            key: "app.kubernetes.io/version".into(),
+            header: "VERSION".into(),
+        }];
+        let current = PodColumns::new([
+            PodColumnSpec::Builtin(PodColumn::Name),
+            label_spec("app.kubernetes.io/version", "VERSION"),
+        ]);
 
-        #[test]
-        fn デフォルトのカラムがチェック済みの状態で構築できる() {
-            let columns = build_default_check_list_items();
-            let expected: Vec<CheckListItem> = vec![
-                CheckListItem {
-                    label: "NAME".to_string(),
-                    checked: true,
-                    required: true,
-                    metadata: None,
-                },
-                CheckListItem {
-                    label: "READY".to_string(),
-                    checked: true,
-                    required: false,
-                    metadata: None,
-                },
-                CheckListItem {
-                    label: "STATUS".to_string(),
-                    checked: true,
-                    required: false,
-                    metadata: None,
-                },
-                CheckListItem {
-                    label: "RESTARTS".to_string(),
-                    checked: false,
-                    required: false,
-                    metadata: None,
-                },
-                CheckListItem {
-                    label: "AGE".to_string(),
-                    checked: true,
-                    required: false,
-                    metadata: None,
-                },
-                CheckListItem {
-                    label: "IP".to_string(),
-                    checked: false,
-                    required: false,
-                    metadata: None,
-                },
-                CheckListItem {
-                    label: "NODE".to_string(),
-                    checked: false,
-                    required: false,
-                    metadata: None,
-                },
-                CheckListItem {
-                    label: "NOMINATED NODE".to_string(),
-                    checked: false,
-                    required: false,
-                    metadata: None,
-                },
-                CheckListItem {
-                    label: "READINESS GATES".to_string(),
-                    checked: false,
-                    required: false,
-                    metadata: None,
-                },
-            ];
+        let items = build_check_list_items(Some(current), &registry);
 
-            assert_eq!(columns, expected);
-        }
+        // 先頭2件は選択済み(NAME, VERSION)、以降は未チェック。
+        assert_eq!(items[0].label, "NAME");
+        assert!(items[0].checked);
+        assert_eq!(items[1].label, "VERSION");
+        assert!(items[1].checked);
+        assert!(items[2..].iter().all(|i| !i.checked));
+    }
+
+    #[test]
+    fn 並べ替え後も表示順どおりに列を収集する() {
+        let name = make_item(&PodColumnSpec::Builtin(PodColumn::Name), true);
+        let version = make_item(&label_spec("app.kubernetes.io/version", "VERSION"), true);
+        let status = make_item(&PodColumnSpec::Builtin(PodColumn::Status), false);
+
+        // 表示順: VERSION, NAME, STATUS(未チェック)
+        let reordered = vec![version, name, status];
+
+        let columns = collect_columns(&reordered);
+
+        // STATUS は混入せず、表示順(VERSION, NAME)どおりに収集される。
+        assert_eq!(
+            columns.specs(),
+            &[
+                label_spec("app.kubernetes.io/version", "VERSION"),
+                PodColumnSpec::Builtin(PodColumn::Name),
+            ]
+        );
+    }
+
+    #[test]
+    fn メタデータからspecを復元できる() {
+        let builtin = make_item(&PodColumnSpec::Builtin(PodColumn::IP), true);
+        let label = make_item(&label_spec("k", "MIG"), true);
+
+        assert_eq!(
+            spec_from_item(&builtin),
+            Some(PodColumnSpec::Builtin(PodColumn::IP))
+        );
+        assert_eq!(spec_from_item(&label), Some(label_spec("k", "MIG")));
     }
 }
