@@ -161,9 +161,11 @@ mod tests {
     }
 
     #[test]
-    fn namespace_guidance_still_fires_with_registry_present() {
-        // namespace guidance precedes registry/builtin check, even with registry.
-        let regs = registry_with("version", "VERSION");
+    fn namespace_guidance_precedes_registry_even_on_collision() {
+        // Even if a label column is registered whose header normalizes to
+        // "namespace", the namespace guidance must still win — namespace is a
+        // scope, not a filter column.
+        let regs = registry_with("namespace", "NAMESPACE");
         let err = parse_pod_filter("namespace:default", &regs).unwrap_err();
         assert_eq!(
             err,
