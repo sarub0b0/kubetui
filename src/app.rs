@@ -254,11 +254,13 @@ fn build_node_columns(
 }
 
 /// Build the label-column registry for Pod from config, erroring on builtin
-/// name collisions.
+/// name collisions or on duplicate label names whose headers would collapse
+/// (e.g. `app` and `APP`). Duplicates are ambiguous in the dialog and break
+/// filter matching because predicates are keyed by normalized header.
 fn build_pod_label_registry(
     label_columns: &Option<Vec<LabelColumnConfig>>,
 ) -> Result<Vec<PodLabelColumn>> {
-    let mut out = Vec::new();
+    let mut out: Vec<PodLabelColumn> = Vec::new();
     if let Some(defs) = label_columns {
         for def in defs {
             let norm = PodColumn::normalize_column(&def.name);
@@ -266,6 +268,16 @@ fn build_pod_label_registry(
                 anyhow::bail!(
                     "label_columns name '{}' collides with a builtin column name",
                     def.name
+                );
+            }
+            if let Some(existing) = out
+                .iter()
+                .find(|lc| PodColumn::normalize_column(&lc.name) == norm)
+            {
+                anyhow::bail!(
+                    "label_columns name '{}' has the same header as previously defined '{}'",
+                    def.name,
+                    existing.name
                 );
             }
             out.push(PodLabelColumn {
@@ -308,11 +320,14 @@ fn resolve_pod_columns(names: &[String], registry: &[PodLabelColumn]) -> Result<
     Ok(PodColumns::new(specs).ensure_name_column().dedup_columns())
 }
 
-/// Build the label-column registry from config, erroring on builtin name collisions.
+/// Build the label-column registry from config, erroring on builtin name
+/// collisions or on duplicate label names whose headers would collapse (e.g.
+/// `zone` and `ZONE`). Duplicates are ambiguous in the dialog and break filter
+/// matching because predicates are keyed by normalized header.
 fn build_node_label_registry(
     label_columns: &Option<Vec<LabelColumnConfig>>,
 ) -> Result<Vec<NodeLabelColumn>> {
-    let mut out = Vec::new();
+    let mut out: Vec<NodeLabelColumn> = Vec::new();
     if let Some(defs) = label_columns {
         for def in defs {
             let norm = NodeColumn::normalize_column(&def.name);
@@ -320,6 +335,16 @@ fn build_node_label_registry(
                 anyhow::bail!(
                     "label_columns name '{}' collides with a builtin column name",
                     def.name
+                );
+            }
+            if let Some(existing) = out
+                .iter()
+                .find(|lc| NodeColumn::normalize_column(&lc.name) == norm)
+            {
+                anyhow::bail!(
+                    "label_columns name '{}' has the same header as previously defined '{}'",
+                    def.name,
+                    existing.name
                 );
             }
             out.push(NodeLabelColumn {
@@ -463,6 +488,22 @@ mod node_columns_tests {
     }
 
     #[test]
+    fn registry_errors_on_duplicate_label_header() {
+        // 同じ name の重複は header が collapse して filter/dialog で曖昧になる → 拒否
+        let dup = vec![
+            LabelColumnConfig {
+                name: "zone".to_string(),
+                label: "topology.kubernetes.io/zone".to_string(),
+            },
+            LabelColumnConfig {
+                name: "ZONE".to_string(),
+                label: "topology.kubernetes.io/region".to_string(),
+            },
+        ];
+        assert!(build_node_label_registry(&Some(dup)).is_err());
+    }
+
+    #[test]
     fn full_returns_all_builtins() {
         let cols = build_node_columns(Some(vec!["full".to_string()]), None, &None, &None, &None)
             .unwrap()
@@ -522,6 +563,53 @@ mod pod_columns_tests {
             label: "y".to_string(),
         }];
         assert!(build_pod_label_registry(&Some(colliding)).is_err());
+    }
+
+    #[test]
+    fn registry_errors_on_duplicate_label_header_exact() {
+        let dup = vec![
+            LabelColumnConfig {
+                name: "app".to_string(),
+                label: "app.kubernetes.io/name".to_string(),
+            },
+            LabelColumnConfig {
+                name: "app".to_string(),
+                label: "app.kubernetes.io/version".to_string(),
+            },
+        ];
+        assert!(build_pod_label_registry(&Some(dup)).is_err());
+    }
+
+    #[test]
+    fn registry_errors_on_duplicate_label_header_case_insensitive() {
+        // `app` と `APP` は同じ header (APP) に collapse する → 拒否
+        let dup = vec![
+            LabelColumnConfig {
+                name: "app".to_string(),
+                label: "app.kubernetes.io/name".to_string(),
+            },
+            LabelColumnConfig {
+                name: "APP".to_string(),
+                label: "app.kubernetes.io/version".to_string(),
+            },
+        ];
+        assert!(build_pod_label_registry(&Some(dup)).is_err());
+    }
+
+    #[test]
+    fn registry_errors_on_duplicate_label_header_via_normalization() {
+        // `my app` と `my-app` は normalize で同一視される → 拒否
+        let dup = vec![
+            LabelColumnConfig {
+                name: "my app".to_string(),
+                label: "k1".to_string(),
+            },
+            LabelColumnConfig {
+                name: "my-app".to_string(),
+                label: "k2".to_string(),
+            },
+        ];
+        assert!(build_pod_label_registry(&Some(dup)).is_err());
     }
 
     // resolve_pod_columns tests
