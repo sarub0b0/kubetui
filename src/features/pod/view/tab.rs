@@ -24,6 +24,7 @@ use super::widgets::{
     log_query_widget,
     log_widget,
     pod_columns_dialog,
+    pod_filter_help_widget,
     pod_widget,
 };
 
@@ -31,6 +32,7 @@ pub struct PodTab {
     pub tab: Tab<'static>,
     pub log_query_help_dialog: Widget<'static>,
     pub pod_columns_dialog: Widget<'static>,
+    pub pod_filter_help_dialog: Widget<'static>,
 }
 
 impl PodTab {
@@ -49,6 +51,7 @@ impl PodTab {
         let pod_widget = pod_widget(tx, theme.clone());
         let log_query_widget = log_query_widget(tx, namespaces, theme.clone());
         let pod_columns_dialog = pod_columns_dialog(tx, default_columns, theme.clone());
+        let pod_filter_help_dialog = pod_filter_help_widget(theme.clone());
         let log_widget = log_widget(tx, clipboard, theme.clone(), log_max_lines);
         let log_query_help_widget = log_query_help_widget(theme);
 
@@ -68,6 +71,7 @@ impl PodTab {
             tab,
             log_query_help_dialog: log_query_help_widget,
             pod_columns_dialog,
+            pod_filter_help_dialog,
         }
     }
 }

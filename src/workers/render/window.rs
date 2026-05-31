@@ -215,6 +215,7 @@ impl WindowInit {
             tab: pod_tab,
             log_query_help_dialog,
             pod_columns_dialog,
+            pod_filter_help_dialog,
         } = PodTab::new(
             "Pod",
             &self.tx,
@@ -315,6 +316,7 @@ impl WindowInit {
             help_dialog,
             log_query_help_dialog,
             pod_columns_dialog,
+            pod_filter_help_dialog,
             node_columns_dialog,
             node_filter_help_dialog,
             yaml_dialog,
