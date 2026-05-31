@@ -67,6 +67,7 @@ pub type SharedTargetApiResources = Arc<RwLock<TargetApiResources>>;
 pub type StyledTargetApiResources = Vec<StyledApiResource>;
 
 pub type SharedPodColumns = Arc<RwLock<PodColumns>>;
+pub type SharedPodFilter = Arc<RwLock<Option<String>>>;
 
 /// APIタブのダイアログで表示されるAPIリソースのスタイル設定
 #[derive(Debug, Clone)]
@@ -302,6 +303,7 @@ impl KubeController {
             let shared_pod_columns = Arc::new(RwLock::new(
                 pod_config.default_columns.clone().unwrap_or_default(),
             ));
+            let shared_pod_filter: SharedPodFilter = Arc::new(RwLock::new(None));
 
             let shared_node_columns = Arc::new(RwLock::new(
                 node_config.default_columns.clone().unwrap_or_default(),
@@ -323,6 +325,7 @@ impl KubeController {
                 shared_target_api_resources: shared_target_api_resources.clone(),
                 shared_api_resources: shared_api_resources.clone(),
                 shared_pod_columns: shared_pod_columns.clone(),
+                shared_pod_filter: shared_pod_filter.clone(),
                 shared_node_columns: shared_node_columns.clone(),
                 shared_node_filter: shared_node_filter.clone(),
                 apis_config: apis_config.clone(),
@@ -336,6 +339,7 @@ impl KubeController {
                 tx.clone(),
                 shared_target_namespaces.clone(),
                 shared_pod_columns.clone(),
+                shared_pod_filter.clone(),
                 client.clone(),
                 pod_config.clone(),
             )
@@ -437,6 +441,7 @@ struct EventControllerArgs {
     shared_target_api_resources: SharedTargetApiResources,
     shared_api_resources: SharedApiResources,
     shared_pod_columns: SharedPodColumns,
+    shared_pod_filter: SharedPodFilter,
     shared_node_columns: SharedNodeColumns,
     shared_node_filter: SharedNodeFilter,
     apis_config: ApisConfig,
@@ -454,6 +459,7 @@ struct EventController {
     shared_target_api_resources: SharedTargetApiResources,
     shared_api_resources: SharedApiResources,
     shared_pod_columns: SharedPodColumns,
+    shared_pod_filter: SharedPodFilter,
     shared_node_columns: SharedNodeColumns,
     shared_node_filter: SharedNodeFilter,
     apis_config: ApisConfig,
@@ -472,6 +478,7 @@ impl EventController {
             shared_target_api_resources: args.shared_target_api_resources,
             shared_api_resources: args.shared_api_resources,
             shared_pod_columns: args.shared_pod_columns,
+            shared_pod_filter: args.shared_pod_filter,
             shared_node_columns: args.shared_node_columns,
             shared_node_filter: args.shared_node_filter,
             apis_config: args.apis_config,
@@ -521,6 +528,7 @@ impl Worker for EventController {
             shared_target_api_resources,
             shared_api_resources,
             shared_pod_columns,
+            shared_pod_filter,
             shared_node_columns,
             shared_node_filter,
             apis_config,
@@ -611,6 +619,10 @@ impl Worker for EventController {
                             *pod_columns = req;
 
                             logger!(info, "Pod columns updated: {:#?}", pod_columns);
+                        }
+
+                        Kube::Pod(PodMessage::Filter(sel)) => {
+                            *shared_pod_filter.write().await = sel;
                         }
 
                         Kube::Node(NodeMessage::Request(req)) => {

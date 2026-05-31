@@ -23,6 +23,7 @@ impl From<LogMessage> for Message {
 pub enum PodMessage {
     Request(PodColumns),
     Poll(Result<KubeTable>),
+    Filter(Option<String>),
 }
 
 impl From<PodMessage> for Message {
