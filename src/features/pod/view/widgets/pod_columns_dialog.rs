@@ -7,9 +7,7 @@ use crate::{
     config::theme::WidgetThemeConfig,
     features::{
         component_id::POD_COLUMNS_DIALOG_ID,
-        pod::{
-            message::PodMessage, PodColumn, PodColumnSpec, PodColumns, PodLabelColumn,
-        },
+        pod::{message::PodMessage, PodColumn, PodColumnSpec, PodColumns, PodLabelColumn},
     },
     message::Message,
     ui::{

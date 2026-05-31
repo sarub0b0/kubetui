@@ -80,9 +80,7 @@ mod tests {
     fn フルを渡すと全カラムを返す() {
         let input = "full";
         let actual = parse_pod_columns(input).unwrap();
-        let expected: Vec<PodColumnSpec> = PodColumn::iter()
-            .map(PodColumnSpec::Builtin)
-            .collect();
+        let expected: Vec<PodColumnSpec> = PodColumn::iter().map(PodColumnSpec::Builtin).collect();
         assert_eq!(actual.specs(), expected.as_slice());
     }
 

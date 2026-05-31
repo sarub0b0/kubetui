@@ -141,8 +141,8 @@ mod tests {
 
     #[test]
     fn quoted_value_with_whitespace() {
-        let p = parse_pod_filter(r#"status:"CreateContainerConfigError""#, &no_label_cols())
-            .unwrap();
+        let p =
+            parse_pod_filter(r#"status:"CreateContainerConfigError""#, &no_label_cols()).unwrap();
         let patterns = p.column_includes.get("status").unwrap();
         assert!(patterns[0].is_match("CreateContainerConfigError"));
     }

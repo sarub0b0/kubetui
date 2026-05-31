@@ -114,20 +114,23 @@ pub(crate) fn build_row_cells(
     let mut builtin_iter = builtin_indexes.iter();
     specs
         .iter()
-        .map(|s| match s {
-            PodColumnSpec::Builtin(_) => {
-                let i = builtin_iter.next().expect("builtin index available");
-                row.cells[*i].to_string()
+        .map(|s| {
+            match s {
+                PodColumnSpec::Builtin(_) => {
+                    let i = builtin_iter.next().expect("builtin index available");
+                    row.cells[*i].to_string()
+                }
+                PodColumnSpec::Label { key, .. } => {
+                    row.object
+                        .as_ref()
+                        .and_then(|o| o.0.get("metadata"))
+                        .and_then(|m| m.get("labels"))
+                        .and_then(|l| l.get(key))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string()
+                }
             }
-            PodColumnSpec::Label { key, .. } => row
-                .object
-                .as_ref()
-                .and_then(|o| o.0.get("metadata"))
-                .and_then(|m| m.get("labels"))
-                .and_then(|l| l.get(key))
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string(),
         })
         .collect()
 }
@@ -144,11 +147,8 @@ impl PodPoller {
 
         let ok_only: Vec<KubeTableRow> = jobs?.into_iter().flatten().collect();
 
-        let mut display_columns: Vec<String> = pod_columns
-            .specs()
-            .iter()
-            .map(|s| s.header())
-            .collect();
+        let mut display_columns: Vec<String> =
+            pod_columns.specs().iter().map(|s| s.header()).collect();
 
         if namespaces.len() != 1 {
             display_columns.insert(0, "NAMESPACE".to_string());
@@ -186,9 +186,11 @@ impl PodPoller {
         let columns: Vec<&str> = pod_columns
             .specs()
             .iter()
-            .filter_map(|s| match s {
-                PodColumnSpec::Builtin(c) => Some(c.as_str()),
-                PodColumnSpec::Label { .. } => None,
+            .filter_map(|s| {
+                match s {
+                    PodColumnSpec::Builtin(c) => Some(c.as_str()),
+                    PodColumnSpec::Label { .. } => None,
+                }
             })
             .collect();
 
@@ -253,7 +255,7 @@ impl PodPoller {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::kube::apis::v1_table::{Value};
+    use crate::kube::apis::v1_table::Value;
     use k8s_openapi::apimachinery::pkg::runtime::RawExtension;
     use pretty_assertions::assert_eq;
     use serde_json::Value as JsonValue;

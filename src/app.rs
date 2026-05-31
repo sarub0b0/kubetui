@@ -39,8 +39,7 @@ impl App {
         kube_worker_config.pod_config.pod_highlight_rules =
             build_pod_highlight_rules(&config.theme.pod.highlights);
 
-        let pod_label_registry =
-            build_pod_label_registry(&config.theme.pod.label_columns)?;
+        let pod_label_registry = build_pod_label_registry(&config.theme.pod.label_columns)?;
 
         kube_worker_config.pod_config.default_columns = build_pod_columns(
             cmd.pod_columns,
@@ -280,10 +279,7 @@ fn build_pod_label_registry(
 }
 
 /// Resolve column names (builtin or registry label, or "full") into PodColumns.
-fn resolve_pod_columns(
-    names: &[String],
-    registry: &[PodLabelColumn],
-) -> Result<PodColumns> {
+fn resolve_pod_columns(names: &[String], registry: &[PodLabelColumn]) -> Result<PodColumns> {
     if names.len() == 1 && PodColumn::normalize_column(&names[0]) == "full" {
         return Ok(PodColumns::full());
     }
@@ -617,7 +613,11 @@ mod pod_columns_tests {
     fn resolve_dedup_columns_removes_duplicates() {
         let registry = build_pod_label_registry(&None).unwrap();
         let cols = resolve_pod_columns(
-            &["name".to_string(), "status".to_string(), "status".to_string()],
+            &[
+                "name".to_string(),
+                "status".to_string(),
+                "status".to_string(),
+            ],
             &registry,
         )
         .unwrap();

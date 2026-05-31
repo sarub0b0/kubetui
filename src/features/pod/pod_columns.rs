@@ -270,8 +270,7 @@ mod tests {
 
             #[test]
             fn nameカラムが含まれていない場合は先頭に追加される() {
-                let pod_columns =
-                    PodColumns::from_builtins([PodColumn::Ready, PodColumn::Status]);
+                let pod_columns = PodColumns::from_builtins([PodColumn::Ready, PodColumn::Status]);
 
                 let actual = pod_columns.ensure_name_column();
 
@@ -288,10 +287,7 @@ mod tests {
 
         #[test]
         fn builtin_spec_header_is_uppercase_display() {
-            assert_eq!(
-                PodColumnSpec::Builtin(PodColumn::Status).header(),
-                "STATUS"
-            );
+            assert_eq!(PodColumnSpec::Builtin(PodColumn::Status).header(), "STATUS");
         }
 
         #[test]

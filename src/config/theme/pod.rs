@@ -96,7 +96,11 @@ mod tests {
         let cfg: PodThemeConfig = serde_json::from_str(json).unwrap();
         assert_eq!(
             cfg.column_presets.as_ref().unwrap().get("wide").unwrap(),
-            &vec!["name".to_string(), "status".to_string(), "version".to_string()]
+            &vec![
+                "name".to_string(),
+                "status".to_string(),
+                "version".to_string()
+            ]
         );
         let labels = cfg.label_columns.as_ref().unwrap();
         assert_eq!(labels.len(), 1);
