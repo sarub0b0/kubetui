@@ -53,7 +53,7 @@ pub fn parse_pod_columns(input: &str) -> Result<PodColumns> {
         }
     }
 
-    Ok(PodColumns::new(columns)
+    Ok(PodColumns::from_builtins(columns)
         .ensure_name_column()
         .dedup_columns())
 }
@@ -62,7 +62,12 @@ pub fn parse_pod_columns(input: &str) -> Result<PodColumns> {
 mod tests {
     use super::*;
 
+    use crate::features::pod::PodColumnSpec;
     use pretty_assertions::assert_eq;
+
+    fn builtins(cols: &[PodColumn]) -> Vec<PodColumnSpec> {
+        cols.iter().map(|c| PodColumnSpec::Builtin(*c)).collect()
+    }
 
     #[test]
     fn 空文字列を渡すとパニックする() {
@@ -75,36 +80,36 @@ mod tests {
     fn フルを渡すと全カラムを返す() {
         let input = "full";
         let actual = parse_pod_columns(input).unwrap();
-        let expected: Vec<PodColumn> = PodColumn::iter().collect();
-        assert_eq!(actual.columns(), expected);
+        let expected: Vec<PodColumnSpec> = PodColumn::iter().map(PodColumnSpec::Builtin).collect();
+        assert_eq!(actual.specs(), expected.as_slice());
     }
 
     #[test]
     fn カンマ区切りのカラム名を渡すと対応するカラム名を返す() {
         let input = "name, ready, status";
         let actual = parse_pod_columns(input).unwrap();
-        let expected = vec![PodColumn::Name, PodColumn::Ready, PodColumn::Status];
-        assert_eq!(actual.columns(), expected);
+        let expected = builtins(&[PodColumn::Name, PodColumn::Ready, PodColumn::Status]);
+        assert_eq!(actual.specs(), expected.as_slice());
     }
 
     #[test]
     fn カラム名に空白が含まれていても正しく処理される() {
         let input = "  name ,  ready , status ";
         let actual = parse_pod_columns(input).unwrap();
-        let expected = vec![PodColumn::Name, PodColumn::Ready, PodColumn::Status];
-        assert_eq!(actual.columns(), expected);
+        let expected = builtins(&[PodColumn::Name, PodColumn::Ready, PodColumn::Status]);
+        assert_eq!(actual.specs(), expected.as_slice());
     }
 
     #[test]
     fn アンダースコアやハイフンを含むカラム名も正しく処理される() {
         let input = "name, nominated_node, readiness-gates";
         let actual = parse_pod_columns(input).unwrap();
-        let expected = vec![
+        let expected = builtins(&[
             PodColumn::Name,
             PodColumn::NominatedNode,
             PodColumn::ReadinessGates,
-        ];
-        assert_eq!(actual.columns(), expected);
+        ]);
+        assert_eq!(actual.specs(), expected.as_slice());
     }
 
     #[test]
@@ -123,7 +128,9 @@ mod tests {
     fn Nameカラムが常に含まれる() {
         let input = "ready, status";
         let actual = parse_pod_columns(input).unwrap();
-        assert!(actual.columns().contains(&PodColumn::Name));
+        assert!(actual
+            .specs()
+            .contains(&PodColumnSpec::Builtin(PodColumn::Name)));
     }
 
     #[test]
@@ -149,8 +156,8 @@ mod tests {
     fn 空要素が含まれていても無視される() {
         let input = "ready,,status";
         let actual = parse_pod_columns(input).unwrap();
-        let expected = vec![PodColumn::Name, PodColumn::Ready, PodColumn::Status];
-        assert_eq!(actual.columns(), expected);
+        let expected = builtins(&[PodColumn::Name, PodColumn::Ready, PodColumn::Status]);
+        assert_eq!(actual.specs(), expected.as_slice());
     }
 
     #[test]
@@ -168,8 +175,8 @@ mod tests {
     fn カラム名の順序は維持される() {
         let input = "status, name, ready";
         let actual = parse_pod_columns(input).unwrap();
-        let expected = vec![PodColumn::Status, PodColumn::Name, PodColumn::Ready];
-        assert_eq!(actual.columns(), expected);
+        let expected = builtins(&[PodColumn::Status, PodColumn::Name, PodColumn::Ready]);
+        assert_eq!(actual.specs(), expected.as_slice());
     }
 
     // 重複排除のテスト
@@ -177,7 +184,7 @@ mod tests {
     fn 入力されたカラムに重複がある場合は最初の1つのみを保持する() {
         let input = "name, ready, ready, status";
         let actual = parse_pod_columns(input).unwrap();
-        let expected = vec![PodColumn::Name, PodColumn::Ready, PodColumn::Status];
-        assert_eq!(actual.columns(), expected);
+        let expected = builtins(&[PodColumn::Name, PodColumn::Ready, PodColumn::Status]);
+        assert_eq!(actual.specs(), expected.as_slice());
     }
 }

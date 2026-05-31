@@ -197,6 +197,9 @@ theme:
         - name
         - status
         - age
+    label_columns:
+      - name: app
+        label: app.kubernetes.io/name
 
   ## Event view
   event:

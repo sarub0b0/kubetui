@@ -69,14 +69,14 @@ fn content() -> Vec<String> {
            STATUS:"CreateContainerConfigError"
                                            Quoted value with whitespace
 
-        Columns must be builtin pod columns; unknown columns produce
-        an error. A term on a column that is not currently shown
-        becomes inactive (kept, but not applied) until that column
-        is shown again; the title shows (inactive: ...). Column names
-        ignore case, spaces, '-' and '_'. The 'namespace' column is
-        not filterable — use the namespace selector. Press Enter to
-        apply, Esc to cancel. Type ? or help in the filter input to
-        open this help.
+        Columns must be builtin or defined label columns; unknown
+        columns produce an error. A term on a column that is not
+        currently shown becomes inactive (kept, but not applied) until
+        that column is shown again; the title shows (inactive: ...).
+        Column names ignore case, spaces, '-' and '_'. The 'namespace'
+        column is not filterable — use the namespace selector. Press
+        Enter to apply, Esc to cancel. Type ? or help in the filter
+        input to open this help.
     "# }
     .lines()
     .map(ToString::to_string)
