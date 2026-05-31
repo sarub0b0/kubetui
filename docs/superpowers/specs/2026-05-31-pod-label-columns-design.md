@@ -1,7 +1,7 @@
 # Pod label columns（Node ミラー）
 
 - 日付: 2026-05-31
-- ステータス: Proposed（提案中）
+- ステータス: Implemented / awaiting GKE verification
 - 対象範囲: Pod タブの設定・型・poller・列ダイアログ・フィルタに label 列のサポートを追加（Node の label_columns と同型）
 - 対象外: Config/Network の column-aware 移行・Pod ログクエリ・Node 側の変更
 
