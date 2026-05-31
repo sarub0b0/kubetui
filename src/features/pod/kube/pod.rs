@@ -102,6 +102,36 @@ impl InfiniteWorker for PodPoller {
     }
 }
 
+/// Build the per-row cell vector from a spec list and a k8s API `TableRow`.
+///
+/// `builtin_indexes` are the positional indexes into `row.cells` that correspond,
+/// in order, to each `PodColumnSpec::Builtin` entry in `specs`.
+pub(crate) fn build_row_cells(
+    specs: &[PodColumnSpec],
+    row: &TableRow,
+    builtin_indexes: &[usize],
+) -> Vec<String> {
+    let mut builtin_iter = builtin_indexes.iter();
+    specs
+        .iter()
+        .map(|s| match s {
+            PodColumnSpec::Builtin(_) => {
+                let i = builtin_iter.next().expect("builtin index available");
+                row.cells[*i].to_string()
+            }
+            PodColumnSpec::Label { key, .. } => row
+                .object
+                .as_ref()
+                .and_then(|o| o.0.get("metadata"))
+                .and_then(|m| m.get("labels"))
+                .and_then(|l| l.get(key))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+        })
+        .collect()
+}
+
 impl PodPoller {
     async fn get_pod_info(&self) -> Result<KubeTable> {
         let namespaces = self.shared_target_namespaces.read().await;
@@ -178,17 +208,7 @@ impl PodPoller {
                 path,
                 &columns,
                 move |row: &TableRow, indexes: &[usize]| {
-                    let mut builtin_iter = indexes.iter();
-                    let mut row_cells: Vec<String> = pod_columns_specs
-                        .iter()
-                        .map(|s| match s {
-                            PodColumnSpec::Builtin(_) => {
-                                let i = builtin_iter.next().expect("builtin index available");
-                                row.cells[*i].to_string()
-                            }
-                            PodColumnSpec::Label { .. } => String::new(),
-                        })
-                        .collect();
+                    let mut row_cells = build_row_cells(&pod_columns_specs, row, indexes);
 
                     let name = row_cells[name_index].clone();
 
@@ -227,5 +247,137 @@ impl PodPoller {
             )
         }))
         .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::kube::apis::v1_table::{Value};
+    use k8s_openapi::apimachinery::pkg::runtime::RawExtension;
+    use pretty_assertions::assert_eq;
+    use serde_json::Value as JsonValue;
+
+    fn make_row(cells: &[&str]) -> TableRow {
+        TableRow {
+            cells: cells
+                .iter()
+                .map(|c| Value(JsonValue::String(c.to_string())))
+                .collect(),
+            ..Default::default()
+        }
+    }
+
+    fn make_row_with_labels(cells: &[&str], labels: &[(&str, &str)]) -> TableRow {
+        let labels_json: serde_json::Map<String, JsonValue> = labels
+            .iter()
+            .map(|(k, v)| (k.to_string(), JsonValue::String(v.to_string())))
+            .collect();
+        let object = serde_json::json!({ "metadata": { "labels": labels_json } });
+        TableRow {
+            cells: cells
+                .iter()
+                .map(|c| Value(JsonValue::String(c.to_string())))
+                .collect(),
+            object: Some(RawExtension(object)),
+            ..Default::default()
+        }
+    }
+
+    // ── Label arm: present label ─────────────────────────────────────────────
+
+    #[test]
+    fn label_arm_returns_value_when_label_present() {
+        let specs = vec![
+            PodColumnSpec::Builtin(PodColumn::Name),
+            PodColumnSpec::Label {
+                key: "app".to_string(),
+                header: "APP".to_string(),
+            },
+        ];
+        let row = make_row_with_labels(&["my-pod"], &[("app", "nginx")]);
+        // builtin_indexes: only one Builtin spec, maps to cell[0]
+        let cells = build_row_cells(&specs, &row, &[0]);
+        assert_eq!(cells, vec!["my-pod", "nginx"]);
+    }
+
+    // ── Label arm: label key absent from metadata.labels ────────────────────
+
+    #[test]
+    fn label_arm_returns_empty_when_label_absent() {
+        let specs = vec![
+            PodColumnSpec::Builtin(PodColumn::Name),
+            PodColumnSpec::Label {
+                key: "missing-key".to_string(),
+                header: "MISSING".to_string(),
+            },
+        ];
+        let row = make_row_with_labels(&["my-pod"], &[("app", "nginx")]);
+        let cells = build_row_cells(&specs, &row, &[0]);
+        assert_eq!(cells, vec!["my-pod", ""]);
+    }
+
+    // ── Label arm: metadata.labels entirely absent ───────────────────────────
+
+    #[test]
+    fn label_arm_returns_empty_when_no_metadata_labels() {
+        let specs = vec![
+            PodColumnSpec::Builtin(PodColumn::Name),
+            PodColumnSpec::Label {
+                key: "app".to_string(),
+                header: "APP".to_string(),
+            },
+        ];
+        // row with no object (no metadata at all)
+        let row = make_row(&["my-pod"]);
+        let cells = build_row_cells(&specs, &row, &[0]);
+        assert_eq!(cells, vec!["my-pod", ""]);
+    }
+
+    // ── Label arm: object present but metadata has no labels key ─────────────
+
+    #[test]
+    fn label_arm_returns_empty_when_labels_map_absent() {
+        let specs = vec![
+            PodColumnSpec::Builtin(PodColumn::Name),
+            PodColumnSpec::Label {
+                key: "app".to_string(),
+                header: "APP".to_string(),
+            },
+        ];
+        let object = serde_json::json!({ "metadata": {} });
+        let row = TableRow {
+            cells: vec![Value(JsonValue::String("my-pod".to_string()))],
+            object: Some(RawExtension(object)),
+            ..Default::default()
+        };
+        let cells = build_row_cells(&specs, &row, &[0]);
+        assert_eq!(cells, vec!["my-pod", ""]);
+    }
+
+    // ── Mixed builtin + label in spec order ──────────────────────────────────
+
+    #[test]
+    fn mixed_builtin_and_label_cells_are_in_spec_order() {
+        let specs = vec![
+            PodColumnSpec::Builtin(PodColumn::Name),
+            PodColumnSpec::Label {
+                key: "env".to_string(),
+                header: "ENV".to_string(),
+            },
+            PodColumnSpec::Builtin(PodColumn::Status),
+            PodColumnSpec::Label {
+                key: "team".to_string(),
+                header: "TEAM".to_string(),
+            },
+        ];
+        // API table returns Name and Status cells (builtin only)
+        // builtin_indexes: Name→cell[0], Status→cell[1]
+        let row = make_row_with_labels(
+            &["web-pod", "Running"],
+            &[("env", "prod"), ("team", "platform")],
+        );
+        let cells = build_row_cells(&specs, &row, &[0, 1]);
+        assert_eq!(cells, vec!["web-pod", "prod", "Running", "platform"]);
     }
 }
