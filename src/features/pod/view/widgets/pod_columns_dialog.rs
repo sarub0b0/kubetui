@@ -7,7 +7,10 @@ use crate::{
     config::theme::WidgetThemeConfig,
     features::{
         component_id::POD_COLUMNS_DIALOG_ID,
-        pod::{message::PodMessage, pod_columns::DEFAULT_POD_COLUMNS, PodColumn, PodColumns},
+        pod::{
+            message::PodMessage, pod_columns::DEFAULT_POD_COLUMNS, PodColumn, PodColumnSpec,
+            PodColumns,
+        },
     },
     message::Message,
     ui::{
@@ -52,7 +55,7 @@ fn on_change(tx: Sender<Message>) -> impl Fn(&mut Window, &CheckListItem) -> Eve
             .filter_map(|i| PodColumn::from_str(&i.label).ok())
             .collect::<Vec<_>>();
 
-        tx.send(PodMessage::Request(PodColumns::new(items)).into())
+        tx.send(PodMessage::Request(PodColumns::from_builtins(items)).into())
             .expect("Failed to send PodColumnsRequest::Set");
 
         EventResult::Nop
@@ -69,13 +72,21 @@ fn build_check_list_items(default_columns: Option<PodColumns>) -> Vec<CheckListI
 }
 
 fn build_check_list_items_from_existing(pod_columns: PodColumns) -> Vec<CheckListItem> {
-    pod_columns
-        .columns()
+    let checked_builtins: Vec<PodColumn> = pod_columns
+        .specs()
+        .iter()
+        .filter_map(|s| match s {
+            PodColumnSpec::Builtin(c) => Some(*c),
+            PodColumnSpec::Label { .. } => None,
+        })
+        .collect();
+
+    checked_builtins
         .iter()
         .map(|column| make_item(*column, true))
         .chain(
             PodColumn::iter()
-                .filter(|c| !pod_columns.columns().contains(c))
+                .filter(|c| !checked_builtins.contains(c))
                 .map(|column| make_item(column, false)),
         )
         .collect()
@@ -114,7 +125,7 @@ mod tests {
         fn ユーザーが指定したカラムをチェック済みで最初に配置して残りのカラムを未チェック状態で追加する(
         ) {
             let pod_columns =
-                PodColumns::new([PodColumn::Name, PodColumn::Ready, PodColumn::Status]);
+                PodColumns::from_builtins([PodColumn::Name, PodColumn::Ready, PodColumn::Status]);
             let columns = build_check_list_items_from_existing(pod_columns);
 
             let expected: Vec<CheckListItem> = vec![

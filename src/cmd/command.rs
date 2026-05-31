@@ -297,7 +297,7 @@ mod tests {
             let cmd = Command::try_parse_from(["kubetui", "--pod-columns=full"]).unwrap();
             assert_eq!(
                 cmd.pod_columns,
-                Some(PodColumns::new([
+                Some(PodColumns::from_builtins([
                     PodColumn::Name,
                     PodColumn::Ready,
                     PodColumn::Status,
@@ -317,7 +317,7 @@ mod tests {
                 Command::try_parse_from(["kubetui", "--pod-columns=name,ready,status"]).unwrap();
             assert_eq!(
                 cmd.pod_columns,
-                Some(PodColumns::new([
+                Some(PodColumns::from_builtins([
                     PodColumn::Name,
                     PodColumn::Ready,
                     PodColumn::Status

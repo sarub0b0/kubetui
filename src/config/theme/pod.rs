@@ -107,6 +107,6 @@ mod serde_pod_column {
 
 impl<T: AsRef<[PodColumnConfig]>> From<T> for PodColumns {
     fn from(value: T) -> Self {
-        PodColumns::new(value.as_ref().iter().map(|c| c.0))
+        PodColumns::from_builtins(value.as_ref().iter().map(|c| c.0))
     }
 }

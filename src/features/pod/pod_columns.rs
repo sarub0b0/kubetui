@@ -1,60 +1,90 @@
 use strum::{EnumIter, IntoEnumIterator};
 
+/// A runtime column in the pod table: a built-in column or a label column.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum PodColumnSpec {
+    Builtin(PodColumn),
+    Label { key: String, header: String },
+}
+
+impl PodColumnSpec {
+    /// Display header (uppercase). Builtin uses display(), Label uses its header.
+    pub fn header(&self) -> String {
+        match self {
+            PodColumnSpec::Builtin(c) => c.display().to_string(),
+            PodColumnSpec::Label { header, .. } => header.clone(),
+        }
+    }
+}
+
+/// A resolved label-column definition (an entry of the label registry).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PodLabelColumn {
+    pub name: String,
+    pub key: String,
+    pub header: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PodColumns {
-    columns: Vec<PodColumn>,
+    columns: Vec<PodColumnSpec>,
 }
 
 impl Default for PodColumns {
     fn default() -> Self {
         PodColumns {
-            columns: DEFAULT_POD_COLUMNS.to_vec(),
+            columns: DEFAULT_POD_COLUMNS
+                .iter()
+                .copied()
+                .map(PodColumnSpec::Builtin)
+                .collect(),
         }
     }
 }
 
 impl PodColumns {
-    pub fn new(columns: impl IntoIterator<Item = PodColumn>) -> Self {
+    pub fn new(columns: impl IntoIterator<Item = PodColumnSpec>) -> Self {
         PodColumns {
             columns: columns.into_iter().collect(),
         }
     }
 
-    pub fn full() -> Self {
+    pub fn from_builtins(columns: impl IntoIterator<Item = PodColumn>) -> Self {
         PodColumns {
-            columns: PodColumn::iter().collect(),
+            columns: columns.into_iter().map(PodColumnSpec::Builtin).collect(),
         }
     }
 
-    pub fn columns(&self) -> &[PodColumn] {
+    pub fn full() -> Self {
+        Self::from_builtins(PodColumn::iter())
+    }
+
+    pub fn specs(&self) -> &[PodColumnSpec] {
         &self.columns
     }
 
     pub fn ensure_name_column(mut self) -> Self {
-        if self.columns.contains(&PodColumn::Name) {
-            return self;
+        let has_name = self
+            .columns
+            .iter()
+            .any(|s| matches!(s, PodColumnSpec::Builtin(PodColumn::Name)));
+        if !has_name {
+            self.columns
+                .insert(0, PodColumnSpec::Builtin(PodColumn::Name));
         }
-
-        self.columns.insert(0, PodColumn::Name);
         self
     }
 
     // 順序を保ちながら重複を排除します。
     // 列数が少ない前提のため、線形探索を使用しています。
     pub fn dedup_columns(self) -> Self {
-        let mut unique_columns = Vec::new();
-
-        for column in self.columns {
-            if unique_columns.contains(&column) {
-                continue; // 重複をスキップ
+        let mut unique: Vec<PodColumnSpec> = Vec::new();
+        for c in self.columns {
+            if !unique.contains(&c) {
+                unique.push(c);
             }
-
-            unique_columns.push(column);
         }
-
-        PodColumns {
-            columns: unique_columns,
-        }
+        PodColumns { columns: unique }
     }
 }
 
@@ -160,25 +190,30 @@ impl std::str::FromStr for PodColumn {
 mod tests {
     use super::*;
 
+    fn builtins(cols: &[PodColumn]) -> Vec<PodColumnSpec> {
+        cols.iter().map(|c| PodColumnSpec::Builtin(*c)).collect()
+    }
+
     mod pod_columns {
         use super::*;
+        use pretty_assertions::assert_eq;
 
         #[test]
         fn デフォルトのカラムを設定する() {
             let actual = PodColumns::default();
-            let expected: Vec<PodColumn> = vec![
+            let expected = builtins(&[
                 PodColumn::Name,
                 PodColumn::Ready,
                 PodColumn::Status,
                 PodColumn::Age,
-            ];
-            assert_eq!(actual.columns, expected);
+            ]);
+            assert_eq!(actual.specs(), expected.as_slice());
         }
 
         #[test]
         fn 全カラムを設定する() {
             let actual = PodColumns::full();
-            let expected: Vec<PodColumn> = vec![
+            let expected = builtins(&[
                 PodColumn::Name,
                 PodColumn::Ready,
                 PodColumn::Status,
@@ -188,9 +223,9 @@ mod tests {
                 PodColumn::Node,
                 PodColumn::NominatedNode,
                 PodColumn::ReadinessGates,
-            ];
+            ]);
 
-            assert_eq!(actual.columns, expected);
+            assert_eq!(actual.specs(), expected.as_slice());
         }
 
         mod dedup_columns {
@@ -199,7 +234,7 @@ mod tests {
 
             #[test]
             fn 重複が排除される() {
-                let columns = PodColumns::new([
+                let columns = PodColumns::from_builtins([
                     PodColumn::Ready,
                     PodColumn::Status,
                     PodColumn::Ready,
@@ -208,8 +243,8 @@ mod tests {
                 .dedup_columns();
 
                 assert_eq!(
-                    columns.columns,
-                    &[PodColumn::Ready, PodColumn::Status, PodColumn::Name,]
+                    columns.specs(),
+                    builtins(&[PodColumn::Ready, PodColumn::Status, PodColumn::Name]).as_slice()
                 );
             }
         }
@@ -220,22 +255,30 @@ mod tests {
 
             #[test]
             fn nameカラムがすでに含まれている場合は変更されない() {
-                let columns = vec![PodColumn::Name, PodColumn::Ready, PodColumn::Status];
-                let pod_columns = PodColumns::new(columns.clone());
+                let pod_columns = PodColumns::from_builtins([
+                    PodColumn::Name,
+                    PodColumn::Ready,
+                    PodColumn::Status,
+                ]);
                 let actual = pod_columns.ensure_name_column();
 
-                assert_eq!(actual.columns, columns);
+                assert_eq!(
+                    actual.specs(),
+                    builtins(&[PodColumn::Name, PodColumn::Ready, PodColumn::Status]).as_slice()
+                );
             }
 
             #[test]
             fn nameカラムが含まれていない場合は先頭に追加される() {
-                let columns = vec![PodColumn::Ready, PodColumn::Status];
-                let pod_columns = PodColumns::new(columns);
+                let pod_columns =
+                    PodColumns::from_builtins([PodColumn::Ready, PodColumn::Status]);
 
                 let actual = pod_columns.ensure_name_column();
-                let expected = vec![PodColumn::Name, PodColumn::Ready, PodColumn::Status];
 
-                assert_eq!(actual.columns, expected);
+                assert_eq!(
+                    actual.specs(),
+                    builtins(&[PodColumn::Name, PodColumn::Ready, PodColumn::Status]).as_slice()
+                );
             }
         }
     }

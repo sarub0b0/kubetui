@@ -10,7 +10,7 @@ use ratatui::style::{Color, Style};
 use regex::Regex;
 
 use crate::{
-    features::pod::{message::PodMessage, PodColumn, PodColumns},
+    features::pod::{message::PodMessage, PodColumn, PodColumnSpec, PodColumns},
     kube::{
         apis::v1_table::TableRow,
         table::{get_resource_per_namespace, insert_ns, KubeTable, KubeTableRow},
@@ -115,9 +115,9 @@ impl PodPoller {
         let ok_only: Vec<KubeTableRow> = jobs?.into_iter().flatten().collect();
 
         let mut display_columns: Vec<String> = pod_columns
-            .columns()
+            .specs()
             .iter()
-            .map(|col| col.display().to_string())
+            .map(|s| s.header())
             .collect();
 
         if namespaces.len() != 1 {
@@ -143,25 +143,31 @@ impl PodPoller {
         let insert_ns = insert_ns(namespaces);
 
         let name_index = pod_columns
-            .columns()
+            .specs()
             .iter()
-            .position(|&col| col == PodColumn::Name)
+            .position(|s| matches!(s, PodColumnSpec::Builtin(PodColumn::Name)))
             .expect("Name column must be present in pod columns");
 
         let status_index = pod_columns
-            .columns()
+            .specs()
             .iter()
-            .position(|&col| col == PodColumn::Status);
+            .position(|s| matches!(s, PodColumnSpec::Builtin(PodColumn::Status)));
 
-        let columns = pod_columns
-            .columns()
+        let columns: Vec<&str> = pod_columns
+            .specs()
             .iter()
-            .map(|col| col.as_str())
-            .collect::<Vec<_>>();
+            .filter_map(|s| match s {
+                PodColumnSpec::Builtin(c) => Some(c.as_str()),
+                PodColumnSpec::Label { .. } => None,
+            })
+            .collect();
+
+        let pod_columns_specs: Vec<PodColumnSpec> = pod_columns.specs().to_vec();
 
         let label_selector = label_selector.map(|s| s.to_string());
 
         try_join_all(namespaces.iter().map(|ns| {
+            let pod_columns_specs = pod_columns_specs.clone();
             let base_path = Pod::url_path(&Default::default(), Some(ns));
             let path = match label_selector.as_deref().filter(|s| !s.is_empty()) {
                 Some(sel) => format!("{}?labelSelector={}", base_path, sel),
@@ -172,13 +178,22 @@ impl PodPoller {
                 path,
                 &columns,
                 move |row: &TableRow, indexes: &[usize]| {
-                    let mut row: Vec<String> =
-                        indexes.iter().map(|i| row.cells[*i].to_string()).collect();
+                    let mut builtin_iter = indexes.iter();
+                    let mut row_cells: Vec<String> = pod_columns_specs
+                        .iter()
+                        .map(|s| match s {
+                            PodColumnSpec::Builtin(_) => {
+                                let i = builtin_iter.next().expect("builtin index available");
+                                row.cells[*i].to_string()
+                            }
+                            PodColumnSpec::Label { .. } => String::new(),
+                        })
+                        .collect();
 
-                    let name = row[name_index].clone();
+                    let name = row_cells[name_index].clone();
 
                     let color = if let Some(index) = status_index {
-                        let status = row[index].as_str();
+                        let status = row_cells[index].as_str();
 
                         self.config
                             .pod_highlight_rules
@@ -190,18 +205,19 @@ impl PodPoller {
                     };
 
                     if insert_ns {
-                        row.insert(0, ns.to_string())
+                        row_cells.insert(0, ns.to_string())
                     }
 
                     if let Some(color) = color {
-                        row.iter_mut()
+                        row_cells
+                            .iter_mut()
                             .for_each(|r| *r = format!("{}{}\x1b[0m", color, r))
                     }
 
                     KubeTableRow {
                         namespace: ns.to_string(),
                         name,
-                        row,
+                        row: row_cells,
                         metadata: Some(BTreeMap::from([(
                             "kind".to_string(),
                             Pod::KIND.to_string(),
