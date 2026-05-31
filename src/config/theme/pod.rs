@@ -4,7 +4,7 @@ use ratatui::style::Color;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use super::{node::LabelColumnConfig, ThemeStyleConfig};
+use super::{LabelColumnConfig, ThemeStyleConfig};
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PodThemeConfig {

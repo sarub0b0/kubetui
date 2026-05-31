@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+use super::LabelColumnConfig;
+
 #[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize)]
 pub struct NodeThemeConfig {
     pub default_preset: Option<String>,
@@ -12,12 +14,6 @@ pub struct NodeThemeConfig {
 
     /// Registry of label columns: `name` (reference/header) -> `label` (key).
     pub label_columns: Option<Vec<LabelColumnConfig>>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-pub struct LabelColumnConfig {
-    pub name: String,
-    pub label: String,
 }
 
 #[cfg(test)]
