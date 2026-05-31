@@ -1,6 +1,7 @@
 // mod filter_form;
 mod filter;
 mod filter_applicator;
+mod filter_parser;
 mod item;
 
 use std::rc::Rc;
@@ -57,6 +58,7 @@ pub use filter_applicator::{
     TableFilterParser,
     TableFilterPredicate,
 };
+pub use filter_parser::parse_table_filter;
 
 use item::InnerItem;
 
