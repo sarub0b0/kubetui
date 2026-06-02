@@ -367,6 +367,7 @@ impl KubeController {
             let config_handle = ConfigPoller::new(
                 tx.clone(),
                 shared_target_namespaces.clone(),
+                shared_config_columns.clone(),
                 shared_config_filter.clone(),
                 client.clone(),
             )
