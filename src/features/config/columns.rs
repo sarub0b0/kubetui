@@ -72,10 +72,8 @@ impl ConfigColumns {
             .iter()
             .any(|s| matches!(s, ConfigColumnSpec::Builtin(ConfigColumn::Name)));
         if !has_name {
-            self.columns.insert(
-                kind_pos + 1,
-                ConfigColumnSpec::Builtin(ConfigColumn::Name),
-            );
+            self.columns
+                .insert(kind_pos + 1, ConfigColumnSpec::Builtin(ConfigColumn::Name));
         }
 
         self
@@ -163,7 +161,10 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     fn builtins(cols: &[ConfigColumn]) -> Vec<ConfigColumnSpec> {
-        cols.iter().copied().map(ConfigColumnSpec::Builtin).collect()
+        cols.iter()
+            .copied()
+            .map(ConfigColumnSpec::Builtin)
+            .collect()
     }
 
     #[test]
@@ -183,8 +184,8 @@ mod tests {
 
     #[test]
     fn ensure_required_inserts_both_when_absent() {
-        let cols = ConfigColumns::from_builtins([ConfigColumn::Data, ConfigColumn::Age])
-            .ensure_required();
+        let cols =
+            ConfigColumns::from_builtins([ConfigColumn::Data, ConfigColumn::Age]).ensure_required();
         assert_eq!(
             cols.specs(),
             builtins(&[
@@ -199,31 +200,21 @@ mod tests {
 
     #[test]
     fn ensure_required_inserts_name_after_existing_kind() {
-        let cols = ConfigColumns::from_builtins([ConfigColumn::Kind, ConfigColumn::Age])
-            .ensure_required();
+        let cols =
+            ConfigColumns::from_builtins([ConfigColumn::Kind, ConfigColumn::Age]).ensure_required();
         assert_eq!(
             cols.specs(),
-            builtins(&[
-                ConfigColumn::Kind,
-                ConfigColumn::Name,
-                ConfigColumn::Age,
-            ])
-            .as_slice()
+            builtins(&[ConfigColumn::Kind, ConfigColumn::Name, ConfigColumn::Age,]).as_slice()
         );
     }
 
     #[test]
     fn ensure_required_inserts_kind_when_only_name_present() {
-        let cols = ConfigColumns::from_builtins([ConfigColumn::Name, ConfigColumn::Age])
-            .ensure_required();
+        let cols =
+            ConfigColumns::from_builtins([ConfigColumn::Name, ConfigColumn::Age]).ensure_required();
         assert_eq!(
             cols.specs(),
-            builtins(&[
-                ConfigColumn::Kind,
-                ConfigColumn::Name,
-                ConfigColumn::Age,
-            ])
-            .as_slice()
+            builtins(&[ConfigColumn::Kind, ConfigColumn::Name, ConfigColumn::Age,]).as_slice()
         );
     }
 
@@ -238,12 +229,7 @@ mod tests {
         // Order preserved — not reordered to canonical.
         assert_eq!(
             cols.specs(),
-            builtins(&[
-                ConfigColumn::Name,
-                ConfigColumn::Kind,
-                ConfigColumn::Age,
-            ])
-            .as_slice()
+            builtins(&[ConfigColumn::Name, ConfigColumn::Kind, ConfigColumn::Age,]).as_slice()
         );
     }
 
@@ -258,12 +244,7 @@ mod tests {
         .dedup_columns();
         assert_eq!(
             cols.specs(),
-            builtins(&[
-                ConfigColumn::Kind,
-                ConfigColumn::Name,
-                ConfigColumn::Age,
-            ])
-            .as_slice()
+            builtins(&[ConfigColumn::Kind, ConfigColumn::Name, ConfigColumn::Age,]).as_slice()
         );
     }
 
