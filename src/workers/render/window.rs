@@ -239,6 +239,7 @@ impl WindowInit {
 
         let ConfigTab {
             tab: config_tab,
+            config_columns_dialog,
             config_filter_help_dialog,
         } = ConfigTab::new(
             "Config",
@@ -336,6 +337,7 @@ impl WindowInit {
             pod_columns_dialog,
             pod_filter_help_dialog,
             config_filter_help_dialog,
+            config_columns_dialog,
             network_filter_help_dialog,
             node_columns_dialog,
             node_filter_help_dialog,

@@ -19,10 +19,16 @@ use crate::{
 
 use crate::ui::widget::Widget;
 
-use super::widgets::{config_filter_help_widget, config_widget, raw_data_widget};
+use super::widgets::{
+    config_columns_dialog,
+    config_filter_help_widget,
+    config_widget,
+    raw_data_widget,
+};
 
 pub struct ConfigTab {
     pub tab: Tab<'static>,
+    pub config_columns_dialog: Widget<'static>,
     pub config_filter_help_dialog: Widget<'static>,
 }
 
@@ -38,11 +44,10 @@ impl ConfigTab {
     ) -> Self {
         let error_theme = theme.error.clone().into();
 
-        // Task 6 consumes this when wiring the column dialog.
-        let _ = &default_columns;
-
         let config_widget = config_widget(tx, label_registry.clone(), theme.clone());
         let raw_data_widget = raw_data_widget(clipboard, theme.clone());
+        let config_columns_dialog =
+            config_columns_dialog(tx, default_columns, label_registry, theme.clone());
         let config_filter_help_dialog = config_filter_help_widget(theme);
 
         let layout = TabLayout::new(layout, split_direction);
@@ -55,6 +60,7 @@ impl ConfigTab {
                 layout,
             )
             .error_theme(error_theme),
+            config_columns_dialog,
             config_filter_help_dialog,
         }
     }
