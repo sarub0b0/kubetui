@@ -1,6 +1,6 @@
-use strum::{EnumIter, IntoEnumIterator};
+use strum::EnumIter;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ConfigColumnSpec {
     Builtin(ConfigColumn),
     Label { key: String, header: String },
@@ -50,7 +50,8 @@ impl ConfigColumns {
         &self.columns
     }
 
-    /// KIND と NAME を canonical 順 (KIND 先頭, NAME 2 番目) で強制配置。
+    /// KIND と NAME が存在しない場合のみ挿入する（KIND を index 0、NAME を
+    /// その直後）。既存の列順は保持し、reorder はしない。
     pub fn ensure_required(mut self) -> Self {
         let has_kind = self
             .columns
@@ -288,6 +289,32 @@ mod tests {
         assert_eq!(ConfigColumn::normalize_column("KIND"), "kind");
         assert_eq!(ConfigColumn::normalize_column("config-map"), "configmap");
         assert_eq!(ConfigColumn::normalize_column("data_count"), "datacount");
+    }
+
+    #[test]
+    fn ensure_required_inserts_both_into_empty() {
+        let cols = ConfigColumns::new([]).ensure_required();
+        assert_eq!(
+            cols.specs(),
+            builtins(&[ConfigColumn::Kind, ConfigColumn::Name]).as_slice()
+        );
+    }
+
+    #[test]
+    fn ensure_required_prepends_to_label_only_input() {
+        let label = ConfigColumnSpec::Label {
+            key: "app.kubernetes.io/version".to_string(),
+            header: "VERSION".to_string(),
+        };
+        let cols = ConfigColumns::new([label.clone()]).ensure_required();
+        assert_eq!(
+            cols.specs(),
+            &[
+                ConfigColumnSpec::Builtin(ConfigColumn::Kind),
+                ConfigColumnSpec::Builtin(ConfigColumn::Name),
+                label,
+            ]
+        );
     }
 
     #[test]
