@@ -12,6 +12,7 @@ use k8s_openapi::{
     Resource,
 };
 use kube::Resource as _;
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 
 use crate::{
     features::{
@@ -29,7 +30,7 @@ use crate::{
     },
     logger,
     message::Message,
-    workers::kube::{InfiniteWorker, SharedTargetNamespaces},
+    workers::kube::{InfiniteWorker, SharedNetworkFilter, SharedTargetNamespaces},
 };
 
 #[derive(Debug, Default, Clone)]
@@ -155,8 +156,13 @@ impl TargetResource {
         }
     }
 
-    async fn fetch_table(&self, client: &KubeClient, ns: &str) -> Result<Table> {
-        let path = match self {
+    async fn fetch_table(
+        &self,
+        client: &KubeClient,
+        ns: &str,
+        label_selector: Option<&str>,
+    ) -> Result<Table> {
+        let base_path = match self {
             Self::Ingress => Ingress::url_path(&Default::default(), Some(ns)),
             Self::Service => Service::url_path(&Default::default(), Some(ns)),
             Self::Pod => Pod::url_path(&Default::default(), Some(ns)),
@@ -173,6 +179,17 @@ impl TargetResource {
             Self::HTTPRoute(HTTPRouteVersion::V1Beta1) => {
                 v1beta1::HTTPRoute::url_path(&Default::default(), Some(ns))
             }
+        };
+
+        let path = match label_selector.filter(|s| !s.is_empty()) {
+            Some(sel) => {
+                format!(
+                    "{}?labelSelector={}",
+                    base_path,
+                    utf8_percent_encode(sel, NON_ALPHANUMERIC)
+                )
+            }
+            None => base_path,
         };
 
         client.request_table(&path).await.with_context(|| {
@@ -196,6 +213,7 @@ impl std::fmt::Display for TargetResource {
 pub struct NetworkPoller {
     tx: Sender<Message>,
     shared_target_namespaces: SharedTargetNamespaces,
+    shared_network_filter: SharedNetworkFilter,
     kube_client: KubeClient,
     api_resources: SharedApiResources,
 }
@@ -204,12 +222,14 @@ impl NetworkPoller {
     pub fn new(
         tx: Sender<Message>,
         shared_target_namespaces: SharedTargetNamespaces,
+        shared_network_filter: SharedNetworkFilter,
         kube_client: KubeClient,
         api_resources: SharedApiResources,
     ) -> Self {
         Self {
             tx,
             shared_target_namespaces,
+            shared_network_filter,
             kube_client,
             api_resources,
         }
@@ -284,7 +304,11 @@ impl InfiniteWorker for NetworkPoller {
                 target_resources(&apis)
             };
 
-            let table = self.polling(&target_resources).await;
+            let label_selector = self.shared_network_filter.read().await.clone();
+
+            let table = self
+                .polling(&target_resources, label_selector.as_deref())
+                .await;
 
             if let Err(e) = tx.send(NetworkResponse::List(table).into()) {
                 logger!(error, "Failed to send NetworkResponse::List: {}", e);
@@ -297,13 +321,17 @@ impl InfiniteWorker for NetworkPoller {
 const TARGET_COLUMNS: [&str; 2] = ["Name", "Age"];
 
 impl NetworkPoller {
-    async fn polling(&self, target_resources: &[TargetResource]) -> Result<KubeTable> {
+    async fn polling(
+        &self,
+        target_resources: &[TargetResource],
+        label_selector: Option<&str>,
+    ) -> Result<KubeTable> {
         let target_namespaces = self.shared_target_namespaces.read().await;
 
         let rows: Vec<_> = join_all(
             target_resources
                 .iter()
-                .map(|kind| self.fetch_resource(kind, &target_namespaces)),
+                .map(|kind| self.fetch_resource(kind, &target_namespaces, label_selector)),
         )
         .await
         .into_iter()
@@ -327,14 +355,13 @@ impl NetworkPoller {
         &self,
         kind: &TargetResource,
         namespaces: &[String],
+        label_selector: Option<&str>,
     ) -> Result<Vec<NetworkTableRow>> {
         let client = &self.kube_client;
 
-        let jobs = try_join_all(
-            namespaces
-                .iter()
-                .map(|ns| fetch_resource_per_namespace(client, kind, ns, &TARGET_COLUMNS)),
-        )
+        let jobs = try_join_all(namespaces.iter().map(|ns| {
+            fetch_resource_per_namespace(client, kind, ns, &TARGET_COLUMNS, label_selector)
+        }))
         .await?;
 
         Ok(jobs.into_iter().flatten().collect())
@@ -346,8 +373,9 @@ async fn fetch_resource_per_namespace(
     kind: &TargetResource,
     ns: &str,
     target_columns: &[&str],
+    label_selector: Option<&str>,
 ) -> Result<Vec<NetworkTableRow>> {
-    let table = kind.fetch_table(client, ns).await?;
+    let table = kind.fetch_table(client, ns, label_selector).await?;
 
     let indexes = table.find_indexes(target_columns)?;
 

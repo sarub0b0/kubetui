@@ -69,6 +69,7 @@ pub type StyledTargetApiResources = Vec<StyledApiResource>;
 pub type SharedPodColumns = Arc<RwLock<PodColumns>>;
 pub type SharedPodFilter = Arc<RwLock<Option<String>>>;
 pub type SharedConfigFilter = Arc<RwLock<Option<String>>>;
+pub type SharedNetworkFilter = Arc<RwLock<Option<String>>>;
 
 /// APIタブのダイアログで表示されるAPIリソースのスタイル設定
 #[derive(Debug, Clone)]
@@ -311,6 +312,7 @@ impl KubeController {
             ));
             let shared_node_filter: SharedNodeFilter = Arc::new(RwLock::new(None));
             let shared_config_filter: SharedConfigFilter = Arc::new(RwLock::new(None));
+            let shared_network_filter: SharedNetworkFilter = Arc::new(RwLock::new(None));
 
             let contexts = kubeconfig
                 .contexts
@@ -331,6 +333,7 @@ impl KubeController {
                 shared_node_columns: shared_node_columns.clone(),
                 shared_node_filter: shared_node_filter.clone(),
                 shared_config_filter: shared_config_filter.clone(),
+                shared_network_filter: shared_network_filter.clone(),
                 apis_config: apis_config.clone(),
                 yaml_config: yaml_config.clone(),
                 fallback_namespaces: fallback_namespaces.clone(),
@@ -367,6 +370,7 @@ impl KubeController {
             let network_handle = NetworkPoller::new(
                 tx.clone(),
                 shared_target_namespaces.clone(),
+                shared_network_filter.clone(),
                 client.clone(),
                 shared_api_resources.clone(),
             )
@@ -452,6 +456,7 @@ struct EventControllerArgs {
     shared_node_columns: SharedNodeColumns,
     shared_node_filter: SharedNodeFilter,
     shared_config_filter: SharedConfigFilter,
+    shared_network_filter: SharedNetworkFilter,
     apis_config: ApisConfig,
     yaml_config: YamlConfig,
     fallback_namespaces: Option<Vec<String>>,
@@ -471,6 +476,7 @@ struct EventController {
     shared_node_columns: SharedNodeColumns,
     shared_node_filter: SharedNodeFilter,
     shared_config_filter: SharedConfigFilter,
+    shared_network_filter: SharedNetworkFilter,
     apis_config: ApisConfig,
     yaml_config: YamlConfig,
     fallback_namespaces: Option<Vec<String>>,
@@ -491,6 +497,7 @@ impl EventController {
             shared_node_columns: args.shared_node_columns,
             shared_node_filter: args.shared_node_filter,
             shared_config_filter: args.shared_config_filter,
+            shared_network_filter: args.shared_network_filter,
             apis_config: args.apis_config,
             yaml_config: args.yaml_config,
             fallback_namespaces: args.fallback_namespaces,
@@ -542,6 +549,7 @@ impl Worker for EventController {
             shared_node_columns,
             shared_node_filter,
             shared_config_filter,
+            shared_network_filter,
             apis_config,
             yaml_config,
             fallback_namespaces,
@@ -834,6 +842,10 @@ impl Worker for EventController {
                             );
 
                             task::yield_now().await;
+                        }
+
+                        Kube::Network(NetworkMessage::Filter(sel)) => {
+                            *shared_network_filter.write().await = sel;
                         }
 
                         Kube::NodeDetail(NodeDetailMessage::Request { name }) => {

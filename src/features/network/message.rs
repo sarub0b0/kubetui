@@ -46,6 +46,9 @@ pub enum NetworkResponse {
 pub enum NetworkMessage {
     Request(NetworkRequest),
     Response(NetworkResponse),
+    /// Replace the active labelSelector value. `None` clears it (the poller
+    /// stops sending `?labelSelector=` in its sub-fetch URLs).
+    Filter(Option<String>),
 }
 
 impl NetworkRequest {

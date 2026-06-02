@@ -8,17 +8,19 @@ use crate::{
     config::theme::WidgetThemeConfig,
     features::{
         component_id::NETWORK_TAB_ID,
-        network::view::widgets::{description_widget, network_widget},
+        network::view::widgets::{description_widget, network_filter_help_widget, network_widget},
     },
     message::Message,
     ui::{
         tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout, TabLayout},
+        widget::Widget,
         Tab,
     },
 };
 
 pub struct NetworkTab {
     pub tab: Tab<'static>,
+    pub network_filter_help_dialog: Widget<'static>,
 }
 
 impl NetworkTab {
@@ -32,7 +34,8 @@ impl NetworkTab {
         let error_theme = theme.error.clone().into();
 
         let network_widget = network_widget(tx, theme.clone());
-        let description_widget = description_widget(clipboard, theme);
+        let description_widget = description_widget(clipboard, theme.clone());
+        let network_filter_help_dialog = network_filter_help_widget(theme);
 
         let layout = TabLayout::new(layout, split_direction);
 
@@ -44,6 +47,7 @@ impl NetworkTab {
                 layout,
             )
             .error_theme(error_theme),
+            network_filter_help_dialog,
         }
     }
 }
