@@ -11,6 +11,13 @@ use crate::{
     },
     features::{
         api_resources::kube::ApiConfig,
+        config::{
+            ConfigColumn,
+            ConfigColumnSpec,
+            ConfigColumns,
+            ConfigLabelColumn,
+            DEFAULT_CONFIG_COLUMNS,
+        },
         event::kube::EventConfig,
         node::{NodeColumn, NodeColumnSpec, NodeColumns, NodeLabelColumn},
         pod::{kube::PodHighlightRule, PodColumn, PodColumnSpec, PodColumns, PodLabelColumn},
@@ -41,6 +48,9 @@ impl App {
 
         let pod_label_registry = build_pod_label_registry(&config.theme.pod.label_columns)?;
         let node_label_registry = build_node_label_registry(&config.theme.node.label_columns)?;
+        let config_label_registry =
+            build_config_label_registry(&config.theme.config.label_columns)?;
+        let default_config_columns = build_default_config_columns(&config_label_registry);
 
         kube_worker_config.pod_config.default_columns = build_pod_columns(
             cmd.pod_columns,
@@ -57,6 +67,8 @@ impl App {
             &config.theme.node.column_presets,
             &node_label_registry,
         )?;
+
+        kube_worker_config.default_config_columns = default_config_columns.clone();
 
         kube_worker_config.event_config = EventConfig::from(config.theme.clone());
         kube_worker_config.api_config = ApiConfig::from(config.theme.clone());
@@ -100,8 +112,10 @@ impl App {
             split_direction,
             default_pod_columns,
             default_node_columns,
+            default_config_columns,
             pod_label_registry,
             node_label_registry,
+            config_label_registry,
             config.theme.clone(),
             cmd.clipboard,
             config.logging.max_lines,
@@ -353,6 +367,60 @@ fn build_node_label_registry(
         }
     }
     Ok(out)
+}
+
+/// Build the label-column registry for Config from config, erroring on
+/// builtin name collisions or duplicate label headers (same canonical name
+/// would render two identical-looking columns and break filter matching).
+fn build_config_label_registry(
+    label_columns: &Option<Vec<LabelColumnConfig>>,
+) -> Result<Vec<ConfigLabelColumn>> {
+    let mut out: Vec<ConfigLabelColumn> = Vec::new();
+    if let Some(defs) = label_columns {
+        for def in defs {
+            let norm = ConfigColumn::normalize_column(&def.name);
+            if ConfigColumn::from_str(&norm).is_ok() {
+                anyhow::bail!(
+                    "label_columns name '{}' collides with a builtin column name",
+                    def.name
+                );
+            }
+            if let Some(existing) = out
+                .iter()
+                .find(|lc| ConfigColumn::normalize_column(&lc.name) == norm)
+            {
+                anyhow::bail!(
+                    "label_columns name '{}' has the same header as previously defined '{}'",
+                    def.name,
+                    existing.name
+                );
+            }
+            out.push(ConfigLabelColumn {
+                name: def.name.clone(),
+                key: def.label.clone(),
+                header: def.name.to_uppercase(),
+            });
+        }
+    }
+    Ok(out)
+}
+
+/// Build the default Config columns for startup: all builtin defaults followed
+/// by every label column registered in `registry`. `ensure_required` and
+/// `dedup_columns` guarantee KIND/NAME are present and there are no duplicates.
+fn build_default_config_columns(registry: &[ConfigLabelColumn]) -> ConfigColumns {
+    let mut specs: Vec<ConfigColumnSpec> = DEFAULT_CONFIG_COLUMNS
+        .iter()
+        .copied()
+        .map(ConfigColumnSpec::Builtin)
+        .collect();
+    for lc in registry {
+        specs.push(ConfigColumnSpec::Label {
+            key: lc.key.clone(),
+            header: lc.header.clone(),
+        });
+    }
+    ConfigColumns::new(specs).ensure_required().dedup_columns()
 }
 
 /// Resolve column names (builtin or registry label, or "full") into NodeColumns.

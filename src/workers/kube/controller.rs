@@ -155,6 +155,7 @@ pub struct KubeController {
     api_config: ApiConfig,
     apis_config: ApisConfig,
     yaml_config: YamlConfig,
+    default_config_columns: ConfigColumns,
 }
 
 impl KubeController {
@@ -175,6 +176,7 @@ impl KubeController {
             api_config,
             apis_config,
             yaml_config,
+            default_config_columns,
         } = config;
 
         let kubeconfig = read_kubeconfig(kubeconfig)?;
@@ -214,6 +216,7 @@ impl KubeController {
             api_config,
             apis_config,
             yaml_config,
+            default_config_columns,
         })
     }
 
@@ -231,6 +234,7 @@ impl KubeController {
             api_config,
             apis_config,
             yaml_config,
+            default_config_columns,
         } = self;
 
         let mut override_namespaces: Option<Vec<String>> = None;
@@ -315,7 +319,7 @@ impl KubeController {
             let shared_node_filter: SharedNodeFilter = Arc::new(RwLock::new(None));
             let shared_config_filter: SharedConfigFilter = Arc::new(RwLock::new(None));
             let shared_config_columns: SharedConfigColumns =
-                Arc::new(RwLock::new(ConfigColumns::default()));
+                Arc::new(RwLock::new(default_config_columns.clone()));
             let shared_network_filter: SharedNetworkFilter = Arc::new(RwLock::new(None));
 
             let contexts = kubeconfig

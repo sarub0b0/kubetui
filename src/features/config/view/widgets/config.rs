@@ -7,6 +7,7 @@ use crate::{
         config::{
             config_filter_applicator,
             message::{ConfigRequest, RequestData},
+            ConfigLabelColumn,
         },
     },
     message::Message,
@@ -28,7 +29,14 @@ use crate::{
     },
 };
 
-pub fn config_widget(tx: &Sender<Message>, theme: WidgetThemeConfig) -> Widget<'static> {
+pub fn config_widget(
+    tx: &Sender<Message>,
+    label_registry: Vec<ConfigLabelColumn>,
+    theme: WidgetThemeConfig,
+) -> Widget<'static> {
+    // Task 7 consumes this in config_filter_applicator.
+    let _ = &label_registry;
+
     let tx = tx.clone();
 
     let widget_theme = WidgetTheme::from(theme.clone());

@@ -6,7 +6,10 @@ use ratatui::layout::{Constraint, Direction};
 use crate::{
     clipboard::Clipboard,
     config::theme::WidgetThemeConfig,
-    features::component_id::CONFIG_TAB_ID,
+    features::{
+        component_id::CONFIG_TAB_ID,
+        config::{ConfigColumns, ConfigLabelColumn},
+    },
     message::Message,
     ui::{
         tab::{LayoutElement, NestedLayoutElement, NestedWidgetLayout, TabLayout},
@@ -29,11 +32,16 @@ impl ConfigTab {
         tx: &Sender<Message>,
         clipboard: &Option<Rc<RefCell<Clipboard>>>,
         split_direction: Direction,
+        default_columns: ConfigColumns,
+        label_registry: Vec<ConfigLabelColumn>,
         theme: WidgetThemeConfig,
     ) -> Self {
         let error_theme = theme.error.clone().into();
 
-        let config_widget = config_widget(tx, theme.clone());
+        // Task 6 consumes this when wiring the column dialog.
+        let _ = &default_columns;
+
+        let config_widget = config_widget(tx, label_registry.clone(), theme.clone());
         let raw_data_widget = raw_data_widget(clipboard, theme.clone());
         let config_filter_help_dialog = config_filter_help_widget(theme);
 
