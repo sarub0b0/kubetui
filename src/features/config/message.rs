@@ -1,6 +1,11 @@
 use anyhow::Result;
 
-use crate::{kube::table::KubeTable, message::Message, workers::kube::message::Kube};
+use crate::{
+    features::config::ConfigColumns,
+    kube::table::KubeTable,
+    message::Message,
+    workers::kube::message::Kube,
+};
 
 pub type ConfigData = Vec<String>;
 
@@ -17,6 +22,9 @@ pub enum ConfigMessage {
     /// Replace the active labelSelector value. `None` clears it (the poller
     /// stops sending `?labelSelector=` in its sub-fetch URLs).
     Filter(Option<String>),
+    /// Replace the active column composition (sent from the column dialog).
+    /// The poller will use the new columns on the next poll.
+    ColumnsRequest(ConfigColumns),
 }
 
 #[derive(Debug, Clone)]
