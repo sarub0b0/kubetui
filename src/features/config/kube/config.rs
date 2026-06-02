@@ -9,7 +9,7 @@ use crate::{
     },
     logger,
     message::Message,
-    workers::kube::{InfiniteWorker, SharedTargetNamespaces},
+    workers::kube::{InfiniteWorker, SharedConfigFilter, SharedTargetNamespaces},
 };
 
 use anyhow::Result;
@@ -18,11 +18,13 @@ use crossbeam::channel::Sender;
 use futures::future::try_join_all;
 use k8s_openapi::api::core::v1::{ConfigMap, Secret};
 use kube::Resource;
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 
 #[derive(Clone)]
 pub struct ConfigPoller {
     tx: Sender<Message>,
     shared_target_namespaces: SharedTargetNamespaces,
+    shared_config_filter: SharedConfigFilter,
     kube_client: KubeClient,
 }
 
@@ -30,11 +32,13 @@ impl ConfigPoller {
     pub fn new(
         tx: Sender<Message>,
         shared_target_namespaces: SharedTargetNamespaces,
+        shared_config_filter: SharedConfigFilter,
         kube_client: KubeClient,
     ) -> Self {
         Self {
             tx,
             shared_target_namespaces,
+            shared_config_filter,
             kube_client,
         }
     }
@@ -48,6 +52,7 @@ impl InfiniteWorker for ConfigPoller {
         let Self {
             tx,
             shared_target_namespaces,
+            shared_config_filter,
             kube_client,
         } = self;
 
@@ -55,8 +60,10 @@ impl InfiniteWorker for ConfigPoller {
             interval.tick().await;
 
             let target_namespaces = shared_target_namespaces.read().await;
+            let label_selector = shared_config_filter.read().await.clone();
 
-            let table = fetch_configs(kube_client, &target_namespaces).await;
+            let table =
+                fetch_configs(kube_client, &target_namespaces, label_selector.as_deref()).await;
 
             if let Err(e) = tx.send(ConfigResponse::Table(table).into()) {
                 logger!(error, "Failed to send ConfigResponse::Table: {}", e);
@@ -92,12 +99,25 @@ async fn fetch_configs_per_namespace(
     client: &KubeClient,
     namespaces: &[String],
     ty: Configs,
+    label_selector: Option<&str>,
 ) -> Result<Vec<KubeTableRow>> {
     let insert_ns = insert_ns(namespaces);
+    let label_selector = label_selector.map(|s| s.to_string());
     let jobs = try_join_all(namespaces.iter().map(|ns| {
+        let base_path = ty.url_path(ns);
+        let path = match label_selector.as_deref().filter(|s| !s.is_empty()) {
+            Some(sel) => {
+                format!(
+                    "{}?labelSelector={}",
+                    base_path,
+                    utf8_percent_encode(sel, NON_ALPHANUMERIC)
+                )
+            }
+            None => base_path,
+        };
         get_resource_per_namespace(
             client,
-            ty.url_path(ns),
+            path,
             &["Name", r#"Data"#, "Age"],
             move |row: &TableRow, indexes: &[usize]| {
                 let mut row = vec![
@@ -128,7 +148,11 @@ async fn fetch_configs_per_namespace(
     Ok(jobs.into_iter().flatten().collect())
 }
 
-async fn fetch_configs(client: &KubeClient, namespaces: &[String]) -> Result<KubeTable> {
+async fn fetch_configs(
+    client: &KubeClient,
+    namespaces: &[String],
+    label_selector: Option<&str>,
+) -> Result<KubeTable> {
     let mut table = KubeTable {
         header: if namespaces.len() == 1 {
             ["KIND", "NAME", "DATA", "AGE"]
@@ -145,8 +169,8 @@ async fn fetch_configs(client: &KubeClient, namespaces: &[String]) -> Result<Kub
     };
 
     let jobs = try_join_all([
-        fetch_configs_per_namespace(client, namespaces, Configs::ConfigMap),
-        fetch_configs_per_namespace(client, namespaces, Configs::Secret),
+        fetch_configs_per_namespace(client, namespaces, Configs::ConfigMap, label_selector),
+        fetch_configs_per_namespace(client, namespaces, Configs::Secret, label_selector),
     ])
     .await?;
 

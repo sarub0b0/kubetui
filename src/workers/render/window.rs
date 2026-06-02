@@ -231,7 +231,10 @@ impl WindowInit {
             self.log_max_lines,
         );
 
-        let ConfigTab { tab: config_tab } = ConfigTab::new(
+        let ConfigTab {
+            tab: config_tab,
+            config_filter_help_dialog,
+        } = ConfigTab::new(
             "Config",
             &self.tx,
             &clipboard,
@@ -321,6 +324,7 @@ impl WindowInit {
             log_query_help_dialog,
             pod_columns_dialog,
             pod_filter_help_dialog,
+            config_filter_help_dialog,
             node_columns_dialog,
             node_filter_help_dialog,
             yaml_dialog,

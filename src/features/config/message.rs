@@ -14,6 +14,9 @@ pub struct RequestData {
 pub enum ConfigMessage {
     Request(ConfigRequest),
     Response(ConfigResponse),
+    /// Replace the active labelSelector value. `None` clears it (the poller
+    /// stops sending `?labelSelector=` in its sub-fetch URLs).
+    Filter(Option<String>),
 }
 
 #[derive(Debug, Clone)]
