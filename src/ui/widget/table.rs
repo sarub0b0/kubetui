@@ -50,7 +50,6 @@ pub use filter::{FilterForm, FilterFormTheme};
 #[allow(unused_imports)]
 pub use filter_applicator::{
     normalize_column_name,
-    substring_applicator,
     ApplyStrategy,
     OnFilterApply,
     OnFilterCancel,

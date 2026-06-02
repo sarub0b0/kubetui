@@ -38,6 +38,7 @@ component_id!(
     node_filter_help_dialog,
     pod_filter_help_dialog,
     config_filter_help_dialog,
+    network_filter_help_dialog,
     pod_log_query_help_dialog,
     context_dialog,
     single_namespace_dialog,

@@ -242,7 +242,10 @@ impl WindowInit {
             self.theme.component.clone(),
         );
 
-        let NetworkTab { tab: network_tab } = NetworkTab::new(
+        let NetworkTab {
+            tab: network_tab,
+            network_filter_help_dialog,
+        } = NetworkTab::new(
             "Network",
             &self.tx,
             &clipboard,
@@ -325,6 +328,7 @@ impl WindowInit {
             pod_columns_dialog,
             pod_filter_help_dialog,
             config_filter_help_dialog,
+            network_filter_help_dialog,
             node_columns_dialog,
             node_filter_help_dialog,
             yaml_dialog,

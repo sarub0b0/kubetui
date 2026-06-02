@@ -11,14 +11,16 @@ use crate::{
     config::theme::WidgetThemeConfig,
     features::{
         component_id::{NETWORK_DESCRIPTION_WIDGET_ID, NETWORK_WIDGET_ID},
-        network::message::{NetworkRequest, NetworkRequestTargetParams},
+        network::{
+            message::{NetworkRequest, NetworkRequestTargetParams},
+            network_filter_applicator,
+        },
     },
     kube::apis::networking::gateway::v1::{Gateway, HTTPRoute},
     message::Message,
     ui::{
         event::EventResult,
         widget::{
-            substring_applicator,
             FilterForm,
             FilterFormTheme,
             Table,
@@ -53,7 +55,7 @@ pub fn network_widget(tx: &Sender<Message>, theme: WidgetThemeConfig) -> Widget<
         .widget_base(widget_base)
         .filter_form(filter_form)
         .theme(table_theme)
-        .filter_applicator(substring_applicator("NAME"))
+        .filter_applicator(network_filter_applicator(tx.clone()))
         .block_injection(block_injection())
         .on_select(on_select(tx))
         .build()
