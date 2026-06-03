@@ -11,6 +11,12 @@ pub enum LogMessage {
     ToggleJsonPrettyPrint,
     SetMaxLines(Option<usize>),
     StreamError(String),
+    /// Non-fatal informational notice tied to a namespace. Used to surface
+    /// per-namespace setup-time failures (e.g. resource not found) without
+    /// failing the whole log query when multiple namespaces are selected.
+    /// Rendered as a yellow inline line in the log view with `[kubetui]`
+    /// prefix.
+    Notice { namespace: String, message: String },
 }
 
 impl From<LogMessage> for Message {
