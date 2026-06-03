@@ -42,7 +42,10 @@ impl NetworkColumns {
 
     pub fn from_builtins(columns: impl IntoIterator<Item = NetworkColumn>) -> Self {
         NetworkColumns {
-            columns: columns.into_iter().map(NetworkColumnSpec::Builtin).collect(),
+            columns: columns
+                .into_iter()
+                .map(NetworkColumnSpec::Builtin)
+                .collect(),
         }
     }
 
@@ -72,8 +75,10 @@ impl NetworkColumns {
             .iter()
             .any(|s| matches!(s, NetworkColumnSpec::Builtin(NetworkColumn::Name)));
         if !has_name {
-            self.columns
-                .insert(kind_pos + 1, NetworkColumnSpec::Builtin(NetworkColumn::Name));
+            self.columns.insert(
+                kind_pos + 1,
+                NetworkColumnSpec::Builtin(NetworkColumn::Name),
+            );
         }
 
         self
@@ -90,11 +95,8 @@ impl NetworkColumns {
     }
 }
 
-pub const DEFAULT_NETWORK_COLUMNS: &[NetworkColumn] = &[
-    NetworkColumn::Kind,
-    NetworkColumn::Name,
-    NetworkColumn::Age,
-];
+pub const DEFAULT_NETWORK_COLUMNS: &[NetworkColumn] =
+    &[NetworkColumn::Kind, NetworkColumn::Name, NetworkColumn::Age];
 
 #[derive(EnumIter, PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Copy, Hash)]
 pub enum NetworkColumn {
@@ -155,7 +157,10 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     fn builtins(cols: &[NetworkColumn]) -> Vec<NetworkColumnSpec> {
-        cols.iter().copied().map(NetworkColumnSpec::Builtin).collect()
+        cols.iter()
+            .copied()
+            .map(NetworkColumnSpec::Builtin)
+            .collect()
     }
 
     #[test]
@@ -178,9 +183,8 @@ mod tests {
 
     #[test]
     fn ensure_required_inserts_name_after_existing_kind() {
-        let cols =
-            NetworkColumns::from_builtins([NetworkColumn::Kind, NetworkColumn::Age])
-                .ensure_required();
+        let cols = NetworkColumns::from_builtins([NetworkColumn::Kind, NetworkColumn::Age])
+            .ensure_required();
         assert_eq!(
             cols.specs(),
             builtins(&[NetworkColumn::Kind, NetworkColumn::Name, NetworkColumn::Age]).as_slice()
@@ -189,9 +193,8 @@ mod tests {
 
     #[test]
     fn ensure_required_inserts_kind_when_only_name_present() {
-        let cols =
-            NetworkColumns::from_builtins([NetworkColumn::Name, NetworkColumn::Age])
-                .ensure_required();
+        let cols = NetworkColumns::from_builtins([NetworkColumn::Name, NetworkColumn::Age])
+            .ensure_required();
         assert_eq!(
             cols.specs(),
             builtins(&[NetworkColumn::Kind, NetworkColumn::Name, NetworkColumn::Age]).as_slice()
@@ -200,9 +203,12 @@ mod tests {
 
     #[test]
     fn ensure_required_preserves_order_when_both_present() {
-        let cols =
-            NetworkColumns::from_builtins([NetworkColumn::Name, NetworkColumn::Kind, NetworkColumn::Age])
-                .ensure_required();
+        let cols = NetworkColumns::from_builtins([
+            NetworkColumn::Name,
+            NetworkColumn::Kind,
+            NetworkColumn::Age,
+        ])
+        .ensure_required();
         assert_eq!(
             cols.specs(),
             builtins(&[NetworkColumn::Name, NetworkColumn::Kind, NetworkColumn::Age]).as_slice()
@@ -270,7 +276,10 @@ mod tests {
     #[test]
     fn normalize_column_strips_space_underscore_hyphen_and_lowercases() {
         assert_eq!(NetworkColumn::normalize_column("KIND"), "kind");
-        assert_eq!(NetworkColumn::normalize_column("network-policy"), "networkpolicy");
+        assert_eq!(
+            NetworkColumn::normalize_column("network-policy"),
+            "networkpolicy"
+        );
         assert_eq!(NetworkColumn::normalize_column("Age_Group"), "agegroup");
     }
 
