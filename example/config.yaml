@@ -219,7 +219,7 @@ theme:
     ## resources without the label show an empty cell.
     label_columns:
       - name: app
-        label: app
+        label: app.kubernetes.io/name
 
   ## Event view
   event:
