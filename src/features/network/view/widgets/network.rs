@@ -14,6 +14,7 @@ use crate::{
         network::{
             message::{NetworkRequest, NetworkRequestTargetParams},
             network_filter_applicator,
+            NetworkLabelColumn,
         },
     },
     kube::apis::networking::gateway::v1::{Gateway, HTTPRoute},
@@ -36,7 +37,14 @@ use crate::{
     },
 };
 
-pub fn network_widget(tx: &Sender<Message>, theme: WidgetThemeConfig) -> Widget<'static> {
+pub fn network_widget(
+    tx: &Sender<Message>,
+    label_registry: Vec<NetworkLabelColumn>,
+    theme: WidgetThemeConfig,
+) -> Widget<'static> {
+    // Task 7 will consume `label_registry` from the network_filter_applicator.
+    let _ = &label_registry;
+
     let tx = tx.clone();
 
     let widget_theme = WidgetTheme::from(theme.clone());
