@@ -235,6 +235,16 @@ pub fn update_contents(
             widget.append_widget_item(Item::Array(vec![item]));
         }
 
+        Kube::Log(LogMessage::Notice { namespace, message }) => {
+            // セットアップ時の非致命エラー: ログにインライン追記（widget の error 状態は触らない）
+            let widget = window.find_widget_mut(POD_LOG_WIDGET_ID);
+            let item = LiteralItem {
+                metadata: None,
+                item: format!("\x1b[33m[kubetui] {}: {}\x1b[39m", namespace, message),
+            };
+            widget.append_widget_item(Item::Array(vec![item]));
+        }
+
         Kube::Log(LogMessage::SetMaxLines(max_lines)) => {
             let widget = window.find_widget_mut(POD_LOG_WIDGET_ID);
             widget.as_mut_text().set_max_lines(max_lines);

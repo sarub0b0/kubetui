@@ -86,7 +86,27 @@ impl LogWorker {
                 let retrieve_label_selector =
                     RetrieveLabelSelector::new(&self.client, &namespace, value);
 
-                Some(retrieve_label_selector.retrieve().await?)
+                match retrieve_label_selector.retrieve().await {
+                    Ok(sel) => Some(sel),
+                    Err(e) => {
+                        let selector_display = match value {
+                            LabelSelector::Resource(r) => r.to_string(),
+                            LabelSelector::String(s) => s.clone(),
+                        };
+                        let notice = LogMessage::Notice {
+                            namespace: namespace.clone(),
+                            message: format!(
+                                "failed to retrieve label selector for {}: {}",
+                                selector_display, e
+                            ),
+                        };
+                        if let Err(send_err) = self.tx.send(notice.into()) {
+                            logger!(error, "Failed to send LogMessage::Notice: {}", send_err);
+                            return Ok(LogHandle::new(Vec::new()));
+                        }
+                        continue;
+                    }
+                }
             } else {
                 None
             };
