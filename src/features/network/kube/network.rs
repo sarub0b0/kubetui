@@ -17,7 +17,12 @@ use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use crate::{
     features::{
         api_resources::kube::{ApiResource, ApiResources, SharedApiResources},
-        network::message::{GatewayVersion, HTTPRouteVersion, NetworkResponse},
+        network::{
+            message::{GatewayVersion, HTTPRouteVersion, NetworkResponse},
+            NetworkColumn,
+            NetworkColumnSpec,
+            NetworkColumns,
+        },
     },
     kube::{
         apis::{
@@ -30,83 +35,37 @@ use crate::{
     },
     logger,
     message::Message,
-    workers::kube::{InfiniteWorker, SharedNetworkFilter, SharedTargetNamespaces},
+    workers::kube::{
+        InfiniteWorker,
+        SharedNetworkColumns,
+        SharedNetworkFilter,
+        SharedTargetNamespaces,
+    },
 };
 
 #[derive(Debug, Default, Clone)]
-pub struct NetworkTableRow {
+struct NetworkTableRow {
     namespace: String,
     kind: String,
     version: String,
     name: String,
-    age: String,
+    cells: Vec<String>,
 }
 
 impl NetworkTableRow {
     fn to_kube_table_row(&self, is_insert_ns: bool) -> KubeTableRow {
-        let row = if is_insert_ns {
-            [&self.namespace, &self.kind, &self.name, &self.age]
-                .iter()
-                .map(ToString::to_string)
-                .collect()
-        } else {
-            [&self.kind, &self.name, &self.age]
-                .iter()
-                .map(ToString::to_string)
-                .collect()
-        };
-
+        let mut row = self.cells.clone();
+        if is_insert_ns {
+            row.insert(0, self.namespace.clone());
+        }
         KubeTableRow {
-            namespace: self.namespace.to_string(),
-            name: self.name.to_string(),
+            namespace: self.namespace.clone(),
+            name: self.name.clone(),
             metadata: Some(BTreeMap::from([
-                ("kind".to_string(), self.kind.to_string()),
-                ("version".to_string(), self.version.to_string()),
+                ("kind".to_string(), self.kind.clone()),
+                ("version".to_string(), self.version.clone()),
             ])),
             row,
-        }
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct NetworkTable {
-    is_include_namespace: bool,
-    rows: Vec<NetworkTableRow>,
-}
-
-impl NetworkTable {
-    fn new(is_include_namespace: bool, rows: Vec<NetworkTableRow>) -> Self {
-        Self {
-            is_include_namespace,
-            rows,
-        }
-    }
-
-    fn header(&self) -> Vec<String> {
-        if self.is_include_namespace {
-            ["NAMESPACE", "KIND", "NAME", "AGE"]
-                .iter()
-                .map(ToString::to_string)
-                .collect()
-        } else {
-            ["KIND", "NAME", "AGE"]
-                .iter()
-                .map(ToString::to_string)
-                .collect()
-        }
-    }
-
-    fn to_kube_table_rows(&self) -> Vec<KubeTableRow> {
-        self.rows
-            .iter()
-            .map(|row| row.to_kube_table_row(self.is_include_namespace))
-            .collect()
-    }
-
-    fn to_kube_table(&self) -> KubeTable {
-        KubeTable {
-            header: self.header(),
-            rows: self.to_kube_table_rows(),
         }
     }
 }
@@ -213,6 +172,7 @@ impl std::fmt::Display for TargetResource {
 pub struct NetworkPoller {
     tx: Sender<Message>,
     shared_target_namespaces: SharedTargetNamespaces,
+    shared_network_columns: SharedNetworkColumns,
     shared_network_filter: SharedNetworkFilter,
     kube_client: KubeClient,
     api_resources: SharedApiResources,
@@ -222,6 +182,7 @@ impl NetworkPoller {
     pub fn new(
         tx: Sender<Message>,
         shared_target_namespaces: SharedTargetNamespaces,
+        shared_network_columns: SharedNetworkColumns,
         shared_network_filter: SharedNetworkFilter,
         kube_client: KubeClient,
         api_resources: SharedApiResources,
@@ -229,6 +190,7 @@ impl NetworkPoller {
         Self {
             tx,
             shared_target_namespaces,
+            shared_network_columns,
             shared_network_filter,
             kube_client,
             api_resources,
@@ -304,10 +266,11 @@ impl InfiniteWorker for NetworkPoller {
                 target_resources(&apis)
             };
 
+            let columns = self.shared_network_columns.read().await.clone();
             let label_selector = self.shared_network_filter.read().await.clone();
 
             let table = self
-                .polling(&target_resources, label_selector.as_deref())
+                .polling(&target_resources, &columns, label_selector.as_deref())
                 .await;
 
             if let Err(e) = tx.send(NetworkResponse::List(table).into()) {
@@ -318,21 +281,39 @@ impl InfiniteWorker for NetworkPoller {
     }
 }
 
-const TARGET_COLUMNS: [&str; 2] = ["Name", "Age"];
-
 impl NetworkPoller {
     async fn polling(
         &self,
         target_resources: &[TargetResource],
+        columns: &NetworkColumns,
         label_selector: Option<&str>,
     ) -> Result<KubeTable> {
         let target_namespaces = self.shared_target_namespaces.read().await;
+        let specs = columns.specs();
 
-        let rows: Vec<_> = join_all(
-            target_resources
-                .iter()
-                .map(|kind| self.fetch_resource(kind, &target_namespaces, label_selector)),
-        )
+        // Build target_columns dynamically from specs (skip KIND — supplied by
+        // each resource's TargetResource::as_str() — and Label, which comes
+        // from row.object.metadata.labels).
+        let target_columns: Vec<&str> = specs
+            .iter()
+            .filter_map(|s| {
+                match s {
+                    NetworkColumnSpec::Builtin(NetworkColumn::Kind) => None,
+                    NetworkColumnSpec::Builtin(c) => Some(c.as_str()),
+                    NetworkColumnSpec::Label { .. } => None,
+                }
+            })
+            .collect();
+
+        let rows: Vec<_> = join_all(target_resources.iter().map(|kind| {
+            self.fetch_resource(
+                kind,
+                &target_namespaces,
+                specs,
+                &target_columns,
+                label_selector,
+            )
+        }))
         .await
         .into_iter()
         .inspect(|res| {
@@ -343,24 +324,37 @@ impl NetworkPoller {
         .filter_map(|res| res.ok())
         .collect();
 
-        let table = NetworkTable::new(
-            insert_ns(&target_namespaces),
-            rows.into_iter().flatten().collect(),
-        );
+        let is_insert_ns = insert_ns(&target_namespaces);
 
-        Ok(table.to_kube_table())
+        let mut header: Vec<String> = specs.iter().map(|s| s.header()).collect();
+        if is_insert_ns {
+            header.insert(0, "NAMESPACE".to_string());
+        }
+
+        let kube_rows: Vec<KubeTableRow> = rows
+            .into_iter()
+            .flatten()
+            .map(|r| r.to_kube_table_row(is_insert_ns))
+            .collect();
+
+        Ok(KubeTable {
+            header,
+            rows: kube_rows,
+        })
     }
 
     async fn fetch_resource(
         &self,
         kind: &TargetResource,
         namespaces: &[String],
+        specs: &[NetworkColumnSpec],
+        target_columns: &[&str],
         label_selector: Option<&str>,
     ) -> Result<Vec<NetworkTableRow>> {
         let client = &self.kube_client;
 
         let jobs = try_join_all(namespaces.iter().map(|ns| {
-            fetch_resource_per_namespace(client, kind, ns, &TARGET_COLUMNS, label_selector)
+            fetch_resource_per_namespace(client, kind, ns, specs, target_columns, label_selector)
         }))
         .await?;
 
@@ -368,27 +362,71 @@ impl NetworkPoller {
     }
 }
 
+/// Build the per-row cell vector from a spec list, the resource's kind name,
+/// and a k8s API `TableRow`.
+///
+/// `builtin_indexes` are the positional indexes into `row.cells` for the
+/// non-KIND builtin columns (NAME / AGE, in the order specified by the
+/// fetch's `target_columns`).
+pub(crate) fn build_network_row_cells(
+    specs: &[NetworkColumnSpec],
+    kind: &str,
+    row: &crate::kube::apis::v1_table::TableRow,
+    builtin_indexes: &[usize],
+) -> Vec<String> {
+    let mut builtin_iter = builtin_indexes.iter();
+    specs
+        .iter()
+        .map(|s| {
+            match s {
+                NetworkColumnSpec::Builtin(NetworkColumn::Kind) => kind.to_string(),
+                NetworkColumnSpec::Builtin(_) => {
+                    let i = builtin_iter.next().expect("builtin index available");
+                    row.cells[*i].to_string()
+                }
+                NetworkColumnSpec::Label { key, .. } => {
+                    row.object
+                        .as_ref()
+                        .and_then(|o| o.0.get("metadata"))
+                        .and_then(|m| m.get("labels"))
+                        .and_then(|l| l.get(key))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string()
+                }
+            }
+        })
+        .collect()
+}
+
 async fn fetch_resource_per_namespace(
     client: &KubeClient,
     kind: &TargetResource,
     ns: &str,
+    specs: &[NetworkColumnSpec],
     target_columns: &[&str],
     label_selector: Option<&str>,
 ) -> Result<Vec<NetworkTableRow>> {
     let table = kind.fetch_table(client, ns, label_selector).await?;
 
     let indexes = table.find_indexes(target_columns)?;
+    let name_pos_in_specs = specs
+        .iter()
+        .position(|s| matches!(s, NetworkColumnSpec::Builtin(NetworkColumn::Name)))
+        .expect("Name column must be present in network columns");
 
     let rows = table
         .rows
         .iter()
         .map(|row| {
+            let cells = build_network_row_cells(specs, &kind.to_string(), row, &indexes);
+            let name = cells[name_pos_in_specs].clone();
             NetworkTableRow {
                 namespace: ns.to_string(),
                 kind: kind.to_string(),
                 version: kind.version().to_string(),
-                name: row.cells[indexes[0]].to_string(),
-                age: row.cells[indexes[1]].to_string(),
+                name,
+                cells,
             }
         })
         .collect();
@@ -500,5 +538,106 @@ mod tests {
 
             assert_eq!(actual, None);
         }
+    }
+}
+
+#[cfg(test)]
+mod build_network_row_cells_tests {
+    use super::*;
+    use crate::kube::apis::v1_table::{TableRow, Value};
+    use k8s_openapi::apimachinery::pkg::runtime::RawExtension;
+    use pretty_assertions::assert_eq;
+    use serde_json::Value as JsonValue;
+
+    fn make_row(cells: &[&str]) -> TableRow {
+        TableRow {
+            cells: cells
+                .iter()
+                .map(|c| Value(JsonValue::String(c.to_string())))
+                .collect(),
+            ..Default::default()
+        }
+    }
+
+    fn make_row_with_labels(cells: &[&str], labels: &[(&str, &str)]) -> TableRow {
+        let labels_json: serde_json::Map<String, JsonValue> = labels
+            .iter()
+            .map(|(k, v)| (k.to_string(), JsonValue::String(v.to_string())))
+            .collect();
+        let object = serde_json::json!({ "metadata": { "labels": labels_json } });
+        let mut row = make_row(cells);
+        row.object = Some(RawExtension(object));
+        row
+    }
+
+    #[test]
+    fn builtin_only_cells_in_spec_order_with_kind_from_argument() {
+        let specs = vec![
+            NetworkColumnSpec::Builtin(NetworkColumn::Kind),
+            NetworkColumnSpec::Builtin(NetworkColumn::Name),
+            NetworkColumnSpec::Builtin(NetworkColumn::Age),
+        ];
+        let row = make_row(&["my-svc", "3h"]);
+        let cells = build_network_row_cells(&specs, "Service", &row, &[0, 1]);
+        assert_eq!(cells, vec!["Service", "my-svc", "3h"]);
+    }
+
+    #[test]
+    fn label_arm_returns_value_when_label_present() {
+        let specs = vec![
+            NetworkColumnSpec::Builtin(NetworkColumn::Name),
+            NetworkColumnSpec::Label {
+                key: "app".to_string(),
+                header: "APP".to_string(),
+            },
+        ];
+        let row = make_row_with_labels(&["my-svc"], &[("app", "nginx")]);
+        let cells = build_network_row_cells(&specs, "Service", &row, &[0]);
+        assert_eq!(cells, vec!["my-svc", "nginx"]);
+    }
+
+    #[test]
+    fn label_arm_returns_empty_when_label_absent() {
+        let specs = vec![
+            NetworkColumnSpec::Builtin(NetworkColumn::Name),
+            NetworkColumnSpec::Label {
+                key: "app".to_string(),
+                header: "APP".to_string(),
+            },
+        ];
+        let row = make_row_with_labels(&["my-svc"], &[("other", "x")]);
+        let cells = build_network_row_cells(&specs, "Service", &row, &[0]);
+        assert_eq!(cells, vec!["my-svc", ""]);
+    }
+
+    #[test]
+    fn label_arm_returns_empty_when_no_object() {
+        let specs = vec![
+            NetworkColumnSpec::Builtin(NetworkColumn::Name),
+            NetworkColumnSpec::Label {
+                key: "app".to_string(),
+                header: "APP".to_string(),
+            },
+        ];
+        let row = make_row(&["my-svc"]);
+        let cells = build_network_row_cells(&specs, "Service", &row, &[0]);
+        assert_eq!(cells, vec!["my-svc", ""]);
+    }
+
+    #[test]
+    fn mixed_builtin_and_label_in_spec_order() {
+        let specs = vec![
+            NetworkColumnSpec::Builtin(NetworkColumn::Kind),
+            NetworkColumnSpec::Label {
+                key: "env".to_string(),
+                header: "ENV".to_string(),
+            },
+            NetworkColumnSpec::Builtin(NetworkColumn::Name),
+            NetworkColumnSpec::Builtin(NetworkColumn::Age),
+        ];
+        // builtin order from target_columns derived from spec: Name (0), Age (1).
+        let row = make_row_with_labels(&["my-svc", "3h"], &[("env", "prod")]);
+        let cells = build_network_row_cells(&specs, "Ingress", &row, &[0, 1]);
+        assert_eq!(cells, vec!["Ingress", "prod", "my-svc", "3h"]);
     }
 }

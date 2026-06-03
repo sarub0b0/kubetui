@@ -385,6 +385,7 @@ impl KubeController {
             let network_handle = NetworkPoller::new(
                 tx.clone(),
                 shared_target_namespaces.clone(),
+                shared_network_columns.clone(),
                 shared_network_filter.clone(),
                 client.clone(),
                 shared_api_resources.clone(),
