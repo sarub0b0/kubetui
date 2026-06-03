@@ -1,7 +1,12 @@
 use anyhow::Result;
 use strum::EnumString;
 
-use crate::{kube::table::KubeTable, message::Message, workers::kube::message::Kube};
+use crate::{
+    features::network::NetworkColumns,
+    kube::table::KubeTable,
+    message::Message,
+    workers::kube::message::Kube,
+};
 
 #[derive(Copy, Clone, Default, Debug, EnumString)]
 #[strum(serialize_all = "lowercase")]
@@ -49,6 +54,9 @@ pub enum NetworkMessage {
     /// Replace the active labelSelector value. `None` clears it (the poller
     /// stops sending `?labelSelector=` in its sub-fetch URLs).
     Filter(Option<String>),
+    /// Replace the active column composition (sent from the column dialog).
+    /// The poller will use the new columns on the next poll.
+    ColumnsRequest(NetworkColumns),
 }
 
 impl NetworkRequest {

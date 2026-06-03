@@ -211,6 +211,16 @@ theme:
       - name: instance
         label: argocd.argoproj.io/instance
 
+  ## Network view
+  network:
+    ## Register labels as columns. Each entry maps a short `name`
+    ## (used as the column header in upper case and in filter expressions)
+    ## to a label key. The cell value comes from metadata.labels[<label>];
+    ## resources without the label show an empty cell.
+    label_columns:
+      - name: app
+        label: app.kubernetes.io/name
+
   ## Event view
   event:
     highlights:

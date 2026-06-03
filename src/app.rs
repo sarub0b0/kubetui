@@ -19,6 +19,13 @@ use crate::{
             DEFAULT_CONFIG_COLUMNS,
         },
         event::kube::EventConfig,
+        network::{
+            NetworkColumn,
+            NetworkColumnSpec,
+            NetworkColumns,
+            NetworkLabelColumn,
+            DEFAULT_NETWORK_COLUMNS,
+        },
         node::{NodeColumn, NodeColumnSpec, NodeColumns, NodeLabelColumn},
         pod::{kube::PodHighlightRule, PodColumn, PodColumnSpec, PodColumns, PodLabelColumn},
     },
@@ -51,6 +58,9 @@ impl App {
         let config_label_registry =
             build_config_label_registry(&config.theme.config.label_columns)?;
         let default_config_columns = build_default_config_columns(&config_label_registry);
+        let network_label_registry =
+            build_network_label_registry(&config.theme.network.label_columns)?;
+        let default_network_columns = build_default_network_columns(&network_label_registry);
 
         kube_worker_config.pod_config.default_columns = build_pod_columns(
             cmd.pod_columns,
@@ -69,6 +79,7 @@ impl App {
         )?;
 
         kube_worker_config.default_config_columns = default_config_columns.clone();
+        kube_worker_config.default_network_columns = default_network_columns.clone();
 
         kube_worker_config.event_config = EventConfig::from(config.theme.clone());
         kube_worker_config.api_config = ApiConfig::from(config.theme.clone());
@@ -113,9 +124,11 @@ impl App {
             default_pod_columns,
             default_node_columns,
             default_config_columns,
+            default_network_columns,
             pod_label_registry,
             node_label_registry,
             config_label_registry,
+            network_label_registry,
             config.theme.clone(),
             cmd.clipboard,
             config.logging.max_lines,
@@ -421,6 +434,60 @@ fn build_default_config_columns(registry: &[ConfigLabelColumn]) -> ConfigColumns
         });
     }
     ConfigColumns::new(specs).ensure_required().dedup_columns()
+}
+
+/// Build the label-column registry for Network from config, erroring on
+/// builtin name collisions or duplicate label headers.
+fn build_network_label_registry(
+    label_columns: &Option<Vec<LabelColumnConfig>>,
+) -> Result<Vec<NetworkLabelColumn>> {
+    let mut out: Vec<NetworkLabelColumn> = Vec::new();
+    if let Some(defs) = label_columns {
+        for def in defs {
+            let norm = NetworkColumn::normalize_column(&def.name);
+            if NetworkColumn::from_str(&norm).is_ok() {
+                anyhow::bail!(
+                    "label_columns name '{}' collides with a builtin column name",
+                    def.name
+                );
+            }
+            if let Some(existing) = out
+                .iter()
+                .find(|lc| NetworkColumn::normalize_column(&lc.name) == norm)
+            {
+                anyhow::bail!(
+                    "label_columns name '{}' has the same header as previously defined '{}'",
+                    def.name,
+                    existing.name
+                );
+            }
+            out.push(NetworkLabelColumn {
+                name: def.name.clone(),
+                key: def.label.clone(),
+                header: def.name.to_uppercase(),
+            });
+        }
+    }
+    Ok(out)
+}
+
+/// Build the default Network columns for startup: all builtin defaults
+/// followed by every label column registered in `registry`. `ensure_required`
+/// and `dedup_columns` guarantee KIND/NAME are present and there are no
+/// duplicates.
+fn build_default_network_columns(registry: &[NetworkLabelColumn]) -> NetworkColumns {
+    let mut specs: Vec<NetworkColumnSpec> = DEFAULT_NETWORK_COLUMNS
+        .iter()
+        .copied()
+        .map(NetworkColumnSpec::Builtin)
+        .collect();
+    for lc in registry {
+        specs.push(NetworkColumnSpec::Label {
+            key: lc.key.clone(),
+            header: lc.header.clone(),
+        });
+    }
+    NetworkColumns::new(specs).ensure_required().dedup_columns()
 }
 
 /// Resolve column names (builtin or registry label, or "full") into NodeColumns.

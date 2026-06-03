@@ -7,6 +7,7 @@ use crate::features::{
     api_resources::kube::ApiConfig,
     config::ConfigColumns,
     event::kube::EventConfig,
+    network::NetworkColumns,
     node::kube::NodeConfig,
     pod::kube::PodConfig,
 };
@@ -27,6 +28,7 @@ pub struct KubeWorkerConfig {
     pub apis_config: ApisConfig,
     pub yaml_config: YamlConfig,
     pub default_config_columns: ConfigColumns,
+    pub default_network_columns: NetworkColumns,
 }
 
 pub struct Context(String);

@@ -8,7 +8,16 @@ use crate::{
     config::theme::WidgetThemeConfig,
     features::{
         component_id::NETWORK_TAB_ID,
-        network::view::widgets::{description_widget, network_filter_help_widget, network_widget},
+        network::{
+            view::widgets::{
+                description_widget,
+                network_columns_dialog,
+                network_filter_help_widget,
+                network_widget,
+            },
+            NetworkColumns,
+            NetworkLabelColumn,
+        },
     },
     message::Message,
     ui::{
@@ -20,6 +29,7 @@ use crate::{
 
 pub struct NetworkTab {
     pub tab: Tab<'static>,
+    pub network_columns_dialog: Widget<'static>,
     pub network_filter_help_dialog: Widget<'static>,
 }
 
@@ -29,12 +39,16 @@ impl NetworkTab {
         tx: &Sender<Message>,
         clipboard: &Option<Rc<RefCell<Clipboard>>>,
         split_direction: Direction,
+        default_columns: NetworkColumns,
+        label_registry: Vec<NetworkLabelColumn>,
         theme: WidgetThemeConfig,
     ) -> Self {
         let error_theme = theme.error.clone().into();
 
-        let network_widget = network_widget(tx, theme.clone());
+        let network_widget = network_widget(tx, label_registry.clone(), theme.clone());
         let description_widget = description_widget(clipboard, theme.clone());
+        let network_columns_dialog =
+            network_columns_dialog(tx, default_columns, label_registry, theme.clone());
         let network_filter_help_dialog = network_filter_help_widget(theme);
 
         let layout = TabLayout::new(layout, split_direction);
@@ -47,6 +61,7 @@ impl NetworkTab {
                 layout,
             )
             .error_theme(error_theme),
+            network_columns_dialog,
             network_filter_help_dialog,
         }
     }

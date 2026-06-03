@@ -12,6 +12,7 @@ mod help;
 mod input;
 mod label_column;
 mod list;
+mod network;
 mod node;
 mod pod;
 mod style;
@@ -44,6 +45,7 @@ pub use help::HelpThemeConfig;
 pub use input::*;
 pub use label_column::LabelColumnConfig;
 pub use list::*;
+pub use network::NetworkThemeConfig;
 pub use node::*;
 pub use pod::*;
 pub use style::ThemeStyleConfig;
@@ -77,6 +79,9 @@ pub struct ThemeConfig {
 
     #[serde(default)]
     pub event: EventThemeConfig,
+
+    #[serde(default)]
+    pub network: NetworkThemeConfig,
 
     #[serde(default)]
     pub api: ApiThemeConfig,
