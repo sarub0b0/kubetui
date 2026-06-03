@@ -34,9 +34,6 @@ pub fn config_widget(
     label_registry: Vec<ConfigLabelColumn>,
     theme: WidgetThemeConfig,
 ) -> Widget<'static> {
-    // Task 7 consumes this in config_filter_applicator.
-    let _ = &label_registry;
-
     let tx = tx.clone();
 
     let widget_theme = WidgetTheme::from(theme.clone());
@@ -55,7 +52,7 @@ pub fn config_widget(
         .widget_base(widget_base)
         .filter_form(filter_form)
         .theme(table_theme)
-        .filter_applicator(config_filter_applicator(tx.clone()))
+        .filter_applicator(config_filter_applicator(label_registry, tx.clone()))
         .action('t', open_config_columns_dialog())
         .block_injection(block_injection())
         .on_select(on_select(tx))
