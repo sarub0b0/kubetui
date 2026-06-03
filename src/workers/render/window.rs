@@ -261,6 +261,7 @@ impl WindowInit {
 
         let NetworkTab {
             tab: network_tab,
+            network_columns_dialog,
             network_filter_help_dialog,
         } = NetworkTab::new(
             "Network",
@@ -349,6 +350,7 @@ impl WindowInit {
             config_filter_help_dialog,
             config_columns_dialog,
             network_filter_help_dialog,
+            network_columns_dialog,
             node_columns_dialog,
             node_filter_help_dialog,
             yaml_dialog,

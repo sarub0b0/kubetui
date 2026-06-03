@@ -64,10 +64,19 @@ pub fn network_widget(
         .filter_form(filter_form)
         .theme(table_theme)
         .filter_applicator(network_filter_applicator(tx.clone()))
+        .action('t', open_network_columns_dialog())
         .block_injection(block_injection())
         .on_select(on_select(tx))
         .build()
         .into()
+}
+
+fn open_network_columns_dialog() -> impl Fn(&mut Window) -> EventResult {
+    use crate::features::component_id::NETWORK_COLUMNS_DIALOG_ID;
+    |w: &mut Window| {
+        w.open_dialog(NETWORK_COLUMNS_DIALOG_ID);
+        EventResult::Nop
+    }
 }
 
 fn block_injection() -> impl Fn(&Table) -> WidgetBase {

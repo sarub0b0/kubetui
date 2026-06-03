@@ -40,6 +40,7 @@ component_id!(
     config_filter_help_dialog,
     config_columns_dialog,
     network_filter_help_dialog,
+    network_columns_dialog,
     pod_log_query_help_dialog,
     context_dialog,
     single_namespace_dialog,
