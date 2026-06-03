@@ -89,11 +89,15 @@ impl LogWorker {
                 match retrieve_label_selector.retrieve().await {
                     Ok(sel) => Some(sel),
                     Err(e) => {
+                        let selector_display = match value {
+                            LabelSelector::Resource(r) => r.to_string(),
+                            LabelSelector::String(s) => s.clone(),
+                        };
                         let notice = LogMessage::Notice {
                             namespace: namespace.clone(),
                             message: format!(
                                 "failed to retrieve label selector for {}: {}",
-                                value, e
+                                selector_display, e
                             ),
                         };
                         if let Err(send_err) = self.tx.send(notice.into()) {
