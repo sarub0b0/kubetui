@@ -2,6 +2,7 @@ mod api;
 mod base;
 mod border;
 mod check_list;
+mod config;
 mod dialog;
 mod error;
 mod event;
@@ -34,6 +35,7 @@ pub use api::ApiThemeConfig;
 pub use base::BaseThemeConfig;
 pub use border::BorderThemeConfig;
 pub use check_list::*;
+pub use config::ConfigThemeConfig;
 pub use dialog::*;
 pub use error::ErrorThemeConfig;
 pub use event::EventThemeConfig;
@@ -66,6 +68,9 @@ pub struct ThemeConfig {
 
     #[serde(default)]
     pub pod: PodThemeConfig,
+
+    #[serde(default)]
+    pub config: ConfigThemeConfig,
 
     #[serde(default)]
     pub node: NodeThemeConfig,

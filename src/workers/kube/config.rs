@@ -5,6 +5,7 @@ use kube::config::{Kubeconfig, KubeconfigError};
 
 use crate::features::{
     api_resources::kube::ApiConfig,
+    config::ConfigColumns,
     event::kube::EventConfig,
     node::kube::NodeConfig,
     pod::kube::PodConfig,
@@ -25,6 +26,7 @@ pub struct KubeWorkerConfig {
     pub api_config: ApiConfig,
     pub apis_config: ApisConfig,
     pub yaml_config: YamlConfig,
+    pub default_config_columns: ConfigColumns,
 }
 
 pub struct Context(String);

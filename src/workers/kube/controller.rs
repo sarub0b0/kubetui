@@ -21,6 +21,7 @@ use crate::{
         config::{
             kube::{ConfigPoller, ConfigsDataWorker},
             message::ConfigMessage,
+            ConfigColumns,
         },
         context::message::{ContextMessage, ContextRequest, ContextResponse},
         event::kube::{EventConfig, EventPoller},
@@ -69,6 +70,7 @@ pub type StyledTargetApiResources = Vec<StyledApiResource>;
 pub type SharedPodColumns = Arc<RwLock<PodColumns>>;
 pub type SharedPodFilter = Arc<RwLock<Option<String>>>;
 pub type SharedConfigFilter = Arc<RwLock<Option<String>>>;
+pub type SharedConfigColumns = Arc<RwLock<ConfigColumns>>;
 pub type SharedNetworkFilter = Arc<RwLock<Option<String>>>;
 
 /// APIタブのダイアログで表示されるAPIリソースのスタイル設定
@@ -153,6 +155,7 @@ pub struct KubeController {
     api_config: ApiConfig,
     apis_config: ApisConfig,
     yaml_config: YamlConfig,
+    default_config_columns: ConfigColumns,
 }
 
 impl KubeController {
@@ -173,6 +176,7 @@ impl KubeController {
             api_config,
             apis_config,
             yaml_config,
+            default_config_columns,
         } = config;
 
         let kubeconfig = read_kubeconfig(kubeconfig)?;
@@ -212,6 +216,7 @@ impl KubeController {
             api_config,
             apis_config,
             yaml_config,
+            default_config_columns,
         })
     }
 
@@ -229,6 +234,7 @@ impl KubeController {
             api_config,
             apis_config,
             yaml_config,
+            default_config_columns,
         } = self;
 
         let mut override_namespaces: Option<Vec<String>> = None;
@@ -312,6 +318,8 @@ impl KubeController {
             ));
             let shared_node_filter: SharedNodeFilter = Arc::new(RwLock::new(None));
             let shared_config_filter: SharedConfigFilter = Arc::new(RwLock::new(None));
+            let shared_config_columns: SharedConfigColumns =
+                Arc::new(RwLock::new(default_config_columns.clone()));
             let shared_network_filter: SharedNetworkFilter = Arc::new(RwLock::new(None));
 
             let contexts = kubeconfig
@@ -333,6 +341,7 @@ impl KubeController {
                 shared_node_columns: shared_node_columns.clone(),
                 shared_node_filter: shared_node_filter.clone(),
                 shared_config_filter: shared_config_filter.clone(),
+                shared_config_columns: shared_config_columns.clone(),
                 shared_network_filter: shared_network_filter.clone(),
                 apis_config: apis_config.clone(),
                 yaml_config: yaml_config.clone(),
@@ -362,6 +371,7 @@ impl KubeController {
             let config_handle = ConfigPoller::new(
                 tx.clone(),
                 shared_target_namespaces.clone(),
+                shared_config_columns.clone(),
                 shared_config_filter.clone(),
                 client.clone(),
             )
@@ -456,6 +466,7 @@ struct EventControllerArgs {
     shared_node_columns: SharedNodeColumns,
     shared_node_filter: SharedNodeFilter,
     shared_config_filter: SharedConfigFilter,
+    shared_config_columns: SharedConfigColumns,
     shared_network_filter: SharedNetworkFilter,
     apis_config: ApisConfig,
     yaml_config: YamlConfig,
@@ -476,6 +487,7 @@ struct EventController {
     shared_node_columns: SharedNodeColumns,
     shared_node_filter: SharedNodeFilter,
     shared_config_filter: SharedConfigFilter,
+    shared_config_columns: SharedConfigColumns,
     shared_network_filter: SharedNetworkFilter,
     apis_config: ApisConfig,
     yaml_config: YamlConfig,
@@ -497,6 +509,7 @@ impl EventController {
             shared_node_columns: args.shared_node_columns,
             shared_node_filter: args.shared_node_filter,
             shared_config_filter: args.shared_config_filter,
+            shared_config_columns: args.shared_config_columns,
             shared_network_filter: args.shared_network_filter,
             apis_config: args.apis_config,
             yaml_config: args.yaml_config,
@@ -549,6 +562,7 @@ impl Worker for EventController {
             shared_node_columns,
             shared_node_filter,
             shared_config_filter,
+            shared_config_columns,
             shared_network_filter,
             apis_config,
             yaml_config,
@@ -691,6 +705,10 @@ impl Worker for EventController {
 
                         Kube::Config(ConfigMessage::Filter(sel)) => {
                             *shared_config_filter.write().await = sel;
+                        }
+
+                        Kube::Config(ConfigMessage::ColumnsRequest(columns)) => {
+                            *shared_config_columns.write().await = columns;
                         }
 
                         Kube::Api(ApiMessage::Request(req)) => {

@@ -7,6 +7,7 @@ use crate::{
         config::{
             config_filter_applicator,
             message::{ConfigRequest, RequestData},
+            ConfigLabelColumn,
         },
     },
     message::Message,
@@ -28,7 +29,11 @@ use crate::{
     },
 };
 
-pub fn config_widget(tx: &Sender<Message>, theme: WidgetThemeConfig) -> Widget<'static> {
+pub fn config_widget(
+    tx: &Sender<Message>,
+    label_registry: Vec<ConfigLabelColumn>,
+    theme: WidgetThemeConfig,
+) -> Widget<'static> {
     let tx = tx.clone();
 
     let widget_theme = WidgetTheme::from(theme.clone());
@@ -47,11 +52,20 @@ pub fn config_widget(tx: &Sender<Message>, theme: WidgetThemeConfig) -> Widget<'
         .widget_base(widget_base)
         .filter_form(filter_form)
         .theme(table_theme)
-        .filter_applicator(config_filter_applicator(tx.clone()))
+        .filter_applicator(config_filter_applicator(label_registry, tx.clone()))
+        .action('t', open_config_columns_dialog())
         .block_injection(block_injection())
         .on_select(on_select(tx))
         .build()
         .into()
+}
+
+fn open_config_columns_dialog() -> impl Fn(&mut Window) -> EventResult {
+    use crate::features::component_id::CONFIG_COLUMNS_DIALOG_ID;
+    |w: &mut Window| {
+        w.open_dialog(CONFIG_COLUMNS_DIALOG_ID);
+        EventResult::Nop
+    }
 }
 
 fn block_injection() -> impl Fn(&Table) -> WidgetBase {
