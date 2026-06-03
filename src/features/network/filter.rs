@@ -1,17 +1,12 @@
-//! Network tab filter: parser + `TableFilterApplicator` factory.
-//!
-//! The applicator wires `parse_network_filter` (which builds on the shared
-//! `parse_table_filter`) into the Table widget with `EnterToConfirm` strategy.
-//! Server-side `labelSelector` is forwarded to the Network poller via
-//! `NetworkMessage::Filter` from `on_apply`/`on_cancel`. Typing `?` or `help`
-//! in the filter input opens the `NETWORK_FILTER_HELP_DIALOG_ID` dialog.
-
 mod parser;
 
 use crossbeam::channel::Sender;
 
 use crate::{
-    features::{component_id::NETWORK_FILTER_HELP_DIALOG_ID, network::message::NetworkMessage},
+    features::{
+        component_id::NETWORK_FILTER_HELP_DIALOG_ID,
+        network::{message::NetworkMessage, NetworkLabelColumn},
+    },
     message::Message,
     ui::{
         widget::{
@@ -27,16 +22,12 @@ use crate::{
 
 pub use parser::parse_network_filter;
 
-/// Build the Network tab's filter applicator.
-///
-/// `tx` is captured by `on_apply`/`on_cancel` to forward the parsed
-/// `label_selector` to the Network poller via `NetworkMessage::Filter`.
-///
-/// The applicator uses `EnterToConfirm` so the parser only runs on Enter
-/// (avoids server-side roundtrips mid-typing across the many sub-fetchers
-/// the Network tab aggregates).
-pub fn network_filter_applicator(tx: Sender<Message>) -> TableFilterApplicator {
-    let parser: TableFilterParser = (move |input: &str| parse_network_filter(input)).into();
+pub fn network_filter_applicator(
+    label_registry: Vec<NetworkLabelColumn>,
+    tx: Sender<Message>,
+) -> TableFilterApplicator {
+    let parser: TableFilterParser =
+        (move |input: &str| parse_network_filter(input, &label_registry)).into();
 
     let tx_apply = tx.clone();
     let tx_cancel = tx;
@@ -69,6 +60,6 @@ mod tests {
     #[test]
     fn applicator_constructs_without_panic() {
         let (tx, _rx) = crossbeam::channel::bounded(1);
-        let _ = network_filter_applicator(tx);
+        let _ = network_filter_applicator(Vec::new(), tx);
     }
 }

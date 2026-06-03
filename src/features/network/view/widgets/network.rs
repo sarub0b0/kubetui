@@ -42,9 +42,6 @@ pub fn network_widget(
     label_registry: Vec<NetworkLabelColumn>,
     theme: WidgetThemeConfig,
 ) -> Widget<'static> {
-    // Task 7 will consume `label_registry` from the network_filter_applicator.
-    let _ = &label_registry;
-
     let tx = tx.clone();
 
     let widget_theme = WidgetTheme::from(theme.clone());
@@ -63,7 +60,7 @@ pub fn network_widget(
         .widget_base(widget_base)
         .filter_form(filter_form)
         .theme(table_theme)
-        .filter_applicator(network_filter_applicator(tx.clone()))
+        .filter_applicator(network_filter_applicator(label_registry, tx.clone()))
         .action('t', open_network_columns_dialog())
         .block_injection(block_injection())
         .on_select(on_select(tx))
