@@ -98,7 +98,7 @@ Overall, kubetui is a powerful tool designed to provide a safe and efficient way
 - **Customizable Columns (Pod / Node / Config / Network)**: Pick visible columns and order via a runtime dialog (<kbd>t</kbd>), CLI flags / presets (Pod / Node), and label columns. See [Column Customization](#column-customization).
 - **Column-aware Filter (Pod / Node / Config / Network)**: Filter rows by column with include/exclude regex and server-side label selectors, with inline help. See [Filter](#filter-column-aware).
 - **Namespace Multiple Selections**: Select and view multiple namespaces simultaneously.
-- **Context Selection**: Switch the Kubernetes context you operate on.
+- **Context Selection**: Switch the Kubernetes context you operate on (with namespace carry-over / caching).
 - **Adjustable Split Layout**: Toggle vertical/horizontal pane split at runtime (<kbd>Shift+s</kbd>) or at startup (`-s v|h`).
 - **Clipboard Support**: Copy text with the mouse; the backend is selectable (system / OSC52, SSH- and tmux-friendly). See [Clipboard](#clipboard).
 - **Mouse Support**: Click to focus and select, click tabs to switch, scroll with the wheel, and drag to select text for copying.
