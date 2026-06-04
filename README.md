@@ -337,7 +337,7 @@ A term on a column that is **currently not shown** stays in the filter but is no
 #### Notes per tab
 
 - **Pod / Config / Network**: `namespace` is not filterable — use the namespace selector (`n` / `N`) instead. A `namespace:<...>` term returns a dedicated guidance message (rather than a generic unknown-column error) in all three tabs.
-- **Config / Network**: label columns registered via `label_columns` become first-class filter columns.
+- **Node**: cluster-scoped, so there is no `namespace` concept; `namespace:<...>` is treated as a plain unknown-column error.
 
 ### Shell Completion
 
