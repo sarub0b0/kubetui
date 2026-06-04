@@ -77,8 +77,8 @@ Kubetui offers the following features to help you monitor and manage your Kubern
 - **Events Watching**: Stay updated with a real-time view of Kubernetes events.
 - **Specific Resources Watching (List / YAML)**: View specific resources in list or YAML format.
 - **Customizable Columns for Pod / Node / Config / Network**:
-  - Configure visible columns and ordering via CLI flags (`--pod-columns` / `--pod-columns-preset` / `--node-columns` / `--node-columns-preset`) or config presets.
   - Open a runtime column selection dialog by pressing <kbd>t</kbd> while a table is focused — toggle visibility with <kbd>Space</kbd>/<kbd>Enter</kbd> and reorder with <kbd>J</kbd>/<kbd>K</kbd>.
+  - **Presets and CLI flags (Pod / Node only)**: Select startup columns via CLI flags (`--pod-columns` / `--pod-columns-preset` / `--node-columns` / `--node-columns-preset`) or named `column_presets` in the config file. Config and Network use the runtime dialog and label columns instead.
   - **Label columns**: Register node/pod/config/network labels as table columns via `label_columns` in the config file. Registered labels also become valid filter columns and column-dialog entries.
 - **Column-aware filter (Pod / Node / Config / Network)**:
   - Filter syntax: `COL:<regex>` to include, `!COL:<regex>` to exclude, `label:<selector>` for server-side Kubernetes labelSelector, bare values default to `NAME`.
