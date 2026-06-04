@@ -230,7 +230,7 @@ Press <kbd>t</kbd> while a table is focused (Pod / Node / Config / Network) to o
 
 #### Label columns
 
-You can register labels as table columns under `theme.<tab>.label_columns`. Each entry maps a short `name` (used as the upper-cased column header, in CLI flag values, in presets, and in filter expressions) to a label key. The cell value is taken from `metadata.labels[<label>]`; resources without the label show an empty cell.
+You can register labels as table columns under `theme.<tab>.label_columns`. Each entry maps a short `name` to a label key. The `name` is used as the upper-cased column header, in the column dialog, and in filter expressions across all four tabs; for Pod and Node it can additionally appear in `--*-columns` flag values and presets. The cell value is taken from `metadata.labels[<label>]`; resources without the label show an empty cell.
 
 ```yaml
 theme:
