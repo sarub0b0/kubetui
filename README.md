@@ -75,7 +75,7 @@ Kubetui offers the following features to help you monitor and manage your Kubern
 - **ConfigMap and Secret Watching**: Monitor ConfigMaps and secrets, and decode their data.
 - **Network-related Resources**: Explore a list of network-related resources and their descriptions.
 - **Events Watching**: Stay updated with a real-time view of Kubernetes events.
-- **Specific Resources Watching (List / YAML)**: View specific resources in list or YAML format.
+- **Arbitrary Resource Watching (List / YAML)**: Select any resource kinds with <kbd>f</kbd> and watch them as a list, or inspect a selected resource's raw manifest with the YAML view (<kbd>y</kbd>).
 - **Customizable Columns for Pod / Node / Config / Network**:
   - Open a runtime column selection dialog by pressing <kbd>t</kbd> while a table is focused — toggle visibility with <kbd>Space</kbd>/<kbd>Enter</kbd> and reorder with <kbd>J</kbd>/<kbd>K</kbd>.
   - **Presets and CLI flags (Pod / Node only)**: Select startup columns via CLI flags (`--pod-columns` / `--pod-columns-preset` / `--node-columns` / `--node-columns-preset`) or named `column_presets` in the config file. Config and Network use the runtime dialog and label columns instead.
@@ -86,9 +86,10 @@ Kubetui offers the following features to help you monitor and manage your Kubern
   - Press <kbd>?</kbd> (or type `help`) in the filter input to open the per-tab filter help dialog.
 - **Namespace Multiple Selections**: Select and view multiple namespaces simultaneously.
 - **Context Selection**: Change the Kubernetes context you want to operate on.
+- **Adjustable Split Layout**: Toggle the pane split between vertical and horizontal at runtime with <kbd>Shift+s</kbd>, or set it at startup with `-s v|h`.
 - **Clipboard Support (Text Copy)**: Copy text via mouse actions. The clipboard backend is selectable with `--clipboard auto|system|osc52` (or `KUBETUI_CLIPBOARD`) — OSC52 mode works over SSH/tmux without a system clipboard.
-- **Mouse Event Support**: Leverage mouse events for a smoother user experience.
-- **Search Functionality**: Easily search for specific keywords within the interface.
+- **Mouse Support**: Click to focus and select items, switch tabs by clicking, scroll with the wheel, and drag to select text for copying.
+- **Incremental Search**: Search within text views with <kbd>/</kbd> and jump between matches with <kbd>n</kbd> / <kbd>N</kbd>.
 - **(beta) Customizable UI Appearance**: Modify the appearance of the UI, including border styles, colors, and text attributes.
 
 Overall, kubetui is a powerful tool designed to provide a safe and efficient way to access and monitor your Kubernetes resources. With its user-friendly interface and comprehensive features, it simplifies the process of managing your applications and infrastructure.
