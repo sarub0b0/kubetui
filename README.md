@@ -378,7 +378,7 @@ You can customize the UI appearance and several feature settings by specifying a
 kubetui --config-file /path/to/your/config.yaml
 ```
 
-The configuration file can also be located at `~/.config/kubetui/config.yaml` or `$XDG_CONFIG_FILE/kubetui/config.yaml`.
+The configuration file can also be located at `$XDG_CONFIG_HOME/kubetui/config.yaml` (or `~/.config/kubetui/config.yaml` when `$XDG_CONFIG_HOME` is unset).
 
 The configuration file allows you to modify:
 
