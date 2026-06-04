@@ -69,8 +69,8 @@ Kubetui offers the following features to help you monitor and manage your Kubern
 
 - **Pods List and Container Logs**: Browse pods and stream their container logs, with JSON pretty-print toggling (<kbd>f</kbd>/<kbd>p</kbd>) and a powerful [Log Query](#log-query) (regex, label/field selectors, resource targeting, jq/JMESPath).
 - **Node List and Detail**: View nodes with status, roles, age, and version, plus a detail pane.
-- **ConfigMap and Secret Watching**: Monitor ConfigMaps and Secrets, and decode their data.
-- **Network-related Resources**: Explore network-related resources and their descriptions.
+- **ConfigMap and Secret Watching**: Monitor ConfigMaps and Secrets, and decode their (Base64) data.
+- **Network-related Resources**: List Services, Ingresses, NetworkPolicies, and Gateway API resources (Gateway / HTTPRoute), and view details for the selected one.
 - **Events Watching**: Stay updated with a real-time view of Kubernetes events.
 - **Arbitrary Resource Watching (List / YAML)**: Select any resource kinds with <kbd>f</kbd> and watch them as a list, or inspect a selected resource's raw YAML with <kbd>y</kbd>.
 - **Customizable Columns (Pod / Node / Config / Network)**: Pick visible columns and order via a runtime dialog (<kbd>t</kbd>), CLI flags / presets (Pod / Node), and label columns. See [Column Customization](#column-customization).
