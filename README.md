@@ -73,8 +73,8 @@ Kubetui offers the following features to help you monitor and manage your Kubern
 - **Network-related Resources**: List Services, Ingresses, NetworkPolicies, and Gateway API resources (Gateway / HTTPRoute), and view details for the selected one.
 - **Events Watching**: Stay updated with a real-time view of Kubernetes events.
 - **Arbitrary Resource Watching (List / YAML)**: Select any resource kinds with <kbd>f</kbd> and watch them as a list, or inspect a selected resource's raw YAML with <kbd>y</kbd>.
-- **Customizable Columns (Pod / Node / Config / Network)**: Pick visible columns and order via a runtime dialog (<kbd>t</kbd>), CLI flags / presets (Pod / Node), and label columns. See [Column Customization](#column-customization).
-- **Column-aware Filter (Pod / Node / Config / Network)**: Filter rows by column with include/exclude regex and server-side label selectors, with inline help. See [Filter](#filter-column-aware).
+- **Customizable Columns**: Pick visible columns and order via a runtime dialog (<kbd>t</kbd>), CLI flags / presets (Pod / Node), and label columns. See [Column Customization](#column-customization).
+- **Column-aware Filter**: Filter table rows by column with include/exclude regex and server-side label selectors, with inline help. See [Filter](#filter-column-aware).
 - **Namespace Multiple Selections**: Select and view multiple namespaces simultaneously.
 - **Context Selection**: Switch the Kubernetes context you operate on (with namespace carry-over / caching).
 - **Adjustable Split Layout**: Toggle vertical/horizontal pane split at runtime (<kbd>Shift+s</kbd>) or at startup (`-s v|h`).
