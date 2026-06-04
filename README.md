@@ -20,10 +20,17 @@ It provides an easy-to-use interface for developers and operators to access impo
   - [Using `cargo install`](#using-cargo-install)
   - [Downloading the binary](#downloading-the-binary)
 - [Usage](#usage)
-  - [Pod Column Customization](#pod-column-customization)
-    - [Define presets in config.yaml](#define-presets-in-configyaml)
-    - [Example config](#example-config)
+  - [Column Customization](#column-customization)
+    - [CLI flags (Pod / Node)](#cli-flags-pod--node)
+    - [Runtime column dialog (all four tabs)](#runtime-column-dialog-all-four-tabs)
+    - [Label columns](#label-columns)
+    - [Define presets in config.yaml (Pod / Node)](#define-presets-in-configyaml-pod--node)
+  - [Filter (Column-Aware)](#filter-column-aware)
+    - [Syntax summary](#syntax-summary)
+    - [Inactive terms](#inactive-terms)
+    - [Notes per tab](#notes-per-tab)
   - [Shell Completion](#shell-completion)
+  - [Clipboard](#clipboard)
   - [Custom Configuration](#custom-configuration)
 - [Log Query](#log-query)
   - [Usage Example](#usage-example)
@@ -36,9 +43,12 @@ It provides an easy-to-use interface for developers and operators to access impo
   - [Text View](#text-view)
   - [Search Mode](#search-mode)
   - [Table View](#table-view)
+    - [Column Dialog](#column-dialog)
   - [Dialog](#dialog)
+    - [Context Dialog](#context-dialog)
   - [Input Form](#input-form)
   - [Container Logs View](#container-logs-view)
+    - [Inline notices](#inline-notices)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -57,22 +67,21 @@ It provides an easy-to-use interface for developers and operators to access impo
 
 Kubetui offers the following features to help you monitor and manage your Kubernetes resources:
 
-- **Pods List and Container Logs**:
-  - View a list of pods and their container logs.
-  - JSON logs display mode switching: toggle between pretty print and single-line display using the <kbd>f</kbd> or <kbd>p</kbd> keys.
-  - **Customizable pod columns (via CLI flags or config presets)**: Use `--pod-columns` or `--pod-columns-preset` to control which columns appear in the pod list view. Also supports dynamic selection at runtime.
-  - **Dynamic column selection**: You can now customize pod columns at runtime using a column selection dialog. Press <kbd>t</kbd> while the pod table is focused to open the dialog. Selected columns are immediately applied.
-- **ConfigMap and Secret Watching**: Monitor ConfigMaps and secrets, and decode their data.
-- **Network-related Resources**: Explore a list of network-related resources and their descriptions.
+- **Pods List and Container Logs**: Browse pods and stream their container logs, with JSON pretty-print toggling (<kbd>f</kbd>/<kbd>p</kbd>) and a powerful [Log Query](#log-query) (regex, label/field selectors, resource targeting, jq/JMESPath).
+- **Node List and Detail**: View nodes with status, roles, age, and version, plus a detail pane.
+- **ConfigMap and Secret Watching**: Monitor ConfigMaps and Secrets, and decode their (Base64) data.
+- **Network-related Resources**: List Services, Ingresses, NetworkPolicies, and Gateway API resources (Gateway / HTTPRoute), and view details for the selected one.
 - **Events Watching**: Stay updated with a real-time view of Kubernetes events.
-- **Specific Resources Watching (List / YAML)**: View specific resources in list or YAML format.
+- **Arbitrary Resource Watching (List / YAML)**: Select any resource kinds with <kbd>f</kbd> and watch them as a list, or inspect a selected resource's raw YAML with <kbd>y</kbd>.
+- **Customizable Columns**: Pick visible columns and order via a runtime dialog (<kbd>t</kbd>), CLI flags / presets (Pod / Node), and label columns. See [Column Customization](#column-customization).
+- **Column-aware Filter**: Filter table rows by column with include/exclude regex and server-side label selectors, with inline help. See [Filter](#filter-column-aware).
 - **Namespace Multiple Selections**: Select and view multiple namespaces simultaneously.
-- **Context Selection**: Change the Kubernetes context you want to operate on.
-- **Clipboard Support (Text Copy)**: Copy text conveniently using mouse actions.
-- **Mouse Event Support**: Leverage mouse events for a smoother user experience.
-- **Search Functionality**: Easily search for specific keywords within the interface.
-- **Item Filtering**: Filter items based on multiple keywords separated by spaces.
-- **(beta) Customizable UI Appearance**: Modify the appearance of the UI, including border styles, colors, and text attributes.
+- **Context Selection**: Switch the Kubernetes context you operate on (with namespace carry-over / caching).
+- **Adjustable Split Layout**: Toggle vertical/horizontal pane split at runtime (<kbd>Shift+s</kbd>) or at startup (`-s v|h`).
+- **Clipboard Support**: Copy text with the mouse; the backend is selectable (system / OSC52, SSH- and tmux-friendly). See [Clipboard](#clipboard).
+- **Mouse Support**: Click to focus and select, click tabs to switch, scroll with the wheel, and drag to select text for copying.
+- **Incremental Search**: Search within text views with <kbd>/</kbd> and jump between matches with <kbd>n</kbd> / <kbd>N</kbd>.
+- **(beta) Customizable UI Appearance**: Theme border styles, colors, and text attributes via a config file.
 
 Overall, kubetui is a powerful tool designed to provide a safe and efficient way to access and monitor your Kubernetes resources. With its user-friendly interface and comprehensive features, it simplifies the process of managing your applications and infrastructure.
 
@@ -165,53 +174,95 @@ Commands:
   completion  Generate completion script
 
 Options:
-  -h, --help                                     Print help
-  -V, --version                                  Print version
-  -A, --all-namespaces[=<true|false>]            Select all namespaces [default: false]
-  -c, --context <CONTEXT>                        Context
-  -C, --kubeconfig <KUBECONFIG>                  kubeconfig path
-      --config-file <CONFIG_FILE>                Config file path
-  -l, --logging                                  Logging
-  -n, --namespaces <NAMESPACES>                  Namespaces (e.g. -n val1,val2,val3 | -n val1 -n val2 -n val3)
-      --pod-columns <POD_COLUMNS>                Comma-separated list of columns to show in pod table (e.g. name,status,ip). Use "full" to show all available columns
-      --pod-columns-preset <POD_COLUMNS_PRESET>  Preset name for pod columns (e.g. "default", "full"). If both are specified, `--pod-columns` overrides this
-  -s, --split-direction <v|h>                    Window split direction [default: v]
+  -h, --help                                       Print help
+  -V, --version                                    Print version
+  -A, --all-namespaces[=<true|false>]              Select all namespaces [default: false]
+  -c, --context <CONTEXT>                          Context
+  -C, --kubeconfig <KUBECONFIG>                    kubeconfig path
+      --clipboard <auto|system|osc52>              Clipboard mode (auto, system, or osc52) [env: KUBETUI_CLIPBOARD=] [default: auto]
+      --config-file <CONFIG_FILE>                  Config file path
+  -l, --logging                                    Logging
+  -n, --namespaces <NAMESPACES>                    Namespaces (e.g. -n val1,val2,val3 | -n val1 -n val2 -n val3)
+      --node-columns <NODE_COLUMNS>                Comma-separated columns for the node table: builtin names (e.g. name,status), defined label-column names, or "full" for all builtins
+      --node-columns-preset <NODE_COLUMNS_PRESET>  Preset name for node columns (e.g. "default", "wide"). If both are specified, `--node-columns` overrides this
+      --pod-columns <POD_COLUMNS>                  Comma-separated list of columns to show in pod table (e.g. name,status,ip). Use "full" to show all available columns
+      --pod-columns-preset <POD_COLUMNS_PRESET>    Preset name for pod columns (e.g. "default", "full"). If both are specified, `--pod-columns` overrides this
+  -s, --split-direction <v|h>                      Window split direction [default: v]
 ```
 
-### Pod Column Customization
+### Column Customization
 
-Use `--pod-columns` to customize the columns displayed in the pod table.
+The Pod, Node, Config, and Network tables all support column customization.
+Pod and Node additionally support **presets** and a CLI flag for selecting columns at startup; Config and Network use the runtime dialog and label columns.
 
-- Specify columns using a comma-separated list:  
-  `--pod-columns=ready,status,age`
+#### CLI flags (Pod / Node)
 
-- Use `full` to show all available columns:  
-  `--pod-columns=full`
+```sh
+kubetui --pod-columns=name,ready,status,age
+kubetui --pod-columns=full           # show all builtin columns
+kubetui --pod-columns-preset=default
+
+kubetui --node-columns=name,status,roles,age,version
+kubetui --node-columns-preset=wide
+```
 
 Notes:
 
-- The `Name` column is always included even if not specified.
-- The `full` keyword cannot be combined with other columns.
+- The `NAME` column is always included even if not specified.
+- `full` expands to all builtin columns and cannot be combined with other columns.
+- `--pod-columns` overrides `--pod-columns-preset`; same for `--node-columns` / `--node-columns-preset`.
 
-You can also customize columns dynamically at runtime:
+#### Runtime column dialog (all four tabs)
 
-- Press <kbd>t</kbd> in the pod view to open the column selection dialog.
-- Use <kbd>Space</kbd>/<kbd>Enter</kbd> to toggle visibility and <kbd>J</kbd>/<kbd>K</kbd> to reorder columns.
+Press <kbd>t</kbd> while a table is focused (Pod / Node / Config / Network) to open the column selection dialog.
+
+- <kbd>Space</kbd> or <kbd>Enter</kbd>: toggle visibility
+- <kbd>J</kbd> / <kbd>K</kbd>: reorder columns
 - Required columns like `NAME` are always enabled and fixed.
 
-#### Define presets in config.yaml
+#### Label columns
 
-You can define reusable column presets under `pod.column_presets` in your config file, and set a default preset with `pod.default_preset`.
-
-#### Example config
+You can register labels as table columns under `theme.<tab>.label_columns`. Each entry maps a short `name` to a label key. The `name` is used as the upper-cased column header, in the column dialog, and in filter expressions across all four tabs; for Pod and Node it can additionally appear in `--*-columns` flag values and presets. The cell value is taken from `metadata.labels[<label>]`; resources without the label show an empty cell.
 
 ```yaml
 theme:
   pod:
-    # Name of the default preset to use at startup (optional)
-    default_preset: minimal
+    label_columns:
+      - name: app
+        label: app.kubernetes.io/name
 
-    # Define named presets of pod columns
+  node:
+    label_columns:
+      - name: zone
+        label: topology.kubernetes.io/zone
+      - name: instance
+        label: node.kubernetes.io/instance-type
+
+  config:
+    label_columns:
+      - name: instance
+        label: argocd.argoproj.io/instance
+
+  network:
+    label_columns:
+      - name: app
+        label: app.kubernetes.io/name
+```
+
+Registered label columns are also valid:
+
+- Inside `--pod-columns` / `--node-columns` (e.g. `--node-columns=name,status,zone`).
+- Inside presets (interleaved with builtin columns).
+- Inside filter expressions (e.g. `app:nginx`, `zone:asia-northeast1-a`).
+
+#### Define presets in config.yaml (Pod / Node)
+
+Define reusable presets under `theme.pod.column_presets` / `theme.node.column_presets`, and set a startup default with `default_preset`.
+
+```yaml
+theme:
+  pod:
+    default_preset: minimal
     column_presets:
       default:
         - name
@@ -223,18 +274,62 @@ theme:
         - name
         - status
         - age
+
+  node:
+    default_preset: default
+    column_presets:
+      default:
+        - name
+        - status
+        - roles
+        - age
+        - version
+      wide:
+        - full
+      topology:
+        - name
+        - status
+        - roles
+        - zone       # label column
+        - instance   # label column
 ```
 
-To use a preset defined in your config file at runtime:
+Resolution order at startup: CLI flag (`--<tab>-columns`) > preset (`--<tab>-columns-preset`) > `theme.<tab>.default_preset` > builtin default.
 
-```sh
-kubetui --pod-columns-preset=default
+### Filter (Column-Aware)
+
+Pod, Node, Config, and Network tables share a column-aware filter. Open the filter input with <kbd>/</kbd>, type the expression, and press <kbd>Enter</kbd> to apply (or <kbd>Esc</kbd> to clear the active filter and close the form).
+
+Press <kbd>?</kbd> (or type `help`) inside the filter input to open the per-tab filter help dialog with the columns available in the current tab.
+
+#### Syntax summary
+
+```
+TERM [ TERM ]...
 ```
 
-This will apply the preset named "default" defined in your configuration file.
+| Term | Meaning |
+| --- | --- |
+| `<value>`            | Bare value — treated as `NAME:<value>` (regex include). |
+| `NAME:<regex>`       | Include rows whose `NAME` matches. |
+| `<COL>:<regex>`      | Include rows whose `COL` matches. |
+| `!<COL>:<regex>`     | Exclude rows whose `COL` matches. |
+| `label:<selector>`   | Kubernetes labelSelector applied **server-side** (e.g. `label:app=nginx,env=prod`). Last `label:` wins if repeated. |
 
-If both `--pod-columns` and `--pod-columns-preset` are specified, `--pod-columns` takes precedence.
-If neither is specified, the preset defined in `pod.default_preset` (if any) is used.
+- **Same column, multiple includes** → OR (in-list): `STATUS:Running STATUS:Pending` → `STATUS in (Running, Pending)`.
+- **Different columns, includes** → AND across columns: `NAME:web STATUS:Running` → `NAME~web AND STATUS~Running`.
+- **Any matching exclude** → row excluded.
+- Column names ignore case, spaces, `-`, and `_`.
+- Values with whitespace must be quoted: `STATUS:"CreateContainerConfigError"`. Escape `"`, `'`, or `\` inside quotes with `\`.
+
+#### Inactive terms
+
+A term on a column that is **currently not shown** stays in the filter but is not applied. The title shows `(inactive: COL)` until the column is shown again (e.g. via the column dialog). Unknown columns produce an error.
+
+#### Notes per tab
+
+- **Pod / Config / Network**: `namespace` is not filterable — use the namespace selector (`n` / `N`) instead. A `namespace:<...>` term returns a dedicated guidance message (rather than a generic unknown-column error) in all three tabs.
+- **Node**: cluster-scoped, so there is no `namespace` concept; `namespace:<...>` is treated as a plain unknown-column error.
 
 ### Shell Completion
 
@@ -252,23 +347,40 @@ For Zsh (add to `~/.zshrc`):
 source <(kubetui completion zsh)
 ```
 
+### Clipboard
+
+Kubetui supports three clipboard backends, selectable via `--clipboard` or the `KUBETUI_CLIPBOARD` environment variable:
+
+| Mode     | Behavior                                                                                            |
+| -------- | --------------------------------------------------------------------------------------------------- |
+| `auto`   | (default) OSC52 when an SSH session is detected (`SSH_CONNECTION` / `SSH_CLIENT` / `SSH_TTY`); otherwise the system clipboard, falling back to OSC52 if unavailable. |
+| `system` | Always use the system clipboard (X11 / Wayland / macOS / Windows).                                  |
+| `osc52`  | Always emit OSC52 escape sequences — works over SSH and inside `tmux` without a system clipboard.   |
+
+```sh
+kubetui --clipboard osc52
+KUBETUI_CLIPBOARD=osc52 kubetui
+```
+
 ### Custom Configuration
 
-You can customize the UI appearance by specifying a configuration file using the `--config-file` flag:
+You can customize the UI appearance and several feature settings by specifying a configuration file using the `--config-file` flag:
 
 ```sh
 kubetui --config-file /path/to/your/config.yaml
 ```
 
-The configuration file can also be located at `~/.config/kubetui/config.yaml` or `$XDG_CONFIG_FILE/kubetui/config.yaml`.
+The configuration file can also be located at `$XDG_CONFIG_HOME/kubetui/config.yaml` (or `~/.config/kubetui/config.yaml` when `$XDG_CONFIG_HOME` is unset).
 
-The configuration file allows you to modify various aspects of the UI, including:
+The configuration file allows you to modify:
 
 - **Border Styles**: Customize the border styles of different UI components.
 - **Colors**: Change the colors of text, backgrounds, and borders.
 - **Text Attributes**: Modify text attributes such as bold, italic, and underline.
+- **Per-tab settings**: `theme.pod` / `theme.node` / `theme.config` / `theme.network` accept `label_columns` (register labels as columns and filter terms) and `column_presets` / `default_preset` (Pod and Node only).
+- **Status highlights**: `theme.pod.highlights` and `theme.event.highlights` accept regex → style rules.
 
-A sample configuration file is available at `example/config.yaml` to help you get started with customizing the UI.
+A sample configuration file is available at `example/config.yaml` to help you get started.
 
 ## Log Query
 
@@ -417,7 +529,7 @@ ESCAPED_CHAR = "\\" | "\"" | "\'"
 | <kbd>c</kbd>                         | Open the dialog for selecting the context                           |
 | <kbd>y</kbd>                         | Open the dialog for yaml                                            |
 | <kbd>Tab</kbd>, <kbd>Shift+Tab</kbd> | Change the focus of the view within the active tab                  |
-| <kbd>number</kbd>                    | Switch to the tab (number: 1~6)                                     |
+| <kbd>number</kbd>                    | Switch to the tab (number: 1~7)                                     |
 | <kbd>ESC</kbd>                       | Close the window or terminate the app (when the dialog is not open) |
 | <kbd>q</kbd>                         | Terminate the app                                                   |
 | <kbd>f</kbd>                         | Open the dialog for selecting multiple API resources                |
@@ -464,10 +576,21 @@ ESCAPED_CHAR = "\\" | "\"" | "\'"
 
 ### Table View
 
-| Key                              | Description           |
-| -------------------------------- | --------------------- |
-| <kbd>/</kbd>                     | Open the filter form  |
-| <kbd>Enter</kbd>, <kbd>ESC</kbd> | Close the filter form |
+| Key                | Description                                                                              |
+| ------------------ | ---------------------------------------------------------------------------------------- |
+| <kbd>/</kbd>       | Open the filter form (see [Filter](#filter-column-aware) for syntax)                     |
+| <kbd>Enter</kbd>   | Apply the filter and close the form                                                      |
+| <kbd>Esc</kbd>     | Clear the active filter and close the form                                               |
+| <kbd>?</kbd>       | (while filter form is focused) Open the per-tab filter help dialog                       |
+| <kbd>t</kbd>       | Open the column selection dialog (Pod / Node / Config / Network)                         |
+
+#### Column Dialog
+
+| Key                                  | Description                       |
+| ------------------------------------ | --------------------------------- |
+| <kbd>Space</kbd>, <kbd>Enter</kbd>   | Toggle column visibility          |
+| <kbd>J</kbd>, <kbd>K</kbd>           | Reorder columns                   |
+| <kbd>Esc</kbd>                       | Close the dialog                  |
 
 ### Dialog
 
@@ -501,6 +624,13 @@ ESCAPED_CHAR = "\\" | "\"" | "\'"
 | ---------------------------- | ------------------------------------------------------------------ |
 | <kbd>f</kbd>, <kbd>p</kbd>   | Toggle between pretty print and single-line display for JSON logs. |
 | <kbd>Enter</kbd>             | Insert a blank line.                                               |
+
+#### Inline notices
+
+Two kinds of inline `[kubetui]` lines may appear within the log stream:
+
+- **Yellow `[kubetui] <namespace>: <message>`**: Per-namespace non-fatal notice during setup (e.g. the resource specified by `deployment/<name>` does not exist in some of the selected namespaces). Other namespaces continue to stream logs.
+- **Red `[kubetui] <message>`**: A stream-side error encountered while logs are flowing. The stream continues; the error state of the widget is not toggled.
 
 ## Contributing
 
