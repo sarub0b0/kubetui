@@ -67,32 +67,45 @@ It provides an easy-to-use interface for developers and operators to access impo
 
 Kubetui offers the following features to help you monitor and manage your Kubernetes resources:
 
-- **Pods List and Container Logs**:
-  - View a list of pods and their container logs.
-  - JSON logs display mode switching: toggle between pretty print and single-line display using the <kbd>f</kbd> or <kbd>p</kbd> keys.
-  - **Powerful Log Query**: Aggregate logs across multiple pods and containers using regex include/exclude, label/field selectors, or resource targeting (e.g. `deployment/app`), and post-process JSON logs with jq or JMESPath filters. See [Log Query](#log-query) for details.
-- **Node List and Detail**: View a list of nodes with status, roles, age, version, and a detail pane.
-- **ConfigMap and Secret Watching**: Monitor ConfigMaps and secrets, and decode their data.
-- **Network-related Resources**: Explore a list of network-related resources and their descriptions.
-- **Events Watching**: Stay updated with a real-time view of Kubernetes events.
-- **Arbitrary Resource Watching (List / YAML)**: Select any resource kinds with <kbd>f</kbd> and watch them as a list, or inspect a selected resource's raw manifest with the YAML view (<kbd>y</kbd>).
-- **Customizable Columns for Pod / Node / Config / Network**:
-  - Open a runtime column selection dialog by pressing <kbd>t</kbd> while a table is focused — toggle visibility with <kbd>Space</kbd>/<kbd>Enter</kbd> and reorder with <kbd>J</kbd>/<kbd>K</kbd>.
-  - **Presets and CLI flags (Pod / Node only)**: Select startup columns via CLI flags (`--pod-columns` / `--pod-columns-preset` / `--node-columns` / `--node-columns-preset`) or named `column_presets` in the config file. Config and Network use the runtime dialog and label columns instead.
-  - **Label columns**: Register node/pod/config/network labels as table columns via `label_columns` in the config file. Registered labels also become valid filter columns and column-dialog entries.
-- **Column-aware filter (Pod / Node / Config / Network)**:
-  - Filter syntax: `COL:<regex>` to include, `!COL:<regex>` to exclude, `label:<selector>` for server-side Kubernetes labelSelector, bare values default to `NAME`.
-  - Inactive terms: a term targeting a column that is currently not shown is kept but not applied; the title shows `(inactive: …)` until the column is shown again.
-  - Press <kbd>?</kbd> (or type `help`) in the filter input to open the per-tab filter help dialog.
+- **Pods List and Container Logs**: List pods and stream logs from multiple pods/containers at once. Toggle JSON logs between pretty-print and single-line (<kbd>f</kbd>/<kbd>p</kbd>). A powerful Log Query supports regex include/exclude, label/field selectors, resource targeting (e.g. `deployment/app`), and jq/JMESPath post-processing. See [Log Query](#log-query).
+- **Node List and Detail**: List nodes with status, roles, age, and version, and view a detail pane for the selected node.
+- **ConfigMap and Secret Watching**: Monitor ConfigMaps and Secrets, and decode their data (e.g. Base64).
+- **Network-related Resources**: Explore network-related resources and their descriptions.
+- **Events Watching**: Stay updated with a real-time view of Kubernetes events (with per-type highlight rules).
+- **Arbitrary Resource Watching (List / YAML)**: Select any resource kinds with <kbd>f</kbd> and watch them as a list, or inspect a selected resource's raw YAML with <kbd>y</kbd>.
+- **Customizable Columns (Pod / Node / Config / Network)**: Change visible columns and order via a runtime dialog (<kbd>t</kbd>); Pod/Node can also be set at startup with CLI flags and presets. Register labels as columns with `label_columns` — they also become filterable columns. See [Column Customization](#column-customization).
+- **Column-aware Filter (Pod / Node / Config / Network)**: `COL:<regex>` to include, `!COL:<regex>` to exclude, `label:<selector>` applied server-side, bare values match `NAME`. Terms on hidden columns become inactive; press <kbd>?</kbd> for inline help. See [Filter](#filter-column-aware).
 - **Namespace Multiple Selections**: Select and view multiple namespaces simultaneously.
-- **Context Selection**: Change the Kubernetes context you want to operate on.
-- **Adjustable Split Layout**: Toggle the pane split between vertical and horizontal at runtime with <kbd>Shift+s</kbd>, or set it at startup with `-s v|h`.
-- **Clipboard Support (Text Copy)**: Copy text via mouse actions. The clipboard backend is selectable with `--clipboard auto|system|osc52` (or `KUBETUI_CLIPBOARD`) — OSC52 mode works over SSH/tmux without a system clipboard.
-- **Mouse Support**: Click to focus and select items, switch tabs by clicking, scroll with the wheel, and drag to select text for copying.
+- **Context Selection**: Switch the Kubernetes context you operate on (with namespace carry-over / caching).
+- **Adjustable Split Layout**: Toggle vertical/horizontal pane split at runtime (<kbd>Shift+s</kbd>), or set it at startup with `-s v|h`.
+- **Clipboard Support**: Copy text with the mouse; the backend is selectable (`auto`/`system`/`osc52`), and OSC52 works over SSH and tmux. See [Clipboard](#clipboard).
+- **Mouse Support**: Click to focus and select, click tabs to switch, scroll with the wheel, and drag to select text for copying.
 - **Incremental Search**: Search within text views with <kbd>/</kbd> and jump between matches with <kbd>n</kbd> / <kbd>N</kbd>.
-- **(beta) Customizable UI Appearance**: Modify the appearance of the UI, including border styles, colors, and text attributes.
+- **(beta) Customizable UI Appearance**: Theme border styles, colors, and text attributes via a config file.
 
 Overall, kubetui is a powerful tool designed to provide a safe and efficient way to access and monitor your Kubernetes resources. With its user-friendly interface and comprehensive features, it simplifies the process of managing your applications and infrastructure.
+
+<!-- TEMP: slim alternative for visual comparison on GitHub — remove before merge -->
+
+## Features (Slim alternative — TEMPORARY, remove before merge)
+
+- **Pods List and Container Logs**: Browse pods and stream their container logs, with JSON pretty-print toggling (<kbd>f</kbd>/<kbd>p</kbd>) and a powerful [Log Query](#log-query) (regex, label/field selectors, resource targeting, jq/JMESPath).
+- **Node List and Detail**: View nodes with status, roles, age, and version, plus a detail pane.
+- **ConfigMap and Secret Watching**: Monitor ConfigMaps and Secrets, and decode their data.
+- **Network-related Resources**: Explore network-related resources and their descriptions.
+- **Events Watching**: Stay updated with a real-time view of Kubernetes events.
+- **Arbitrary Resource Watching (List / YAML)**: Select any resource kinds with <kbd>f</kbd> and watch them as a list, or inspect a selected resource's raw YAML with <kbd>y</kbd>.
+- **Customizable Columns (Pod / Node / Config / Network)**: Pick visible columns and order via a runtime dialog (<kbd>t</kbd>), CLI flags / presets (Pod / Node), and label columns. See [Column Customization](#column-customization).
+- **Column-aware Filter (Pod / Node / Config / Network)**: Filter rows by column with include/exclude regex and server-side label selectors, with inline help. See [Filter](#filter-column-aware).
+- **Namespace Multiple Selections**: Select and view multiple namespaces simultaneously.
+- **Context Selection**: Switch the Kubernetes context you operate on.
+- **Adjustable Split Layout**: Toggle vertical/horizontal pane split at runtime (<kbd>Shift+s</kbd>) or at startup (`-s v|h`).
+- **Clipboard Support**: Copy text with the mouse; the backend is selectable (system / OSC52, SSH- and tmux-friendly). See [Clipboard](#clipboard).
+- **Mouse Support**: Click to focus and select, click tabs to switch, scroll with the wheel, and drag to select text for copying.
+- **Incremental Search**: Search within text views with <kbd>/</kbd> and jump between matches with <kbd>n</kbd> / <kbd>N</kbd>.
+- **(beta) Customizable UI Appearance**: Theme border styles, colors, and text attributes via a config file.
+
+<!-- END TEMP -->
 
 ## Installation
 
