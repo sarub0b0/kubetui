@@ -70,7 +70,7 @@ Kubetui offers the following features to help you monitor and manage your Kubern
 - **Pods List and Container Logs**:
   - View a list of pods and their container logs.
   - JSON logs display mode switching: toggle between pretty print and single-line display using the <kbd>f</kbd> or <kbd>p</kbd> keys.
-  - **Multi-namespace log query with partial-success**: When a log query targets multiple namespaces and the target resource is missing in some of them, the namespaces that do have it continue to stream logs. Each namespace where the resource is missing is surfaced as an inline yellow `[kubetui]` notice line instead of failing the whole query.
+  - **Powerful Log Query**: Aggregate logs across multiple pods and containers using regex include/exclude, label/field selectors, or resource targeting (e.g. `deployment/app`), and post-process JSON logs with jq or JMESPath filters. See [Log Query](#log-query) for details.
 - **Node List and Detail**: View a list of nodes with status, roles, age, version, and a detail pane.
 - **ConfigMap and Secret Watching**: Monitor ConfigMaps and secrets, and decode their data.
 - **Network-related Resources**: Explore a list of network-related resources and their descriptions.
