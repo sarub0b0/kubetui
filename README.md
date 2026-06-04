@@ -336,8 +336,8 @@ A term on a column that is **currently not shown** stays in the filter but is no
 
 #### Notes per tab
 
-- **Pod**: `namespace` is not filterable — use the namespace selector (`n` / `N`) instead. Filter typo `namespace:foo` returns a dedicated message.
-- **Config / Network**: no `namespace` column; label columns registered via `label_columns` become first-class filter columns.
+- **Pod / Config / Network**: `namespace` is not filterable — use the namespace selector (`n` / `N`) instead. A `namespace:<...>` term returns a dedicated guidance message (rather than a generic unknown-column error) in all three tabs.
+- **Config / Network**: label columns registered via `label_columns` become first-class filter columns.
 
 ### Shell Completion
 
@@ -361,7 +361,7 @@ Kubetui supports three clipboard backends, selectable via `--clipboard` or the `
 
 | Mode     | Behavior                                                                                            |
 | -------- | --------------------------------------------------------------------------------------------------- |
-| `auto`   | (default) System clipboard if available, else OSC52.                                                |
+| `auto`   | (default) OSC52 when an SSH session is detected (`SSH_CONNECTION` / `SSH_CLIENT` / `SSH_TTY`); otherwise the system clipboard, falling back to OSC52 if unavailable. |
 | `system` | Always use the system clipboard (X11 / Wayland / macOS / Windows).                                  |
 | `osc52`  | Always emit OSC52 escape sequences — works over SSH and inside `tmux` without a system clipboard.   |
 
@@ -588,7 +588,7 @@ ESCAPED_CHAR = "\\" | "\"" | "\'"
 | ------------------ | ---------------------------------------------------------------------------------------- |
 | <kbd>/</kbd>       | Open the filter form (see [Filter](#filter-column-aware) for syntax)                     |
 | <kbd>Enter</kbd>   | Apply the filter and close the form                                                      |
-| <kbd>Esc</kbd>     | Cancel and close the filter form                                                         |
+| <kbd>Esc</kbd>     | Clear the active filter and close the form                                               |
 | <kbd>?</kbd>       | (while filter form is focused) Open the per-tab filter help dialog                       |
 | <kbd>t</kbd>       | Open the column selection dialog (Pod / Node / Config / Network)                         |
 
