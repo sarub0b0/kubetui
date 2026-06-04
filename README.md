@@ -67,28 +67,6 @@ It provides an easy-to-use interface for developers and operators to access impo
 
 Kubetui offers the following features to help you monitor and manage your Kubernetes resources:
 
-- **Pods List and Container Logs**: List pods and stream logs from multiple pods/containers at once. Toggle JSON logs between pretty-print and single-line (<kbd>f</kbd>/<kbd>p</kbd>). A powerful Log Query supports regex include/exclude, label/field selectors, resource targeting (e.g. `deployment/app`), and jq/JMESPath post-processing. See [Log Query](#log-query).
-- **Node List and Detail**: List nodes with status, roles, age, and version, and view a detail pane for the selected node.
-- **ConfigMap and Secret Watching**: Monitor ConfigMaps and Secrets, and decode their data (e.g. Base64).
-- **Network-related Resources**: Explore network-related resources and their descriptions.
-- **Events Watching**: Stay updated with a real-time view of Kubernetes events (with per-type highlight rules).
-- **Arbitrary Resource Watching (List / YAML)**: Select any resource kinds with <kbd>f</kbd> and watch them as a list, or inspect a selected resource's raw YAML with <kbd>y</kbd>.
-- **Customizable Columns (Pod / Node / Config / Network)**: Change visible columns and order via a runtime dialog (<kbd>t</kbd>); Pod/Node can also be set at startup with CLI flags and presets. Register labels as columns with `label_columns` — they also become filterable columns. See [Column Customization](#column-customization).
-- **Column-aware Filter (Pod / Node / Config / Network)**: `COL:<regex>` to include, `!COL:<regex>` to exclude, `label:<selector>` applied server-side, bare values match `NAME`. Terms on hidden columns become inactive; press <kbd>?</kbd> for inline help. See [Filter](#filter-column-aware).
-- **Namespace Multiple Selections**: Select and view multiple namespaces simultaneously.
-- **Context Selection**: Switch the Kubernetes context you operate on (with namespace carry-over / caching).
-- **Adjustable Split Layout**: Toggle vertical/horizontal pane split at runtime (<kbd>Shift+s</kbd>), or set it at startup with `-s v|h`.
-- **Clipboard Support**: Copy text with the mouse; the backend is selectable (`auto`/`system`/`osc52`), and OSC52 works over SSH and tmux. See [Clipboard](#clipboard).
-- **Mouse Support**: Click to focus and select, click tabs to switch, scroll with the wheel, and drag to select text for copying.
-- **Incremental Search**: Search within text views with <kbd>/</kbd> and jump between matches with <kbd>n</kbd> / <kbd>N</kbd>.
-- **(beta) Customizable UI Appearance**: Theme border styles, colors, and text attributes via a config file.
-
-Overall, kubetui is a powerful tool designed to provide a safe and efficient way to access and monitor your Kubernetes resources. With its user-friendly interface and comprehensive features, it simplifies the process of managing your applications and infrastructure.
-
-<!-- TEMP: slim alternative for visual comparison on GitHub — remove before merge -->
-
-## Features (Slim alternative — TEMPORARY, remove before merge)
-
 - **Pods List and Container Logs**: Browse pods and stream their container logs, with JSON pretty-print toggling (<kbd>f</kbd>/<kbd>p</kbd>) and a powerful [Log Query](#log-query) (regex, label/field selectors, resource targeting, jq/JMESPath).
 - **Node List and Detail**: View nodes with status, roles, age, and version, plus a detail pane.
 - **ConfigMap and Secret Watching**: Monitor ConfigMaps and Secrets, and decode their data.
@@ -105,7 +83,7 @@ Overall, kubetui is a powerful tool designed to provide a safe and efficient way
 - **Incremental Search**: Search within text views with <kbd>/</kbd> and jump between matches with <kbd>n</kbd> / <kbd>N</kbd>.
 - **(beta) Customizable UI Appearance**: Theme border styles, colors, and text attributes via a config file.
 
-<!-- END TEMP -->
+Overall, kubetui is a powerful tool designed to provide a safe and efficient way to access and monitor your Kubernetes resources. With its user-friendly interface and comprehensive features, it simplifies the process of managing your applications and infrastructure.
 
 ## Installation
 
