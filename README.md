@@ -306,7 +306,7 @@ Resolution order at startup: CLI flag (`--<tab>-columns`) > preset (`--<tab>-col
 
 ### Filter (Column-Aware)
 
-Pod, Node, Config, and Network tables share a column-aware filter. Open the filter input with <kbd>/</kbd>, type the expression, and press <kbd>Enter</kbd> to apply (or <kbd>Esc</kbd> to cancel).
+Pod, Node, Config, and Network tables share a column-aware filter. Open the filter input with <kbd>/</kbd>, type the expression, and press <kbd>Enter</kbd> to apply (or <kbd>Esc</kbd> to clear the active filter and close the form).
 
 Press <kbd>?</kbd> (or type `help`) inside the filter input to open the per-tab filter help dialog with the columns available in the current tab.
 
