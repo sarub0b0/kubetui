@@ -71,7 +71,7 @@ percent-encoding = "2.3.2"
 [dev-dependencies]
 pretty_assertions = "1.4.0"
 indoc = "2.0.5"
-mockall = "0.14.0"
+mockall = "0.15.0"
 mockall_double = "0.3.1"
 tokio = { version = "1.37.0", features = ["rt", "rt-multi-thread", "macros"] }
 rstest = "0.26.0"
