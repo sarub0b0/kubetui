@@ -19,7 +19,7 @@ nom = { version = "8.0.0", features = ["alloc"] }
 
 # clipboard
 arboard = { version = "3.4.1", default-features = false, features = ["wayland-data-control"] }
-base64 = "0.22.1"
+base64 = "0.23.0"
 
 # tui
 async-trait = "0.1.80"
