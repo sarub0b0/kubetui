@@ -40,14 +40,9 @@ mod tests {
         let mut config = kube::Config::new("https://example.com".parse().unwrap());
         config.auth_info = AuthInfo {
             exec: Some(ExecConfig {
-                api_version: None,
                 command: Some("some-auth-plugin".to_string()),
-                args: None,
-                env: None,
-                drop_env: None,
                 interactive_mode,
-                provide_cluster_info: false,
-                cluster: None,
+                ..Default::default()
             }),
             ..Default::default()
         };
